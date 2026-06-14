@@ -10,7 +10,6 @@
     "paths": {
       "@/*": ["./app/*"]
     },
-    "types": ["react-native"],
     "allowJs": true,
     "noEmit": true,
     "esModuleInterop": true,

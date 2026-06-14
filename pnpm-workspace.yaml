@@ -4,4 +4,5 @@ packages:
 allowBuilds:
   sharp: set this to true or false
   unrs-resolver: set this to true or false
+networkConcurrency: 3
 onlyBuiltDependencies: '["sharp","unrs-resolver"]'
