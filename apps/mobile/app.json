@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "board-game-organizer",
+    "slug": "board-game-organizer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "bgo",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bgo.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.bgo.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router"]
+  }
+}
