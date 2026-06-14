@@ -23,7 +23,7 @@ No hardcoded user-facing strings anywhere. Every text node in components, every 
 
 ### Language & Formatting
 - **Language**: TypeScript, strict mode, across all apps and packages
-- **Linting/Formatting**: Biome (root config, extended per-app). ESLint + Prettier as fallback only for packages where Biome integration is not viable (e.g. first-generation Expo plugin)
+- **Linting/Formatting**: Biome (root config, extended per-app), configured to enforce **TypeScript Standard Style** (`ts-standard`). `ts-standard` + ESLint as fallback only for packages where Biome integration is not viable (e.g. first-generation Expo plugin)
 - **Monorepo**: Turborepo + pnpm workspaces
 
 ### Apps
@@ -101,6 +101,58 @@ No hardcoded user-facing strings anywhere. Every text node in components, every 
 - **Stores, hooks, utils**: `camelCase`
 - **Zod schemas**: `PascalCaseSchema` (e.g. `MatchSchema`, `UserSchema`)
 - **API error codes**: `SCREAMING_SNAKE_CASE` (e.g. `MATCH_NOT_FOUND`)
+- **Booleans**: prefixed with `is` / `has` / `should` / `can` (e.g. `isLoading`, `hasAccess`)
+- **Types & interfaces**: `PascalCase`, no `I`/`T` prefixes — `User`, never `IUser`
+- **Constants**: `SCREAMING_SNAKE_CASE` for module-level immutable values
+
+---
+
+## TypeScript Code Style
+
+The project adopts **TypeScript Standard Style** (`ts-standard`, the TypeScript variant of [StandardJS](https://standardjs.com)) as the canonical style guide. Formatting is non-negotiable and machine-enforced — no manual style debates in review. `ts-standard` is the authority; Biome is configured to match the Standard ruleset (linting + formatting), with `ts-standard` itself as the fallback where Biome cannot reproduce a rule.
+
+### Standard Style Rules
+- **Indentation**: 2 spaces
+- **Quotes**: single quotes (`'...'`), double only to avoid escaping
+- **Semicolons**: none — omitted everywhere (Standard relies on ASI)
+- **Trailing commas**: not allowed
+- **Spacing**: space after keywords (`if (cond)`), space before function parentheses (`function name (arg)`), spaces around infix operators, space after commas
+- **Equality**: `===` / `!==` only — never `==` / `!=`
+- **Braces**: `else` / `catch` on the same line as the closing brace; always brace multi-line blocks
+- **Unused code**: no unused variables, imports, or parameters
+- **Declarations**: `const` by default; `let` only when reassigned; `var` is banned
+- **Line width**: not enforced by Standard (keep lines reasonable, ~100 cols by convention)
+- **Imports**: auto-sorted — external packages → workspace packages → relative; `import type` for type-only imports
+
+### TypeScript Language Rules
+- No runtime `enum` — use string union types or `as const` objects
+- Prefer `interface` for object/contract shapes, `type` for unions, intersections, tuples, and aliases
+- No redundant type annotations where inference is unambiguous; always annotate exported/public function signatures (params + return)
+- `readonly` / `ReadonlyArray<T>` for immutable data; avoid in-place mutation
+- Use optional chaining `?.` and nullish coalescing `??` over manual null checks
+- Prefer early returns over deep nesting; destructuring over repeated property access; template literals over `+` concatenation
+- Named exports preferred over default exports
+- Model state with discriminated unions instead of multiple boolean flags
+
+### Compiler Gates (every `tsconfig.json`)
+Beyond the `strict: true` mandated by Principle II, enable `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, and `forceConsistentCasingInFileNames`. Violations fail `typecheck` in CI.
+
+---
+
+## React & React Native Rules
+
+### Hooks (enforced by linter)
+The Rules of Hooks are non-negotiable and enforced via Biome's `useHookAtTopLevel` and `useExhaustiveDependencies` rules (equivalent to ESLint's `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps`, set to `error`):
+- Hooks are called only at the top level — never inside conditions, loops, or nested functions
+- Hooks are called only from React components or other custom hooks
+- `useEffect` / `useCallback` / `useMemo` declare complete and correct dependency arrays
+
+### Components
+- Typed props — no `React.FC` (breaks implicit `children` and generics); use plain function declarations
+- `children` typed explicitly as `React.ReactNode`
+- One component per `.tsx` file; files without JSX use `.ts`
+- Event handlers named `handleX`, bound to `onX` props
+- React Native: `StyleSheet.create()` over inline styles; `Pressable` over `TouchableOpacity`; all text inside `<Text>`; typed React Navigation param lists
 
 ---
 
@@ -116,4 +168,4 @@ No hardcoded user-facing strings anywhere. Every text node in components, every 
 
 This constitution supersedes all ad-hoc development practices. Any amendment requires a documented proposal, team approval, and a migration plan. All PRs must verify compliance — reviewers check for hardcoded strings, missing types, `any` usage, and schema duplication.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-14 | **Last Amended**: 2026-06-14
+**Version**: 1.2.1 | **Ratified**: 2026-06-14 | **Last Amended**: 2026-06-14
