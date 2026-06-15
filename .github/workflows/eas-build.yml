@@ -46,6 +46,6 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🚀 EAS Build (production)
-        run: eas build --platform android --profile preview --non-interactive --no-wait
+        run: eas build --platform android --profile preview --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
