@@ -10,7 +10,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.0",
@@ -33,6 +34,8 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "typescript": "^5"
+    "@vitejs/plugin-react": "^4.4.0",
+    "typescript": "^5",
+    "vitest": "^3.1.0"
   }
 }

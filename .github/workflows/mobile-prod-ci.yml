@@ -1,0 +1,65 @@
+name: Mobile Production CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-prod-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conventional-commits:
+    name: 🔍 Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 💬 Check commit messages
+        uses: webiny/action-conventional-commits@v1.3.0
+        with:
+          allowed-commit-types: 'feat,fix,chore,docs,style,refactor,perf,test,build,ci,revert'
+
+  test:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.6.0
+
+      - name: 🧩 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🧪 Run tests
+        run: pnpm --filter mobile test
+
+  eas-build:
+    name: 🏗️ EAS Build Production
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ⚡ Setup EAS & Build
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          command: eas build --platform android --profile production --non-interactive
