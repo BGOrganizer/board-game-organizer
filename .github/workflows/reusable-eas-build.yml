@@ -1,0 +1,56 @@
+name: 🏗️ EAS Build
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: Human-readable app name
+        required: true
+        type: string
+      app-path:
+        description: Expo app root inside monorepo
+        required: false
+        type: string
+        default: apps/mobile
+      platform:
+        description: EAS platform
+        required: false
+        type: string
+        default: android
+      profile:
+        description: EAS build profile
+        required: true
+        type: string
+      install:
+        description: Install workspace dependencies before EAS build
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      expo_token:
+        required: true
+
+jobs:
+  build:
+    name: 🏗️ ${{ inputs.app-name }} ${{ inputs.profile }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+        with:
+          install: ${{ inputs.install && 'true' || 'false' }}
+
+      - name: ⚡ Setup Expo/EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.expo_token }}
+
+      - name: 🏗️ Run EAS build
+        working-directory: ${{ inputs.app-path }}
+        run: eas build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }} --non-interactive

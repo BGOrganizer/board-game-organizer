@@ -1,0 +1,57 @@
+name: 📱 Mobile CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/mobile/**
+      - packages/**
+  pull_request:
+    paths:
+      - apps/mobile/**
+      - packages/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conventional-commits:
+    name: 🔍 Conventional Commits
+    uses: ./.github/workflows/reusable-conventional-commits.yml
+
+  test:
+    name: 🧪 Tests
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      project-name: mobile
+
+  eas-build-preview:
+    name: 🏗️ EAS Build Preview
+    needs: [conventional-commits, test]
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/reusable-eas-build.yml
+    with:
+      app-name: Mobile
+      app-path: apps/mobile
+      platform: android
+      profile: preview
+    secrets:
+      expo_token: ${{ secrets.EXPO_TOKEN }}
+
+  eas-build-production:
+    name: 🏗️ EAS Build Production
+    needs: [conventional-commits, test]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/reusable-eas-build.yml
+    with:
+      app-name: Mobile
+      app-path: apps/mobile
+      platform: android
+      profile: production
+    secrets:
+      expo_token: ${{ secrets.EXPO_TOKEN }}

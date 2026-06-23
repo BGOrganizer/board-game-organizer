@@ -1,0 +1,68 @@
+name: 🔌 API CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/api/**
+      - packages/**
+  pull_request:
+    paths:
+      - apps/api/**
+      - packages/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conventional-commits:
+    name: 🔍 Conventional Commits
+    uses: ./.github/workflows/reusable-conventional-commits.yml
+
+  test:
+    name: 🧪 Tests
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      project-name: api
+
+  vercel-preview:
+    name: 🚀 Vercel Preview
+    needs: [conventional-commits, test]
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/reusable-vercel-deploy.yml
+    with:
+      app-name: API
+      app-path: apps/api
+      vercel-environment: preview
+      github-environment: development
+      production: false
+      status-context: vercel/api/preview
+    secrets:
+      vercel_token: ${{ secrets.VERCEL_TOKEN }}
+      vercel_org_id: ${{ secrets.VERCEL_ORG_ID }}
+      vercel_project_id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+
+  vercel-production:
+    name: 🚀 Vercel Production
+    needs: [conventional-commits, test]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/reusable-vercel-deploy.yml
+    with:
+      app-name: API
+      app-path: apps/api
+      vercel-environment: production
+      github-environment: production
+      production: true
+      status-context: vercel/api/production
+    secrets:
+      vercel_token: ${{ secrets.VERCEL_TOKEN }}
+      vercel_org_id: ${{ secrets.VERCEL_ORG_ID }}
+      vercel_project_id: ${{ secrets.VERCEL_API_PROJECT_ID }}

@@ -1,0 +1,163 @@
+name: 🚀 Vercel Deploy
+
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: Human-readable app name for comments
+        required: true
+        type: string
+      app-path:
+        description: App root inside monorepo (for Vercel rootDirectory)
+        required: true
+        type: string
+      vercel-environment:
+        description: Vercel environment to pull (preview or production)
+        required: true
+        type: string
+      github-environment:
+        description: GitHub environment name
+        required: true
+        type: string
+      production:
+        description: Build/deploy with --prod
+        required: true
+        type: boolean
+      status-context:
+        description: Commit status context for production deploys
+        required: false
+        type: string
+        default: vercel/production
+    secrets:
+      vercel_token:
+        required: true
+      vercel_org_id:
+        required: true
+      vercel_project_id:
+        required: true
+    outputs:
+      deployment-url:
+        description: Deployment URL
+        value: ${{ jobs.deploy.outputs.url }}
+
+jobs:
+  deploy:
+    name: 🚀 ${{ inputs.app-name }} ${{ inputs.vercel-environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github-environment }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.vercel_token }}
+      VERCEL_ORG_ID: ${{ secrets.vercel_org_id }}
+      VERCEL_PROJECT_ID: ${{ secrets.vercel_project_id }}
+      VERCEL_APP_PATH: ${{ inputs.app-path }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+        with:
+          install: 'false'
+
+      - name: 📦 Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: 🔗 Stage Vercel project link
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = '.vercel/project.json';
+          fs.mkdirSync('.vercel', { recursive: true });
+          const current = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : {};
+          const next = {
+            ...current,
+            orgId: process.env.VERCEL_ORG_ID,
+            projectId: process.env.VERCEL_PROJECT_ID,
+            settings: {
+              ...(current.settings || {}),
+              rootDirectory: process.env.VERCEL_APP_PATH,
+            },
+          };
+          fs.writeFileSync(path, JSON.stringify(next, null, 2));
+          console.log(`Vercel rootDirectory=${next.settings.rootDirectory}`);
+          NODE
+
+      - name: 🔗 Pull Vercel environment
+        run: vercel pull --yes --environment=${{ inputs.vercel-environment }} --token="$VERCEL_TOKEN"
+
+      - name: 🩹 Force Vercel monorepo root
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = '.vercel/project.json';
+          const current = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : {};
+          const next = {
+            ...current,
+            orgId: process.env.VERCEL_ORG_ID,
+            projectId: process.env.VERCEL_PROJECT_ID,
+            settings: {
+              ...(current.settings || {}),
+              rootDirectory: process.env.VERCEL_APP_PATH,
+            },
+          };
+          fs.writeFileSync(path, JSON.stringify(next, null, 2));
+          console.log(`Vercel rootDirectory=${next.settings.rootDirectory}`);
+          NODE
+
+      - name: 🔨 Build
+        shell: bash
+        run: |
+          prod_flag=''
+          if [ '${{ inputs.production }}' = 'true' ]; then
+            prod_flag='--prod'
+          fi
+          vercel build $prod_flag --token="$VERCEL_TOKEN"
+
+      - name: 🚀 Deploy
+        id: deploy
+        shell: bash
+        run: |
+          prod_flag=''
+          if [ '${{ inputs.production }}' = 'true' ]; then
+            prod_flag='--prod'
+          fi
+          url=$(vercel deploy --prebuilt $prod_flag --token="$VERCEL_TOKEN")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: 📝 Comment Preview URL
+        if: ${{ !inputs.production }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.url }}';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **${{ inputs.app-name }} Preview Deployed**\n\n🔗 **Preview URL:** ${url}\n\n_Triggered by PR #${context.issue.number}_`
+            });
+
+      - name: 📝 Post Production URL
+        if: ${{ inputs.production }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.url }}';
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'success',
+              target_url: url,
+              description: 'Deployed to production',
+              context: '${{ inputs.status-context }}'
+            });
