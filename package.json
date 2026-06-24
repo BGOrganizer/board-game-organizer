@@ -7,11 +7,12 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "clean": "turbo clean",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format": "biome format --write .",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "prettier": "^3.5.0",
+    "@biomejs/biome": "^2.3.8",
+    "@board-game-organizer/biome-config": "workspace:*",
     "turbo": "^2.5.0",
     "typescript": "^5.7.0"
   }
