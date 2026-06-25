@@ -1,7 +1,20 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+overrides:
+  utf-8-validate: "5.0.10"
+
+peerDependencyRules:
+  allowedVersions:
+    "@gorhom/bottom-sheet>react-native-reanimated": ">=3.16.0"
+    
 allowBuilds:
+  '@sentry/cli': true
+  browser-tabs-lock: true
+  bufferutil: true
+  core-js: true
   esbuild: true
   sharp: true
   unrs-resolver: true
+  utf-8-validate: true

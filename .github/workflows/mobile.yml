@@ -33,20 +33,20 @@ jobs:
   eas-build-preview:
     name: 🏗️ EAS Build Preview
     needs: [conventional-commits, test]
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/reusable-eas-build.yml
     with:
       app-name: Mobile
       app-path: apps/mobile
       platform: android
-      profile: preview
+      profile: development
     secrets:
       expo_token: ${{ secrets.EXPO_TOKEN }}
 
   eas-build-production:
     name: 🏗️ EAS Build Production
     needs: [conventional-commits, test]
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push'
     uses: ./.github/workflows/reusable-eas-build.yml
     with:
       app-name: Mobile

@@ -1,0 +1,63 @@
+name: 📱 Mobile Internal APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform"
+        type: choice
+        options:
+          - android
+          - ios
+        default: android
+      profile:
+        description: "EAS build profile"
+        type: choice
+        options:
+          - preview
+          - development
+        default: preview
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: 🏗️ Build ${{ inputs.platform == 'android' && 'APK' || 'IPA' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: ⚡ Setup Expo/EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🏗️ Build locally
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+        run: |
+          mkdir -p build-output
+          eas build \
+            --platform ${{ inputs.platform }} \
+            --profile ${{ inputs.profile }} \
+            --local \
+            --output ./build-output/app.${{ inputs.platform == 'android' && 'apk' || 'ipa' }}
+          echo "✅ Build output:"
+          ls -lh build-output/
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-game-organizer-${{ inputs.platform }}-${{ inputs.profile }}
+          path: apps/mobile/build-output/
+          if-no-files-found: error
+          retention-days: 14

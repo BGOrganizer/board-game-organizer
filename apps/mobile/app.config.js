@@ -1,4 +1,4 @@
-{
+module.exports = {
   "expo": {
     "name": "board-game-organizer",
     "slug": "board-game-organizer",
@@ -22,8 +22,10 @@
       "output": "single",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router"],
+    "plugins": ["expo-router", "@clerk/expo", "expo-secure-store", "@sentry/react-native", "expo-font"],
     "extra": {
+      "apiUrl": process.env.EXPO_PUBLIC_API_URL,
+      "clerkPublishableKey": process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       "router": {},
       "eas": {
         "projectId": "f19004af-2669-49ca-8c46-2697b66841b6"

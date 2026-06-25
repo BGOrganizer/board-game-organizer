@@ -1,23 +1,9 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "@board-game-organizer/typescript-config/next.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "jsx": "preserve",
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./app/*"]
-    },
-    "allowJs": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "incremental": true
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
