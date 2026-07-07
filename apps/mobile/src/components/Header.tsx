@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 import { Show, useUser } from "@clerk/expo";
-import { UserMenu } from "@/components/UserMenu";
+import { UserButton } from "@clerk/expo/native";
 
 export function Header() {
     const { user } = useUser();
@@ -15,7 +15,7 @@ export function Header() {
                     <Text className="text-sm text-default-500">
                         {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
                     </Text>
-                    <UserMenu />
+                    <UserButton />
                 </View>
             </Show>
         </View>

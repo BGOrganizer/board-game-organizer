@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     id: clerkUser.id,
     name:
       (`${clerkUser.first_name ?? ""} ${clerkUser.last_name ?? ""}`.trim() ||
-      clerkUser.email_addresses?.[0]?.email_address) ?? "Unknown",
+        clerkUser.email_addresses?.[0]?.email_address) ?? "Unknown",
     email: clerkUser.email_addresses?.[0]?.email_address ?? "",
     avatarUrl: clerkUser.image_url ?? "",
     preferredLanguage: "it",
