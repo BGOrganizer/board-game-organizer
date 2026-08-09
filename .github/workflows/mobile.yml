@@ -66,7 +66,7 @@ jobs:
           retention-days: 7
 
   release:
-    name: 📝 Draft GitHub Release
+    name: 📝 GitHub Release
     needs: build
     if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
@@ -106,10 +106,9 @@ jobs:
           echo "Changelog:"
           cat changelog.md
 
-      - name: 🚀 Create draft GitHub Release
+      - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
           tag_name: board-game-organizer-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.build-number }}
           name: board-game-organizer-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.build-number }}
           files: apks/*.apk
