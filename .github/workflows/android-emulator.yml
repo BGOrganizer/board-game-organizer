@@ -15,6 +15,9 @@ jobs:
     name: 📱 Run app on emulator & capture diagnostics
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -43,38 +46,68 @@ jobs:
             -o app.apk "${{ steps.apk.outputs.url }}"
           ls -lh app.apk
 
+      - name: 🛠️ Install SDK components
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          yes | "$SDKMGR" --licenses > /dev/null || true
+          "$SDKMGR" "platform-tools" "emulator" > /dev/null
+          "$SDKMGR" "system-images;android-34;aosp_atd;x86_64" > /dev/null 2>&1 \
+            || "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
+          ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
+
       - name: 🚀 Boot emulator & run the app
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          arch: x86_64
-          profile: pixel_6
-          cores: 4
-          ram-size: 2048M
-          disable-animations: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -memory 2048
-          emulator-boot-timeout: 900
-          script: |
-            adb install -r app.apk
-            adb shell input keyevent 82 || true
-            adb logcat -c
-            adb shell am start -n com.bgo.mobile/.MainActivity
-            sleep 20
-            adb exec-out screencap -p > /tmp/screen-1.png || true
-            sleep 30
-            adb exec-out screencap -p > /tmp/screen-2.png || true
-            adb logcat -d > /tmp/logcat-full.txt || true
-            adb logcat -d | grep -E "ReactNativeJS|AndroidRuntime|FATAL|Sentry|hermes|bgo|Exception" > /tmp/logcat-errors.txt || true
-            echo "--- resumed activity ---"
-            adb shell dumpsys activity activities | grep -iE "mResumedActivity|topResumedActivity" | head -3 || true
+        run: |
+          set +e
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          IMG=$(ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null | head -1)
+          echo "using system image: $IMG"
+          echo no | avdmanager create avd --force -n test \
+            --package "system-images;android-34;$IMG;x86_64" --device pixel_6
+          "$ANDROID_HOME/emulator/emulator" -avd test \
+            -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -memory 2048 -cores 4 -accel off \
+            -port 5554 > /tmp/emulator.log 2>&1 &
+          EMU_PID=$!
+          timeout 300 adb wait-for-device || { echo "NO DEVICE"; tail -20 /tmp/emulator.log; exit 1; }
+          BOOTED=0
+          for i in $(seq 1 150); do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+              BOOTED=1; echo "booted after ~$((i*10))s"; break
+            fi
+            sleep 10
+          done
+          if [ "$BOOTED" != "1" ]; then
+            echo "EMULATOR FAILED TO BOOT"; tail -30 /tmp/emulator.log; exit 1
+          fi
+          sleep 45 # let the input service settle before interacting
+          adb shell input keyevent 82
+          adb shell settings put global window_animation_scale 0.0
+          adb shell settings put global transition_animation_scale 0.0
+          adb shell settings put global animator_duration_scale 0.0
+          adb logcat -c
+          adb install -r app.apk || { sleep 30; adb install -r app.apk; }
+          adb shell am start -n com.bgo.mobile/.MainActivity
+          for s in 20 50 90; do
+            sleep $s
+            adb exec-out screencap -p > /tmp/screen-$s.png
+          done
+          adb logcat -d > /tmp/logcat-full.txt
+          adb logcat -d | grep -E "ReactNativeJS|AndroidRuntime|FATAL|Sentry|Exception|bgo" > /tmp/logcat-errors.txt
+          adb shell dumpsys activity activities | grep -iE "mResumedActivity|topResumedActivity" | head -3 > /tmp/activity.txt
+          echo "--- resumed activity ---"
+          cat /tmp/activity.txt
+          kill $EMU_PID 2>/dev/null
+          exit 0
 
       - name: 📤 Upload diagnostics
         uses: actions/upload-artifact@v4
         with:
           name: emulator-diag
           path: |
-            /tmp/screen-1.png
-            /tmp/screen-2.png
+            /tmp/screen-*.png
             /tmp/logcat-full.txt
             /tmp/logcat-errors.txt
+            /tmp/activity.txt
+            /tmp/emulator.log
           if-no-files-found: warn
