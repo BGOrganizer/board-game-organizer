@@ -72,6 +72,14 @@ pnpm build       # Production build
 - **Player Profiles** — Track individual player statistics and win rates
 - **Game Catalog** — Browse games by mechanics, player count, weight, and play time
 - **BGG Integration** — Import game data from BoardGameGeek
+- **Game group** creation and management
+- **Match scheduling** with player invitations
+- **Board game catalog** and selection
+- **Location/venue** selection
+- **ELO ranking** between players
+- **Competitive player** organization
+- **Board game** marketplace
+- **Mobile app** (Expo)
 
 ## License
 
