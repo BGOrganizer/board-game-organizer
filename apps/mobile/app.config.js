@@ -22,7 +22,7 @@ module.exports = {
       "output": "single",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "@clerk/expo", "expo-secure-store", ["@sentry/react-native", { "android": { "enableGradlePlugin": false } }], "expo-font"],
+    "plugins": ["expo-router", "@clerk/expo", "expo-secure-store", "@sentry/react-native", "expo-font"],
     "extra": {
       "apiUrl": process.env.EXPO_PUBLIC_API_URL,
       "clerkPublishableKey": process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
