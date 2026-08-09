@@ -1,13 +1,15 @@
 name: Mobile APK (EAS local build)
 description: >
-  Builds a single Android APK locally on the runner with `eas build --local`
-  (no EAS cloud credits needed) and exposes version/build metadata.
-  Run once per profile (development / internal): building both profiles in
-  the same job exhausts the 14GB runner disk.
+  Builds an Android APK locally on the runner with `eas build --local`
+  (no EAS cloud credits needed), following the expo-react-native-cicd
+  pipeline. Builds ONE profile per invocation: `development` (dev client)
+  or `internal` (release, for distribution). Exposes version/build
+  metadata and the artifact path. The mobile.yml workflow runs this action
+  for BOTH profiles in parallel.
 
 inputs:
-  build-type:
-    description: 'Build type (must match an eas.json profile): internal or development'
+  profile:
+    description: 'EAS profile to build (must match an eas.json profile): development or internal'
     required: true
   expo-token:
     description: Expo/EAS token (EXPO_TOKEN secret)
@@ -32,9 +34,6 @@ outputs:
   build-number:
     description: Unique build number (timestamp)
     value: ${{ steps.meta.outputs.build-number }}
-  build-type:
-    description: Build type (internal or development)
-    value: ${{ steps.meta.outputs.build-type }}
   artifact-name:
     description: APK file name
     value: ${{ steps.meta.outputs.artifact-name }}
@@ -45,8 +44,20 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: 🧰 Setup workspace
+    - name: 🧹 Free disk space
+      shell: bash
+      run: |
+        # Keep /usr/local/lib/android (EAS local builds install NDK/CMake there).
+        # Remove other preinstalled toolchains to free ~7GB on the runner.
+        sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost \
+          /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/go /opt/hostedtoolcache/Python \
+          /opt/hostedtoolcache/Ruby
+        df -h / | tail -1
+
+    - name: 🧰 Setup Node.js + pnpm (no workspace install — EAS installs deps in its sandbox)
       uses: ./.github/actions/setup-pnpm
+      with:
+        install: 'false'
 
     - name: ☕ Set up JDK 17
       uses: actions/setup-java@v4
@@ -83,17 +94,15 @@ runs:
       shell: bash
       run: |
         VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
-        # unique per-run build number, identical across parallel jobs
-        BUILD_NUMBER="$(date +%Y%m%d)-r${{ github.run_number }}"
-        ARTIFACT_NAME="board-game-organizer-${VERSION}-${BUILD_NUMBER}-${{ inputs.build-type }}.apk"
+        BUILD_NUMBER=$(date +%Y%m%d%H%M%S)
+        ARTIFACT_NAME="board-game-organizer-${VERSION}-${BUILD_NUMBER}-${{ inputs.profile }}.apk"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "build-number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
-        echo "build-type=${{ inputs.build-type }}" >> "$GITHUB_OUTPUT"
         echo "artifact-name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
         echo "artifact-path=apps/mobile/build-output/$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
-        echo "✅ Version: $VERSION | Build: $BUILD_NUMBER | Type: ${{ inputs.build-type }}"
+        echo "✅ Version: $VERSION | Build: $BUILD_NUMBER | Profile: ${{ inputs.profile }}"
 
-    - name: 🏗️ Build APK (eas build --local)
+    - name: 📱 Build ${{ inputs.profile }} APK (eas build --local)
       shell: bash
       working-directory: apps/mobile
       env:
@@ -101,14 +110,15 @@ runs:
         EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
         EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
+        NODE_ENV: ${{ inputs.profile == 'development' && 'development' || 'production' }}
         NODE_OPTIONS: --openssl-legacy-provider --max_old_space_size=4096
       run: |
         mkdir -p build-output
         eas build \
           --platform android \
-          --profile ${{ inputs.build-type }} \
+          --profile ${{ inputs.profile }} \
           --local \
           --non-interactive \
           --output "./build-output/${{ steps.meta.outputs.artifact-name }}"
-        echo "✅ Build output:"
+        echo "✅ ${{ inputs.profile }} APK built:"
         ls -lh build-output/

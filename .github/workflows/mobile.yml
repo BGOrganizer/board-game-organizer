@@ -35,16 +35,15 @@ jobs:
         with:
           project-name: mobile
 
-  # One job per build type: a single job building both APKs exhausts the
-  # 14GB runner disk (Android SDK + Gradle caches + node_modules + 2 builds).
-  build-development:
-    name: 🏗️ Build Development APK
+  build:
+    name: 🏗️ Build APK (${{ matrix.profile }})
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    outputs:
-      version: ${{ steps.build.outputs.version }}
-      build-number: ${{ steps.build.outputs.build-number }}
+    strategy:
+      fail-fast: false # one profile failing shouldn't cancel the other
+      matrix:
+        profile: [development, internal]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -53,7 +52,7 @@ jobs:
         id: build
         uses: ./.github/actions/mobile-build
         with:
-          build-type: development
+          profile: ${{ matrix.profile }}
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
@@ -62,41 +61,14 @@ jobs:
       - name: 📦 Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-development
+          name: apk-${{ matrix.profile }}
           path: ${{ steps.build.outputs.artifact-path }}
-          if-no-files-found: error
-          retention-days: 7
-
-  build-internal:
-    name: 🏗️ Build Internal APK
-    needs: checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 🏗️ Build APK (eas build --local)
-        id: build
-        uses: ./.github/actions/mobile-build
-        with:
-          build-type: internal
-          expo-token: ${{ secrets.EXPO_TOKEN }}
-          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
-          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
-
-      - name: 📦 Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-internal
-          path: ${{ steps.build.outputs.artifact-path }}
-          if-no-files-found: error
           retention-days: 7
 
   release:
-    name: 🚀 Draft GitHub Release
-    needs: [build-development, build-internal]
+    name: 📝 Draft GitHub Release
+    needs: build
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -104,11 +76,23 @@ jobs:
         with:
           fetch-depth: 0 # full history for changelog generation
 
-      - name: 📦 Download APKs
+      - name: 📥 Download APKs
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          pattern: apk-*
           merge-multiple: true
+          path: apks
+
+      - name: 🏷️ Resolve version & build number
+        id: meta
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
+          BUILD_NUMBER=$(ls apks/ | grep -oE '[0-9]{14}' | head -1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build-number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "APKs:"
+          ls -lh apks/
 
       - name: 📝 Generate changelog
         shell: bash
@@ -121,13 +105,12 @@ jobs:
           fi
           echo "Changelog:"
           cat changelog.md
-          ls -lh dist/
 
       - name: 🚀 Create draft GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          tag_name: board-game-organizer-v${{ needs.build-development.outputs.version }}-${{ needs.build-development.outputs.build-number }}
-          name: board-game-organizer-v${{ needs.build-development.outputs.version }}-${{ needs.build-development.outputs.build-number }}
-          files: dist/*
+          tag_name: board-game-organizer-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.build-number }}
+          name: board-game-organizer-v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.build-number }}
+          files: apks/*.apk
           body_path: changelog.md

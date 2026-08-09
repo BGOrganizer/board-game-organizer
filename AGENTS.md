@@ -152,12 +152,17 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - **Mobile APK builds are local** (`eas build --local` on the runner — no EAS
   cloud credits needed), following the pipeline from
   TanayK07/expo-react-native-cicd. The `mobile-build` composite action builds
-  **both** the `development` (dev client) and `internal` (release) profiles
-  from `apps/mobile/eas.json` in one run, caches `~/.eas-build-local` and
-  `~/.gradle`, and exposes `version` / `build-number` / `*-artifact-path`
-  outputs. Version comes from `app.config.js` (`expo.version`).
+  ONE profile per invocation (`development` dev client or `internal` release
+  from `apps/mobile/eas.json`); `mobile.yml` runs it for **both profiles in
+  parallel** via a matrix. The action skips the workspace `pnpm install`
+  (EAS installs deps in its own sandbox), frees ~7GB of preinstalled
+  toolchains (keeping `/usr/local/lib/android` for NDK/CMake), caches
+  `~/.eas-build-local` and `~/.gradle`, and exposes `version` /
+  `build-number` / `artifact-name` / `artifact-path` outputs. Version comes
+  from `app.config.js` (`expo.version`).
 - Both APKs are uploaded as build artifacts and attached to a **draft GitHub
-  Release** by `mobile.yml` (`softprops/action-gh-release`), named
+  Release** by the `release` job of `mobile.yml`
+  (`softprops/action-gh-release`), named
   `board-game-organizer-v<version>-<build-number>`. Trigger: push to main or
   manual dispatch → always builds both profiles.
 - Setup via `.github/actions/setup-pnpm` (Node 26, pnpm 11.6.0,
