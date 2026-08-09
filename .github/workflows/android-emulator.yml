@@ -52,18 +52,18 @@ jobs:
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           yes | "$SDKMGR" --licenses > /dev/null || true
           "$SDKMGR" "platform-tools" "emulator" > /dev/null
-          "$SDKMGR" "system-images;android-34;aosp_atd;x86_64" > /dev/null 2>&1 \
-            || "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
+          "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
           ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
 
       - name: 🚀 Boot emulator & run the app
         run: |
           set +e
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          IMG=$(ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null | head -1)
-          echo "using system image: $IMG"
           echo no | avdmanager create avd --force -n test \
-            --package "system-images;android-34;$IMG;x86_64" --device pixel_6
+            --package "system-images;android-34;default;x86_64" --device pixel_6 \
+            > /tmp/avd-create.log 2>&1
+          cat /tmp/avd-create.log
+          avdmanager list avd 2>/dev/null | grep -q "Name: test" || { echo "AVD CREATION FAILED"; exit 1; }
           "$ANDROID_HOME/emulator/emulator" -avd test \
             -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -memory 2048 -cores 4 -accel off \
