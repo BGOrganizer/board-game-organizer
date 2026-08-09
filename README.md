@@ -1,85 +1,83 @@
 # Board Game Organizer
 
-A multi-platform application for tracking and organizing board game sessions, collections, and player statistics. Built as a monorepo with Turborepo, featuring a Next.js web frontend, a Next.js API layer, and an Expo React Native mobile app.
+Multi-platform app for tracking and organizing board game sessions,
+collections, and player statistics — including game groups, match scheduling,
+and player rankings. Built as a pnpm + Turborepo monorepo with three apps:
 
-## Stack
+| App | Stack | Port |
+|-----|-------|------|
+| **web** | Next.js 16 (App Router, React 19), Tailwind CSS v4, HeroUI | 3000 |
+| **api** | Next.js 16 Route Handlers, MongoDB, Zod, Clerk auth | 4000 |
+| **mobile** | Expo SDK 56 (React Native, Expo Router), heroui-native, uniwind | — |
 
-| Layer | Technology |
-|-------|-----------|
-| **Monorepo** | Turborepo + pnpm workspaces |
-| **Web App** | Next.js 16 (App Router, React 19) |
-| **API** | Next.js 16 (Route Handlers) |
-| **Mobile** | Expo 52 (React Native, Expo Router) |
-| **Language** | TypeScript across all apps |
+Auth is handled by **Clerk** on all three platforms.
 
-## Project Structure
+## Features
 
-```
-board-game-organizer/
-├── package.json             # Root workspace config
-├── turbo.json               # Pipeline definitions
-├── pnpm-workspace.yaml      # Workspace layout
-├── tsconfig.json            # Base TypeScript config
-│
-├── apps/
-│   ├── web/                 # Next.js frontend (port 3000)
-│   ├── api/                 # Next.js API server (port 4000)
-│   └── mobile/              # Expo React Native app
-│
-└── packages/                # Shared packages (future)
-```
+- 🔐 Clerk authentication (web + mobile, with a shared API)
+- 👥 Social graph: follow, friend requests, friends, blocking (MongoDB API)
+- 🗂️ Tabs: Matches, Groups, Organizations, Contacts (web + mobile)
+- 🧩 Shared Zustand store and TanStack Query setup across apps
+- 🚀 CI/CD: Vercel deploys (web, api) + EAS builds (mobile), conventional-commits enforced
+- 📋 Planned: collection management, session logging, BGG import, ELO rankings, marketplace
+
+## Prerequisites
+
+- **Node.js** >= 20 (CI runs on 26)
+- **pnpm** >= 11 (the repo pins `pnpm@11.6.0` in `package.json`)
+- **MongoDB** — local or Atlas (required by the API)
+- **Clerk account** — free; gives you the publishable/secret keys
+- For mobile: an emulator or device with the dev client (Expo Go is not supported)
 
 ## Getting Started
 
-### Prerequisites
-
-- **Node.js** >= 20 (recommended: 22)
-- **pnpm** >= 11
-
 ```bash
-# Install dependencies
+# 1. Install dependencies
 pnpm install
 
-# Start all apps in development mode
+# 2. Configure environment — copy the example files in each app
+cp apps/web/.env.example apps/web/.env.local
+cp apps/api/.env.example apps/api/.env.local
+cp apps/mobile/.env.example apps/mobile/.env
+
+# 3. Fill in your Clerk keys and MongoDB URI in those files
+
+# 4. Run everything (web :3000, api :4000, expo)
 pnpm dev
-```
 
-### Individual Apps
-
-```bash
-# Web frontend (http://localhost:3000)
+# Run a single app
 pnpm --filter web dev
-
-# API server (http://localhost:4000)
 pnpm --filter api dev
-
-# Mobile app (Expo Go or emulator)
 pnpm --filter mobile dev
 ```
 
-### Quality Checks
+> The API needs valid `CLERK_SECRET_KEY` + `MONGODB_URI`/`MONGODB_DB_NAME`
+> or every endpoint will fail. The web UI works without the API for auth-only flows.
+
+## Quality Checks
 
 ```bash
-pnpm typecheck   # TypeScript check across all apps
-pnpm lint        # ESLint across all apps
-pnpm build       # Production build
+pnpm lint       # Biome check
+pnpm typecheck  # TypeScript across all apps
+pnpm test       # Vitest across all apps
+pnpm build      # Production build
+pnpm format     # Biome format --write .
 ```
 
-## Features (Planned)
+## Repository Structure
 
-- **Collection Management** — Track owned games, expansions, and wishlists
-- **Session Logging** — Log plays with player counts, scores, and durations
-- **Player Profiles** — Track individual player statistics and win rates
-- **Game Catalog** — Browse games by mechanics, player count, weight, and play time
-- **BGG Integration** — Import game data from BoardGameGeek
-- **Game group** creation and management
-- **Match scheduling** with player invitations
-- **Board game catalog** and selection
-- **Location/venue** selection
-- **ELO ranking** between players
-- **Competitive player** organization
-- **Board game** marketplace
-- **Mobile app** (Expo)
+```
+apps/
+  web/        # Next.js frontend
+  api/        # Next.js API + MongoDB
+  mobile/     # Expo React Native app
+packages/
+  store/      # Zustand store (slice pattern)
+  query/      # TanStack Query client + provider
+  biome-config/       # Shared Biome config
+  typescript-config/  # Shared TS configs
+.github/workflows/    # CI/CD per app
+```
 
 ## License
 
