@@ -52,7 +52,10 @@ if (!publishableKey) {
 function sentryFallback({ error, componentStack, resetError }: { error: any; componentStack: string; resetError: () => void }) {
   Sentry.captureException(error);
   return (
-    <RuntimeError />
+    <RuntimeError
+      message={error instanceof Error ? error.message : String(error)}
+      componentStack={componentStack}
+    />
   );
 }
 
