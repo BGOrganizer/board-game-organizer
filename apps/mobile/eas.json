@@ -14,7 +14,7 @@
         }
       }
     },
-    "preview": {
+    "internal": {
       "distribution": "internal"
     },
     "production": {

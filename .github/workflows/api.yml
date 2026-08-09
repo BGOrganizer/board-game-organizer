@@ -14,9 +14,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
-  statuses: write
 
 concurrency:
   group: api-${{ github.ref }}
@@ -25,44 +22,63 @@ concurrency:
 jobs:
   conventional-commits:
     name: 🔍 Conventional Commits
-    uses: ./.github/workflows/reusable-conventional-commits.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/conventional-commits
 
   test:
     name: 🧪 Tests
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      project-name: api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/test
+        with:
+          project-name: api
 
   vercel-preview:
     name: 🚀 Vercel Preview
     needs: [conventional-commits, test]
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/reusable-vercel-deploy.yml
-    with:
-      app-name: API
-      app-path: apps/api
-      vercel-environment: preview
-      github-environment: development
-      production: false
-      status-context: vercel/api/preview
-    secrets:
-      vercel_token: ${{ secrets.VERCEL_TOKEN }}
-      vercel_org_id: ${{ secrets.VERCEL_ORG_ID }}
-      vercel_project_id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: 🚀 Deploy to Vercel
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: API
+          app-path: apps/api
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/api/preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
 
   vercel-production:
     name: 🚀 Vercel Production
     needs: [conventional-commits, test]
     if: github.event_name == 'push'
-    uses: ./.github/workflows/reusable-vercel-deploy.yml
-    with:
-      app-name: API
-      app-path: apps/api
-      vercel-environment: production
-      github-environment: production
-      production: true
-      status-context: vercel/api/production
-    secrets:
-      vercel_token: ${{ secrets.VERCEL_TOKEN }}
-      vercel_org_id: ${{ secrets.VERCEL_ORG_ID }}
-      vercel_project_id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: 🚀 Deploy to Vercel
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: API
+          app-path: apps/api
+          vercel-environment: production
+          production: 'true'
+          status-context: vercel/api/production
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}

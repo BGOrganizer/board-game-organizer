@@ -1,0 +1,99 @@
+name: Mobile APK (EAS local build)
+description: >
+  Builds an Android APK locally on the runner with `eas build --local`
+  (no EAS cloud credits needed) and exposes version/build metadata.
+
+inputs:
+  build-type:
+    description: 'Build type (must match an eas.json profile): internal or development'
+    required: true
+  expo-token:
+    description: Expo/EAS token (EXPO_TOKEN secret)
+    required: true
+  clerk-publishable-key:
+    description: EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+    required: false
+    default: ''
+  api-url:
+    description: EXPO_PUBLIC_API_URL
+    required: false
+    default: ''
+  sentry-dsn:
+    description: EXPO_PUBLIC_SENTRY_DSN
+    required: false
+    default: ''
+
+outputs:
+  version:
+    description: App version read from apps/mobile/app.config.js
+    value: ${{ steps.meta.outputs.version }}
+  build-number:
+    description: Unique build number (timestamp)
+    value: ${{ steps.meta.outputs.build-number }}
+  build-type:
+    description: Build type (internal or development)
+    value: ${{ steps.meta.outputs.build-type }}
+  artifact-name:
+    description: APK file name
+    value: ${{ steps.meta.outputs.artifact-name }}
+  artifact-path:
+    description: Path to the built APK (repo root relative)
+    value: ${{ steps.meta.outputs.artifact-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: 🧰 Setup workspace
+      uses: ./.github/actions/setup-pnpm
+
+    - name: ☕ Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: ⚡ Install EAS CLI
+      shell: bash
+      run: npm install -g eas-cli@latest
+
+    - name: 📦 Cache EAS local build
+      uses: actions/cache@v4
+      with:
+        path: ~/.eas-build-local
+        key: ${{ runner.os }}-eas-build-local-${{ hashFiles('apps/mobile/package.json', 'pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-eas-build-local-
+
+    - name: 🏷️ Extract version & build metadata
+      id: meta
+      shell: bash
+      run: |
+        VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
+        BUILD_NUMBER=$(date +%Y%m%d%H%M%S)
+        ARTIFACT_NAME="board-game-organizer-${VERSION}-${BUILD_NUMBER}-${{ inputs.build-type }}.apk"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "build-number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+        echo "build-type=${{ inputs.build-type }}" >> "$GITHUB_OUTPUT"
+        echo "artifact-name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+        echo "artifact-path=apps/mobile/build-output/$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+        echo "✅ Version: $VERSION | Build: $BUILD_NUMBER | Type: ${{ inputs.build-type }}"
+
+    - name: 🏗️ Build APK (eas build --local)
+      shell: bash
+      working-directory: apps/mobile
+      env:
+        EXPO_TOKEN: ${{ inputs.expo-token }}
+        EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
+        EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
+        EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
+        NODE_OPTIONS: --max_old_space_size=4096
+      run: |
+        mkdir -p build-output
+        eas build \
+          --platform android \
+          --profile ${{ inputs.build-type }} \
+          --local \
+          --non-interactive \
+          --output "./build-output/${{ steps.meta.outputs.artifact-name }}"
+        echo "✅ Build output:"
+        ls -lh build-output/

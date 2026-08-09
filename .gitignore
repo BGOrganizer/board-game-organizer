@@ -18,3 +18,5 @@ coverage/
 .clinerules/
 .agents
 skills-lock.json
+
+apps/mobile/build-output/

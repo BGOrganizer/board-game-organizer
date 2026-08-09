@@ -122,7 +122,7 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 ## Git Workflow (IMPORTANT)
 
 - **Commit messages must follow Conventional Commits** — enforced by CI
-  (`.github/workflows/reusable-conventional-commits.yml`). Allowed types:
+  (`.github/actions/conventional-commits` composite action). Allowed types:
   `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
   Examples: `feat(api): add groups endpoint`, `fix(mobile): header spacing`, `docs: update README`.
 - **All commits are signed** (SSH commit signing). Repo-local config (already set):
@@ -135,13 +135,28 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   ```
   Verify after committing: `git log --show-signature -1` (expect `Good "git" signature for ...`).
 - Workflow: branch off `main` → commit (signed, conventional) → `git push origin <branch>`
-  → open PR. Direct pushes to `main` trigger production deploys (Vercel + EAS) — prefer PRs.
+  → open PR. Direct pushes to `main` trigger production deploys (Vercel + mobile
+  APK build & draft release) — prefer PRs.
 - Push command for the current branch: `git push origin <branch>`, or `git push` if upstream is set.
 
 ## CI/CD (GitHub Actions)
 
-- Per-app pipelines triggered on PR/push touching `apps/<app>/**` or `packages/**`:
-  `web.yml` / `api.yml` (tests + Vercel preview/production), `mobile.yml` (tests + EAS builds).
-- Reusable workflows in `.github/workflows/reusable-*.yml`; setup via `.github/actions/setup-pnpm`
-  (Node 26, pnpm 11.6.0, `--frozen-lockfile`).
+- Path-filtered per-app pipelines: `web.yml` / `api.yml` (tests + Vercel
+  preview/production) and `mobile.yml` (checks + APK build & draft release) —
+  the only workflows visible in the Actions tab.
+- All reusable pieces are **composite actions** in `.github/actions/`
+  (invisible in the Actions tab by design): `setup-pnpm`, `conventional-commits`,
+  `test`, `vercel-deploy`, `mobile-build`.
+- **Mobile APK builds are local** (`eas build --local` on the runner — no EAS
+  cloud credits needed). The `mobile-build` composite action builds the APK with
+  the `internal` or `development` profile from `apps/mobile/eas.json`, caches
+  `~/.eas-build-local`, and exposes `version` / `build-number` / `artifact-path`
+  outputs. Version comes from `app.config.js` (`expo.version`).
+- APKs are uploaded as **draft GitHub Releases** by `mobile.yml`
+  (`softprops/action-gh-release`), named
+  `board-game-organizer-v<version>-<build-number>-<type>`
+  (type = internal or development). Trigger: push to main → internal; manual
+  dispatch → choose internal or development.
+- Setup via `.github/actions/setup-pnpm` (Node 26, pnpm 11.6.0,
+  `--frozen-lockfile`).
 - If you change dependencies, keep `pnpm-lock.yaml` in sync (run `pnpm install`, not `pnpm install --lockfile-only` when the graph changes).

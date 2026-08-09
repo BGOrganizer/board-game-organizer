@@ -1,4 +1,4 @@
-name: 📱 Mobile CI/CD
+name: 📱 Mobile APK
 
 on:
   push:
@@ -6,52 +6,73 @@ on:
     paths:
       - apps/mobile/**
       - packages/**
-  pull_request:
-    paths:
-      - apps/mobile/**
-      - packages/**
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: Build type
+        type: choice
+        options:
+          - internal
+          - development
+        default: internal
 
 permissions:
-  contents: read
+  contents: write # needed to create GitHub Releases
 
 concurrency:
-  group: mobile-${{ github.ref }}
+  group: mobile-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  conventional-commits:
-    name: 🔍 Conventional Commits
-    uses: ./.github/workflows/reusable-conventional-commits.yml
+  checks:
+    name: 🔍 Conventional Commits & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/conventional-commits
 
-  test:
-    name: 🧪 Tests
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      project-name: mobile
+      - uses: ./.github/actions/test
+        with:
+          project-name: mobile
 
-  eas-build-preview:
-    name: 🏗️ EAS Build Preview
-    needs: [conventional-commits, test]
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/reusable-eas-build.yml
-    with:
-      app-name: Mobile
-      app-path: apps/mobile
-      platform: android
-      profile: development
-    secrets:
-      expo_token: ${{ secrets.EXPO_TOKEN }}
+  build-and-release:
+    name: 🏗️ Build APK & Draft Release
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for changelog generation
 
-  eas-build-production:
-    name: 🏗️ EAS Build Production
-    needs: [conventional-commits, test]
-    if: github.event_name == 'push'
-    uses: ./.github/workflows/reusable-eas-build.yml
-    with:
-      app-name: Mobile
-      app-path: apps/mobile
-      platform: android
-      profile: production
-    secrets:
-      expo_token: ${{ secrets.EXPO_TOKEN }}
+      - name: 🏗️ Build APK (eas build --local)
+        id: build
+        uses: ./.github/actions/mobile-build
+        with:
+          # push → internal build; manual run → chosen build type
+          build-type: ${{ github.event_name == 'push' && 'internal' || inputs.build_type }}
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+
+      - name: 📝 Generate changelog
+        shell: bash
+        run: |
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            LAST_TAG=$(git describe --tags --abbrev=0)
+            git log "$LAST_TAG"..HEAD --pretty=format:"- %s" > changelog.md
+          else
+            git log --pretty=format:"- %s" -n 10 > changelog.md
+          fi
+          echo "Changelog:"
+          cat changelog.md
+
+      - name: 🚀 Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: board-game-organizer-v${{ steps.build.outputs.version }}-${{ steps.build.outputs.build-number }}-${{ steps.build.outputs.build-type }}
+          name: board-game-organizer-v${{ steps.build.outputs.version }}-${{ steps.build.outputs.build-number }}-${{ steps.build.outputs.build-type }}
+          files: ${{ steps.build.outputs.artifact-path }}
+          body_path: changelog.md
