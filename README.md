@@ -1,83 +1,66 @@
 # Board Game Organizer
 
-Multi-platform app for tracking and organizing board game sessions,
-collections, and player statistics — including game groups, match scheduling,
-and player rankings. Built as a pnpm + Turborepo monorepo with three apps:
+Multi-platform app to organize board game sessions, collections, groups, and player stats —
+web, API, and mobile, all in one TypeScript monorepo.
 
-| App | Stack | Port |
-|-----|-------|------|
-| **web** | Next.js 16 (App Router, React 19), Tailwind CSS v4, HeroUI | 3000 |
-| **api** | Next.js 16 Route Handlers, MongoDB, Zod, Clerk auth | 4000 |
-| **mobile** | Expo SDK 56 (React Native, Expo Router), heroui-native, uniwind | — |
+## Stack
 
-Auth is handled by **Clerk** on all three platforms.
+| Layer | Tech |
+|-------|------|
+| Monorepo | pnpm workspaces + Turborepo |
+| Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
+| API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
+| Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · uniwind |
+| Shared | `@board-game-organizer/store` (Zustand) · `@board-game-organizer/query` (TanStack Query) |
+| Tooling | TypeScript · Biome (lint + format) · Vitest |
 
 ## Features
 
-- 🔐 Clerk authentication (web + mobile, with a shared API)
-- 👥 Social graph: follow, friend requests, friends, blocking (MongoDB API)
-- 🗂️ Tabs: Matches, Groups, Organizations, Contacts (web + mobile)
-- 🧩 Shared Zustand store and TanStack Query setup across apps
-- 🚀 CI/CD: Vercel deploys (web, api) + EAS builds (mobile), conventional-commits enforced
-- 📋 Planned: collection management, session logging, BGG import, ELO rankings, marketplace
+**Implemented**
+- Clerk authentication on web and mobile (sign-in / sign-up)
+- Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
+- App shells with Matches · Groups · Organizations · Contacts navigation (web + mobile)
+
+**Planned**
+- Collection management, session logging, player statistics, game catalog (BGG import)
+- Groups, match scheduling, venues, ELO rankings, marketplace
 
 ## Prerequisites
 
-- **Node.js** >= 20 (CI runs on 26)
-- **pnpm** >= 11 (the repo pins `pnpm@11.6.0` in `package.json`)
-- **MongoDB** — local or Atlas (required by the API)
-- **Clerk account** — free; gives you the publishable/secret keys
-- For mobile: an emulator or device with the dev client (Expo Go is not supported)
+- **Node.js ≥ 22** (CI uses 26)
+- **pnpm ≥ 11.6** (`corepack enable && corepack prepare pnpm@11.6.0 --activate`, or `npm i -g pnpm`)
+- **MongoDB** running (transactions require a replica set: `mongod --replSet rs0` + `rs.initiate()`)
+- Accounts/keys: [Clerk](https://clerk.com) (publishable + secret keys); Sentry DSN only for mobile
 
-## Getting Started
-
-```bash
-# 1. Install dependencies
-pnpm install
-
-# 2. Configure environment — copy the example files in each app
-cp apps/web/.env.example apps/web/.env.local
-cp apps/api/.env.example apps/api/.env.local
-cp apps/mobile/.env.example apps/mobile/.env
-
-# 3. Fill in your Clerk keys and MongoDB URI in those files
-
-# 4. Run everything (web :3000, api :4000, expo)
-pnpm dev
-
-# Run a single app
-pnpm --filter web dev
-pnpm --filter api dev
-pnpm --filter mobile dev
-```
-
-> The API needs valid `CLERK_SECRET_KEY` + `MONGODB_URI`/`MONGODB_DB_NAME`
-> or every endpoint will fail. The web UI works without the API for auth-only flows.
-
-## Quality Checks
+## Setup & Run
 
 ```bash
-pnpm lint       # Biome check
-pnpm typecheck  # TypeScript across all apps
-pnpm test       # Vitest across all apps
-pnpm build      # Production build
-pnpm format     # Biome format --write .
+pnpm install          # install all workspace dependencies
+
+# 1. Create env files (see .env.example)
+cp .env.example .env.local      # used by web (NEXT_PUBLIC_*)
+# api reads MONGODB_URI, MONGODB_DB_NAME, CLERK_SECRET_KEY, ALLOWED_ORIGINS
+# mobile reads EXPO_PUBLIC_* (set in apps/mobile/.env or shell)
+
+pnpm dev              # run all apps
 ```
 
-## Repository Structure
+- Web: http://localhost:3000
+- API: http://localhost:4000
+- Mobile: `pnpm --filter mobile dev` (Expo dev client / emulator)
 
+Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile dev`.
+
+## Quality
+
+```bash
+pnpm lint         # biome check
+pnpm typecheck    # tsc --noEmit across apps
+pnpm format       # biome format --write .
+pnpm --filter <app> test   # vitest
 ```
-apps/
-  web/        # Next.js frontend
-  api/        # Next.js API + MongoDB
-  mobile/     # Expo React Native app
-packages/
-  store/      # Zustand store (slice pattern)
-  query/      # TanStack Query client + provider
-  biome-config/       # Shared Biome config
-  typescript-config/  # Shared TS configs
-.github/workflows/    # CI/CD per app
-```
+
+See `AGENTS.md` for architecture, conventions, env vars, and the git/commit workflow.
 
 ## License
 

@@ -1,183 +1,147 @@
 # AGENTS.md
 
-Guidance for AI agents and contributors working in this repository. Read this
-before making changes.
+Guidance for AI agents working on the **Board Game Organizer** monorepo.
 
 ## Project Overview
 
-**Board Game Organizer** — a multi-platform app for tracking and organizing
-board game sessions, collections, and player statistics, with game groups,
-match scheduling, and ELO rankings.
+Multi-platform app for organizing board game sessions, collections, groups, and player stats.
+Users authenticate with **Clerk** (user identity = Clerk user ID, no local users table); the API enriches
+profiles/relationships from the Clerk API on demand. Data lives in **MongoDB**.
 
-It is a **pnpm + Turborepo monorepo** with three deployable apps (web, api,
-mobile) and shared packages:
+Currently in early stage: auth, web/mobile shells with tab navigation, and a first API feature
+(follow/friend/block "relationships") are implemented. Most pages are placeholders.
 
-- **apps/web** — Next.js 16 frontend (App Router, React 19) — port **3000**
-- **apps/api** — Next.js 16 API (Route Handlers) + MongoDB — port **4000**
-- **apps/mobile** — Expo SDK 56 (React Native 0.85, Expo Router) — dev client
-- **packages/** — shared store (Zustand), query (TanStack Query), Biome and
-  TypeScript configs
+## Stack & Structure
 
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Monorepo | Turborepo + pnpm workspaces (pnpm 11.6.0) |
-| Web | Next.js 16 (App Router), React 19, Tailwind CSS v4, HeroUI |
-| API | Next.js 16 Route Handlers, MongoDB driver (no ODM), Zod |
-| Mobile | Expo SDK 56, React Native 0.85 (new arch), Expo Router, heroui-native, uniwind, Sentry |
-| Auth | Clerk (web: `@clerk/nextjs`, mobile: `@clerk/expo`) |
-| State / Data | Zustand (`@board-game-organizer/store`), TanStack Query (`@board-game-organizer/query`) |
-| Quality | Biome (lint + format), Vitest, TypeScript strict, Turbo |
-
-## Repository Layout
+pnpm + Turborepo monorepo. TypeScript everywhere. **Biome** for lint/format (no ESLint/Prettier).
 
 ```
-.
-├── apps/
-│   ├── web/        # Next.js frontend, port 3000, src/ alias @/
-│   ├── api/        # Next.js API server, port 4000, src/ alias @/
-│   └── mobile/     # Expo app (dev-client), src/ alias @/
-├── packages/
-│   ├── store/              # Zustand store (slice pattern)
-│   ├── query/              # TanStack Query client factory + provider
-│   ├── biome-config/       # Shared Biome config
-│   └── typescript-config/  # Shared TS configs (base / next / expo)
-├── .github/
-│   ├── actions/setup-pnpm/ # Composite action (Node 26, pnpm 11.6.0)
-│   └── workflows/          # web.yml, api.yml, mobile.yml + reusable workflows
-├── turbo.json
-├── pnpm-workspace.yaml
-└── package.json            # packageManager: pnpm@11.6.0
+apps/
+  web/      Next.js 16 (App Router, React 19) + Tailwind v4 + HeroUI + Clerk   → port 3000
+  api/      Next.js 16 route handlers + Clerk + MongoDB (raw driver, no ODM) + zod → port 4000
+  mobile/   Expo SDK 56 (RN 0.85, Expo Router, dev client) + Clerk + Sentry + uniwind (RN Tailwind)
+packages/
+  store/              @board-game-organizer/store   Zustand store, slice pattern
+  query/              @board-game-organizer/query   TanStack Query provider + client factory
+  biome-config/       @board-game-organizer/biome-config
+  typescript-config/  @board-game-organizer/typescript-config (base / next / expo)
 ```
 
-## Commands
+- Path alias `@/*` → `<app>/src/*` in all apps.
+- Workspace packages are consumed as source (`exports` point to `./src/index.ts`), no build step.
+- `biome.json` at root extends the shared `biome-config` (2-space indent, double quotes,
+  semicolons, trailing commas, 100 col width). Each app has its own `biome.json` too.
 
-Run from the repo root:
+## Commands (run from repo root)
 
 ```bash
-pnpm install          # install all workspace deps
-pnpm dev              # run ALL apps (turbo) — web :3000, api :4000, expo
-pnpm build            # production build (web, api; mobile via EAS)
-pnpm lint             # biome check in every app
-pnpm typecheck        # tsc --noEmit in every app
-pnpm test             # vitest in every app (per-app: pnpm --filter <app> test)
-pnpm format           # biome format --write .
-pnpm clean            # remove caches/build output
+pnpm install                # install (lockfile frozen in CI)
+pnpm dev                    # turbo: run all apps in dev mode (persistent)
+pnpm build                  # turbo build (depends on ^build)
+pnpm lint                   # turbo lint → biome check .
+pnpm typecheck              # turbo typecheck (depends on ^build)
+pnpm test                   # not wired at root → use per-app: pnpm --filter web test
+pnpm format                 # biome format --write .
+pnpm clean                  # turbo clean
 ```
 
-Filter to one app: `pnpm --filter web dev`, `pnpm --filter api test`, etc.
+Per-app (filters: `web`, `api`, `mobile`):
+
+```bash
+pnpm --filter web dev       # http://localhost:3000
+pnpm --filter api dev       # http://localhost:4000 (binds 0.0.0.0)
+pnpm --filter mobile dev    # expo start --dev-client
+pnpm --filter <app> test    # vitest run
+pnpm --filter <app> lint|typecheck|format
+```
 
 ## Environment Variables
 
-There is **no env setup in git** — copy the `.env.example` in each app:
+No committed `.env*` files — copy `.env.example` to `.env` / `.env.local` per app.
 
-- **Web** (`apps/web/.env.local`): `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
-  `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:4000`)
-- **API** (`apps/api/.env.local`): `CLERK_SECRET_KEY`, `MONGODB_URI`,
-  `MONGODB_DB_NAME`, `ALLOWED_ORIGINS` (comma-separated, optional)
-- **Mobile** (`apps/mobile/.env`): `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`,
-  `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SENTRY_DSN` (optional)
+| App | Variable | Notes |
+|-----|----------|-------|
+| web | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
+| web | `NEXT_PUBLIC_API_URL` | defaults to `http://localhost:4000` |
+| api | `CLERK_SECRET_KEY` | backend calls to Clerk API |
+| api | `MONGODB_URI` / `MONGODB_DB_NAME` | MongoDB (needs transactions → replica set) |
+| api | `ALLOWED_ORIGINS` | comma-separated CORS allowlist (dev allows all) |
+| mobile | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | via `app.config.js` `extra` |
+| mobile | `EXPO_PUBLIC_API_URL` | read from `Constants.expoConfig.extra.apiUrl` |
+| mobile | `EXPO_PUBLIC_SENTRY_DSN` | optional |
 
-The API is unusable without MongoDB + Clerk. Auth-protected endpoints return
-401 otherwise.
+Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_URI` is missing, so the API can't start without it.
+
+## Architecture & Patterns
+
+### API (`apps/api`)
+- Route handlers in `src/app/api/<resource>/route.ts` re-export handlers from `src/app/lib/handler.ts`.
+- **Handler factories**: `typedMutationHandler(actionTable)` (validates `targetUserId` via zod,
+  requires Clerk auth, maps errors via `httpError(status, msg)`) and `listHandler` (validates `?type=`
+  against `LISTS` in `relationship.lists.ts`).
+- **Repository pattern**: `RelationshipRepository` takes `(db, session?)`; all mutations run inside
+  `withTransaction` from `lib/db.ts` (single `MongoClient` singleton).
+- **Domain model**: `Relationship { fromUserId, toUserId, type, status }` —
+  types `follow | friend_request | friend | block`, statuses `pending | accepted | blocked`.
+  Follow = immediate `accepted`; friend = bidirectional pair of accepted records; block clears
+  bidirectional follow/request/friend first. See comments in `apps/api/src/app/models/relationship.ts`.
+- Profiles are **not stored locally**: `lib/clerk.ts` fetches users from Clerk in chunks of 100
+  (`enrichUserIds`, `enrichSingleUser`). `apps/api/src/app/api/profiles/route.ts` is a simpler
+  direct-Clerk-API variant with CORS handling — beware of duplication between the two.
+- Dynamic imports in `listHandler` (`await import('./clerk')`) keep Clerk out of the edge bundle.
+
+### Web (`apps/web`)
+- App Router; server components by default; `dynamic = "force-dynamic"` on pages needing auth state.
+- Auth: `middleware.ts` protects all routes except `/`, `/sign-in(.*)`, `/sign-up(.*)`.
+  `ClerkProvider` in root `layout.tsx` (uses `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`).
+- UI: HeroUI (`@heroui/react`) + Tailwind v4 (`@import "tailwindcss"` + `@import "@heroui/styles"`).
+- Route group `(tabs)` hosts Matches / Groups / Organizations / Contacts.
+- Client state via `@board-game-organizer/store` (Zustand); server data via `@board-game-organizer/query` (TanStack Query — `QueryProvider` uses `useState` to avoid client sharing during SSR).
+
+### Mobile (`apps/mobile`)
+- Expo Router file-based routing; `(tabs)` group with Matches/Groups/Organizations/Profile.
+- Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
+  → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`) → `Stack`.
+- Styling: **uniwind** (Tailwind-like runtime for RN) — `global.css` entry wired in `metro.config.js`
+  via `withUniwindConfig`; components use `className`, not `style`.
+- Env access through `app.config.js` `extra` + `Constants.expoConfig.extra`.
+
+### Shared packages
+- `store`: add slices following `createCounterSlice` pattern (see `store/src/index.ts` example).
+- `query`: `createQueryClient()` (staleTime 60s, retry 1) + `QueryProvider` with devtools.
+- Never add runtime code to `biome-config`/`typescript-config` (config-only, `private: true`).
 
 ## Code Conventions
 
-- **Commits**: Conventional Commits, **enforced by CI** (reusable
-  `conventional-commits` workflow). Allowed types:
+- **Biome** only: `pnpm lint` = `biome check .`; `pnpm format` = `biome format --write .`.
+- Prefer server components; `"use client"` only where interactivity is needed.
+- Keep domain logic in `lib/` with thin route handlers.
+- Use `import type` for type-only imports (Biome rule `useImportType`).
+- Tests: vitest per app (`vitest.config.ts`), currently placeholder tests only.
+
+## Git Workflow (IMPORTANT)
+
+- **Commit messages must follow Conventional Commits** — enforced by CI
+  (`.github/workflows/reusable-conventional-commits.yml`). Allowed types:
   `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
-- **Lint/format**: Biome only (no ESLint/Prettier). Shared config in
-  `packages/biome-config`; root `biome.json` extends it. Key style: 2-space
-  indent, 100 col width, double quotes, semicolons, trailing commas, import
-  organizing enabled.
-- **TypeScript**: strict; shared configs in `packages/typescript-config`
-  (`base.json`, `next.json`, `expo.json`).
-- **Tests**: Vitest, one config per app (`vitest.config.ts`), currently
-  placeholder tests in `src/app/__tests__/`.
-- Import path alias `@/*` → `src/*` in web, api, mobile.
+  Examples: `feat(api): add groups endpoint`, `fix(mobile): header spacing`, `docs: update README`.
+- **All commits are signed** (SSH commit signing). Repo-local config (already set):
+  ```bash
+  git config user.name "Alessandro Mancini"
+  git config user.email "alexemancio1985@gmail.com"   # personal email
+  git config user.signingkey /root/.ssh/mancioshell_github.pub
+  git config gpg.format ssh
+  git config commit.gpgsign true
+  ```
+  Verify after committing: `git log --show-signature -1` (expect `Good "git" signature for ...`).
+- Workflow: branch off `main` → commit (signed, conventional) → `git push origin <branch>`
+  → open PR. Direct pushes to `main` trigger production deploys (Vercel + EAS) — prefer PRs.
+- Push command for the current branch: `git push origin <branch>`, or `git push` if upstream is set.
 
-## App-Specific Patterns
+## CI/CD (GitHub Actions)
 
-### API (`apps/api`) — Next.js Route Handlers
-
-- Auth via Clerk: `clerkMiddleware()` in `src/proxy.ts`; handlers read
-  `auth()` from `@clerk/nextjs/server`. The Clerk `userId` **is** the user
-  identity — there is no local users table; profiles are enriched from the
-  Clerk API (`src/app/lib/clerk.ts`).
-- **Data access**: raw MongoDB driver (no ODM). Singleton client in
-  `src/app/lib/db.ts`; use `withTransaction(fn)` for multi-operation writes.
-- **Repository pattern**: `RelationshipRepository` (`relationship.repository.ts`)
-  takes `(db, session?)` so the same methods work inside and outside
-  transactions. It's the only consumer of collections; model types live in
-  `src/app/models/relationship.ts`.
-- **Route factory pattern**: `src/app/lib/handler.ts` exports
-  `typedMutationHandler(actionTable)` and `listHandler`. Routes are thin —
-  see `src/app/api/relationships/route.ts` (GET/POST/PATCH/DELETE mapped to
-  handlers, action selected by `?type=` query param). Actions live in
-  `relationship.actions.ts` (CREATE/REMOVE/UPDATE tables); list types in
-  `relationship.lists.ts`.
-- **Errors**: throw `httpError(status, message)`; handlers return
-  `{ error }` JSON with the status.
-- **Domain model** (relationships): types `follow | friend_request | friend |
-  block` with statuses `pending | accepted | blocked`; friendships and
-  follows are stored bidirectionally. Keep this semantics when extending.
-
-### Web (`apps/web`) — Next.js App Router
-
-- Server components by default; mark interactive components `"use client"`.
-- **Auth**: Clerk; `src/middleware.ts` protects everything except `/`,
-  `/sign-in(.*)`, `/sign-up(.*)`.
-- **UI**: HeroUI (`@heroui/react`) + Tailwind CSS v4 — `globals.css` imports
-  `tailwindcss` and `@heroui/styles`. Theme tokens via HeroUI classes
-  (`bg-background`, `text-foreground`, `bg-content1`, …).
-- **Routing**: `(tabs)` route group → matches / groups / organizations /
-  contacts. Root layout wraps children in `ClerkProvider`.
-- **State/data**: `@board-game-organizer/store` (Zustand) for client state;
-  `@board-game-organizer/query` (TanStack Query) for server state —
-  `QueryProvider` exists but is **not yet mounted** in the layout.
-- Web fetches the API directly (`fetch(apiUrl)` with a Clerk bearer token,
-  see `components/Profile.tsx`); CORS is handled by the API.
-
-### Mobile (`apps/mobile`) — Expo
-
-- Expo Router file-based routing: root `src/app/_layout.tsx` wires providers
-  (Sentry → GestureHandlerRootView → HeroUINativeProvider → ClerkProvider
-  with `tokenCache`), `(tabs)` group for main navigation.
-- **Styling**: uniwind (Tailwind-like classes in RN) — `global.css` is the
-  CSS entry, wired via `withUniwindConfig` in `metro.config.js`.
-- **Config**: `app.config.js` reads `EXPO_PUBLIC_*` vars; API base URL comes
-  from `Constants.expoConfig.extra.apiUrl` with a localhost fallback.
-- Runs via **development client** (`pnpm --filter mobile dev`), not Expo Go.
-  EAS profiles in `eas.json` (development / preview / production).
-
-## Shared Packages
-
-- **`@board-game-organizer/store`** — Zustand, slice pattern: each slice is a
-  `createXSlice` factory; the `AppStore` type in `index.ts` is the union of
-  slices. Add a slice by extending the type and spreading it into `create()`.
-- **`@board-game-organizer/query`** — `createQueryClient()` (staleTime 60s,
-  retry 1) + `QueryProvider` (`'use client'`, `useState`-memoized to avoid
-  sharing the client across SSR requests).
-- **`@board-game-organizer/biome-config`** / **`typescript-config`** — shared
-  tooling configs; apps extend them and must not duplicate the settings.
-
-## CI/CD
-
-- GitHub Actions, path-filtered per app: `web.yml`, `api.yml`, `mobile.yml`.
-- Every PR/push: conventional-commits check + Vitest via
-  `reusable-test.yml` (`pnpm --filter <app> test`).
-- `main` → production: Vercel for web & api (`reusable-vercel-deploy.yml`),
-  EAS build for mobile. PRs → preview builds (Vercel preview, EAS development).
-- `setup-pnpm` action: Node **26**, pnpm **11.6.0**,
-  `pnpm install --frozen-lockfile` — keep `pnpm-lock.yaml` in sync.
-
-## Gotchas
-
-- `.npmrc` sets `package-manager-strict=false`; `pnpm-workspace.yaml` has an
-  override (`utf-8-validate`) and a peerDependencyRule for
-  `@gorhom/bottom-sheet` — don't remove them, they fix install failures.
-- Turbo caches `.next/**` and `dist/**` outputs; `dev` and `clean` are
-  uncached. Env glob: `**/.env.*local`.
-- Mobile uses React Native worklets + reanimated; keep versions aligned with
-  the SDK 56 set in `apps/mobile/package.json`.
+- Per-app pipelines triggered on PR/push touching `apps/<app>/**` or `packages/**`:
+  `web.yml` / `api.yml` (tests + Vercel preview/production), `mobile.yml` (tests + EAS builds).
+- Reusable workflows in `.github/workflows/reusable-*.yml`; setup via `.github/actions/setup-pnpm`
+  (Node 26, pnpm 11.6.0, `--frozen-lockfile`).
+- If you change dependencies, keep `pnpm-lock.yaml` in sync (run `pnpm install`, not `pnpm install --lockfile-only` when the graph changes).
