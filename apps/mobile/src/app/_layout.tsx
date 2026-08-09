@@ -10,7 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { HeroUINativeProvider } from "heroui-native";
 
 import { Uniwind } from 'uniwind'
-import "../global.css";
+import "../../global.css";
 
 import { RuntimeError } from "@/components/RuntimeError";
 
