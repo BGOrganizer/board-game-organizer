@@ -54,10 +54,8 @@ runs:
           /opt/hostedtoolcache/Ruby
         df -h / | tail -1
 
-    - name: 🧰 Setup Node.js + pnpm (no workspace install — EAS installs deps in its sandbox)
+    - name: 🧰 Setup workspace
       uses: ./.github/actions/setup-pnpm
-      with:
-        install: 'false'
 
     - name: ☕ Set up JDK 17
       uses: actions/setup-java@v4
