@@ -17,6 +17,13 @@ import { RuntimeError } from "@/components/RuntimeError";
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
 
+// Session Replay (mobileReplayIntegration) e Feedback solo in dev:
+// crash noti all'avvio nelle build Android Release con New Architecture/Fabric
+// (getsentry/sentry-react-native#3990, #6154, #6122)
+const sentryIntegrations = __DEV__
+  ? [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()]
+  : [];
+
 Sentry.init({
   dsn: sentryDsn,
 
@@ -30,7 +37,7 @@ Sentry.init({
   // Configure Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+  integrations: sentryIntegrations,
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
