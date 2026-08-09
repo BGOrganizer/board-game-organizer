@@ -1,12 +1,14 @@
-name: Mobile APK (EAS local build — both profiles)
+name: Mobile APK (EAS local build)
 description: >
-  Builds Android APKs locally on the runner with `eas build --local`
-  (no EAS cloud credits needed), following the expo-react-native-cicd
-  pipeline: one build per profile. Produces BOTH the `development` APK
-  (dev client, for testing) and the `internal` APK (release, for
-  distribution). Exposes version/build metadata and artifact paths.
+  Builds a single Android APK locally on the runner with `eas build --local`
+  (no EAS cloud credits needed) and exposes version/build metadata.
+  Run once per profile (development / internal): building both profiles in
+  the same job exhausts the 14GB runner disk.
 
 inputs:
+  build-type:
+    description: 'Build type (must match an eas.json profile): internal or development'
+    required: true
   expo-token:
     description: Expo/EAS token (EXPO_TOKEN secret)
     required: true
@@ -30,18 +32,15 @@ outputs:
   build-number:
     description: Unique build number (timestamp)
     value: ${{ steps.meta.outputs.build-number }}
-  development-artifact-name:
-    description: Development APK file name
-    value: ${{ steps.meta.outputs.development-artifact-name }}
-  development-artifact-path:
-    description: Path to the development APK (repo root relative)
-    value: ${{ steps.meta.outputs.development-artifact-path }}
-  internal-artifact-name:
-    description: Internal APK file name
-    value: ${{ steps.meta.outputs.internal-artifact-name }}
-  internal-artifact-path:
-    description: Path to the internal APK (repo root relative)
-    value: ${{ steps.meta.outputs.internal-artifact-path }}
+  build-type:
+    description: Build type (internal or development)
+    value: ${{ steps.meta.outputs.build-type }}
+  artifact-name:
+    description: APK file name
+    value: ${{ steps.meta.outputs.artifact-name }}
+  artifact-path:
+    description: Path to the built APK (repo root relative)
+    value: ${{ steps.meta.outputs.artifact-path }}
 
 runs:
   using: composite
@@ -84,16 +83,17 @@ runs:
       shell: bash
       run: |
         VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
-        BUILD_NUMBER=$(date +%Y%m%d%H%M%S)
+        # unique per-run build number, identical across parallel jobs
+        BUILD_NUMBER="$(date +%Y%m%d)-r${{ github.run_number }}"
+        ARTIFACT_NAME="board-game-organizer-${VERSION}-${BUILD_NUMBER}-${{ inputs.build-type }}.apk"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "build-number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
-        echo "development-artifact-name=board-game-organizer-${VERSION}-${BUILD_NUMBER}-development.apk" >> "$GITHUB_OUTPUT"
-        echo "development-artifact-path=apps/mobile/build-output/board-game-organizer-${VERSION}-${BUILD_NUMBER}-development.apk" >> "$GITHUB_OUTPUT"
-        echo "internal-artifact-name=board-game-organizer-${VERSION}-${BUILD_NUMBER}-internal.apk" >> "$GITHUB_OUTPUT"
-        echo "internal-artifact-path=apps/mobile/build-output/board-game-organizer-${VERSION}-${BUILD_NUMBER}-internal.apk" >> "$GITHUB_OUTPUT"
-        echo "✅ Version: $VERSION | Build: $BUILD_NUMBER"
+        echo "build-type=${{ inputs.build-type }}" >> "$GITHUB_OUTPUT"
+        echo "artifact-name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+        echo "artifact-path=apps/mobile/build-output/$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+        echo "✅ Version: $VERSION | Build: $BUILD_NUMBER | Type: ${{ inputs.build-type }}"
 
-    - name: 📱 Build Development APK
+    - name: 🏗️ Build APK (eas build --local)
       shell: bash
       working-directory: apps/mobile
       env:
@@ -101,35 +101,14 @@ runs:
         EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
         EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
-        NODE_ENV: development
         NODE_OPTIONS: --openssl-legacy-provider --max_old_space_size=4096
       run: |
         mkdir -p build-output
         eas build \
           --platform android \
-          --profile development \
+          --profile ${{ inputs.build-type }} \
           --local \
           --non-interactive \
-          --output "./build-output/${{ steps.meta.outputs.development-artifact-name }}"
-        echo "✅ Development APK built:"
-        ls -lh build-output/
-
-    - name: 📱 Build Internal APK
-      shell: bash
-      working-directory: apps/mobile
-      env:
-        EXPO_TOKEN: ${{ inputs.expo-token }}
-        EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
-        EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
-        EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
-        NODE_ENV: production
-        NODE_OPTIONS: --openssl-legacy-provider --max_old_space_size=4096
-      run: |
-        eas build \
-          --platform android \
-          --profile internal \
-          --local \
-          --non-interactive \
-          --output "./build-output/${{ steps.meta.outputs.internal-artifact-name }}"
-        echo "✅ Internal APK built:"
+          --output "./build-output/${{ steps.meta.outputs.artifact-name }}"
+        echo "✅ Build output:"
         ls -lh build-output/
