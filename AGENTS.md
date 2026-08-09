@@ -154,12 +154,12 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   TanayK07/expo-react-native-cicd. The `mobile-build` composite action builds
   ONE profile per invocation (`development` dev client or `internal` release
   from `apps/mobile/eas.json`); `mobile.yml` runs it for **both profiles in
-  parallel** via a matrix. The action skips the workspace `pnpm install`
-  (EAS installs deps in its own sandbox), frees ~7GB of preinstalled
-  toolchains (keeping `/usr/local/lib/android` for NDK/CMake), caches
-  `~/.eas-build-local` and `~/.gradle`, and exposes `version` /
-  `build-number` / `artifact-name` / `artifact-path` outputs. Version comes
-  from `app.config.js` (`expo.version`).
+  parallel** via a matrix. The action installs workspace deps (EAS requires
+  `node_modules` to resolve config plugins and check `expo-dev-client`),
+  frees ~7GB of preinstalled toolchains (keeping `/usr/local/lib/android` for
+  NDK/CMake), caches `~/.eas-build-local` and `~/.gradle`, and exposes
+  `version` / `build-number` / `artifact-name` / `artifact-path` outputs.
+  Version comes from `app.config.js` (`expo.version`).
 - Both APKs are uploaded as build artifacts and attached to a **draft GitHub
   Release** by the `release` job of `mobile.yml`
   (`softprops/action-gh-release`), named
