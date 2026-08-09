@@ -37,10 +37,10 @@ web, API, and mobile, all in one TypeScript monorepo.
 ```bash
 pnpm install          # install all workspace dependencies
 
-# 1. Create env files (see .env.example)
-cp .env.example .env.local      # used by web (NEXT_PUBLIC_*)
-# api reads MONGODB_URI, MONGODB_DB_NAME, CLERK_SECRET_KEY, ALLOWED_ORIGINS
-# mobile reads EXPO_PUBLIC_* (set in apps/mobile/.env or shell)
+# 1. Create env files from the per-app examples
+cp apps/web/.env.example apps/web/.env.local
+cp apps/api/.env.example apps/api/.env.local
+cp apps/mobile/.env.example apps/mobile/.env
 
 pnpm dev              # run all apps
 ```
@@ -60,7 +60,7 @@ pnpm format       # biome format --write .
 pnpm --filter <app> test   # vitest
 ```
 
-See `AGENTS.md` for architecture, conventions, env vars, and the git/commit workflow.
+See `AGENTS.md` for architecture, patterns, env vars, and the signed git/commit workflow.
 
 ## License
 

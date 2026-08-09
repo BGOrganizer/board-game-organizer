@@ -57,7 +57,7 @@ pnpm --filter <app> lint|typecheck|format
 
 ## Environment Variables
 
-No committed `.env*` files — copy `.env.example` to `.env` / `.env.local` per app.
+No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.example`, `apps/api/.env.example`, `apps/mobile/.env.example`) into that app as `.env.local` (web/api) or `.env` (mobile).
 
 | App | Variable | Notes |
 |-----|----------|-------|
@@ -67,7 +67,7 @@ No committed `.env*` files — copy `.env.example` to `.env` / `.env.local` per 
 | api | `MONGODB_URI` / `MONGODB_DB_NAME` | MongoDB (needs transactions → replica set) |
 | api | `ALLOWED_ORIGINS` | comma-separated CORS allowlist (dev allows all) |
 | mobile | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | via `app.config.js` `extra` |
-| mobile | `EXPO_PUBLIC_API_URL` | read from `Constants.expoConfig.extra.apiUrl` |
+| mobile | `EXPO_PUBLIC_API_URL` | read from `Constants.expoConfig.extra.apiUrl`; use LAN IP (e.g. `http://192.168.1.10:4000`) for physical devices |
 | mobile | `EXPO_PUBLIC_SENTRY_DSN` | optional |
 
 Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_URI` is missing, so the API can't start without it.
