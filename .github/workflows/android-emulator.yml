@@ -59,11 +59,18 @@ jobs:
         run: |
           set +e
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          mkdir -p "$HOME/.android/avd"
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME"
           echo no | avdmanager create avd --force -n test \
             --package "system-images;android-34;default;x86_64" --device pixel_6 \
-            > /tmp/avd-create.log 2>&1
-          cat /tmp/avd-create.log
-          avdmanager list avd 2>/dev/null | grep -q "Name: test" || { echo "AVD CREATION FAILED"; exit 1; }
+            2>&1 | tee /tmp/avd-create.log
+          echo "--- avd list ---"
+          avdmanager list avd
+          echo "--- avd dir ---"
+          ls -la "$ANDROID_AVD_HOME"
+          test -f "$ANDROID_AVD_HOME/test.ini" || { echo "AVD FILE MISSING"; exit 1; }
           "$ANDROID_HOME/emulator/emulator" -avd test \
             -no-window -no-audio -no-boot-anim -no-snapshot \
             -gpu swiftshader_indirect -memory 2048 -cores 4 -accel off \
