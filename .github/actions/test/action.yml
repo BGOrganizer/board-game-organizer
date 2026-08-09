@@ -1,5 +1,6 @@
 name: Tests
 description: Installs workspace dependencies and runs the Vitest test suite of a project.
+# Requires the calling job to have run actions/checkout first.
 
 inputs:
   project-name:
@@ -9,9 +10,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: 📥 Checkout
-      uses: actions/checkout@v4
-
     - name: 🧰 Setup workspace
       uses: ./.github/actions/setup-pnpm
 

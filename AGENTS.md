@@ -146,7 +146,9 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   the only workflows visible in the Actions tab.
 - All reusable pieces are **composite actions** in `.github/actions/`
   (invisible in the Actions tab by design): `setup-pnpm`, `conventional-commits`,
-  `test`, `vercel-deploy`, `mobile-build`.
+  `test`, `vercel-deploy`, `mobile-build`. ⚠️ Local actions require
+  `actions/checkout` **before** the first `uses: ./.github/actions/...` step in
+  each job (the runner loads action metadata from the workspace at job start).
 - **Mobile APK builds are local** (`eas build --local` on the runner — no EAS
   cloud credits needed). The `mobile-build` composite action builds the APK with
   the `internal` or `development` profile from `apps/mobile/eas.json`, caches

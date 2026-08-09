@@ -43,6 +43,8 @@ export async function listHandler(req: Request) {
 
   const { enrichRelationships } = await import('./clerk')
   const repo = new RelationshipRepository(await getDb())
-  const relationships = await repo.list(userId, ...config)
+  // LISTS[type] è una union di tuple readonly: destructuring invece dello spread (TS2556)
+  const [relType, relStatus, direction] = config
+  const relationships = await repo.list(userId, relType, relStatus, direction)
   return NextResponse.json(await enrichRelationships(relationships, userId))
 }

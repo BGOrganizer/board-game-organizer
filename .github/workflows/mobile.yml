@@ -28,6 +28,11 @@ jobs:
     name: 🔍 Conventional Commits & Tests
     runs-on: ubuntu-latest
     steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for the conventional commits check
+
       - uses: ./.github/actions/conventional-commits
 
       - uses: ./.github/actions/test
