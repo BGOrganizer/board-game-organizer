@@ -42,7 +42,7 @@ export function Profile() {
                 console.log("Fetching profile with token:", apiUrl());
 
 
-                const res = await fetch(`${apiUrl()}/api/me`, {
+                const res = await fetch(`${apiUrl()}/api/profiles`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",

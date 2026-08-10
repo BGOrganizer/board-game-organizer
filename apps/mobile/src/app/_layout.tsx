@@ -80,6 +80,10 @@ export default function RootLayout() {
                 name="sign-in"
                 options={{ title: "Accedi", presentation: "modal" }}
               />
+              <Stack.Screen
+                name="(tabs)"
+                options={{ headerShown: false }}
+              />
             </Stack>
           </ClerkProvider>
         </HeroUINativeProvider>

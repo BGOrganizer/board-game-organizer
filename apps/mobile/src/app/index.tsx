@@ -1,13 +1,12 @@
 import { Show } from "@clerk/expo";
 
-import { Stack } from 'expo-router';
+import { Redirect } from "expo-router";
 import { View } from "react-native";
 
 import { LoginFallback } from "@/components/LoginFallback";
 import { Header } from "@/components/Header";
 
 export default function Index() {
-
   return (
     <View className="flex-1 bg-background p-6">
       <Header />
@@ -15,8 +14,9 @@ export default function Index() {
         when="signed-in"
         fallback={<LoginFallback />}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
+        {/* Redirect (non Stack.Screen) quando autenticati: Stack.Screen con name
+            può essere usato solo dentro un Layout route */}
+        <Redirect href="/(tabs)" />
       </Show>
     </View>
   );
