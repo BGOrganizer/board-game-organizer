@@ -10,9 +10,9 @@ appId: com.bgo.mobile
 - inputText: ${USERNAME}
 - tapOn: "Continue"
 - extendedWaitUntil:
-    visible: "Password"
+    visible: ".*[Ee]nter your [Pp]assword.*"
     timeout: 60000
-- tapOn: "Password"
+- tapOn: ".*[Ee]nter your [Pp]assword.*"
 - inputText: ${PASSWORD}
 - tapOn: "Continue"
 - extendedWaitUntil:
