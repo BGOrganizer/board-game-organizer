@@ -78,7 +78,12 @@ runs:
         adb shell settings put global hide_error_dialogs 1 || true
         adb logcat -c
         echo "::group::Running workflow script"
-        bash -e -c "${{ inputs.script }}"
+        # Write the caller's script to a file and execute it — avoids quoting
+        # issues that `bash -c "..."` would have with embedded double quotes.
+        cat > /tmp/workflow-script.sh <<'WORKFLOW_SCRIPT'
+${{ inputs.script }}
+WORKFLOW_SCRIPT
+        bash -e /tmp/workflow-script.sh
         SCRIPT_EXIT=$?
         echo "::endgroup::"
         kill $EMU_PID 2>/dev/null
