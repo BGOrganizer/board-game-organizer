@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
+import { enrichSingleUser } from "@/app/lib/clerk";
 
 function getCorsHeaders(request: NextRequest) {
   const origin = request.headers.get("origin") ?? "";
@@ -30,33 +31,23 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Recupera i dati utente reali da Clerk
-  const userRes = await fetch(
-    `https://api.clerk.com/v1/users/${userId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-    },
-  );
+  // Reuse the shared Clerk enrichment helper instead of duplicating the
+  // direct Clerk API call (see apps/api/src/app/lib/clerk.ts).
+  const clerkProfile = await enrichSingleUser(userId);
 
-  if (!userRes.ok) {
+  if (!clerkProfile) {
     return Response.json(
       { error: "Failed to fetch user data" },
       { status: 500, headers: corsHeaders },
     );
   }
 
-  const clerkUser = await userRes.json();
-
   const profile = {
-    id: clerkUser.id,
+    id: clerkProfile.id,
     name:
-      (`${clerkUser.first_name ?? ""} ${clerkUser.last_name ?? ""}`.trim() ||
-        clerkUser.email_addresses?.[0]?.email_address) ?? "Unknown",
-    email: clerkUser.email_addresses?.[0]?.email_address ?? "",
-    avatarUrl: clerkUser.image_url ?? "",
+      clerkProfile.fullName ?? clerkProfile.emailAddress ?? "Unknown",
+    email: clerkProfile.emailAddress ?? "",
+    avatarUrl: clerkProfile.imageUrl ?? "",
     preferredLanguage: "it",
     plan: "free",
     stats: {
