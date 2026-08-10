@@ -1,12 +1,13 @@
 appId: com.bgo.mobile
 ---
-# 3. Profile tab shows the API data (name) and logout returns to welcome
+# 3. Profile tab shows the API data (name) and logout returns to welcome.
+#    Clerk sign-out on a slow emulator can take a while — generous timeout.
 - tapOn: "Profile"
 - extendedWaitUntil:
     visible: "Logout"
-    timeout: 90000
+    timeout: 120000
 - assertVisible: "E2E Test"
 - tapOn: "Logout"
 - extendedWaitUntil:
     visible: "Benvenuto in Board Game Organizer"
-    timeout: 90000
+    timeout: 180000
