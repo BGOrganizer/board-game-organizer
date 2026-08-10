@@ -1,15 +1,17 @@
-
 import * as Sentry from "@sentry/react-native";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { HeroUINativeProvider } from "heroui-native";
+import { QueryProvider } from "@board-game-organizer/query";
+import { useAppStore } from "@board-game-organizer/store";
 
-import { Uniwind } from 'uniwind'
+import { Uniwind } from "uniwind";
 import "../../global.css";
 
 import { RuntimeError } from "@/components/RuntimeError";
@@ -44,12 +46,16 @@ Sentry.init({
 });
 
 if (!publishableKey) {
-  console.error(
-    "[Clerk] Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY",
-  );
+  console.error("[Clerk] Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
 }
 
-function sentryFallback({ error, componentStack, resetError }: { error: any; componentStack: string; resetError: () => void }) {
+function sentryFallback({
+  error,
+  componentStack,
+}: {
+  error: unknown;
+  componentStack: string;
+}) {
   Sentry.captureException(error);
   return (
     <RuntimeError
@@ -59,32 +65,43 @@ function sentryFallback({ error, componentStack, resetError }: { error: any; com
   );
 }
 
-export default function RootLayout() {
+/**
+ * Syncs the Zustand theme preference with the uniwind runtime theme.
+ * "system" (the default) lets uniwind follow the device Appearance
+ * automatically; a manual light/dark override is applied explicitly.
+ */
+function ThemeSync() {
+  const themePreference = useAppStore((s) => s.themePreference);
+  useEffect(() => {
+    Uniwind.setTheme(themePreference);
+  }, [themePreference]);
+  return null;
+}
 
-  console.log(Uniwind.currentTheme)
+export default function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={sentryFallback}>
       <GestureHandlerRootView className="flex-1">
         <HeroUINativeProvider>
-          <ClerkProvider
-            publishableKey={publishableKey}
-            tokenCache={tokenCache}
-          >
-            <StatusBar style="auto" />
-            <Stack>
-              <Stack.Screen
-                name="index"
-                options={{ title: "Board Game Organizer" }}
-              />
-              <Stack.Screen
-                name="sign-in"
-                options={{ title: "Accedi", presentation: "modal" }}
-              />
-              <Stack.Screen
-                name="(tabs)"
-                options={{ headerShown: false }}
-              />
-            </Stack>
+          <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+            <QueryProvider>
+              <ThemeSync />
+              <StatusBar style="auto" />
+              <Stack>
+                <Stack.Screen
+                  name="index"
+                  options={{ title: "Board Game Organizer" }}
+                />
+                <Stack.Screen
+                  name="sign-in"
+                  options={{ title: "Accedi", presentation: "modal" }}
+                />
+                <Stack.Screen
+                  name="(tabs)"
+                  options={{ headerShown: false }}
+                />
+              </Stack>
+            </QueryProvider>
           </ClerkProvider>
         </HeroUINativeProvider>
       </GestureHandlerRootView>

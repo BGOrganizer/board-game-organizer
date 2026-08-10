@@ -1,37 +1,16 @@
+declare module "*.css";
 
 declare module "@clerk/expo/web" {
   export function UserButton(): JSX.Element;
 }
 
+// Minimal shim for the heroui-native root provider (subpath components like
+// heroui-native/button, heroui-native/card, heroui-native/text, etc. resolve
+// their real types directly from the package).
 declare module "heroui-native" {
   import type React from "react";
-  import type { ViewProps, TextProps } from "react-native";
 
   export class HeroUINativeProvider extends React.Component<{
     children: React.ReactNode;
   }> {}
-}
-
-declare module "heroui-native/button" {
-  import type React from "react";
-
-  export interface ButtonProps {
-    children?: React.ReactNode;
-    onPress?: () => void;
-    color?: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
-    className?: string;
-  }
-
-  export const Button: React.FC<ButtonProps>;
-}
-
-declare module "heroui-native/card" {
-  import type React from "react";
-
-  export interface CardProps {
-    children?: React.ReactNode;
-    className?: string;
-  }
-
-  export const Card: React.FC<CardProps>;
 }

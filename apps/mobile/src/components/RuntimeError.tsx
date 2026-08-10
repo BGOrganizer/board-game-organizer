@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { Text } from "heroui-native/text";
+import { View } from "react-native";
 
 type Props = {
   message?: string;
@@ -13,38 +14,17 @@ export function RuntimeError({ message, componentStack }: Props) {
         justifyContent: "center",
         alignItems: "center",
         padding: 24,
-        backgroundColor: "#fff",
       }}
     >
-      <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 8 }}>
-        Errore imprevisto
-      </Text>
-      <Text style={{ color: "#666", textAlign: "center" }}>
+      <Text className="text-lg font-bold">Errore imprevisto</Text>
+      <Text className="mt-2 text-center text-muted">
         L&apos;errore è stato segnalato. Riavvia l&apos;app.
       </Text>
       {message ? (
-        <Text
-          style={{
-            marginTop: 16,
-            fontSize: 15,
-            color: "#111",
-            textAlign: "center",
-            fontWeight: "600",
-          }}
-        >
-          {message}
-        </Text>
+        <Text className="mt-4 text-center font-semibold">{message}</Text>
       ) : null}
       {componentStack ? (
-        <Text
-          style={{
-            marginTop: 8,
-            fontSize: 10,
-            color: "#333",
-            fontFamily: "monospace",
-          }}
-          selectable
-        >
+        <Text className="mt-2 text-xs text-muted" numberOfLines={30}>
           {componentStack.slice(0, 1500)}
         </Text>
       ) : null}
