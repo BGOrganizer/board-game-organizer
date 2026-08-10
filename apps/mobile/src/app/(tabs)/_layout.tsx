@@ -1,7 +1,30 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Tabs } from "expo-router";
+import { useAuth } from "@clerk/expo";
+import { Redirect, Tabs } from "expo-router";
 
+import { Spinner } from "heroui-native/spinner";
+import { View } from "react-native";
+
+/**
+ * Guard: the tabs are only reachable when authenticated. After sign-out the
+ * Clerk state flips and this layout redirects back to the welcome screen —
+ * no dependency on navigation races from the logout handler.
+ */
 export default function TabLayout() {
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (!isLoaded) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <Spinner color="accent" />
+      </View>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <Redirect href="/" />;
+  }
+
   return (
     <Tabs screenOptions={{ tabBarActiveTintColor: "#006fee" }}>
       <Tabs.Screen

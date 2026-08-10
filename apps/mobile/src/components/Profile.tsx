@@ -49,11 +49,21 @@ export function Profile() {
     try {
       setIsSigningOut(true);
       await signOut();
+      // The (tabs) guard also redirects when the session state flips;
+      // this replace makes the transition immediate.
       router.replace("/");
     } finally {
       setIsSigningOut(false);
     }
   }, [signOut, router]);
+
+  if (!token) {
+    return (
+      <View className="mt-6 items-center">
+        <Text className="text-sm text-muted">Accesso non disponibile</Text>
+      </View>
+    );
+  }
 
   if (isLoading) {
     return (
