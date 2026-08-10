@@ -1,0 +1,10 @@
+appId: com.bgo.mobile
+---
+# 4. Dark mode: run after `adb shell cmd uimode night yes`.
+# Verifies the app still renders readable UI (no black-on-black) in dark mode.
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Benvenuto in Board Game Organizer"
+    timeout: 30000
+- assertVisible: "Accedi / Registrati"

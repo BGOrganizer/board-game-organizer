@@ -1,0 +1,70 @@
+name: Android Emulator (software-rendered)
+description: >
+  Installs the Android SDK components, creates an AVD and boots a
+  software-rendered emulator (GitHub-hosted runners have no KVM), then runs
+  the provided `script` input in the SAME shell so the emulator stays alive
+  for the whole script. Collects /tmp/emulator.log and /tmp/avd-create.log
+  on failure.
+
+inputs:
+  script:
+    description: Commands to run after the emulator has fully booted
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 🛠️ Install SDK components
+      shell: bash
+      run: |
+        SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        yes | "$SDKMGR" --licenses > /dev/null || true
+        "$SDKMGR" "platform-tools" "emulator" > /dev/null
+        "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
+        ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
+
+    - name: 🚀 Create AVD
+      shell: bash
+      run: |
+        export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        mkdir -p "$HOME/.android/avd"
+        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
+        echo no | avdmanager create avd --force -n test \
+          --package "system-images;android-34;default;x86_64" --device pixel_6 \
+          2>&1 | tee /tmp/avd-create.log
+        avdmanager list avd 2>/dev/null | grep -q "Name: test" || {
+          echo "AVD CREATION FAILED"; cat /tmp/avd-create.log; exit 1; }
+
+    - name: 📱 Boot emulator & run script
+      shell: bash
+      run: |
+        export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        "$ANDROID_HOME/emulator/emulator" -avd test \
+          -no-window -no-audio -no-boot-anim -no-snapshot \
+          -gpu swiftshader_indirect -memory 2048 -cores 4 -accel off \
+          -port 5554 > /tmp/emulator.log 2>&1 &
+        EMU_PID=$!
+        timeout 300 adb wait-for-device || { echo "NO DEVICE"; tail -20 /tmp/emulator.log; exit 1; }
+        BOOTED=0
+        for i in $(seq 1 150); do
+          if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+            BOOTED=1; echo "booted after ~$((i*10))s"; break
+          fi
+          sleep 10
+        done
+        if [ "$BOOTED" != "1" ]; then
+          echo "EMULATOR FAILED TO BOOT"; tail -30 /tmp/emulator.log; exit 1
+        fi
+        sleep 45 # let the input service settle before interacting
+        adb shell input keyevent 82 || true
+        adb shell settings put global window_animation_scale 0.0 || true
+        adb shell settings put global transition_animation_scale 0.0 || true
+        adb shell settings put global animator_duration_scale 0.0 || true
+        adb logcat -c
+        echo "::group::Running workflow script"
+        bash -e -c "${{ inputs.script }}"
+        SCRIPT_EXIT=$?
+        echo "::endgroup::"
+        kill $EMU_PID 2>/dev/null
+        exit $SCRIPT_EXIT

@@ -1,0 +1,5 @@
+appId: com.bgo.mobile
+name: Board Game Organizer
+---
+# Maestro E2E flows live in apps/mobile/.maestro/flows
+# Run: maestro test apps/mobile/.maestro/flows

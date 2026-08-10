@@ -1,0 +1,109 @@
+name: 🎬 Maestro E2E Tests (Android)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - apps/mobile/.maestro/**
+      - .github/actions/android-emulator/**
+      - .github/workflows/maestro.yml
+
+permissions:
+  contents: read
+
+jobs:
+  maestro:
+    name: 🎬 Maestro E2E on emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK 17 (Maestro requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 🔗 Resolve latest internal APK
+        id: apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          URL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=5" | \
+            jq -r '[.[] | .assets[] | select(.name | contains("internal"))][0].url')
+          echo "Resolved APK asset URL: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Download APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sL -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/octet-stream" \
+            -o app.apk "${{ steps.apk.outputs.url }}"
+          ls -lh app.apk
+
+      - name: 👤 Provision Maestro test user (Clerk API)
+        id: provision
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          EMAIL="e2e.$(date +%s)@example.com"
+          PASSWORD="E2eTestPass!2026"
+          STATUS=$(curl -s -o /tmp/clerk-user.json -w "%{http_code}" \
+            -X POST "https://api.clerk.com/v1/users" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"email_addresses\":[{\"email_address\":\"$EMAIL\",\"verified\":true}],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
+          echo "Clerk create user → HTTP $STATUS"
+          if [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
+            cat /tmp/clerk-user.json; exit 1
+          fi
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+
+      - name: ⚡ Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          maestro --version
+
+      - name: 🚀 Boot emulator & run Maestro flows
+        uses: ./.github/actions/android-emulator
+        with:
+          script: |
+            set +e
+            export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
+            adb install -r app.apk || { sleep 30; adb install -r app.apk; }
+            adb shell pm clear com.bgo.mobile || true   # fresh state: no session
+            set -e
+            maestro test --format junit --output /tmp/maestro-reports \
+              apps/mobile/.maestro/flows/01-launch-welcome.yaml
+            maestro test --format junit --output /tmp/maestro-reports \
+              -e EMAIL=${{ steps.provision.outputs.email }} \
+              -e PASSWORD=${{ steps.provision.outputs.password }} \
+              apps/mobile/.maestro/flows/02-login.yaml
+            maestro test --format junit --output /tmp/maestro-reports \
+              -e EMAIL=${{ steps.provision.outputs.email }} \
+              apps/mobile/.maestro/flows/03-profile-logout.yaml
+            # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
+            adb shell cmd uimode night yes || true
+            maestro test --format junit --output /tmp/maestro-reports \
+              apps/mobile/.maestro/flows/04-dark-mode.yaml
+
+      - name: 📤 Upload Maestro reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-reports
+          path: |
+            /tmp/maestro-reports/**
+            /tmp/emulator.log
+          if-no-files-found: warn

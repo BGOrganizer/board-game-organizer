@@ -1,0 +1,9 @@
+appId: com.bgo.mobile
+---
+# 1. Fresh install: the app launches and shows the welcome screen
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Benvenuto in Board Game Organizer"
+    timeout: 30000
+- assertVisible: "Accedi / Registrati"

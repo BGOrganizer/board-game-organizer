@@ -1,0 +1,13 @@
+appId: com.bgo.mobile
+---
+# 3. Profile tab shows the API data (name, email) and logout returns to welcome
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Logout"
+    timeout: 60000
+- assertVisible: "E2E Test"
+- assertVisible: ${EMAIL}
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Benvenuto in Board Game Organizer"
+    timeout: 60000
