@@ -65,7 +65,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"username\":\"$USERNAME\",\"email_address\":[\"$EMAIL\"],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
           echo "Clerk create user → HTTP $STATUS"
-          if [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
             cat /tmp/clerk-user.json; exit 1
           fi
           echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
