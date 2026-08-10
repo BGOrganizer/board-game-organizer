@@ -20,3 +20,4 @@ coverage/
 skills-lock.json
 
 apps/mobile/build-output/
+.vercel/
