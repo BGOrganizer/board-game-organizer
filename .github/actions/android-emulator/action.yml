@@ -29,11 +29,18 @@ runs:
       run: |
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
         mkdir -p "$HOME/.android/avd"
-        echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
+        # Export in the SAME shell (avdmanager needs it during creation) AND
+        # persist for the next step via GITHUB_ENV.
+        export ANDROID_AVD_HOME="$HOME/.android/avd"
+        echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
         echo no | avdmanager create avd --force -n test \
           --package "system-images;android-34;default;x86_64" --device pixel_6 \
           2>&1 | tee /tmp/avd-create.log
-        avdmanager list avd 2>/dev/null | grep -q "Name: test" || {
+        echo "--- avd list ---"
+        avdmanager list avd
+        echo "--- avd dir ---"
+        ls -la "$ANDROID_AVD_HOME"
+        test -f "$ANDROID_AVD_HOME/test.ini" || {
           echo "AVD CREATION FAILED"; cat /tmp/avd-create.log; exit 1; }
 
     - name: 📱 Boot emulator & run script
