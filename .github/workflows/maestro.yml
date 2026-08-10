@@ -99,7 +99,7 @@ jobs:
             maestro test --format junit --output /tmp/maestro-reports \
               --debug-output /tmp/maestro-debug \
               apps/mobile/.maestro/flows/01-launch-welcome.yaml \
-              || { echo "=== FLOW 01 FAILED — capture diagnostics ==="; adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; exit 1; }
+              || { echo '=== FLOW 01 FAILED - capture diagnostics ==='; adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; exit 1; }
             maestro test --format junit --output /tmp/maestro-reports \
               --debug-output /tmp/maestro-debug \
               -e USERNAME=${{ steps.provision.outputs.username }} \
