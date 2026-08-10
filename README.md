@@ -10,16 +10,20 @@ web, API, and mobile, all in one TypeScript monorepo.
 | Monorepo | pnpm workspaces + Turborepo |
 | Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
 | API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
-| Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · uniwind |
-| Shared | `@board-game-organizer/store` (Zustand) · `@board-game-organizer/query` (TanStack Query) |
+| Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
+| Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) |
 | Tooling | TypeScript · Biome (lint + format) · Vitest |
 
 ## Features
 
 **Implemented**
-- Clerk authentication on web and mobile (sign-in / sign-up)
+- Clerk authentication on web and mobile (sign-in / sign-up, Google OAuth)
+- Profile screen (avatar, user info, stats) powered by the API (`GET /api/profiles`, deployed on
+  Vercel) with **logout**; specular web/mobile implementation
+- Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
-- App shells with Matches · Groups · Organizations · Contacts navigation (web + mobile)
+- App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
+- E2E tests with **Maestro** on a CI Android emulator (login → profile → logout → dark mode)
 
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
@@ -60,6 +64,8 @@ pnpm format       # biome format --write .
 pnpm --filter <app> test   # vitest
 ```
 
+Mobile E2E (Maestro): manual run via the **Maestro E2E Tests** GitHub Action
+(`workflow_dispatch`) or locally with `maestro test apps/mobile/.maestro/flows`.
 See `AGENTS.md` for architecture, patterns, env vars, and the signed git/commit workflow.
 
 ## License
