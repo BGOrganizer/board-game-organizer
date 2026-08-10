@@ -1,9 +1,0 @@
-name: 🔧 Debug Test
-on:
-  workflow_dispatch:
-jobs:
-  debug:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Hello
-        run: echo "debug workflow works"
