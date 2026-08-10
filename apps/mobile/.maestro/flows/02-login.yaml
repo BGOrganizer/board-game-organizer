@@ -1,12 +1,17 @@
 appId: com.bgo.mobile
 ---
-# 2. Sign-in with the provisioned E2E test user (username + password via Clerk AuthView)
+# 2. Sign-in with the provisioned E2E test user.
+#    Clerk's sign-in is multi-step: identifier → Continue → password → Continue.
 - tapOn: "Accedi / Registrati"
 - extendedWaitUntil:
     visible: ".*[Ee]mail.*|.*[Uu]sername.*"
     timeout: 120000
 - tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
 - inputText: ${USERNAME}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Password"
+    timeout: 60000
 - tapOn: "Password"
 - inputText: ${PASSWORD}
 - tapOn: "Continue"

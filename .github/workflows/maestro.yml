@@ -96,23 +96,27 @@ jobs:
             adb shell uiautomator dump /sdcard/ui-pre.xml > /dev/null 2>&1 && adb pull /sdcard/ui-pre.xml /tmp/ui-pre.xml > /dev/null 2>&1 || true
             adb shell am force-stop com.bgo.mobile || true
             set -e
+            capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; }
             maestro test --format junit --output /tmp/maestro-reports \
               --debug-output /tmp/maestro-debug \
               apps/mobile/.maestro/flows/01-launch-welcome.yaml \
-              || { echo '=== FLOW 01 FAILED - capture diagnostics ==='; adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; exit 1; }
+              || { capture; exit 1; }
             maestro test --format junit --output /tmp/maestro-reports \
               --debug-output /tmp/maestro-debug \
               -e USERNAME=${{ steps.provision.outputs.username }} \
               -e PASSWORD=${{ steps.provision.outputs.password }} \
-              apps/mobile/.maestro/flows/02-login.yaml
+              apps/mobile/.maestro/flows/02-login.yaml \
+              || { capture; exit 1; }
             maestro test --format junit --output /tmp/maestro-reports \
               --debug-output /tmp/maestro-debug \
               -e USERNAME=${{ steps.provision.outputs.username }} \
-              apps/mobile/.maestro/flows/03-profile-logout.yaml
+              apps/mobile/.maestro/flows/03-profile-logout.yaml \
+              || { capture; exit 1; }
             # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
             adb shell cmd uimode night yes || true
             maestro test --format junit --output /tmp/maestro-reports \
-              apps/mobile/.maestro/flows/04-dark-mode.yaml
+              apps/mobile/.maestro/flows/04-dark-mode.yaml \
+              || { capture; exit 1; }
 
       - name: 📤 Upload Maestro reports
         if: always()
