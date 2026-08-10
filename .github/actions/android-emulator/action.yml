@@ -21,20 +21,25 @@ runs:
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
         yes | "$SDKMGR" --licenses > /dev/null || true
         "$SDKMGR" "platform-tools" "emulator" > /dev/null
-        "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
+        # ATD (Automated Test Device) images are lighter and less ANR-prone on
+        # software emulators; fall back to the full default image.
+        "$SDKMGR" "system-images;android-34;aosp_atd;x86_64" > /dev/null 2>&1 \
+          || "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
         ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
 
     - name: 🚀 Create AVD
       shell: bash
       run: |
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        IMG=$(ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null | head -1)
+        echo "using system image: $IMG"
         mkdir -p "$HOME/.android/avd"
         # Export in the SAME shell (avdmanager needs it during creation) AND
         # persist for the next step via GITHUB_ENV.
         export ANDROID_AVD_HOME="$HOME/.android/avd"
         echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
         echo no | avdmanager create avd --force -n test \
-          --package "system-images;android-34;default;x86_64" --device pixel_6 \
+          --package "system-images;android-34;$IMG;x86_64" --device pixel_6 \
           2>&1 | tee /tmp/avd-create.log
         echo "--- avd list ---"
         avdmanager list avd

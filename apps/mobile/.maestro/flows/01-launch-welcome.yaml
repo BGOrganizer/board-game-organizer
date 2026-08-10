@@ -2,6 +2,10 @@ appId: com.bgo.mobile
 ---
 # 1. Fresh install: the app launches and shows the welcome screen.
 #    First cold start on a software emulator is slow — generous timeout.
+#    Dismiss any system ANR dialog ("Wait") that may overlay the app.
+- tapOn:
+    text: "Wait"
+    optional: true
 - launchApp:
     stopApp: true
     clearState: false
