@@ -49,7 +49,7 @@ runs:
         export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
         "$ANDROID_HOME/emulator/emulator" -avd test \
           -no-window -no-audio -no-boot-anim -no-snapshot \
-          -gpu swiftshader_indirect -memory 2048 -cores 4 -accel off \
+          -gpu swiftshader_indirect -memory 3072 -cores 4 -accel off \
           -port 5554 > /tmp/emulator.log 2>&1 &
         EMU_PID=$!
         timeout 300 adb wait-for-device || { echo "NO DEVICE"; tail -20 /tmp/emulator.log; exit 1; }

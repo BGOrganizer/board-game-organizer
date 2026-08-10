@@ -83,6 +83,9 @@ jobs:
           script: |
             set +e
             export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
+            # Software-rendered emulators are slow: give the Maestro driver time to start
+            export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
+            export MAESTRO_CLI_NO_ANALYTICS=1
             adb install -r app.apk || { sleep 30; adb install -r app.apk; }
             adb shell pm clear com.bgo.mobile || true   # fresh state: no session
             set -e
