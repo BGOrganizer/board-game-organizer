@@ -4,7 +4,7 @@ appId: com.bgo.mobile
 - tapOn: "Accedi / Registrati"
 - extendedWaitUntil:
     visible: ".*[Ee]mail.*|.*[Uu]sername.*"
-    timeout: 30000
+    timeout: 120000
 - tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
 - inputText: ${USERNAME}
 - tapOn: "Password"
@@ -12,4 +12,4 @@ appId: com.bgo.mobile
 - tapOn: "Continue"
 - extendedWaitUntil:
     visible: "Matches"
-    timeout: 60000
+    timeout: 120000

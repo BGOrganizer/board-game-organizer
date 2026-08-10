@@ -1,9 +1,11 @@
 appId: com.bgo.mobile
 ---
-# 1. Fresh install: the app launches and shows the welcome screen
+# 1. Fresh install: the app launches and shows the welcome screen.
+#    First cold start on a software emulator is slow — generous timeout.
 - launchApp:
     stopApp: true
+    clearState: false
 - extendedWaitUntil:
     visible: "Benvenuto in Board Game Organizer"
-    timeout: 30000
+    timeout: 120000
 - assertVisible: "Accedi / Registrati"

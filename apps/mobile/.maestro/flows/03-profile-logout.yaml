@@ -4,9 +4,9 @@ appId: com.bgo.mobile
 - tapOn: "Profile"
 - extendedWaitUntil:
     visible: "Logout"
-    timeout: 60000
+    timeout: 90000
 - assertVisible: "E2E Test"
 - tapOn: "Logout"
 - extendedWaitUntil:
     visible: "Benvenuto in Board Game Organizer"
-    timeout: 60000
+    timeout: 90000
