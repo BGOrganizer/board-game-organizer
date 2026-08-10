@@ -104,6 +104,9 @@ export function Header() {
                         <li>
                             <NavLink href="/contacts" label="Contacts" />
                         </li>
+                        <li>
+                            <NavLink href="/profile" label="Profile" />
+                        </li>
                     </ul>
 
                     <div className="flex items-center gap-2">
@@ -142,6 +145,9 @@ export function Header() {
                             </li>
                             <li>
                                 <NavLink href="/contacts" label="Contacts" />
+                            </li>
+                            <li>
+                                <NavLink href="/profile" label="Profile" />
                             </li>
                         </Show>
 

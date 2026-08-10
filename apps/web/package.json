@@ -12,6 +12,8 @@
     "format": "biome format --write ."
   },
   "dependencies": {
+    "@board-game-organizer/query": "workspace:*",
+    "@board-game-organizer/shared": "workspace:*",
     "@board-game-organizer/store": "workspace:*",
     "@clerk/nextjs": "^7.5.8",
     "@heroui/react": "^3.2.1",
