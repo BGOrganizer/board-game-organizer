@@ -56,19 +56,17 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |
           TS=$(date +%s)
-          EMAIL="e2e.$TS@example.com"
           USERNAME="e2e_$TS"
           PASSWORD="E2eTestPass!2026"
           STATUS=$(curl -s -o /tmp/clerk-user.json -w "%{http_code}" \
             -X POST "https://api.clerk.com/v1/users" \
             -H "Authorization: Bearer $CLERK_SECRET_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"username\":\"$USERNAME\",\"email_addresses\":[{\"email_address\":\"$EMAIL\",\"verified\":true}],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
+            -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
           echo "Clerk create user → HTTP $STATUS"
           if [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
             cat /tmp/clerk-user.json; exit 1
           fi
-          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
           echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
           echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
 
@@ -90,11 +88,11 @@ jobs:
             maestro test --format junit --output /tmp/maestro-reports \
               apps/mobile/.maestro/flows/01-launch-welcome.yaml
             maestro test --format junit --output /tmp/maestro-reports \
-              -e EMAIL=${{ steps.provision.outputs.email }} \
+              -e USERNAME=${{ steps.provision.outputs.username }} \
               -e PASSWORD=${{ steps.provision.outputs.password }} \
               apps/mobile/.maestro/flows/02-login.yaml
             maestro test --format junit --output /tmp/maestro-reports \
-              -e EMAIL=${{ steps.provision.outputs.email }} \
+              -e USERNAME=${{ steps.provision.outputs.username }} \
               apps/mobile/.maestro/flows/03-profile-logout.yaml
             # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
             adb shell cmd uimode night yes || true
