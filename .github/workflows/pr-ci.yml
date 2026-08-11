@@ -274,7 +274,8 @@ jobs:
             export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
             export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
             export MAESTRO_CLI_NO_ANALYTICS=1
-            APK=$(ls *.apk | head -1)
+            APK=$(find . -name '*.apk' | head -1)
+            echo "APK found: $APK"
             adb install -r "$APK" || { sleep 30; adb install -r "$APK"; }
             adb shell pm clear com.bgo.mobile || true
             adb shell am start -n com.bgo.mobile/.MainActivity || true
