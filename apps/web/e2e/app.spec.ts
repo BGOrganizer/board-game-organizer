@@ -6,9 +6,7 @@ const SIGNIN_URL = process.env.E2E_SIGNIN_URL ?? "";
 test("welcome screen shows for signed-out visitors", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Benvenuto in Board Game Organizer")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /sign in/i }).first(),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible();
 });
 
 test("sign-in (Clerk ticket), profile data and logout", async ({ page }) => {
