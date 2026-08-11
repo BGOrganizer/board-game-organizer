@@ -59,6 +59,16 @@ export function Profile() {
     }
   }, [signOut, router]);
 
+  // Full-screen placeholder while the logout is in flight (mirrors the
+  // mobile behaviour).
+  if (isSigningOut) {
+    return (
+      <div className="mt-6 flex min-h-[60vh] items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="mt-6 flex items-center justify-center gap-2">
@@ -122,7 +132,7 @@ export function Profile() {
         isDisabled={isSigningOut}
         onPress={handleLogout}
       >
-        {isSigningOut ? <Spinner size="sm" /> : "Logout"}
+        Logout
       </Button>
     </Card>
   );

@@ -136,7 +136,7 @@ export function Profile() {
         isDisabled={isSigningOut}
         onPress={handleLogout}
       >
-        {isSigningOut ? <Spinner size="sm" /> : "Logout"}
+        Logout
       </Button>
     </Surface>
   );
