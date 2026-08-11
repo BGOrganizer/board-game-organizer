@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 // Credentials of the E2E test user provisioned by the CI (Clerk API).
 const EMAIL = process.env.E2E_EMAIL ?? "e2e@example.com";
@@ -7,9 +7,7 @@ const PASSWORD = process.env.E2E_PASSWORD ?? "E2eTestPass!2026";
 test("welcome screen shows for signed-out visitors", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Benvenuto in Board Game Organizer")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /sign in/i }).first(),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible();
 });
 
 test("sign-in, profile data and logout", async ({ page }) => {
