@@ -20,7 +20,7 @@ export default function Index() {
   // effect cannot ping-pong with the (tabs) guard.
   useEffect(() => {
     if (isLoaded && isSignedIn && pathname === "/") {
-      router.replace("/(tabs)");
+      router.replace("/matches");
     }
   }, [isLoaded, isSignedIn, router, pathname]);
 
