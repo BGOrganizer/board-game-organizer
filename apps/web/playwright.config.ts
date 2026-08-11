@@ -18,6 +18,11 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    // Clerk's sign-in ticket flow sets the session cookie across domains
+    // (accounts.dev → app): allow third-party cookies in the browser.
+    launchOptions: {
+      args: ["--disable-features=ThirdPartyCookiesBlocking,BlockThirdPartyCookies"],
+    },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });
