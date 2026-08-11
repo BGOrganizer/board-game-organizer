@@ -1,6 +1,7 @@
+import { QueryProvider } from "@board-game-organizer/query";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { QueryProvider } from "@board-game-organizer/query";
+import { ThemeScript } from "@/components/ThemeScript";
 import "./globals.css";
 
 const clerkAppearance = {
@@ -26,16 +27,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Follows the OS color scheme (HeroUI v3 uses a `.dark` class on <html>). */}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static theme bootstrap script (no user input) */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var m=window.matchMedia('(prefers-color-scheme: dark)');var apply=function(){document.documentElement.classList.toggle('dark',m.matches)};apply();m.addEventListener('change',apply)})()`,
-          }}
-        />
-      </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
+        <ThemeScript />
         <ClerkProvider
           publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={clerkAppearance}

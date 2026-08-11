@@ -14,10 +14,7 @@ export function resolveApiUrl(configuredUrl?: string | null): string {
 }
 
 /** Fetches the authenticated user's profile from the API. */
-export async function fetchProfile(
-  apiUrl: string,
-  token: string,
-): Promise<UserProfile> {
+export async function fetchProfile(apiUrl: string, token: string): Promise<UserProfile> {
   const res = await fetch(`${apiUrl}${API_PATHS.profiles}`, {
     headers: {
       Authorization: `Bearer ${token}`,

@@ -1,16 +1,14 @@
+import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { View } from "react-native";
-
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Spinner } from "heroui-native/spinner";
 import { Surface } from "heroui-native/surface";
 import { Text } from "heroui-native/text";
-
-import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
+import { useCallback, useEffect, useState } from "react";
+import { View } from "react-native";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -130,12 +128,7 @@ export function Profile() {
         Plan: {profile.plan} · Language: {profile.preferredLanguage}
       </Text>
 
-      <Button
-        className="mt-6"
-        variant="outline"
-        isDisabled={isSigningOut}
-        onPress={handleLogout}
-      >
+      <Button className="mt-6" variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
         Logout
       </Button>
     </Surface>

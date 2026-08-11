@@ -1,5 +1,5 @@
 // packages/query/src/query-client.ts
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient } from "@tanstack/react-query";
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -9,4 +9,4 @@ export const createQueryClient = () =>
         retry: 1,
       },
     },
-  })
+  });

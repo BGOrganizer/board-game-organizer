@@ -1,15 +1,13 @@
-import * as Sentry from "@sentry/react-native";
-import { ClerkProvider } from "@clerk/expo";
-import { tokenCache } from "@clerk/expo/token-cache";
-
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { HeroUINativeProvider } from "heroui-native";
 import { QueryProvider } from "@board-game-organizer/query";
 import { useAppStore } from "@board-game-organizer/store";
+import { ClerkProvider } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
+import * as Sentry from "@sentry/react-native";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { HeroUINativeProvider } from "heroui-native";
+import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { Uniwind } from "uniwind";
 import "../../global.css";
@@ -65,13 +63,7 @@ if (__DEV__ === false) {
   };
 }
 
-function sentryFallback({
-  error,
-  componentStack,
-}: {
-  error: unknown;
-  componentStack: string;
-}) {
+function sentryFallback({ error, componentStack }: { error: unknown; componentStack: string }) {
   Sentry.captureException(error);
   return (
     <RuntimeError
@@ -104,18 +96,9 @@ export default function RootLayout() {
               <ThemeSync />
               <StatusBar style="auto" />
               <Stack>
-                <Stack.Screen
-                  name="index"
-                  options={{ title: "Board Game Organizer" }}
-                />
-                <Stack.Screen
-                  name="sign-in"
-                  options={{ title: "Accedi", presentation: "modal" }}
-                />
-                <Stack.Screen
-                  name="(tabs)"
-                  options={{ headerShown: false }}
-                />
+                <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
+                <Stack.Screen name="sign-in" options={{ title: "Accedi", presentation: "modal" }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               </Stack>
             </QueryProvider>
           </ClerkProvider>

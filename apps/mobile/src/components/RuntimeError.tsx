@@ -21,9 +21,7 @@ export function RuntimeError({ message, componentStack }: Props) {
         padding: 24,
       }}
     >
-      <Text style={{ fontSize: 18, fontWeight: "bold", color: "#111" }}>
-        Errore imprevisto
-      </Text>
+      <Text style={{ fontSize: 18, fontWeight: "bold", color: "#111" }}>Errore imprevisto</Text>
       <Text style={{ marginTop: 8, fontSize: 14, color: "#555", textAlign: "center" }}>
         L&apos;errore è stato segnalato. Riavvia l&apos;app.
       </Text>

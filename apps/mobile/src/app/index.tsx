@@ -1,13 +1,11 @@
 import { useAuth } from "@clerk/expo";
 
 import { usePathname, useRouter } from "expo-router";
+import { Spinner } from "heroui-native/spinner";
 import { useEffect } from "react";
 import { View } from "react-native";
-
-import { Spinner } from "heroui-native/spinner";
-
-import { LoginFallback } from "@/components/LoginFallback";
 import { Header } from "@/components/Header";
+import { LoginFallback } from "@/components/LoginFallback";
 
 export default function Index() {
   const { isLoaded, isSignedIn } = useAuth();

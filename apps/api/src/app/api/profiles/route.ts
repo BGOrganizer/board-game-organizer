@@ -4,22 +4,19 @@ import { enrichSingleUser } from "@/app/lib/clerk";
 
 function getCorsHeaders(request: NextRequest) {
   const origin = request.headers.get("origin") ?? "";
-  const allowedOrigins =
-    process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) ?? [];
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) ?? [];
 
   // In development, allow all origins
   const isDev = process.env.NODE_ENV === "development";
   // Vercel preview deployments use unpredictable *.vercel.app subdomains:
   // allow them so preview E2E (Playwright) can call the API.
   const isVercelPreview = origin.endsWith(".vercel.app");
-  const allowOrigin =
-    isDev || allowedOrigins.includes(origin) || isVercelPreview ? origin : "";
+  const allowOrigin = isDev || allowedOrigins.includes(origin) || isVercelPreview ? origin : "";
 
   return {
     "Access-Control-Allow-Origin": allowOrigin || "*",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-Requested-With",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
     "Access-Control-Allow-Credentials": "true",
   };
 }
@@ -48,8 +45,7 @@ export async function GET(request: NextRequest) {
 
   const profile = {
     id: clerkProfile.id,
-    name:
-      clerkProfile.fullName ?? clerkProfile.emailAddress ?? "Unknown",
+    name: clerkProfile.fullName ?? clerkProfile.emailAddress ?? "Unknown",
     email: clerkProfile.emailAddress ?? "",
     avatarUrl: clerkProfile.imageUrl ?? "",
     preferredLanguage: "it",

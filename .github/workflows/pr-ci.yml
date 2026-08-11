@@ -6,6 +6,9 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write # preview URL comments on the PR
+  statuses: write # deployment statuses
+  deployments: write # Vercel deployments
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}

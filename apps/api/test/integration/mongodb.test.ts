@@ -1,5 +1,5 @@
 import { MongoClient } from "mongodb";
-import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
+import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
