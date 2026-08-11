@@ -1,0 +1,411 @@
+name: 🚦 PR CI/CD (quality gates → draft release)
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- commitlint
+  commitlint:
+    name: 💬 commitlint (Conventional Commits)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 💬 Check PR commits
+        run: |
+          npx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
+
+  # ---------------------------------------------------------------------- lint
+  lint:
+    name: 🧹 Biome lint & format
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧹 Biome check
+        run: pnpm lint
+
+  # ----------------------------------------------------------------- typecheck
+  typecheck:
+    name: 🧪 TypeScript typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 tsc --noEmit
+        run: pnpm typecheck
+
+  # --------------------------------------------------------------- unit tests
+  unit-tests:
+    name: 🧪 Unit tests (${{ matrix.app }}) + coverage
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [mobile, web, api]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Vitest with coverage
+        run: pnpm --filter ${{ matrix.app }} test:coverage
+
+      - name: 📤 Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/coverage/**
+          if-no-files-found: warn
+
+  # ------------------------------------------------------- integration tests
+  integration-tests:
+    name: 🐳 API integration tests (testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🐳 Vitest integration (MongoDB in Docker)
+        run: pnpm --filter api test:integration
+
+      - name: 📤 Upload integration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api-integration
+          path: apps/api/coverage/**
+          if-no-files-found: warn
+
+  # ------------------------------------------------- build api & web (next)
+  build-api-web:
+    name: 🏗️ Build API + Web (next build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🏗️ Build api
+        run: pnpm --filter api build
+
+      - name: 🏗️ Build web
+        run: pnpm --filter web build
+
+  # -------------------------------------------------- mobile internal build
+  build-mobile-internal:
+    name: 📱 Build mobile APK (internal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Build APK (eas build --local, internal profile)
+        id: build
+        uses: ./.github/actions/mobile-build
+        with:
+          profile: internal
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-internal
+          path: ${{ steps.build.outputs.artifact-path }}
+          retention-days: 7
+
+  # ------------------------------------------------ provision E2E test user
+  provision:
+    name: 👤 Provision E2E test user (Clerk API)
+    runs-on: ubuntu-latest
+    outputs:
+      username: ${{ steps.provision.outputs.username }}
+      email: ${{ steps.provision.outputs.email }}
+      password: ${{ steps.provision.outputs.password }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 👤 Create Clerk test user
+        id: provision
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          TS=$(date +%s)
+          USERNAME="e2e_$TS"
+          EMAIL="e2e.$TS@gmail.com"
+          PASSWORD="E2eTestPass!2026"
+          STATUS=$(curl -s -o /tmp/clerk-user.json -w "%{http_code}" \
+            -X POST "https://api.clerk.com/v1/users" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"$USERNAME\",\"email_address\":[\"$EMAIL\"],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
+          echo "Clerk create user → HTTP $STATUS"
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
+            cat /tmp/clerk-user.json; exit 1
+          fi
+          echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------- Vercel preview API
+  deploy-preview-api:
+    name: 🔌 Vercel preview (API)
+    needs: [build-api-web]
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Vercel (preview)
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: API
+          app-path: apps/api
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/api/preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+
+  # ---------------------------------------------------- Vercel preview web
+  deploy-preview-web:
+    name: 🌐 Vercel preview (Web)
+    needs: [build-api-web]
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Vercel (preview)
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: Web
+          app-path: apps/web
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/web/preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+
+  # ------------------------------------------------------------- Maestro E2E
+  e2e-maestro:
+    name: 🎬 Maestro E2E (mobile)
+    needs: [build-mobile-internal, provision]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK 17 (Maestro requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal
+          path: .
+
+      - name: ⚡ Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          maestro --version
+
+      - name: 🚀 Boot emulator & run Maestro flows
+        uses: ./.github/actions/android-emulator
+        with:
+          script: |
+            set +e
+            export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
+            export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
+            export MAESTRO_CLI_NO_ANALYTICS=1
+            APK=$(ls *.apk | head -1)
+            adb install -r "$APK" || { sleep 30; adb install -r "$APK"; }
+            adb shell pm clear com.bgo.mobile || true
+            adb shell am start -n com.bgo.mobile/.MainActivity || true
+            sleep 60
+            adb shell am force-stop com.bgo.mobile || true
+            set -e
+            capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true; }
+            maestro test --format junit --output /tmp/maestro-reports \
+              apps/mobile/.maestro/flows/01-launch-welcome.yaml \
+              || { capture; exit 1; }
+            maestro test --format junit --output /tmp/maestro-reports \
+              -e USERNAME=${{ needs.provision.outputs.username }} \
+              -e PASSWORD=${{ needs.provision.outputs.password }} \
+              apps/mobile/.maestro/flows/02-login.yaml \
+              || { capture; exit 1; }
+            maestro test --format junit --output /tmp/maestro-reports \
+              -e USERNAME=${{ needs.provision.outputs.username }} \
+              apps/mobile/.maestro/flows/03-profile-logout.yaml \
+              || { capture; exit 1; }
+            adb shell cmd uimode night yes || true
+            maestro test --format junit --output /tmp/maestro-reports \
+              apps/mobile/.maestro/flows/04-dark-mode.yaml \
+              || { capture; exit 1; }
+
+      - name: 📤 Upload Maestro reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-reports
+          path: |
+            /tmp/maestro-reports/**
+            /tmp/fail-screen.png
+            /tmp/ui-fail.xml
+            /tmp/fail-logcat.txt
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------- Playwright E2E
+  e2e-playwright:
+    name: 🎭 Playwright E2E (web)
+    needs: [deploy-preview-web, provision]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🌐 Install Playwright browsers
+        working-directory: apps/web
+        run: |
+          npx playwright install --with-deps chromium
+
+      - name: 🎭 Run Playwright against preview
+        working-directory: apps/web
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
+          E2E_EMAIL: ${{ needs.provision.outputs.email }}
+          E2E_PASSWORD: ${{ needs.provision.outputs.password }}
+        run: pnpm test:e2e
+
+      - name: 📤 Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/**
+          if-no-files-found: warn
+
+  # ----------------------------------------------------------- draft release
+  draft-release:
+    name: 📦 Draft release (APK internal + preview links)
+    needs:
+      - commitlint
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests
+      - build-api-web
+      - build-mobile-internal
+      - deploy-preview-api
+      - deploy-preview-web
+      - e2e-maestro
+      - e2e-playwright
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal
+          path: apk
+
+      - name: 🏷️ Resolve version
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "pr=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+
+      - name: 📝 Compose release body
+        id: body
+        run: |
+          cat > body.md <<EOF
+          ## ✅ PR CI/CD completato — tutti i gate passati
+
+          **PR:** #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}
+
+          ### 📱 Mobile (APK internal)
+          - Allegato a questa release (in attesa di promozione al merge)
+
+          ### 🌐 Preview Vercel
+          - **Web:** ${{ needs.deploy-preview-web.outputs.url }}
+          - **API:** ${{ needs.deploy-preview-api.outputs.url }}
+
+          ### 🧪 Qualità
+          - commitlint, Biome, typecheck ✅
+          - Unit test (mobile/web/api) con coverage ✅
+          - Integration test API (testcontainers) ✅
+          - Build mobile internal / api / web ✅
+          - E2E Maestro (mobile) ✅
+          - E2E Playwright (web) ✅
+          EOF
+
+      - name: 🚀 Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: board-game-organizer-v${{ steps.meta.outputs.version }}-pr${{ steps.meta.outputs.pr }}
+          name: board-game-organizer-v${{ steps.meta.outputs.version }}-pr${{ steps.meta.outputs.pr }}
+          body_path: body.md
+          files: apk/*.apk

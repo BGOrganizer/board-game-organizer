@@ -9,7 +9,11 @@ function getCorsHeaders(request: NextRequest) {
 
   // In development, allow all origins
   const isDev = process.env.NODE_ENV === "development";
-  const allowOrigin = isDev || allowedOrigins.includes(origin) ? origin : "";
+  // Vercel preview deployments use unpredictable *.vercel.app subdomains:
+  // allow them so preview E2E (Playwright) can call the API.
+  const isVercelPreview = origin.endsWith(".vercel.app");
+  const allowOrigin =
+    isDev || allowedOrigins.includes(origin) || isVercelPreview ? origin : "";
 
   return {
     "Access-Control-Allow-Origin": allowOrigin || "*",

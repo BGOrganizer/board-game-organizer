@@ -8,12 +8,15 @@
     "lint": "turbo lint",
     "clean": "turbo clean",
     "format": "biome format --write .",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "commitlint": "commitlint --from HEAD~1 --to HEAD"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@board-game-organizer/biome-config": "workspace:*",
     "@board-game-organizer/typescript-config": "workspace:*",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "turbo": "^2.5.0",
     "typescript": "^6.0.3"
   }

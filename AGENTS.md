@@ -166,10 +166,16 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 
 ## Git Workflow (IMPORTANT)
 
-- **Commit messages must follow Conventional Commits** — enforced by CI
-  (`.github/actions/conventional-commits` composite action). Allowed types:
-  `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
-  Examples: `feat(api): add groups endpoint`, `fix(mobile): header spacing`, `docs: update README`.
+- **main is protected**: no direct pushes/commits to `main` — every change lands via a
+  **pull request** with **at least 1 approval** (Alessandro). The branch protection rule
+  must be enabled in **Settings → Branches → Add rule → main** (require PR + 1 approval +
+  status checks) — requires an admin account.
+- **For every feature/fix/docs/CI change: create a new branch** off `main`
+  (e.g. `feat/...`, `fix/...`, `ci/...`), commit (signed, conventional), push the branch and
+  **open a PR to main**. The PR pipeline (`pr-ci.yml`) runs all quality gates.
+- **Commit messages must follow Conventional Commits** — enforced by CI via
+  **commitlint** (`commitlint.config.mjs`, `@commitlint/config-conventional`). Allowed
+  types: `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
 - **All commits are signed** (SSH commit signing). Repo-local config (already set):
   ```bash
   git config user.name "Alessandro Mancini"
@@ -179,37 +185,64 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   git config commit.gpgsign true
   ```
   Verify after committing: `git log --show-signature -1` (expect `Good "git" signature for ...`).
-- Workflow: branch off `main` → commit (signed, conventional) → `git push origin <branch>`
-  → open PR. Direct pushes to `main` trigger production deploys (Vercel + mobile
-  APK build & draft release) — prefer PRs.
-- Push command for the current branch: `git push origin <branch>`, or `git push` if upstream is set.
+- Push command: `git push origin <branch>` (upstream is set after the first push).
 
 ## CI/CD (GitHub Actions)
 
-- Path-filtered per-app pipelines: `web.yml` / `api.yml` (tests + Vercel
-  preview/production) and `mobile.yml` (checks + APK build & draft release) —
-  the only workflows visible in the Actions tab.
-- All reusable pieces are **composite actions** in `.github/actions/`
-  (invisible in the Actions tab by design): `setup-pnpm`, `conventional-commits`,
-  `test`, `vercel-deploy`, `mobile-build`. ⚠️ Local actions require
-  `actions/checkout` **before** the first `uses: ./.github/actions/...` step in
-  each job (the runner loads action metadata from the workspace at job start).
-- **Mobile APK builds are local** (`eas build --local` on the runner — no EAS
-  cloud credits needed), following the pipeline from
-  TanayK07/expo-react-native-cicd. The `mobile-build` composite action builds
-  ONE profile per invocation (`development` dev client or `internal` release
-  from `apps/mobile/eas.json`); `mobile.yml` runs it for **both profiles in
-  parallel** via a matrix. The action installs workspace deps (EAS requires
-  `node_modules` to resolve config plugins and check `expo-dev-client`),
-  frees ~7GB of preinstalled toolchains (keeping `/usr/local/lib/android` for
-  NDK/CMake), caches `~/.eas-build-local` and `~/.gradle`, and exposes
-  `version` / `build-number` / `artifact-name` / `artifact-path` outputs.
-  Version comes from `app.config.js` (`expo.version`).
-- Both APKs are uploaded as build artifacts and attached to a **draft GitHub
-  Release** by the `release` job of `mobile.yml`
-  (`softprops/action-gh-release`), named
-  `board-game-organizer-v<version>-<build-number>`. Trigger: push to main or
-  manual dispatch → always builds both profiles.
-- Setup via `.github/actions/setup-pnpm` (Node 26, pnpm 11.6.0,
-  `--frozen-lockfile`).
+### PR pipeline — `pr-ci.yml` (every pull request to main)
+
+A single workflow runs ALL quality gates on every PR:
+1. **commitlint** — conventional-commit check on the PR commits
+2. **Biome** — `pnpm lint` (format + lint, TS/React rules)
+3. **Typecheck** — `pnpm typecheck` (tsc --noEmit across apps)
+4. **Unit tests (vitest)** — mobile/web/api with **coverage** (`test:coverage`,
+   `@vitest/coverage-v8`) → coverage report uploaded as artifact
+5. **API integration tests (vitest + testcontainers)** — `pnpm --filter api test:integration`;
+   spins up a real MongoDB container (Docker) — the scaffold for the upcoming MongoDB
+   integration
+6. **Mobile build (internal only)** — `mobile-build` composite action, profile `internal`
+7. **Build API + Web** — `next build` for both apps
+8. **Vercel preview deploys** — api and web deployed to **preview** (never production)
+9. **E2E Maestro (mobile)** — boots a software-rendered Android emulator
+   (`.github/actions/android-emulator`), installs the PR's internal APK and runs the flows in
+   `apps/mobile/.maestro/flows` (welcome → login → profile/logout → dark mode)
+10. **E2E Playwright (web)** — `apps/web/e2e` against the **Vercel preview URL**
+    (sign-in with the provisioned Clerk test user → profile → logout)
+11. **Draft release** — if ALL gates pass, a **draft** GitHub Release is created
+    (`board-game-organizer-v<version>-pr<PR>`), tagged, with the **internal APK** attached
+    and the **web/api preview links** in the body
+
+E2E test users are provisioned per-run via the Clerk API (`CLERK_SECRET_KEY` secret).
+
+### Main pipeline — `main-ci.yml` (push/merge to main)
+
+After the approved PR is merged to main:
+- **Promotes the draft release → final** (draft=false; the release from the merged PR is
+  found via the PR number in the merge commit). The final release body includes the
+  **production links** (web `https://web-rosy-phi-82.vercel.app`, api
+  `https://api-chi-two-97.vercel.app`) and the **internal APK** artifact
+- **Deploys api + web to Vercel production** (`vercel-deploy`, production: true)
+
+### Development APK — `mobile-development.yml` (manual, main only)
+
+`workflow_dispatch` **only from main** (guard `github.ref == 'refs/heads/main'`): builds the
+**development** profile APK and **uploads it to the latest release** as an additional asset.
+
+### Other workflows
+
+- `maestro.yml` — manual Maestro E2E dispatcher (uses the latest released internal APK)
+- `android-emulator.yml` — diagnostic smoke test (screenshots + logcat artifacts)
+
+### Composite actions (`.github/actions/`)
+
+`setup-pnpm` (Node 26, pnpm 11.6.0, `--frozen-lockfile`), `conventional-commits`,
+`test`, `vercel-deploy` (preview/production), `mobile-build` (local `eas build --local`,
+ONE profile per invocation; frees ~7GB of toolchains, caches `~/.eas-build-local` and
+`~/.gradle`), `android-emulator` (software-rendered emulator + script runner).
+⚠️ Local actions require `actions/checkout` **before** the first `uses: ./.github/actions/...`
+step in each job.
+
 - If you change dependencies, keep `pnpm-lock.yaml` in sync (run `pnpm install`, not `pnpm install --lockfile-only` when the graph changes).
+- The repo is **public** (Actions are free). Branch protection on `main` must be enabled by an
+  admin: Settings → Branches → Add rule → `main` → require a PR with 1 approving review +
+  status checks.

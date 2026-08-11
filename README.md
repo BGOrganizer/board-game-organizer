@@ -12,7 +12,7 @@ web, API, and mobile, all in one TypeScript monorepo.
 | API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
 | Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
 | Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) |
-| Tooling | TypeScript · Biome (lint + format) · Vitest |
+| Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage) · commitlint · Maestro · Playwright |
 
 ## Features
 
@@ -23,7 +23,7 @@ web, API, and mobile, all in one TypeScript monorepo.
 - Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
 - App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
-- E2E tests with **Maestro** on a CI Android emulator (login → profile → logout → dark mode)
+- E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI
 
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
@@ -61,12 +61,27 @@ Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile
 pnpm lint         # biome check
 pnpm typecheck    # tsc --noEmit across apps
 pnpm format       # biome format --write .
-pnpm --filter <app> test   # vitest
+pnpm --filter <app> test             # vitest (unit)
+pnpm --filter <app> test:coverage    # vitest + coverage report
+pnpm --filter api test:integration   # integration tests (testcontainers / Docker)
+pnpm --filter web test:e2e           # Playwright E2E
+pnpm commitlint                      # conventional-commit check
 ```
 
-Mobile E2E (Maestro): manual run via the **Maestro E2E Tests** GitHub Action
-(`workflow_dispatch`) or locally with `maestro test apps/mobile/.maestro/flows`.
-See `AGENTS.md` for architecture, patterns, env vars, and the signed git/commit workflow.
+## Git Workflow & CI/CD
+
+- **`main` is protected** — no direct pushes; every change goes through a **pull request**
+  with at least 1 approval (branch protection: Settings → Branches → `main`).
+- **PRs run `pr-ci.yml`**: commitlint → Biome → typecheck → unit tests with coverage → API
+  integration tests (testcontainers) → mobile APK build (internal) → api/web builds → Vercel
+  **preview** deploys → E2E **Maestro** (mobile) + **Playwright** (web).
+- If every gate passes, a **draft release** is created (internal APK + preview links).
+- Merging to main runs `main-ci.yml`: promotes the draft to a **final release** (production
+  links + APK) and deploys api/web to **Vercel production**.
+- The **development APK** is built only manually from main (`mobile-development.yml`) and
+  attached to the latest release.
+
+See `AGENTS.md` for the full spec, env vars, and the signed git/commit workflow.
 
 ## License
 

@@ -1,0 +1,97 @@
+name: 🚀 Main CI/CD (promote draft → release finale + production deploys)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: main-ci
+  cancel-in-progress: false
+
+jobs:
+  promote-release:
+    name: 📦 Promote draft release → final
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔎 Find merged PR number
+        id: pr
+        shell: bash
+        run: |
+          MSG=$(git log -1 --format=%s)
+          PR=$(echo "$MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+          echo "merge message: $MSG"
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./apps/mobile/app.config.js').expo.version")" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Promote draft release to final
+        id: promote
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.pr }}
+          VERSION: ${{ steps.pr.outputs.version }}
+        shell: bash
+        run: |
+          if [ -z "$PR" ]; then
+            echo "No PR number found in merge commit — skipping promotion"; exit 0
+          fi
+          TAG="board-game-organizer-v${VERSION}-pr${PR}"
+          echo "Looking for draft release: $TAG"
+          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | \
+            jq -r --arg tag "$TAG" '.[] | select(.tag_name == $tag and .draft == true) | .id' | head -1)
+          if [ -z "$REL" ]; then
+            echo "Draft release $TAG not found — nothing to promote"
+          else
+            # Append production links to the body
+            BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$REL" | jq -r .body)
+            NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://web-rosy-phi-82.vercel.app\n- **API:** https://api-chi-two-97.vercel.app\n- **APK internal:** allegato qui sotto' "$BODY")
+            PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{draft:false, body:$body}')
+            curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$REL" \
+              -d "$PAYLOAD" | jq -r '"Promoted release: " + .name + " (draft=" + (.draft|tostring) + ")"'
+          fi
+
+  deploy-production:
+    name: 🚀 Vercel production (${{ matrix.app }})
+    needs: promote-release
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            app-name: API
+            app-path: apps/api
+            project-id-secret: VERCEL_API_PROJECT_ID
+            status-context: vercel/api/production
+          - app: web
+            app-name: Web
+            app-path: apps/web
+            project-id-secret: VERCEL_WEB_PROJECT_ID
+            status-context: vercel/web/production
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy to Vercel (production)
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: ${{ matrix.app-name }}
+          app-path: ${{ matrix.app-path }}
+          vercel-environment: production
+          production: 'true'
+          status-context: ${{ matrix.status-context }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets[matrix.project-id-secret] }}
