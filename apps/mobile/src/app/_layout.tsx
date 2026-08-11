@@ -49,6 +49,22 @@ if (!publishableKey) {
   console.error("[Clerk] Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
 }
 
+// Forward console.error to Sentry: render loops and React warnings (e.g.
+// "Maximum update depth exceeded") are only logged, never thrown — this
+// bridge makes them visible in Sentry for diagnostics.
+if (__DEV__ === false) {
+  const originalConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    originalConsoleError(...args);
+    try {
+      const message = args.map((a) => (a instanceof Error ? a.message : String(a))).join(" ");
+      Sentry.captureMessage(message, "error");
+    } catch {
+      // never let the bridge break the app
+    }
+  };
+}
+
 function sentryFallback({
   error,
   componentStack,
