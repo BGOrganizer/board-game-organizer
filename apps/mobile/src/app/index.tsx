@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/expo";
 
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { View } from "react-native";
 
@@ -12,20 +12,21 @@ import { Header } from "@/components/Header";
 export default function Index() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
-  // Navigate with router.replace in an effect instead of rendering <Redirect>
-  // (a rendered Redirect caused a "Maximum update depth" loop during auth
-  // state transitions).
+  // Navigate with router.replace in an effect instead of rendering <Redirect>.
+  // The pathname check prevents a ping-pong with the (tabs) guard while
+  // Clerk's auth state settles during sign-in/sign-out.
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
+    if (isLoaded && isSignedIn && !pathname.startsWith("/(tabs)")) {
       router.replace("/(tabs)");
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, router, pathname]);
 
   if (!isLoaded) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <Spinner color="accent" />
+        <Spinner />
       </View>
     );
   }

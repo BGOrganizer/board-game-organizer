@@ -76,7 +76,7 @@ export function Profile() {
   if (isLoading) {
     return (
       <View className="mt-6 items-center">
-        <Spinner color="accent" />
+        <Spinner />
         <Text className="mt-2 text-sm text-muted">Caricamento...</Text>
       </View>
     );
