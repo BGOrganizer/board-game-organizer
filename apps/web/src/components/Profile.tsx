@@ -13,13 +13,20 @@ function apiUrl(): string {
 }
 
 export function Profile() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  // NOTE: getToken from @clerk/nextjs has a NEW identity on every render, so it
+  // must NOT be an effect dependency (it caused a "Maximum update depth"
+  // render loop during sign-out). We key the effect on the stable auth state.
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setToken(null);
+      return;
+    }
     let active = true;
     getToken()
       .then((t) => {
@@ -31,7 +38,8 @@ export function Profile() {
     return () => {
       active = false;
     };
-  }, [getToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, isSignedIn]);
 
   // Server data lives in TanStack Query — Zustand never stores it.
   const {

@@ -1,17 +1,27 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAuth } from "@clerk/expo";
-import { Redirect, Tabs } from "expo-router";
+import { useRouter } from "expo-router";
+import { Tabs } from "expo-router";
+import { useEffect } from "react";
 
 import { Spinner } from "heroui-native/spinner";
 import { View } from "react-native";
 
 /**
  * Guard: the tabs are only reachable when authenticated. After sign-out the
- * Clerk state flips and this layout redirects back to the welcome screen —
- * no dependency on navigation races from the logout handler.
+ * Clerk state flips and this layout redirects back to the welcome screen.
+ * Uses router.replace in an effect (NOT a rendered <Redirect>, which caused a
+ * "Maximum update depth" render loop during auth transitions).
  */
 export default function TabLayout() {
   const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace("/");
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   if (!isLoaded) {
     return (
@@ -22,7 +32,7 @@ export default function TabLayout() {
   }
 
   if (!isSignedIn) {
-    return <Redirect href="/" />;
+    return null; // the effect above navigates back to the welcome screen
   }
 
   return (
