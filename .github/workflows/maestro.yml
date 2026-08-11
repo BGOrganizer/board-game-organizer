@@ -96,7 +96,7 @@ jobs:
             adb shell uiautomator dump /sdcard/ui-pre.xml > /dev/null 2>&1 && adb pull /sdcard/ui-pre.xml /tmp/ui-pre.xml > /dev/null 2>&1 || true
             adb shell am force-stop com.bgo.mobile || true
             set -e
-            capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; }
+            capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true; }
             maestro test --format junit --output /tmp/maestro-reports \
               --debug-output /tmp/maestro-debug \
               apps/mobile/.maestro/flows/01-launch-welcome.yaml \
@@ -131,4 +131,5 @@ jobs:
             /tmp/ui-pre.xml
             /tmp/fail-screen.png
             /tmp/ui-fail.xml
+            /tmp/fail-logcat.txt
           if-no-files-found: warn
