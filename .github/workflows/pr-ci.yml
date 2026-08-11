@@ -159,7 +159,6 @@ jobs:
       username: ${{ steps.provision.outputs.username }}
       email: ${{ steps.provision.outputs.email }}
       password: ${{ steps.provision.outputs.password }}
-      signin_url: ${{ steps.provision.outputs.signin_url }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -185,13 +184,6 @@ jobs:
           echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
           echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
           echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
-          # Create a sign-in ticket (no password/verification needed on the web)
-          USER_ID=$(jq -r .id /tmp/clerk-user.json)
-          SIGNIN_URL=$(curl -s -X POST "https://api.clerk.com/v1/sign_in_tokens" \
-            -H "Authorization: Bearer $CLERK_SECRET_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"user_id\":\"$USER_ID\"}" | jq -r .url)
-          echo "signin_url=$SIGNIN_URL" >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------- Vercel preview API
   deploy-preview-api:
@@ -323,7 +315,7 @@ jobs:
   # ---------------------------------------------------------- Playwright E2E
   e2e-playwright:
     name: 🎭 Playwright E2E (web)
-    needs: [deploy-preview-web, provision]
+    needs: [deploy-preview-web]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -341,9 +333,6 @@ jobs:
         working-directory: apps/web
         env:
           PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
-          E2E_EMAIL: ${{ needs.provision.outputs.email }}
-          E2E_PASSWORD: ${{ needs.provision.outputs.password }}
-          E2E_SIGNIN_URL: ${{ needs.provision.outputs.signin_url }}
         run: pnpm test:e2e
 
       - name: 📤 Upload Playwright report
