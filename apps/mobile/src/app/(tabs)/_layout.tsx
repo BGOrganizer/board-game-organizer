@@ -39,7 +39,7 @@ export default function TabLayout() {
   return (
     <Tabs screenOptions={{ tabBarActiveTintColor: "#006fee" }}>
       <Tabs.Screen
-        name="index"
+        name="matches"
         options={{
           title: "Matches",
           tabBarIcon: ({ color }) => (

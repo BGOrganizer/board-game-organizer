@@ -15,10 +15,11 @@ export default function Index() {
   const pathname = usePathname();
 
   // Navigate with router.replace in an effect instead of rendering <Redirect>.
-  // The pathname check prevents a ping-pong with the (tabs) guard while
-  // Clerk's auth state settles during sign-in/sign-out.
+  // With the (tabs) group's first screen at "/matches" (not "/"), the root
+  // index is the ONLY route at "/" — no ambiguity with the tabs, so this
+  // effect cannot ping-pong with the (tabs) guard.
   useEffect(() => {
-    if (isLoaded && isSignedIn && !pathname.startsWith("/(tabs)")) {
+    if (isLoaded && isSignedIn && pathname === "/") {
       router.replace("/(tabs)");
     }
   }, [isLoaded, isSignedIn, router, pathname]);
