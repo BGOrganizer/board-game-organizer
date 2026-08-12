@@ -82,8 +82,10 @@ No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.ex
 **Production deployments**: web → `web-rosy-phi-82.vercel.app`, api → `api-chi-two-97.vercel.app`.
 CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG_ID`,
 `VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `CLERK_SECRET_KEY` (used by Maestro E2E to
-provision a test user via the Clerk API). Repo **variables** (baked into mobile builds):
-`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`.
+provision a test user via the Clerk API and by Playwright E2E for the testing token +
+user cleanup). Repo **variables** (baked into mobile builds / E2E):
+`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`,
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
 
 Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_URI` is missing, so the API can't start without it.
 
@@ -163,6 +165,17 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   the flows: launch/welcome → login → profile+logout → dark mode. Run manually via
   `workflow_dispatch`; also `android-emulator.yml` is the diagnostic smoke test (screenshots +
   logcat artifacts).
+- **E2E (web)**: Playwright (`apps/web/e2e`) against the Vercel preview URL. The spec signs in
+  with the provisioned Clerk test user using a **Testing Token** (bypasses Clerk bot detection;
+  minted by `clerkSetup()` in `apps/web/e2e/global.setup.ts` via `CLERK_SECRET_KEY`) and a
+  **server-side sign-in ticket** (`clerk.signIn({ emailAddress })` from `@clerk/testing` — no
+  password, no email verification, no cross-domain redirects), then checks profile + logout.
+  Requires the `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` repo variable (read by `clerkSetup()`).
+- **Test-user cleanup**: every E2E run provisions exactly one user (tagged
+  `public_metadata.e2e: true`) and the `cleanup-e2e-user` job (pr-ci) / final step (maestro)
+  deletes it afterwards — `if: always()`, never blocks the run. A leftover sweep in
+  `.github/scripts/cleanup-e2e-clerk-users.sh` also removes orphaned e2e users older than 24h
+  (from runs killed mid-flight); the age filter keeps concurrent PR runs safe.
 
 ## Git Workflow (IMPORTANT)
 
@@ -206,13 +219,17 @@ A single workflow runs ALL quality gates on every PR:
 9. **E2E Maestro (mobile)** — boots a software-rendered Android emulator
    (`.github/actions/android-emulator`), installs the PR's internal APK and runs the flows in
    `apps/mobile/.maestro/flows` (welcome → login → profile/logout → dark mode)
-10. **E2E Playwright (web)** — `apps/web/e2e` against the **Vercel preview URL**
-    (sign-in with the provisioned Clerk test user → profile → logout)
-11. **Draft release** — if ALL gates pass, a **draft** GitHub Release is created
+10. **E2E Playwright (web)** — `apps/web/e2e` against the **Vercel preview URL**: signed-out
+    checks + real sign-in with the provisioned Clerk test user via **Testing Token** and
+    **sign-in ticket** (`@clerk/testing`) → profile → logout
+11. **Cleanup E2E test users** — deletes the provisioned user (`if: always()`, never blocks)
+    and sweeps stale e2e users > 24h (`.github/scripts/cleanup-e2e-clerk-users.sh`)
+12. **Draft release** — if ALL gates pass, a **draft** GitHub Release is created
     (`board-game-organizer-v<version>-pr<PR>`), tagged, with the **internal APK** attached
     and the **web/api preview links** in the body
 
-E2E test users are provisioned per-run via the Clerk API (`CLERK_SECRET_KEY` secret).
+E2E test users are provisioned per-run via the Clerk API (`CLERK_SECRET_KEY` secret) and deleted
+at the end of the run (cleanup job/script above) — they never accumulate.
 
 ### Main pipeline — `main-ci.yml` (push/merge to main)
 

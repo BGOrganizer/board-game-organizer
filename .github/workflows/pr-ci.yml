@@ -159,6 +159,7 @@ jobs:
       username: ${{ steps.provision.outputs.username }}
       email: ${{ steps.provision.outputs.email }}
       password: ${{ steps.provision.outputs.password }}
+      user_id: ${{ steps.provision.outputs.user_id }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -184,6 +185,8 @@ jobs:
           echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
           echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
           echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+          # Capture the user id so the cleanup job can delete exactly this user.
+          echo "user_id=$(jq -r .id /tmp/clerk-user.json)" >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------- Vercel preview API
   deploy-preview-api:
@@ -315,7 +318,7 @@ jobs:
   # ---------------------------------------------------------- Playwright E2E
   e2e-playwright:
     name: 🎭 Playwright E2E (web)
-    needs: [deploy-preview-web]
+    needs: [deploy-preview-web, provision]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -333,6 +336,10 @@ jobs:
         working-directory: apps/web
         env:
           PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
+          E2E_EMAIL: ${{ needs.provision.outputs.email }}
+          # Clerk testing token (global setup) + ticket sign-in helper:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
         run: pnpm test:e2e
 
       - name: 📤 Upload Playwright report
@@ -342,6 +349,26 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/**
           if-no-files-found: warn
+
+  # ------------------------------------------------ cleanup E2E test users
+  cleanup-e2e-user:
+    name: 🗑️ Cleanup E2E test user
+    needs: [provision, e2e-maestro, e2e-playwright]
+    if: always()
+    # Cleanup must never block the PR result: a failure here only means the
+    # next run's orphan sweep (>24h) will take care of it.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🗑️ Delete this run's user + sweep stale e2e users
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          USER_ID: ${{ needs.provision.outputs.user_id }}
+        run: |
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
 
   # ----------------------------------------------------------- draft release
   draft-release:

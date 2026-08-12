@@ -23,7 +23,8 @@ web, API, and mobile, all in one TypeScript monorepo.
 - Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
 - App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
-- E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI
+- E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI — test users are
+  provisioned via the Clerk API per run and deleted afterwards (never accumulate)
 
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
@@ -64,7 +65,9 @@ pnpm format       # biome format --write .
 pnpm --filter <app> test             # vitest (unit)
 pnpm --filter <app> test:coverage    # vitest + coverage report
 pnpm --filter api test:integration   # integration tests (testcontainers / Docker)
-pnpm --filter web test:e2e           # Playwright E2E
+pnpm --filter web test:e2e           # Playwright E2E (needs CLERK_SECRET_KEY +
+                                   #   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY for the Clerk
+                                   #   testing token; PLAYWRIGHT_BASE_URL for the target)
 pnpm commitlint                      # conventional-commit check
 ```
 

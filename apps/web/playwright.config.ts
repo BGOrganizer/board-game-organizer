@@ -18,11 +18,20 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    // Clerk's sign-in ticket flow sets the session cookie across domains
-    // (accounts.dev → app): allow third-party cookies in the browser.
+    // Clerk keeps the session on the accounts.dev domain while the app lives
+    // on the Vercel preview domain: allow third-party cookies in the browser.
     launchOptions: {
       args: ["--disable-features=ThirdPartyCookiesBlocking,BlockThirdPartyCookies"],
     },
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // Project-based global setup (runs in-process, so CLERK_TESTING_TOKEN and
+    // CLERK_FAPI set by clerkSetup() reach the test workers).
+    { name: "clerk setup", testMatch: /global\.setup\.ts/ },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["clerk setup"],
+    },
+  ],
 });

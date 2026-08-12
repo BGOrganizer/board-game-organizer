@@ -70,6 +70,8 @@ jobs:
           fi
           echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
           echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+          # Capture the user id so cleanup can delete exactly this user.
+          echo "user_id=$(jq -r .id /tmp/clerk-user.json)" >> "$GITHUB_OUTPUT"
 
       - name: ⚡ Install Maestro CLI
         run: |
@@ -117,6 +119,14 @@ jobs:
             maestro test --format junit --output /tmp/maestro-reports \
               apps/mobile/.maestro/flows/04-dark-mode.yaml \
               || { capture; exit 1; }
+
+      - name: 🗑️ Cleanup E2E test user
+        if: always()
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          USER_ID: ${{ steps.provision.outputs.user_id }}
+        run: |
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
 
       - name: 📤 Upload Maestro reports
         if: always()

@@ -36,6 +36,7 @@
     "typescript": "^6.0.3",
     "vitest": "^3.1.0",
     "@vitest/coverage-v8": "^3.1.0",
-    "@playwright/test": "^1.53.0"
+    "@playwright/test": "^1.53.0",
+    "@clerk/testing": "^2.1.0"
   }
 }
