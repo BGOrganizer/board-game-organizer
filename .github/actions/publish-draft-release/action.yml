@@ -92,10 +92,13 @@ runs:
 
         # 3) Create or update the draft prerelease
         #    Note: drafts have no git tag yet, so GET /releases/tags/<tag> 404s
-        #    — search the releases list for the tag_name instead.
+        #    and GitHub normalizes their tag_name to "untagged-<id>" — search
+        #    by tag_name OR name (the name is stable, e.g.
+        #    board-game-organizer-v1.0.0-pr.3).
         EXISTING=$(curl -s -H "Authorization: Bearer $GH" \
           "$API/releases?per_page=100" \
-          | jq -r --arg tag "$TAG" '.[] | select(.tag_name == $tag) | .id' | head -1)
+          | jq -r --arg tag "$TAG" --arg name "board-game-organizer-$TAG" \
+            '.[] | select(.tag_name == $tag or .name == $name) | .id' | head -1)
         REL_ID="${EXISTING:-}"
         if [ -n "$REL_ID" ]; then
           echo "Updating draft release $TAG (id $REL_ID)"
