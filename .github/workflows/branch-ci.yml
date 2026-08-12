@@ -1,0 +1,106 @@
+name: ⚡ Branch CI (fast quality gates)
+
+# Fast subset of the PR pipeline, run on every push to a feature branch:
+# commitlint, Biome, typecheck, unit tests, API integration tests.
+# NO builds (mobile/Vercel), NO preview deploys, NO E2E — those run only when
+# a pull request is opened (pr-ci.yml).
+#
+# Strategy: the agent pushes commits on the branch as it implements; this
+# pipeline gives quick feedback (<10 min) that the minimum quality gates pass.
+# The PR (and its full pipeline) is opened only when the whole feature is done.
+
+on:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- commitlint
+  commitlint:
+    name: 💬 commitlint (Conventional Commits)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 💬 Check pushed commits
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            # First push of the branch: check the latest commit.
+            npx commitlint --from HEAD~1 --to HEAD
+          else
+            npx commitlint --from "$BEFORE" --to "$AFTER"
+          fi
+
+  # ---------------------------------------------------------------------- lint
+  lint:
+    name: 🧹 Biome lint & format
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧹 Biome check
+        run: pnpm lint
+
+  # ----------------------------------------------------------------- typecheck
+  typecheck:
+    name: 🧪 TypeScript typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 tsc --noEmit
+        run: pnpm typecheck
+
+  # --------------------------------------------------------------- unit tests
+  unit-tests:
+    name: 🧪 Unit tests (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [mobile, web, api]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Vitest
+        run: pnpm --filter ${{ matrix.app }} test
+
+  # ------------------------------------------------------- integration tests
+  integration-tests:
+    name: 🐳 API integration tests (testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🐳 Vitest integration (MongoDB in Docker)
+        run: pnpm --filter api test:integration

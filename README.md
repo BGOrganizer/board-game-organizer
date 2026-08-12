@@ -76,6 +76,9 @@ pnpm release                        # semantic-release (version bump + changelog
 
 - **`main` is protected** — no direct pushes; every change goes through a **pull request**
   with at least 1 approval (branch protection: Settings → Branches → `main`).
+- **Branch pushes run `branch-ci.yml`** (fast subset: commitlint, Biome, typecheck, unit +
+  integration tests) — quick feedback while implementing; **the PR is opened only when the
+  whole feature is done** (on request) and runs the full `pr-ci.yml` below.
 - **PRs run `pr-ci.yml`**: commitlint → Biome → typecheck → unit tests with coverage → API
   integration tests (testcontainers) → mobile APK build (internal) → api/web builds → Vercel
   **preview** deploys → E2E **Maestro** (mobile) + **Playwright** (web).

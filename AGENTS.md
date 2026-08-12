@@ -199,8 +199,15 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   must be enabled in **Settings → Branches → Add rule → main** (require PR + 1 approval +
   status checks) — requires an admin account.
 - **For every feature/fix/docs/CI change: create a new branch** off `main`
-  (e.g. `feat/...`, `fix/...`, `ci/...`), commit (signed, conventional), push the branch and
-  **open a PR to main**. The PR pipeline (`pr-ci.yml`) runs all quality gates.
+  (e.g. `feat/...`, `fix/...`, `ci/...`) and commit (signed, conventional). Push the
+  branch and **implement ALL the tasks of the feature before opening a PR**.
+- **PRs are opened ONLY when the user explicitly asks for it.** Do NOT open a PR
+  proactively: push commits on the branch while implementing, let `branch-ci.yml`
+  (fast subset: commitlint, Biome, typecheck, unit + integration tests) validate each
+  push, and only when the feature is complete — and the user says so — open the PR to
+  `main`. The full pipeline (`pr-ci.yml`) then runs all the heavy gates (builds, Vercel
+  previews, Maestro + Playwright E2E) and publishes the draft prerelease + Telegram
+  notification.
 - **Commit messages must follow Conventional Commits** — enforced by CI via
   **commitlint** (`commitlint.config.mjs`, `@commitlint/config-conventional`). Allowed
   types: `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
@@ -216,6 +223,19 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - Push command: `git push origin <branch>` (upstream is set after the first push).
 
 ## CI/CD (GitHub Actions)
+
+### Branch pipeline — `branch-ci.yml` (every push to a feature branch)
+
+Fast subset of the PR gates, meant for quick feedback while implementing on a branch:
+1. **commitlint** — conventional-commit check on the pushed commits
+2. **Biome** — `pnpm lint`
+3. **Typecheck** — `pnpm typecheck`
+4. **Unit tests (vitest)** — mobile/web/api (no coverage)
+5. **API integration tests (testcontainers)** — MongoDB in Docker
+
+No builds (mobile/Vercel), no preview deploys, no E2E: those run only when the PR is
+opened. Concurrency is per-branch with `cancel-in-progress` so a new push cancels the
+previous run.
 
 ### PR pipeline — `pr-ci.yml` (every pull request to main)
 
