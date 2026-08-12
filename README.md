@@ -69,6 +69,7 @@ pnpm --filter web test:e2e           # Playwright E2E (needs CLERK_SECRET_KEY +
                                    #   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY for the Clerk
                                    #   testing token; PLAYWRIGHT_BASE_URL for the target)
 pnpm commitlint                      # conventional-commit check
+pnpm release                        # semantic-release (version bump + changelog, on main)
 ```
 
 ## Git Workflow & CI/CD
@@ -78,9 +79,14 @@ pnpm commitlint                      # conventional-commit check
 - **PRs run `pr-ci.yml`**: commitlint → Biome → typecheck → unit tests with coverage → API
   integration tests (testcontainers) → mobile APK build (internal) → api/web builds → Vercel
   **preview** deploys → E2E **Maestro** (mobile) + **Playwright** (web).
-- If every gate passes, a **draft release** is created (internal APK + preview links).
-- Merging to main runs `main-ci.yml`: promotes the draft to a **final release** (production
-  links + APK) and deploys api/web to **Vercel production**.
+- If every gate passes, a **draft prerelease** (`v<version>-pr.<PR>`) is created/updated with
+  the PR **changelog** (from conventional commits), the internal APK and the preview links,
+  and a **Telegram notification** is sent (changelog + preview links + PR APK).
+- Merging to main runs `main-ci.yml`: **semantic-release** bumps the **semver** version from
+  the conventional commits (breaking → major, `feat` → minor, `fix` → patch), generates
+  **`CHANGELOG.md`**, syncs the version across api/web/mobile + the APK, creates the GitHub
+  release `v<version>` with the changelog, attaches the internal APK, deploys api/web to
+  **Vercel production** and posts the release to the **Telegram channel**.
 - The **development APK** is built only manually from main (`mobile-development.yml`) and
   attached to the latest release.
 

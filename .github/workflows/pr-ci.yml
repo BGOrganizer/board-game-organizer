@@ -1,4 +1,4 @@
-name: 🚦 PR CI/CD (quality gates → draft release)
+name: 🚦 PR CI/CD (quality gates → draft prerelease + Telegram)
 
 on:
   pull_request:
@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -53,6 +55,8 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -71,6 +75,8 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -93,6 +99,8 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -115,6 +123,8 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -133,6 +143,11 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
@@ -163,30 +178,17 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: 👤 Create Clerk test user
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 👤 Provision E2E user
         id: provision
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-        run: |
-          TS=$(date +%s)
-          USERNAME="e2e_$TS"
-          EMAIL="e2e.$TS@gmail.com"
-          PASSWORD="E2eTestPass!2026"
-          STATUS=$(curl -s -o /tmp/clerk-user.json -w "%{http_code}" \
-            -X POST "https://api.clerk.com/v1/users" \
-            -H "Authorization: Bearer $CLERK_SECRET_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\":\"$USERNAME\",\"email_address\":[\"$EMAIL\"],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
-          echo "Clerk create user → HTTP $STATUS"
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
-            cat /tmp/clerk-user.json; exit 1
-          fi
-          echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
-          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
-          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
-          # Capture the user id so the cleanup job can delete exactly this user.
-          echo "user_id=$(jq -r .id /tmp/clerk-user.json)" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/provision-e2e-user
+        with:
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
 
   # ---------------------------------------------------- Vercel preview API
   deploy-preview-api:
@@ -199,6 +201,11 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: 🚀 Deploy to Vercel (preview)
         id: deploy
@@ -224,6 +231,11 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: 🚀 Deploy to Vercel (preview)
         id: deploy
@@ -250,6 +262,11 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: ☕ Set up JDK 17 (Maestro requirement)
         uses: actions/setup-java@v4
@@ -261,7 +278,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: apk-internal
-          path: .
+          path: apk
+
+      - name: 🔎 Resolve APK path
+        id: apk
+        run: |
+          APK=$(find apk -name '*.apk' | head -1)
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
 
       - name: ⚡ Install Maestro CLI
         run: |
@@ -269,39 +292,12 @@ jobs:
           export PATH="$PATH:$HOME/.maestro/bin"
           maestro --version
 
-      - name: 🚀 Boot emulator & run Maestro flows
-        uses: ./.github/actions/android-emulator
+      - name: 🚀 Maestro E2E flows
+        uses: ./.github/actions/maestro-e2e
         with:
-          script: |
-            set +e
-            export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
-            export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
-            export MAESTRO_CLI_NO_ANALYTICS=1
-            APK=$(find . -name '*.apk' | head -1)
-            echo "APK found: $APK"
-            adb install -r "$APK" || { sleep 30; adb install -r "$APK"; }
-            adb shell pm clear com.bgo.mobile || true
-            adb shell am start -n com.bgo.mobile/.MainActivity || true
-            sleep 60
-            adb shell am force-stop com.bgo.mobile || true
-            set -e
-            capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true; }
-            maestro test --format junit --output /tmp/maestro-reports \
-              apps/mobile/.maestro/flows/01-launch-welcome.yaml \
-              || { capture; exit 1; }
-            maestro test --format junit --output /tmp/maestro-reports \
-              -e USERNAME=${{ needs.provision.outputs.username }} \
-              -e PASSWORD=${{ needs.provision.outputs.password }} \
-              apps/mobile/.maestro/flows/02-login.yaml \
-              || { capture; exit 1; }
-            maestro test --format junit --output /tmp/maestro-reports \
-              -e USERNAME=${{ needs.provision.outputs.username }} \
-              apps/mobile/.maestro/flows/03-profile-logout.yaml \
-              || { capture; exit 1; }
-            adb shell cmd uimode night yes || true
-            maestro test --format junit --output /tmp/maestro-reports \
-              apps/mobile/.maestro/flows/04-dark-mode.yaml \
-              || { capture; exit 1; }
+          apk-path: ${{ steps.apk.outputs.path }}
+          username: ${{ needs.provision.outputs.username }}
+          password: ${{ needs.provision.outputs.password }}
 
       - name: 📤 Upload Maestro reports
         if: always()
@@ -310,6 +306,7 @@ jobs:
           name: maestro-reports
           path: |
             /tmp/maestro-reports/**
+            /tmp/maestro-debug/**
             /tmp/fail-screen.png
             /tmp/ui-fail.xml
             /tmp/fail-logcat.txt
@@ -323,6 +320,8 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -372,7 +371,7 @@ jobs:
 
   # ----------------------------------------------------------- draft release
   draft-release:
-    name: 📦 Draft release (APK internal + preview links)
+    name: 📦 Draft prerelease (APK + changelog) → Telegram
     needs:
       - commitlint
       - lint
@@ -388,10 +387,15 @@ jobs:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # create/update the draft release + attach the APK
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: 📥 Download internal APK
         uses: actions/download-artifact@v4
@@ -399,42 +403,42 @@ jobs:
           name: apk-internal
           path: apk
 
-      - name: 🏷️ Resolve version
+      - name: 🔎 Resolve version & APK
         id: meta
         run: |
-          VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "pr=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./apps/mobile/app.config.js').expo.version")" >> "$GITHUB_OUTPUT"
+          APK=$(find apk -name '*.apk' | head -1)
+          echo "apk-name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
+          echo "apk-path=$APK" >> "$GITHUB_OUTPUT"
 
-      - name: 📝 Compose release body
-        id: body
+      - name: 📦 Publish/update draft prerelease
+        id: draft
+        uses: ./.github/actions/publish-draft-release
+        with:
+          github-token: ${{ github.token }}
+          version: ${{ steps.meta.outputs.version }}
+          pr-number: ${{ github.event.pull_request.number }}
+          pr-title: ${{ github.event.pull_request.title }}
+          base-sha: ${{ github.event.pull_request.base.sha }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
+          apk-path: ${{ steps.meta.outputs.apk-path }}
+          apk-name: ${{ steps.meta.outputs.apk-name }}
+          web-preview-url: ${{ needs.deploy-preview-web.outputs.url }}
+          api-preview-url: ${{ needs.deploy-preview-api.outputs.url }}
+
+      - name: 🔗 Compose Telegram links
         run: |
-          cat > body.md <<EOF
-          ## ✅ PR CI/CD completato — tutti i gate passati
-
-          **PR:** #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}
-
-          ### 📱 Mobile (APK internal)
-          - Allegato a questa release (in attesa di promozione al merge)
-
-          ### 🌐 Preview Vercel
-          - **Web:** ${{ needs.deploy-preview-web.outputs.url }}
-          - **API:** ${{ needs.deploy-preview-api.outputs.url }}
-
-          ### 🧪 Qualità
-          - commitlint, Biome, typecheck ✅
-          - Unit test (mobile/web/api) con coverage ✅
-          - Integration test API (testcontainers) ✅
-          - Build mobile internal / api / web ✅
-          - E2E Maestro (mobile) ✅
-          - E2E Playwright (web) ✅
+          cat > /tmp/telegram-links.html <<EOF
+          📱 <a href="${{ steps.draft.outputs.apk_url }}">APK (PR)</a>
+          🌐 <a href="${{ needs.deploy-preview-web.outputs.url }}">Web (preview)</a>
+          🔌 <a href="${{ needs.deploy-preview-api.outputs.url }}">API (preview)</a>
           EOF
 
-      - name: 🚀 Create draft release
-        uses: softprops/action-gh-release@v2
+      - name: 📤 Send Telegram notification
+        uses: ./.github/actions/telegram-notify
         with:
-          draft: true
-          tag_name: board-game-organizer-v${{ steps.meta.outputs.version }}-pr${{ steps.meta.outputs.pr }}
-          name: board-game-organizer-v${{ steps.meta.outputs.version }}-pr${{ steps.meta.outputs.pr }}
-          body_path: body.md
-          files: apk/*.apk
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          title: 🚀 Board Game Organizer — PR #${{ github.event.pull_request.number }} · draft ${{ steps.meta.outputs.version }}-pr.${{ github.event.pull_request.number }}
+          changelog-file: /tmp/pr-changelog.md
+          links-file: /tmp/telegram-links.html

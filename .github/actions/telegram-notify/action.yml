@@ -1,0 +1,38 @@
+name: Send Telegram release notification
+description: >-
+  Sends the release/PR notification to the configured Telegram channel using
+  scripts/release/telegram-notify.mjs (HTML parse mode, truncated to the
+  channel limits).
+
+inputs:
+  bot-token:
+    description: Telegram bot token (TELEGRAM_BOT_TOKEN secret)
+    required: true
+  chat-id:
+    description: Telegram channel id (TELEGRAM_CHAT_ID secret)
+    required: true
+  title:
+    description: First line of the message (e.g. "🚀 Board Game Organizer v1.1.0")
+    required: true
+  changelog-file:
+    description: Path to a markdown changelog file (optional)
+    required: false
+    default: ""
+  links-file:
+    description: Path to an HTML file with the links block (optional)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: 📤 Send Telegram message
+      shell: bash
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ inputs.bot-token }}
+        TELEGRAM_CHAT_ID: ${{ inputs.chat-id }}
+      run: |
+        node scripts/release/telegram-notify.mjs \
+          --title "${{ inputs.title }}" \
+          --changelog "${{ inputs.changelog-file }}" \
+          --links-file "${{ inputs.links-file }}"

@@ -53,6 +53,7 @@ pnpm typecheck              # turbo typecheck (depends on ^build)
 pnpm test                   # not wired at root → use per-app: pnpm --filter web test
 pnpm format                 # biome format --write .
 pnpm clean                  # turbo clean
+pnpm release                # semantic-release (only on main, via main-ci.yml)
 ```
 
 Per-app (filters: `web`, `api`, `mobile`):
@@ -83,7 +84,8 @@ No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.ex
 CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG_ID`,
 `VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `CLERK_SECRET_KEY` (used by Maestro E2E to
 provision a test user via the Clerk API and by Playwright E2E for the testing token +
-user cleanup). Repo **variables** (baked into mobile builds / E2E):
+user cleanup), `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (release notifications on the
+Telegram channel). Repo **variables** (baked into mobile builds / E2E):
 `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`,
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
 
@@ -177,6 +179,19 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   `.github/scripts/cleanup-e2e-clerk-users.sh` also removes orphaned e2e users older than 24h
   (from runs killed mid-flight); the age filter keeps concurrent PR runs safe.
 
+## Versioning & Releases
+
+- **Single unified semver** for the whole product (api + web + mobile), driven by
+  **semantic-release** on `main` (see `release.config.mjs`, run via `pnpm release`).
+- Bump rules: conventional commits since the last release — breaking change → **major**,
+  `feat` → **minor**, `fix`/perf/… → **patch**. Every release generates **`CHANGELOG.md`**,
+  syncs `apps/{api,web,mobile}/package.json` + `apps/mobile/app.config.js`
+  (`scripts/release/bump-versions.mjs`) and creates the GitHub release `v<version>`.
+- PRs do **not** bump: the PR pipeline only creates/updates a **draft prerelease**
+  (`v<version>-pr.<PR>`, e.g. `v1.0.0-pr.3`) with the PR changelog + internal APK.
+- Release/PR notifications are sent to the **Telegram channel** via
+  `scripts/release/telegram-notify.mjs` (HTML parse mode, truncated to 4096 chars).
+
 ## Git Workflow (IMPORTANT)
 
 - **main is protected**: no direct pushes/commits to `main` — every change lands via a
@@ -224,21 +239,32 @@ A single workflow runs ALL quality gates on every PR:
     **sign-in ticket** (`@clerk/testing`) → profile → logout
 11. **Cleanup E2E test users** — deletes the provisioned user (`if: always()`, never blocks)
     and sweeps stale e2e users > 24h (`.github/scripts/cleanup-e2e-clerk-users.sh`)
-12. **Draft release** — if ALL gates pass, a **draft** GitHub Release is created
-    (`board-game-organizer-v<version>-pr<PR>`), tagged, with the **internal APK** attached
-    and the **web/api preview links** in the body
+12. **Draft prerelease + Telegram** — if ALL gates pass, a **draft prerelease** is created/
+    updated (tag `v<version>-pr.<PR>`, e.g. `v1.0.0-pr.3`) with the **PR changelog**
+    (from conventional commits `base...head`), the **internal APK** attached and the
+    **web/api preview links** in the body. Every PR update refreshes the draft (new APK +
+    changelog). Last step: a **Telegram notification** with changelog + preview links +
+    PR APK (only when the whole pipeline passed)
 
 E2E test users are provisioned per-run via the Clerk API (`CLERK_SECRET_KEY` secret) and deleted
 at the end of the run (cleanup job/script above) — they never accumulate.
 
 ### Main pipeline — `main-ci.yml` (push/merge to main)
 
-After the approved PR is merged to main:
-- **Promotes the draft release → final** (draft=false; the release from the merged PR is
-  found via the PR number in the merge commit). The final release body includes the
-  **production links** (web `https://web-rosy-phi-82.vercel.app`, api
-  `https://api-chi-two-97.vercel.app`) and the **internal APK** artifact
-- **Deploys api + web to Vercel production** (`vercel-deploy`, production: true)
+After the approved PR is merged to main, `main-ci.yml` runs:
+1. **semantic-release** (`.github/../release.config.mjs`, `pnpm release`) — analyzes the
+   conventional commits since the last release and computes the next **semver**
+   (breaking → major, `feat` → minor, `fix` → patch), then:
+   - generates **`CHANGELOG.md`** from the commit messages
+   - syncs the version in `apps/{api,web,mobile}/package.json` and
+     `apps/mobile/app.config.js` (`expo.version`) via `scripts/release/bump-versions.mjs`
+   - commits the bump (`chore(release): vX.Y.Z [skip ci]`) and creates the
+     **GitHub release `v<version>`** with the changelog in the body
+2. **Build APK (internal)** — `mobile-build` + **attach to the release**
+3. **Vercel production deploys** — api + web (`vercel-deploy`, production: true)
+4. **Telegram notification** — changelog + links (APK → release, web, api production)
+
+The release commit carries `[skip ci]`, so the workflow does not re-trigger on its own bump.
 
 ### Development APK — `mobile-development.yml` (manual, main only)
 
@@ -248,16 +274,18 @@ After the approved PR is merged to main:
 ### Other workflows
 
 - `maestro.yml` — manual Maestro E2E dispatcher (uses the latest released internal APK)
-- `android-emulator.yml` — diagnostic smoke test (screenshots + logcat artifacts)
 
 ### Composite actions (`.github/actions/`)
 
-`setup-pnpm` (Node 26, pnpm 11.6.0, `--frozen-lockfile`), `conventional-commits`,
-`test`, `vercel-deploy` (preview/production), `mobile-build` (local `eas build --local`,
-ONE profile per invocation; frees ~7GB of toolchains, caches `~/.eas-build-local` and
-`~/.gradle`), `android-emulator` (software-rendered emulator + script runner).
-⚠️ Local actions require `actions/checkout` **before** the first `uses: ./.github/actions/...`
-step in each job.
+`setup-pnpm` (Node 26, pnpm 11.6.0, `--frozen-lockfile`), `vercel-deploy` (preview/production), `mobile-build`
+(local `eas build --local`, ONE profile per invocation; frees ~7GB of toolchains, caches
+`~/.eas-build-local` and `~/.gradle`), `android-emulator` (software-rendered emulator + script
+runner), `maestro-e2e` (install APK + run the Maestro flows), `provision-e2e-user` (Clerk
+test user via the Backend API), `publish-draft-release` (create/update the PR draft
+prerelease + attach APK), `telegram-notify` (send the release message to the channel).
+⚠️ GitHub can only resolve **local** actions after `actions/checkout` has run: every job must
+start with `actions/checkout@v4` before the first `uses: ./.github/actions/...` (a local
+action as the first step fails with "Can't find action.yml").
 
 - If you change dependencies, keep `pnpm-lock.yaml` in sync (run `pnpm install`, not `pnpm install --lockfile-only` when the graph changes).
 - The repo is **public** (Actions are free). Branch protection on `main` must be enabled by an

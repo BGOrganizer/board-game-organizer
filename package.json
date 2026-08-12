@@ -9,7 +9,8 @@
     "clean": "turbo clean",
     "format": "biome format --write .",
     "typecheck": "turbo typecheck",
-    "commitlint": "commitlint --from HEAD~1 --to HEAD"
+    "commitlint": "commitlint --from HEAD~1 --to HEAD",
+    "release": "semantic-release"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
@@ -17,6 +18,11 @@
     "@board-game-organizer/typescript-config": "workspace:*",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.1",
+    "semantic-release": "^24.2.3",
     "turbo": "^2.5.0",
     "typescript": "^6.0.3"
   }

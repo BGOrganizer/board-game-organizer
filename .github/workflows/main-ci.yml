@@ -1,69 +1,103 @@
-name: 🚀 Main CI/CD (promote draft → release finale + production deploys)
+name: 🚀 Main CI/CD (semantic-release → APK → production deploys → Telegram)
 
 on:
   push:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: write # semantic-release commits the bump and creates the release
 
 concurrency:
   group: main-ci
   cancel-in-progress: false
 
 jobs:
-  promote-release:
-    name: 📦 Promote draft release → final
+  # ------------------------------------------------------------- release
+  release:
+    name: 📦 semantic-release (bump + changelog + release)
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      published: ${{ steps.meta.outputs.published }}
+      release_url: ${{ steps.meta.outputs.release_url }}
     steps:
-      - name: 📥 Checkout
+      - name: 📥 Checkout (full history for semantic-release)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 🔎 Find merged PR number
-        id: pr
-        shell: bash
-        run: |
-          MSG=$(git log -1 --format=%s)
-          PR=$(echo "$MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
-          echo "merge message: $MSG"
-          echo "pr=$PR" >> "$GITHUB_OUTPUT"
-          echo "version=$(node -p "require('./apps/mobile/app.config.js').expo.version")" >> "$GITHUB_OUTPUT"
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
-      - name: 📦 Promote draft release to final
-        id: promote
+      - name: 🚀 Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: pnpm release
+
+      - name: 🔎 Resolve release info
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
+          LAST=$(git log -1 --format=%s)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if echo "$LAST" | grep -q '^chore(release):'; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+          REL=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION")
+          echo "release_url=$(echo "$REL" | jq -r '.html_url // empty')" >> "$GITHUB_OUTPUT"
+          echo "new version: $VERSION (published=$([ -n "$(echo "$REL" | jq -r '.id // empty')" ] && echo yes || echo no))"
+
+  # -------------------------------------------------- mobile internal APK
+  build-apk:
+    name: 📱 Build APK (internal) & attach to release
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🏗️ Build APK (eas build --local, internal profile)
+        id: build
+        uses: ./.github/actions/mobile-build
+        with:
+          profile: internal
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+
+      - name: 📎 Attach APK to release v${{ needs.release.outputs.version }}
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ steps.pr.outputs.pr }}
-          VERSION: ${{ steps.pr.outputs.version }}
-        shell: bash
+          ARTIFACT_PATH: ${{ steps.build.outputs.artifact-path }}
+          ARTIFACT_NAME: ${{ steps.build.outputs.artifact-name }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
-          if [ -z "$PR" ]; then
-            echo "No PR number found in merge commit — skipping promotion"; exit 0
-          fi
-          TAG="board-game-organizer-v${VERSION}-pr${PR}"
-          echo "Looking for draft release: $TAG"
           REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | \
-            jq -r --arg tag "$TAG" '.[] | select(.tag_name == $tag and .draft == true) | .id' | head -1)
-          if [ -z "$REL" ]; then
-            echo "Draft release $TAG not found — nothing to promote"
-          else
-            # Append production links to the body
-            BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/$REL" | jq -r .body)
-            NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://web-rosy-phi-82.vercel.app\n- **API:** https://api-chi-two-97.vercel.app\n- **APK internal:** allegato qui sotto' "$BODY")
-            PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{draft:false, body:$body}')
-            curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/$REL" \
-              -d "$PAYLOAD" | jq -r '"Promoted release: " + .name + " (draft=" + (.draft|tostring) + ")"'
-          fi
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" | \
+            jq -r '.id')
+          echo "Uploading to release id: $REL"
+          curl -sL -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$ARTIFACT_PATH" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL/assets?name=$ARTIFACT_NAME" | \
+            jq -r '"Attached: " + .name'
 
+  # -------------------------------------------------- production deploys
   deploy-production:
     name: 🚀 Vercel production (${{ matrix.app }})
-    needs: promote-release
+    needs: release
     runs-on: ubuntu-latest
     environment: production
     strategy:
@@ -83,6 +117,11 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: 🚀 Deploy to Vercel (production)
         uses: ./.github/actions/vercel-deploy
@@ -95,3 +134,49 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets[matrix.project-id-secret] }}
+
+  # -------------------------------------------------- Telegram notification
+  notify-telegram:
+    name: 📣 Telegram release notification
+    needs: [release, build-apk, deploy-production]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 📥 Fetch release changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" \
+            | jq -r '.body' > /tmp/changelog.md
+          # Trim the trailing "production links" block appended below the notes
+          # is not needed: semantic-release body is already the changelog.
+
+      - name: 🔗 Compose Telegram links
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_URL: ${{ needs.release.outputs.release_url }}
+        run: |
+          cat > /tmp/telegram-links.html <<EOF
+          📱 <a href="$RELEASE_URL">APK (internal)</a>
+          🌐 <a href="https://web-rosy-phi-82.vercel.app">Web (produzione)</a>
+          🔌 <a href="https://api-chi-two-97.vercel.app">API (produzione)</a>
+          EOF
+
+      - name: 📤 Send Telegram notification
+        uses: ./.github/actions/telegram-notify
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          title: 🚀 Board Game Organizer v${{ needs.release.outputs.version }} — release
+          changelog-file: /tmp/changelog.md
+          links-file: /tmp/telegram-links.html

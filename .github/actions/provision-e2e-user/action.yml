@@ -1,0 +1,52 @@
+name: Provision E2E test user
+description: >-
+  Creates a Clerk test user via the Backend API (username + password, tagged
+  public_metadata.e2e=true) for the E2E suites. The user is deleted after the
+  run by scripts/cleanup-e2e-clerk-users.sh.
+
+inputs:
+  clerk-secret-key:
+    description: Clerk secret key (CLERK_SECRET_KEY)
+    required: true
+
+outputs:
+  username:
+    description: Generated username (e2e_<ts>)
+    value: ${{ steps.provision.outputs.username }}
+  email:
+    description: Generated email (e2e.<ts>@gmail.com)
+    value: ${{ steps.provision.outputs.email }}
+  password:
+    description: Password used by the E2E sign-in flows
+    value: ${{ steps.provision.outputs.password }}
+  user_id:
+    description: Clerk user id (used by the cleanup job)
+    value: ${{ steps.provision.outputs.user_id }}
+
+runs:
+  using: composite
+  steps:
+    - name: 👤 Create Clerk test user
+      id: provision
+      shell: bash
+      env:
+        CLERK_SECRET_KEY: ${{ inputs.clerk-secret-key }}
+      run: |
+        TS=$(date +%s)
+        USERNAME="e2e_$TS"
+        EMAIL="e2e.$TS@gmail.com"
+        PASSWORD="E2eTestPass!2026"
+        STATUS=$(curl -s -o /tmp/clerk-user.json -w "%{http_code}" \
+          -X POST "https://api.clerk.com/v1/users" \
+          -H "Authorization: Bearer $CLERK_SECRET_KEY" \
+          -H "Content-Type: application/json" \
+          -d "{\"username\":\"$USERNAME\",\"email_address\":[\"$EMAIL\"],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
+        echo "Clerk create user → HTTP $STATUS"
+        if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
+          cat /tmp/clerk-user.json; exit 1
+        fi
+        echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
+        echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+        echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+        # Capture the user id so the cleanup job can delete exactly this user.
+        echo "user_id=$(jq -r .id /tmp/clerk-user.json)" >> "$GITHUB_OUTPUT"

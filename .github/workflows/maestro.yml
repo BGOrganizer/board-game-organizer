@@ -23,6 +23,11 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
 
       - name: ☕ Set up JDK 17 (Maestro requirement)
         uses: actions/setup-java@v4
@@ -50,28 +55,11 @@ jobs:
             -o app.apk "${{ steps.apk.outputs.url }}"
           ls -lh app.apk
 
-      - name: 👤 Provision Maestro test user (Clerk API)
+      - name: 👤 Provision E2E test user
         id: provision
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-        run: |
-          TS=$(date +%s)
-          USERNAME="e2e_$TS"
-          EMAIL="e2e.$TS@gmail.com"
-          PASSWORD="E2eTestPass!2026"
-          STATUS=$(curl -s -o /tmp/clerk-user.json -w "%{http_code}" \
-            -X POST "https://api.clerk.com/v1/users" \
-            -H "Authorization: Bearer $CLERK_SECRET_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"username\":\"$USERNAME\",\"email_address\":[\"$EMAIL\"],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
-          echo "Clerk create user → HTTP $STATUS"
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
-            cat /tmp/clerk-user.json; exit 1
-          fi
-          echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
-          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
-          # Capture the user id so cleanup can delete exactly this user.
-          echo "user_id=$(jq -r .id /tmp/clerk-user.json)" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/provision-e2e-user
+        with:
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
 
       - name: ⚡ Install Maestro CLI
         run: |
@@ -79,46 +67,12 @@ jobs:
           export PATH="$PATH:$HOME/.maestro/bin"
           maestro --version
 
-      - name: 🚀 Boot emulator & run Maestro flows
-        uses: ./.github/actions/android-emulator
+      - name: 🚀 Maestro E2E flows
+        uses: ./.github/actions/maestro-e2e
         with:
-          script: |
-            set +e
-            export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
-            # Software-rendered emulators are slow: give the Maestro driver time to start
-            export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
-            export MAESTRO_CLI_NO_ANALYTICS=1
-            adb install -r app.apk || { sleep 30; adb install -r app.apk; }
-            adb shell pm clear com.bgo.mobile || true   # fresh state: no session
-            # Pre-warm the app (first cold start on a software emulator is very slow)
-            adb shell am start -n com.bgo.mobile/.MainActivity || true
-            sleep 60
-            # Diagnostics: what does the app actually show after pre-warm?
-            adb exec-out screencap -p > /tmp/prewarm-screen.png || true
-            adb shell uiautomator dump /sdcard/ui-pre.xml > /dev/null 2>&1 && adb pull /sdcard/ui-pre.xml /tmp/ui-pre.xml > /dev/null 2>&1 || true
-            adb shell am force-stop com.bgo.mobile || true
-            set -e
-            capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true; }
-            maestro test --format junit --output /tmp/maestro-reports \
-              --debug-output /tmp/maestro-debug \
-              apps/mobile/.maestro/flows/01-launch-welcome.yaml \
-              || { capture; exit 1; }
-            maestro test --format junit --output /tmp/maestro-reports \
-              --debug-output /tmp/maestro-debug \
-              -e USERNAME=${{ steps.provision.outputs.username }} \
-              -e PASSWORD=${{ steps.provision.outputs.password }} \
-              apps/mobile/.maestro/flows/02-login.yaml \
-              || { capture; exit 1; }
-            maestro test --format junit --output /tmp/maestro-reports \
-              --debug-output /tmp/maestro-debug \
-              -e USERNAME=${{ steps.provision.outputs.username }} \
-              apps/mobile/.maestro/flows/03-profile-logout.yaml \
-              || { capture; exit 1; }
-            # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
-            adb shell cmd uimode night yes || true
-            maestro test --format junit --output /tmp/maestro-reports \
-              apps/mobile/.maestro/flows/04-dark-mode.yaml \
-              || { capture; exit 1; }
+          apk-path: app.apk
+          username: ${{ steps.provision.outputs.username }}
+          password: ${{ steps.provision.outputs.password }}
 
       - name: 🗑️ Cleanup E2E test user
         if: always()
