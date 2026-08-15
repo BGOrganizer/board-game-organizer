@@ -9,12 +9,10 @@ export function LoginFallback() {
 
   return (
     <View className="items-center gap-4 pt-16">
-      <Text className="text-center text-2xl font-bold">
-        Benvenuto in Board Game Organizer
-      </Text>
+      <Text className="text-center text-2xl font-bold">Benvenuto in Board Game Organizer</Text>
       <Text className="max-w-xs text-center text-muted">
-        Organizza la tua collezione di giochi da tavolo, tieni traccia delle
-        partite e connettiti con altri giocatori.
+        Organizza la tua collezione di giochi da tavolo, tieni traccia delle partite e connettiti
+        con altri giocatori.
       </Text>
       <View className="mt-2">
         <Button variant="primary" onPress={() => router.push("/sign-in")}>

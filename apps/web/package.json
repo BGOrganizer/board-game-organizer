@@ -9,7 +9,9 @@
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@board-game-organizer/query": "workspace:*",
@@ -32,6 +34,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "typescript": "^6.0.3",
-    "vitest": "^3.1.0"
+    "vitest": "^3.1.0",
+    "@vitest/coverage-v8": "^3.1.0",
+    "@playwright/test": "^1.53.0",
+    "@clerk/testing": "^2.1.0"
   }
 }

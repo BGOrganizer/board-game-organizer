@@ -16,11 +16,7 @@ export interface UseProfileOptions {
  * API. Mutations live in `queryClient.invalidateQueries(["profile"])`
  * callers — Zustand never stores this server data.
  */
-export function useProfileQuery({
-  apiUrl,
-  token,
-  enabled = true,
-}: UseProfileOptions) {
+export function useProfileQuery({ apiUrl, token, enabled = true }: UseProfileOptions) {
   return useQuery<UserProfile>({
     queryKey: ["profile", apiUrl, token],
     queryFn: () => fetchProfile(apiUrl, token as string),

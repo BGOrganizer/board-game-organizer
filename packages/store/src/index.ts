@@ -1,8 +1,5 @@
 import { create } from "zustand";
-import {
-  createCounterSlice,
-  type CounterSlice,
-} from "./slices/counterSlice";
+import { type CounterSlice, createCounterSlice } from "./slices/counterSlice";
 import { createUiSlice, type UiSlice } from "./slices/uiSlice";
 
 /**

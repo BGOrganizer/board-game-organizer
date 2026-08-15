@@ -1,12 +1,10 @@
 "use client";
 
+import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth, useClerk } from "@clerk/nextjs";
+import { Avatar, Button, Card, Spinner } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-
-import { Avatar, Button, Card, Spinner } from "@heroui/react";
-
-import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -126,12 +124,7 @@ export function Profile() {
         Plan: {profile.plan} &middot; Language: {profile.preferredLanguage}
       </p>
 
-      <Button
-        className="mt-6"
-        variant="outline"
-        isDisabled={isSigningOut}
-        onPress={handleLogout}
-      >
+      <Button className="mt-6" variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
         Logout
       </Button>
     </Card>

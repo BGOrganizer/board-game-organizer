@@ -1,2 +1,2 @@
-export { createQueryClient } from "./query-client";
 export { QueryProvider } from "./provider";
+export { createQueryClient } from "./query-client";

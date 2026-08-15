@@ -21,3 +21,6 @@ skills-lock.json
 
 apps/mobile/build-output/
 .vercel/
+test-results/
+playwright-report/
+.pi/

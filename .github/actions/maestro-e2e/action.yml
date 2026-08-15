@@ -1,0 +1,61 @@
+name: Run Maestro E2E flows
+description: >-
+  Boots the software-rendered Android emulator, installs the APK and runs the
+  Maestro flows (welcome → login → profile/logout → dark mode). On failure it
+  captures a screenshot, UI dump and logcat for the reports artifact.
+
+inputs:
+  apk-path:
+    description: Path to the internal APK to install
+    required: true
+  username:
+    description: E2E user username (flow 02/03)
+    required: false
+    default: ""
+  password:
+    description: E2E user password (flow 02)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: 🚀 Boot emulator & run Maestro flows
+      uses: ./.github/actions/android-emulator
+      with:
+        script: |
+          set +e
+          export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
+          export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
+          export MAESTRO_CLI_NO_ANALYTICS=1
+          APK="${{ inputs.apk-path }}"
+          echo "APK found: $APK"
+          adb install -r "$APK" || { sleep 30; adb install -r "$APK"; }
+          adb shell pm clear com.bgo.mobile || true
+          # Pre-warm the app (first cold start on a software emulator is very slow)
+          adb shell am start -n com.bgo.mobile/.MainActivity || true
+          sleep 60
+          adb shell am force-stop com.bgo.mobile || true
+          set -e
+          capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true; }
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            apps/mobile/.maestro/flows/01-launch-welcome.yaml \
+            || { capture; exit 1; }
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            -e USERNAME=${{ inputs.username }} \
+            -e PASSWORD=${{ inputs.password }} \
+            apps/mobile/.maestro/flows/02-login.yaml \
+            || { capture; exit 1; }
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            -e USERNAME=${{ inputs.username }} \
+            apps/mobile/.maestro/flows/03-profile-logout.yaml \
+            || { capture; exit 1; }
+          # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
+          adb shell cmd uimode night yes || true
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            apps/mobile/.maestro/flows/04-dark-mode.yaml \
+            || { capture; exit 1; }

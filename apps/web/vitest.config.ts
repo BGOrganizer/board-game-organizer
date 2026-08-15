@@ -4,5 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // E2E specs (Playwright) live in ./e2e — keep them out of unit tests.
+    exclude: ["e2e/**", "node_modules/**", "dist/**", ".next/**"],
   },
 });

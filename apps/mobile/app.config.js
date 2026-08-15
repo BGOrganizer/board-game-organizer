@@ -1,36 +1,42 @@
 module.exports = {
-  "expo": {
-    "name": "board-game-organizer",
-    "slug": "board-game-organizer",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "scheme": "bgo",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.bgo.mobile"
+  expo: {
+    name: "board-game-organizer",
+    slug: "board-game-organizer",
+    version: "1.0.0",
+    orientation: "portrait",
+    scheme: "bgo",
+    userInterfaceStyle: "automatic",
+    newArchEnabled: true,
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: "com.bgo.mobile",
     },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+    android: {
+      adaptiveIcon: {
+        backgroundColor: "#ffffff",
       },
-      "package": "com.bgo.mobile"
+      package: "com.bgo.mobile",
     },
-    "web": {
-      "bundler": "metro",
-      "output": "single",
-      "favicon": "./assets/favicon.png"
+    web: {
+      bundler: "metro",
+      output: "single",
+      favicon: "./assets/favicon.png",
     },
-    "plugins": ["expo-router", "@clerk/expo", "expo-secure-store", "@sentry/react-native", "expo-font"],
-    "extra": {
-      "apiUrl": process.env.EXPO_PUBLIC_API_URL,
-      "clerkPublishableKey": process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
-      "router": {},
-      "eas": {
-        "projectId": "f19004af-2669-49ca-8c46-2697b66841b6"
-      }
+    plugins: [
+      "expo-router",
+      "@clerk/expo",
+      "expo-secure-store",
+      "@sentry/react-native",
+      "expo-font",
+    ],
+    extra: {
+      apiUrl: process.env.EXPO_PUBLIC_API_URL,
+      clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+      router: {},
+      eas: {
+        projectId: "f19004af-2669-49ca-8c46-2697b66841b6",
+      },
     },
-    "owner": "bgo-org"
-  }
-}
+    owner: "bgo-org",
+  },
+};

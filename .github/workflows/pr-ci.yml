@@ -1,0 +1,444 @@
+name: 🚦 PR CI/CD (quality gates → draft prerelease + Telegram)
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write # preview URL comments on the PR
+  statuses: write # deployment statuses
+  deployments: write # Vercel deployments
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- commitlint
+  commitlint:
+    name: 💬 commitlint (Conventional Commits)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 💬 Check PR commits
+        run: |
+          npx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}"
+
+  # ---------------------------------------------------------------------- lint
+  lint:
+    name: 🧹 Biome lint & format
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧹 Biome check
+        run: pnpm lint
+
+  # ----------------------------------------------------------------- typecheck
+  typecheck:
+    name: 🧪 TypeScript typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 tsc --noEmit
+        run: pnpm typecheck
+
+  # --------------------------------------------------------------- unit tests
+  unit-tests:
+    name: 🧪 Unit tests (${{ matrix.app }}) + coverage
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [mobile, web, api]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Vitest with coverage
+        run: pnpm --filter ${{ matrix.app }} test:coverage
+
+      - name: 📤 Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/coverage/**
+          if-no-files-found: warn
+
+  # ------------------------------------------------------- integration tests
+  integration-tests:
+    name: 🐳 API integration tests (testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🐳 Vitest integration (MongoDB in Docker)
+        run: pnpm --filter api test:integration
+
+      - name: 📤 Upload integration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api-integration
+          path: apps/api/coverage/**
+          if-no-files-found: warn
+
+  # ------------------------------------------------- build api & web (next)
+  build-api-web:
+    name: 🏗️ Build API + Web (next build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🏗️ Build api
+        run: pnpm --filter api build
+
+      - name: 🏗️ Build web
+        run: pnpm --filter web build
+
+  # -------------------------------------------------- mobile internal build
+  build-mobile-internal:
+    name: 📱 Build mobile APK (internal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🏗️ Build APK (eas build --local, internal profile)
+        id: build
+        uses: ./.github/actions/mobile-build
+        with:
+          profile: internal
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-internal
+          path: ${{ steps.build.outputs.artifact-path }}
+          retention-days: 7
+
+  # ------------------------------------------------ provision E2E test user
+  provision:
+    name: 👤 Provision E2E test user (Clerk API)
+    runs-on: ubuntu-latest
+    outputs:
+      username: ${{ steps.provision.outputs.username }}
+      email: ${{ steps.provision.outputs.email }}
+      password: ${{ steps.provision.outputs.password }}
+      user_id: ${{ steps.provision.outputs.user_id }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 👤 Provision E2E user
+        id: provision
+        uses: ./.github/actions/provision-e2e-user
+        with:
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+
+  # ---------------------------------------------------- Vercel preview API
+  deploy-preview-api:
+    name: 🔌 Vercel preview (API)
+    needs: [build-api-web]
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🚀 Deploy to Vercel (preview)
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: API
+          app-path: apps/api
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/api/preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+
+  # ---------------------------------------------------- Vercel preview web
+  deploy-preview-web:
+    name: 🌐 Vercel preview (Web)
+    needs: [build-api-web]
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🚀 Deploy to Vercel (preview)
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: Web
+          app-path: apps/web
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/web/preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+
+  # ------------------------------------------------------------- Maestro E2E
+  e2e-maestro:
+    name: 🎬 Maestro E2E (mobile)
+    needs: [build-mobile-internal, provision]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: ☕ Set up JDK 17 (Maestro requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal
+          path: apk
+
+      - name: 🔎 Resolve APK path
+        id: apk
+        run: |
+          APK=$(find apk -name '*.apk' | head -1)
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: ⚡ Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          maestro --version
+
+      - name: 🚀 Maestro E2E flows
+        uses: ./.github/actions/maestro-e2e
+        with:
+          apk-path: ${{ steps.apk.outputs.path }}
+          username: ${{ needs.provision.outputs.username }}
+          password: ${{ needs.provision.outputs.password }}
+
+      - name: 📤 Upload Maestro reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-reports
+          path: |
+            /tmp/maestro-reports/**
+            /tmp/maestro-debug/**
+            /tmp/fail-screen.png
+            /tmp/ui-fail.xml
+            /tmp/fail-logcat.txt
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------- Playwright E2E
+  e2e-playwright:
+    name: 🎭 Playwright E2E (web)
+    needs: [deploy-preview-web, provision]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🌐 Install Playwright browsers
+        working-directory: apps/web
+        run: |
+          npx playwright install --with-deps chromium
+
+      - name: 🎭 Run Playwright against preview
+        working-directory: apps/web
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
+          E2E_EMAIL: ${{ needs.provision.outputs.email }}
+          # Clerk testing token (global setup) + ticket sign-in helper:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+        run: pnpm test:e2e
+
+      - name: 📤 Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/**
+          if-no-files-found: warn
+
+  # ------------------------------------------------ cleanup E2E test users
+  cleanup-e2e-user:
+    name: 🗑️ Cleanup E2E test user
+    needs: [provision, e2e-maestro, e2e-playwright]
+    if: always()
+    # Cleanup must never block the PR result: a failure here only means the
+    # next run's orphan sweep (>24h) will take care of it.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🗑️ Delete this run's user + sweep stale e2e users
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          USER_ID: ${{ needs.provision.outputs.user_id }}
+        run: |
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
+
+  # ----------------------------------------------------------- draft release
+  draft-release:
+    name: 📦 Draft prerelease (APK + changelog) → Telegram
+    needs:
+      - commitlint
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests
+      - build-api-web
+      - build-mobile-internal
+      - deploy-preview-api
+      - deploy-preview-web
+      - e2e-maestro
+      - e2e-playwright
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create/update the draft release + attach the APK
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal
+          path: apk
+
+      - name: 🔎 Resolve version & APK
+        id: meta
+        run: |
+          echo "version=$(node -p "require('./apps/mobile/app.config.js').expo.version")" >> "$GITHUB_OUTPUT"
+          APK=$(find apk -name '*.apk' | head -1)
+          echo "apk-name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
+          echo "apk-path=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: 📦 Publish/update draft prerelease
+        id: draft
+        uses: ./.github/actions/publish-draft-release
+        with:
+          github-token: ${{ github.token }}
+          version: ${{ steps.meta.outputs.version }}
+          pr-number: ${{ github.event.pull_request.number }}
+          pr-title: ${{ github.event.pull_request.title }}
+          base-sha: ${{ github.event.pull_request.base.sha }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
+          apk-path: ${{ steps.meta.outputs.apk-path }}
+          apk-name: ${{ steps.meta.outputs.apk-name }}
+          web-preview-url: ${{ needs.deploy-preview-web.outputs.url }}
+          api-preview-url: ${{ needs.deploy-preview-api.outputs.url }}
+
+      - name: 🔗 Compose Telegram links
+        run: |
+          cat > /tmp/telegram-links.html <<EOF
+          📱 <a href="${{ steps.draft.outputs.apk_url }}">APK (PR)</a>
+          🌐 <a href="${{ needs.deploy-preview-web.outputs.url }}">Web (preview)</a>
+          🔌 <a href="${{ needs.deploy-preview-api.outputs.url }}">API (preview)</a>
+          EOF
+
+      - name: 📤 Send Telegram notification
+        uses: ./.github/actions/telegram-notify
+        with:
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          title: 🚀 Board Game Organizer — PR #${{ github.event.pull_request.number }} · draft ${{ steps.meta.outputs.version }}-pr.${{ github.event.pull_request.number }}
+          changelog-file: /tmp/pr-changelog.md
+          links-file: /tmp/telegram-links.html

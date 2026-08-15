@@ -1,7 +1,7 @@
 "use client";
 
-import {Button} from "@heroui/react";
 import { useAppStore } from "@board-game-organizer/store";
+import { Button } from "@heroui/react";
 
 export function Counter() {
   const count = useAppStore((s) => s.count);

@@ -53,6 +53,7 @@ pnpm typecheck              # turbo typecheck (depends on ^build)
 pnpm test                   # not wired at root → use per-app: pnpm --filter web test
 pnpm format                 # biome format --write .
 pnpm clean                  # turbo clean
+pnpm release                # semantic-release (only on main, via main-ci.yml)
 ```
 
 Per-app (filters: `web`, `api`, `mobile`):
@@ -82,8 +83,11 @@ No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.ex
 **Production deployments**: web → `web-rosy-phi-82.vercel.app`, api → `api-chi-two-97.vercel.app`.
 CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG_ID`,
 `VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `CLERK_SECRET_KEY` (used by Maestro E2E to
-provision a test user via the Clerk API). Repo **variables** (baked into mobile builds):
-`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`.
+provision a test user via the Clerk API and by Playwright E2E for the testing token +
+user cleanup), `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (release notifications on the
+Telegram channel). Repo **variables** (baked into mobile builds / E2E):
+`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`,
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
 
 Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_URI` is missing, so the API can't start without it.
 
@@ -163,13 +167,50 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   the flows: launch/welcome → login → profile+logout → dark mode. Run manually via
   `workflow_dispatch`; also `android-emulator.yml` is the diagnostic smoke test (screenshots +
   logcat artifacts).
+- **E2E (web)**: Playwright (`apps/web/e2e`) against the Vercel preview URL. The spec signs in
+  with the provisioned Clerk test user using a **Testing Token** (bypasses Clerk bot detection;
+  minted by `clerkSetup()` in `apps/web/e2e/global.setup.ts` via `CLERK_SECRET_KEY`) and a
+  **server-side sign-in ticket** (`clerk.signIn({ emailAddress })` from `@clerk/testing` — no
+  password, no email verification, no cross-domain redirects), then checks profile + logout.
+  Requires the `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` repo variable (read by `clerkSetup()`).
+- **Test-user cleanup**: every E2E run provisions exactly one user (tagged
+  `public_metadata.e2e: true`) and the `cleanup-e2e-user` job (pr-ci) / final step (maestro)
+  deletes it afterwards — `if: always()`, never blocks the run. A leftover sweep in
+  `.github/scripts/cleanup-e2e-clerk-users.sh` also removes orphaned e2e users older than 24h
+  (from runs killed mid-flight); the age filter keeps concurrent PR runs safe.
+
+## Versioning & Releases
+
+- **Single unified semver** for the whole product (api + web + mobile), driven by
+  **semantic-release** on `main` (see `release.config.mjs`, run via `pnpm release`).
+- Bump rules: conventional commits since the last release — breaking change → **major**,
+  `feat` → **minor**, `fix`/perf/… → **patch**. Every release generates **`CHANGELOG.md`**,
+  syncs `apps/{api,web,mobile}/package.json` + `apps/mobile/app.config.js`
+  (`scripts/release/bump-versions.mjs`) and creates the GitHub release `v<version>`.
+- PRs do **not** bump: the PR pipeline only creates/updates a **draft prerelease**
+  (`v<version>-pr.<PR>`, e.g. `v1.0.0-pr.3`) with the PR changelog + internal APK.
+- Release/PR notifications are sent to the **Telegram channel** via
+  `scripts/release/telegram-notify.mjs` (HTML parse mode, truncated to 4096 chars).
 
 ## Git Workflow (IMPORTANT)
 
-- **Commit messages must follow Conventional Commits** — enforced by CI
-  (`.github/actions/conventional-commits` composite action). Allowed types:
-  `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
-  Examples: `feat(api): add groups endpoint`, `fix(mobile): header spacing`, `docs: update README`.
+- **main is protected**: no direct pushes/commits to `main` — every change lands via a
+  **pull request** with **at least 1 approval** (Alessandro). The branch protection rule
+  must be enabled in **Settings → Branches → Add rule → main** (require PR + 1 approval +
+  status checks) — requires an admin account.
+- **For every feature/fix/docs/CI change: create a new branch** off `main`
+  (e.g. `feat/...`, `fix/...`, `ci/...`) and commit (signed, conventional). Push the
+  branch and **implement ALL the tasks of the feature before opening a PR**.
+- **PRs are opened ONLY when the user explicitly asks for it.** Do NOT open a PR
+  proactively: push commits on the branch while implementing, let `branch-ci.yml`
+  (fast subset: commitlint, Biome, typecheck, unit + integration tests) validate each
+  push, and only when the feature is complete — and the user says so — open the PR to
+  `main`. The full pipeline (`pr-ci.yml`) then runs all the heavy gates (builds, Vercel
+  previews, Maestro + Playwright E2E) and publishes the draft prerelease + Telegram
+  notification.
+- **Commit messages must follow Conventional Commits** — enforced by CI via
+  **commitlint** (`commitlint.config.mjs`, `@commitlint/config-conventional`). Allowed
+  types: `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
 - **All commits are signed** (SSH commit signing). Repo-local config (already set):
   ```bash
   git config user.name "Alessandro Mancini"
@@ -179,37 +220,138 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   git config commit.gpgsign true
   ```
   Verify after committing: `git log --show-signature -1` (expect `Good "git" signature for ...`).
-- Workflow: branch off `main` → commit (signed, conventional) → `git push origin <branch>`
-  → open PR. Direct pushes to `main` trigger production deploys (Vercel + mobile
-  APK build & draft release) — prefer PRs.
-- Push command for the current branch: `git push origin <branch>`, or `git push` if upstream is set.
+- Push command: `git push origin <branch>` (upstream is set after the first push).
 
 ## CI/CD (GitHub Actions)
 
-- Path-filtered per-app pipelines: `web.yml` / `api.yml` (tests + Vercel
-  preview/production) and `mobile.yml` (checks + APK build & draft release) —
-  the only workflows visible in the Actions tab.
-- All reusable pieces are **composite actions** in `.github/actions/`
-  (invisible in the Actions tab by design): `setup-pnpm`, `conventional-commits`,
-  `test`, `vercel-deploy`, `mobile-build`. ⚠️ Local actions require
-  `actions/checkout` **before** the first `uses: ./.github/actions/...` step in
-  each job (the runner loads action metadata from the workspace at job start).
-- **Mobile APK builds are local** (`eas build --local` on the runner — no EAS
-  cloud credits needed), following the pipeline from
-  TanayK07/expo-react-native-cicd. The `mobile-build` composite action builds
-  ONE profile per invocation (`development` dev client or `internal` release
-  from `apps/mobile/eas.json`); `mobile.yml` runs it for **both profiles in
-  parallel** via a matrix. The action installs workspace deps (EAS requires
-  `node_modules` to resolve config plugins and check `expo-dev-client`),
-  frees ~7GB of preinstalled toolchains (keeping `/usr/local/lib/android` for
-  NDK/CMake), caches `~/.eas-build-local` and `~/.gradle`, and exposes
-  `version` / `build-number` / `artifact-name` / `artifact-path` outputs.
-  Version comes from `app.config.js` (`expo.version`).
-- Both APKs are uploaded as build artifacts and attached to a **draft GitHub
-  Release** by the `release` job of `mobile.yml`
-  (`softprops/action-gh-release`), named
-  `board-game-organizer-v<version>-<build-number>`. Trigger: push to main or
-  manual dispatch → always builds both profiles.
-- Setup via `.github/actions/setup-pnpm` (Node 26, pnpm 11.6.0,
-  `--frozen-lockfile`).
+### Branch pipeline — `branch-ci.yml` (every push to a feature branch)
+
+Fast subset of the PR gates, meant for quick feedback while implementing on a branch:
+1. **commitlint** — conventional-commit check on the pushed commits
+2. **Biome** — `pnpm lint`
+3. **Typecheck** — `pnpm typecheck`
+4. **Unit tests (vitest)** — mobile/web/api (no coverage)
+5. **API integration tests (testcontainers)** — MongoDB in Docker
+
+No builds (mobile/Vercel), no preview deploys, no E2E: those run only when the PR is
+opened. Concurrency is per-branch with `cancel-in-progress` so a new push cancels the
+previous run.
+
+### PR pipeline — `pr-ci.yml` (every pull request to main)
+
+A single workflow runs ALL quality gates on every PR:
+1. **commitlint** — conventional-commit check on the PR commits
+2. **Biome** — `pnpm lint` (format + lint, TS/React rules)
+3. **Typecheck** — `pnpm typecheck` (tsc --noEmit across apps)
+4. **Unit tests (vitest)** — mobile/web/api with **coverage** (`test:coverage`,
+   `@vitest/coverage-v8`) → coverage report uploaded as artifact
+5. **API integration tests (vitest + testcontainers)** — `pnpm --filter api test:integration`;
+   spins up a real MongoDB container (Docker) — the scaffold for the upcoming MongoDB
+   integration
+6. **Mobile build (internal only)** — `mobile-build` composite action, profile `internal`
+7. **Build API + Web** — `next build` for both apps
+8. **Vercel preview deploys** — api and web deployed to **preview** (never production)
+9. **E2E Maestro (mobile)** — boots a software-rendered Android emulator
+   (`.github/actions/android-emulator`), installs the PR's internal APK and runs the flows in
+   `apps/mobile/.maestro/flows` (welcome → login → profile/logout → dark mode)
+10. **E2E Playwright (web)** — `apps/web/e2e` against the **Vercel preview URL**: signed-out
+    checks + real sign-in with the provisioned Clerk test user via **Testing Token** and
+    **sign-in ticket** (`@clerk/testing`) → profile → logout
+11. **Cleanup E2E test users** — deletes the provisioned user (`if: always()`, never blocks)
+    and sweeps stale e2e users > 24h (`.github/scripts/cleanup-e2e-clerk-users.sh`)
+12. **Draft prerelease + Telegram** — if ALL gates pass, a **draft prerelease** is created/
+    updated (tag `v<version>-pr.<PR>`, e.g. `v1.0.0-pr.3`) with the **PR changelog**
+    (from conventional commits `base...head`), the **internal APK** attached and the
+    **web/api preview links** in the body. Every PR update refreshes the draft (new APK +
+    changelog). Last step: a **Telegram notification** with changelog + preview links +
+    PR APK (only when the whole pipeline passed)
+
+E2E test users are provisioned per-run via the Clerk API (`CLERK_SECRET_KEY` secret) and deleted
+at the end of the run (cleanup job/script above) — they never accumulate.
+
+### Main pipeline — `main-ci.yml` (push/merge to main)
+
+After the approved PR is merged to main, `main-ci.yml` runs:
+1. **semantic-release** (`.github/../release.config.mjs`, `pnpm release`) — analyzes the
+   conventional commits since the last release and computes the next **semver**
+   (breaking → major, `feat` → minor, `fix` → patch), then:
+   - generates **`CHANGELOG.md`** from the commit messages
+   - syncs the version in `apps/{api,web,mobile}/package.json` and
+     `apps/mobile/app.config.js` (`expo.version`) via `scripts/release/bump-versions.mjs`
+   - commits the bump (`chore(release): vX.Y.Z [skip ci]`) and creates the
+     **GitHub release `v<version>`** with the changelog in the body
+2. **Build APK (internal)** — `mobile-build` + **attach to the release**
+3. **Vercel production deploys** — api + web (`vercel-deploy`, production: true)
+4. **Telegram notification** — changelog + links (APK → release, web, api production)
+
+The release commit carries `[skip ci]`, so the workflow does not re-trigger on its own bump.
+
+### Development APK — `mobile-development.yml` (manual, main only)
+
+`workflow_dispatch` **only from main** (guard `github.ref == 'refs/heads/main'`): builds the
+**development** profile APK and **uploads it to the latest release** as an additional asset.
+
+### Other workflows
+
+- `maestro.yml` — manual Maestro E2E dispatcher (uses the latest released internal APK)
+
+### Composite actions (`.github/actions/`)
+
+`setup-pnpm` (Node 26, pnpm 11.6.0, `--frozen-lockfile`), `vercel-deploy` (preview/production), `mobile-build`
+(local `eas build --local`, ONE profile per invocation; frees ~7GB of toolchains, caches
+`~/.eas-build-local` and `~/.gradle`), `android-emulator` (software-rendered emulator + script
+runner), `maestro-e2e` (install APK + run the Maestro flows), `provision-e2e-user` (Clerk
+test user via the Backend API), `publish-draft-release` (create/update the PR draft
+prerelease + attach APK), `telegram-notify` (send the release message to the channel).
+⚠️ GitHub can only resolve **local** actions after `actions/checkout` has run: every job must
+start with `actions/checkout@v4` before the first `uses: ./.github/actions/...` (a local
+action as the first step fails with "Can't find action.yml").
+
 - If you change dependencies, keep `pnpm-lock.yaml` in sync (run `pnpm install`, not `pnpm install --lockfile-only` when the graph changes).
+- The repo is **public** (Actions are free). Branch protection on `main` must be enabled by an
+  admin: Settings → Branches → Add rule → `main` → require a PR with 1 approving review +
+  status checks.
+
+## Board automation — pi-board-agent (autonomous GitHub Project executor)
+
+A separate pi extension ([mancioshell/pi-board-agent](https://github.com/mancioshell/pi-board-agent))
+watches the project board and does the whole loop autonomously: story refine →
+sub-issue tasks → implementation in git worktrees → cumulative PR per plan →
+watchdog (CI fixes + mentions) → Telegram notifications.
+
+### Config
+
+Local, **gitignored**: `.pi/board-agent.yml` (a full example is already in place in this
+repo). Key sections: `project` (owner + project number), `columns` (the 6 Status options:
+Backlog / Ready / In Progress / Needs Design / Review / Done), `status_field` / `plan_field`
+/ `type_field` ("Type" is reserved in Projects v2 → "Kind" with Story|Task), `models`
+(builder/refine/watch — default `deepseek-v4-flash-0731`), `context`, `refine`, `watchdog`,
+`telegram`, `auto_start` (container).
+
+### Initialize the GitHub Project
+
+`/board-agent init-project` creates the standard fields from the config: **Status**
+single-select (the 6 columns), **Kind** (Story|Task), **Plan** (text) + a Board view.
+
+### gh token (permissions needed)
+
+For both `init-project` and the daily loop the token needs:
+
+- **Fine-grained PAT** (recommended):
+  - Repository access on the **target repo** (BGOrganizer/board-game-organizer):
+    `Issues: Read and write`, `Pull requests: Read and write`,
+    `Contents: Read and write` (branch pushes), `Actions: Read` (check-runs/logs),
+    `Metadata: Read`
+  - **Organization permissions (BGOrganizer): `Projects: Read and write`** — this is the
+    one `init-project` needs to create fields/options/view. "All repositories" does NOT
+    grant it.
+- **Classic PAT** alternative: scopes `repo` + `project`.
+
+The token value goes in the environment (container `GH_TOKEN` / `gh auth login`), never in
+the repo.
+
+### Run
+
+See pi-board-agent `docs/docker.md`: the board-agent runs in its own Docker container
+(pi headless + `auto_start: true`), with the repo mounted at `/workspace`. Control via
+GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose exec`.
