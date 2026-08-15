@@ -29,14 +29,18 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
-      - name: 🔑 Configure push credentials (release bot bypasses branch protection)
-        # @semantic-release/git pushes the bump commit to protected `main`:
-        # the workflow's github-actions token cannot bypass the PR requirement.
-        # RELEASE_PAT (admin) rewrites https://github.com/ URLs to include it.
+      - name: 🔑 Configure push credentials (release PAT bypasses branch protection)
+        # actions/checkout sets an Authorization extraheader that OVERRIDES the
+        # credentials embedded in the URL — the push would authenticate as the
+        # workflow bot (no bypass). Remove it and set the remote URL with the
+        # admin RELEASE_PAT so semantic-release's push is attributed to it.
         env:
           RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
         run: |
-          git config --global url."https://x-access-token:${RELEASE_PAT}@github.com/".insteadOf "https://github.com/"
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          git remote set-url origin "https://x-access-token:${RELEASE_PAT}@github.com/${{ github.repository }}.git"
+          git config --global user.name "Hermes Bot"
+          git config --global user.email "bot@bgo.dev"
 
       - name: 🚀 Run semantic-release
         env:
