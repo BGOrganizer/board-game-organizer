@@ -95,6 +95,14 @@ pnpm release                        # semantic-release (version bump + changelog
 
 See `AGENTS.md` for the full spec, env vars, and the signed git/commit workflow.
 
+## Board automation (pi-board-agent)
+
+Autonomous execution of the GitHub project board (story refine → sub-issue tasks →
+implementation in worktrees → PR per plan → CI fixes → Telegram): the config lives in
+ (gitignored) and the runtime in a separate Docker container.
+See  → *Board automation* for the full config + the gh token permissions
+needed to initialize the project ().
+
 ## License
 
 MIT

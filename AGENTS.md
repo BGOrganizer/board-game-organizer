@@ -311,3 +311,47 @@ action as the first step fails with "Can't find action.yml").
 - The repo is **public** (Actions are free). Branch protection on `main` must be enabled by an
   admin: Settings → Branches → Add rule → `main` → require a PR with 1 approving review +
   status checks.
+
+## Board automation — pi-board-agent (autonomous GitHub Project executor)
+
+A separate pi extension ([mancioshell/pi-board-agent](https://github.com/mancioshell/pi-board-agent))
+watches the project board and does the whole loop autonomously: story refine →
+sub-issue tasks → implementation in git worktrees → cumulative PR per plan →
+watchdog (CI fixes + mentions) → Telegram notifications.
+
+### Config
+
+Local, **gitignored**: `.pi/board-agent.yml` (a full example is already in place in this
+repo). Key sections: `project` (owner + project number), `columns` (the 6 Status options:
+Backlog / Ready / In Progress / Needs Design / Review / Done), `status_field` / `plan_field`
+/ `type_field` ("Type" is reserved in Projects v2 → "Kind" with Story|Task), `models`
+(builder/refine/watch — default `deepseek-v4-flash-0731`), `context`, `refine`, `watchdog`,
+`telegram`, `auto_start` (container).
+
+### Initialize the GitHub Project
+
+`/board-agent init-project` creates the standard fields from the config: **Status**
+single-select (the 6 columns), **Kind** (Story|Task), **Plan** (text) + a Board view.
+
+### gh token (permissions needed)
+
+For both `init-project` and the daily loop the token needs:
+
+- **Fine-grained PAT** (recommended):
+  - Repository access on the **target repo** (BGOrganizer/board-game-organizer):
+    `Issues: Read and write`, `Pull requests: Read and write`,
+    `Contents: Read and write` (branch pushes), `Actions: Read` (check-runs/logs),
+    `Metadata: Read`
+  - **Organization permissions (BGOrganizer): `Projects: Read and write`** — this is the
+    one `init-project` needs to create fields/options/view. "All repositories" does NOT
+    grant it.
+- **Classic PAT** alternative: scopes `repo` + `project`.
+
+The token value goes in the environment (container `GH_TOKEN` / `gh auth login`), never in
+the repo.
+
+### Run
+
+See pi-board-agent `docs/docker.md`: the board-agent runs in its own Docker container
+(pi headless + `auto_start: true`), with the repo mounted at `/workspace`. Control via
+GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose exec`.
