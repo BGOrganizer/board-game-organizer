@@ -29,6 +29,15 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
+      - name: 🔑 Configure push credentials (release bot bypasses branch protection)
+        # @semantic-release/git pushes the bump commit to protected `main`:
+        # the workflow's github-actions token cannot bypass the PR requirement.
+        # RELEASE_PAT (admin) rewrites https://github.com/ URLs to include it.
+        env:
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+        run: |
+          git config --global url."https://x-access-token:${RELEASE_PAT}@github.com/".insteadOf "https://github.com/"
+
       - name: 🚀 Run semantic-release
         env:
           GITHUB_TOKEN: ${{ github.token }}
