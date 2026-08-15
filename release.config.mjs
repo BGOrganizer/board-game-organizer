@@ -35,6 +35,8 @@ export default {
         ],
         // biome-ignore lint/suspicious/noTemplateCurlyInString: semantic-release runtime placeholder
         message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
+        author: "Hermes Bot <bot@bgo.dev>",
+        committer: "Hermes Bot <bot@bgo.dev>",
       },
     ],
     "@semantic-release/github",
