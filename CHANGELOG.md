@@ -1,0 +1,45 @@
+# 1.0.0 (2026-08-15)
+
+
+### Bug Fixes
+
+* **ci:** biome formatting, theme script component, header a11y and PR permissions ([bed29f1](https://github.com/BGOrganizer/board-game-organizer/commit/bed29f1a0a97f8eff691f3134ca9248322baa4db))
+* **ci:** enable allowBuilds for sharp and unrs-resolver in pnpm-workspace.yaml ([322699e](https://github.com/BGOrganizer/board-game-organizer/commit/322699efa61681a6f7732e49c79e0bc1b973e7e5))
+* **ci:** find existing PR draft by name too (GitHub normalizes draft tag_name to untagged-<id>) ([d567357](https://github.com/BGOrganizer/board-game-organizer/commit/d5673572e29f596bf9fc916938dc73c6ab147fe4))
+* **ci:** neutralise checkout extraheader + explicit PAT URL for semantic-release push ([5d37a28](https://github.com/BGOrganizer/board-game-organizer/commit/5d37a2800fdc10de9a85ff25ed01dcc92d88bc3f))
+* **ci:** release PAT for semantic-release push to protected main ([841af77](https://github.com/BGOrganizer/board-game-organizer/commit/841af7787102410816d18439a22bb877b8ab9a2b))
+* **ci:** remove --no-wait and clean up redundant .npmrc config ([9f952ff](https://github.com/BGOrganizer/board-game-organizer/commit/9f952ff22bbf42dc64a1415eed4c53a8cb92c6af))
+* **ci:** resolve PR APK robustly in Maestro job and disable Vercel SSO on previews ([c5b603e](https://github.com/BGOrganizer/board-game-organizer/commit/c5b603e15a5e3a2df2074c709227e9baca1fe5f5))
+* **e2e:** allow third-party cookies for Clerk ticket sign-in flow ([d93c2df](https://github.com/BGOrganizer/board-game-organizer/commit/d93c2dfcdaf47b15686a6e710201c8b5aed3785c))
+* **e2e:** interact with Clerk inline sign-in form (v7 has no iframe) ([975316e](https://github.com/BGOrganizer/board-game-organizer/commit/975316e0034f0345311bcb2b19125c85ca2b67f0))
+* **e2e:** sign in via Clerk sign-in ticket (no new-device verification) ([80f1da9](https://github.com/BGOrganizer/board-game-organizer/commit/80f1da9fd2a94609d8780b7df639bc2712aed827))
+* **mobile:** add react-native-worklets dependency ([8023599](https://github.com/BGOrganizer/board-game-organizer/commit/802359977b05d50c68e66f0cb7a2a36fa1ac506e))
+* **mobile:** break logout navigation ping-pong and make crash fallback provider-safe ([b42f0dd](https://github.com/BGOrganizer/board-game-organizer/commit/b42f0dda7d61f8cc5456836e123bb5d257c8c52a))
+* **mobile:** disable Sentry gradle upload task for local builds ([88e0157](https://github.com/BGOrganizer/board-game-organizer/commit/88e015740192783914d9a9778a75e1f6074ad5e2))
+* **mobile:** disable Sentry Session Replay in release builds to prevent startup crash ([be918dc](https://github.com/BGOrganizer/board-game-organizer/commit/be918dcf7aff19f157bc8ceb37a5b11ea21e379c))
+* **mobile:** disable Sentry sourcemap upload via SENTRY_DISABLE_AUTO_UPLOAD ([4f1a616](https://github.com/BGOrganizer/board-game-organizer/commit/4f1a616de71db6a501a602285e41658cb3db2152))
+* **mobile:** guard tabs with auth redirect and handle signed-out profile state ([b9afac6](https://github.com/BGOrganizer/board-game-organizer/commit/b9afac6562565a23fed1ad26bfecb08f7c524436))
+* **mobile:** move tabs index to matches route to remove pathname ambiguity ([b4286d5](https://github.com/BGOrganizer/board-game-organizer/commit/b4286d57fb546f111dcc8011cfc9e2bedc9f9056))
+* **mobile:** navigate to /matches after login (group path unresolved without index) ([c2a56e2](https://github.com/BGOrganizer/board-game-organizer/commit/c2a56e2aa55ca028d766c4db5278216a885ddb73))
+* **mobile:** redirect to tabs after login and fix profile endpoint URL ([1a3498b](https://github.com/BGOrganizer/board-game-organizer/commit/1a3498ba32a38e4429e69dd9ff2a2c8042167681))
+* **mobile:** replace rendered Redirects with router.replace to break logout render loop ([b56beea](https://github.com/BGOrganizer/board-game-organizer/commit/b56beea1114deb6ff8ae6d2f14f7a0fd5e6d351d))
+* **mobile:** resolve global.css import and align SDK 56 versions ([205d7a1](https://github.com/BGOrganizer/board-game-organizer/commit/205d7a11b7960f5bde5ebe54626eef234891b924))
+* **mobile:** split APK builds into separate jobs to fix runner disk exhaustion ([b6c2455](https://github.com/BGOrganizer/board-game-organizer/commit/b6c24553d40716a00fd19775eeef72e1ecc32c94))
+
+
+### Features
+
+* added auth ([b60a0e7](https://github.com/BGOrganizer/board-game-organizer/commit/b60a0e7e3bff984a72089e9bd57ae5de287a622f))
+* **api:** add health endpoint ([90857c2](https://github.com/BGOrganizer/board-game-organizer/commit/90857c2a1a0795c873f37234ad61671a3da768da))
+* **ci:** add reusable workflows for conventional commits and tests ([e2f9641](https://github.com/BGOrganizer/board-game-organizer/commit/e2f9641b64aaf1e5d6f7aef03b1bac1d705c5677))
+* **ci:** full PR pipeline with quality gates, draft releases and production promotion ([a290c7a](https://github.com/BGOrganizer/board-game-organizer/commit/a290c7a79a398e7726423c1628454b3fd3be4fd6))
+* initialize project with Speckit (spec-driven development) ([c5ae4fe](https://github.com/BGOrganizer/board-game-organizer/commit/c5ae4fe22a6f19d1d5cbd7bcee2ef9ce7164943c))
+* initialize turborepo monorepo with next.js (web, api) and expo (mobile) ([7c9bbcf](https://github.com/BGOrganizer/board-game-organizer/commit/7c9bbcf7f06968cd4a44a5703e490ebdb7ba52a8))
+* **mobile:** forward console.error to Sentry for render-loop diagnostics ([cfec7de](https://github.com/BGOrganizer/board-game-organizer/commit/cfec7de84089a97215c0cd47ca70aeca1dcb80b8))
+* **mobile:** profile with logout, adaptive theme, specular tabs and heroui components ([243d71a](https://github.com/BGOrganizer/board-game-organizer/commit/243d71a7201d182f32b98ae55fe375da94928118))
+* **mobile:** surface error details on the crash fallback screen for diagnostics ([590eff8](https://github.com/BGOrganizer/board-game-organizer/commit/590eff886ae1d456626be18c1ac8c641a9935346))
+* **mobile:** upgrade Expo SDK from 52 to 56 ([#1](https://github.com/BGOrganizer/board-game-organizer/issues/1)) ([41327c4](https://github.com/BGOrganizer/board-game-organizer/commit/41327c400da255f728b5d30a53917a8715691a20))
+* **shared:** add shared package with profile types, api client and useProfileQuery ([033f0ef](https://github.com/BGOrganizer/board-game-organizer/commit/033f0ef6480d74eeaf811d943b45d4fe0b63627f))
+* **web:** full-screen spinner placeholder during logout; revert mobile button spinner ([5232aec](https://github.com/BGOrganizer/board-game-organizer/commit/5232aecb5e79637efcd3866c33402b869ba297ac))
+* **web:** keep only counter on matches route and add logout/loading spinner ([0b05b67](https://github.com/BGOrganizer/board-game-organizer/commit/0b05b678199d0bbef5793fae7bcf28490c93de12))
+* **web:** profile page with logout, system theme, specular structure ([e4ca5de](https://github.com/BGOrganizer/board-game-organizer/commit/e4ca5de88f6c19536be4548a6614819642f4980d))
