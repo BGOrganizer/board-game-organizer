@@ -80,6 +80,14 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
+      - name: 🔄 Sync to the release commit (version bump)
+        # The run's checkout is on the trigger SHA (pre-bump): semantic-release
+        # pushed the version bump (app.config.js → VERSION) mid-run. Sync to
+        # origin/main so the APK is built with the RELEASED version.
+        run: |
+          git fetch --depth=1 origin main
+          git checkout -f origin/main
+
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
         uses: ./.github/actions/mobile-build
@@ -94,18 +102,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ARTIFACT_PATH: ${{ steps.build.outputs.artifact-path }}
-          ARTIFACT_NAME: ${{ steps.build.outputs.artifact-name }}
           VERSION: ${{ needs.release.outputs.version }}
         run: |
+          # Final releases get a clean asset name (no build timestamp):
+          # board-game-organizer-<version>-internal.apk
+          CLEAN_NAME="board-game-organizer-${VERSION}-internal.apk"
+          cp "$ARTIFACT_PATH" "/tmp/$CLEAN_NAME"
           REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" | \
             jq -r '.id')
-          echo "Uploading to release id: $REL"
+          echo "Uploading to release id: $REL ($CLEAN_NAME)"
           curl -sL -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary @"$ARTIFACT_PATH" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL/assets?name=$ARTIFACT_NAME" | \
+            --data-binary @"/tmp/$CLEAN_NAME" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL/assets?name=$CLEAN_NAME" | \
             jq -r '"Attached: " + .name'
 
   # -------------------------------------------------- production deploys
@@ -136,6 +147,13 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
+
+      - name: 🔄 Sync to the release commit (version bump)
+        # Same as build-apk: deploy the released code (bump commit), not the
+        # pre-bump trigger SHA (package.json version drift).
+        run: |
+          git fetch --depth=1 origin main
+          git checkout -f origin/main
 
       - name: 🚀 Deploy to Vercel (production)
         uses: ./.github/actions/vercel-deploy

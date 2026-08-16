@@ -3,7 +3,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs, usePathname, useRouter } from "expo-router";
 import { Spinner } from "heroui-native/spinner";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 
 /**
  * Guard: the tabs are only reachable when authenticated. After sign-out the
@@ -36,7 +36,12 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: "#006fee" }}>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: "#006fee",
+        animation: Platform.OS === "android" ? "none" : "fade",
+      }}
+    >
       <Tabs.Screen
         name="matches"
         options={{
