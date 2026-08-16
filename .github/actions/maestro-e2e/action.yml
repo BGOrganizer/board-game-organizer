@@ -37,7 +37,11 @@ runs:
           sleep 60
           adb shell am force-stop com.bgo.mobile || true
           set -e
-          capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true; }
+          # Record the emulator screen; kept only if a flow fails (best practice).
+          adb shell rm -f /sdcard/maestro-rec.mp4 || true
+          adb shell screenrecord --time-limit 1800 /sdcard/maestro-rec.mp4 >/dev/null 2>&1 &
+          REC_PID=$!
+          capture() { adb exec-out screencap -p > /tmp/fail-screen.png || true; adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true; kill $REC_PID 2>/dev/null || true; adb shell pkill -f screenrecord >/dev/null 2>&1 || true; adb pull /sdcard/maestro-rec.mp4 /tmp/maestro-rec.mp4 >/dev/null 2>&1 || true; adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true; }
           maestro test --format junit --output /tmp/maestro-reports \
             --debug-output /tmp/maestro-debug \
             apps/mobile/.maestro/flows/01-launch-welcome.yaml \
@@ -59,3 +63,8 @@ runs:
             --debug-output /tmp/maestro-debug \
             apps/mobile/.maestro/flows/04-dark-mode.yaml \
             || { capture; exit 1; }
+          # All flows passed: stop recording and discard the video (only failures are kept).
+          kill $REC_PID 2>/dev/null || true
+          adb shell pkill -f screenrecord >/dev/null 2>&1 || true
+          adb shell rm -f /sdcard/maestro-rec.mp4 || true
+          rm -f /tmp/maestro-rec.mp4 || true

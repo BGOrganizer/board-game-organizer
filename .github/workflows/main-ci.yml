@@ -318,6 +318,7 @@ jobs:
             /tmp/fail-screen.png
             /tmp/ui-fail.xml
             /tmp/fail-logcat.txt
+            /tmp/maestro-rec.mp4
           if-no-files-found: warn
 
   # -------------------------------------------------- Playwright E2E (production)
@@ -376,3 +377,31 @@ jobs:
           USER_ID: ${{ steps.provision.outputs.user_id }}
         run: |
           bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
+
+  # -------------------------------------------------- coverage upload (Codecov)
+  coverage:
+    name: 📊 Coverage upload (Codecov)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [mobile, web, api]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Vitest with coverage
+        run: pnpm --filter ${{ matrix.app }} test:coverage
+
+      - name: 📤 Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/${{ matrix.app }}/coverage/lcov.info
+          flags: unit,${{ matrix.app }}
+          fail_ci_if_error: false

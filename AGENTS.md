@@ -86,7 +86,8 @@ CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG
 provision a test user via the Clerk API and by Playwright E2E for the testing token +
 user cleanup), `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (release notifications on the
 Telegram channel), `RELEASE_PAT` (admin PAT usato da main-ci per il push del bump di
-semantic-release su `main` protetta). Repo **variables** (baked into mobile builds / E2E):
+semantic-release su `main` protetta), `CODECOV_TOKEN` (upload coverage a Codecov;
+installa anche l'app GitHub Codecov per i commenti PR col delta di coverage). Repo **variables** (baked into mobile builds / E2E):
 `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`,
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
 

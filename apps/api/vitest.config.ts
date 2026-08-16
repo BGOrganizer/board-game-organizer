@@ -7,5 +7,9 @@ export default defineConfig({
     // Integration tests (testcontainers) run separately via
     // `pnpm test:integration` (vitest.integration.config.ts).
     exclude: ["test/integration/**", "node_modules/**", "dist/**", ".next/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["lcov", "html", "text"],
+    },
   },
 });
