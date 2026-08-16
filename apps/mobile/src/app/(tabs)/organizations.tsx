@@ -1,11 +1,10 @@
 import { Text } from "heroui-native/text";
-
-import { TabScreen } from "@/components/TabScreen";
+import { View } from "react-native";
 
 export default function OrganizationsScreen() {
   return (
-    <TabScreen title="Organizations" centered>
+    <View className="flex-1 items-center justify-center bg-background">
       <Text className="text-muted">Tab [Organizations]</Text>
-    </TabScreen>
+    </View>
   );
 }

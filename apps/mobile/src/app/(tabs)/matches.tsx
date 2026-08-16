@@ -1,10 +1,11 @@
+import { View } from "react-native";
+
 import { Counter } from "@/components/Counter";
-import { TabScreen } from "@/components/TabScreen";
 
 export default function MatchesScreen() {
   return (
-    <TabScreen title="Matches" centered>
+    <View className="flex-1 items-center justify-center bg-background">
       <Counter />
-    </TabScreen>
+    </View>
   );
 }
