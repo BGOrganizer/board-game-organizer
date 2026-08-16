@@ -161,13 +161,12 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - Keep domain logic in `lib/` with thin route handlers.
 - Use `import type` for type-only imports (Biome rule `useImportType`).
 - Tests: vitest per app (`vitest.config.ts`), currently placeholder tests only.
-- **E2E (mobile)**: Maestro flows in `apps/mobile/.maestro/flows/` (`maestro test`). The CI
-  workflow `maestro.yml` boots a software-rendered Android emulator
-  (`.github/actions/android-emulator` composite action), installs the latest internal APK from
-  GitHub Releases, provisions an E2E user via the Clerk API (`CLERK_SECRET_KEY` secret) and runs
-  the flows: launch/welcome → login → profile+logout → dark mode. Run manually via
-  `workflow_dispatch`; also `android-emulator.yml` is the diagnostic smoke test (screenshots +
-  logcat artifacts).
+- **E2E (mobile)**: Maestro flows in `apps/mobile/.maestro/flows/` (`maestro test`), run via the
+  `.github/actions/maestro-e2e` composite (which boots the software-rendered emulator via
+  `.github/actions/android-emulator`). The E2E runs in **both** pipelines — pr-ci (PR's internal
+  APK) and main-ci (the released APK) — never as a standalone workflow. Each run provisions an
+  E2E user via the Clerk API (`CLERK_SECRET_KEY` secret), runs
+  launch/welcome → login → profile+logout → dark mode, then deletes the user.
 - **E2E (web)**: Playwright (`apps/web/e2e`) against the Vercel preview URL. The spec signs in
   with the provisioned Clerk test user using a **Testing Token** (bypasses Clerk bot detection;
   minted by `clerkSetup()` in `apps/web/e2e/global.setup.ts` via `CLERK_SECRET_KEY`) and a
@@ -281,9 +280,12 @@ After the approved PR is merged to main, `main-ci.yml` runs:
      `apps/mobile/app.config.js` (`expo.version`) via `scripts/release/bump-versions.mjs`
    - commits the bump (`chore(release): vX.Y.Z [skip ci]`) and creates the
      **GitHub release `v<version>`** with the changelog in the body
-2. **Build APK (internal)** — `mobile-build` + **attach to the release**
-3. **Vercel production deploys** — api + web (`vercel-deploy`, production: true)
-4. **Telegram notification** — changelog + links (APK → release, web, api production)
+2. **Build APK (internal)** — `mobile-build` (sync al commit di bump: l'APK porta il
+   versionName corretto) + **attach to the release** con nome pulito
+   (`board-game-organizer-<version>-internal.apk`)
+3. **Maestro E2E** — emulatore software (`.github/actions/maestro-e2e`) sull'**APK rilasciato**
+4. **Vercel production deploys** — api + web (`vercel-deploy`, production: true)
+5. **Telegram notification** — changelog + links (APK → release, web, api production)
 
 The release commit carries `[skip ci]`, so the workflow does not re-trigger on its own bump.
 
@@ -294,7 +296,7 @@ The release commit carries `[skip ci]`, so the workflow does not re-trigger on i
 
 ### Other workflows
 
-- `maestro.yml` — manual Maestro E2E dispatcher (uses the latest released internal APK)
+*(none — every quality gate lives in `pr-ci.yml` / `main-ci.yml`; no standalone workflows)*
 
 ### Composite actions (`.github/actions/`)
 
