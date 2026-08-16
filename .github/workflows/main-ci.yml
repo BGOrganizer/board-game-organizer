@@ -1,11 +1,11 @@
-name: 🚀 Main CI/CD (semantic-release → APK → production deploys → Telegram)
+name: 🚀 Main CI/CD (bump → build → E2E → publish release → Telegram)
 
 on:
   push:
     branches: [main]
 
 permissions:
-  contents: write # semantic-release commits the bump and creates the release
+  contents: write # semantic-release commits the bump; publish-release creates the release
   statuses: write # vercel-deploy / github-script sets commit status for production
 
 concurrency:
@@ -13,14 +13,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ------------------------------------------------------------- release
+  # ------------------------------------------------------------- bump (no release)
   release:
-    name: 📦 semantic-release (bump + changelog + release)
+    name: 📦 semantic-release (bump + changelog, no publish)
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
       published: ${{ steps.meta.outputs.published }}
-      release_url: ${{ steps.meta.outputs.release_url }}
     steps:
       - name: 📥 Checkout (full history for semantic-release)
         uses: actions/checkout@v4
@@ -43,9 +42,10 @@ jobs:
           git config --global user.name "Hermes Bot"
           git config --global user.email "bot@bgo.dev"
 
-      - name: 🚀 Run semantic-release
+      - name: 🚀 Run semantic-release (SKIP_PUBLISH — release created after the gates)
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          SKIP_PUBLISH: "true"
         run: pnpm release
 
       - name: 🔎 Resolve release info
@@ -59,55 +59,43 @@ jobs:
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
-          REL=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION")
-          echo "release_url=$(echo "$REL" | jq -r '.html_url // empty')" >> "$GITHUB_OUTPUT"
-          echo "new version: $VERSION (published=$([ -n "$(echo "$REL" | jq -r '.id // empty')" ] && echo yes || echo no))"
+          echo "new version: $VERSION (bump committed: $LAST)"
 
-      - name: 🔗 Append production links to the release body
-        if: steps.meta.outputs.published == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.meta.outputs.version }}
-        run: |
-          API="https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION"
-          BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API" | jq -r .body)
-          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://web-rosy-phi-82.vercel.app\n- **API:** https://api-chi-two-97.vercel.app\n- **APK:** allegato alla release' "$BODY")
-          PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
-          curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "$API" -d "$PAYLOAD" | jq -r '"Release body aggiornato: " + .tag_name'
+  # -------------------------------------------------- coverage upload (Codecov)
+  coverage:
+    name: 📊 Coverage upload (Codecov)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [mobile, web, api]
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: 🗑️ Delete the merged PR draft release
-        if: steps.meta.outputs.published == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # The release is stable now: remove the draft prerelease of the PR
-          # that triggered this run (tag scheme: v<baseVersion>-pr.<N>).
-          MSG=$(git log -1 --format=%s)
-          PR=$(echo "$MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
-          if [ -z "$PR" ]; then echo "No PR number in merge message — skip draft deletion"; exit 0; fi
-          FOUND=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | \
-            jq -r --arg suffix "-pr.$PR" '.[] | select(.draft == true and (.tag_name | endswith($suffix))) | .id')
-          if [ -n "$FOUND" ]; then
-            for rel_id in $FOUND; do
-              echo "Deleting draft $rel_id (merged PR #$PR)"
-              curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
-                "https://api.github.com/repos/${{ github.repository }}/releases/$rel_id" -w "HTTP %{http_code}\n"
-            done
-          else
-            echo "No draft for PR #$PR — nothing to delete"
-          fi
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Vitest with coverage
+        run: pnpm --filter ${{ matrix.app }} test:coverage
+
+      - name: 📤 Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: apps/${{ matrix.app }}/coverage/lcov.info
+          flags: unit,${{ matrix.app }}
+          fail_ci_if_error: false
+
+  # -------------------------------------------------- mobile internal APK (build only)
   build-apk:
-    name: 📱 Build APK (internal) & attach to release
+    name: 📱 Build APK (internal)
     needs: release
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    outputs:
-      artifact-path: ${{ steps.build.outputs.artifact-path }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -135,26 +123,12 @@ jobs:
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
 
-      - name: 📎 Attach APK to release v${{ needs.release.outputs.version }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ARTIFACT_PATH: ${{ steps.build.outputs.artifact-path }}
-          VERSION: ${{ needs.release.outputs.version }}
-        run: |
-          # Final releases get a clean asset name (no build timestamp):
-          # board-game-organizer-<version>-internal.apk
-          CLEAN_NAME="board-game-organizer-${VERSION}-internal.apk"
-          cp "$ARTIFACT_PATH" "/tmp/$CLEAN_NAME"
-          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" | \
-            jq -r '.id')
-          echo "Uploading to release id: $REL ($CLEAN_NAME)"
-          curl -sL -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @"/tmp/$CLEAN_NAME" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL/assets?name=$CLEAN_NAME" | \
-            jq -r '"Attached: " + .name'
+      - name: 📤 Upload APK artifact (shared with E2E + publish-release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-internal-main
+          path: ${{ steps.build.outputs.artifact-path }}
+          retention-days: 7
 
   # -------------------------------------------------- production deploys
   deploy-production:
@@ -204,52 +178,6 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets[matrix.project-id-secret] }}
 
-  # -------------------------------------------------- Telegram notification
-  notify-telegram:
-    name: 📣 Telegram release notification
-    needs: [release, build-apk, deploy-production]
-    if: needs.release.outputs.published == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: 🧰 Setup workspace
-        uses: ./.github/actions/setup-pnpm
-
-      - name: 📥 Fetch release changelog
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.release.outputs.version }}
-        run: |
-          curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" \
-            | jq -r '.body' > /tmp/changelog.md
-          # Trim the trailing "production links" block appended below the notes
-          # is not needed: semantic-release body is already the changelog.
-
-      - name: 🔗 Compose Telegram links
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
-          RELEASE_URL: ${{ needs.release.outputs.release_url }}
-        run: |
-          cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="$RELEASE_URL">APK (internal)</a>
-          🌐 <a href="https://web-rosy-phi-82.vercel.app">Web (produzione)</a>
-          🔌 <a href="https://api-chi-two-97.vercel.app">API (produzione)</a>
-          EOF
-
-      - name: 📤 Send Telegram notification
-        uses: ./.github/actions/telegram-notify
-        with:
-          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-          title: 🚀 Board Game Organizer v${{ needs.release.outputs.version }} — release
-          changelog-file: /tmp/changelog.md
-          links-file: /tmp/telegram-links.html
-
   # -------------------------------------------------- Maestro E2E (released APK)
   e2e-maestro:
     name: 🎬 Maestro E2E (mobile — released APK)
@@ -280,6 +208,18 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal-main
+          path: apk
+
+      - name: 🔎 Resolve APK path
+        id: apk
+        run: |
+          APK=$(find apk -name '*.apk' | head -1)
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+
       - name: 👤 Provision E2E test user
         id: provision
         uses: ./.github/actions/provision-e2e-user
@@ -295,7 +235,7 @@ jobs:
       - name: 🚀 Maestro E2E flows (released APK)
         uses: ./.github/actions/maestro-e2e
         with:
-          apk-path: ${{ needs.build-apk.outputs.artifact-path }}
+          apk-path: ${{ steps.apk.outputs.path }}
           username: ${{ steps.provision.outputs.username }}
           password: ${{ steps.provision.outputs.password }}
 
@@ -378,14 +318,106 @@ jobs:
         run: |
           bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
 
-  # -------------------------------------------------- coverage upload (Codecov)
-  coverage:
-    name: 📊 Coverage upload (Codecov)
+  # ------------------------------------------------ publish release (after ALL gates)
+  publish-release:
+    name: 📦 Publish release v${{ needs.release.outputs.version }}
+    needs: [release, build-apk, deploy-production, e2e-maestro, e2e-playwright]
+    if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: [mobile, web, api]
+    outputs:
+      release_url: ${{ steps.publish.outputs.release_url }}
+    steps:
+      - name: "📥 Checkout (full history: bump commit + merge commit)"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🔄 Sync to the release commit
+        run: |
+          git fetch origin main
+          git checkout -f origin/main
+
+      - name: 📦 Create the GitHub release (changelog from the bump commit)
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          # The bump commit body IS the release notes (embedded by semantic-release).
+          NOTES=$(git log -1 --pretty=%B | tail -n +3)
+          PAYLOAD=$(jq -n --arg tag "v$VERSION" --arg name "v$VERSION" --arg body "$NOTES" \
+            '{tag_name:$tag, name:$name, body:$body, draft:false, prerelease:false}')
+          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases" \
+            -d "$PAYLOAD" > /tmp/release.json
+          echo "release_url=$(jq -r .html_url /tmp/release.json)" >> "$GITHUB_OUTPUT"
+          echo "release created: $(jq -r .html_url /tmp/release.json)"
+
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal-main
+          path: apk
+
+      - name: 📎 Attach APK with clean name
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          CLEAN_NAME="board-game-organizer-${VERSION}-internal.apk"
+          cp "$(find apk -name '*.apk' | head -1)" "/tmp/$CLEAN_NAME"
+          REL_ID=$(jq -r .id /tmp/release.json)
+          curl -sL -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"/tmp/$CLEAN_NAME" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/$REL_ID/assets?name=$CLEAN_NAME" | \
+            jq -r '"Attached: " + .name'
+
+      - name: 🔗 Append production links to the release body
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REL_ID=$(jq -r .id /tmp/release.json)
+          BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" | jq -r .body)
+          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://web-rosy-phi-82.vercel.app\n- **API:** https://api-chi-two-97.vercel.app\n- **APK:** allegato alla release' "$BODY")
+          PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
+          curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" -d "$PAYLOAD" | \
+            jq -r '"Release body aggiornato: " + .tag_name'
+
+      - name: 🗑️ Delete the merged PR draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # HEAD~1 is the merge commit of the PR that triggered this run.
+          MSG=$(git log -1 --format=%s HEAD~1)
+          PR=$(echo "$MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+          if [ -z "$PR" ]; then echo "No PR number in merge message — skip draft deletion"; exit 0; fi
+          FOUND=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | \
+            jq -r --arg suffix "-pr.$PR" '.[] | select(.draft == true and (.tag_name | endswith($suffix))) | .id')
+          if [ -n "$FOUND" ]; then
+            for rel_id in $FOUND; do
+              echo "Deleting draft $rel_id (merged PR #$PR)"
+              curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/$rel_id" -w "HTTP %{http_code}\n"
+            done
+          else
+            echo "No draft for PR #$PR — nothing to delete"
+          fi
+
+  # -------------------------------------------------- Telegram notification
+  notify-telegram:
+    name: 📣 Telegram release notification
+    needs: [release, publish-release, deploy-production]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -395,13 +427,31 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
-      - name: 🧪 Vitest with coverage
-        run: pnpm --filter ${{ matrix.app }} test:coverage
+      - name: 📥 Fetch release changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION" \
+            | jq -r '.body' > /tmp/changelog.md
 
-      - name: 📤 Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+      - name: 🔗 Compose Telegram links
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          RELEASE_URL: ${{ needs.publish-release.outputs.release_url }}
+        run: |
+          cat > /tmp/telegram-links.html <<EOF
+          📱 <a href="$RELEASE_URL">APK (internal)</a>
+          🌐 <a href="https://web-rosy-phi-82.vercel.app">Web (produzione)</a>
+          🔌 <a href="https://api-chi-two-97.vercel.app">API (produzione)</a>
+          EOF
+
+      - name: 📤 Send Telegram notification
+        uses: ./.github/actions/telegram-notify
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/${{ matrix.app }}/coverage/lcov.info
-          flags: unit,${{ matrix.app }}
-          fail_ci_if_error: false
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+          title: 🚀 Board Game Organizer v${{ needs.release.outputs.version }} — release
+          changelog-file: /tmp/changelog.md
+          links-file: /tmp/telegram-links.html
