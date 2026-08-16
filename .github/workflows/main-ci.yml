@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write # semantic-release commits the bump and creates the release
+  statuses: write # vercel-deploy / github-script sets commit status for production
 
 concurrency:
   group: main-ci
