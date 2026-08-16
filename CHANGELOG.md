@@ -1,3 +1,12 @@
+## [1.0.2](https://github.com/BGOrganizer/board-game-organizer/compare/v1.0.1...v1.0.2) (2026-08-16)
+
+
+### Bug Fixes
+
+* **ci:** sync checkout to bump commit + clean APK asset name ([5be0cf1](https://github.com/BGOrganizer/board-game-organizer/commit/5be0cf19a0abac5e3a3ca2182eccbc7d70e1ed0b))
+* **mobile:** pin reanimated to 4.3.1 (Expo SDK 56 / worklets 0.8.3 compat) ([73914f0](https://github.com/BGOrganizer/board-game-organizer/commit/73914f005c6dd84ed066f542dfa2dea551b8a780))
+* **mobile:** reanimated crash on Android tab switch (Fabric layout animation) ([8486293](https://github.com/BGOrganizer/board-game-organizer/commit/84862938e75ac3a90728e1b7dd9b289d8cfb51b1)), closes [#7493](https://github.com/BGOrganizer/board-game-organizer/issues/7493) [#7594](https://github.com/BGOrganizer/board-game-organizer/issues/7594)
+
 ## [1.0.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.0.0...v1.0.1) (2026-08-16)
 
 
