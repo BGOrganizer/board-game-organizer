@@ -1,3 +1,14 @@
+## 1.1.0 (2026-08-16)
+
+* Merge pull request #14 from BGOrganizer/fix/release-flow-ui ([a511922](https://github.com/BGOrganizer/board-game-organizer/commit/a511922)), closes [#14](https://github.com/BGOrganizer/board-game-organizer/issues/14)
+* Merge pull request #15 from BGOrganizer/fix/gated-release ([9c5c00d](https://github.com/BGOrganizer/board-game-organizer/commit/9c5c00d)), closes [#15](https://github.com/BGOrganizer/board-game-organizer/issues/15)
+* feat(ci): gated release — publish only after builds/deploys/E2E pass ([f50c0a9](https://github.com/BGOrganizer/board-game-organizer/commit/f50c0a9))
+* feat(release+mobile): prod links, draft cleanup, changelog emoji, tab UI ([567951d](https://github.com/BGOrganizer/board-game-organizer/commit/567951d))
+* ci(branch): robust commitlint against force-pushes ([6b31795](https://github.com/BGOrganizer/board-game-organizer/commit/6b31795))
+* ci(codecov+maestro): coverage upload (unit+integration), README badge, Maestro video on failure ([07ecc8f](https://github.com/BGOrganizer/board-game-organizer/commit/07ecc8f))
+* ci(main): Playwright E2E against production + video on failure ([96b0834](https://github.com/BGOrganizer/board-game-organizer/commit/96b0834))
+* revert(mobile): keep native tab headers (compact TabScreen not needed) ([b2de786](https://github.com/BGOrganizer/board-game-organizer/commit/b2de786)), closes [#7](https://github.com/BGOrganizer/board-game-organizer/issues/7)
+
 ## [1.0.3](https://github.com/BGOrganizer/board-game-organizer/compare/v1.0.2...v1.0.3) (2026-08-16)
 
 
