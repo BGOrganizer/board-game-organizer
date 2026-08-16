@@ -319,3 +319,60 @@ jobs:
             /tmp/ui-fail.xml
             /tmp/fail-logcat.txt
           if-no-files-found: warn
+
+  # -------------------------------------------------- Playwright E2E (production)
+  e2e-playwright:
+    name: 🎭 Playwright E2E (web — production)
+    needs: [release, deploy-production]
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🔄 Sync to the release commit (version bump)
+        run: |
+          git fetch --depth=1 origin main
+          git checkout -f origin/main
+
+      - name: 👤 Provision E2E test user
+        id: provision
+        uses: ./.github/actions/provision-e2e-user
+        with:
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+
+      - name: 🌐 Install Playwright browsers
+        working-directory: apps/web
+        run: |
+          npx playwright install --with-deps chromium
+
+      - name: 🎭 Run Playwright against production
+        working-directory: apps/web
+        env:
+          PLAYWRIGHT_BASE_URL: https://web-rosy-phi-82.vercel.app
+          E2E_EMAIL: ${{ steps.provision.outputs.email }}
+          # Clerk testing token (global setup) + ticket sign-in helper:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+        run: pnpm test:e2e
+
+      - name: 📤 Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-main
+          path: apps/web/playwright-report/**
+          if-no-files-found: warn
+
+      - name: 🗑️ Cleanup E2E test user
+        if: always()
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          USER_ID: ${{ steps.provision.outputs.user_id }}
+        run: |
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
