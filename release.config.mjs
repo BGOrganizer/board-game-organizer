@@ -39,6 +39,15 @@ export default {
         committer: "Hermes Bot <bot@bgo.dev>",
       },
     ],
-    "@semantic-release/github",
+    [
+      "@semantic-release/github",
+      {
+        // Skip posting "released in vX" comments on issues: the success step
+        // tries to resolve every #N in the release notes/commits as a local
+        // issue/PR, which fails when a commit references an EXTERNAL repo
+        // number (e.g. reanimated PR #8083).
+        successCommentCondition: false,
+      },
+    ],
   ],
 };
