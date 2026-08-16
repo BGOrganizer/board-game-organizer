@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/BGOrganizer/board-game-organizer/compare/v1.0.2...v1.0.3) (2026-08-16)
+
+
+### Bug Fixes
+
+* **release:** disable github success comments (external #N in notes breaks it) ([f702353](https://github.com/BGOrganizer/board-game-organizer/commit/f7023531854d68c851fdc37ad02c1670b8c7f6fe)), closes [#N](https://github.com/BGOrganizer/board-game-organizer/issues/N) [#N](https://github.com/BGOrganizer/board-game-organizer/issues/N) [#NNNN](https://github.com/BGOrganizer/board-game-organizer/issues/NNNN)
+
 ## [1.0.2](https://github.com/BGOrganizer/board-game-organizer/compare/v1.0.1...v1.0.2) (2026-08-16)
 
 
