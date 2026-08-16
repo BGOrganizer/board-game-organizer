@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.0.0...v1.0.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **ci:** add statuses:write permission for vercel-deploy commit status ([4b6a609](https://github.com/BGOrganizer/board-game-organizer/commit/4b6a609d34133808ad46397b56ca210cefc2b9e6))
+
 # 1.0.0 (2026-08-15)
 
 
