@@ -64,7 +64,42 @@ jobs:
           echo "release_url=$(echo "$REL" | jq -r '.html_url // empty')" >> "$GITHUB_OUTPUT"
           echo "new version: $VERSION (published=$([ -n "$(echo "$REL" | jq -r '.id // empty')" ] && echo yes || echo no))"
 
-  # -------------------------------------------------- mobile internal APK
+      - name: 🔗 Append production links to the release body
+        if: steps.meta.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          API="https://api.github.com/repos/${{ github.repository }}/releases/tags/v$VERSION"
+          BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "$API" | jq -r .body)
+          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://web-rosy-phi-82.vercel.app\n- **API:** https://api-chi-two-97.vercel.app\n- **APK:** allegato alla release' "$BODY")
+          PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
+          curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$API" -d "$PAYLOAD" | jq -r '"Release body aggiornato: " + .tag_name'
+
+      - name: 🗑️ Delete the merged PR draft release
+        if: steps.meta.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The release is stable now: remove the draft prerelease of the PR
+          # that triggered this run (tag scheme: v<baseVersion>-pr.<N>).
+          MSG=$(git log -1 --format=%s)
+          PR=$(echo "$MSG" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+          if [ -z "$PR" ]; then echo "No PR number in merge message — skip draft deletion"; exit 0; fi
+          FOUND=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100" | \
+            jq -r --arg suffix "-pr.$PR" '.[] | select(.draft == true and (.tag_name | endswith($suffix))) | .id')
+          if [ -n "$FOUND" ]; then
+            for rel_id in $FOUND; do
+              echo "Deleting draft $rel_id (merged PR #$PR)"
+              curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/$rel_id" -w "HTTP %{http_code}\n"
+            done
+          else
+            echo "No draft for PR #$PR — nothing to delete"
+          fi
   build-apk:
     name: 📱 Build APK (internal) & attach to release
     needs: release

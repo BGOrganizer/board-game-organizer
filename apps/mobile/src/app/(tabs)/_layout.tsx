@@ -40,6 +40,10 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: "#006fee",
         animation: Platform.OS === "android" ? "none" : "fade",
+        // Native headers removed (bulky top whitespace): each tab renders its
+        // own compact title bar via TabScreen.
+        headerShown: false,
+        tabBarStyle: { height: 64, paddingTop: 4, paddingBottom: 12 },
       }}
     >
       <Tabs.Screen
