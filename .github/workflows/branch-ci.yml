@@ -41,8 +41,13 @@ jobs:
           if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
             # First push of the branch: check the latest commit.
             npx commitlint --from HEAD~1 --to HEAD
-          else
+          elif git merge-base --is-ancestor "$BEFORE" "$AFTER" 2>/dev/null; then
             npx commitlint --from "$BEFORE" --to "$AFTER"
+          else
+            # Force-push / rewritten history: before is not an ancestor of
+            # after — check the latest commit instead.
+            echo "Non-linear push (force-push?) — checking the latest commit only."
+            npx commitlint --from HEAD~1 --to HEAD
           fi
 
   # ---------------------------------------------------------------------- lint

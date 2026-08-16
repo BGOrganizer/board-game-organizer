@@ -1,5 +1,8 @@
 # Board Game Organizer
 
+![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)
+![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)
+
 Multi-platform app to organize board game sessions, collections, groups, and player stats —
 web, API, and mobile, all in one TypeScript monorepo.
 

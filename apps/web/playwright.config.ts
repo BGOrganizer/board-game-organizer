@@ -18,6 +18,7 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    video: "retain-on-failure", // keep video only when a test fails
     // Clerk keeps the session on the accounts.dev domain while the app lives
     // on the Vercel preview domain: allow third-party cookies in the browser.
     launchOptions: {

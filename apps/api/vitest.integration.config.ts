@@ -9,5 +9,9 @@ export default defineConfig({
     testTimeout: 180_000,
     hookTimeout: 180_000,
     fileParallelism: false,
+    coverage: {
+      provider: "v8",
+      reporter: ["lcov", "html", "text"],
+    },
   },
 });

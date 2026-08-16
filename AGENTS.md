@@ -86,7 +86,8 @@ CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG
 provision a test user via the Clerk API and by Playwright E2E for the testing token +
 user cleanup), `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (release notifications on the
 Telegram channel), `RELEASE_PAT` (admin PAT usato da main-ci per il push del bump di
-semantic-release su `main` protetta). Repo **variables** (baked into mobile builds / E2E):
+semantic-release su `main` protetta), `CODECOV_TOKEN` (upload coverage a Codecov;
+installa anche l'app GitHub Codecov per i commenti PR col delta di coverage). Repo **variables** (baked into mobile builds / E2E):
 `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`,
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
 
@@ -284,8 +285,9 @@ After the approved PR is merged to main, `main-ci.yml` runs:
    versionName corretto) + **attach to the release** con nome pulito
    (`board-game-organizer-<version>-internal.apk`)
 3. **Maestro E2E** — emulatore software (`.github/actions/maestro-e2e`) sull'**APK rilasciato**
-4. **Vercel production deploys** — api + web (`vercel-deploy`, production: true)
-5. **Telegram notification** — changelog + links (APK → release, web, api production)
+4. **Playwright E2E** — test web contro **produzione** (sign-in autenticato con testing token)
+5. **Vercel production deploys** — api + web (`vercel-deploy`, production: true)
+6. **Telegram notification** — changelog + links (APK → release, web, api production)
 
 The release commit carries `[skip ci]`, so the workflow does not re-trigger on its own bump.
 
