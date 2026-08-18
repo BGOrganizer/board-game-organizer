@@ -108,6 +108,13 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   `@lingui/core/macro`). Web uses `babel.config.js` (next/babel +
   `@lingui/babel-plugin-lingui-macro`); mobile uses `babel.config.js`
   (babel-preset-expo + the same plugin).
+- **Mobile build quirk**: RN 0.85 ships `@babel/core@8` while
+  react-native-gesture-handler / worklets need `^7`. `pnpm-workspace.yaml`
+  pins `@babel/core` to 7.29.7 and declares the missing babel deps of
+  `react-native-worklets` (it imports `@babel/types`/`@babel/generator`/
+  `@babel/traverse` without declaring them — SWM #9530/#9648) via
+  `packageExtensions`; without this the EAS APK bundle crashes with
+  "Cannot read properties of undefined (reading 'length')".
 - **Vitest**: the Lingui macro transform is applied in tests via
   `@lingui/vite-plugin` + `@rolldown/plugin-babel`
   (`linguiTransformerBabelPreset`).
