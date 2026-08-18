@@ -2,7 +2,7 @@ appId: com.bgo.mobile
 ---
 # 2. Sign-in with the provisioned E2E test user.
 #    Clerk's sign-in is multi-step: identifier → Continue → password → Continue.
-- tapOn: "Accedi / Registrati"
+- tapOn: "Sign in / Register"
 - extendedWaitUntil:
     visible: ".*[Ee]mail.*|.*[Uu]sername.*"
     timeout: 120000

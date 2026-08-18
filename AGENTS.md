@@ -24,6 +24,7 @@ packages/
   store/              @board-game-organizer/store   Zustand store, slice pattern (UI state ONLY)
   query/              @board-game-organizer/query   TanStack Query provider + client factory
   shared/             @board-game-organizer/shared  shared types, API client + TanStack Query hooks
+  schemas/            @board-game-organizer/schemas  DB models (5 collections) + zod DTOs (Phase 0)
   biome-config/       @board-game-organizer/biome-config
   typescript-config/  @board-game-organizer/typescript-config (base / next / expo)
 ```
@@ -92,6 +93,36 @@ installa anche l'app GitHub Codecov per i commenti PR col delta di coverage). Re
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
 
 Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_URI` is missing, so the API can't start without it.
+
+## i18n (LinguiJS)
+
+- **One shared catalog** for web + mobile: `lingui.config.ts` at the repo root,
+  catalogs in `messages/{en,it}.po` (compiled to `messages/{en,it}.js`).
+- Commands: `pnpm i18n:extract` / `pnpm i18n:compile` (root). Compiled catalogs
+  are committed; keep them in sync after editing strings.
+- **Locale detection**: web reads the browser `Accept-Language` header
+  server-side (`apps/web/src/lib/i18n.ts` + `i18n-locale.ts`, q-values parsed)
+  with a `navigator.language` client fallback in `LinguiClientProvider`;
+  mobile uses `expo-localization` (`apps/mobile/src/lib/i18n.ts`).
+- **Macros**: `t` / `Trans` / `useLingui` from `@lingui/react/macro` (and
+  `@lingui/core/macro`). Web uses `babel.config.js` (next/babel +
+  `@lingui/babel-plugin-lingui-macro`); mobile uses `babel.config.js`
+  (babel-preset-expo + the same plugin).
+- **Vitest**: the Lingui macro transform is applied in tests via
+  `@lingui/vite-plugin` + `@rolldown/plugin-babel`
+  (`linguiTransformerBabelPreset`).
+
+## Coverage thresholds
+
+- Every app (`web`, `mobile`, `api`) and `packages/schemas` enforces a **50%**
+  coverage threshold in its `vitest.config.ts` (lines/functions/branches/
+  statements) — the PR pipeline fails below it.
+- **Mobile note**: RN 0.85 ships CJS with Flow syntax, which node's native CJS
+  loader bypasses the Vite transform pipeline for (jest-expo is the official
+  path for RN component tests, but would add a second test framework for one
+  app). Mobile unit coverage therefore targets the pure logic
+  (`src/lib/**`, and Phase 3: hooks/store/schemas); mobile UI behaviour is
+  covered by the Maestro E2E flows in pr-ci/main-ci.
 
 ## Architecture & Patterns
 

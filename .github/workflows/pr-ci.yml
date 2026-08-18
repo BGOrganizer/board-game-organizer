@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [mobile, web, api]
+        app: [mobile, web, api, schemas]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4

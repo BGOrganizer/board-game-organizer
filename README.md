@@ -14,8 +14,9 @@ web, API, and mobile, all in one TypeScript monorepo.
 | Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
 | API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
 | Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
-| Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) |
-| Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage) · commitlint · Maestro · Playwright |
+| Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) · `@board-game-organizer/schemas` (DB models + zod DTOs) |
+| i18n | **LinguiJS** (it + en catalogs, web + mobile) — see AGENTS.md |
+| Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage ≥ 50% per app) · commitlint · Maestro · Playwright |
 
 ## Features
 
@@ -32,6 +33,7 @@ web, API, and mobile, all in one TypeScript monorepo.
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
 - Groups, match scheduling, venues, ELO rankings, marketplace
+- Social/Contacts v2: search, suggestions, friend requests, invites, presence (see plan in repo history)
 
 ## Prerequisites
 

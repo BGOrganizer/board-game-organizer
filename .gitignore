@@ -24,3 +24,4 @@ apps/mobile/build-output/
 test-results/
 playwright-report/
 .pi/
+core.*

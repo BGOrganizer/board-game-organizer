@@ -1,5 +1,6 @@
 import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react/macro";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
@@ -16,6 +17,7 @@ function apiUrl(): string {
 
 export function Profile() {
   const { getToken, signOut, isLoaded, isSignedIn } = useAuth();
+  const { t } = useLingui();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -66,7 +68,7 @@ export function Profile() {
   if (!token) {
     return (
       <View className="mt-6 items-center">
-        <Text className="text-sm text-muted">Accesso non disponibile</Text>
+        <Text className="text-sm text-muted">{t`Sign-in unavailable`}</Text>
       </View>
     );
   }
@@ -75,7 +77,7 @@ export function Profile() {
     return (
       <View className="mt-6 items-center">
         <Spinner />
-        <Text className="mt-2 text-sm text-muted">Caricamento...</Text>
+        <Text className="mt-2 text-sm text-muted">{t`Loading...`}</Text>
       </View>
     );
   }
@@ -84,11 +86,11 @@ export function Profile() {
     return (
       <Surface className="mt-4 rounded-lg p-4">
         <Text className="text-danger">
-          Errore durante il caricamento del profilo:{" "}
+          {t`Error while loading the profile:`}{" "}
           {error instanceof Error ? error.message : String(error)}
         </Text>
         <Button className="mt-3" variant="outline" onPress={() => refetch()}>
-          Riprova
+          {t`Retry`}
         </Button>
       </Surface>
     );
@@ -112,24 +114,24 @@ export function Profile() {
       <View className="mt-4 flex-row gap-6">
         <View>
           <Text className="text-xl font-bold">{profile.stats.gamesOwned}</Text>
-          <Text className="text-xs text-muted">Owned</Text>
+          <Text className="text-xs text-muted">{t`Owned`}</Text>
         </View>
         <View>
           <Text className="text-xl font-bold">{profile.stats.gamesPlayed}</Text>
-          <Text className="text-xs text-muted">Played</Text>
+          <Text className="text-xs text-muted">{t`Played`}</Text>
         </View>
         <View>
           <Text className="text-xl font-bold">{profile.stats.friends}</Text>
-          <Text className="text-xs text-muted">Friends</Text>
+          <Text className="text-xs text-muted">{t`Friends`}</Text>
         </View>
       </View>
 
       <Text className="mt-3 text-xs text-muted">
-        Plan: {profile.plan} · Language: {profile.preferredLanguage}
+        {t`Plan:`} {profile.plan} · {t`Language:`} {profile.preferredLanguage}
       </Text>
 
       <Button className="mt-6" variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
-        Logout
+        {t`Logout`}
       </Button>
     </Surface>
   );

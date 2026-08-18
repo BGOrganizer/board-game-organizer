@@ -1,5 +1,6 @@
 import { useAuth } from "@clerk/expo";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useLingui } from "@lingui/react/macro";
 import { Tabs, usePathname, useRouter } from "expo-router";
 import { Spinner } from "heroui-native/spinner";
 import { useEffect } from "react";
@@ -14,6 +15,7 @@ import { Platform, View } from "react-native";
  */
 export default function TabLayout() {
   const { isLoaded, isSignedIn } = useAuth();
+  const { t } = useLingui();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -45,35 +47,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="matches"
         options={{
-          title: "Matches",
+          title: t`Matches`,
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="home" color={color} />,
         }}
       />
       <Tabs.Screen
         name="groups"
         options={{
-          title: "Groups",
+          title: t`Groups`,
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="users" color={color} />,
         }}
       />
       <Tabs.Screen
         name="organizations"
         options={{
-          title: "Organizations",
+          title: t`Organizations`,
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="cog" color={color} />,
         }}
       />
       <Tabs.Screen
         name="contacts"
         options={{
-          title: "Contacts",
+          title: t`Contacts`,
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="address-book" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: t`Profile`,
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="user" color={color} />,
         }}
       />
