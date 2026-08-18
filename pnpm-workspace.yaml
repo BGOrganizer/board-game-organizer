@@ -4,6 +4,11 @@ packages:
 
 overrides:
   utf-8-validate: "5.0.10"
+  # Single @babel/core version across the monorepo: react-native 0.85 ships
+  # @babel/core@8 but react-native-gesture-handler's worklets plugin requires
+  # ^7 — pinning to 7.29.7 (the babel-preset-expo peer) makes the EAS local
+  # bundle and the expo-doctor duplicate check pass.
+  "@babel/core": "7.29.7"
 
 peerDependencyRules:
   allowedVersions:
