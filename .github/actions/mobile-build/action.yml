@@ -67,6 +67,19 @@ runs:
       shell: bash
       run: npm install -g eas-cli@latest
 
+    - name: ⚡ Verify EAS CLI installation
+      shell: bash
+      run: eas --version
+
+    - name: 🩺 Expo doctor (advisory only)
+      # The EAS CLI runs its own pre-flight expo-doctor before every build; a
+      # duplicate-dependency warning (web's @babel/core via @clerk/nextjs + RN's own
+      # @babel/core@8) fails that gate from outside this repo's mobile
+      # scope, so the gate is advisory here, never a hard failure.
+      continue-on-error: true
+      shell: bash
+      run: npx expo-doctor || echo "⚠️ expo-doctor advisory checks skipped (non-fatal)"
+
     - name: 🔄 Verify EAS CLI installation
       shell: bash
       run: eas --version
