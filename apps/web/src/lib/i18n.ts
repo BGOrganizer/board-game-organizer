@@ -1,14 +1,15 @@
-import { setupI18n, type Messages } from "@lingui/core";
+import { type Messages, setupI18n } from "@lingui/core";
 import { setI18n } from "@lingui/react/server";
-import { cache } from "react";
 import { headers } from "next/headers";
-import {
+import { cache } from "react";
+import { type AppLocale, detectLocaleFromHeaders, normalizeLocale } from "./i18n-locale";
+
+export {
   type AppLocale,
   detectLocaleFromHeaders,
   normalizeLocale,
+  SUPPORTED_LOCALES,
 } from "./i18n-locale";
-
-export { type AppLocale, SUPPORTED_LOCALES, detectLocaleFromHeaders, normalizeLocale } from "./i18n-locale";
 
 /**
  * Server-side LinguiJS bootstrap for the web app.
@@ -39,13 +40,15 @@ export async function loadCatalog(locale: AppLocale): Promise<Messages> {
  * instance in the React request cache so server components can render
  * translated strings. Idempotent per request (React `cache`).
  */
-export const initServerI18n = cache(async (): Promise<{
-  locale: AppLocale;
-  messages: Messages;
-}> => {
-  const acceptLanguage = (await headers()).get("accept-language");
-  const locale = detectLocaleFromHeaders(acceptLanguage);
-  const messages = await loadCatalog(locale);
-  setI18n(setupI18n({ locale, messages: { [locale]: messages } }));
-  return { locale, messages };
-});
+export const initServerI18n = cache(
+  async (): Promise<{
+    locale: AppLocale;
+    messages: Messages;
+  }> => {
+    const acceptLanguage = (await headers()).get("accept-language");
+    const locale = detectLocaleFromHeaders(acceptLanguage);
+    const messages = await loadCatalog(locale);
+    setI18n(setupI18n({ locale, messages: { [locale]: messages } }));
+    return { locale, messages };
+  },
+);
