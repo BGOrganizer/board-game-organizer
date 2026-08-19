@@ -69,10 +69,7 @@ runs:
           kill $REC_PID 2>/dev/null || true
           # Guarantee at least one junit file exists (Maestro junit output is
           # version-sensitive; a summary ensures the artifact is never empty).
-          ls /tmp/maestro-reports/*.xml 2>/dev/null | grep -q . || cat > /tmp/maestro-reports/summary.xml <<'XML'
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>
-XML
+          ls /tmp/maestro-reports/*.xml 2>/dev/null | grep -q . || printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>' > /tmp/maestro-reports/summary.xml
           find /tmp/maestro-reports -type f -name '*.xml' -exec echo "report: {}" \;
           adb shell pkill -f screenrecord >/dev/null 2>&1 || true
           adb shell rm -f /sdcard/maestro-rec.mp4 || true
