@@ -187,36 +187,38 @@ export default function ContactsScreen() {
                     : t("No friends yet")}
                 </Text>
               )}
-            {(tab === "following" ? followingRows : friendsRows).map((row) =>
-              row.profile ? (
-                <Card key={row.profile.id} className="flex-row items-center gap-3 p-3">
+            {(tab === "following" ? followingRows : friendsRows).map((row) => {
+              const profile = row.profile;
+              if (!profile) return null;
+              return (
+                <Card key={profile.id} className="flex-row items-center gap-3 p-3">
                   <Avatar size="md">
-                    {row.profile.avatarUrl ? (
-                      <Avatar.Image source={{ uri: row.profile.avatarUrl }} />
+                    {profile.avatarUrl ? (
+                      <Avatar.Image source={{ uri: profile.avatarUrl }} />
                     ) : null}
-                    <Avatar.Fallback>{row.profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
+                    <Avatar.Fallback>{profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
                   </Avatar>
                   <View className="flex-1">
                     <View className="flex-row items-center">
-                      <Text className="font-medium">{row.profile.name}</Text>
-                      <PresenceDot online={row.profile.presence.online} />
+                      <Text className="font-medium">{profile.name}</Text>
+                      <PresenceDot online={profile.presence.online} />
                     </View>
-                    {row.profile.email ? (
-                      <Text className="text-sm text-muted">{row.profile.email}</Text>
+                    {profile.email ? (
+                      <Text className="text-sm text-muted">{profile.email}</Text>
                     ) : null}
                   </View>
                   {tab === "following" ? (
                     <Button
                       variant="outline"
                       isDisabled={isBusy}
-                      onPress={() => contacts.unfollow.mutate({ targetUserId: row.profile.id })}
+                      onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
                     >
                       <Text>{t("Unfollow")}</Text>
                     </Button>
                   ) : null}
                 </Card>
-              ) : null,
-            )}
+              );
+            })}
           </View>
         )}
       </ScrollView>
