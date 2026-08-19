@@ -37,6 +37,15 @@ vi.mock("@board-game-organizer/shared", () => ({
     error: null,
     refetch: vi.fn(),
   }),
+  useContacts: () => ({
+    following: { data: [], isLoading: false },
+    followers: { data: [], isLoading: false },
+    friends: { data: [], isLoading: false },
+    suggestions: { data: { users: [] }, isLoading: false },
+    follow: { mutate: vi.fn(), isPending: false },
+    unfollow: { mutate: vi.fn(), isPending: false },
+    search: { mutate: vi.fn(), data: undefined, isPending: false },
+  }),
 }));
 
 describe("tab pages", () => {

@@ -1,7 +1,7 @@
 import type { User } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 import { getBlockedByUserIds } from "@/app/lib/blocks";
+import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 
 /**
@@ -11,9 +11,14 @@ import { COLLECTIONS, getDb } from "@/app/lib/db";
  * not blocked, preferring users with recent presence. `blockedMe` users are
  * excluded (the blocked user must not see the blocker as a suggestion).
  */
+/** CORS preflight. */
+export function OPTIONS() {
+  return corsOptions();
+}
+
 export async function GET() {
   const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
 
   const db = await getDb();
   const [blockedByMe, blockedMe] = await Promise.all([
@@ -44,5 +49,5 @@ export async function GET() {
       presence: u.presence,
     }));
 
-  return NextResponse.json({ users: suggestions, nextCursor: null });
+  return corsJson({ users: suggestions, nextCursor: null });
 }

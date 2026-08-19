@@ -1,7 +1,7 @@
 import type { User } from "@board-game-organizer/schemas";
 import { presenceUpdateParamsSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 
 /**
@@ -11,13 +11,18 @@ import { COLLECTIONS, getDb } from "@/app/lib/db";
  * explicit offline status, the online flag). The `online` flag is derived
  * server-side from recency elsewhere; this endpoint just records state.
  */
+/** CORS preflight. */
+export function OPTIONS() {
+  return corsOptions();
+}
+
 export async function POST(request: Request) {
   const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
   const parsed = presenceUpdateParamsSchema.safeParse(body ?? {});
-  if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 });
 
   const { status } = parsed.data;
   const now = new Date();
@@ -45,5 +50,5 @@ export async function POST(request: Request) {
     { upsert: true },
   );
 
-  return NextResponse.json({ success: true, lastActiveAt: now.toISOString() });
+  return corsJson({ success: true, lastActiveAt: now.toISOString() });
 }

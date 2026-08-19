@@ -13,8 +13,6 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: apps/mobile/src/app/(tabs)/_layout.tsx
-#: apps/web/src/app/(tabs)/contacts/page.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
 msgstr "Contatti"
@@ -23,69 +21,77 @@ msgstr "Contatti"
 msgid "Counter (Zustand)"
 msgstr "Counter (Zustand)"
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Errore durante il caricamento del profilo:"
 
-#: apps/mobile/src/components/Profile.tsx
+#: apps/web/src/components/Contacts.tsx
+msgid "Follow"
+msgstr "Segui"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Following"
+msgstr "Seguiti"
+
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
 
-#: apps/mobile/src/app/(tabs)/_layout.tsx
 #: apps/web/src/app/(tabs)/groups/page.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Groups"
 msgstr "Gruppi"
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Language:"
 msgstr "Lingua:"
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Loading..."
 msgstr "Caricamento..."
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Logout"
 msgstr "Esci"
 
-#: apps/mobile/src/app/(tabs)/_layout.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Matches"
 msgstr "Partite"
 
-#: apps/mobile/src/app/(tabs)/_layout.tsx
+#: apps/web/src/components/Contacts.tsx
+msgid "No friends yet"
+msgstr "Nessun amico"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No suggestions right now"
+msgstr "Nessun suggerimento"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No users found"
+msgstr "Nessun utente trovato"
+
 #: apps/web/src/app/(tabs)/organizations/page.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Organizations"
 msgstr "Organizzazioni"
 
-#: apps/mobile/src/components/LoginFallback.tsx
 #: apps/web/src/components/LoginFallback.tsx
 msgid "Organize your board game collection, track your matches and connect with other players."
 msgstr "Organizza la tua collezione di giochi da tavolo, tieni traccia delle partite e connettiti con altri giocatori."
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Owned"
 msgstr "Posseduti"
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Plan:"
 msgstr "Piano:"
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Played"
 msgstr "Giocate"
 
-#: apps/mobile/src/app/(tabs)/_layout.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Profile"
 msgstr "Profilo"
@@ -94,14 +100,21 @@ msgstr "Profilo"
 msgid "Reset"
 msgstr "Azzera"
 
-#: apps/mobile/src/components/Profile.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Retry"
 msgstr "Riprova"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Search"
+msgstr "Cerca"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Search users by name or email"
+msgstr "Cerca utenti per nome o email"
+
 #: apps/mobile/src/app/_layout.tsx
-msgid "Sign in"
-msgstr "Accedi"
+#~ msgid "Sign in"
+#~ msgstr "Accedi"
 
 #: apps/web/src/components/Header.tsx
 #: apps/web/src/components/LoginFallback.tsx
@@ -109,8 +122,12 @@ msgid "Sign In"
 msgstr "Accedi"
 
 #: apps/mobile/src/components/LoginFallback.tsx
-msgid "Sign in / Register"
-msgstr "Accedi / Registrati"
+#~ msgid "Sign in / Register"
+#~ msgstr "Accedi / Registrati"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Sign in to see your contacts"
+msgstr "Accedi per vedere i tuoi contatti"
 
 #: apps/web/src/components/Header.tsx
 #: apps/web/src/components/LoginFallback.tsx
@@ -118,14 +135,25 @@ msgid "Sign Up"
 msgstr "Registrati"
 
 #: apps/mobile/src/components/Profile.tsx
-msgid "Sign-in unavailable"
-msgstr "Accesso non disponibile"
+#~ msgid "Sign-in unavailable"
+#~ msgstr "Accesso non disponibile"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Suggestions"
+msgstr "Suggerimenti"
 
 #: apps/web/src/components/Header.tsx
 msgid "Toggle menu"
 msgstr "Attiva/disattiva menu"
 
-#: apps/mobile/src/components/LoginFallback.tsx
+#: apps/web/src/components/Contacts.tsx
+msgid "Unfollow"
+msgstr "Non seguire più"
+
 #: apps/web/src/components/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"
 msgstr "Benvenuto in Board Game Organizer"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "You are not following anyone yet"
+msgstr "Non segui ancora nessuno"
