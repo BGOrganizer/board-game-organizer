@@ -173,6 +173,11 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - Theme: HeroUI v3 dark mode is **class-based** — `layout.tsx` toggles `.dark` on `<html>` from
   `prefers-color-scheme` (no forced `className="light"`).
 - Route group `(tabs)` hosts Matches / Groups / Organizations / Contacts / Profile.
+- **Contacts tab (Phase 2 UI)**: `components/Contacts.tsx` + `app/(tabs)/contacts/page.tsx`
+  with 5 tabs (Following / Followers / Friends / Suggestions / Search), presence green-dot
+  and follow/unfollow actions, backed by `useContacts` from `packages/shared`
+  (`hooks/useContacts.ts`). Client sends a **presence heartbeat** (`POST /api/users/presence`)
+  on mount and every 60s while the tab is open.
 - Client state via `@board-game-organizer/store` (Zustand); server data via
   `@board-game-organizer/query` (TanStack Query — `QueryProvider` uses `useState` to avoid client
   sharing during SSR).
@@ -182,7 +187,10 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   (specular to web). After sign-in `index.tsx` renders `<Redirect href="/(tabs)" />` (never a
   `Stack.Screen` outside a Layout — that crashes the app).
 - Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
-  → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`) → `QueryProvider` → `Stack`.
+  → `I18nProvider` (defaultI18n) → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
+  → `QueryProvider` → `Stack`.
+- **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 5 tabs as web, shared
+  `useContacts` hook, presence heartbeat; `useT()` runtime i18n (no Babel macro).
 - Styling: **heroui-native** components + **uniwind** classes (`global.css` wired in `metro.config.js`
   via `withUniwindConfig`). Use `className`, never raw `style` for colors.
 - **Theme**: uniwind auto-follows the device `Appearance`; the Zustand `uiSlice.themePreference`
