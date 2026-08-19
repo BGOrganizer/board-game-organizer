@@ -37,7 +37,9 @@ export async function migrate(db: Db) {
     for (const index of indexes) {
       await db.collection(name).createIndex(index.key as IndexSpecification, {
         unique: index.unique,
-        partialFilterExpression: index.partialFilterExpression,
+        ...(index.partialFilterExpression
+          ? { partialFilterExpression: index.partialFilterExpression }
+          : {}),
       });
       created.push(`${name}:${JSON.stringify(index.key)}`);
     }
