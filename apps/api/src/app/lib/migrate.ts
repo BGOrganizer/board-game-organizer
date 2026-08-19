@@ -36,7 +36,7 @@ export async function migrate(db: Db) {
     await db.createCollection(name).catch(() => undefined); // already exists
     for (const index of indexes) {
       await db.collection(name).createIndex(index.key as IndexSpecification, {
-        unique: index.unique,
+        ...(index.unique ? { unique: index.unique } : {}),
         ...(index.partialFilterExpression
           ? { partialFilterExpression: index.partialFilterExpression }
           : {}),
