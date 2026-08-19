@@ -46,10 +46,11 @@ export async function listHandler(req: Request) {
   const config = LISTS[type];
   if (!config) return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
-  const { enrichRelationships } = await import("./clerk");
-  const repo = new RelationshipRepository(await getDb());
+  const { enrichRelationshipsWithUsers } = await import("./enrichUsers");
+  const db = await getDb();
+  const repo = new RelationshipRepository(db);
   // LISTS[type] è una union di tuple readonly: destructuring invece dello spread (TS2556)
   const [relType, relStatus, direction] = config;
   const relationships = await repo.list(userId, relType, relStatus, direction);
-  return NextResponse.json(await enrichRelationships(relationships, userId));
+  return NextResponse.json(await enrichRelationshipsWithUsers(db, relationships, userId));
 }
