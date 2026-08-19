@@ -44,14 +44,23 @@ export function normalizeLocale(value: string | null | undefined): AppLocale {
 
 /** Device locale (expo-localization), normalized to a supported locale. */
 export function getDeviceLocale(): AppLocale {
-  return normalizeLocale(Localization.getLocales()[0]?.languageCode);
+  try {
+    const locales = Localization.getLocales();
+    return normalizeLocale(locales?.[0]?.languageCode);
+  } catch {
+    return "en";
+  }
 }
 
+/** Default singleton instance used as fallback when context is not ready. */
+export const defaultI18n: I18n = createAppI18n();
+
 /** Creates an i18n instance preloaded with the given locale's catalog. */
-export function createAppI18n(locale: AppLocale = getDeviceLocale()): I18n {
+export function createAppI18n(locale?: AppLocale): I18n {
+  const resolvedLocale = locale ?? getDeviceLocale();
   return setupI18n({
-    locale,
-    messages: { [locale]: catalogs[locale] },
+    locale: resolvedLocale,
+    messages: { [resolvedLocale]: catalogs[resolvedLocale] ?? catalogs.en },
   });
 }
 
@@ -60,13 +69,14 @@ export function createAppI18n(locale: AppLocale = getDeviceLocale()): I18n {
  * catalog id and returns the translation for the active locale. Usable in
  * components (via the hook) without the Babel macro transform.
  */
-export function translate(i18n: I18n, message: string): string {
+export function translate(i18n: I18n = defaultI18n, message: string): string {
   const id = idByEnglish[message] ?? message;
   return i18n.t({ id, message });
 }
 
 /** React hook: `const t = useT();` then `t("Sign in")`. */
 export function useT(): (message: string) => string {
-  const { i18n } = useLingui();
-  return useCallback((message: string) => translate(i18n, message), [i18n]);
+  const lingui = useLingui();
+  const activeI18n = lingui?.i18n ?? defaultI18n;
+  return useCallback((message: string) => translate(activeI18n, message), [activeI18n]);
 }

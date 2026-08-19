@@ -14,11 +14,7 @@ import { Uniwind } from "uniwind";
 import "../../global.css";
 
 import { RuntimeError } from "@/components/RuntimeError";
-import { createAppI18n, useT } from "@/lib/i18n";
-
-// One i18n instance for the whole app, seeded from the device locale
-// (expo-localization). Phase 0: no runtime language switcher yet.
-const i18n = createAppI18n();
+import { defaultI18n, useT } from "@/lib/i18n";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
@@ -92,27 +88,30 @@ function ThemeSync() {
   return null;
 }
 
-export default function RootLayout() {
+function RootNavigator() {
   const t = useT();
+  return (
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <QueryProvider>
+        <ThemeSync />
+        <StatusBar style="auto" />
+        <Stack>
+          <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
+          <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </QueryProvider>
+    </ClerkProvider>
+  );
+}
+
+export default function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={sentryFallback}>
       <GestureHandlerRootView className="flex-1">
         <HeroUINativeProvider>
-          <I18nProvider i18n={i18n}>
-            <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-              <QueryProvider>
-                <ThemeSync />
-                <StatusBar style="auto" />
-                <Stack>
-                  <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
-                  <Stack.Screen
-                    name="sign-in"
-                    options={{ title: t("Sign in"), presentation: "modal" }}
-                  />
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                </Stack>
-              </QueryProvider>
-            </ClerkProvider>
+          <I18nProvider i18n={defaultI18n}>
+            <RootNavigator />
           </I18nProvider>
         </HeroUINativeProvider>
       </GestureHandlerRootView>
