@@ -1,0 +1,228 @@
+name: 📱 Mobile E2E (APK + Maestro only)
+
+# Fast mobile-only feedback loop: build (or reuse) the internal APK and run
+# ONLY the Maestro flows. No web/api tests, no Vercel deploys.
+# Trigger manually (workflow_dispatch) or on a push touching mobile files.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/social-contacts]
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "packages/query/**"
+      - "packages/store/**"
+      - "packages/schemas/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+  actions: read # reuse the last successful APK from a prior run
+
+concurrency:
+  group: mobile-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # --------------------------------------- mobile change detection
+  detect-mobile-changes:
+    name: 🔍 Detect mobile changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Diff mobile-affecting paths
+        id: check
+        run: |
+          BASE_SHA="${{ github.event.before || github.sha }}"
+          HEAD_SHA="${{ github.sha }}"
+          # On manual dispatch the "before" sha may be empty → diff against
+          # the parent commit of HEAD.
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "$HEAD_SHA")"
+          fi
+          CHANGED=$(
+            git diff --name-only "$BASE_SHA"...HEAD -- \
+              apps/mobile \
+              packages/shared packages/query packages/store packages/schemas \
+              pnpm-lock.yaml pnpm-workspace.yaml |
+              grep -v '^apps/mobile/\.maestro/' | wc -l
+          )
+          if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+          echo "base=$BASE_SHA head=$HEAD_SHA changed=$CHANGED"
+
+  # -------------------------------------------------- mobile internal build
+  build-mobile-internal:
+    name: 📱 APK (internal) — build or reuse
+    needs: [detect-mobile-changes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: ♻️ Find last successful APK
+        id: reuse
+        if: needs.detect-mobile-changes.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID=""
+          # Prefer the same branch's successful runs; fall back to main.
+          for BRANCH in "$GITHUB_HEAD_REF" "$GITHUB_REF_NAME" main; do
+            [ -z "$BRANCH" ] && continue
+            RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?conclusion=success&branch=$BRANCH&per_page=15" \
+              --jq '.workflow_runs[] | select(.name | contains("PR CI") or contains("Mobile E2E") or contains("Main CI")) | .id' 2>/dev/null || true)
+            for id in $RUNS; do
+              ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" \
+                --jq '.artifacts[] | select(.name=="apk-internal") | .id' 2>/dev/null || true)
+              if [ -n "$ART" ]; then RUN_ID="$id"; break 2; fi
+            done
+          done
+          echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "last successful APK run: ${RUN_ID:-none} (branch ${BRANCH:-none})"
+
+      - name: 📥 Download reused APK
+        if: steps.reuse.outputs.run-id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal
+          path: apps/mobile/build-output
+          run-id: ${{ steps.reuse.outputs.run-id }}
+          github-token: ${{ github.token }}
+
+      - name: 🏗️ Build APK (eas build --local, internal profile)
+        id: build
+        if: steps.reuse.outputs.run-id == ''
+        uses: ./.github/actions/mobile-build
+        with:
+          profile: internal
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-internal
+          path: ${{ steps.reuse.outputs.run-id != '' && 'apps/mobile/build-output' || steps.build.outputs.artifact-path }}
+          retention-days: 7
+
+  # ------------------------------------------------ provision E2E test user
+  provision:
+    name: 👤 Provision E2E test user (Clerk API)
+    runs-on: ubuntu-latest
+    outputs:
+      username: ${{ steps.provision.outputs.username }}
+      email: ${{ steps.provision.outputs.email }}
+      password: ${{ steps.provision.outputs.password }}
+      user_id: ${{ steps.provision.outputs.user_id }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 👤 Provision E2E user
+        id: provision
+        uses: ./.github/actions/provision-e2e-user
+        with:
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+
+  # ------------------------------------------------------------- Maestro E2E
+  e2e-maestro:
+    name: 🎬 Maestro E2E (mobile)
+    needs: [build-mobile-internal, provision]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: ☕ Set up JDK 17 (Maestro requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal
+          path: apk
+
+      - name: 🔎 Resolve APK path
+        id: apk
+        run: |
+          APK=$(find apk -name '*.apk' | head -1)
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: ⚡ Install Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          export PATH="$PATH:$HOME/.maestro/bin"
+          maestro --version
+
+      - name: 🚀 Maestro E2E flows
+        uses: ./.github/actions/maestro-e2e
+        with:
+          apk-path: ${{ steps.apk.outputs.path }}
+          username: ${{ needs.provision.outputs.username }}
+          password: ${{ needs.provision.outputs.password }}
+
+      - name: 📤 Upload Maestro reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-reports
+          path: |
+            maestro-reports/**
+            maestro-debug/**
+            fail-screen.png
+            ui-fail.xml
+            fail-logcat.txt
+            maestro-rec.mp4
+          if-no-files-found: warn
+
+  # ------------------------------------------------ cleanup E2E test users
+  cleanup-e2e-user:
+    name: 🗑️ Cleanup E2E test user
+    needs: [provision, e2e-maestro]
+    if: always()
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🗑️ Delete this run's user + sweep stale e2e users
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          USER_ID: ${{ needs.provision.outputs.user_id }}
+        run: |
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
