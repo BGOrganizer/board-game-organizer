@@ -79,7 +79,6 @@ No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.ex
 | web | `NEXT_PUBLIC_API_URL` | defaults to `http://localhost:4000`; prod → `https://api-chi-two-97.vercel.app` |
 | api | `CLERK_SECRET_KEY` | backend calls to Clerk API |
 | api | `CLERK_WEBHOOK_SECRET` | SVIX signing secret for `POST /api/webhooks/clerk` (user.created/updated/deleted mirroring) |
-| api | `DROP_LEGACY_RELATIONSHIPS` | migration flag: `true` drops the legacy `relationships` collection (`pnpm --filter api migrate`) |
 | api | `MONGODB_URI` / `MONGODB_DB_NAME` | MongoDB (needs transactions → replica set) |
 | api | `ALLOWED_ORIGINS` | comma-separated CORS allowlist (dev allows all) |
 | mobile | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | via `app.config.js` `extra` |
@@ -154,7 +153,7 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   (`lib/users.repository.ts`). `lib/migrate.ts` creates the social collections
   (`users`, `follows`, `friendRequests`, `blocks`, `invites`) with indexes shared from
   `packages/schemas` (`*_INDEXES` constants) and optionally drops the legacy
-  `relationships` collection (`DROP_LEGACY_RELATIONSHIPS=true`). Run it with
+  `relationships` collection. Run it with
   `pnpm --filter api migrate` (scripts/migrate.ts). `scripts/backfill-users.ts`
   (`pnpm --filter api backfill:users`) mirrors ALL existing Clerk users idempotently.
   The legacy `RelationshipRepository` still powers the existing relationships API

@@ -58,12 +58,12 @@ describe("Phase 1 migration", () => {
     expect(result.droppedLegacyRelationships).toBe(false);
   });
 
-  it("drops the legacy relationships collection when the flag is set", async () => {
-    process.env.DROP_LEGACY_RELATIONSHIPS = "true";
+  it("drops the legacy relationships collection (now unused)", async () => {
     const db = client.db("migration-test");
     await db.collection("relationships").insertOne({ fromUserId: "a", toUserId: "b" });
     const result = await migrate(db);
     expect(result.droppedLegacyRelationships).toBe(true);
-    delete process.env.DROP_LEGACY_RELATIONSHIPS;
+    const exists = await db.listCollections({ name: "relationships" }).toArray();
+    expect(exists).toHaveLength(0);
   });
 });

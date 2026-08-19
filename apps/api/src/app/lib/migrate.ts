@@ -45,12 +45,11 @@ export async function migrate(db: Db) {
     }
   }
 
-  const dropped =
-    process.env.DROP_LEGACY_RELATIONSHIPS === "true"
-      ? await db
-          .collection(COLLECTIONS.RELATIONSHIPS)
-          .drop()
-          .catch(() => false)
-      : false;
+  // The legacy single `relationships` collection is no longer written by
+  // the repository (Phase 1 restructure) — drop it unconditionally.
+  const dropped = await db
+    .collection(COLLECTIONS.RELATIONSHIPS)
+    .drop()
+    .catch(() => false);
   return { created, droppedLegacyRelationships: dropped };
 }
