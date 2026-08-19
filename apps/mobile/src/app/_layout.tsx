@@ -3,7 +3,6 @@ import { useAppStore } from "@board-game-organizer/store";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { I18nProvider } from "@lingui/react";
-import { useLingui } from "@lingui/react/macro";
 import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -15,7 +14,7 @@ import { Uniwind } from "uniwind";
 import "../../global.css";
 
 import { RuntimeError } from "@/components/RuntimeError";
-import { createAppI18n } from "@/lib/i18n";
+import { createAppI18n, useT } from "@/lib/i18n";
 
 // One i18n instance for the whole app, seeded from the device locale
 // (expo-localization). Phase 0: no runtime language switcher yet.
@@ -94,7 +93,7 @@ function ThemeSync() {
 }
 
 export default function RootLayout() {
-  const { t } = useLingui();
+  const t = useT();
   return (
     <Sentry.ErrorBoundary fallback={sentryFallback}>
       <GestureHandlerRootView className="flex-1">
@@ -108,7 +107,7 @@ export default function RootLayout() {
                   <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
                   <Stack.Screen
                     name="sign-in"
-                    options={{ title: t`Sign in`, presentation: "modal" }}
+                    options={{ title: t("Sign in"), presentation: "modal" }}
                   />
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 </Stack>

@@ -3,11 +3,6 @@ packages:
   - "packages/*"
 
 overrides:
-  # Single @babel/core version across the monorepo: react-native 0.85 ships
-  # @babel/core@8 but react-native-gesture-handler's worklets plugin requires
-  # ^7 — pinning to 7.29.7 (the babel-preset-expo peer) makes the EAS local
-  # bundle and the expo-doctor duplicate check pass.
-  "@babel/core": "7.29.7"
   utf-8-validate: "5.0.10"
 
 peerDependencyRules:
@@ -26,16 +21,3 @@ allowBuilds:
   ssh2: false
   unrs-resolver: true
   utf-8-validate: true
-
-# react-native-worklets' bundled Babel plugin requires @babel/types,
-# @babel/generator and @babel/traverse without declaring them (SWM issue
-# #9530/#9648). Under pnpm's strict node_modules the plugin resolves a
-# mismatched @babel/types (8.x vs the 7.x used by @babel/core 7.29.7) and
-# crashes with "Cannot read properties of undefined (reading 'length')".
-# packageExtensions pins the babel 7 family into the worklets package.
-packageExtensions:
-  "react-native-worklets@*":
-    dependencies:
-      "@babel/types": "^7.29.0"
-      "@babel/generator": "^7.29.0"
-      "@babel/traverse": "^7.29.0"

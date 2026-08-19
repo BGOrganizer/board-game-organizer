@@ -109,18 +109,20 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   mobile uses `expo-localization` (`apps/mobile/src/lib/i18n.ts`).
 - **Macros**: `t` / `Trans` / `useLingui` from `@lingui/react/macro` (and
   `@lingui/core/macro`). Web uses `babel.config.js` (next/babel +
-  `@lingui/babel-plugin-lingui-macro`); mobile uses `babel.config.js`
-  (babel-preset-expo + the same plugin).
-- **Mobile build quirk**: RN 0.85 ships `@babel/core@8` while
-  react-native-gesture-handler / worklets need `^7`. `pnpm-workspace.yaml`
-  pins `@babel/core` to 7.29.7 and declares the missing babel deps of
-  `react-native-worklets` (it imports `@babel/types`/`@babel/generator`/
-  `@babel/traverse` without declaring them — SWM #9530/#9648) via
-  `packageExtensions`; without this the EAS APK bundle crashes with
-  "Cannot read properties of undefined (reading 'length')".
-- **Vitest**: the Lingui macro transform is applied in tests via
+  `@lingui/babel-plugin-lingui-macro`); **mobile uses RUNTIME i18n only**
+  (`useT()`/`translate()` from `apps/mobile/src/lib/i18n.ts` — English
+  source string mapped to the shared hashed catalog id).
+- **Mobile build quirk (why no Babel macro on mobile)**: RN 0.85 ships
+  `@babel/core@8`, but a custom mobile `babel.config.js` forced the
+  worklets plugin (react-native-worklets/reanimated 4.x) to run under
+  Babel 7, producing a bundle that crashed at LAUNCH on real devices
+  (release + New Architecture — no error, just instant close; works on the
+  CI emulator because Maestro never exercises worklet animations). The fix:
+  no custom Babel config on mobile (identical to main) + runtime i18n.
+- **Vitest**: the Lingui macro transform is applied in WEB tests via
   `@lingui/vite-plugin` + `@rolldown/plugin-babel`
-  (`linguiTransformerBabelPreset`).
+  (`linguiTransformerBabelPreset`); mobile tests use plain runtime
+  `translate()` (no Babel).
 
 ## Coverage thresholds
 

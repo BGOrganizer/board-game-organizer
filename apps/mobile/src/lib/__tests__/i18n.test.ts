@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createAppI18n, getDeviceLocale, normalizeLocale } from "../i18n";
+import { createAppI18n, getDeviceLocale, normalizeLocale, translate } from "../i18n";
 
 vi.mock("expo-localization", () => ({
   getLocales: () => [{ languageCode: "it-IT" }],
@@ -49,5 +49,19 @@ describe("createAppI18n", () => {
   it("defaults to the device locale", () => {
     const i18n = createAppI18n();
     expect(i18n.locale).toBe("it");
+  });
+});
+
+describe("translate (runtime)", () => {
+  it("resolves the shared catalog id from the English source", () => {
+    const it = createAppI18n("it");
+    expect(translate(it, "Sign in")).toBe("Accedi");
+    expect(translate(it, "Logout")).toBe("Esci");
+    expect(translate(it, "Profile")).toBe("Profilo");
+  });
+
+  it("falls back to the English source when the catalog has no entry", () => {
+    const en = createAppI18n("en");
+    expect(translate(en, "Some untranslated string")).toBe("Some untranslated string");
   });
 });

@@ -1,9 +1,7 @@
 import { fileURLToPath } from "node:url";
-import lingui from "@lingui/vite-plugin";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [lingui()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
