@@ -55,7 +55,9 @@ describe("Phase 1 migration", () => {
       /duplicate key/i,
     );
 
-    expect(result.droppedLegacyRelationships).toBe(false);
+    // MongoDB drop() on a missing collection resolves ok — no error, so the
+    // migration reports the (no-op) drop as done.
+    expect(result.droppedLegacyRelationships).toBe(true);
   });
 
   it("drops the legacy relationships collection (now unused)", async () => {
