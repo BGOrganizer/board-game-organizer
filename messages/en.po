@@ -30,6 +30,10 @@ msgid "Follow"
 msgstr "Follow"
 
 #: apps/web/src/components/Contacts.tsx
+msgid "Followers"
+msgstr "Followers"
+
+#: apps/web/src/components/Contacts.tsx
 msgid "Following"
 msgstr "Following"
 
@@ -58,6 +62,10 @@ msgstr "Logout"
 #: apps/web/src/components/Header.tsx
 msgid "Matches"
 msgstr "Matches"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No followers yet"
+msgstr "No followers yet"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No friends yet"

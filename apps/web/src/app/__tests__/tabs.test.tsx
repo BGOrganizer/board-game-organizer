@@ -46,6 +46,7 @@ vi.mock("@board-game-organizer/shared", () => ({
     unfollow: { mutate: vi.fn(), isPending: false },
     search: { mutate: vi.fn(), data: undefined, isPending: false },
   }),
+  reportPresence: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 describe("tab pages", () => {

@@ -1,4 +1,4 @@
-import { resolveApiUrl, useContacts } from "@board-game-organizer/shared";
+import { reportPresence, resolveApiUrl, useContacts } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Avatar } from "heroui-native/avatar";
@@ -12,7 +12,7 @@ import { Pressable, ScrollView, View } from "react-native";
 
 import { useT } from "@/lib/i18n";
 
-type TabKey = "following" | "friends" | "suggestions" | "search";
+type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -51,20 +51,49 @@ export default function ContactsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn]);
 
+  // Presence heartbeat: keep the green-dot fresh while the screen is open.
+  useEffect(() => {
+    if (!token) return;
+    const heartbeat = () => {
+      reportPresence(apiUrl(), token, "online").catch(() => {});
+    };
+    heartbeat();
+    const interval = setInterval(heartbeat, 60_000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const contacts = useContacts(apiUrl(), token);
   const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
 
   const followingRows = contacts.following.data ?? [];
+  const followersRows = contacts.followers.data ?? [];
   const friendsRows = contacts.friends.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const searchResults = contacts.search.data?.users ?? [];
 
   const tabButtons: Array<[TabKey, string]> = [
     ["following", t("Following")],
+    ["followers", t("Followers")],
     ["friends", t("Friends")],
     ["suggestions", t("Suggestions")],
     ["search", t("Search")],
   ];
+
+  const listTab = tab === "following" || tab === "followers" || tab === "friends" ? tab : null;
+  const listRows =
+    listTab === "following" ? followingRows : listTab === "followers" ? followersRows : friendsRows;
+  const listLoading =
+    listTab === "following"
+      ? contacts.following.isLoading
+      : listTab === "followers"
+        ? contacts.followers.isLoading
+        : contacts.friends.isLoading;
+  const listEmpty =
+    listTab === "following"
+      ? t("You are not following anyone yet")
+      : listTab === "followers"
+        ? t("No followers yet")
+        : t("No friends yet");
 
   return (
     <View className="flex-1 bg-background p-4">
@@ -172,22 +201,13 @@ export default function ContactsScreen() {
           </View>
         )}
 
-        {(tab === "following" || tab === "friends") && (
+        {listTab && (
           <View className="gap-2">
-            {(tab === "following" ? contacts.following.isLoading : contacts.friends.isLoading) && (
-              <Spinner size="sm" />
+            {listLoading && <Spinner size="sm" />}
+            {listRows.length === 0 && !listLoading && (
+              <Text className="text-sm text-muted">{listEmpty}</Text>
             )}
-            {(tab === "following" ? followingRows : friendsRows).length === 0 &&
-              !(tab === "following"
-                ? contacts.following.isLoading
-                : contacts.friends.isLoading) && (
-                <Text className="text-sm text-muted">
-                  {tab === "following"
-                    ? t("You are not following anyone yet")
-                    : t("No friends yet")}
-                </Text>
-              )}
-            {(tab === "following" ? followingRows : friendsRows).map((row) => {
+            {listRows.map((row) => {
               const profile = row.profile;
               if (!profile) return null;
               return (
@@ -207,7 +227,7 @@ export default function ContactsScreen() {
                       <Text className="text-sm text-muted">{profile.email}</Text>
                     ) : null}
                   </View>
-                  {tab === "following" ? (
+                  {listTab === "following" ? (
                     <Button
                       variant="outline"
                       isDisabled={isBusy}

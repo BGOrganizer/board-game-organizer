@@ -79,6 +79,25 @@ export function searchUsers(
   });
 }
 
+/**
+ * Presence heartbeat: `online`/`away`/`offline`. Call on an interval (and
+ * on foreground) to keep the green-dot presence fresh.
+ */
+export function reportPresence(
+  apiUrl: string,
+  token: string,
+  status: "online" | "away" | "offline" = "online",
+): Promise<{ success: boolean; lastActiveAt: string }> {
+  return fetch(`${apiUrl}/api/users/presence`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ status }),
+  }).then(async (res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()) as { success: boolean; lastActiveAt: string };
+  });
+}
+
 function relationshipMutation(
   apiUrl: string,
   token: string,

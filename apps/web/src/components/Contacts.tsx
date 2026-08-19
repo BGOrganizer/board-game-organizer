@@ -1,6 +1,6 @@
 "use client";
 
-import { resolveApiUrl, useContacts } from "@board-game-organizer/shared";
+import { reportPresence, resolveApiUrl, useContacts } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Spinner } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -10,7 +10,7 @@ function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 }
 
-type TabKey = "following" | "friends" | "suggestions" | "search";
+type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
 
 function ContactCard({
   name,
@@ -70,13 +70,60 @@ export function Contacts() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn]);
 
+  // Presence heartbeat: keep the green-dot fresh while the tab is open.
+  useEffect(() => {
+    if (!token) return;
+    const heartbeat = () => {
+      reportPresence(apiUrl(), token, "online").catch(() => {});
+    };
+    heartbeat();
+    const interval = setInterval(heartbeat, 60_000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const contacts = useContacts(apiUrl(), token);
   const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
 
   const followingRows = contacts.following.data ?? [];
+  const followersRows = contacts.followers.data ?? [];
   const friendsRows = contacts.friends.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const searchResults = contacts.search.data?.users ?? [];
+
+  // List tabs: which query feeds each tab, plus the empty-state copy.
+  const listTabs: Array<{
+    key: TabKey;
+    label: string;
+    rows: typeof followingRows;
+    isLoading: boolean;
+    empty: string;
+    showUnfollow: boolean;
+  }> = [
+    {
+      key: "following",
+      label: t`Following`,
+      rows: followingRows,
+      isLoading: contacts.following.isLoading,
+      empty: t`You are not following anyone yet`,
+      showUnfollow: true,
+    },
+    {
+      key: "followers",
+      label: t`Followers`,
+      rows: followersRows,
+      isLoading: contacts.followers.isLoading,
+      empty: t`No followers yet`,
+      showUnfollow: false,
+    },
+    {
+      key: "friends",
+      label: t`Friends`,
+      rows: friendsRows,
+      isLoading: contacts.friends.isLoading,
+      empty: t`No friends yet`,
+      showUnfollow: false,
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -84,6 +131,7 @@ export function Contacts() {
         {(
           [
             ["following", t`Following`],
+            ["followers", t`Followers`],
             ["friends", t`Friends`],
             ["suggestions", t`Suggestions`],
             ["search", t`Search`],
@@ -182,42 +230,42 @@ export function Contacts() {
         </div>
       )}
 
-      {(tab === "following" || tab === "friends") && (
-        <div className="space-y-2">
-          {(tab === "following" ? contacts.following.isLoading : contacts.friends.isLoading) && (
-            <Spinner size="sm" />
-          )}
-          {(tab === "following" ? followingRows : friendsRows).length === 0 &&
-            !(tab === "following" ? contacts.following.isLoading : contacts.friends.isLoading) && (
-              <p className="text-sm text-default-500">
-                {tab === "following" ? t`You are not following anyone yet` : t`No friends yet`}
-              </p>
-            )}
-          {(tab === "following" ? followingRows : friendsRows).map((row) =>
-            row.profile ? (
-              <ContactCard
-                key={row.profile.id}
-                name={row.profile.name}
-                email={row.profile.email}
-                avatarUrl={row.profile.avatarUrl}
-                online={row.profile.presence.online}
-                action={
-                  tab === "following" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      isDisabled={isBusy}
-                      onPress={() => contacts.unfollow.mutate({ targetUserId: row.profile!.id })}
-                    >
-                      {t`Unfollow`}
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ) : null,
-          )}
-        </div>
-      )}
+      {listTabs.some((t) => t.key === tab) &&
+        listTabs
+          .filter((t) => t.key === tab)
+          .map((listTab) => (
+            <div className="space-y-2" key={listTab.key}>
+              {listTab.isLoading && <Spinner size="sm" />}
+              {listTab.rows.length === 0 && !listTab.isLoading && (
+                <p className="text-sm text-default-500">{listTab.empty}</p>
+              )}
+              {listTab.rows.map((row) => {
+                const profile = row.profile;
+                if (!profile) return null;
+                return (
+                  <ContactCard
+                    key={profile.id}
+                    name={profile.name}
+                    email={profile.email}
+                    avatarUrl={profile.avatarUrl}
+                    online={profile.presence.online}
+                    action={
+                      listTab.showUnfollow ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          isDisabled={isBusy}
+                          onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
+                        >
+                          {t`Unfollow`}
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
+          ))}
 
       {!isSignedIn && (
         <Chip color="warning" variant="soft">
