@@ -65,6 +65,8 @@ pnpm --filter api dev       # http://localhost:4000 (binds 0.0.0.0)
 pnpm --filter mobile dev    # expo start --dev-client
 pnpm --filter <app> test    # vitest run
 pnpm --filter <app> lint|typecheck|format
+pnpm --filter api migrate        # Phase 1: create social collections + indexes
+pnpm --filter api backfill:users # Phase 1: mirror all Clerk users into `users`
 ```
 
 ## Environment Variables
@@ -76,6 +78,8 @@ No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.ex
 | web | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
 | web | `NEXT_PUBLIC_API_URL` | defaults to `http://localhost:4000`; prod → `https://api-chi-two-97.vercel.app` |
 | api | `CLERK_SECRET_KEY` | backend calls to Clerk API |
+| api | `CLERK_WEBHOOK_SECRET` | SVIX signing secret for `POST /api/webhooks/clerk` (user.created/updated/deleted mirroring) |
+| api | `DROP_LEGACY_RELATIONSHIPS` | migration flag: `true` drops the legacy `relationships` collection (`pnpm --filter api migrate`) |
 | api | `MONGODB_URI` / `MONGODB_DB_NAME` | MongoDB (needs transactions → replica set) |
 | api | `ALLOWED_ORIGINS` | comma-separated CORS allowlist (dev allows all) |
 | mobile | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | via `app.config.js` `extra` |
@@ -144,6 +148,17 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   types `follow | friend_request | friend | block`, statuses `pending | accepted | blocked`.
   Follow = immediate `accepted`; friend = bidirectional pair of accepted records; block clears
   bidirectional follow/request/friend first. See comments in `apps/api/src/app/models/relationship.ts`.
+- **Phase 1 (social backend)**: users are mirrored from Clerk via the webhook
+  `POST /api/webhooks/clerk` (SVIX-verified with `CLERK_WEBHOOK_SECRET`; events
+  `user.created/updated/deleted`) into the `users` collection via `UsersRepository`
+  (`lib/users.repository.ts`). `lib/migrate.ts` creates the social collections
+  (`users`, `follows`, `friendRequests`, `blocks`, `invites`) with indexes shared from
+  `packages/schemas` (`*_INDEXES` constants) and optionally drops the legacy
+  `relationships` collection (`DROP_LEGACY_RELATIONSHIPS=true`). Run it with
+  `pnpm --filter api migrate` (scripts/migrate.ts). `scripts/backfill-users.ts`
+  (`pnpm --filter api backfill:users`) mirrors ALL existing Clerk users idempotently.
+  The legacy `RelationshipRepository` still powers the existing relationships API
+  until Phase 2 migrates those routes to the new collections.
 - Profiles are **not stored locally**: `lib/clerk.ts` fetches users from Clerk in chunks of 100
   (`enrichUserIds`, `enrichSingleUser`). `apps/api/src/app/api/profiles/route.ts` reuses
   `enrichSingleUser` + adds CORS handling (do NOT duplicate the direct Clerk call).
