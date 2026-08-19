@@ -315,18 +315,27 @@ jobs:
           username: ${{ needs.provision.outputs.username }}
           password: ${{ needs.provision.outputs.password }}
 
+      - name: 📥 Collect Maestro reports (workspace)
+        if: always()
+        run: |
+          mkdir -p maestro-reports maestro-debug
+          cp -r /tmp/maestro-reports/. maestro-reports/ 2>/dev/null || true
+          cp -r /tmp/maestro-debug/. maestro-debug/ 2>/dev/null || true
+          cp /tmp/fail-screen.png /tmp/ui-fail.xml /tmp/fail-logcat.txt /tmp/maestro-rec.mp4 . 2>/dev/null || true
+          ls -la maestro-reports maestro-debug || true
+
       - name: 📤 Upload Maestro reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-reports
           path: |
-            /tmp/maestro-reports/**
-            /tmp/maestro-debug/**
-            /tmp/fail-screen.png
-            /tmp/ui-fail.xml
-            /tmp/fail-logcat.txt
-            /tmp/maestro-rec.mp4
+            maestro-reports/**
+            maestro-debug/**
+            fail-screen.png
+            ui-fail.xml
+            fail-logcat.txt
+            maestro-rec.mp4
           if-no-files-found: warn
 
   # ---------------------------------------------------------- Playwright E2E
