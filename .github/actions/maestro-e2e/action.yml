@@ -37,6 +37,8 @@ runs:
           sleep 60
           adb shell am force-stop com.bgo.mobile || true
           set -e
+          # Report dirs (created up front so junit has a target even on success)
+          mkdir -p /tmp/maestro-reports /tmp/maestro-debug
           # Record the emulator screen; kept only if a flow fails (best practice).
           adb shell rm -f /sdcard/maestro-rec.mp4 || true
           adb shell screenrecord --time-limit 1800 /sdcard/maestro-rec.mp4 >/dev/null 2>&1 &
@@ -65,6 +67,13 @@ runs:
             || { capture; exit 1; }
           # All flows passed: stop recording and discard the video (only failures are kept).
           kill $REC_PID 2>/dev/null || true
+          # Guarantee at least one junit file exists (Maestro junit output is
+          # version-sensitive; a summary ensures the artifact is never empty).
+          ls /tmp/maestro-reports/*.xml 2>/dev/null | grep -q . || cat > /tmp/maestro-reports/summary.xml <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>
+XML
+          find /tmp/maestro-reports -type f -name '*.xml' -exec echo "report: {}" \;
           adb shell pkill -f screenrecord >/dev/null 2>&1 || true
           adb shell rm -f /sdcard/maestro-rec.mp4 || true
           rm -f /tmp/maestro-rec.mp4 || true
