@@ -209,7 +209,7 @@ export default function ContactsScreen() {
                     <Button
                       variant="outline"
                       isDisabled={isBusy}
-                      onPress={() => contacts.unfollow.mutate({ targetUserId: row.profile!.id })}
+                      onPress={() => contacts.unfollow.mutate({ targetUserId: row.profile.id })}
                     >
                       <Text>{t("Unfollow")}</Text>
                     </Button>
