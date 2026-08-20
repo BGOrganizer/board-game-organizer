@@ -17,7 +17,7 @@ import { useT } from "@/lib/i18n";
 function ContactListSkeleton({ count = 4 }: { count?: number }) {
   const keys = Array.from({ length: count }, (_, i) => `sk-${count}-${i}`);
   return (
-    <View className="gap-2">
+    <View style={{ gap: 8 }}>
       {keys.map((key) => (
         <Card key={key} className="flex-row items-center gap-3 p-3">
           <Skeleton isLoading variant="pulse" className="h-10 w-10 rounded-full">
@@ -137,7 +137,11 @@ export default function ContactsScreen() {
         </View>
       </ScrollView>
 
-      <ScrollView className="flex-1">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ alignItems: "flex-start", gap: 8 }}
+        showsVerticalScrollIndicator={false}
+      >
         {tab === "search" && (
           <View className="mb-3 gap-2">
             <View className="flex-row items-center gap-2">
@@ -224,10 +228,12 @@ export default function ContactsScreen() {
         )}
 
         {listTab && (
-          <View className="gap-2">
+          <View style={{ gap: 8 }}>
             {listLoading && <ContactListSkeleton count={4} />}
             {listRows.length === 0 && !listLoading && (
-              <Text className="text-sm text-muted">{listEmpty}</Text>
+              <Text className="text-sm text-muted" style={{ textAlign: "left" }}>
+                {listEmpty}
+              </Text>
             )}
             {listRows.map((row) => {
               const profile = row.profile;

@@ -184,8 +184,13 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 
 ### Mobile (`apps/mobile`)
 - Expo Router file-based routing; `(tabs)` group with Matches/Groups/Organizations/Contacts/Profile
-  (specular to web). After sign-in `index.tsx` renders `<Redirect href="/(tabs)" />` (never a
-  `Stack.Screen` outside a Layout — that crashes the app).
+  (specular to web). `index.tsx` renders a declarative `<Redirect href="/matches" />` when signed in
+  (a `router.replace` effect raced the navigator on cold start → intermittent
+  crash when reopening the app while still logged in).
+- `global.css` must list `@source "./src"` — with only the heroui-native
+  `@source`, Tailwind v4 does not generate the app's own utility classes
+  (`flex-1`, `gap-*`, `p-*`) and layouts fall back to RN defaults
+  (content appears centered).
 - Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
   → `I18nProvider` (defaultI18n) → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
   → `QueryProvider` → `Stack`.
