@@ -1,4 +1,11 @@
 {
   "extends": ["@board-game-organizer/biome-config/biome"],
-  "root": false
+  "root": false,
+  "overrides": [
+    {
+      "includes": ["uniwind-types.d.ts"],
+      "formatter": { "enabled": false },
+      "linter": { "enabled": false }
+    }
+  ]
 }
