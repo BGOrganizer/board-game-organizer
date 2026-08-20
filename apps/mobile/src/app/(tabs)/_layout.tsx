@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs, usePathname, useRouter } from "expo-router";
-import { Spinner } from "heroui-native/spinner";
+import { Skeleton } from "heroui-native/skeleton";
 import { useEffect } from "react";
 import { Platform, View } from "react-native";
 
@@ -28,8 +28,9 @@ export default function TabLayout() {
 
   if (!isLoaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <Spinner />
+      <View className="flex-1 items-center justify-center bg-background gap-3">
+        <Skeleton isLoading variant="pulse" className="h-12 w-48 rounded-lg" />
+        <Skeleton isLoading variant="pulse" className="h-4 w-32 rounded" />
       </View>
     );
   }

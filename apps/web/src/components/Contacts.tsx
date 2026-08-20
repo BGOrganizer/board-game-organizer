@@ -2,7 +2,7 @@
 
 import { reportPresence, resolveApiUrl, useContacts } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Card, Chip, Spinner } from "@heroui/react";
+import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useEffect, useState } from "react";
 
@@ -27,6 +27,7 @@ function ContactCard({
 }) {
   return (
     <Card className="flex flex-row items-center gap-3 p-3">
+      {" "}
       <Avatar size="md" color="accent">
         <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
         <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
@@ -45,6 +46,24 @@ function ContactCard({
       </div>
       {action}
     </Card>
+  );
+}
+
+/** Placeholder shown while a contact list is loading. */
+function ContactListSkeleton({ count = 4 }: { count?: number }) {
+  const keys = Array.from({ length: count }, (_, i) => `sk-${count}-${i}`);
+  return (
+    <div className="space-y-2">
+      {keys.map((key) => (
+        <Card key={key} className="flex flex-row items-center gap-3 p-3">
+          <Skeleton animationType="pulse" className="h-10 w-10 rounded-full" />
+          <div className="flex-1 space-y-1">
+            <Skeleton animationType="pulse" className="h-3 w-2/3 rounded" />
+            <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }
 
@@ -174,7 +193,7 @@ export function Contacts() {
               {t`Search`}
             </Button>
           </form>
-          {contacts.search.isPending && <Spinner size="sm" />}
+          {contacts.search.isPending && <ContactListSkeleton count={2} />}
           {searchDone && !contacts.search.isPending && searchResults.length === 0 && (
             <p className="text-sm text-default-500">{t`No users found`}</p>
           )}
@@ -204,7 +223,7 @@ export function Contacts() {
 
       {tab === "suggestions" && (
         <div className="space-y-2">
-          {contacts.suggestions.isLoading && <Spinner size="sm" />}
+          {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
           {suggestions.length === 0 && !contacts.suggestions.isLoading && (
             <p className="text-sm text-default-500">{t`No suggestions right now`}</p>
           )}
@@ -235,7 +254,7 @@ export function Contacts() {
           .filter((t) => t.key === tab)
           .map((listTab) => (
             <div className="space-y-2" key={listTab.key}>
-              {listTab.isLoading && <Spinner size="sm" />}
+              {listTab.isLoading && <ContactListSkeleton count={4} />}
               {listTab.rows.length === 0 && !listTab.isLoading && (
                 <p className="text-sm text-default-500">{listTab.empty}</p>
               )}

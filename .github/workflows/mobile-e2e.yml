@@ -48,12 +48,17 @@ jobs:
           if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
             BASE_SHA="$(git rev-parse HEAD~1 2>/dev/null || echo "$HEAD_SHA")"
           fi
+          # Code that rebuilds the APK: mobile source, the packages the app
+          # imports, and lockfiles. Maestro flows and unit tests are EXCLUDED.
           CHANGED=$(
             git diff --name-only "$BASE_SHA"...HEAD -- \
               apps/mobile \
               packages/shared packages/query packages/store packages/schemas \
               pnpm-lock.yaml pnpm-workspace.yaml |
-              grep -v '^apps/mobile/\.maestro/' | wc -l
+              grep -v '^apps/mobile/\.maestro/' |
+              grep -v '^apps/mobile/src/.*\.(test|spec)\.' |
+              grep -v '__tests__' |
+              wc -l
           )
           if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
           echo "base=$BASE_SHA head=$HEAD_SHA changed=$CHANGED"

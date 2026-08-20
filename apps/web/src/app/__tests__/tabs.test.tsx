@@ -54,15 +54,17 @@ describe("tab pages", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the placeholder pages with their translated headings", async () => {
+  it("renders the placeholder pages without a page title (tab bar shows it)", async () => {
     renderWithI18n(await Contacts());
-    expect(screen.getByText("Contacts")).toBeTruthy();
+    expect(screen.getByText("Following")).toBeTruthy();
 
-    renderWithI18n(await Groups());
-    expect(screen.getByText("Groups")).toBeTruthy();
+    const { unmount: unmountGroups } = renderWithI18n(await Groups());
+    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    unmountGroups();
 
-    renderWithI18n(await Organizations());
-    expect(screen.getByText("Organizations")).toBeTruthy();
+    const { unmount: unmountOrgs } = renderWithI18n(await Organizations());
+    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    unmountOrgs();
   });
 
   it("renders the matches page with the counter", async () => {

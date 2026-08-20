@@ -422,3 +422,30 @@ the repo.
 See pi-board-agent `docs/docker.md`: the board-agent runs in its own Docker container
 (pi headless + `auto_start: true`), with the repo mounted at `/workspace`. Control via
 GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose exec`.
+
+## UX & UI Rules (da ricordare SEMPRE)
+
+- **Chip/tab selezionata (mobile)**: le chip della tab bar devono riflettere la
+  selezione corrente (stato visivo attivo/non attivo). Su web funziona; su
+  mobile va corretto ovunque (non solo Contacts — tutte le tab).
+- **Loading**: usare componenti **skeleton** al posto degli spinner, per
+  TUTTE le pagine/tab (web + mobile), non solo le nuove.
+- **Titolo di sezione**: NON mettere il titolo della pagina/sezione nelle
+  pagine dei tab — la sezione è già indicata dal menu principale (tab bar).
+  Vale per web e mobile e per tutte le implementazioni future.
+- **Users/search**: gli utenti compaiono in Contacts solo se sono nella
+  collection `users` (webhook Clerk o backfill). Un account Google in Clerk
+  NON basta: serve `pnpm --filter api backfill:users` (o webhook
+  configurato con CLERK_WEBHOOK_SECRET).
+
+## CI Rules (trigger intelligenti)
+
+- **pr-ci build mobile**: parte SOLO se modificati `apps/mobile` o i package
+  correlati (shared/query/store/schemas) + lockfile. NON deve triggerare per
+  i file `.maestro/flows/*` (nuovi flow Maestro senza cambio codice non
+  devono rifare la build APK).
+- **Unit test**: se aggiunti/modificati SOLO test (senza cambio codice app),
+  NON rieseguire il rebuild mobile.
+- **mobile-e2e.yml** (workflow singolo per test veloci): builda APK
+  (profilo **internal**, NON development) e runna i flow Maestro. Serve per
+  iterare velocemente senza tutta la pr-ci.

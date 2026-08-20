@@ -42,7 +42,8 @@ describe("Profile", () => {
       refetch: vi.fn(),
     });
     renderWithI18n(<Profile />);
-    expect(screen.getByText("Loading...")).toBeTruthy();
+    // Loading state renders a skeleton profile card (no text).
+    expect(document.querySelector('[class*="skeleton"]')).toBeTruthy();
   });
 
   it("shows an error state with retry when the query fails", () => {

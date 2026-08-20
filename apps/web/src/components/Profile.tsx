@@ -2,7 +2,7 @@
 
 import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth, useClerk } from "@clerk/nextjs";
-import { Avatar, Button, Card, Spinner } from "@heroui/react";
+import { Avatar, Button, Card, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useState } from "react";
 
@@ -62,17 +62,27 @@ export function Profile() {
   if (isSigningOut) {
     return (
       <div className="mt-6 flex min-h-[60vh] items-center justify-center">
-        <Spinner size="lg" />
+        <Skeleton animationType="pulse" className="h-16 w-48 rounded-lg" />
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="mt-6 flex items-center justify-center gap-2">
-        <Spinner size="sm" />
-        <p className="text-sm text-default-400">{t`Loading...`}</p>
-      </div>
+      <Card className="mt-4 rounded-xl p-6">
+        <div className="flex flex-row items-center gap-4">
+          <Skeleton animationType="pulse" className="h-16 w-16 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton animationType="pulse" className="h-4 w-2/3 rounded" />
+            <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
+          </div>
+        </div>
+        <div className="mt-4 flex flex-row gap-6">
+          {[0, 1, 2].map((n) => (
+            <Skeleton key={`stat-${n}`} animationType="pulse" className="h-8 w-12 rounded" />
+          ))}
+        </div>
+      </Card>
     );
   }
 

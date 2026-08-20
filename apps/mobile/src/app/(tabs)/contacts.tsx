@@ -4,14 +4,38 @@ import Constants from "expo-constants";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
+import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
-import { Spinner } from "heroui-native/spinner";
+import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { useT } from "@/lib/i18n";
 
+/** Placeholder shown while a contact list is loading. */
+function ContactListSkeleton({ count = 4 }: { count?: number }) {
+  const keys = Array.from({ length: count }, (_, i) => `sk-${count}-${i}`);
+  return (
+    <View className="gap-2">
+      {keys.map((key) => (
+        <Card key={key} className="flex-row items-center gap-3 p-3">
+          <Skeleton isLoading variant="pulse" className="h-10 w-10 rounded-full">
+            <Avatar size="md" />
+          </Skeleton>
+          <View className="flex-1 gap-1">
+            <Skeleton isLoading variant="pulse">
+              <Text className="font-medium">····</Text>
+            </Skeleton>
+            <Skeleton isLoading variant="pulse">
+              <Text className="text-sm text-muted">····</Text>
+            </Skeleton>
+          </View>
+        </Card>
+      ))}
+    </View>
+  );
+}
 type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
 
 function apiUrl(): string {
@@ -97,20 +121,18 @@ export default function ContactsScreen() {
 
   return (
     <View className="flex-1 bg-background p-4">
-      <Text className="mb-3 text-xl font-semibold">{t("Contacts")}</Text>
-
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
         <View className="flex-row gap-2">
           {tabButtons.map(([key, label]) => (
-            <Pressable
+            <Chip
               key={key}
+              variant={tab === key ? "primary" : "secondary"}
+              color={tab === key ? "accent" : "default"}
+              size="md"
               onPress={() => setTab(key)}
-              className={`rounded-lg px-3 py-2 ${tab === key ? "bg-primary" : "bg-default-100"}`}
             >
-              <Text className={`text-sm ${tab === key ? "text-primary-foreground" : ""}`}>
-                {label}
-              </Text>
-            </Pressable>
+              <Text className={tab === key ? "text-accent-foreground" : "text-muted"}>{label}</Text>
+            </Chip>
           ))}
         </View>
       </ScrollView>
@@ -141,7 +163,7 @@ export default function ContactsScreen() {
                 <Text>{t("Search")}</Text>
               </Button>
             </View>
-            {contacts.search.isPending && <Spinner size="sm" />}
+            {contacts.search.isPending && <ContactListSkeleton count={2} />}
             {searchDone && !contacts.search.isPending && searchResults.length === 0 && (
               <Text className="text-sm text-muted">{t("No users found")}</Text>
             )}
@@ -172,7 +194,7 @@ export default function ContactsScreen() {
 
         {tab === "suggestions" && (
           <View className="gap-2">
-            {contacts.suggestions.isLoading && <Spinner size="sm" />}
+            {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
             {suggestions.length === 0 && !contacts.suggestions.isLoading && (
               <Text className="text-sm text-muted">{t("No suggestions right now")}</Text>
             )}
@@ -203,7 +225,7 @@ export default function ContactsScreen() {
 
         {listTab && (
           <View className="gap-2">
-            {listLoading && <Spinner size="sm" />}
+            {listLoading && <ContactListSkeleton count={4} />}
             {listRows.length === 0 && !listLoading && (
               <Text className="text-sm text-muted">{listEmpty}</Text>
             )}

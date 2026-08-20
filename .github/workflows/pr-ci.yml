@@ -171,12 +171,18 @@ jobs:
         run: |
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          # Code that rebuilds the APK: mobile source, the packages the app
+          # imports, and lockfiles. Maestro flows and unit tests are EXCLUDED:
+          # new flows or tests without app-code changes must NOT rebuild.
           CHANGED=$(
             git diff --name-only "$BASE_SHA"...HEAD -- \
               apps/mobile \
               packages/shared packages/query packages/store packages/schemas \
               pnpm-lock.yaml pnpm-workspace.yaml |
-              grep -v '^apps/mobile/\.maestro/' | wc -l
+              grep -v '^apps/mobile/\.maestro/' |
+              grep -v '^apps/mobile/src/.*\.(test|spec)\.' |
+              grep -v '__tests__' |
+              wc -l
           )
           if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
 

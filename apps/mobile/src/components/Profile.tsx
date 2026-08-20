@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { Spinner } from "heroui-native/spinner";
+import { Skeleton } from "heroui-native/skeleton";
 import { Surface } from "heroui-native/surface";
 import { Text } from "heroui-native/text";
 import { useCallback, useEffect, useState } from "react";
@@ -76,9 +76,20 @@ export function Profile() {
 
   if (isLoading) {
     return (
-      <View className="mt-6 items-center">
-        <Spinner />
-        <Text className="mt-2 text-sm text-muted">{t("Loading...")}</Text>
+      <View className="mt-4 gap-3">
+        <View className="flex-row items-center gap-4">
+          <Skeleton isLoading variant="pulse" className="h-16 w-16 rounded-full">
+            <Avatar size="lg" />
+          </Skeleton>
+          <View className="flex-1 gap-2">
+            <Skeleton isLoading variant="pulse">
+              <Text className="text-lg font-semibold">····</Text>
+            </Skeleton>
+            <Skeleton isLoading variant="pulse">
+              <Text className="text-sm text-muted">····</Text>
+            </Skeleton>
+          </View>
+        </View>
       </View>
     );
   }

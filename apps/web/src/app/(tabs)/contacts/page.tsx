@@ -6,7 +6,6 @@ export default async function ContactsPage() {
   return (
     <div className="flex justify-center">
       <div className="w-full max-w-md">
-        <h1 className="mb-4 text-xl font-semibold">Contacts</h1>
         <Contacts />
       </div>
     </div>
