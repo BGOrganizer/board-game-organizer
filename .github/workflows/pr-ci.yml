@@ -189,7 +189,7 @@ jobs:
   # -------------------------------------------------- mobile internal build
   build-mobile-internal:
     name: 📱 Mobile APK (internal) — build or reuse
-    needs: [detect-mobile-changes]
+    needs: [detect-mobile-changes, deploy-preview-api]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
@@ -237,7 +237,10 @@ jobs:
           profile: internal
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          # Option B: point the APK at THIS PR's preview API deployment so
+          # the app talks to the exact code under test. Falls back to the
+          # repo variable when the preview deploy produced no URL.
+          api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
 
       - name: 📤 Upload APK artifact
