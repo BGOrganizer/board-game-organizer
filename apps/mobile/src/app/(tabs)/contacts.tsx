@@ -17,7 +17,7 @@ import { useT } from "@/lib/i18n";
 function ContactListSkeleton({ count = 4 }: { count?: number }) {
   const keys = Array.from({ length: count }, (_, i) => `sk-${count}-${i}`);
   return (
-    <View style={{ gap: 12 }}>
+    <View style={{ gap: 12, width: "100%" }}>
       {keys.map((key) => (
         <View
           key={key}
@@ -27,6 +27,7 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
             gap: 12,
             padding: 12,
             borderRadius: 12,
+            width: "100%",
             backgroundColor: "rgba(120,120,128,0.12)",
           }}
         >
@@ -155,7 +156,7 @@ export default function ContactsScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ alignItems: "flex-start", gap: 8, paddingBottom: 24 }}
+        contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
         {tab === "search" && (
@@ -188,13 +189,22 @@ export default function ContactsScreen() {
               <Text className="text-sm text-muted">{t("No users found")}</Text>
             )}
             {searchResults.map((u) => (
-              <Card key={u.id} className="flex-row items-center gap-3 p-3">
+              <Card
+                key={u.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 12,
+                  width: "100%",
+                }}
+              >
                 <Avatar size="md">
                   {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
                   <Avatar.Fallback>{u.name?.charAt(0) ?? "?"}</Avatar.Fallback>
                 </Avatar>
-                <View className="flex-1">
-                  <View className="flex-row items-center">
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text className="font-medium">{u.name}</Text>
                     <PresenceDot online={u.presence.online} />
                   </View>
@@ -219,13 +229,22 @@ export default function ContactsScreen() {
               <Text className="text-sm text-muted">{t("No suggestions right now")}</Text>
             )}
             {suggestions.map((u) => (
-              <Card key={u.id} className="flex-row items-center gap-3 p-3">
+              <Card
+                key={u.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 12,
+                  width: "100%",
+                }}
+              >
                 <Avatar size="md">
                   {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
                   <Avatar.Fallback>{u.name?.charAt(0) ?? "?"}</Avatar.Fallback>
                 </Avatar>
-                <View className="flex-1">
-                  <View className="flex-row items-center">
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text className="font-medium">{u.name}</Text>
                     <PresenceDot online={u.presence.online} />
                   </View>
@@ -255,15 +274,24 @@ export default function ContactsScreen() {
               const profile = row.profile;
               if (!profile) return null;
               return (
-                <Card key={profile.id} className="flex-row items-center gap-3 p-3">
+                <Card
+                  key={profile.id}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: 12,
+                    width: "100%",
+                  }}
+                >
                   <Avatar size="md">
                     {profile.avatarUrl ? (
                       <Avatar.Image source={{ uri: profile.avatarUrl }} />
                     ) : null}
                     <Avatar.Fallback>{profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
                   </Avatar>
-                  <View className="flex-1">
-                    <View className="flex-row items-center">
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <Text className="font-medium">{profile.name}</Text>
                       <PresenceDot online={profile.presence.online} />
                     </View>
