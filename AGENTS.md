@@ -84,6 +84,15 @@ No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.ex
 | mobile | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | via `app.config.js` `extra` |
 | mobile | `EXPO_PUBLIC_API_URL` | read from `Constants.expoConfig.extra.apiUrl`; prod → the Vercel API URL |
 
+**Preview chaining (option B)**: in pr-ci the mobile APK and the web preview are
+built to talk to **this PR's API preview deployment**: `build-mobile-internal` and
+`deploy-preview-web` depend on `deploy-preview-api` and inject its `outputs.url` as
+`EXPO_PUBLIC_API_URL` / `NEXT_PUBLIC_API_URL` (via `vercel-deploy`'s `extra-env`
+input). Both jobs keep an `if: !cancelled() && <main needs> == 'success'` so a failed
+API preview falls back to the repo/project env var instead of killing the E2E chain.
+The standalone `mobile-e2e.yml` workflow keeps using the repo variable (no preview
+deploy there).
+
 **Production deployments**: web → `web-rosy-phi-82.vercel.app`, api → `api-chi-two-97.vercel.app`.
 CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG_ID`,
 `VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `CLERK_SECRET_KEY` (used by Maestro E2E to

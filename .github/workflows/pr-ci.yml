@@ -190,6 +190,9 @@ jobs:
   build-mobile-internal:
     name: 📱 Mobile APK (internal) — build or reuse
     needs: [detect-mobile-changes, deploy-preview-api]
+    # Build even if the API preview deploy failed: fall back to the repo
+    # variable (EXPO_PUBLIC_API_URL) in that case.
+    if: ${{ !cancelled() && needs.detect-mobile-changes.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
@@ -307,7 +310,10 @@ jobs:
   # ---------------------------------------------------- Vercel preview web
   deploy-preview-web:
     name: 🌐 Vercel preview (Web)
-    needs: [build-api-web]
+    needs: [build-api-web, deploy-preview-api]
+    # Build even if the API preview deploy failed: fall back to the project
+    # env var (NEXT_PUBLIC_API_URL) in that case.
+    if: ${{ !cancelled() && needs.build-api-web.result == 'success' }}
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -333,6 +339,11 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          # The web preview talks to this PR's API preview, mirroring the
+          # APK behavior (option B). Falls back to the project env var when
+          # the API preview produced no URL (empty line is skipped).
+          extra-env: >-
+            NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
 
   # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:

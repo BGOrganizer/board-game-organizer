@@ -27,6 +27,13 @@ inputs:
   vercel-project-id:
     description: Vercel project ID (secret)
     required: true
+  extra-env:
+    description: >-
+      Optional multi-line KEY=value build-time env overrides injected into the
+      pulled environment file before `vercel build` (used to point previews at
+      sibling preview deployments, e.g. NEXT_PUBLIC_API_URL).
+    required: false
+    default: ''
 
 outputs:
   deployment-url:
@@ -100,6 +107,31 @@ runs:
         fs.writeFileSync(path, JSON.stringify(next, null, 2));
         console.log(`Vercel rootDirectory=${next.settings.rootDirectory}`);
         NODE
+
+    - name: 🔧 Inject build-time env overrides
+      shell: bash
+      env:
+        EXTRA_ENV: ${{ inputs.extra-env }}
+        VERCEL_ENVIRONMENT: ${{ inputs.vercel-environment }}
+      run: |
+        if [ -z "$EXTRA_ENV" ]; then
+          echo "No extra env to inject"
+          exit 0
+        fi
+        env_file=".vercel/.env.${VERCEL_ENVIRONMENT}.local"
+        node -e '
+          const fs = require("fs");
+          const [f, extra] = process.argv.slice(1);
+          const overrides = extra.split("\n").map(l => l.trim()).filter(l => l.includes("=") && l.split("=")[1].length > 0);
+          const keys = new Set(overrides.map(l => l.split("=")[0].trim()));
+          const existing = fs.existsSync(f) ? fs.readFileSync(f, "utf8").split("\n") : [];
+          const kept = existing.filter(l => {
+            const k = l.split("=")[0].trim();
+            return !k || !keys.has(k);
+          });
+          fs.writeFileSync(f, [...kept, ...overrides].filter(Boolean).join("\n") + "\n");
+          console.log("Injected:", overrides.map(l => l.split("=")[0]).join(", "));
+        ' "$env_file" "$EXTRA_ENV"
 
     - name: 🔨 Build
       shell: bash
