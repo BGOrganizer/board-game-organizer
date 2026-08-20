@@ -76,18 +76,20 @@ export function Profile() {
 
   if (isLoading) {
     return (
-      <View className="mt-4 gap-3">
-        <View className="flex-row items-center gap-4">
-          <Skeleton isLoading variant="pulse" className="h-16 w-16 rounded-full">
-            <Avatar size="lg" />
-          </Skeleton>
-          <View className="flex-1 gap-2">
-            <Skeleton isLoading variant="pulse">
-              <Text className="text-lg font-semibold">····</Text>
-            </Skeleton>
-            <Skeleton isLoading variant="pulse">
-              <Text className="text-sm text-muted">····</Text>
-            </Skeleton>
+      <View style={{ marginTop: 16, gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+          <Skeleton isLoading variant="pulse" style={{ width: 64, height: 64, borderRadius: 32 }} />
+          <View style={{ flex: 1, gap: 8 }}>
+            <Skeleton
+              isLoading
+              variant="pulse"
+              style={{ width: "60%", height: 18, borderRadius: 4 }}
+            />
+            <Skeleton
+              isLoading
+              variant="pulse"
+              style={{ width: "40%", height: 14, borderRadius: 4 }}
+            />
           </View>
         </View>
       </View>

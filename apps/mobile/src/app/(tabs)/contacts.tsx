@@ -17,21 +17,33 @@ import { useT } from "@/lib/i18n";
 function ContactListSkeleton({ count = 4 }: { count?: number }) {
   const keys = Array.from({ length: count }, (_, i) => `sk-${count}-${i}`);
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: 12 }}>
       {keys.map((key) => (
-        <Card key={key} className="flex-row items-center gap-3 p-3">
-          <Skeleton isLoading variant="pulse" className="h-10 w-10 rounded-full">
-            <Avatar size="md" />
-          </Skeleton>
-          <View className="flex-1 gap-1">
-            <Skeleton isLoading variant="pulse">
-              <Text className="font-medium">····</Text>
-            </Skeleton>
-            <Skeleton isLoading variant="pulse">
-              <Text className="text-sm text-muted">····</Text>
-            </Skeleton>
+        <View
+          key={key}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            padding: 12,
+            borderRadius: 12,
+            backgroundColor: "rgba(120,120,128,0.12)",
+          }}
+        >
+          <Skeleton isLoading variant="pulse" style={{ width: 40, height: 40, borderRadius: 20 }} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <Skeleton
+              isLoading
+              variant="pulse"
+              style={{ width: "60%", height: 14, borderRadius: 4 }}
+            />
+            <Skeleton
+              isLoading
+              variant="pulse"
+              style={{ width: "40%", height: 12, borderRadius: 4 }}
+            />
           </View>
-        </Card>
+        </View>
       ))}
     </View>
   );

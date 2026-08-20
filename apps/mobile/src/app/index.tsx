@@ -11,9 +11,17 @@ export default function Index() {
 
   if (!isLoaded) {
     return (
-      <View className="flex-1 items-center justify-center gap-3 bg-background">
-        <Skeleton isLoading variant="pulse" className="h-12 w-48 rounded-lg" />
-        <Skeleton isLoading variant="pulse" className="h-4 w-32 rounded" />
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 12,
+          backgroundColor: "transparent",
+        }}
+      >
+        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 48, borderRadius: 8 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: 128, height: 16, borderRadius: 4 }} />
       </View>
     );
   }
