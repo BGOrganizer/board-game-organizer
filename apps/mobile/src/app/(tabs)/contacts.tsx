@@ -132,9 +132,13 @@ export default function ContactsScreen() {
         : t("No friends yet");
 
   return (
-    <View className="flex-1 bg-background p-4">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
-        <View className="flex-row gap-2">
+    <View style={{ flex: 1, padding: 16 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginBottom: 12, flexGrow: 0 }}
+      >
+        <View style={{ flexDirection: "row", gap: 8 }}>
           {tabButtons.map(([key, label]) => (
             <Chip
               key={key}
@@ -150,14 +154,14 @@ export default function ContactsScreen() {
       </ScrollView>
 
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ alignItems: "flex-start", gap: 8 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ alignItems: "flex-start", gap: 8, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
         {tab === "search" && (
-          <View className="mb-3 gap-2">
-            <View className="flex-row items-center gap-2">
-              <View className="flex-1">
+          <View style={{ marginBottom: 12, gap: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ flex: 1 }}>
                 <Input
                   value={query}
                   onChangeText={(v) => {
@@ -209,7 +213,7 @@ export default function ContactsScreen() {
         )}
 
         {tab === "suggestions" && (
-          <View className="gap-2">
+          <View style={{ gap: 8 }}>
             {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
             {suggestions.length === 0 && !contacts.suggestions.isLoading && (
               <Text className="text-sm text-muted">{t("No suggestions right now")}</Text>
