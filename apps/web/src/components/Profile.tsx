@@ -10,6 +10,12 @@ function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 }
 
+// NEXT_PUBLIC_* reads are only inlined by Next.js in project files, so the
+// bypass must be read here and passed down to the shared API helpers.
+function protectionBypass(): string | undefined {
+  return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
+}
+
 export function Profile() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
@@ -46,7 +52,7 @@ export function Profile() {
     isError,
     error,
     refetch,
-  } = useProfileQuery({ apiUrl: apiUrl(), token });
+  } = useProfileQuery({ apiUrl: apiUrl(), token, protectionBypass: protectionBypass() });
 
   const handleLogout = useCallback(async () => {
     try {

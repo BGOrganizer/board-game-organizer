@@ -46,6 +46,12 @@ export interface ContactsApiOptions {
    * cached snapshot eventually yields HTTP 401.
    */
   getToken?: () => Promise<string | null>;
+  /**
+   * Vercel preview protection-bypass token. Passed explicitly by the web app
+   * because NEXT_PUBLIC_* env reads are only inlined by Next.js in project
+   * files, not in workspace packages (mobile keeps the process.env fallback).
+   */
+  protectionBypass?: string | null;
 }
 
 /** Resolve the token to use for one API call: fresh when available, else the snapshot. */
@@ -65,9 +71,10 @@ export function fetchRelationships(
   apiUrl: string,
   token: string,
   type: RelationshipListType,
+  protectionBypass?: string | null,
 ): Promise<RelationshipRow[]> {
   return fetch(`${apiUrl}/api/relationships?type=${type}`, {
-    headers: apiHeaders(token),
+    headers: apiHeaders(token, protectionBypass),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as RelationshipRow[];
@@ -79,12 +86,17 @@ export async function fetchRelationshipsWithToken(
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
   type: RelationshipListType,
+  protectionBypass?: string | null,
 ): Promise<RelationshipRow[]> {
-  return fetchRelationships(apiUrl, await resolveToken(token, getToken), type);
+  return fetchRelationships(apiUrl, await resolveToken(token, getToken), type, protectionBypass);
 }
 
-export function fetchSuggestions(apiUrl: string, token: string): Promise<{ users: ContactUser[] }> {
-  return fetch(`${apiUrl}/api/users/suggestions`, { headers: apiHeaders(token) }).then(
+export function fetchSuggestions(
+  apiUrl: string,
+  token: string,
+  protectionBypass?: string | null,
+): Promise<{ users: ContactUser[] }> {
+  return fetch(`${apiUrl}/api/users/suggestions`, { headers: apiHeaders(token, protectionBypass) }).then(
     async (res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as { users: ContactUser[] };
@@ -96,17 +108,19 @@ export async function fetchSuggestionsWithToken(
   apiUrl: string,
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
+  protectionBypass?: string | null,
 ): Promise<{ users: ContactUser[] }> {
-  return fetchSuggestions(apiUrl, await resolveToken(token, getToken));
+  return fetchSuggestions(apiUrl, await resolveToken(token, getToken), protectionBypass);
 }
 
 export function searchUsers(
   apiUrl: string,
   token: string,
   query: string,
+  protectionBypass?: string | null,
 ): Promise<{ users: ContactUser[] }> {
   return fetch(`${apiUrl}/api/users/search?query=${encodeURIComponent(query)}`, {
-    headers: apiHeaders(token),
+    headers: apiHeaders(token, protectionBypass),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as { users: ContactUser[] };
@@ -118,8 +132,9 @@ async function searchUsersWithToken(
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
   query: string,
+  protectionBypass?: string | null,
 ): Promise<{ users: ContactUser[] }> {
-  return searchUsers(apiUrl, await resolveToken(token, getToken), query);
+  return searchUsers(apiUrl, await resolveToken(token, getToken), query, protectionBypass);
 }
 
 /**
@@ -130,10 +145,11 @@ export function reportPresence(
   apiUrl: string,
   token: string,
   status: "online" | "away" | "offline" = "online",
+  protectionBypass?: string | null,
 ): Promise<{ success: boolean; lastActiveAt: string }> {
   return fetch(`${apiUrl}/api/users/presence`, {
     method: "POST",
-    headers: apiHeaders(token),
+    headers: apiHeaders(token, protectionBypass),
     body: JSON.stringify({ status }),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -147,10 +163,11 @@ function relationshipMutation(
   method: "POST" | "PATCH" | "DELETE",
   type: string,
   targetUserId: string,
+  protectionBypass?: string | null,
 ) {
   return fetch(`${apiUrl}/api/relationships?type=${type}`, {
     method,
-    headers: apiHeaders(token),
+    headers: apiHeaders(token, protectionBypass),
     // DELETE sends the body too: the handler requires targetUserId for all
     // methods (DELETE with no body previously crashed req.json() → 500).
     body: JSON.stringify({ targetUserId }),
@@ -167,8 +184,9 @@ async function relationshipMutationWithToken(
   method: "POST" | "PATCH" | "DELETE",
   type: string,
   targetUserId: string,
+  protectionBypass?: string | null,
 ) {
-  return relationshipMutation(apiUrl, await resolveToken(token, getToken), method, type, targetUserId);
+  return relationshipMutation(apiUrl, await resolveToken(token, getToken), method, type, targetUserId, protectionBypass);
 }
 
 /**
@@ -181,41 +199,46 @@ async function relationshipMutationWithToken(
  * lists and suggestions are invalidated (refetched) and an active search is
  * re-run, so buttons reflect the new state without manual refresh.
  */
-export function useContacts(apiUrl: string, token: string | null | undefined, getToken?: () => Promise<string | null>) {
+export function useContacts(
+  apiUrl: string,
+  token: string | null | undefined,
+  getToken?: () => Promise<string | null>,
+  protectionBypass?: string | null,
+) {
   const queryClient = useQueryClient();
   const enabled = Boolean(apiUrl) && Boolean(token);
 
   const following = useQuery({
     queryKey: ["contacts", "following", apiUrl, token],
-    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "following"),
+    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "following", protectionBypass),
     enabled,
     staleTime: 30_000,
   });
 
   const followers = useQuery({
     queryKey: ["contacts", "followers", apiUrl, token],
-    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "followers"),
+    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "followers", protectionBypass),
     enabled,
     staleTime: 30_000,
   });
 
   const friends = useQuery({
     queryKey: ["contacts", "friends", apiUrl, token],
-    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "friends"),
+    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "friends", protectionBypass),
     enabled,
     staleTime: 30_000,
   });
 
   const suggestions = useQuery({
     queryKey: ["contacts", "suggestions", apiUrl, token],
-    queryFn: () => fetchSuggestionsWithToken(apiUrl, token, getToken),
+    queryFn: () => fetchSuggestionsWithToken(apiUrl, token, getToken, protectionBypass),
     enabled,
     staleTime: 60_000,
   });
 
   const search = useMutation({
     mutationFn: ({ query }: { query: string }) =>
-      searchUsersWithToken(apiUrl, token, getToken, query),
+      searchUsersWithToken(apiUrl, token, getToken, query, protectionBypass),
   });
   // Keep the last executed search so follow/unfollow can re-run it and the
   // buttons (follow → unfollow) update without a manual re-search.
@@ -230,13 +253,13 @@ export function useContacts(apiUrl: string, token: string | null | undefined, ge
 
   const follow = useMutation({
     mutationFn: ({ targetUserId }: { targetUserId: string }) =>
-      relationshipMutationWithToken(apiUrl, token, getToken, "POST", "follow", targetUserId),
+      relationshipMutationWithToken(apiUrl, token, getToken, "POST", "follow", targetUserId, protectionBypass),
     onSuccess: () => refreshContacts(),
   });
 
   const unfollow = useMutation({
     mutationFn: ({ targetUserId }: { targetUserId: string }) =>
-      relationshipMutationWithToken(apiUrl, token, getToken, "DELETE", "follow", targetUserId),
+      relationshipMutationWithToken(apiUrl, token, getToken, "DELETE", "follow", targetUserId, protectionBypass),
     onSuccess: () => refreshContacts(),
   });
 

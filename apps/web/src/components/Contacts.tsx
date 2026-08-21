@@ -10,6 +10,12 @@ function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 }
 
+// NEXT_PUBLIC_* reads are only inlined by Next.js in project files, so the
+// bypass must be read here and passed down to the shared API helpers.
+function protectionBypass(): string | undefined {
+  return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
+}
+
 type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
 
 function ContactCard({
@@ -96,7 +102,7 @@ export function Contacts() {
     const heartbeat = () => {
       getToken()
         .then((tok) => {
-          if (tok) reportPresence(apiUrl(), tok, "online").catch(() => {});
+          if (tok) reportPresence(apiUrl(), tok, "online", protectionBypass()).catch(() => {});
         })
         .catch(() => {});
     };
@@ -105,7 +111,7 @@ export function Contacts() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken);
+  const contacts = useContacts(apiUrl(), token, getToken, protectionBypass());
   const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
 
   const followingRows = contacts.following.data ?? [];

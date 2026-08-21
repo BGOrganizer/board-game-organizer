@@ -17,18 +17,22 @@ export function resolveApiUrl(configuredUrl?: string | null): string {
  * Vercel preview deployments can be protected; the bypass token is injected
  * at build time by each app (EXPO_PUBLIC_* / NEXT_PUBLIC_*) and sent as the
  * `x-vercel-protection-bypass` header so preview clients can call the API.
+ *
+ * NOTE: NEXT_PUBLIC_* env reads are only inlined by Next.js in project files
+ * (not in node_modules / workspace packages), so apps pass the value
+ * explicitly via `extraHeaders`; Expo inlines EXPO_PUBLIC_* everywhere, so
+ * the process.env fallback below covers the mobile app.
  */
 function vercelProtectionBypass(): string | undefined {
-  return (
-    process.env.EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS ||
-    process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS ||
-    undefined
-  );
+  return process.env.EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS || undefined;
 }
 
 /** Base headers for authenticated API calls (auth + preview bypass). */
-export function apiHeaders(token: string): Record<string, string> {
-  const bypass = vercelProtectionBypass();
+export function apiHeaders(
+  token: string,
+  protectionBypass?: string | null,
+): Record<string, string> {
+  const bypass = protectionBypass || vercelProtectionBypass();
   return {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
@@ -37,9 +41,13 @@ export function apiHeaders(token: string): Record<string, string> {
 }
 
 /** Fetches the authenticated user's profile from the API. */
-export async function fetchProfile(apiUrl: string, token: string): Promise<UserProfile> {
+export async function fetchProfile(
+  apiUrl: string,
+  token: string,
+  protectionBypass?: string | null,
+): Promise<UserProfile> {
   const res = await fetch(`${apiUrl}${API_PATHS.profiles}`, {
-    headers: apiHeaders(token),
+    headers: apiHeaders(token, protectionBypass),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as UserProfile;
