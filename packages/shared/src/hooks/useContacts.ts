@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef } from "react";
-import { apiHeaders } from "@board-game-organizer/shared";
+import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 
 /** Presence snapshot attached to a contact (Phase 2). */
 export interface ContactPresence {
@@ -73,9 +73,10 @@ export function fetchRelationships(
   type: RelationshipListType,
   protectionBypass?: string | null,
 ): Promise<RelationshipRow[]> {
-  return fetch(`${apiUrl}/api/relationships?type=${type}`, {
-    headers: apiHeaders(token, protectionBypass),
-  }).then(async (res) => {
+  return fetch(
+    withProtectionBypass(`${apiUrl}/api/relationships?type=${type}`, protectionBypass),
+    { headers: apiHeaders(token) },
+  ).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as RelationshipRow[];
   });
@@ -96,7 +97,9 @@ export function fetchSuggestions(
   token: string,
   protectionBypass?: string | null,
 ): Promise<{ users: ContactUser[] }> {
-  return fetch(`${apiUrl}/api/users/suggestions`, { headers: apiHeaders(token, protectionBypass) }).then(
+  return fetch(withProtectionBypass(`${apiUrl}/api/users/suggestions`, protectionBypass), {
+    headers: apiHeaders(token),
+  }).then(
     async (res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as { users: ContactUser[] };
@@ -119,9 +122,13 @@ export function searchUsers(
   query: string,
   protectionBypass?: string | null,
 ): Promise<{ users: ContactUser[] }> {
-  return fetch(`${apiUrl}/api/users/search?query=${encodeURIComponent(query)}`, {
-    headers: apiHeaders(token, protectionBypass),
-  }).then(async (res) => {
+  return fetch(
+    withProtectionBypass(
+      `${apiUrl}/api/users/search?query=${encodeURIComponent(query)}`,
+      protectionBypass,
+    ),
+    { headers: apiHeaders(token) },
+  ).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as { users: ContactUser[] };
   });
@@ -147,9 +154,9 @@ export function reportPresence(
   status: "online" | "away" | "offline" = "online",
   protectionBypass?: string | null,
 ): Promise<{ success: boolean; lastActiveAt: string }> {
-  return fetch(`${apiUrl}/api/users/presence`, {
+  return fetch(withProtectionBypass(`${apiUrl}/api/users/presence`, protectionBypass), {
     method: "POST",
-    headers: apiHeaders(token, protectionBypass),
+    headers: apiHeaders(token),
     body: JSON.stringify({ status }),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -165,9 +172,9 @@ function relationshipMutation(
   targetUserId: string,
   protectionBypass?: string | null,
 ) {
-  return fetch(`${apiUrl}/api/relationships?type=${type}`, {
+  return fetch(withProtectionBypass(`${apiUrl}/api/relationships?type=${type}`, protectionBypass), {
     method,
-    headers: apiHeaders(token, protectionBypass),
+    headers: apiHeaders(token),
     // DELETE sends the body too: the handler requires targetUserId for all
     // methods (DELETE with no body previously crashed req.json() → 500).
     body: JSON.stringify({ targetUserId }),
