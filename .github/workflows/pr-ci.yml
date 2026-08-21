@@ -343,7 +343,7 @@ jobs:
           # The web preview talks to this PR's API preview, mirroring the
           # APK behavior (option B). Falls back to the project env var when
           # the API preview produced no URL (empty line is skipped).
-          extra-env: >-
+          extra-env: |
             NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 

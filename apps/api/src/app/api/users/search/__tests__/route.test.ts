@@ -62,7 +62,7 @@ describe("GET /api/users/search", () => {
 
   it("searches the users collection and applies the block policy", async () => {
     authMock.mockResolvedValueOnce({ userId: "viewer" });
-    const findMock = vi.fn(() => ({
+    const findMock = vi.fn<(filter: unknown) => unknown>(() => ({
       limit: vi.fn(() => ({
         toArray: async () => [fakeUser(), fakeUser({ clerkId: "blocked_user", name: "B" })],
       })),
@@ -80,7 +80,7 @@ describe("GET /api/users/search", () => {
     expect(body.users[0].id).toBe("user_1");
 
     // Prefix search: anchored ^$regex, case-insensitive, over name/email.
-    const filter = findMock.mock.calls[0][0];
+    const filter = findMock.mock.calls[0]?.[0] as { $or: Array<Record<string, unknown>> };
     expect(filter.$or).toHaveLength(2);
     expect(filter.$or[0]).toEqual({ name: { $regex: "^al", $options: "i" } });
     expect(filter.$or[1]).toEqual({ email: { $regex: "^al", $options: "i" } });
