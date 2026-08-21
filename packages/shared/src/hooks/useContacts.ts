@@ -15,6 +15,10 @@ export interface ContactUser {
   email: string | null;
   avatarUrl: string | null;
   presence: ContactPresence;
+  /** Relationship state relative to the signed-in viewer (coherent across tabs). */
+  isFollowing?: boolean;
+  isFollower?: boolean;
+  isFriend?: boolean;
 }
 
 /** A relationship row enriched with the other user's profile. */

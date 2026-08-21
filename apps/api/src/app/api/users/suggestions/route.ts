@@ -47,6 +47,8 @@ export async function GET() {
       email: u.email,
       avatarUrl: u.avatarUrl ?? null,
       presence: u.presence,
+      // Always false here (non-followers only), kept for a coherent shape.
+      isFollowing: false,
     }));
 
   return corsJson({ users: suggestions, nextCursor: null });

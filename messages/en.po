@@ -42,7 +42,6 @@ msgstr "Following"
 msgid "Friends"
 msgstr "Friends"
 
-#: apps/web/src/app/(tabs)/groups/page.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Groups"
 msgstr "Groups"
@@ -52,8 +51,8 @@ msgid "Language:"
 msgstr "Language:"
 
 #: apps/web/src/components/Profile.tsx
-msgid "Loading..."
-msgstr "Loading..."
+#~ msgid "Loading..."
+#~ msgstr "Loading..."
 
 #: apps/web/src/components/Profile.tsx
 msgid "Logout"
@@ -79,7 +78,6 @@ msgstr "No suggestions right now"
 msgid "No users found"
 msgstr "No users found"
 
-#: apps/web/src/app/(tabs)/organizations/page.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Organizations"
 msgstr "Organizations"

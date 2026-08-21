@@ -215,9 +215,13 @@ export function Contacts() {
                     size="sm"
                     variant="outline"
                     isDisabled={isBusy}
-                    onPress={() => contacts.follow.mutate({ targetUserId: u.id })}
+                    onPress={() =>
+                      u.isFollowing
+                        ? contacts.unfollow.mutate({ targetUserId: u.id })
+                        : contacts.follow.mutate({ targetUserId: u.id })
+                    }
                   >
-                    {t`Follow`}
+                    {u.isFollowing ? t`Unfollow` : t`Follow`}
                   </Button>
                 }
               />

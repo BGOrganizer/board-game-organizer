@@ -67,8 +67,15 @@ describe("GET /api/users/search", () => {
         toArray: async () => [fakeUser(), fakeUser({ clerkId: "blocked_user", name: "B" })],
       })),
     }));
+    // The route also reads follows (from/to) and accepted friend requests.
+    const emptyFind = vi.fn(() => ({
+      limit: vi.fn(() => ({ toArray: async () => [] })),
+      toArray: async () => [],
+    }));
     getDbMock.mockResolvedValueOnce({
-      collection: vi.fn(() => ({ find: findMock })),
+      collection: vi.fn((name: string) => ({
+        find: name === "users" ? findMock : emptyFind,
+      })),
     });
     const { getBlockedUserIds } = await import("@/app/lib/blocks");
     vi.mocked(getBlockedUserIds as () => Promise<string[]>).mockResolvedValueOnce(["blocked_user"]);
@@ -78,6 +85,10 @@ describe("GET /api/users/search", () => {
     const body = await res.json();
     expect(body.users).toHaveLength(1);
     expect(body.users[0].id).toBe("user_1");
+    // Coherent relationship state: no follows/friends in this fixture.
+    expect(body.users[0].isFollowing).toBe(false);
+    expect(body.users[0].isFollower).toBe(false);
+    expect(body.users[0].isFriend).toBe(false);
 
     // Prefix search: anchored ^$regex, case-insensitive, over name/email.
     const filter = findMock.mock.calls[0]?.[0] as { $or: Array<Record<string, unknown>> };

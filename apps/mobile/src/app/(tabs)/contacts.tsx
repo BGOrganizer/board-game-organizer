@@ -218,9 +218,13 @@ export default function ContactsScreen() {
                 <Button
                   variant="outline"
                   isDisabled={isBusy}
-                  onPress={() => contacts.follow.mutate({ targetUserId: u.id })}
+                  onPress={() =>
+                    u.isFollowing
+                      ? contacts.unfollow.mutate({ targetUserId: u.id })
+                      : contacts.follow.mutate({ targetUserId: u.id })
+                  }
                 >
-                  <Text>{t("Follow")}</Text>
+                  <Text>{u.isFollowing ? t("Unfollow") : t("Follow")}</Text>
                 </Button>
               </Card>
             ))}
@@ -258,9 +262,13 @@ export default function ContactsScreen() {
                 <Button
                   variant="outline"
                   isDisabled={isBusy}
-                  onPress={() => contacts.follow.mutate({ targetUserId: u.id })}
+                  onPress={() =>
+                    u.isFollowing
+                      ? contacts.unfollow.mutate({ targetUserId: u.id })
+                      : contacts.follow.mutate({ targetUserId: u.id })
+                  }
                 >
-                  <Text>{t("Follow")}</Text>
+                  <Text>{u.isFollowing ? t("Unfollow") : t("Follow")}</Text>
                 </Button>
               </Card>
             ))}

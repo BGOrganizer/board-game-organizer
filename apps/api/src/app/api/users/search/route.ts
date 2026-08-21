@@ -52,12 +52,27 @@ export async function GET(request: Request) {
 
   const { query } = parsed.data;
   const db = await getDb();
-  const [blockedByMe, blockedMe] = await Promise.all([
+  const [blockedByMe, blockedMe, following, followers, friendPairs] = await Promise.all([
     getBlockedUserIds(db, userId),
     getBlockedByUserIds(db, userId),
+    db.collection(COLLECTIONS.FOLLOWS).find({ fromUserId: userId }).toArray(),
+    db.collection(COLLECTIONS.FOLLOWS).find({ toUserId: userId }).toArray(),
+    db
+      .collection(COLLECTIONS.FRIEND_REQUESTS)
+      .find({ status: "accepted" })
+      .toArray(),
   ]);
   const blockedByMeSet = new Set(blockedByMe);
   const blockedMeSet = new Set(blockedMe);
+  // Relationship state relative to the viewer: coherent buttons across all
+  // contacts sections (search shows Unfollow when already followed).
+  const followingSet = new Set(following.map((f) => f.toUserId));
+  const followerSet = new Set(followers.map((f) => f.fromUserId));
+  const friendSet = new Set(
+    friendPairs
+      .filter((f) => f.fromUserId === userId || f.toUserId === userId)
+      .map((f) => (f.fromUserId === userId ? f.toUserId : f.fromUserId)),
+  );
 
   const users = await db
     .collection<User>(COLLECTIONS.USERS)
@@ -84,6 +99,10 @@ export async function GET(request: Request) {
       // The blocker stays invisible to the blocked user (soft-filter flag).
       blockedByMe: blockedByMeSet.has(u.clerkId),
       blockedMe: blockedMeSet.has(u.clerkId),
+      // Coherent follow state across sections (search/suggestions/etc).
+      isFollowing: followingSet.has(u.clerkId),
+      isFollower: followerSet.has(u.clerkId),
+      isFriend: friendSet.has(u.clerkId),
     }));
 
   return corsJson({
