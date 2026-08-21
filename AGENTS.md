@@ -191,17 +191,20 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   `prefers-color-scheme` (no forced `className="light"`).
 - Route group `(tabs)` hosts Matches / Groups / Organizations / Contacts / Profile.
 - **Contacts tab (Phase 2 UI)**: `components/Contacts.tsx` + `app/(tabs)/contacts/page.tsx`
-  with 6 tabs (Following / Followers / Friends / Suggestions / Search / Invites), presence
-  green-dot and follow/unfollow actions, backed by `useContacts` from `packages/shared`
+  with 5 tabs (Following / Followers / Friends / Suggestions / Search), presence green-dot
+  and follow/unfollow actions, backed by `useContacts` from `packages/shared`
   (`hooks/useContacts.ts`). Client sends a **presence heartbeat** (`POST /api/users/presence`)
   on mount and every 60s while the tab is open.
-- **Invites (Phase 3)**: `components/InvitesTab.tsx` (create/list/copy links + claim by pasted
-  link) inside the Contacts tab; public claim page `app/invite/[token]/page.tsx` →
-  `components/ClaimInvitePage.tsx`. API: `POST /api/invites` (create, optional email),
-  `GET /api/invites` (my invites), `POST /api/invites/claim` (TTL 7gg;
-  email match → friends, else → follow). Repo: `lib/invites.repository.ts` (token
-  `base64url` 128bit, `expireStale()` per cleanup). Web origin per i link:
-  `WEB_ORIGIN` env (default `https://web-rosy-phi-82.vercel.app`).
+- **Search (Phase 3 review)**: auto-search with 300ms debounce, minimum 4 characters, clear
+  (X) button when there is text — NO submit button. Web uses `lucide-react` icons.
+- **Invite a friend (Phase 3 review)**: NO Invites tab — a single `InviteCard` (card + button)
+  above the tabs generates a shareable link (no email form). The link points at the SAME
+  deployment that generated it (`webOrigin` = `window.location.origin` on web; mobile uses
+  `EXPO_PUBLIC_WEB_ORIGIN`, default production web). Claim happens only via the public page
+  `app/invite/[token]/page.tsx` → `components/ClaimInvitePage.tsx`. API:
+  `POST /api/invites` (create), `POST /api/invites/claim` (TTL 7gg) → both users become
+  MUTUAL followers/friends. Repo: `lib/invites.repository.ts` (token `base64url` 128bit,
+  `expireStale()` per cleanup).
 - Client state via `@board-game-organizer/store` (Zustand); server data via
   `@board-game-organizer/query` (TanStack Query — `QueryProvider` uses `useState` to avoid client
   sharing during SSR).
@@ -218,9 +221,10 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
   → `I18nProvider` (defaultI18n) → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
   → `QueryProvider` → `Stack`.
-- **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 6 tabs as web (Invites
-  via `components/InvitesTab.tsx`, create/share/claim), shared `useContacts`/`useInvites`
-  hooks, presence heartbeat; `useT()` runtime i18n (no Babel macro).
+- **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 5 tabs as web; search
+  auto (debounce + min 4 chars + clear X with `lucide-react-native`); `InviteCard` above the
+  tabs (create + native Share sheet); shared `useContacts`/`useInvites` hooks, presence
+  heartbeat; `useT()` runtime i18n (no Babel macro).
 - Styling: **heroui-native** components + **uniwind** classes (`global.css` wired in `metro.config.js`
   via `withUniwindConfig`). Use `className`, never raw `style` for colors.
 - **Theme**: uniwind auto-follows the device `Appearance`; the Zustand `uiSlice.themePreference`
@@ -527,6 +531,12 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   (macro). Le stringhe usate SOLO nel mobile con `t("...")` runtime non
   entrano nel catalogo: aggiungerle a mano in `messages/{en,it}.po` e
   rilanciare `pnpm i18n:compile` (il reverse index `idByEnglish` le mappa).
+- **Icone**: usare `lucide-react` (web) e `lucide-react-native` (mobile) —
+  già installate. Mai importare icone da altri posti.
+- **Link di invito = deployment corrente**: il link generato deve puntare
+  all'origin che HA GENERATO l'invito (web: `window.location.origin`;
+  mobile: `EXPO_PUBLIC_WEB_ORIGIN`). Mai hardcodare l'URL di produzione —
+  un invito creato dalla preview deve aprire la web preview, non la prod.
 
 ## CI Rules (trigger intelligenti)
 

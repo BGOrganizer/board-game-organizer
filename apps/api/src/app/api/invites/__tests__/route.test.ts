@@ -80,13 +80,15 @@ describe("POST /api/invites", () => {
     const res = await POST(
       new Request("http://x/api/invites", {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ webOrigin: "https://web-preview.vercel.app" }),
       }),
     );
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.token).toBe("tok1234567890");
-    expect(body.link).toContain("/invite/tok1234567890");
+    // The link points at the origin that GENERATED the invite (preview web),
+    // not at a hardcoded production host.
+    expect(body.link).toBe("https://web-preview.vercel.app/invite/tok1234567890");
     expect(repoMock.create).toHaveBeenCalledWith("user_1", undefined);
   });
 
@@ -129,7 +131,7 @@ describe("GET /api/invites", () => {
 });
 
 describe("POST /api/invites/claim", () => {
-  it("claims a pending invite (no email match → follow)", async () => {
+  it("claims a pending invite and connects as mutual followers/friends", async () => {
     authMock.mockResolvedValueOnce({ userId: "claimer_1" });
     repoMock.findByToken.mockResolvedValueOnce(fakeInvite({ inviterUserId: "inviter_1" }));
     repoMock.claim.mockResolvedValueOnce(
@@ -137,7 +139,7 @@ describe("POST /api/invites/claim", () => {
     );
     getDbMock.mockResolvedValueOnce({
       collection: vi.fn(() => ({
-        findOne: vi.fn(async () => ({ clerkId: "claimer_1", email: "other@x.com" })),
+        findOne: vi.fn(async () => null),
       })),
     });
 
@@ -150,7 +152,7 @@ describe("POST /api/invites/claim", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.autoAccepted).toBe(false);
+    expect(body.autoAccepted).toBeUndefined();
     expect(repoMock.claim).toHaveBeenCalledWith("tok1234567890", "claimer_1");
   });
 

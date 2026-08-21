@@ -10,9 +10,8 @@ import { RelationshipRepository } from "@/app/lib/relationship.repository";
  * POST /api/invites/claim — claim an invite link by token.
  *
  * Validates the token (pending + not expired), marks it claimed, then
- * connects claimer ↔ inviter:
- * - invite carries an email that matches the claimer → they become friends
- * - otherwise → the claimer follows the inviter
+ * connects claimer ↔ inviter as MUTUAL followers/friends (bidirectional), so
+ * the claimed user finds the inviter among their friends/following.
  */
 /** CORS preflight. */
 export function OPTIONS() {
@@ -42,24 +41,15 @@ export async function POST(request: Request) {
     return corsJson({ error: "Invite expired" }, { status: 410 });
   }
 
-  // Email match → auto-accept as friends; otherwise → follow the inviter.
-  const me = await db
-    .collection<User>(COLLECTIONS.USERS)
-    .findOne({ clerkId: userId }, { projection: { email: 1 } });
-  const emailMatches = Boolean(invite.email && me?.email && invite.email === me.email);
-
+  // Mutual connection: both become followers AND friends (the claimed user
+  // finds the inviter in Friends/Following).
   const result = await withTransaction(async (session, tdb) => {
     const claimed = await new InvitesRepository(tdb, session).claim(token, userId);
     if (!claimed) {
       // Lost the race (claimed/expired between check and claim).
       return { claimed: false };
     }
-    const repo = new RelationshipRepository(tdb, session);
-    if (emailMatches) {
-      await repo.becomeFriends(userId, invite.inviterUserId);
-    } else {
-      await repo.upsert(userId, invite.inviterUserId, "follow", "accepted");
-    }
+    await new RelationshipRepository(tdb, session).becomeFriends(userId, invite.inviterUserId);
     return { claimed: true };
   });
 
@@ -75,7 +65,6 @@ export async function POST(request: Request) {
     );
   return corsJson({
     success: true,
-    autoAccepted: emailMatches,
     inviter: inviter
       ? {
           id: inviter.clerkId,

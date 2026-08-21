@@ -35,13 +35,7 @@ export default function ClaimInvitePage({ token }: { token: string }) {
     if (!sessionToken) return;
     setError(null);
     claimInvite(apiUrl, sessionToken, token, bypass)
-      .then((res) =>
-        setResult(
-          res.autoAccepted
-            ? t`Invite claimed — you are now friends with the inviter!`
-            : t`Invite claimed — you now follow the inviter.`,
-        ),
-      )
+      .then(() => setResult(t`Invite claimed — you are now friends with the inviter!`))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : t`Could not claim.`));
   };
 

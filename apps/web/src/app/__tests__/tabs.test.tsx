@@ -45,6 +45,14 @@ vi.mock("@board-game-organizer/shared", () => ({
     follow: { mutate: vi.fn(), isPending: false },
     unfollow: { mutate: vi.fn(), isPending: false },
     search: { mutate: vi.fn(), data: undefined, isPending: false },
+    runSearch: vi.fn(),
+  }),
+  useInvites: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    data: null,
+    isError: false,
+    error: null,
   }),
   reportPresence: vi.fn().mockResolvedValue({ success: true }),
 }));

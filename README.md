@@ -31,9 +31,10 @@ web, API, and mobile, all in one TypeScript monorepo.
   follow suggestions, prefix search (with block policy + rate limit), presence green-dot
   (heartbeat), coherent follow state across sections (TanStack Query cache invalidation)
 - **Invites** (Phase 3): shareable invite links with 7-day TTL (`POST /api/invites`,
-  `POST /api/invites/claim`); claim auto-connects — friends when the target email matches,
-  follow otherwise. Web: public claim page `/invite/<token>` + Invites tab (create/list/copy);
-  mobile: Invites tab (create/share/claim via pasted link)
+  `POST /api/invites/claim`); claiming makes both users MUTUAL followers/friends. UI: an
+  `InviteCard` (card + button, no email form) above the Contacts tabs generates a link that
+  points at the SAME deployment that generated it (preview vs production); claim happens on
+  the public web page `/invite/<token>`. Icons via lucide-react / lucide-react-native.
 - E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI — test users are
   provisioned via the Clerk API per run and deleted afterwards (never accumulate)
 

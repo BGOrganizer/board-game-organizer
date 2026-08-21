@@ -14,8 +14,8 @@ msgstr ""
 "Plural-Forms: \n"
 
 #: apps/web/src/components/InvitesTab.tsx
-msgid "Claim"
-msgstr "Claim"
+#~ msgid "Claim"
+#~ msgstr "Claim"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
 msgid "Claim invite"
@@ -25,23 +25,31 @@ msgstr "Claim invite"
 msgid "Claiming this invite connects you with the inviter."
 msgstr "Claiming this invite connects you with the inviter."
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Clear search"
+msgstr "Clear search"
+
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
 msgstr "Contacts"
 
-#: apps/web/src/components/InvitesTab.tsx
+#: apps/web/src/components/InviteCard.tsx
+msgid "Copied!"
+msgstr "Copied!"
+
+#: apps/web/src/components/InviteCard.tsx
 msgid "Copy"
 msgstr "Copy"
 
 #: apps/web/src/components/InvitesTab.tsx
-msgid "Could not claim this invite."
-msgstr "Could not claim this invite."
+#~ msgid "Could not claim this invite."
+#~ msgstr "Could not claim this invite."
 
 #: apps/web/src/components/ClaimInvitePage.tsx
 msgid "Could not claim."
 msgstr "Could not claim."
 
-#: apps/web/src/components/InvitesTab.tsx
+#: apps/web/src/components/InviteCard.tsx
 msgid "Could not create the invite. Try again."
 msgstr "Could not create the invite. Try again."
 
@@ -49,7 +57,7 @@ msgstr "Could not create the invite. Try again."
 msgid "Counter (Zustand)"
 msgstr "Counter (Zustand)"
 
-#: apps/web/src/components/InvitesTab.tsx
+#: apps/web/src/components/InviteCard.tsx
 msgid "Create invite"
 msgstr "Create invite"
 
@@ -58,8 +66,8 @@ msgid "Error while loading the profile:"
 msgstr "Error while loading the profile:"
 
 #: apps/web/src/components/InvitesTab.tsx
-msgid "expires"
-msgstr "expires"
+#~ msgid "expires"
+#~ msgstr "expires"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Follow"
@@ -78,26 +86,34 @@ msgstr "Following"
 msgid "Friends"
 msgstr "Friends"
 
+#: apps/web/src/components/InviteCard.tsx
+msgid "Generate a link to connect with someone."
+msgstr "Generate a link to connect with someone."
+
 #: apps/web/src/components/Header.tsx
 msgid "Groups"
 msgstr "Groups"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Invite a friend"
+msgstr "Invite a friend"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
 msgid "Invite claimed — you are now friends with the inviter!"
 msgstr "Invite claimed — you are now friends with the inviter!"
 
 #: apps/web/src/components/InvitesTab.tsx
-msgid "Invite claimed — you are now friends!"
-msgstr "Invite claimed — you are now friends!"
+#~ msgid "Invite claimed — you are now friends!"
+#~ msgstr "Invite claimed — you are now friends!"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
 #: apps/web/src/components/InvitesTab.tsx
-msgid "Invite claimed — you now follow the inviter."
-msgstr "Invite claimed — you now follow the inviter."
+#~ msgid "Invite claimed — you now follow the inviter."
+#~ msgstr "Invite claimed — you now follow the inviter."
 
 #: apps/web/src/components/Contacts.tsx
-msgid "Invites"
-msgstr "Invites"
+#~ msgid "Invites"
+#~ msgstr "Invites"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Language:"
@@ -115,6 +131,10 @@ msgstr "Logout"
 msgid "Matches"
 msgstr "Matches"
 
+#: apps/web/src/components/InviteCard.tsx
+msgid "New invite"
+msgstr "New invite"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No followers yet"
 msgstr "No followers yet"
@@ -124,8 +144,8 @@ msgid "No friends yet"
 msgstr "No friends yet"
 
 #: apps/web/src/components/InvitesTab.tsx
-msgid "No invites yet — create one to share."
-msgstr "No invites yet — create one to share."
+#~ msgid "No invites yet — create one to share."
+#~ msgstr "No invites yet — create one to share."
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No suggestions right now"
@@ -136,8 +156,8 @@ msgid "No users found"
 msgstr "No users found"
 
 #: apps/web/src/components/InvitesTab.tsx
-msgid "Optional email (auto-connect on claim)"
-msgstr "Optional email (auto-connect on claim)"
+#~ msgid "Optional email (auto-connect on claim)"
+#~ msgstr "Optional email (auto-connect on claim)"
 
 #: apps/web/src/components/Header.tsx
 msgid "Organizations"
@@ -152,8 +172,8 @@ msgid "Owned"
 msgstr "Owned"
 
 #: apps/web/src/components/InvitesTab.tsx
-msgid "Paste an invite link or token to claim it"
-msgstr "Paste an invite link or token to claim it"
+#~ msgid "Paste an invite link or token to claim it"
+#~ msgstr "Paste an invite link or token to claim it"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Plan:"
@@ -180,8 +200,18 @@ msgid "Search"
 msgstr "Search"
 
 #: apps/web/src/components/Contacts.tsx
+msgid "Search users (at least 4 characters)"
+msgstr "Search users (at least 4 characters)"
+
+#: apps/web/src/components/Contacts.tsx
 msgid "Search users by name or email"
 msgstr "Search users by name or email"
+
+#~ msgid "Share"
+#~ msgstr "Share"
+
+#~ msgid "Share link"
+#~ msgstr "Share link"
 
 #: apps/mobile/src/app/_layout.tsx
 #~ msgid "Sign in"
@@ -226,6 +256,10 @@ msgid "Toggle menu"
 msgstr "Toggle menu"
 
 #: apps/web/src/components/Contacts.tsx
+msgid "Type at least 4 characters to search"
+msgstr "Type at least 4 characters to search"
+
+#: apps/web/src/components/Contacts.tsx
 msgid "Unfollow"
 msgstr "Unfollow"
 
@@ -240,9 +274,3 @@ msgstr "You are not following anyone yet"
 #: apps/web/src/components/ClaimInvitePage.tsx
 msgid "You have been invited"
 msgstr "You have been invited"
-
-msgid "Share link"
-msgstr "Share link"
-
-msgid "Share"
-msgstr "Share"

@@ -1,22 +1,17 @@
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMutation } from "@tanstack/react-query";
 
-/** A shareable invite owned by the viewer. */
+/** A shareable invite returned by the API. */
 export interface InviteRow {
   token: string;
   link: string;
   email: string | null;
-  status: "pending" | "claimed" | "expired" | "revoked";
-  createdAt: string;
   expiresAt: string;
-  claimedAt: string | null;
 }
 
 /** Result of claiming an invite. */
 export interface ClaimResult {
   success: boolean;
-  autoAccepted: boolean;
   inviter: { id: string; name: string; email: string; avatarUrl: string | null } | null;
 }
 
@@ -27,6 +22,12 @@ export interface UseInvitesOptions {
   getToken?: () => Promise<string | null>;
   /** Vercel preview protection-bypass token (web passes it explicitly). */
   protectionBypass?: string | null;
+  /**
+   * Web origin used to build the shareable link so it points at the SAME
+   * deployment that generated it (web: window.location.origin). When omitted
+   * the API falls back to its configured WEB_ORIGIN.
+   */
+  webOrigin?: string | null;
 }
 
 async function resolveToken(
@@ -41,42 +42,33 @@ async function resolveToken(
   return token;
 }
 
-export function fetchMyInvites(
+/**
+ * Creates an invite (POST /api/invites). Pass `webOrigin` so the returned
+ * link points at the generating deployment (preview vs production web).
+ */
+export async function createInvite(
   apiUrl: string,
-  token: string,
-  protectionBypass?: string | null,
-): Promise<{ invites: InviteRow[] }> {
-  return fetch(withProtectionBypass(`${apiUrl}/api/invites`, protectionBypass), {
-    headers: apiHeaders(token),
-  }).then(async (res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as { invites: InviteRow[] };
-  });
-}
-
-export function createInvite(
-  apiUrl: string,
-  token: string,
-  email: string | undefined,
+  sessionToken: string,
+  webOrigin: string | null | undefined,
   protectionBypass?: string | null,
 ): Promise<InviteRow> {
   return fetch(withProtectionBypass(`${apiUrl}/api/invites`, protectionBypass), {
     method: "POST",
-    headers: apiHeaders(token),
-    body: JSON.stringify(email ? { email } : {}),
+    headers: apiHeaders(sessionToken),
+    body: JSON.stringify(webOrigin ? { webOrigin } : {}),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as InviteRow;
   });
 }
 
-export function claimInvite(
+/** Claims an invite (POST /api/invites/claim) from a full link or a bare token. */
+export async function claimInvite(
   apiUrl: string,
   sessionToken: string,
   inviteLinkOrToken: string,
   protectionBypass?: string | null,
 ): Promise<ClaimResult> {
-  // Accept both a full link (https://…/invite/<token>) and a bare token.
   const token = inviteLinkOrToken.trim().split("/invite/").pop() ?? "";
   return fetch(withProtectionBypass(`${apiUrl}/api/invites/claim`, protectionBypass), {
     method: "POST",
@@ -88,35 +80,19 @@ export function claimInvite(
   });
 }
 
-/** Invites: my created invites + create + claim. Shared web/mobile. */
-export function useInvites({ apiUrl, token, getToken, protectionBypass }: UseInvitesOptions) {
-  const queryClient = useQueryClient();
-  const enabled = Boolean(apiUrl) && Boolean(token);
-
-  const invites = useQuery({
-    queryKey: ["invites", apiUrl, token],
-    queryFn: () => fetchMyInvites(apiUrl, token as string, protectionBypass),
-    enabled,
-    staleTime: 30_000,
+/**
+ * Create-invite mutation, shared web/mobile. The generated link is returned
+ * and shared/copied by the UI (no email form — a single button in a card).
+ */
+export function useInvites({
+  apiUrl,
+  token,
+  getToken,
+  protectionBypass,
+  webOrigin,
+}: UseInvitesOptions) {
+  return useMutation({
+    mutationFn: async () =>
+      createInvite(apiUrl, await resolveToken(token, getToken), webOrigin, protectionBypass),
   });
-
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["invites"] });
-
-  const create = useMutation({
-    mutationFn: ({ email }: { email?: string }) =>
-      createInvite(apiUrl, token as string, email, protectionBypass),
-    onSuccess: () => refresh(),
-  });
-
-  const claim = useMutation({
-    mutationFn: ({ inviteLinkOrToken }: { inviteLinkOrToken: string }) =>
-      claimInvite(apiUrl, token as string, inviteLinkOrToken, protectionBypass),
-    onSuccess: () => {
-      // Claiming connects people: refresh contacts too.
-      queryClient.invalidateQueries({ queryKey: ["contacts"] });
-      refresh();
-    },
-  });
-
-  return useMemo(() => ({ invites, create, claim, refresh }), [invites, create, claim, refresh]);
 }

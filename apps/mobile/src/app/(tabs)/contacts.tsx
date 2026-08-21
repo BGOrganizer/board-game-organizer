@@ -8,9 +8,10 @@ import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
-import { InvitesTab } from "@/components/InvitesTab";
+import { X } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
+import { InviteCard } from "@/components/InviteCard";
 import { useT } from "@/lib/i18n";
 
 /** Placeholder shown while a contact list is loading. */
@@ -49,7 +50,7 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
     </View>
   );
 }
-type TabKey = "following" | "followers" | "friends" | "suggestions" | "search" | "invites";
+type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -67,7 +68,7 @@ export default function ContactsScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
-  const [searchDone, setSearchDone] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -107,6 +108,23 @@ export default function ContactsScreen() {
   const contacts = useContacts(apiUrl(), token, getToken);
   const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
 
+  // Auto-search on input: fires 300ms after the user stops typing, only when
+  // at least 4 characters are present (min prefix length per product spec).
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.trim().length < 4) {
+      debounceRef.current = null;
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      contacts.runSearch(query);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
   const followingRows = contacts.following.data ?? [];
   const followersRows = contacts.followers.data ?? [];
   const friendsRows = contacts.friends.data ?? [];
@@ -119,7 +137,6 @@ export default function ContactsScreen() {
     ["friends", t("Friends")],
     ["suggestions", t("Suggestions")],
     ["search", t("Search")],
-    ["invites", t("Invites")],
   ];
 
   const listTab = tab === "following" || tab === "followers" || tab === "friends" ? tab : null;
@@ -140,10 +157,11 @@ export default function ContactsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
+      <InviteCard apiUrl={apiUrl()} token={token} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ marginBottom: 12, flexGrow: 0 }}
+        style={{ marginTop: 12, marginBottom: 12, flexGrow: 0 }}
       >
         <View style={{ flexDirection: "row", gap: 8 }}>
           {tabButtons.map(([key, label]) => (
@@ -171,29 +189,34 @@ export default function ContactsScreen() {
               <View style={{ flex: 1 }}>
                 <Input
                   value={query}
-                  onChangeText={(v) => {
-                    setQuery(v);
-                    setSearchDone(false);
-                  }}
-                  placeholder={t("Search users by name or email")}
+                  onChangeText={setQuery}
+                  placeholder={t("Search users (at least 4 characters)")}
                 />
               </View>
-              <Button
-                variant="primary"
-                onPress={() => {
-                  if (query.trim()) {
-                    contacts.runSearch(query);
-                    setSearchDone(true);
-                  }
-                }}
-              >
-                <Text>{t("Search")}</Text>
-              </Button>
+              {query.length > 0 && (
+                <Pressable
+                  onPress={() => {
+                    setQuery("");
+                    contacts.runSearch("");
+                  }}
+                  hitSlop={8}
+                  accessibilityLabel={t("Clear search")}
+                >
+                  <X size={18} color="#8e8e93" />
+                </Pressable>
+              )}
             </View>
-            {contacts.search.isPending && <ContactListSkeleton count={2} />}
-            {searchDone && !contacts.search.isPending && searchResults.length === 0 && (
-              <Text className="text-sm text-muted">{t("No users found")}</Text>
+            {query.trim().length > 0 && query.trim().length < 4 && (
+              <Text style={{ fontSize: 13, color: "#8e8e93" }}>
+                {t("Type at least 4 characters to search")}
+              </Text>
             )}
+            {contacts.search.isPending && <ContactListSkeleton count={2} />}
+            {query.trim().length >= 4 &&
+              !contacts.search.isPending &&
+              searchResults.length === 0 && (
+                <Text style={{ fontSize: 13, color: "#8e8e93" }}>{t("No users found")}</Text>
+              )}
             {searchResults.map((u) => (
               <Card
                 key={u.id}
@@ -327,7 +350,6 @@ export default function ContactsScreen() {
             })}
           </View>
         )}
-        {tab === "invites" && <InvitesTab apiUrl={apiUrl()} token={token} getToken={getToken} />}
       </ScrollView>
     </View>
   );

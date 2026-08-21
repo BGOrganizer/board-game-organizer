@@ -3,12 +3,16 @@ import { z } from "zod";
 /**
  * DTOs for invites.
  *
- * - Create: optionally target an email (enables auto-claim on match); the
- *   response carries the shareable link.
- * - Claim: the token from the link; the endpoint validates expiry and email
- *   auto-claim, then connects inviter and claimer.
+ * - Create: the client may pass its own web origin so the shareable link
+ *   points at the SAME deployment that generated it (preview → preview web,
+ *   production → production web). No email is required anymore.
+ * - Claim: the token from the link; the endpoint validates expiry then
+ *   connects inviter and claimer as mutual followers/friends.
  */
 export const createInviteParamsSchema = z.object({
+  /** Origin of the generating app (web: window.location.origin). */
+  webOrigin: z.string().url().max(255).optional(),
+  /** Optional target email (kept for backwards compatibility). */
   email: z.string().email().max(255).optional(),
 });
 

@@ -43,10 +43,13 @@ export async function POST(request: Request) {
 
   const db = await getDb();
   const invite = await new InvitesRepository(db).create(userId, parsed.data.email);
+  // The link points at the origin that GENERATED the invite (preview vs
+  // production web), falling back to the configured WEB_ORIGIN.
+  const link = `${parsed.data.webOrigin ?? getWebOrigin()}/invite/${invite.token}`;
   return corsJson(
     {
       token: invite.token,
-      link: `${getWebOrigin()}/invite/${invite.token}`,
+      link,
       email: invite.email ?? null,
       expiresAt: invite.expiresAt.toISOString(),
     },

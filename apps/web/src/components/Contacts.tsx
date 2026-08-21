@@ -4,8 +4,9 @@ import { reportPresence, resolveApiUrl, useContacts } from "@board-game-organize
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { useEffect, useState } from "react";
-import { InvitesTab } from "@/components/InvitesTab";
+import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { InviteCard } from "@/components/InviteCard";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -17,7 +18,7 @@ function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 }
 
-type TabKey = "following" | "followers" | "friends" | "suggestions" | "search" | "invites";
+type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
 
 function ContactCard({
   name,
@@ -80,7 +81,7 @@ export function Contacts() {
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
-  const [searchDone, setSearchDone] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -114,6 +115,23 @@ export function Contacts() {
 
   const contacts = useContacts(apiUrl(), token, getToken, protectionBypass());
   const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
+
+  // Auto-search on input: fires 300ms after the user stops typing, only when
+  // at least 4 characters are present (min prefix length per product spec).
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.trim().length < 4) {
+      debounceRef.current = null;
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      contacts.runSearch(query);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   const followingRows = contacts.following.data ?? [];
   const followersRows = contacts.followers.data ?? [];
@@ -158,6 +176,8 @@ export function Contacts() {
 
   return (
     <div className="space-y-4">
+      <InviteCard apiUrl={apiUrl()} protectionBypass={protectionBypass()} />
+
       <div className="flex flex-wrap gap-2">
         {(
           [
@@ -166,7 +186,6 @@ export function Contacts() {
             ["friends", t`Friends`],
             ["suggestions", t`Suggestions`],
             ["search", t`Search`],
-            ["invites", t`Invites`],
           ] as Array<[TabKey, string]>
         ).map(([key, label]) => (
           <Button
@@ -182,32 +201,34 @@ export function Contacts() {
 
       {tab === "search" && (
         <div className="space-y-3">
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (query.trim()) {
-                contacts.runSearch(query);
-                setSearchDone(true);
-              }
-            }}
-          >
+          <div className="relative">
             <input
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSearchDone(false);
-              }}
-              placeholder={t`Search users by name or email`}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t`Search users (at least 4 characters)`}
               aria-label={t`Search users by name or email`}
               className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
             />
-            <Button type="submit" variant="primary">
-              {t`Search`}
-            </Button>
-          </form>
+            {query.length > 0 && (
+              <button
+                type="button"
+                aria-label={t`Clear search`}
+                onClick={() => {
+                  setQuery("");
+                  contacts.runSearch("");
+                }}
+                className="absolute inset-y-0 right-2 flex items-center text-default-400 hover:text-default-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {query.trim().length > 0 && query.trim().length < 4 && (
+            <p className="text-sm text-default-500">{t`Type at least 4 characters to search`}</p>
+          )}
           {contacts.search.isPending && <ContactListSkeleton count={2} />}
-          {searchDone && !contacts.search.isPending && searchResults.length === 0 && (
+          {query.trim().length >= 4 && !contacts.search.isPending && searchResults.length === 0 && (
             <p className="text-sm text-default-500">{t`No users found`}</p>
           )}
           <div className="space-y-2">
@@ -302,8 +323,6 @@ export function Contacts() {
               })}
             </div>
           ))}
-
-      {tab === "invites" && <InvitesTab apiUrl={apiUrl()} protectionBypass={protectionBypass()} />}
 
       {!isSignedIn && (
         <Chip color="warning" variant="soft">
