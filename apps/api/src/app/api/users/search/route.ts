@@ -57,10 +57,7 @@ export async function GET(request: Request) {
     getBlockedByUserIds(db, userId),
     db.collection(COLLECTIONS.FOLLOWS).find({ fromUserId: userId }).toArray(),
     db.collection(COLLECTIONS.FOLLOWS).find({ toUserId: userId }).toArray(),
-    db
-      .collection(COLLECTIONS.FRIEND_REQUESTS)
-      .find({ status: "accepted" })
-      .toArray(),
+    db.collection(COLLECTIONS.FRIEND_REQUESTS).find({ status: "accepted" }).toArray(),
   ]);
   const blockedByMeSet = new Set(blockedByMe);
   const blockedMeSet = new Set(blockedMe);

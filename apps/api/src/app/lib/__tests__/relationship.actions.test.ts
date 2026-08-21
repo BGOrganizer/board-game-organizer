@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { httpError } from "../handler";
 import { CREATE, REMOVE, UPDATE } from "../relationship.actions";
 import type { RelationshipRepository } from "../relationship.repository";
 

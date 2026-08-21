@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { corsJson, corsOptions, getCorsHeaders } from "@/app/lib/cors";
+import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
 import { LISTS, type ListType } from "@/app/lib/relationship.lists";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
