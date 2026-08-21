@@ -32,6 +32,7 @@ export interface User {
 export const USER_INDEXES = [
   { key: { clerkId: 1 }, unique: true },
   { key: { email: 1 } },
-  // Text search over the fields surfaced in contact search.
-  { key: { name: "text", email: "text" } },
+  // Prefix (autocomplete) search over name: the search route uses an
+  // anchored ^$regex with $options "i", which needs a plain index.
+  { key: { name: 1 } },
 ] as const;

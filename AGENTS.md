@@ -93,9 +93,17 @@ API preview falls back to the repo/project env var instead of killing the E2E ch
 The standalone `mobile-e2e.yml` workflow keeps using the repo variable (no preview
 deploy there).
 
+The API preview deployments are protected by **Vercel Deployment Protection**; the
+repo secret `VERCEL_PROTECTION_BYPASS` (x-vercel-protection-bypass token) is injected
+at build time into the mobile APK (`EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS` via the
+mobile-build action) and into the web preview (`NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS`
+via `extra-env`), and every client fetch attaches it via `apiHeaders()` in
+`packages/shared/src/api.ts`, so preview clients can call the protected API.
+
 **Production deployments**: web → `web-rosy-phi-82.vercel.app`, api → `api-chi-two-97.vercel.app`.
 CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG_ID`,
-`VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `CLERK_SECRET_KEY` (used by Maestro E2E to
+`VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `VERCEL_PROTECTION_BYPASS`,
+`CLERK_SECRET_KEY` (used by Maestro E2E to
 provision a test user via the Clerk API and by Playwright E2E for the testing token +
 user cleanup), `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (release notifications on the
 Telegram channel), `RELEASE_PAT` (admin PAT usato da main-ci per il push del bump di

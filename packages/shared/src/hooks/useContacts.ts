@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { apiHeaders } from "@board-game-organizer/shared";
 
 /** Presence snapshot attached to a contact (Phase 2). */
 export interface ContactPresence {
@@ -36,21 +37,13 @@ export interface ContactsApiOptions {
   token: string | null | undefined;
 }
 
-/** Auth headers shared by all contact API calls. */
-function authHeaders(token: string) {
-  return {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-}
-
 export function fetchRelationships(
   apiUrl: string,
   token: string,
   type: RelationshipListType,
 ): Promise<RelationshipRow[]> {
   return fetch(`${apiUrl}/api/relationships?type=${type}`, {
-    headers: authHeaders(token),
+    headers: apiHeaders(token),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as RelationshipRow[];
@@ -58,7 +51,7 @@ export function fetchRelationships(
 }
 
 export function fetchSuggestions(apiUrl: string, token: string): Promise<{ users: ContactUser[] }> {
-  return fetch(`${apiUrl}/api/users/suggestions`, { headers: authHeaders(token) }).then(
+  return fetch(`${apiUrl}/api/users/suggestions`, { headers: apiHeaders(token) }).then(
     async (res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as { users: ContactUser[] };
@@ -72,7 +65,7 @@ export function searchUsers(
   query: string,
 ): Promise<{ users: ContactUser[] }> {
   return fetch(`${apiUrl}/api/users/search?query=${encodeURIComponent(query)}`, {
-    headers: authHeaders(token),
+    headers: apiHeaders(token),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as { users: ContactUser[] };
@@ -90,7 +83,7 @@ export function reportPresence(
 ): Promise<{ success: boolean; lastActiveAt: string }> {
   return fetch(`${apiUrl}/api/users/presence`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: apiHeaders(token),
     body: JSON.stringify({ status }),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -107,7 +100,7 @@ function relationshipMutation(
 ) {
   return fetch(`${apiUrl}/api/relationships?type=${type}`, {
     method,
-    headers: authHeaders(token),
+    headers: apiHeaders(token),
     body: method === "DELETE" ? undefined : JSON.stringify({ targetUserId }),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

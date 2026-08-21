@@ -62,14 +62,13 @@ describe("GET /api/users/search", () => {
 
   it("searches the users collection and applies the block policy", async () => {
     authMock.mockResolvedValueOnce({ userId: "viewer" });
-    getDbMock.mockResolvedValueOnce({
-      collection: vi.fn(() => ({
-        find: vi.fn(() => ({
-          limit: vi.fn(() => ({
-            toArray: async () => [fakeUser(), fakeUser({ clerkId: "blocked_user", name: "B" })],
-          })),
-        })),
+    const findMock = vi.fn(() => ({
+      limit: vi.fn(() => ({
+        toArray: async () => [fakeUser(), fakeUser({ clerkId: "blocked_user", name: "B" })],
       })),
+    }));
+    getDbMock.mockResolvedValueOnce({
+      collection: vi.fn(() => ({ find: findMock })),
     });
     const { getBlockedUserIds } = await import("@/app/lib/blocks");
     vi.mocked(getBlockedUserIds as () => Promise<string[]>).mockResolvedValueOnce(["blocked_user"]);
@@ -79,6 +78,12 @@ describe("GET /api/users/search", () => {
     const body = await res.json();
     expect(body.users).toHaveLength(1);
     expect(body.users[0].id).toBe("user_1");
+
+    // Prefix search: anchored ^$regex, case-insensitive, over name/email.
+    const filter = findMock.mock.calls[0][0];
+    expect(filter.$or).toHaveLength(2);
+    expect(filter.$or[0]).toEqual({ name: { $regex: "^al", $options: "i" } });
+    expect(filter.$or[1]).toEqual({ email: { $regex: "^al", $options: "i" } });
   });
 
   it("rejects an empty query", async () => {

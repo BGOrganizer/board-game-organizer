@@ -245,6 +245,7 @@ jobs:
           # repo variable when the preview deploy produced no URL.
           api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -344,6 +345,7 @@ jobs:
           # the API preview produced no URL (empty line is skipped).
           extra-env: >-
             NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
+            NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
   # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:

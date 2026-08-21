@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@board-game-organizer/typescript-config": "workspace:*",
+    "@types/node": "^20.19.43",
     "@types/react": "^19.2.18",
     "typescript": "^6.0.3"
   }

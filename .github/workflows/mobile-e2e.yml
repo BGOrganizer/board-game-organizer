@@ -119,6 +119,7 @@ jobs:
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4

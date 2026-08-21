@@ -6,6 +6,11 @@ import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 import { pruneRateLimitBuckets, rateLimit } from "@/app/lib/rateLimit";
 
+/** Escape regex metacharacters so user input can't widen the query. */
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** Search rate limit: 20 requests per minute per user (product spec). */
 const SEARCH_LIMIT = 20;
 const SEARCH_WINDOW_MS = 60_000;
@@ -13,11 +18,13 @@ const SEARCH_WINDOW_MS = 60_000;
 /**
  * GET /api/users/search?query=…
  *
- * Contact search over the `users` collection's text index (name/email),
- * with the asymmetric block policy:
+ * Prefix (autocomplete) search over `users` name/email, using an anchored
+ * ^$regex (case-insensitive) backed by plain indexes (USER_INDEXES) —
+ * cheaper and more predictable than a text index for autocomplete-style
+ * queries. Block policy stays asymmetric:
  * - users `viewer` blocked  → excluded
  * - users who blocked `viewer` → findable EXCEPT when they are excluded by
- *   the text query results themselves (they stay visible so the blocker
+ *   the query results themselves (they stay visible so the blocker
  *   perceives nothing).
  */
 /** CORS preflight. */
@@ -54,7 +61,15 @@ export async function GET(request: Request) {
 
   const users = await db
     .collection<User>(COLLECTIONS.USERS)
-    .find({ $text: { $search: query } }, { projection: { _id: 0 } })
+    .find(
+      {
+        $or: [
+          { name: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
+          { email: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
+        ],
+      },
+      { projection: { _id: 0 } },
+    )
     .limit(50)
     .toArray();
 

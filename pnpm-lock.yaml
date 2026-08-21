@@ -403,6 +403,9 @@ importers:
       '@board-game-organizer/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@types/node':
+        specifier: ^20.19.43
+        version: 20.19.43
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18

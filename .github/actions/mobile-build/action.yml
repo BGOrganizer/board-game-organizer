@@ -26,6 +26,10 @@ inputs:
     description: EXPO_PUBLIC_SENTRY_DSN
     required: false
     default: ''
+  protection-bypass:
+    description: EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS (preview API bypass token)
+    required: false
+    default: ''
 
 outputs:
   version:
@@ -121,6 +125,7 @@ runs:
         EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
         EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
+        EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ inputs.protection-bypass }}
         NODE_ENV: ${{ inputs.profile == 'development' && 'development' || 'production' }}
         NODE_OPTIONS: --openssl-legacy-provider --max_old_space_size=4096
       run: |
