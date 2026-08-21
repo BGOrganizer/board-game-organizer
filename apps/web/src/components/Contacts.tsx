@@ -90,17 +90,22 @@ export function Contacts() {
   }, [isLoaded, isSignedIn]);
 
   // Presence heartbeat: keep the green-dot fresh while the tab is open.
+  // Uses a fresh session token each beat so the JWT rotation never 401s.
   useEffect(() => {
     if (!token) return;
     const heartbeat = () => {
-      reportPresence(apiUrl(), token, "online").catch(() => {});
+      getToken()
+        .then((tok) => {
+          if (tok) reportPresence(apiUrl(), tok, "online").catch(() => {});
+        })
+        .catch(() => {});
     };
     heartbeat();
     const interval = setInterval(heartbeat, 60_000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token);
+  const contacts = useContacts(apiUrl(), token, getToken);
   const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
 
   const followingRows = contacts.following.data ?? [];
@@ -174,7 +179,7 @@ export function Contacts() {
             onSubmit={(e) => {
               e.preventDefault();
               if (query.trim()) {
-                contacts.search.mutate({ query: query.trim() });
+                contacts.runSearch(query);
                 setSearchDone(true);
               }
             }}

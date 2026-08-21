@@ -238,6 +238,18 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   multi-step form state before submit, transient optimistic UI flags.
 - Zustand never mirrors Query data. At most it holds a temporary "optimistic UI flag" for instant
   feedback while a mutation resolves.
+- **Cache correctness rules (web AND mobile)**:
+  - Every contact list (following/followers/friends/suggestions) is a `useQuery` with a
+    `["contacts", <type>, apiUrl, token]` key.
+  - Every mutation (follow/unfollow/…) MUST invalidate the whole `["contacts"]` prefix on
+    success (`queryClient.invalidateQueries({ queryKey: ["contacts"] })`) so all lists and
+    suggestions refetch; NEVER let the UI rely on manual refresh.
+  - If a search is active when a follow/unfollow succeeds, re-run it (see `runSearch` +
+    `lastSearchQuery` in `packages/shared/src/hooks/useContacts.ts`) so buttons switch
+    follow ⇄ unfollow without a user action.
+  - Session JWTs rotate: never use a stale `token` snapshot across calls — pass Clerk
+    `getToken` into `useContacts` (or `useProfileQuery`-style hooks) so every fetch resolves
+    a fresh token; a cached snapshot eventually returns HTTP 401.
 
 ## Code Conventions
 
@@ -333,7 +345,13 @@ A single workflow runs ALL quality gates on every PR:
 5. **API integration tests (vitest + testcontainers)** — `pnpm --filter api test:integration`;
    spins up a real MongoDB container (Docker) — the scaffold for the upcoming MongoDB
    integration
-6. **Mobile build (internal only)** — `mobile-build` composite action, profile `internal`
+6. **Mobile build (internal only)** — `mobile-build` composite action, profile `internal`.
+   The APK is rebuilt ONLY when mobile-affecting code changed: `detect-mobile-changes`
+   diffs HEAD against the **last green pr-ci run** on the branch (NOT the PR base — the
+   base diff always contains historical mobile commits and would rebuild on every run),
+   restricted to `apps/mobile`, `packages/{shared,query,store,schemas}`, lockfiles; Maestro
+   flows and unit tests are excluded. When nothing changed, the last successful `apk-internal`
+   artifact is downloaded and re-uploaded instead of rebuilding.
 7. **Build API + Web** — `next build` for both apps
 8. **Vercel preview deploys** — api and web deployed to **preview** (never production)
 9. **E2E Maestro (mobile)** — boots a software-rendered Android emulator

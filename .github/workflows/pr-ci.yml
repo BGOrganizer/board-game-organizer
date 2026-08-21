@@ -169,13 +169,22 @@ jobs:
       - name: 🔍 Diff mobile-affecting paths
         id: check
         run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          # Incremental diff: compare HEAD against the last GREEN pr-ci run on
+          # this branch (not against the PR base — the base diff always
+          # contains every historical mobile commit, so changed would be true
+          # forever and the APK would rebuild on every run).
+          LAST_GREEN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&conclusion=success&per_page=20" --jq '.workflow_runs[] | select(.head_sha != "'"$HEAD_SHA"'") | .head_sha' | head -1 || true)
+          if [ -z "$LAST_GREEN_SHA" ]; then
+            echo "No previous green run → changed=true"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # Code that rebuilds the APK: mobile source, the packages the app
           # imports, and lockfiles. Maestro flows and unit tests are EXCLUDED:
           # new flows or tests without app-code changes must NOT rebuild.
           CHANGED=$(
-            git diff --name-only "$BASE_SHA"...HEAD -- \
+            git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
               apps/mobile \
               packages/shared packages/query packages/store packages/schemas \
               pnpm-lock.yaml pnpm-workspace.yaml |
@@ -184,6 +193,7 @@ jobs:
               grep -v '__tests__' |
               wc -l
           )
+          echo "diff vs $LAST_GREEN_SHA → $CHANGED changed file(s)"
           if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
 
   # -------------------------------------------------- mobile internal build

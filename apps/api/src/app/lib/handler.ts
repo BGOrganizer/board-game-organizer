@@ -30,7 +30,19 @@ export function typedMutationHandler(
     const action = table[type];
     if (!action) return corsJson({ error: `Unsupported type: ${type}` }, { status: 400 });
 
-    const parsed = bodySchema.safeParse(await req.json());
+    // DELETE requests may carry no body: parse defensively so a missing body
+    // yields a 400 (not an uncaught JSON error → 500) and a targetUserId is
+    // still required (the client sends it even on DELETE).
+    let body: unknown = {};
+    const rawBody = await req.text().catch(() => "");
+    if (rawBody) {
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        return corsJson({ error: "Bad request" }, { status: 400 });
+      }
+    }
+    const parsed = bodySchema.safeParse(body);
     if (!parsed.success) return corsJson({ error: "Bad request" }, { status: 400 });
 
     try {
