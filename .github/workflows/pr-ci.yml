@@ -168,6 +168,8 @@ jobs:
 
       - name: 🔍 Diff mobile-affecting paths
         id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           # Incremental diff: compare HEAD against the last GREEN pr-ci run on
