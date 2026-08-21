@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useEffect, useState } from "react";
+import { InvitesTab } from "@/components/InvitesTab";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -16,7 +17,7 @@ function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 }
 
-type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
+type TabKey = "following" | "followers" | "friends" | "suggestions" | "search" | "invites";
 
 function ContactCard({
   name,
@@ -165,6 +166,7 @@ export function Contacts() {
             ["friends", t`Friends`],
             ["suggestions", t`Suggestions`],
             ["search", t`Search`],
+            ["invites", t`Invites`],
           ] as Array<[TabKey, string]>
         ).map(([key, label]) => (
           <Button
@@ -300,6 +302,8 @@ export function Contacts() {
               })}
             </div>
           ))}
+
+      {tab === "invites" && <InvitesTab apiUrl={apiUrl()} protectionBypass={protectionBypass()} />}
 
       {!isSignedIn && (
         <Chip color="warning" variant="soft">

@@ -1,6 +1,6 @@
+import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef } from "react";
-import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 
 /** Presence snapshot attached to a contact (Phase 2). */
 export interface ContactPresence {
@@ -29,12 +29,7 @@ export interface RelationshipRow {
 }
 
 /** Relationship list types accepted by `GET /api/relationships`. */
-export type RelationshipListType =
-  | "followers"
-  | "following"
-  | "friends"
-  | "pending"
-  | "sent";
+export type RelationshipListType = "followers" | "following" | "friends" | "pending" | "sent";
 
 export interface ContactsApiOptions {
   apiUrl: string;
@@ -73,10 +68,9 @@ export function fetchRelationships(
   type: RelationshipListType,
   protectionBypass?: string | null,
 ): Promise<RelationshipRow[]> {
-  return fetch(
-    withProtectionBypass(`${apiUrl}/api/relationships?type=${type}`, protectionBypass),
-    { headers: apiHeaders(token) },
-  ).then(async (res) => {
+  return fetch(withProtectionBypass(`${apiUrl}/api/relationships?type=${type}`, protectionBypass), {
+    headers: apiHeaders(token),
+  }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as RelationshipRow[];
   });
@@ -99,12 +93,10 @@ export function fetchSuggestions(
 ): Promise<{ users: ContactUser[] }> {
   return fetch(withProtectionBypass(`${apiUrl}/api/users/suggestions`, protectionBypass), {
     headers: apiHeaders(token),
-  }).then(
-    async (res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()) as { users: ContactUser[] };
-    },
-  );
+  }).then(async (res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()) as { users: ContactUser[] };
+  });
 }
 
 export async function fetchSuggestionsWithToken(
@@ -193,7 +185,14 @@ async function relationshipMutationWithToken(
   targetUserId: string,
   protectionBypass?: string | null,
 ) {
-  return relationshipMutation(apiUrl, await resolveToken(token, getToken), method, type, targetUserId, protectionBypass);
+  return relationshipMutation(
+    apiUrl,
+    await resolveToken(token, getToken),
+    method,
+    type,
+    targetUserId,
+    protectionBypass,
+  );
 }
 
 /**
@@ -217,21 +216,24 @@ export function useContacts(
 
   const following = useQuery({
     queryKey: ["contacts", "following", apiUrl, token],
-    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "following", protectionBypass),
+    queryFn: () =>
+      fetchRelationshipsWithToken(apiUrl, token, getToken, "following", protectionBypass),
     enabled,
     staleTime: 30_000,
   });
 
   const followers = useQuery({
     queryKey: ["contacts", "followers", apiUrl, token],
-    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "followers", protectionBypass),
+    queryFn: () =>
+      fetchRelationshipsWithToken(apiUrl, token, getToken, "followers", protectionBypass),
     enabled,
     staleTime: 30_000,
   });
 
   const friends = useQuery({
     queryKey: ["contacts", "friends", apiUrl, token],
-    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "friends", protectionBypass),
+    queryFn: () =>
+      fetchRelationshipsWithToken(apiUrl, token, getToken, "friends", protectionBypass),
     enabled,
     staleTime: 30_000,
   });
@@ -260,13 +262,29 @@ export function useContacts(
 
   const follow = useMutation({
     mutationFn: ({ targetUserId }: { targetUserId: string }) =>
-      relationshipMutationWithToken(apiUrl, token, getToken, "POST", "follow", targetUserId, protectionBypass),
+      relationshipMutationWithToken(
+        apiUrl,
+        token,
+        getToken,
+        "POST",
+        "follow",
+        targetUserId,
+        protectionBypass,
+      ),
     onSuccess: () => refreshContacts(),
   });
 
   const unfollow = useMutation({
     mutationFn: ({ targetUserId }: { targetUserId: string }) =>
-      relationshipMutationWithToken(apiUrl, token, getToken, "DELETE", "follow", targetUserId, protectionBypass),
+      relationshipMutationWithToken(
+        apiUrl,
+        token,
+        getToken,
+        "DELETE",
+        "follow",
+        targetUserId,
+        protectionBypass,
+      ),
     onSuccess: () => refreshContacts(),
   });
 
@@ -280,7 +298,27 @@ export function useContacts(
   );
 
   return useMemo(
-    () => ({ following, followers, friends, suggestions, follow, unfollow, search, runSearch, refreshContacts }),
-    [following, followers, friends, suggestions, follow, unfollow, search, runSearch, refreshContacts],
+    () => ({
+      following,
+      followers,
+      friends,
+      suggestions,
+      follow,
+      unfollow,
+      search,
+      runSearch,
+      refreshContacts,
+    }),
+    [
+      following,
+      followers,
+      friends,
+      suggestions,
+      follow,
+      unfollow,
+      search,
+      runSearch,
+      refreshContacts,
+    ],
   );
 }

@@ -13,17 +13,53 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Claim"
+msgstr "Claim"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Claim invite"
+msgstr "Claim invite"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Claiming this invite connects you with the inviter."
+msgstr "Claiming this invite connects you with the inviter."
+
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
 msgstr "Contacts"
+
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Copy"
+msgstr "Copy"
+
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Could not claim this invite."
+msgstr "Could not claim this invite."
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Could not claim."
+msgstr "Could not claim."
+
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Could not create the invite. Try again."
+msgstr "Could not create the invite. Try again."
 
 #: apps/web/src/components/Counter.tsx
 msgid "Counter (Zustand)"
 msgstr "Counter (Zustand)"
 
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Create invite"
+msgstr "Create invite"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Error while loading the profile:"
+
+#: apps/web/src/components/InvitesTab.tsx
+msgid "expires"
+msgstr "expires"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Follow"
@@ -45,6 +81,23 @@ msgstr "Friends"
 #: apps/web/src/components/Header.tsx
 msgid "Groups"
 msgstr "Groups"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Invite claimed — you are now friends with the inviter!"
+msgstr "Invite claimed — you are now friends with the inviter!"
+
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Invite claimed — you are now friends!"
+msgstr "Invite claimed — you are now friends!"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Invite claimed — you now follow the inviter."
+msgstr "Invite claimed — you now follow the inviter."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Invites"
+msgstr "Invites"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Language:"
@@ -70,6 +123,10 @@ msgstr "No followers yet"
 msgid "No friends yet"
 msgstr "No friends yet"
 
+#: apps/web/src/components/InvitesTab.tsx
+msgid "No invites yet — create one to share."
+msgstr "No invites yet — create one to share."
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No suggestions right now"
 msgstr "No suggestions right now"
@@ -77,6 +134,10 @@ msgstr "No suggestions right now"
 #: apps/web/src/components/Contacts.tsx
 msgid "No users found"
 msgstr "No users found"
+
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Optional email (auto-connect on claim)"
+msgstr "Optional email (auto-connect on claim)"
 
 #: apps/web/src/components/Header.tsx
 msgid "Organizations"
@@ -89,6 +150,10 @@ msgstr "Organize your board game collection, track your matches and connect with
 #: apps/web/src/components/Profile.tsx
 msgid "Owned"
 msgstr "Owned"
+
+#: apps/web/src/components/InvitesTab.tsx
+msgid "Paste an invite link or token to claim it"
+msgstr "Paste an invite link or token to claim it"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Plan:"
@@ -131,6 +196,14 @@ msgstr "Sign In"
 #~ msgid "Sign in / Register"
 #~ msgstr "Sign in / Register"
 
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Sign in to claim"
+msgstr "Sign in to claim"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Sign in to claim this invite and connect with the inviter."
+msgstr "Sign in to claim this invite and connect with the inviter."
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Sign in to see your contacts"
 msgstr "Sign in to see your contacts"
@@ -163,3 +236,13 @@ msgstr "Welcome to Board Game Organizer"
 #: apps/web/src/components/Contacts.tsx
 msgid "You are not following anyone yet"
 msgstr "You are not following anyone yet"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "You have been invited"
+msgstr "You have been invited"
+
+msgid "Share link"
+msgstr "Share link"
+
+msgid "Share"
+msgstr "Share"

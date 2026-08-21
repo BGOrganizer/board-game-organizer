@@ -27,13 +27,19 @@ web, API, and mobile, all in one TypeScript monorepo.
 - Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
 - App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
+- **Contacts tab** (web + mobile): Following/Followers/Friends lists, follow/unfollow,
+  follow suggestions, prefix search (with block policy + rate limit), presence green-dot
+  (heartbeat), coherent follow state across sections (TanStack Query cache invalidation)
+- **Invites** (Phase 3): shareable invite links with 7-day TTL (`POST /api/invites`,
+  `POST /api/invites/claim`); claim auto-connects — friends when the target email matches,
+  follow otherwise. Web: public claim page `/invite/<token>` + Invites tab (create/list/copy);
+  mobile: Invites tab (create/share/claim via pasted link)
 - E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI — test users are
   provisioned via the Clerk API per run and deleted afterwards (never accumulate)
 
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
 - Groups, match scheduling, venues, ELO rankings, marketplace
-- Social/Contacts v2: search, suggestions, friend requests, invites, presence (see plan in repo history)
 
 ## Prerequisites
 

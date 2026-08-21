@@ -32,10 +32,7 @@ function vercelProtectionBypass(): string | undefined {
 }
 
 /** Append the protection-bypass token as a query parameter (if set). */
-export function withProtectionBypass(
-  pathOrUrl: string,
-  protectionBypass?: string | null,
-): string {
+export function withProtectionBypass(pathOrUrl: string, protectionBypass?: string | null): string {
   const bypass = protectionBypass || vercelProtectionBypass();
   if (!bypass) return pathOrUrl;
   const sep = pathOrUrl.includes("?") ? "&" : "?";
@@ -56,9 +53,12 @@ export async function fetchProfile(
   token: string,
   protectionBypass?: string | null,
 ): Promise<UserProfile> {
-  const res = await fetch(withProtectionBypass(`${apiUrl}${API_PATHS.profiles}`, protectionBypass), {
-    headers: apiHeaders(token),
-  });
+  const res = await fetch(
+    withProtectionBypass(`${apiUrl}${API_PATHS.profiles}`, protectionBypass),
+    {
+      headers: apiHeaders(token),
+    },
+  );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as UserProfile;
 }

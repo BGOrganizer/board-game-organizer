@@ -10,7 +10,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
-
+import { InvitesTab } from "@/components/InvitesTab";
 import { useT } from "@/lib/i18n";
 
 /** Placeholder shown while a contact list is loading. */
@@ -49,7 +49,7 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
     </View>
   );
 }
-type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
+type TabKey = "following" | "followers" | "friends" | "suggestions" | "search" | "invites";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -119,6 +119,7 @@ export default function ContactsScreen() {
     ["friends", t("Friends")],
     ["suggestions", t("Suggestions")],
     ["search", t("Search")],
+    ["invites", t("Invites")],
   ];
 
   const listTab = tab === "following" || tab === "followers" || tab === "friends" ? tab : null;
@@ -326,6 +327,7 @@ export default function ContactsScreen() {
             })}
           </View>
         )}
+        {tab === "invites" && <InvitesTab apiUrl={apiUrl()} token={token} getToken={getToken} />}
       </ScrollView>
     </View>
   );

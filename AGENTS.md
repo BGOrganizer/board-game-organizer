@@ -191,10 +191,17 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   `prefers-color-scheme` (no forced `className="light"`).
 - Route group `(tabs)` hosts Matches / Groups / Organizations / Contacts / Profile.
 - **Contacts tab (Phase 2 UI)**: `components/Contacts.tsx` + `app/(tabs)/contacts/page.tsx`
-  with 5 tabs (Following / Followers / Friends / Suggestions / Search), presence green-dot
-  and follow/unfollow actions, backed by `useContacts` from `packages/shared`
+  with 6 tabs (Following / Followers / Friends / Suggestions / Search / Invites), presence
+  green-dot and follow/unfollow actions, backed by `useContacts` from `packages/shared`
   (`hooks/useContacts.ts`). Client sends a **presence heartbeat** (`POST /api/users/presence`)
   on mount and every 60s while the tab is open.
+- **Invites (Phase 3)**: `components/InvitesTab.tsx` (create/list/copy links + claim by pasted
+  link) inside the Contacts tab; public claim page `app/invite/[token]/page.tsx` →
+  `components/ClaimInvitePage.tsx`. API: `POST /api/invites` (create, optional email),
+  `GET /api/invites` (my invites), `POST /api/invites/claim` (TTL 7gg;
+  email match → friends, else → follow). Repo: `lib/invites.repository.ts` (token
+  `base64url` 128bit, `expireStale()` per cleanup). Web origin per i link:
+  `WEB_ORIGIN` env (default `https://web-rosy-phi-82.vercel.app`).
 - Client state via `@board-game-organizer/store` (Zustand); server data via
   `@board-game-organizer/query` (TanStack Query — `QueryProvider` uses `useState` to avoid client
   sharing during SSR).
@@ -211,8 +218,9 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
   → `I18nProvider` (defaultI18n) → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
   → `QueryProvider` → `Stack`.
-- **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 5 tabs as web, shared
-  `useContacts` hook, presence heartbeat; `useT()` runtime i18n (no Babel macro).
+- **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 6 tabs as web (Invites
+  via `components/InvitesTab.tsx`, create/share/claim), shared `useContacts`/`useInvites`
+  hooks, presence heartbeat; `useT()` runtime i18n (no Babel macro).
 - Styling: **heroui-native** components + **uniwind** classes (`global.css` wired in `metro.config.js`
   via `withUniwindConfig`). Use `className`, never raw `style` for colors.
 - **Theme**: uniwind auto-follows the device `Appearance`; the Zustand `uiSlice.themePreference`
@@ -477,6 +485,48 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   collection `users` (webhook Clerk o backfill). Un account Google in Clerk
   NON basta: serve `pnpm --filter api backfill:users` (o webhook
   configurato con CLERK_WEBHOOK_SECRET).
+
+## Lessons Learned (errori passati — NON ripeterli)
+
+- **`NEXT_PUBLIC_*` non viene inlined da Next.js nei workspace packages**
+  (node_modules): le env vanno lette nei file del progetto (es.
+  `apps/web/src/components/*.tsx`) e passate esplicitamente agli helper
+  condivisi. Leggerle dentro `packages/shared` produce `undefined` nel
+  browser. (`EXPO_PUBLIC_*` invece funziona ovunque.)
+- **Il bypass Vercel è un query param, NON un header**: i preflight CORS
+  (OPTIONS) non trasportano mai header custom → header-based bypass fallisce
+  con "Redirect is not allowed for a preflight request". Usare
+  `withProtectionBypass()` che appende `?x-vercel-protection-bypass=…`
+  all'URL (l'URL fa parte del preflight).
+- **Skeleton**: heroui-native Skeleton non ha dimensione intrinseca (nasconde
+  i children) → sempre `style={{width,height,borderRadius}}` espliciti, e le
+  righe/figure devono avere `width: "100%"` nel parent con `alignItems`
+  stretch (flex-start li restringe).
+- **Layout mobile**: NON dipendere dalle classi Tailwind/uniwind per la
+  struttura (flex-1, gap-2, mb-3, flex-row) — potrebbero non essere generate
+  a runtime. Usare style object espliciti per il layout strutturale.
+- **Token Clerk ruota**: mai riusare uno snapshot di `getToken()` catturato
+  al mount — ogni fetch risolve un token FRESCO (`getToken` passato a
+  `useContacts`). Uno snapshot vecchio → 401 dopo poco.
+- **DELETE con body**: il server deve parsare il body in modo difensivo
+  (`req.text()` + try/catch JSON → 400) e il client invia `targetUserId`
+  anche su DELETE; `req.json()` diretto su body assente → 500.
+- **Invalidazione cache**: ogni mutation (follow/unfollow/…) deve
+  invalidare il prefisso `["contacts"]` su success (refetch di tutte le
+  liste + re-run della ricerca attiva, così i bottoni Follow ⇄ Unfollow si
+  aggiornano da soli). Stato follow sempre coerente tra sezioni.
+- **YAML folded block `>-` unisce le righe**: per multi-line env usare il
+  literal block `|` (es. `extra-env`), altrimenti la seconda riga sparisce.
+- **GitHub Actions API**: `conclusion=success` NON filtra nei query param di
+  `actions/runs` → va filtrato in jq. Il token `GH_TOKEN` va esplicitato
+  come env per `gh api`.
+- **detect-mobile-changes**: il diff va fatto contro l'ultimo run verde sul
+  branch (non contro la base PR — quello include sempre i commit storici e
+  rebuilda sempre).
+- **Stringhe i18n mobile-only**: Lingui extract vede solo le stringhe web
+  (macro). Le stringhe usate SOLO nel mobile con `t("...")` runtime non
+  entrano nel catalogo: aggiungerle a mano in `messages/{en,it}.po` e
+  rilanciare `pnpm i18n:compile` (il reverse index `idByEnglish` le mappa).
 
 ## CI Rules (trigger intelligenti)
 
