@@ -43,6 +43,9 @@ web, API, and mobile, all in one TypeScript monorepo.
 - Collection management, session logging, player statistics, game catalog (BGG import)
 - Groups, match scheduling, venues, ELO rankings, marketplace
 
+**Release 2 (deferred)** — see `plan.md`: friend requests UI + expired-invite
+cleanup job.
+
 ## Prerequisites
 
 - **Node.js ≥ 22** (CI uses 26)
