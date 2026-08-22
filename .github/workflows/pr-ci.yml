@@ -201,7 +201,7 @@ jobs:
   # -------------------------------------------------- mobile internal build
   build-mobile-internal:
     name: 📱 Mobile APK (internal) — build or reuse
-    needs: [detect-mobile-changes, deploy-preview-api]
+    needs: [detect-mobile-changes, deploy-preview-api, deploy-preview-web]
     # Build even if the API preview deploy failed: fall back to the repo
     # variable (EXPO_PUBLIC_API_URL) in that case.
     if: ${{ !cancelled() && needs.detect-mobile-changes.result == 'success' }}
@@ -262,6 +262,11 @@ jobs:
           api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          # Invite links from the APK must open the SAME web preview this PR
+          # deployed (production web does not have the /invite page yet → 404).
+          # Falls back to the repo variable (production web) if the web
+          # preview deploy produced no URL.
+          web-origin: ${{ needs.deploy-preview-web.outputs.url || vars.EXPO_PUBLIC_WEB_ORIGIN }}
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4

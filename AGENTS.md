@@ -200,7 +200,9 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - **Invite a friend (Phase 3 review)**: NO Invites tab — a single `InviteCard` (card + button)
   above the tabs generates a shareable link (no email form). The link points at the SAME
   deployment that generated it (`webOrigin` = `window.location.origin` on web; mobile uses
-  `EXPO_PUBLIC_WEB_ORIGIN`, default production web). Claim happens only via the public page
+  `EXPO_PUBLIC_WEB_ORIGIN`, injected in CI from the web preview URL (build-mobile-internal
+  depends on deploy-preview-web and passes `web-origin`; falls back to the repo variable,
+  production web). Claim happens only via the public page
   `app/invite/[token]/page.tsx` → `components/ClaimInvitePage.tsx`. API:
   `POST /api/invites` (create), `POST /api/invites/claim` (TTL 7gg) → both users become
   MUTUAL followers/friends. Repo: `lib/invites.repository.ts` (token `base64url` 128bit,

@@ -120,6 +120,7 @@ jobs:
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          web-origin: ${{ vars.EXPO_PUBLIC_WEB_ORIGIN }}
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
