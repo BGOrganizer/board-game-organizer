@@ -183,13 +183,17 @@ jobs:
             exit 0
           fi
           # Code that rebuilds the APK: mobile source, the packages the app
-          # imports, and lockfiles. Maestro flows and unit tests are EXCLUDED:
-          # new flows or tests without app-code changes must NOT rebuild.
+          # imports, and lockfiles, PLUS the CI files that bake env into the
+          # APK (mobile-build action, pr-ci job wiring) — a change there means
+          # the next APK differs even if app code did not. Maestro flows and
+          # unit tests are EXCLUDED: new flows or tests without app-code
+          # changes must NOT rebuild.
           CHANGED=$(
             git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
               apps/mobile \
               packages/shared packages/query packages/store packages/schemas \
-              pnpm-lock.yaml pnpm-workspace.yaml |
+              pnpm-lock.yaml pnpm-workspace.yaml \
+              .github/actions/mobile-build .github/workflows/pr-ci.yml |
               grep -v '^apps/mobile/\.maestro/' |
               grep -v '^apps/mobile/src/.*\.(test|spec)\.' |
               grep -v '__tests__' |
