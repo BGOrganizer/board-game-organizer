@@ -9,9 +9,9 @@ import { useEffect, useState } from "react";
 
 /**
  * Invite-a-friend card: a single button that generates a shareable invite
- * link (no email form). The link points at the SAME deployment that
- * generated it (window.location.origin), so preview invites open the preview
- * web and production invites the production web.
+ * link (no email form). The API builds the link from the origin that
+ * received the request, so it always points at the API (preview or
+ * production) that created it.
  */
 export function InviteCard({
   apiUrl,
@@ -44,9 +44,6 @@ export function InviteCard({
     token,
     getToken,
     protectionBypass,
-    // The link must match the deployment that generated it (preview vs prod).
-    webOrigin:
-      typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_API_URL,
   });
 
   const onCopy = async () => {

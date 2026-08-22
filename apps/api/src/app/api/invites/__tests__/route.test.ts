@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { POST as claimPOST } from "@/app/api/invites/claim/route";
-import { GET, POST } from "@/app/api/invites/route";
+import { POST } from "@/app/api/invites/route";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/app/lib/db", () => ({
@@ -78,17 +78,17 @@ describe("POST /api/invites", () => {
     });
 
     const res = await POST(
-      new Request("http://x/api/invites", {
+      new Request("https://api-preview.vercel.app/api/invites", {
         method: "POST",
-        body: JSON.stringify({ webOrigin: "https://web-preview.vercel.app" }),
+        body: JSON.stringify({}),
       }),
     );
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.token).toBe("tok1234567890");
-    // The link points at the origin that GENERATED the invite (preview web),
-    // not at a hardcoded production host.
-    expect(body.link).toBe("https://web-preview.vercel.app/invite/tok1234567890");
+    // The link points at THIS API (the origin that received the request),
+    // so preview deployments generate preview links, production → production.
+    expect(body.link).toBe("https://api-preview.vercel.app/invite/tok1234567890");
     expect(repoMock.create).toHaveBeenCalledWith("user_1", undefined);
   });
 
@@ -107,26 +107,6 @@ describe("POST /api/invites", () => {
     authMock.mockResolvedValueOnce({ userId: null });
     const res = await POST(new Request("http://x/api/invites", { method: "POST", body: "{}" }));
     expect(res.status).toBe(401);
-  });
-});
-
-describe("GET /api/invites", () => {
-  it("lists the viewer's invites", async () => {
-    authMock.mockResolvedValueOnce({ userId: "user_1" });
-    repoMock.listByInviter.mockResolvedValueOnce([
-      fakeInvite({ token: "tok1" }),
-      fakeInvite({ token: "tok2", status: "claimed" }),
-    ]);
-    getDbMock.mockResolvedValueOnce({
-      collection: vi.fn(() => ({ findOne: vi.fn(async () => null) })),
-    });
-
-    const res = await GET();
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.invites).toHaveLength(2);
-    expect(body.invites[0].link).toContain("/invite/tok1");
-    expect(repoMock.listByInviter).toHaveBeenCalledWith("user_1");
   });
 });
 

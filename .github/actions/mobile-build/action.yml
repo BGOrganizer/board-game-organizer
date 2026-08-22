@@ -30,10 +30,6 @@ inputs:
     description: EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS (preview API bypass token)
     required: false
     default: ''
-  web-origin:
-    description: EXPO_PUBLIC_WEB_ORIGIN (web deployment the invite links must point at)
-    required: false
-    default: ''
 
 outputs:
   version:
@@ -130,7 +126,6 @@ runs:
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
         EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
         EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ inputs.protection-bypass }}
-        EXPO_PUBLIC_WEB_ORIGIN: ${{ inputs.web-origin }}
         NODE_ENV: ${{ inputs.profile == 'development' && 'development' || 'production' }}
         NODE_OPTIONS: --openssl-legacy-provider --max_old_space_size=4096
       run: |

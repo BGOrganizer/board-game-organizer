@@ -10,9 +10,9 @@ import { useT } from "@/lib/i18n";
 
 /**
  * Invite-a-friend card (mobile): a single button that generates a shareable
- * invite link (no email form) and opens the share sheet. The link points at
- * the web origin matching the API this app talks to (EXPO_PUBLIC_WEB_ORIGIN,
- * defaulting to the production web).
+ * invite link (no email form) and opens the share sheet. The API builds the
+ * link from the origin that received the request, so it always points at the
+ * API (preview or production) that created it.
  */
 export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | null }) {
   const { getToken } = useAuth();
@@ -23,8 +23,8 @@ export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | 
     apiUrl,
     token,
     getToken,
-    // Expo inlines EXPO_PUBLIC_* in project files; default to production web.
-    webOrigin: process.env.EXPO_PUBLIC_WEB_ORIGIN || "https://web-rosy-phi-82.vercel.app",
+    // The API builds the link from the origin that received the request, so
+    // it always points at the API (preview or production) that created it.
   });
 
   const share = async (text: string) => {

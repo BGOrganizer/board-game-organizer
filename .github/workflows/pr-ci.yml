@@ -184,11 +184,9 @@ jobs:
           fi
           # Code that rebuilds the APK: mobile source, the packages the app
           # imports, and lockfiles, PLUS the CI files that bake env into the
-          # APK (mobile-build action, pr-ci job wiring) and apps/web — the
-          # web-origin baked into the APK points at this PR's web preview, so
-          # any web change must rebuild the APK or invite links point at a
-          # stale preview. Maestro flows and unit tests are EXCLUDED: new
-          # flows or tests without app-code changes must NOT rebuild.
+          # APK (mobile-build action, pr-ci job wiring). Maestro flows and
+          # unit tests are EXCLUDED: new flows or tests without app-code
+          # changes must NOT rebuild.
           CHANGED=$(
             git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
               apps/mobile \
@@ -207,7 +205,7 @@ jobs:
   # -------------------------------------------------- mobile internal build
   build-mobile-internal:
     name: 📱 Mobile APK (internal) — build or reuse
-    needs: [detect-mobile-changes, deploy-preview-api, deploy-preview-web]
+    needs: [detect-mobile-changes, deploy-preview-api]
     # Build even if the API preview deploy failed: fall back to the repo
     # variable (EXPO_PUBLIC_API_URL) in that case.
     if: ${{ !cancelled() && needs.detect-mobile-changes.result == 'success' }}
@@ -268,11 +266,6 @@ jobs:
           api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          # Invite links from the APK must open the SAME web preview this PR
-          # deployed (production web does not have the /invite page yet → 404).
-          # Falls back to the repo variable (production web) if the web
-          # preview deploy produced no URL.
-          web-origin: ${{ needs.deploy-preview-web.outputs.url || vars.EXPO_PUBLIC_WEB_ORIGIN }}
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -334,6 +327,10 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          # The /invite/<token> claim page is a client component: it needs the
+          # Clerk publishable key baked at build time.
+          extra-env: |
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
   # ---------------------------------------------------- Vercel preview web
   deploy-preview-web:

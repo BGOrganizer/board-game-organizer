@@ -198,15 +198,15 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - **Search (Phase 3 review)**: auto-search with 300ms debounce, minimum 4 characters, clear
   (X) button when there is text — NO submit button. Web uses `lucide-react` icons.
 - **Invite a friend (Phase 3 review)**: NO Invites tab — a single `InviteCard` (card + button)
-  above the tabs generates a shareable link (no email form). The link points at the SAME
-  deployment that generated it (`webOrigin` = `window.location.origin` on web; mobile uses
-  `EXPO_PUBLIC_WEB_ORIGIN`, injected in CI from the web preview URL (build-mobile-internal
-  depends on deploy-preview-web and passes `web-origin`; falls back to the repo variable,
-  production web). Claim happens only via the public page
-  `app/invite/[token]/page.tsx` → `components/ClaimInvitePage.tsx`. API:
-  `POST /api/invites` (create), `POST /api/invites/claim` (TTL 7gg) → both users become
-  MUTUAL followers/friends. Repo: `lib/invites.repository.ts` (token `base64url` 128bit,
-  `expireStale()` per cleanup).
+  above the tabs generates a shareable link (no email form). The link ALWAYS points at the
+  **API** (the origin that received `POST /api/invites`), never at the web app — preview API
+  generates preview links, production generates production links. Claim happens on the public
+  claim page HOSTED BY THE API: `apps/api/src/app/invite/[token]/` (server wrapper awaits
+  params + client `claim.tsx` with ClerkProvider; signed-out visitors sign in via modal,
+  signed-in visitors claim with a Bearer token). Requires `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  on the API deployment (injected in pr-ci via `extra-env`). API: `POST /api/invites` (create),
+  `POST /api/invites/claim` (TTL 7gg) → both users become MUTUAL followers/friends. Repo:
+  `lib/invites.repository.ts` (token `base64url` 128bit, `expireStale()` per cleanup).
 - Client state via `@board-game-organizer/store` (Zustand); server data via
   `@board-game-organizer/query` (TanStack Query — `QueryProvider` uses `useState` to avoid client
   sharing during SSR).
@@ -535,10 +535,10 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   rilanciare `pnpm i18n:compile` (il reverse index `idByEnglish` le mappa).
 - **Icone**: usare `lucide-react` (web) e `lucide-react-native` (mobile) —
   già installate. Mai importare icone da altri posti.
-- **Link di invito = deployment corrente**: il link generato deve puntare
-  all'origin che HA GENERATO l'invito (web: `window.location.origin`;
-  mobile: `EXPO_PUBLIC_WEB_ORIGIN`). Mai hardcodare l'URL di produzione —
-  un invito creato dalla preview deve aprire la web preview, non la prod.
+- **Link di invito = API corrente**: il link deve puntare SEMPRE all'API che
+  ha generato l'invito (`new URL(request.url).origin` in `POST /api/invites`) —
+  preview API → link preview, production → link production. Mai al web app e
+  mai hardcodare l'URL di produzione.
 
 ## CI Rules (trigger intelligenti)
 

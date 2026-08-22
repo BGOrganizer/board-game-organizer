@@ -23,12 +23,7 @@ describe("web middleware", () => {
       request: { url: string },
     ) => Promise<void>;
     expect(handler).toBeTypeOf("function");
-    expect(createRouteMatcherMock).toHaveBeenCalledWith([
-      "/",
-      "/sign-in(.*)",
-      "/sign-up(.*)",
-      "/invite/(.*)",
-    ]);
+    expect(createRouteMatcherMock).toHaveBeenCalledWith(["/", "/sign-in(.*)", "/sign-up(.*)"]);
 
     const protect = vi.fn();
     // Public route (createRouteMatcher returns true for url === "public").

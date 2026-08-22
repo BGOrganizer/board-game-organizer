@@ -22,12 +22,6 @@ export interface UseInvitesOptions {
   getToken?: () => Promise<string | null>;
   /** Vercel preview protection-bypass token (web passes it explicitly). */
   protectionBypass?: string | null;
-  /**
-   * Web origin used to build the shareable link so it points at the SAME
-   * deployment that generated it (web: window.location.origin). When omitted
-   * the API falls back to its configured WEB_ORIGIN.
-   */
-  webOrigin?: string | null;
 }
 
 async function resolveToken(
@@ -43,19 +37,19 @@ async function resolveToken(
 }
 
 /**
- * Creates an invite (POST /api/invites). Pass `webOrigin` so the returned
- * link points at the generating deployment (preview vs production web).
+ * Creates an invite (POST /api/invites). The API builds the shareable link
+ * from the origin that received the request, so it always points at the API
+ * that created it (preview vs production) — no origin needed from clients.
  */
 export async function createInvite(
   apiUrl: string,
   sessionToken: string,
-  webOrigin: string | null | undefined,
   protectionBypass?: string | null,
 ): Promise<InviteRow> {
   return fetch(withProtectionBypass(`${apiUrl}/api/invites`, protectionBypass), {
     method: "POST",
     headers: apiHeaders(sessionToken),
-    body: JSON.stringify(webOrigin ? { webOrigin } : {}),
+    body: JSON.stringify({}),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as InviteRow;
@@ -84,15 +78,9 @@ export async function claimInvite(
  * Create-invite mutation, shared web/mobile. The generated link is returned
  * and shared/copied by the UI (no email form — a single button in a card).
  */
-export function useInvites({
-  apiUrl,
-  token,
-  getToken,
-  protectionBypass,
-  webOrigin,
-}: UseInvitesOptions) {
+export function useInvites({ apiUrl, token, getToken, protectionBypass }: UseInvitesOptions) {
   return useMutation({
     mutationFn: async () =>
-      createInvite(apiUrl, await resolveToken(token, getToken), webOrigin, protectionBypass),
+      createInvite(apiUrl, await resolveToken(token, getToken), protectionBypass),
   });
 }

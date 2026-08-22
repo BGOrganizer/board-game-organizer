@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@board-game-organizer/schemas": "workspace:*",
+    "@board-game-organizer/shared": "workspace:*",
     "@clerk/nextjs": "^7.5.8",
     "mongodb": "^7.4.0",
     "next": "^16.2.0",

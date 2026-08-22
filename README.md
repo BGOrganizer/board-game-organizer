@@ -32,9 +32,10 @@ web, API, and mobile, all in one TypeScript monorepo.
   (heartbeat), coherent follow state across sections (TanStack Query cache invalidation)
 - **Invites** (Phase 3): shareable invite links with 7-day TTL (`POST /api/invites`,
   `POST /api/invites/claim`); claiming makes both users MUTUAL followers/friends. UI: an
-  `InviteCard` (card + button, no email form) above the Contacts tabs generates a link that
-  points at the SAME deployment that generated it (preview vs production); claim happens on
-  the public web page `/invite/<token>`. Icons via lucide-react / lucide-react-native.
+  `InviteCard` (card + button, no email form) above the Contacts tabs. The link ALWAYS points
+  at the **API** that generated it (preview API → preview link, production → production link);
+  claim happens on the public page `/invite/<token>` HOSTED BY THE API (Clerk sign-in modal +
+  Bearer claim). Icons via lucide-react / lucide-react-native.
 - E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI — test users are
   provisioned via the Clerk API per run and deleted afterwards (never accumulate)
 
