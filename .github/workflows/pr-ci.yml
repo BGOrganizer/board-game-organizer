@@ -184,13 +184,15 @@ jobs:
           fi
           # Code that rebuilds the APK: mobile source, the packages the app
           # imports, and lockfiles, PLUS the CI files that bake env into the
-          # APK (mobile-build action, pr-ci job wiring) — a change there means
-          # the next APK differs even if app code did not. Maestro flows and
-          # unit tests are EXCLUDED: new flows or tests without app-code
-          # changes must NOT rebuild.
+          # APK (mobile-build action, pr-ci job wiring) and apps/web — the
+          # web-origin baked into the APK points at this PR's web preview, so
+          # any web change must rebuild the APK or invite links point at a
+          # stale preview. Maestro flows and unit tests are EXCLUDED: new
+          # flows or tests without app-code changes must NOT rebuild.
           CHANGED=$(
             git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
               apps/mobile \
+              apps/web \
               packages/shared packages/query packages/store packages/schemas \
               pnpm-lock.yaml pnpm-workspace.yaml \
               .github/actions/mobile-build .github/workflows/pr-ci.yml |
