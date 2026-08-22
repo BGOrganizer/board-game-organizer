@@ -24,6 +24,7 @@ packages/
   store/              @board-game-organizer/store   Zustand store, slice pattern (UI state ONLY)
   query/              @board-game-organizer/query   TanStack Query provider + client factory
   shared/             @board-game-organizer/shared  shared types, API client + TanStack Query hooks
+  schemas/            @board-game-organizer/schemas  DB models (5 collections) + zod DTOs (Phase 0)
   biome-config/       @board-game-organizer/biome-config
   typescript-config/  @board-game-organizer/typescript-config (base / next / expo)
 ```
@@ -64,6 +65,8 @@ pnpm --filter api dev       # http://localhost:4000 (binds 0.0.0.0)
 pnpm --filter mobile dev    # expo start --dev-client
 pnpm --filter <app> test    # vitest run
 pnpm --filter <app> lint|typecheck|format
+pnpm --filter api migrate        # Phase 1: create social collections + indexes
+pnpm --filter api backfill:users # Phase 1: mirror all Clerk users into `users`
 ```
 
 ## Environment Variables
@@ -75,14 +78,32 @@ No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.ex
 | web | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
 | web | `NEXT_PUBLIC_API_URL` | defaults to `http://localhost:4000`; prod → `https://api-chi-two-97.vercel.app` |
 | api | `CLERK_SECRET_KEY` | backend calls to Clerk API |
+| api | `CLERK_WEBHOOK_SECRET` | SVIX signing secret for `POST /api/webhooks/clerk` (user.created/updated/deleted mirroring) |
 | api | `MONGODB_URI` / `MONGODB_DB_NAME` | MongoDB (needs transactions → replica set) |
 | api | `ALLOWED_ORIGINS` | comma-separated CORS allowlist (dev allows all) |
 | mobile | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | via `app.config.js` `extra` |
 | mobile | `EXPO_PUBLIC_API_URL` | read from `Constants.expoConfig.extra.apiUrl`; prod → the Vercel API URL |
 
+**Preview chaining (option B)**: in pr-ci the mobile APK and the web preview are
+built to talk to **this PR's API preview deployment**: `build-mobile-internal` and
+`deploy-preview-web` depend on `deploy-preview-api` and inject its `outputs.url` as
+`EXPO_PUBLIC_API_URL` / `NEXT_PUBLIC_API_URL` (via `vercel-deploy`'s `extra-env`
+input). Both jobs keep an `if: !cancelled() && <main needs> == 'success'` so a failed
+API preview falls back to the repo/project env var instead of killing the E2E chain.
+The standalone `mobile-e2e.yml` workflow keeps using the repo variable (no preview
+deploy there).
+
+The API preview deployments are protected by **Vercel Deployment Protection**; the
+repo secret `VERCEL_PROTECTION_BYPASS` (x-vercel-protection-bypass token) is injected
+at build time into the mobile APK (`EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS` via the
+mobile-build action) and into the web preview (`NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS`
+via `extra-env`), and every client fetch attaches it via `apiHeaders()` in
+`packages/shared/src/api.ts`, so preview clients can call the protected API.
+
 **Production deployments**: web → `web-rosy-phi-82.vercel.app`, api → `api-chi-two-97.vercel.app`.
 CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG_ID`,
-`VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `CLERK_SECRET_KEY` (used by Maestro E2E to
+`VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `VERCEL_PROTECTION_BYPASS`,
+`CLERK_SECRET_KEY` (used by Maestro E2E to
 provision a test user via the Clerk API and by Playwright E2E for the testing token +
 user cleanup), `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (release notifications on the
 Telegram channel), `RELEASE_PAT` (admin PAT usato da main-ci per il push del bump di
@@ -92,6 +113,45 @@ installa anche l'app GitHub Codecov per i commenti PR col delta di coverage). Re
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
 
 Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_URI` is missing, so the API can't start without it.
+
+## i18n (LinguiJS)
+
+- **One shared catalog** for web + mobile: `lingui.config.ts` at the repo root,
+  catalogs in `messages/{en,it}.po` (compiled to `messages/{en,it}.js`).
+- Commands: `pnpm i18n:extract` / `pnpm i18n:compile` (root). Compiled catalogs
+  are committed; keep them in sync after editing strings.
+- **Locale detection**: web reads the browser `Accept-Language` header
+  server-side (`apps/web/src/lib/i18n.ts` + `i18n-locale.ts`, q-values parsed)
+  with a `navigator.language` client fallback in `LinguiClientProvider`;
+  mobile uses `expo-localization` (`apps/mobile/src/lib/i18n.ts`).
+- **Macros**: `t` / `Trans` / `useLingui` from `@lingui/react/macro` (and
+  `@lingui/core/macro`). Web uses `babel.config.js` (next/babel +
+  `@lingui/babel-plugin-lingui-macro`); **mobile uses RUNTIME i18n only**
+  (`useT()`/`translate()` from `apps/mobile/src/lib/i18n.ts` — English
+  source string mapped to the shared hashed catalog id).
+- **Mobile build quirk (why no Babel macro on mobile)**: RN 0.85 ships
+  `@babel/core@8`, but a custom mobile `babel.config.js` forced the
+  worklets plugin (react-native-worklets/reanimated 4.x) to run under
+  Babel 7, producing a bundle that crashed at LAUNCH on real devices
+  (release + New Architecture — no error, just instant close; works on the
+  CI emulator because Maestro never exercises worklet animations). The fix:
+  no custom Babel config on mobile (identical to main) + runtime i18n.
+- **Vitest**: the Lingui macro transform is applied in WEB tests via
+  `@lingui/vite-plugin` + `@rolldown/plugin-babel`
+  (`linguiTransformerBabelPreset`); mobile tests use plain runtime
+  `translate()` (no Babel).
+
+## Coverage thresholds
+
+- Every app (`web`, `mobile`, `api`) and `packages/schemas` enforces a **50%**
+  coverage threshold in its `vitest.config.ts` (lines/functions/branches/
+  statements) — the PR pipeline fails below it.
+- **Mobile note**: RN 0.85 ships CJS with Flow syntax, which node's native CJS
+  loader bypasses the Vite transform pipeline for (jest-expo is the official
+  path for RN component tests, but would add a second test framework for one
+  app). Mobile unit coverage therefore targets the pure logic
+  (`src/lib/**`, and Phase 3: hooks/store/schemas); mobile UI behaviour is
+  covered by the Maestro E2E flows in pr-ci/main-ci.
 
 ## Architecture & Patterns
 
@@ -106,6 +166,17 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   types `follow | friend_request | friend | block`, statuses `pending | accepted | blocked`.
   Follow = immediate `accepted`; friend = bidirectional pair of accepted records; block clears
   bidirectional follow/request/friend first. See comments in `apps/api/src/app/models/relationship.ts`.
+- **Phase 1 (social backend)**: users are mirrored from Clerk via the webhook
+  `POST /api/webhooks/clerk` (SVIX-verified with `CLERK_WEBHOOK_SECRET`; events
+  `user.created/updated/deleted`) into the `users` collection via `UsersRepository`
+  (`lib/users.repository.ts`). `lib/migrate.ts` creates the social collections
+  (`users`, `follows`, `friendRequests`, `blocks`, `invites`) with indexes shared from
+  `packages/schemas` (`*_INDEXES` constants) and optionally drops the legacy
+  `relationships` collection. Run it with
+  `pnpm --filter api migrate` (scripts/migrate.ts). `scripts/backfill-users.ts`
+  (`pnpm --filter api backfill:users`) mirrors ALL existing Clerk users idempotently.
+  The legacy `RelationshipRepository` still powers the existing relationships API
+  until Phase 2 migrates those routes to the new collections.
 - Profiles are **not stored locally**: `lib/clerk.ts` fetches users from Clerk in chunks of 100
   (`enrichUserIds`, `enrichSingleUser`). `apps/api/src/app/api/profiles/route.ts` reuses
   `enrichSingleUser` + adds CORS handling (do NOT duplicate the direct Clerk call).
@@ -119,16 +190,43 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
 - Theme: HeroUI v3 dark mode is **class-based** — `layout.tsx` toggles `.dark` on `<html>` from
   `prefers-color-scheme` (no forced `className="light"`).
 - Route group `(tabs)` hosts Matches / Groups / Organizations / Contacts / Profile.
+- **Contacts tab (Phase 2 UI)**: `components/Contacts.tsx` + `app/(tabs)/contacts/page.tsx`
+  with 5 tabs (Following / Followers / Friends / Suggestions / Search), presence green-dot
+  and follow/unfollow actions, backed by `useContacts` from `packages/shared`
+  (`hooks/useContacts.ts`). Client sends a **presence heartbeat** (`POST /api/users/presence`)
+  on mount and every 60s while the tab is open.
+- **Search (Phase 3 review)**: auto-search with 300ms debounce, minimum 4 characters, clear
+  (X) button when there is text — NO submit button. Web uses `lucide-react` icons.
+- **Invite a friend (Phase 3 review)**: NO Invites tab — a single `InviteCard` (card + button)
+  above the tabs generates a shareable link (no email form). The link ALWAYS points at the
+  **API** (the origin that received `POST /api/invites`), never at the web app — preview API
+  generates preview links, production generates production links. Claim happens on the public
+  claim page HOSTED BY THE API: `apps/api/src/app/invite/[token]/` (server wrapper awaits
+  params + client `claim.tsx` with ClerkProvider; signed-out visitors sign in via modal,
+  signed-in visitors claim with a Bearer token). Requires `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  on the API deployment (injected in pr-ci via `extra-env`). API: `POST /api/invites` (create),
+  `POST /api/invites/claim` (TTL 7gg) → both users become MUTUAL followers/friends. Repo:
+  `lib/invites.repository.ts` (token `base64url` 128bit, `expireStale()` per cleanup).
 - Client state via `@board-game-organizer/store` (Zustand); server data via
   `@board-game-organizer/query` (TanStack Query — `QueryProvider` uses `useState` to avoid client
   sharing during SSR).
 
 ### Mobile (`apps/mobile`)
 - Expo Router file-based routing; `(tabs)` group with Matches/Groups/Organizations/Contacts/Profile
-  (specular to web). After sign-in `index.tsx` renders `<Redirect href="/(tabs)" />` (never a
-  `Stack.Screen` outside a Layout — that crashes the app).
+  (specular to web). `index.tsx` renders a declarative `<Redirect href="/matches" />` when signed in
+  (a `router.replace` effect raced the navigator on cold start → intermittent
+  crash when reopening the app while still logged in).
+- `global.css` must list `@source "./src"` — with only the heroui-native
+  `@source`, Tailwind v4 does not generate the app's own utility classes
+  (`flex-1`, `gap-*`, `p-*`) and layouts fall back to RN defaults
+  (content appears centered).
 - Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
-  → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`) → `QueryProvider` → `Stack`.
+  → `I18nProvider` (defaultI18n) → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
+  → `QueryProvider` → `Stack`.
+- **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 5 tabs as web; search
+  auto (debounce + min 4 chars + clear X with `lucide-react-native`); `InviteCard` above the
+  tabs (create + native Share sheet); shared `useContacts`/`useInvites` hooks, presence
+  heartbeat; `useT()` runtime i18n (no Babel macro).
 - Styling: **heroui-native** components + **uniwind** classes (`global.css` wired in `metro.config.js`
   via `withUniwindConfig`). Use `className`, never raw `style` for colors.
 - **Theme**: uniwind auto-follows the device `Appearance`; the Zustand `uiSlice.themePreference`
@@ -154,6 +252,18 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   multi-step form state before submit, transient optimistic UI flags.
 - Zustand never mirrors Query data. At most it holds a temporary "optimistic UI flag" for instant
   feedback while a mutation resolves.
+- **Cache correctness rules (web AND mobile)**:
+  - Every contact list (following/followers/friends/suggestions) is a `useQuery` with a
+    `["contacts", <type>, apiUrl, token]` key.
+  - Every mutation (follow/unfollow/…) MUST invalidate the whole `["contacts"]` prefix on
+    success (`queryClient.invalidateQueries({ queryKey: ["contacts"] })`) so all lists and
+    suggestions refetch; NEVER let the UI rely on manual refresh.
+  - If a search is active when a follow/unfollow succeeds, re-run it (see `runSearch` +
+    `lastSearchQuery` in `packages/shared/src/hooks/useContacts.ts`) so buttons switch
+    follow ⇄ unfollow without a user action.
+  - Session JWTs rotate: never use a stale `token` snapshot across calls — pass Clerk
+    `getToken` into `useContacts` (or `useProfileQuery`-style hooks) so every fetch resolves
+    a fresh token; a cached snapshot eventually returns HTTP 401.
 
 ## Code Conventions
 
@@ -249,7 +359,13 @@ A single workflow runs ALL quality gates on every PR:
 5. **API integration tests (vitest + testcontainers)** — `pnpm --filter api test:integration`;
    spins up a real MongoDB container (Docker) — the scaffold for the upcoming MongoDB
    integration
-6. **Mobile build (internal only)** — `mobile-build` composite action, profile `internal`
+6. **Mobile build (internal only)** — `mobile-build` composite action, profile `internal`.
+   The APK is rebuilt ONLY when mobile-affecting code changed: `detect-mobile-changes`
+   diffs HEAD against the **last green pr-ci run** on the branch (NOT the PR base — the
+   base diff always contains historical mobile commits and would rebuild on every run),
+   restricted to `apps/mobile`, `packages/{shared,query,store,schemas}`, lockfiles; Maestro
+   flows and unit tests are excluded. When nothing changed, the last successful `apk-internal`
+   artifact is downloaded and re-uploaded instead of rebuilding.
 7. **Build API + Web** — `next build` for both apps
 8. **Vercel preview deploys** — api and web deployed to **preview** (never production)
 9. **E2E Maestro (mobile)** — boots a software-rendered Android emulator
@@ -360,3 +476,78 @@ the repo.
 See pi-board-agent `docs/docker.md`: the board-agent runs in its own Docker container
 (pi headless + `auto_start: true`), with the repo mounted at `/workspace`. Control via
 GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose exec`.
+
+## UX & UI Rules (da ricordare SEMPRE)
+
+- **Chip/tab selezionata (mobile)**: le chip della tab bar devono riflettere la
+  selezione corrente (stato visivo attivo/non attivo). Su web funziona; su
+  mobile va corretto ovunque (non solo Contacts — tutte le tab).
+- **Loading**: usare componenti **skeleton** al posto degli spinner, per
+  TUTTE le pagine/tab (web + mobile), non solo le nuove.
+- **Titolo di sezione**: NON mettere il titolo della pagina/sezione nelle
+  pagine dei tab — la sezione è già indicata dal menu principale (tab bar).
+  Vale per web e mobile e per tutte le implementazioni future.
+- **Users/search**: gli utenti compaiono in Contacts solo se sono nella
+  collection `users` (webhook Clerk o backfill). Un account Google in Clerk
+  NON basta: serve `pnpm --filter api backfill:users` (o webhook
+  configurato con CLERK_WEBHOOK_SECRET).
+
+## Lessons Learned (errori passati — NON ripeterli)
+
+- **`NEXT_PUBLIC_*` non viene inlined da Next.js nei workspace packages**
+  (node_modules): le env vanno lette nei file del progetto (es.
+  `apps/web/src/components/*.tsx`) e passate esplicitamente agli helper
+  condivisi. Leggerle dentro `packages/shared` produce `undefined` nel
+  browser. (`EXPO_PUBLIC_*` invece funziona ovunque.)
+- **Il bypass Vercel è un query param, NON un header**: i preflight CORS
+  (OPTIONS) non trasportano mai header custom → header-based bypass fallisce
+  con "Redirect is not allowed for a preflight request". Usare
+  `withProtectionBypass()` che appende `?x-vercel-protection-bypass=…`
+  all'URL (l'URL fa parte del preflight).
+- **Skeleton**: heroui-native Skeleton non ha dimensione intrinseca (nasconde
+  i children) → sempre `style={{width,height,borderRadius}}` espliciti, e le
+  righe/figure devono avere `width: "100%"` nel parent con `alignItems`
+  stretch (flex-start li restringe).
+- **Layout mobile**: NON dipendere dalle classi Tailwind/uniwind per la
+  struttura (flex-1, gap-2, mb-3, flex-row) — potrebbero non essere generate
+  a runtime. Usare style object espliciti per il layout strutturale.
+- **Token Clerk ruota**: mai riusare uno snapshot di `getToken()` catturato
+  al mount — ogni fetch risolve un token FRESCO (`getToken` passato a
+  `useContacts`). Uno snapshot vecchio → 401 dopo poco.
+- **DELETE con body**: il server deve parsare il body in modo difensivo
+  (`req.text()` + try/catch JSON → 400) e il client invia `targetUserId`
+  anche su DELETE; `req.json()` diretto su body assente → 500.
+- **Invalidazione cache**: ogni mutation (follow/unfollow/…) deve
+  invalidare il prefisso `["contacts"]` su success (refetch di tutte le
+  liste + re-run della ricerca attiva, così i bottoni Follow ⇄ Unfollow si
+  aggiornano da soli). Stato follow sempre coerente tra sezioni.
+- **YAML folded block `>-` unisce le righe**: per multi-line env usare il
+  literal block `|` (es. `extra-env`), altrimenti la seconda riga sparisce.
+- **GitHub Actions API**: `conclusion=success` NON filtra nei query param di
+  `actions/runs` → va filtrato in jq. Il token `GH_TOKEN` va esplicitato
+  come env per `gh api`.
+- **detect-mobile-changes**: il diff va fatto contro l'ultimo run verde sul
+  branch (non contro la base PR — quello include sempre i commit storici e
+  rebuilda sempre).
+- **Stringhe i18n mobile-only**: Lingui extract vede solo le stringhe web
+  (macro). Le stringhe usate SOLO nel mobile con `t("...")` runtime non
+  entrano nel catalogo: aggiungerle a mano in `messages/{en,it}.po` e
+  rilanciare `pnpm i18n:compile` (il reverse index `idByEnglish` le mappa).
+- **Icone**: usare `lucide-react` (web) e `lucide-react-native` (mobile) —
+  già installate. Mai importare icone da altri posti.
+- **Link di invito = API corrente**: il link deve puntare SEMPRE all'API che
+  ha generato l'invito (`new URL(request.url).origin` in `POST /api/invites`) —
+  preview API → link preview, production → link production. Mai al web app e
+  mai hardcodare l'URL di produzione.
+
+## CI Rules (trigger intelligenti)
+
+- **pr-ci build mobile**: parte SOLO se modificati `apps/mobile` o i package
+  correlati (shared/query/store/schemas) + lockfile. NON deve triggerare per
+  i file `.maestro/flows/*` (nuovi flow Maestro senza cambio codice non
+  devono rifare la build APK).
+- **Unit test**: se aggiunti/modificati SOLO test (senza cambio codice app),
+  NON rieseguire il rebuild mobile.
+- **mobile-e2e.yml** (workflow singolo per test veloci): builda APK
+  (profilo **internal**, NON development) e runna i flow Maestro. Serve per
+  iterare velocemente senza tutta la pr-ci.

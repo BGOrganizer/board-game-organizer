@@ -1,0 +1,276 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-08-18 07:30+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "Claim"
+#~ msgstr "Claim"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Claim invite"
+msgstr "Claim invite"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Claiming this invite connects you with the inviter."
+msgstr "Claiming this invite connects you with the inviter."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Clear search"
+msgstr "Clear search"
+
+#: apps/web/src/components/Header.tsx
+msgid "Contacts"
+msgstr "Contacts"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Copied!"
+msgstr "Copied!"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Copy"
+msgstr "Copy"
+
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "Could not claim this invite."
+#~ msgstr "Could not claim this invite."
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Could not claim."
+msgstr "Could not claim."
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Could not create the invite. Try again."
+msgstr "Could not create the invite. Try again."
+
+#: apps/web/src/components/Counter.tsx
+msgid "Counter (Zustand)"
+msgstr "Counter (Zustand)"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Create invite"
+msgstr "Create invite"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Error while loading the profile:"
+msgstr "Error while loading the profile:"
+
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "expires"
+#~ msgstr "expires"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Follow"
+msgstr "Follow"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Followers"
+msgstr "Followers"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Following"
+msgstr "Following"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Profile.tsx
+msgid "Friends"
+msgstr "Friends"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Generate a link to connect with someone."
+msgstr "Generate a link to connect with someone."
+
+#: apps/web/src/components/Header.tsx
+msgid "Groups"
+msgstr "Groups"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Invite a friend"
+msgstr "Invite a friend"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Invite claimed — you are now friends with the inviter!"
+msgstr "Invite claimed — you are now friends with the inviter!"
+
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "Invite claimed — you are now friends!"
+#~ msgstr "Invite claimed — you are now friends!"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "Invite claimed — you now follow the inviter."
+#~ msgstr "Invite claimed — you now follow the inviter."
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "Invites"
+#~ msgstr "Invites"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Language:"
+msgstr "Language:"
+
+#: apps/web/src/components/Profile.tsx
+#~ msgid "Loading..."
+#~ msgstr "Loading..."
+
+#: apps/web/src/components/Profile.tsx
+msgid "Logout"
+msgstr "Logout"
+
+#: apps/web/src/components/Header.tsx
+msgid "Matches"
+msgstr "Matches"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "New invite"
+msgstr "New invite"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No followers yet"
+msgstr "No followers yet"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No friends yet"
+msgstr "No friends yet"
+
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "No invites yet — create one to share."
+#~ msgstr "No invites yet — create one to share."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No suggestions right now"
+msgstr "No suggestions right now"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No users found"
+msgstr "No users found"
+
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "Optional email (auto-connect on claim)"
+#~ msgstr "Optional email (auto-connect on claim)"
+
+#: apps/web/src/components/Header.tsx
+msgid "Organizations"
+msgstr "Organizations"
+
+#: apps/web/src/components/LoginFallback.tsx
+msgid "Organize your board game collection, track your matches and connect with other players."
+msgstr "Organize your board game collection, track your matches and connect with other players."
+
+#: apps/web/src/components/Profile.tsx
+msgid "Owned"
+msgstr "Owned"
+
+#: apps/web/src/components/InvitesTab.tsx
+#~ msgid "Paste an invite link or token to claim it"
+#~ msgstr "Paste an invite link or token to claim it"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Plan:"
+msgstr "Plan:"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Played"
+msgstr "Played"
+
+#: apps/web/src/components/Header.tsx
+msgid "Profile"
+msgstr "Profile"
+
+#: apps/web/src/components/Counter.tsx
+msgid "Reset"
+msgstr "Reset"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Retry"
+msgstr "Retry"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Search"
+msgstr "Search"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Search users (at least 4 characters)"
+msgstr "Search users (at least 4 characters)"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Search users by name or email"
+msgstr "Search users by name or email"
+
+#~ msgid "Share"
+#~ msgstr "Share"
+
+#~ msgid "Share link"
+#~ msgstr "Share link"
+
+#: apps/mobile/src/app/_layout.tsx
+#~ msgid "Sign in"
+#~ msgstr "Sign in"
+
+#: apps/web/src/components/Header.tsx
+#: apps/web/src/components/LoginFallback.tsx
+msgid "Sign In"
+msgstr "Sign In"
+
+#: apps/mobile/src/components/LoginFallback.tsx
+#~ msgid "Sign in / Register"
+#~ msgstr "Sign in / Register"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Sign in to claim"
+msgstr "Sign in to claim"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "Sign in to claim this invite and connect with the inviter."
+msgstr "Sign in to claim this invite and connect with the inviter."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Sign in to see your contacts"
+msgstr "Sign in to see your contacts"
+
+#: apps/web/src/components/Header.tsx
+#: apps/web/src/components/LoginFallback.tsx
+msgid "Sign Up"
+msgstr "Sign Up"
+
+#: apps/mobile/src/components/Profile.tsx
+#~ msgid "Sign-in unavailable"
+#~ msgstr "Sign-in unavailable"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Suggestions"
+msgstr "Suggestions"
+
+#: apps/web/src/components/Header.tsx
+msgid "Toggle menu"
+msgstr "Toggle menu"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Type at least 4 characters to search"
+msgstr "Type at least 4 characters to search"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Unfollow"
+msgstr "Unfollow"
+
+#: apps/web/src/components/LoginFallback.tsx
+msgid "Welcome to Board Game Organizer"
+msgstr "Welcome to Board Game Organizer"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "You are not following anyone yet"
+msgstr "You are not following anyone yet"
+
+#: apps/web/src/components/ClaimInvitePage.tsx
+msgid "You have been invited"
+msgstr "You have been invited"

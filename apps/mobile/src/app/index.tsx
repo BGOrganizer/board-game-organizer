@@ -1,39 +1,43 @@
 import { useAuth } from "@clerk/expo";
-
-import { usePathname, useRouter } from "expo-router";
-import { Spinner } from "heroui-native/spinner";
-import { useEffect } from "react";
+import { Redirect } from "expo-router";
+import { Skeleton } from "heroui-native/skeleton";
 import { View } from "react-native";
+
 import { Header } from "@/components/Header";
 import { LoginFallback } from "@/components/LoginFallback";
 
 export default function Index() {
   const { isLoaded, isSignedIn } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // Navigate with router.replace in an effect instead of rendering <Redirect>.
-  // With the (tabs) group's first screen at "/matches" (not "/"), the root
-  // index is the ONLY route at "/" — no ambiguity with the tabs, so this
-  // effect cannot ping-pong with the (tabs) guard.
-  useEffect(() => {
-    if (isLoaded && isSignedIn && pathname === "/") {
-      router.replace("/matches");
-    }
-  }, [isLoaded, isSignedIn, router, pathname]);
 
   if (!isLoaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <Spinner />
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 12,
+          backgroundColor: "transparent",
+        }}
+      >
+        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 48, borderRadius: 8 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: 128, height: 16, borderRadius: 4 }} />
       </View>
     );
+  }
+
+  // Signed-in users land on the tabs directly. A declarative <Redirect> (not
+  // a router.replace effect) is race-free: expo-router performs the swap
+  // once the navigator is ready, which fixes intermittent cold-start crashes
+  // when reopening the app while still signed in.
+  if (isSignedIn) {
+    return <Redirect href="/matches" />;
   }
 
   return (
     <View className="flex-1 bg-background p-6">
       <Header />
-      {isSignedIn ? null : <LoginFallback />}
+      <LoginFallback />
     </View>
   );
 }

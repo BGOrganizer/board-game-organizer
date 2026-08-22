@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # reuse the last successful APK from a prior run
   pull-requests: write # preview URL comments on the PR
   statuses: write # deployment statuses
   deployments: write # Vercel deployments
@@ -71,7 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [mobile, web, api]
+        app: [mobile, web, api, schemas]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -151,11 +152,67 @@ jobs:
       - name: 🏗️ Build web
         run: pnpm --filter web build
 
+  # --------------------------------------- mobile change detection
+  # If no mobile-affecting file changed vs the base branch, skip the ~25min
+  # EAS APK build and reuse the last successful APK artifact instead.
+  detect-mobile-changes:
+    name: 🔍 Detect mobile changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Diff mobile-affecting paths
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          # Incremental diff: compare HEAD against the last GREEN pr-ci run on
+          # this branch (not against the PR base — the base diff always
+          # contains every historical mobile commit, so changed would be true
+          # forever and the APK would rebuild on every run).
+          LAST_GREEN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&conclusion=success&per_page=20" --jq '.workflow_runs[] | select(.head_sha != "'"$HEAD_SHA"'") | .head_sha' | head -1 || true)
+          if [ -z "$LAST_GREEN_SHA" ]; then
+            echo "No previous green run → changed=true"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Code that rebuilds the APK: mobile source, the packages the app
+          # imports, and lockfiles, PLUS the CI files that bake env into the
+          # APK (mobile-build action, pr-ci job wiring). Maestro flows and
+          # unit tests are EXCLUDED: new flows or tests without app-code
+          # changes must NOT rebuild.
+          CHANGED=$(
+            git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
+              apps/mobile \
+              apps/web \
+              packages/shared packages/query packages/store packages/schemas \
+              pnpm-lock.yaml pnpm-workspace.yaml \
+              .github/actions/mobile-build .github/workflows/pr-ci.yml |
+              grep -v '^apps/mobile/\.maestro/' |
+              grep -v '^apps/mobile/src/.*\.(test|spec)\.' |
+              grep -v '__tests__' |
+              wc -l
+          )
+          echo "diff vs $LAST_GREEN_SHA → $CHANGED changed file(s)"
+          if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+
   # -------------------------------------------------- mobile internal build
   build-mobile-internal:
-    name: 📱 Build mobile APK (internal)
+    name: 📱 Mobile APK (internal) — build or reuse
+    needs: [detect-mobile-changes, deploy-preview-api]
+    # Build even if the API preview deploy failed: fall back to the repo
+    # variable (EXPO_PUBLIC_API_URL) in that case.
+    if: ${{ !cancelled() && needs.detect-mobile-changes.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      reused: ${{ steps.reuse.outputs.reused }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -165,21 +222,56 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
+      - name: ♻️ Find last successful APK
+        id: reuse
+        if: needs.detect-mobile-changes.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          RUN_ID=""
+          # NOTE: the API ignores conclusion=success as a query filter, so we
+          # must select it in jq — otherwise failed runs (which can still have
+          # an APK artifact when only e.g. lint failed) get picked up.
+          RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&branch=$GITHUB_HEAD_REF&per_page=10" --jq '.workflow_runs[] | select(.conclusion == "success" and .head_sha != "'"$HEAD_SHA"'") | .id')
+          for id in $RUNS; do
+            ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal") | .id' 2>/dev/null || true)
+            if [ -n "$ART" ]; then RUN_ID="$id"; break; fi
+          done
+          echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          if [ -n "$RUN_ID" ]; then echo "reused=true" >> "$GITHUB_OUTPUT"; else echo "reused=false" >> "$GITHUB_OUTPUT"; fi
+          echo "last successful APK run: ${RUN_ID:-none}"
+
+      - name: 📥 Download reused APK
+        if: steps.reuse.outputs.run-id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal
+          path: apps/mobile/build-output
+          run-id: ${{ steps.reuse.outputs.run-id }}
+          github-token: ${{ github.token }}
+
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
+        if: steps.reuse.outputs.run-id == ''
         uses: ./.github/actions/mobile-build
         with:
           profile: internal
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
+          # Option B: point the APK at THIS PR's preview API deployment so
+          # the app talks to the exact code under test. Falls back to the
+          # repo variable when the preview deploy produced no URL.
+          api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-internal
-          path: ${{ steps.build.outputs.artifact-path }}
+          path: ${{ steps.reuse.outputs.run-id != '' && 'apps/mobile/build-output' || steps.build.outputs.artifact-path }}
           retention-days: 7
 
   # ------------------------------------------------ provision E2E test user
@@ -235,11 +327,18 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          # The /invite/<token> claim page is a client component: it needs the
+          # Clerk publishable key baked at build time.
+          extra-env: |
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
   # ---------------------------------------------------- Vercel preview web
   deploy-preview-web:
     name: 🌐 Vercel preview (Web)
-    needs: [build-api-web]
+    needs: [build-api-web, deploy-preview-api]
+    # Build even if the API preview deploy failed: fall back to the project
+    # env var (NEXT_PUBLIC_API_URL) in that case.
+    if: ${{ !cancelled() && needs.build-api-web.result == 'success' }}
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -265,6 +364,12 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          # The web preview talks to this PR's API preview, mirroring the
+          # APK behavior (option B). Falls back to the project env var when
+          # the API preview produced no URL (empty line is skipped).
+          extra-env: |
+            NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
+            NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
   # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:
@@ -315,18 +420,30 @@ jobs:
           username: ${{ needs.provision.outputs.username }}
           password: ${{ needs.provision.outputs.password }}
 
+      - name: 📥 Collect Maestro reports (workspace)
+        if: always()
+        run: |
+          # The maestro-e2e action persists reports into the workspace;
+          # this step only guarantees a summary exists if the action's own
+          # persist step did not (e.g. script exited early on failure).
+          mkdir -p maestro-reports maestro-debug
+          ls maestro-reports/*.xml 2>/dev/null | grep -q . || \
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
+          echo "---- maestro-reports ----"; ls -la maestro-reports || true
+          echo "---- maestro-debug ----"; ls -la maestro-debug || true
+
       - name: 📤 Upload Maestro reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-reports
           path: |
-            /tmp/maestro-reports/**
-            /tmp/maestro-debug/**
-            /tmp/fail-screen.png
-            /tmp/ui-fail.xml
-            /tmp/fail-logcat.txt
-            /tmp/maestro-rec.mp4
+            maestro-reports/**
+            maestro-debug/**
+            fail-screen.png
+            ui-fail.xml
+            fail-logcat.txt
+            maestro-rec.mp4
           if-no-files-found: warn
 
   # ---------------------------------------------------------- Playwright E2E

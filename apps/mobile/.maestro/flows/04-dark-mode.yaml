@@ -5,6 +5,6 @@ appId: com.bgo.mobile
 - launchApp:
     stopApp: true
 - extendedWaitUntil:
-    visible: "Benvenuto in Board Game Organizer"
+    visible: "Welcome to Board Game Organizer"
     timeout: 120000
-- assertVisible: "Accedi / Registrati"
+- assertVisible: "Sign in / Register"

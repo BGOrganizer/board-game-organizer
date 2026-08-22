@@ -1,0 +1,4 @@
+{
+  "extends": ["@board-game-organizer/biome-config/biome"],
+  "root": false
+}

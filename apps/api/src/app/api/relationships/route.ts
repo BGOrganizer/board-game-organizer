@@ -6,3 +6,4 @@ export const GET = listHandler;
 export const POST = typedMutationHandler(CREATE);
 export const PATCH = typedMutationHandler(UPDATE);
 export const DELETE = typedMutationHandler(REMOVE);
+export { OPTIONS } from "@/app/lib/handler";

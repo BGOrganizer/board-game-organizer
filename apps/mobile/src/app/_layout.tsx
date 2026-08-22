@@ -2,6 +2,7 @@ import { QueryProvider } from "@board-game-organizer/query";
 import { useAppStore } from "@board-game-organizer/store";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { I18nProvider } from "@lingui/react";
 import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -13,6 +14,7 @@ import { Uniwind } from "uniwind";
 import "../../global.css";
 
 import { RuntimeError } from "@/components/RuntimeError";
+import { defaultI18n, useT } from "@/lib/i18n";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
@@ -86,22 +88,31 @@ function ThemeSync() {
   return null;
 }
 
+function RootNavigator() {
+  const t = useT();
+  return (
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <QueryProvider>
+        <ThemeSync />
+        <StatusBar style="auto" />
+        <Stack>
+          <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
+          <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </QueryProvider>
+    </ClerkProvider>
+  );
+}
+
 export default function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={sentryFallback}>
       <GestureHandlerRootView className="flex-1">
         <HeroUINativeProvider>
-          <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-            <QueryProvider>
-              <ThemeSync />
-              <StatusBar style="auto" />
-              <Stack>
-                <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
-                <Stack.Screen name="sign-in" options={{ title: "Accedi", presentation: "modal" }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              </Stack>
-            </QueryProvider>
-          </ClerkProvider>
+          <I18nProvider i18n={defaultI18n}>
+            <RootNavigator />
+          </I18nProvider>
         </HeroUINativeProvider>
       </GestureHandlerRootView>
     </Sentry.ErrorBoundary>
