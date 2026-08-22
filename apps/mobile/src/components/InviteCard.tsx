@@ -78,7 +78,7 @@ export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | 
           </View>
           <Button variant="primary" isDisabled={create.isPending} onPress={onCreate}>
             <UserPlus size={16} color="#fff" />
-            <Text>{t("Create invite")}</Text>
+            <Text style={{ color: "#fff" }}>{t("Create invite")}</Text>
           </Button>
         </>
       )}

@@ -237,10 +237,19 @@ export default function ContactsScreen() {
                     <Text className="font-medium">{u.name}</Text>
                     <PresenceDot online={u.presence.online} />
                   </View>
-                  {u.email ? <Text className="text-sm text-muted">{u.email}</Text> : null}
+                  {u.email ? (
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 13, color: "#8e8e93" }}
+                    >
+                      {u.email}
+                    </Text>
+                  ) : null}
                 </View>
                 <Button
                   variant="outline"
+                  size="sm"
                   isDisabled={isBusy}
                   onPress={() =>
                     u.isFollowing
@@ -281,10 +290,19 @@ export default function ContactsScreen() {
                     <Text className="font-medium">{u.name}</Text>
                     <PresenceDot online={u.presence.online} />
                   </View>
-                  {u.email ? <Text className="text-sm text-muted">{u.email}</Text> : null}
+                  {u.email ? (
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 13, color: "#8e8e93" }}
+                    >
+                      {u.email}
+                    </Text>
+                  ) : null}
                 </View>
                 <Button
                   variant="outline"
+                  size="sm"
                   isDisabled={isBusy}
                   onPress={() =>
                     u.isFollowing
@@ -333,12 +351,19 @@ export default function ContactsScreen() {
                       <PresenceDot online={profile.presence.online} />
                     </View>
                     {profile.email ? (
-                      <Text className="text-sm text-muted">{profile.email}</Text>
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={{ fontSize: 13, color: "#8e8e93" }}
+                      >
+                        {profile.email}
+                      </Text>
                     ) : null}
                   </View>
                   {listTab === "following" ? (
                     <Button
                       variant="outline"
+                      size="sm"
                       isDisabled={isBusy}
                       onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
                     >
