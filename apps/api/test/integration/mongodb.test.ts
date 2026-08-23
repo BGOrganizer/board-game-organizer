@@ -1,27 +1,50 @@
 import { MongoClient } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { RelationshipRepository } from "../../src/app/lib/relationship.repository";
 
 /**
- * Integration test scaffold (testcontainers).
+ * Integration tests (testcontainers).
  *
- * Currently the API has no database attached, so this test only validates the
- * containerised-MongoDB pattern that the upcoming MongoDB integration will
- * rely on. Once the API connects to MongoDB, real integration tests (e.g.
- * relationship repository flows) will extend this setup.
+ * The container runs mongo:7 as a REPLICA SET (`--replSet rs0` + initiate):
+ * transactions (withTransaction) are only allowed on a replica set member —
+ * a standalone mongo rejects them with "Transaction numbers are only allowed
+ * on a replica set member or mongos". Production uses MongoDB Atlas
+ * (replica set), so this mirrors the real runtime.
  */
+const REPLICA_SET = "rs0";
+
+async function startMongo() {
+  const container = await new GenericContainer("mongo:7")
+    .withCommand(["--replSet", REPLICA_SET, "--bind_ip_all"])
+    .withExposedPorts(27017)
+    .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/i))
+    .start();
+  const uri = `mongodb://${container.getHost()}:${container.getMappedPort(27017)}`;
+  const client = new MongoClient(uri);
+  await client.connect();
+  // Initiate the replica set and wait for PRIMARY.
+  await client.db("admin").command({ replSetInitiate: undefined });
+  for (let i = 0; i < 30; i += 1) {
+    try {
+      const status = await client.db("admin").command({ hello: 1 });
+      if (status.isWritablePrimary) break;
+    } catch {
+      /* not ready yet */
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return { container, client };
+}
+
 describe("MongoDB via testcontainers", () => {
   let container: StartedTestContainer;
   let client: MongoClient;
 
   beforeAll(async () => {
-    container = await new GenericContainer("mongo:7")
-      .withExposedPorts(27017)
-      .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/i))
-      .start();
-    const uri = `mongodb://${container.getHost()}:${container.getMappedPort(27017)}`;
-    client = new MongoClient(uri);
-    await client.connect();
+    const started = await startMongo();
+    container = started.container;
+    client = started.client;
   }, 240_000);
 
   afterAll(async () => {
@@ -39,20 +62,14 @@ describe("MongoDB via testcontainers", () => {
   });
 });
 
-import { RelationshipRepository } from "../../src/app/lib/relationship.repository";
-
-describe("RelationshipRepository flows on real MongoDB (session concurrency)", () => {
+describe("RelationshipRepository flows on real MongoDB (transaction)", () => {
   let container: StartedTestContainer;
   let client: MongoClient;
 
   beforeAll(async () => {
-    container = await new GenericContainer("mongo:7")
-      .withExposedPorts(27017)
-      .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/i))
-      .start();
-    const uri = `mongodb://${container.getHost()}:${container.getMappedPort(27017)}`;
-    client = new MongoClient(uri);
-    await client.connect();
+    const started = await startMongo();
+    container = started.container;
+    client = started.client;
   }, 240_000);
 
   afterAll(async () => {
@@ -60,7 +77,7 @@ describe("RelationshipRepository flows on real MongoDB (session concurrency)", (
     await container?.stop();
   });
 
-  it("block clears relationships and upserts the block row (serialized, no session concurrency)", async () => {
+  it("block clears relationships and upserts the block row", async () => {
     const db = client.db("integration-rel");
     const session = client.startSession();
     try {
@@ -72,8 +89,8 @@ describe("RelationshipRepository flows on real MongoDB (session concurrency)", (
         await repo.upsert("a", "b", "friend_request", "accepted");
         await repo.upsert("b", "a", "friend_request", "accepted");
 
-        // The regression: Promise.all with the same session throws
-        // "may not be used concurrently" on real MongoDB. Serialized ops pass.
+        // Regression: Promise.all with the same session used to throw
+        // "may not be used concurrently"; serialized ops pass.
         await repo.clearBidirectional("a", "b", ["follow", "friend_request", "friend"]);
         await repo.upsert("a", "b", "block", "blocked");
       });
