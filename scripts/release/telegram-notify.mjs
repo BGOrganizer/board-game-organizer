@@ -63,7 +63,16 @@ const links = linksFile ? readFileSync(linksFile, "utf8") : "";
 
 let text = [title, changelog, links].filter(Boolean).join("\n\n");
 if (text.length > maxLength) {
-  text = `${text.slice(0, maxLength - 1)}…`;
+  // Truncate on a line boundary: each mdToHtml line is self-contained HTML,
+  // so slicing mid-line could leave an unclosed tag and Telegram rejects it
+  // ("can't parse entities: Unclosed start tag").
+  const lines = text.split("\n");
+  let acc = "";
+  for (const line of lines) {
+    if (acc.length + line.length + (acc ? 1 : 0) > maxLength) break;
+    acc = acc ? `${acc}\n${line}` : line;
+  }
+  text = `${acc}\n…`;
 }
 
 const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
