@@ -1,24 +1,42 @@
 import { MongoClient } from "mongodb";
-import { MongoDBContainer, type StartedTestContainer } from "testcontainers";
+import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { RelationshipRepository } from "../../src/app/lib/relationship.repository";
 
 /**
  * Integration tests (testcontainers).
  *
- * MongoDBContainer.withReplicaSet() starts mongo:7 as a single-node REPLICA
- * SET: transactions (withTransaction) are only allowed on a replica set
- * member — a standalone mongo rejects them with "Transaction numbers are
- * only allowed on a replica set member or mongos". Production uses MongoDB
- * Atlas (replica set), so this mirrors the real runtime.
+ * The container runs mongo:7 as a REPLICA SET (single node): transactions
+ * (withTransaction) are only allowed on a replica set member — a standalone
+ * mongo rejects them. Production uses MongoDB Atlas (replica set), so this
+ * mirrors the real runtime.
  */
 const REPLICA_SET = "rs0";
 
 async function startMongo() {
-  const container = await new MongoDBContainer("mongo:7").withReplicaSet(REPLICA_SET).start();
-  const uri = container.getConnectionUri();
+  const container = await new GenericContainer("mongo:7")
+    .withCommand(["--replSet", REPLICA_SET, "--bind_ip_all"])
+    .withExposedPorts(27017)
+    .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/i))
+    .start();
+  // Member host uses the INTERNAL port (27017): the node checks whether the
+  // announced member "maps to this node" and a mapped port never matches.
+  // directConnection=true keeps the client on a single socket (no discovery).
+  const uri = `mongodb://${container.getHost()}:${container.getMappedPort(27017)}/?directConnection=true`;
   const client = new MongoClient(uri);
   await client.connect();
+  await client.db("admin").command({
+    replSetInitiate: { _id: REPLICA_SET, members: [{ _id: 0, host: "localhost:27017" }] },
+  });
+  for (let i = 0; i < 30; i += 1) {
+    try {
+      const status = await client.db("admin").command({ hello: 1 });
+      if (status.isWritablePrimary) break;
+    } catch {
+      /* not ready yet */
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
   return { container, client };
 }
 
