@@ -100,12 +100,13 @@ export function fetchSuggestions(
   apiUrl: string,
   token: string,
   protectionBypass?: string | null,
-): Promise<{ users: ContactUser[] }> {
+): Promise<{ users: ContactUser[]; hasContacts: boolean }> {
   return fetch(withProtectionBypass(`${apiUrl}/api/users/suggestions`, protectionBypass), {
     headers: apiHeaders(token),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as { users: ContactUser[] };
+    const body = (await res.json()) as { users: ContactUser[]; hasContacts?: boolean };
+    return { users: body.users, hasContacts: body.hasContacts ?? false };
   });
 }
 
@@ -114,8 +115,28 @@ export async function fetchSuggestionsWithToken(
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
   protectionBypass?: string | null,
-): Promise<{ users: ContactUser[] }> {
+): Promise<{ users: ContactUser[]; hasContacts: boolean }> {
   return fetchSuggestions(apiUrl, await resolveToken(token, getToken), protectionBypass);
+}
+
+export async function syncContactsWithToken(
+  apiUrl: string,
+  emails: string[],
+  token: string | null | undefined,
+  getToken: (() => Promise<string | null>) | undefined,
+  protectionBypass?: string | null,
+): Promise<{ stored: number; users: Array<{ contactClerkId: string; email: string }> }> {
+  const freshToken = await resolveToken(token, getToken);
+  const res = await fetch(withProtectionBypass(`${apiUrl}/api/contacts/sync`, protectionBypass), {
+    method: "POST",
+    headers: { ...apiHeaders(freshToken), "Content-Type": "application/json" },
+    body: JSON.stringify({ emails }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as {
+    stored: number;
+    users: Array<{ contactClerkId: string; email: string }>;
+  };
 }
 
 export function searchUsers(
@@ -334,6 +355,13 @@ export function useContacts(
     onSuccess: () => refreshContacts(),
   });
 
+  const syncContacts = useMutation({
+    mutationFn: ({ emails }: { emails: string[] }) =>
+      syncContactsWithToken(apiUrl, emails, token, getToken, protectionBypass),
+    // New contacts → refresh suggestions (which read contactLinks from the DB).
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts", "suggestions"] }),
+  });
+
   // Keep the search mutation wired so the component can re-run it via refreshContacts.
   const runSearch = useCallback(
     (query: string) => {
@@ -354,6 +382,7 @@ export function useContacts(
       unfollow,
       block,
       unblock,
+      syncContacts,
       search,
       runSearch,
       refreshContacts,
@@ -368,6 +397,7 @@ export function useContacts(
       unfollow,
       block,
       unblock,
+      syncContacts,
       search,
       runSearch,
       refreshContacts,

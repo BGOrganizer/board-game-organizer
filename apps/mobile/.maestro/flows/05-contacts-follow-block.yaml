@@ -1,6 +1,7 @@
 appId: com.bgo.mobile
 ---
-# 5. Social flow: search user B (target) → follow → block via kebab menu.
+# 5. Social flow: search user B (target) → follow → block via kebab menu →
+#    Blocked tab → unblock.
 #    Requires a signed-in session (run right after flow 02-login) and the
 #    target's email injected as ${EMAIL_2}.
 - tapOn: "Contacts"
@@ -41,6 +42,19 @@ appId: com.bgo.mobile
 - tapOn:
     id: "confirm-block-btn"
 # The blocked user must disappear from search results (blockedByMe policy).
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+# Blocked tab lists the target; unblock via kebab → search shows them again.
+- tapOn: "Blocked"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Unblock"
+    timeout: 30000
+- tapOn: "Unblock"
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000

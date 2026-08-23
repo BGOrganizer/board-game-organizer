@@ -317,3 +317,19 @@ msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rim
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 msgid "Could not complete the action. Try again."
 msgstr "Impossibile completare l'azione. Riprova."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Allow address book access to find your friends here."
+msgstr "Consenti l'accesso alla rubrica per trovare i tuoi amici qui."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "No suggestions yet — sync your address book to find friends."
+msgstr "Nessun suggerimento — sincronizza la rubrica per trovare amici."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Add contacts"
+msgstr "Aggiungi contatti"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "No friends from your contacts are on Board Game Organizer yet."
+msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."

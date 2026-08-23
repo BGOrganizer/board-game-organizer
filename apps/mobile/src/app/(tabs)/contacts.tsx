@@ -6,6 +6,7 @@ import {
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
+import * as Contacts from "expo-contacts";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
@@ -13,8 +14,8 @@ import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { BookUser, MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
@@ -75,6 +76,10 @@ export default function ContactsScreen() {
   const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
   const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
+  const [contactsPermission, setContactsPermission] = useState<
+    "undetermined" | "granted" | "denied"
+  >("undetermined");
+  const [syncingContacts, setSyncingContacts] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -127,6 +132,50 @@ export default function ContactsScreen() {
     // profile: not implemented yet — no-op.
   };
 
+  // Device address book: on first visit to Suggestions we ask for permission.
+  // With consent the matched registered users are persisted on the API
+  // (POST /api/contacts/sync) and suggestions read them from the DB, so the
+  // address book is only read once. Without consent the list stays empty and
+  // a "Add contacts" CTA re-prompts.
+  const syncAddressBook = useCallback(async () => {
+    try {
+      const status = await Contacts.requestPermissionsAsync();
+      if (!status.granted) {
+        setContactsPermission("denied");
+        return;
+      }
+      setContactsPermission("granted");
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.Emails],
+      });
+      const emails = Array.from(
+        new Set(
+          data
+            .flatMap((c) => (c.emails ?? []).map((e) => e.email?.trim().toLowerCase() ?? ""))
+            .filter(Boolean),
+        ),
+      );
+      if (emails.length) {
+        setSyncingContacts(true);
+        try {
+          await contacts.syncContacts.mutateAsync({ emails });
+        } finally {
+          setSyncingContacts(false);
+        }
+      }
+    } catch {
+      setContactsPermission("denied");
+    }
+  }, [contacts.syncContacts]);
+
+  // Ask for permission the first time the user opens the Suggestions tab.
+  useEffect(() => {
+    if (tab !== "suggestions") return;
+    if (contactsPermission !== "undetermined") return;
+    void syncAddressBook();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   // Auto-search on input: fires 300ms after the user stops typing, only when
   // at least 4 characters are present (min prefix length per product spec).
   useEffect(() => {
@@ -148,6 +197,7 @@ export default function ContactsScreen() {
   const followersRows = contacts.followers.data ?? [];
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
+  const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
   const tabButtons: Array<[TabKey, string]> = [
@@ -305,8 +355,34 @@ export default function ContactsScreen() {
         {tab === "suggestions" && (
           <View style={{ gap: 8 }}>
             {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
-            {suggestions.length === 0 && !contacts.suggestions.isLoading && (
-              <Text className="text-sm text-muted">{t("No suggestions right now")}</Text>
+            {syncingContacts && <ContactListSkeleton count={2} />}
+            {!contacts.suggestions.isLoading &&
+              !syncingContacts &&
+              suggestions.length === 0 &&
+              !hasContacts && (
+                <View style={{ gap: 8 }}>
+                  <Text className="text-sm text-muted">
+                    {contactsPermission === "denied"
+                      ? t("Allow address book access to find your friends here.")
+                      : t("No suggestions yet — sync your address book to find friends.")}
+                  </Text>
+                  {contactsPermission === "denied" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      isDisabled={syncingContacts}
+                      onPress={() => void syncAddressBook()}
+                    >
+                      <BookUser size={16} color="#111" />
+                      <Text>{t("Add contacts")}</Text>
+                    </Button>
+                  ) : null}
+                </View>
+              )}
+            {!contacts.suggestions.isLoading && suggestions.length === 0 && hasContacts && (
+              <Text className="text-sm text-muted">
+                {t("No friends from your contacts are on Board Game Organizer yet.")}
+              </Text>
             )}
             {suggestions.map((u) => (
               <Card

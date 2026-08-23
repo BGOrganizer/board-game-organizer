@@ -1,5 +1,6 @@
 export * from "./dto/blocks";
 export * from "./dto/common";
+export * from "./dto/contacts";
 export * from "./dto/follows";
 export * from "./dto/friendRequests";
 export * from "./dto/invites";

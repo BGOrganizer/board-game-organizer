@@ -37,4 +37,5 @@ export const COLLECTIONS = {
   BLOCKS: "blocks",
   INVITES: "invites",
   RELATIONSHIPS: "relationships",
+  CONTACT_LINKS: "contactLinks",
 } as const;
