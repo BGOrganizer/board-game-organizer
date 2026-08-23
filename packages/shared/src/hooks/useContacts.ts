@@ -19,6 +19,10 @@ export interface ContactUser {
   isFollowing?: boolean;
   isFollower?: boolean;
   isFriend?: boolean;
+  /** Block state: true if the viewer blocked this user (hidden everywhere). */
+  blockedByMe?: boolean;
+  /** Block state: true if this user blocked the viewer (no presence, no interaction). */
+  blockedMe?: boolean;
 }
 
 /** A relationship row enriched with the other user's profile. */
@@ -288,6 +292,34 @@ export function useContacts(
     onSuccess: () => refreshContacts(),
   });
 
+  const block = useMutation({
+    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+      relationshipMutationWithToken(
+        apiUrl,
+        token,
+        getToken,
+        "POST",
+        "block",
+        targetUserId,
+        protectionBypass,
+      ),
+    onSuccess: () => refreshContacts(),
+  });
+
+  const unblock = useMutation({
+    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+      relationshipMutationWithToken(
+        apiUrl,
+        token,
+        getToken,
+        "DELETE",
+        "block",
+        targetUserId,
+        protectionBypass,
+      ),
+    onSuccess: () => refreshContacts(),
+  });
+
   // Keep the search mutation wired so the component can re-run it via refreshContacts.
   const runSearch = useCallback(
     (query: string) => {
@@ -305,6 +337,8 @@ export function useContacts(
       suggestions,
       follow,
       unfollow,
+      block,
+      unblock,
       search,
       runSearch,
       refreshContacts,
@@ -316,6 +350,8 @@ export function useContacts(
       suggestions,
       follow,
       unfollow,
+      block,
+      unblock,
       search,
       runSearch,
       refreshContacts,

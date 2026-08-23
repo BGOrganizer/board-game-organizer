@@ -1,12 +1,18 @@
 "use client";
 
-import { reportPresence, resolveApiUrl, useContacts } from "@board-game-organizer/shared";
+import {
+  type ContactUser,
+  reportPresence,
+  resolveApiUrl,
+  useContacts,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { InviteCard } from "@/components/InviteCard";
+import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -26,12 +32,14 @@ function ContactCard({
   avatarUrl,
   online,
   action,
+  menu,
 }: {
   name: string;
   email: string | null;
   avatarUrl: string | null;
   online: boolean;
   action?: React.ReactNode;
+  menu?: React.ReactNode;
 }) {
   return (
     <Card className="flex flex-row items-center gap-3 p-3">
@@ -53,6 +61,7 @@ function ContactCard({
         {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
       </div>
       {action}
+      {menu}
     </Card>
   );
 }
@@ -114,7 +123,19 @@ export function Contacts() {
   }, [token, getToken]);
 
   const contacts = useContacts(apiUrl(), token, getToken, protectionBypass());
-  const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
+  const isBusy =
+    contacts.follow.isPending ||
+    contacts.unfollow.isPending ||
+    contacts.block.isPending ||
+    contacts.unblock.isPending;
+
+  const handleUserAction = (u: ContactUser) => (key: UserActionKey) => {
+    if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
+    else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
+    else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
+    else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
+    // profile: not implemented yet — no-op.
+  };
 
   // Auto-search on input: fires 300ms after the user stops typing, only when
   // at least 4 characters are present (min prefix length per product spec).
@@ -253,6 +274,7 @@ export function Contacts() {
                     {u.isFollowing ? t`Unfollow` : t`Follow`}
                   </Button>
                 }
+                menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
               />
             ))}
           </div>
@@ -282,6 +304,7 @@ export function Contacts() {
                   {t`Follow`}
                 </Button>
               }
+              menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
             />
           ))}
         </div>
@@ -317,6 +340,9 @@ export function Contacts() {
                           {t`Unfollow`}
                         </Button>
                       ) : undefined
+                    }
+                    menu={
+                      <UserMenu user={profile} busy={isBusy} onAction={handleUserAction(profile)} />
                     }
                   />
                 );

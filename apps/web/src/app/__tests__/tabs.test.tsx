@@ -44,8 +44,11 @@ vi.mock("@board-game-organizer/shared", () => ({
     suggestions: { data: { users: [] }, isLoading: false },
     follow: { mutate: vi.fn(), isPending: false },
     unfollow: { mutate: vi.fn(), isPending: false },
+    block: { mutate: vi.fn(), isPending: false },
+    unblock: { mutate: vi.fn(), isPending: false },
     search: { mutate: vi.fn(), data: undefined, isPending: false },
     runSearch: vi.fn(),
+    refreshContacts: vi.fn(),
   }),
   useInvites: () => ({
     mutate: vi.fn(),

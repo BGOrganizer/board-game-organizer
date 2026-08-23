@@ -1,4 +1,9 @@
-import { reportPresence, resolveApiUrl, useContacts } from "@board-game-organizer/shared";
+import {
+  type ContactUser,
+  reportPresence,
+  resolveApiUrl,
+  useContacts,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Avatar } from "heroui-native/avatar";
@@ -8,10 +13,11 @@ import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { X } from "lucide-react-native";
+import { MoreVertical, X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
+import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { useT } from "@/lib/i18n";
 
 /** Placeholder shown while a contact list is loading. */
@@ -68,6 +74,7 @@ export default function ContactsScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
+  const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -106,7 +113,19 @@ export default function ContactsScreen() {
   }, [token, getToken]);
 
   const contacts = useContacts(apiUrl(), token, getToken);
-  const isBusy = contacts.follow.isPending || contacts.unfollow.isPending;
+  const isBusy =
+    contacts.follow.isPending ||
+    contacts.unfollow.isPending ||
+    contacts.block.isPending ||
+    contacts.unblock.isPending;
+
+  const handleUserAction = (u: ContactUser) => (key: string) => {
+    if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
+    else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
+    else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
+    else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
+    // profile: not implemented yet — no-op.
+  };
 
   // Auto-search on input: fires 300ms after the user stops typing, only when
   // at least 4 characters are present (min prefix length per product spec).
@@ -259,6 +278,13 @@ export default function ContactsScreen() {
                 >
                   <Text>{u.isFollowing ? t("Unfollow") : t("Follow")}</Text>
                 </Button>
+                <Pressable
+                  onPress={() => setMenuUser(u)}
+                  hitSlop={8}
+                  accessibilityLabel={t("Actions")}
+                >
+                  <MoreVertical size={18} color="#8e8e93" />
+                </Pressable>
               </Card>
             ))}
           </View>
@@ -312,6 +338,13 @@ export default function ContactsScreen() {
                 >
                   <Text>{u.isFollowing ? t("Unfollow") : t("Follow")}</Text>
                 </Button>
+                <Pressable
+                  onPress={() => setMenuUser(u)}
+                  hitSlop={8}
+                  accessibilityLabel={t("Actions")}
+                >
+                  <MoreVertical size={18} color="#8e8e93" />
+                </Pressable>
               </Card>
             ))}
           </View>
@@ -361,14 +394,23 @@ export default function ContactsScreen() {
                     ) : null}
                   </View>
                   {listTab === "following" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      isDisabled={isBusy}
-                      onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
-                    >
-                      <Text>{t("Unfollow")}</Text>
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        isDisabled={isBusy}
+                        onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
+                      >
+                        <Text>{t("Unfollow")}</Text>
+                      </Button>
+                      <Pressable
+                        onPress={() => setMenuUser(profile)}
+                        hitSlop={8}
+                        accessibilityLabel={t("Actions")}
+                      >
+                        <MoreVertical size={18} color="#8e8e93" />
+                      </Pressable>
+                    </>
                   ) : null}
                 </Card>
               );
@@ -376,6 +418,15 @@ export default function ContactsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <UserActionsSheet
+        visible={menuUser !== null}
+        user={menuUser}
+        onClose={() => setMenuUser(null)}
+        onAction={(key) => {
+          if (menuUser) handleUserAction(menuUser)(key);
+        }}
+      />
     </View>
   );
 }

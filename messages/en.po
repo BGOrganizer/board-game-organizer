@@ -13,17 +13,34 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: apps/web/src/components/UserMenu.tsx
+msgid "Actions"
+msgstr "Actions"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Block"
+msgstr "Block"
+
+#. placeholder {0}: user.name
+#: apps/web/src/components/UserMenu.tsx
+msgid "Block {0}?"
+msgstr "Block {0}?"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Cancel"
+msgstr "Cancel"
+
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
 #~ msgstr "Claim"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
-msgid "Claim invite"
-msgstr "Claim invite"
+#~ msgid "Claim invite"
+#~ msgstr "Claim invite"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
-msgid "Claiming this invite connects you with the inviter."
-msgstr "Claiming this invite connects you with the inviter."
+#~ msgid "Claiming this invite connects you with the inviter."
+#~ msgstr "Claiming this invite connects you with the inviter."
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Clear search"
@@ -46,8 +63,8 @@ msgstr "Copy"
 #~ msgstr "Could not claim this invite."
 
 #: apps/web/src/components/ClaimInvitePage.tsx
-msgid "Could not claim."
-msgstr "Could not claim."
+#~ msgid "Could not claim."
+#~ msgstr "Could not claim."
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Could not create the invite. Try again."
@@ -70,6 +87,7 @@ msgstr "Error while loading the profile:"
 #~ msgstr "expires"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
 msgid "Follow"
 msgstr "Follow"
 
@@ -99,8 +117,8 @@ msgid "Invite a friend"
 msgstr "Invite a friend"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
-msgid "Invite claimed — you are now friends with the inviter!"
-msgstr "Invite claimed — you are now friends with the inviter!"
+#~ msgid "Invite claimed — you are now friends with the inviter!"
+#~ msgstr "Invite claimed — you are now friends with the inviter!"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Invite claimed — you are now friends!"
@@ -227,12 +245,12 @@ msgstr "Sign In"
 #~ msgstr "Sign in / Register"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
-msgid "Sign in to claim"
-msgstr "Sign in to claim"
+#~ msgid "Sign in to claim"
+#~ msgstr "Sign in to claim"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
-msgid "Sign in to claim this invite and connect with the inviter."
-msgstr "Sign in to claim this invite and connect with the inviter."
+#~ msgid "Sign in to claim this invite and connect with the inviter."
+#~ msgstr "Sign in to claim this invite and connect with the inviter."
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Sign in to see your contacts"
@@ -260,8 +278,13 @@ msgid "Type at least 4 characters to search"
 msgstr "Type at least 4 characters to search"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
 msgid "Unfollow"
 msgstr "Unfollow"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "View profile"
+msgstr "View profile"
 
 #: apps/web/src/components/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"
@@ -272,5 +295,9 @@ msgid "You are not following anyone yet"
 msgstr "You are not following anyone yet"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
-msgid "You have been invited"
-msgstr "You have been invited"
+#~ msgid "You have been invited"
+#~ msgstr "You have been invited"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "You will no longer see each other or find each other. Follow and friendships will be removed."
+msgstr "You will no longer see each other or find each other. Follow and friendships will be removed."
