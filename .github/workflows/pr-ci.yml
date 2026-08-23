@@ -375,10 +375,42 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
+  # ------------------------------------------------ mirror E2E users into users
+  sync-e2e-users:
+    name: 🔄 Mirror E2E users into users collection
+    needs: [provision, deploy-preview-api]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🔄 Sync actor + target into the preview users collection
+        env:
+          API_URL: ${{ needs.deploy-preview-api.outputs.url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          # Deterministic mirroring: the Clerk webhook only reaches the
+          # production deployment (which may be on main, without this route),
+          # so CI seeds the preview DB directly via the sync-user endpoint
+          # (Bearer == CLERK_SECRET_KEY).
+          AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
+          Q="x-vercel-protection-bypass=$BYPASS"
+          curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
+            -H "$AUTH" -H "Content-Type: application/json" \
+            -d '{"clerkId":"${{ needs.provision.outputs.user_id }}","email":"${{ needs.provision.outputs.email }}","name":"E2E Test"}' \
+            && echo "actor synced"
+          curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
+            -H "$AUTH" -H "Content-Type: application/json" \
+            -d '{"clerkId":"${{ needs.provision.outputs.user_id_2 }}","email":"${{ needs.provision.outputs.email_2 }}","name":"E2E Target"}' \
+            && echo "target synced"
+
   # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:
     name: 🎬 Maestro E2E (mobile)
-    needs: [build-mobile-internal, provision]
+    needs: [build-mobile-internal, sync-e2e-users]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -455,7 +487,7 @@ jobs:
   # ---------------------------------------------------------- Playwright E2E
   e2e-playwright:
     name: 🎭 Playwright E2E (web)
-    needs: [deploy-preview-web, provision]
+    needs: [deploy-preview-web, sync-e2e-users]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
