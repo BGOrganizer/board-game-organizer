@@ -32,22 +32,27 @@ export function UserActionsSheet({
 
   if (!user) return null;
 
-  const items: UserActionItem[] = user.blockedMe
+  const items: UserActionItem[] = user.blockedByMe
     ? [
-        { key: "unfollow", label: t("Unfollow") },
+        { key: "unblock", label: t("Unblock") },
         { key: "profile", label: t("View profile"), disabled: true },
       ]
-    : user.isFollowing
+    : user.blockedMe
       ? [
           { key: "unfollow", label: t("Unfollow") },
-          { key: "block", label: t("Block"), destructive: true },
           { key: "profile", label: t("View profile"), disabled: true },
         ]
-      : [
-          { key: "follow", label: t("Follow") },
-          { key: "block", label: t("Block"), destructive: true },
-          { key: "profile", label: t("View profile"), disabled: true },
-        ];
+      : user.isFollowing
+        ? [
+            { key: "unfollow", label: t("Unfollow") },
+            { key: "block", label: t("Block"), destructive: true },
+            { key: "profile", label: t("View profile"), disabled: true },
+          ]
+        : [
+            { key: "follow", label: t("Follow") },
+            { key: "block", label: t("Block"), destructive: true },
+            { key: "profile", label: t("View profile"), disabled: true },
+          ];
 
   const icons: Record<UserActionItem["key"], React.ReactNode> = {
     follow: <UserPlus size={18} color="#111" />,

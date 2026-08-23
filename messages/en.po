@@ -26,6 +26,10 @@ msgstr "Block"
 msgid "Block {0}?"
 msgstr "Block {0}?"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Blocked"
+msgstr "Blocked"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -154,6 +158,10 @@ msgid "New invite"
 msgstr "New invite"
 
 #: apps/web/src/components/Contacts.tsx
+msgid "No blocked users"
+msgstr "No blocked users"
+
+#: apps/web/src/components/Contacts.tsx
 msgid "No followers yet"
 msgstr "No followers yet"
 
@@ -276,6 +284,10 @@ msgstr "Toggle menu"
 #: apps/web/src/components/Contacts.tsx
 msgid "Type at least 4 characters to search"
 msgstr "Type at least 4 characters to search"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Unblock"
+msgstr "Unblock"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx

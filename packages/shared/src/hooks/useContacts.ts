@@ -33,7 +33,13 @@ export interface RelationshipRow {
 }
 
 /** Relationship list types accepted by `GET /api/relationships`. */
-export type RelationshipListType = "followers" | "following" | "friends" | "pending" | "sent";
+export type RelationshipListType =
+  | "followers"
+  | "following"
+  | "friends"
+  | "pending"
+  | "sent"
+  | "blocked";
 
 export interface ContactsApiOptions {
   apiUrl: string;
@@ -242,6 +248,14 @@ export function useContacts(
     staleTime: 30_000,
   });
 
+  const blocked = useQuery({
+    queryKey: ["contacts", "blocked", apiUrl, token],
+    queryFn: () =>
+      fetchRelationshipsWithToken(apiUrl, token, getToken, "blocked", protectionBypass),
+    enabled,
+    staleTime: 30_000,
+  });
+
   const suggestions = useQuery({
     queryKey: ["contacts", "suggestions", apiUrl, token],
     queryFn: () => fetchSuggestionsWithToken(apiUrl, token, getToken, protectionBypass),
@@ -334,6 +348,7 @@ export function useContacts(
       following,
       followers,
       friends,
+      blocked,
       suggestions,
       follow,
       unfollow,
@@ -347,6 +362,7 @@ export function useContacts(
       following,
       followers,
       friends,
+      blocked,
       suggestions,
       follow,
       unfollow,

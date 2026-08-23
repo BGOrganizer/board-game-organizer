@@ -11,9 +11,10 @@ type NavLinkProps = {
   href: string;
   label: string;
   exact?: boolean;
+  onClick?: () => void;
 };
 
-function NavLink({ href, label, exact = false }: NavLinkProps) {
+function NavLink({ href, label, exact = false, onClick }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
 
@@ -21,6 +22,7 @@ function NavLink({ href, label, exact = false }: NavLinkProps) {
     <HeroUILink>
       <Link
         href={href}
+        onClick={onClick}
         className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-md transition-colors",
           isActive ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-600 hover:bg-gray-100",
@@ -130,7 +132,11 @@ export function Header() {
             >
               {navLinks.map((link) => (
                 <li key={link.href}>
-                  <NavLink href={link.href} label={link.label} />
+                  <NavLink
+                    href={link.href}
+                    label={link.label}
+                    onClick={() => setIsMenuOpen(false)}
+                  />
                 </li>
               ))}
             </Show>

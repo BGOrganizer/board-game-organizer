@@ -34,6 +34,7 @@ export async function enrichRelationshipsWithUsers<
     const u = byId.get(otherId);
     if (!u) return { ...r, profile: null };
     const isBlockedMe = blockedMe.has(otherId);
+    const isBlockedByMe = blockedByMe.has(otherId);
     return {
       ...r,
       profile: {
@@ -41,9 +42,11 @@ export async function enrichRelationshipsWithUsers<
         name: u.name,
         email: u.email,
         avatarUrl: u.avatarUrl ?? null,
-        // Presence is hidden when the profile owner blocked the viewer.
-        presence: isBlockedMe ? { online: false, lastActiveAt: "" } : u.presence,
-        blockedByMe: blockedByMe.has(otherId),
+        // Presence is hidden for blocked users in both directions: a blocked
+        // user must not see the blocker's presence, and the blocker must not
+        // track a blocked user (they only surface in the Blocked list).
+        presence: isBlockedMe || isBlockedByMe ? { online: false, lastActiveAt: "" } : u.presence,
+        blockedByMe: isBlockedByMe,
         blockedMe: isBlockedMe,
         // Follow state relative to the viewer (coherent across sections).
         isFollowing: relationships.some((x) => x.fromUserId === viewerId && x.toUserId === otherId),

@@ -41,6 +41,7 @@ vi.mock("@board-game-organizer/shared", () => ({
     following: { data: [], isLoading: false },
     followers: { data: [], isLoading: false },
     friends: { data: [], isLoading: false },
+    blocked: { data: [], isLoading: false },
     suggestions: { data: { users: [] }, isLoading: false },
     follow: { mutate: vi.fn(), isPending: false },
     unfollow: { mutate: vi.fn(), isPending: false },

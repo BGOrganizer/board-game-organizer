@@ -13,8 +13,16 @@ describe("httpError", () => {
 describe("handler helpers", () => {
   it("exposes the expected relationship list types", async () => {
     const { LISTS } = await import("../relationship.lists");
-    expect(Object.keys(LISTS)).toEqual(["followers", "following", "friends", "pending", "sent"]);
+    expect(Object.keys(LISTS)).toEqual([
+      "followers",
+      "following",
+      "friends",
+      "pending",
+      "sent",
+      "blocked",
+    ]);
     expect(LISTS.friends).toEqual(["friend", "accepted", "from"]);
+    expect(LISTS.blocked).toEqual(["block", "blocked", "from"]);
   });
 });
 

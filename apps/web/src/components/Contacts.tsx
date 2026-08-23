@@ -24,7 +24,7 @@ function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 }
 
-type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
+type TabKey = "following" | "followers" | "friends" | "blocked" | "suggestions" | "search";
 
 function ContactCard({
   name,
@@ -157,6 +157,7 @@ export function Contacts() {
   const followingRows = contacts.following.data ?? [];
   const followersRows = contacts.followers.data ?? [];
   const friendsRows = contacts.friends.data ?? [];
+  const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const searchResults = contacts.search.data?.users ?? [];
 
@@ -193,6 +194,14 @@ export function Contacts() {
       empty: t`No friends yet`,
       showUnfollow: false,
     },
+    {
+      key: "blocked",
+      label: t`Blocked`,
+      rows: blockedRows,
+      isLoading: contacts.blocked.isLoading,
+      empty: t`No blocked users`,
+      showUnfollow: false,
+    },
   ];
 
   return (
@@ -205,6 +214,7 @@ export function Contacts() {
             ["following", t`Following`],
             ["followers", t`Followers`],
             ["friends", t`Friends`],
+            ["blocked", t`Blocked`],
             ["suggestions", t`Suggestions`],
             ["search", t`Search`],
           ] as Array<[TabKey, string]>

@@ -1,14 +1,7 @@
 "use client";
 
 import type { ContactUser } from "@board-game-organizer/shared";
-import {
-  Button,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownTrigger,
-  Modal,
-} from "@heroui/react";
+import { Button, Dropdown, Modal } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Ban, Eye, MoreVertical, UserMinus, UserPlus } from "lucide-react";
 import { useState } from "react";
@@ -18,6 +11,11 @@ export type UserActionKey = "block" | "unblock" | "follow" | "unfollow" | "profi
 /**
  * Kebab (⋯) menu on a contact row: block/unblock, follow/unfollow and
  * view-profile (disabled for now). Block requires confirmation.
+ *
+ * HeroUI v3 Dropdown is composite (react-aria-components based): the Menu
+ * must live inside a Dropdown.Popover, otherwise it renders inline and
+ * appears permanently open. Closing on outside-click / action is handled by
+ * the MenuTrigger automatically.
  */
 export function UserMenu({
   user,
@@ -37,10 +35,13 @@ export function UserMenu({
     icon: React.ReactNode;
     danger?: boolean;
     disabled?: boolean;
-  }> = user.isFollowing
+  }> = user.blockedByMe
     ? [
-        { key: "unfollow", label: t`Unfollow`, icon: <UserMinus className="h-4 w-4" /> },
-        { key: "block", label: t`Block`, icon: <Ban className="h-4 w-4" />, danger: true },
+        {
+          key: "unblock",
+          label: t`Unblock`,
+          icon: <Ban className="h-4 w-4" />,
+        },
         {
           key: "profile",
           label: t`View profile`,
@@ -48,16 +49,41 @@ export function UserMenu({
           disabled: true,
         },
       ]
-    : [
-        { key: "follow", label: t`Follow`, icon: <UserPlus className="h-4 w-4" /> },
-        { key: "block", label: t`Block`, icon: <Ban className="h-4 w-4" />, danger: true },
-        {
-          key: "profile",
-          label: t`View profile`,
-          icon: <Eye className="h-4 w-4" />,
-          disabled: true,
-        },
-      ];
+    : user.isFollowing
+      ? [
+          {
+            key: "unfollow",
+            label: t`Unfollow`,
+            icon: <UserMinus className="h-4 w-4" />,
+          },
+          {
+            key: "block",
+            label: t`Block`,
+            icon: <Ban className="h-4 w-4" />,
+            danger: true,
+          },
+          {
+            key: "profile",
+            label: t`View profile`,
+            icon: <Eye className="h-4 w-4" />,
+            disabled: true,
+          },
+        ]
+      : [
+          { key: "follow", label: t`Follow`, icon: <UserPlus className="h-4 w-4" /> },
+          {
+            key: "block",
+            label: t`Block`,
+            icon: <Ban className="h-4 w-4" />,
+            danger: true,
+          },
+          {
+            key: "profile",
+            label: t`View profile`,
+            icon: <Eye className="h-4 w-4" />,
+            disabled: true,
+          },
+        ];
 
   const handle = (key: UserActionKey) => {
     if (key === "block") {
@@ -70,24 +96,24 @@ export function UserMenu({
   return (
     <>
       <Dropdown>
-        <DropdownTrigger>
-          <Button isIconOnly size="sm" variant="ghost" aria-label={t`Actions`}>
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownTrigger>
-        <DropdownMenu
-          disabledKeys={items.filter((i) => i.disabled).map((i) => i.key)}
-          onAction={(k) => handle(k as UserActionKey)}
-        >
-          {items.map((item) => (
-            <DropdownItem key={item.key} className={item.danger ? "text-danger" : ""}>
-              <span className="flex items-center gap-2">
-                {item.icon}
-                {item.label}
-              </span>
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
+        <Dropdown.Trigger aria-label={t`Actions`}>
+          <MoreVertical className="h-4 w-4" />
+        </Dropdown.Trigger>
+        <Dropdown.Popover placement="bottom end">
+          <Dropdown.Menu
+            disabledKeys={items.filter((i) => i.disabled).map((i) => i.key)}
+            onAction={(k) => handle(k as UserActionKey)}
+          >
+            {items.map((item) => (
+              <Dropdown.Item key={item.key} className={item.danger ? "text-danger" : ""}>
+                <span className="flex items-center gap-2">
+                  {item.icon}
+                  {item.label}
+                </span>
+              </Dropdown.Item>
+            ))}
+          </Dropdown.Menu>
+        </Dropdown.Popover>
       </Dropdown>
 
       <Modal isOpen={confirm} onOpenChange={setConfirm}>

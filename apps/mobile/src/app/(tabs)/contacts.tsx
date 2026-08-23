@@ -56,7 +56,7 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
     </View>
   );
 }
-type TabKey = "following" | "followers" | "friends" | "suggestions" | "search";
+type TabKey = "following" | "followers" | "friends" | "blocked" | "suggestions" | "search";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -147,6 +147,7 @@ export default function ContactsScreen() {
   const followingRows = contacts.following.data ?? [];
   const followersRows = contacts.followers.data ?? [];
   const friendsRows = contacts.friends.data ?? [];
+  const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const searchResults = contacts.search.data?.users ?? [];
 
@@ -154,25 +155,39 @@ export default function ContactsScreen() {
     ["following", t("Following")],
     ["followers", t("Followers")],
     ["friends", t("Friends")],
+    ["blocked", t("Blocked")],
     ["suggestions", t("Suggestions")],
     ["search", t("Search")],
   ];
 
-  const listTab = tab === "following" || tab === "followers" || tab === "friends" ? tab : null;
+  const listTab =
+    tab === "following" || tab === "followers" || tab === "friends" || tab === "blocked"
+      ? tab
+      : null;
   const listRows =
-    listTab === "following" ? followingRows : listTab === "followers" ? followersRows : friendsRows;
+    listTab === "following"
+      ? followingRows
+      : listTab === "followers"
+        ? followersRows
+        : listTab === "friends"
+          ? friendsRows
+          : blockedRows;
   const listLoading =
     listTab === "following"
       ? contacts.following.isLoading
       : listTab === "followers"
         ? contacts.followers.isLoading
-        : contacts.friends.isLoading;
+        : listTab === "friends"
+          ? contacts.friends.isLoading
+          : contacts.blocked.isLoading;
   const listEmpty =
     listTab === "following"
       ? t("You are not following anyone yet")
       : listTab === "followers"
         ? t("No followers yet")
-        : t("No friends yet");
+        : listTab === "friends"
+          ? t("No friends yet")
+          : t("No blocked users");
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
@@ -269,6 +284,7 @@ export default function ContactsScreen() {
                 <Button
                   variant="outline"
                   size="sm"
+                  style={{ minHeight: 28, paddingHorizontal: 10, paddingVertical: 4 }}
                   isDisabled={isBusy}
                   onPress={() =>
                     u.isFollowing
@@ -282,8 +298,9 @@ export default function ContactsScreen() {
                   onPress={() => setMenuUser(u)}
                   hitSlop={8}
                   accessibilityLabel={t("Actions")}
+                  style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
                 >
-                  <MoreVertical size={18} color="#8e8e93" />
+                  <MoreVertical size={18} color="#333" />
                 </Pressable>
               </Card>
             ))}
@@ -329,6 +346,7 @@ export default function ContactsScreen() {
                 <Button
                   variant="outline"
                   size="sm"
+                  style={{ minHeight: 28, paddingHorizontal: 10, paddingVertical: 4 }}
                   isDisabled={isBusy}
                   onPress={() =>
                     u.isFollowing
@@ -342,8 +360,9 @@ export default function ContactsScreen() {
                   onPress={() => setMenuUser(u)}
                   hitSlop={8}
                   accessibilityLabel={t("Actions")}
+                  style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
                 >
-                  <MoreVertical size={18} color="#8e8e93" />
+                  <MoreVertical size={18} color="#333" />
                 </Pressable>
               </Card>
             ))}
@@ -398,6 +417,7 @@ export default function ContactsScreen() {
                       <Button
                         variant="outline"
                         size="sm"
+                        style={{ minHeight: 28, paddingHorizontal: 10, paddingVertical: 4 }}
                         isDisabled={isBusy}
                         onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
                       >
@@ -407,8 +427,9 @@ export default function ContactsScreen() {
                         onPress={() => setMenuUser(profile)}
                         hitSlop={8}
                         accessibilityLabel={t("Actions")}
+                        style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
                       >
-                        <MoreVertical size={18} color="#8e8e93" />
+                        <MoreVertical size={18} color="#333" />
                       </Pressable>
                     </>
                   ) : null}
