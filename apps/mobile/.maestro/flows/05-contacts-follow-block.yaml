@@ -1,0 +1,40 @@
+appId: com.bgo.mobile
+---
+# 5. Social flow: search user B (target) → follow → block via kebab menu.
+#    Requires a signed-in session (run right after flow 02-login) and the
+#    target's email injected as ${EMAIL_2}.
+- tapOn: "Contacts"
+- extendedWaitUntil:
+    visible: "Search"
+    timeout: 60000
+- tapOn: "Search"
+- extendedWaitUntil:
+    visible: ".*[Ss]earch.*users.*"
+    timeout: 30000
+- tapOn: ".*[Ss]earch.*users.*"
+- inputText: ${EMAIL_2}
+# Search fires automatically on debounce; the target row (name "E2E Target")
+# must appear once the API finds it.
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+# Follow the target → button flips to Unfollow.
+- tapOn: "Follow"
+- extendedWaitUntil:
+    visible: "Unfollow"
+    timeout: 30000
+# Open the kebab action sheet (accessibility label "Actions") and block.
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Block"
+    timeout: 30000
+- tapOn: "Block"
+# Confirmation view: confirm the block.
+- extendedWaitUntil:
+    visible: "Block"
+    timeout: 30000
+- tapOn: "Block"
+# The blocked user must disappear from search results (blockedByMe policy).
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000

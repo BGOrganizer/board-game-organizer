@@ -16,6 +16,14 @@ inputs:
     description: E2E user password (flow 02)
     required: false
     default: ""
+  target-email:
+    description: Social target email (user B) for the contacts flow (flow 05)
+    required: false
+    default: ""
+  target-username:
+    description: Social target username (user B) for the contacts flow (flow 05)
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -54,6 +62,16 @@ runs:
             -e PASSWORD=${{ inputs.password }} \
             apps/mobile/.maestro/flows/02-login.yaml \
             || { capture; exit 1; }
+          # Social flow: search → follow → block the target (user B). Runs right
+          # after login so the session is still fresh on the same app process.
+          if [ -n "${{ inputs.target-email }}" ]; then
+            maestro test --format junit --output /tmp/maestro-reports \
+              --debug-output /tmp/maestro-debug \
+              -e EMAIL_2=${{ inputs.target-email }} \
+              -e USERNAME_2=${{ inputs.target-username }} \
+              apps/mobile/.maestro/flows/05-contacts-follow-block.yaml \
+              || { capture; exit 1; }
+          fi
           maestro test --format junit --output /tmp/maestro-reports \
             --debug-output /tmp/maestro-debug \
             -e USERNAME=${{ inputs.username }} \

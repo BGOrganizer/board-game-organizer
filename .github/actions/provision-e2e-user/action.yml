@@ -1,8 +1,9 @@
-name: Provision E2E test user
+name: Provision E2E test users
 description: >-
-  Creates a Clerk test user via the Backend API (username + password, tagged
-  public_metadata.e2e=true) for the E2E suites. The user is deleted after the
-  run by scripts/cleanup-e2e-clerk-users.sh.
+  Creates two Clerk test users via the Backend API (username + password,
+  tagged public_metadata.e2e=true) for the E2E suites. User A is the signed-in
+  actor; user B is the social target (search / follow / block). Both are
+  deleted after the run by scripts/cleanup-e2e-clerk-users.sh.
 
 inputs:
   clerk-secret-key:
@@ -11,28 +12,42 @@ inputs:
 
 outputs:
   username:
-    description: Generated username (e2e_<ts>)
+    description: Generated actor username (e2e_<ts>)
     value: ${{ steps.provision.outputs.username }}
   email:
-    description: Generated email (e2e.<ts>@gmail.com)
+    description: Generated actor email (e2e.<ts>@gmail.com)
     value: ${{ steps.provision.outputs.email }}
   password:
-    description: Password used by the E2E sign-in flows
+    description: Actor password used by the E2E sign-in flows
     value: ${{ steps.provision.outputs.password }}
   user_id:
-    description: Clerk user id (used by the cleanup job)
+    description: Actor Clerk user id (used by the cleanup job)
     value: ${{ steps.provision.outputs.user_id }}
+  username_2:
+    description: Generated target username (e2e_target_<ts>)
+    value: ${{ steps.provision.outputs.username_2 }}
+  email_2:
+    description: Generated target email (e2e_target.<ts>@gmail.com)
+    value: ${{ steps.provision.outputs.email_2 }}
+  password_2:
+    description: Target password
+    value: ${{ steps.provision.outputs.password_2 }}
+  user_id_2:
+    description: Target Clerk user id (used by the cleanup job)
+    value: ${{ steps.provision.outputs.user_id_2 }}
 
 runs:
   using: composite
   steps:
-    - name: 👤 Create Clerk test user
+    - name: 👤 Create Clerk E2E users (actor + social target)
       id: provision
       shell: bash
       env:
         CLERK_SECRET_KEY: ${{ inputs.clerk-secret-key }}
       run: |
         TS=$(date +%s)
+
+        # User A — the signed-in actor
         USERNAME="e2e_$TS"
         EMAIL="e2e.$TS@gmail.com"
         PASSWORD="E2eTestPass!2026"
@@ -41,12 +56,31 @@ runs:
           -H "Authorization: Bearer $CLERK_SECRET_KEY" \
           -H "Content-Type: application/json" \
           -d "{\"username\":\"$USERNAME\",\"email_address\":[\"$EMAIL\"],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
-        echo "Clerk create user → HTTP $STATUS"
+        echo "Clerk create actor → HTTP $STATUS"
         if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
           cat /tmp/clerk-user.json; exit 1
         fi
         echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
         echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
         echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
-        # Capture the user id so the cleanup job can delete exactly this user.
         echo "user_id=$(jq -r .id /tmp/clerk-user.json)" >> "$GITHUB_OUTPUT"
+
+        # User B — the social target (found via search, followed, blocked).
+        # The Clerk webhook (user.created → API production) mirrors it into the
+        # shared users collection before the E2E suites run.
+        USERNAME_2="e2e_target_$TS"
+        EMAIL_2="e2e_target.$TS@gmail.com"
+        PASSWORD_2="E2eTargetPass!2026"
+        STATUS_2=$(curl -s -o /tmp/clerk-user-2.json -w "%{http_code}" \
+          -X POST "https://api.clerk.com/v1/users" \
+          -H "Authorization: Bearer $CLERK_SECRET_KEY" \
+          -H "Content-Type: application/json" \
+          -d "{\"username\":\"$USERNAME_2\",\"email_address\":[\"$EMAIL_2\"],\"password\":\"$PASSWORD_2\",\"first_name\":\"E2E Target\",\"public_metadata\":{\"e2e\":true}}")
+        echo "Clerk create target → HTTP $STATUS_2"
+        if [ "$STATUS_2" != "200" ] && [ "$STATUS_2" != "201" ] && [ "$STATUS_2" != "409" ]; then
+          cat /tmp/clerk-user-2.json; exit 1
+        fi
+        echo "username_2=$USERNAME_2" >> "$GITHUB_OUTPUT"
+        echo "email_2=$EMAIL_2" >> "$GITHUB_OUTPUT"
+        echo "password_2=$PASSWORD_2" >> "$GITHUB_OUTPUT"
+        echo "user_id_2=$(jq -r .id /tmp/clerk-user-2.json)" >> "$GITHUB_OUTPUT"

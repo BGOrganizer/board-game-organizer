@@ -553,6 +553,14 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
 
 ## CI Rules (trigger intelligenti)
 
+- **E2E per OGNI funzionalità**: ogni feature implementata deve avere copertura
+  e2e — Playwright (web) E e Maestro (mobile). Non basta il test unit. Aggiungere
+  i casi e2e nello stesso commit della feature (es. follow/unfollow, block,
+  search, inviti). I flussi social usano 2 utenti E2E: l'actor (`E2E_EMAIL`) e
+  il target (`E2E_EMAIL_2`) provisionati dal CI. Il target viene mirrorato nella
+  collection `users` dal webhook Clerk user.created — il test attende con poll
+  lungo per tollerare la latenza del webhook.
+
 - **pr-ci build mobile**: parte SOLO se modificati `apps/mobile` o i package
   correlati (shared/query/store/schemas) + lockfile. NON deve triggerare per
   i file `.maestro/flows/*` (nuovi flow Maestro senza cambio codice non
