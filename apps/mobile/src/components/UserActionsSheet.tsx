@@ -1,7 +1,7 @@
 import type { ContactUser } from "@board-game-organizer/shared";
 import { Ban, Eye, UserMinus, UserPlus } from "lucide-react-native";
 import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
 export interface UserActionItem {
@@ -15,15 +15,23 @@ export interface UserActionItem {
  * Bottom-sheet-style action menu for a contact row: block/unblock,
  * follow/unfollow, view profile (disabled for now). Triggered by the ⋯
  * kebab button next to the follow button.
+ *
+ * `busy` disables the rows while a mutation is in flight (the list cards
+ * already grey out via isBusy, but this sheet is rendered separately) and
+ * `error` surfaces a failed mutation instead of failing silently.
  */
 export function UserActionsSheet({
   visible,
   user,
+  busy,
+  error,
   onClose,
   onAction,
 }: {
   visible: boolean;
   user: ContactUser | null;
+  busy?: boolean;
+  error?: string | null;
   onClose: () => void;
   onAction: (key: UserActionItem["key"]) => void;
 }) {
@@ -63,7 +71,7 @@ export function UserActionsSheet({
   };
 
   const handleItem = (item: UserActionItem) => {
-    if (item.disabled) return;
+    if (item.disabled || busy) return;
     if (item.key === "block") {
       setConfirmBlock(true);
       return;
@@ -74,7 +82,7 @@ export function UserActionsSheet({
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={styles.backdrop} onPress={busy ? undefined : onClose}>
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>{user.name}</Text>
@@ -89,18 +97,25 @@ export function UserActionsSheet({
               </Text>
               <View style={styles.confirmRow}>
                 <Pressable
-                  style={[styles.item, styles.itemDanger]}
+                  style={[styles.item, styles.itemDanger, busy && styles.itemBusy]}
+                  disabled={busy}
+                  testID="confirm-block-btn"
                   onPress={() => {
                     setConfirmBlock(false);
                     onAction("block");
                     onClose();
                   }}
                 >
-                  <Ban size={18} color="#fff" />
-                  <Text style={styles.itemTextDanger}>{t("Block")}</Text>
+                  {busy ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ban size={18} color="#fff" />
+                  )}
+                  <Text style={styles.itemTextWhite}>{t("Block")}</Text>
                 </Pressable>
                 <Pressable
                   style={styles.item}
+                  disabled={busy}
                   onPress={() => {
                     setConfirmBlock(false);
                     onClose();
@@ -115,7 +130,8 @@ export function UserActionsSheet({
               {items.map((item) => (
                 <Pressable
                   key={item.key}
-                  style={[styles.item, item.disabled && styles.itemDisabled]}
+                  style={[styles.item, (item.disabled || busy) && styles.itemBusy]}
+                  disabled={item.disabled || busy}
                   onPress={() => handleItem(item)}
                 >
                   {icons[item.key]}
@@ -123,17 +139,20 @@ export function UserActionsSheet({
                     style={[
                       styles.itemText,
                       item.destructive && styles.itemTextDanger,
-                      item.disabled && styles.itemTextDisabled,
+                      (item.disabled || busy) && styles.itemTextDisabled,
                     ]}
                   >
                     {item.label}
                   </Text>
+                  {busy && <ActivityIndicator size="small" color="#111" />}
                 </Pressable>
               ))}
             </View>
           )}
 
-          <Pressable style={styles.cancel} onPress={onClose}>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable style={styles.cancel} disabled={busy} onPress={onClose}>
             <Text style={styles.cancelText}>{t("Cancel")}</Text>
           </Pressable>
         </View>
@@ -172,10 +191,12 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e5e7eb",
   },
   itemDanger: { backgroundColor: "#dc2626", borderRadius: 8, padding: 12, borderBottomWidth: 0 },
-  itemDisabled: { opacity: 0.5 },
+  itemBusy: { opacity: 0.6 },
   itemText: { fontSize: 15, color: "#111" },
+  itemTextWhite: { fontSize: 15, color: "#fff", fontWeight: "600" },
   itemTextDanger: { fontSize: 15, color: "#dc2626", fontWeight: "600" },
   itemTextDisabled: { color: "#9ca3af" },
+  error: { marginTop: 10, fontSize: 13, color: "#dc2626", textAlign: "center" },
   cancel: { marginTop: 12, alignItems: "center", paddingVertical: 12 },
   cancelText: { fontSize: 15, color: "#006fee", fontWeight: "600" },
 });

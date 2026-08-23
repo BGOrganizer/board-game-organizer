@@ -148,6 +148,24 @@ describe("RelationshipRepository (Phase 1 collections)", () => {
     );
   });
 
+  it("list for block reads the blocks collection (not friend requests)", async () => {
+    const { db, collections } = createFakeDb();
+    collections[COLLECTIONS.BLOCKS].col.find.mockReturnValue({
+      toArray: async () => [{ fromUserId: "me", toUserId: "blocked_1" }],
+    });
+    // Regression: the Blocked tab listed friend requests instead of blocked
+    // users because the collection selection fell through to friendRequests.
+    collections[COLLECTIONS.FRIEND_REQUESTS].col.find.mockReturnValue({
+      toArray: async () => [{ fromUserId: "me", toUserId: "not-blocked" }],
+    });
+    const repo = createRepo(db);
+    const rows = await repo.list("me", "block", "blocked", "from");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({ fromUserId: "me", toUserId: "blocked_1" });
+    expect(collections[COLLECTIONS.BLOCKS].col.find).toHaveBeenCalled();
+    expect(collections[COLLECTIONS.FRIEND_REQUESTS].col.find).not.toHaveBeenCalled();
+  });
+
   it("list for friends filters to bidirectional accepted requests", async () => {
     const { db, collections } = createFakeDb();
     collections[COLLECTIONS.BLOCKS].col.find.mockReturnValue({ toArray: async () => [] });

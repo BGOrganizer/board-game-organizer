@@ -14,26 +14,32 @@ appId: com.bgo.mobile
 - tapOn: ".*[Ss]earch.*users.*"
 - inputText: ${EMAIL_2}
 # Search fires automatically on debounce; the target row (name "E2E Target")
-# must appear once the API finds it.
+# must appear once it is mirrored into the users collection.
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-# Follow the target → button flips to Unfollow.
-- tapOn: "Follow"
+# Follow the target via the icon-only button (resource-id follow-btn) →
+# the icon flips to UserMinus (unfollow-btn) once the mutation lands.
+- tapOn:
+    id: "follow-btn"
 - extendedWaitUntil:
-    visible: "Unfollow"
+    visible: "E2E Target"
     timeout: 30000
+- assertVisible:
+    id: "unfollow-btn"
 # Open the kebab action sheet (accessibility label "Actions") and block.
 - tapOn: "Actions"
 - extendedWaitUntil:
     visible: "Block"
     timeout: 30000
 - tapOn: "Block"
-# Confirmation view: confirm the block.
+# Confirmation view: confirm the block (testID confirm-block-btn).
 - extendedWaitUntil:
-    visible: "Block"
+    visible:
+      id: "confirm-block-btn"
     timeout: 30000
-- tapOn: "Block"
+- tapOn:
+    id: "confirm-block-btn"
 # The blocked user must disappear from search results (blockedByMe policy).
 - extendedWaitUntil:
     notVisible: "E2E Target"

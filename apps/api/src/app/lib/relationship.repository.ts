@@ -177,8 +177,18 @@ export class RelationshipRepository {
     if (type === "friend_request") {
       (filter as Record<string, unknown>).status = status;
     }
+    // block/follow live in their own collections (no status column);
+    // friend requests carry a status. "blocked" lists MUST read the blocks
+    // collection — falling through to friendRequests here made the Blocked
+    // tab list friend requests instead of blocked users.
+    const collection =
+      type === "follow"
+        ? COLLECTIONS.FOLLOWS
+        : type === "block"
+          ? COLLECTIONS.BLOCKS
+          : COLLECTIONS.FRIEND_REQUESTS;
     return (await this.db
-      .collection(type === "follow" ? COLLECTIONS.FOLLOWS : COLLECTIONS.FRIEND_REQUESTS)
+      .collection(collection)
       .find(filter, this.opts)
       .toArray()) as unknown as Array<{ fromUserId: string; toUserId: string }>;
   }

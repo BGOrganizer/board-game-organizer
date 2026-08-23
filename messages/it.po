@@ -313,3 +313,7 @@ msgstr "Non segui ancora nessuno"
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."
 msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rimossi."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Could not complete the action. Try again."
+msgstr "Impossibile completare l'azione. Riprova."

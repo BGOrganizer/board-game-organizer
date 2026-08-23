@@ -13,7 +13,7 @@ import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { MoreVertical, X } from "lucide-react-native";
+import { MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
@@ -146,7 +146,6 @@ export default function ContactsScreen() {
 
   const followingRows = contacts.following.data ?? [];
   const followersRows = contacts.followers.data ?? [];
-  const friendsRows = contacts.friends.data ?? [];
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const searchResults = contacts.search.data?.users ?? [];
@@ -154,7 +153,6 @@ export default function ContactsScreen() {
   const tabButtons: Array<[TabKey, string]> = [
     ["following", t("Following")],
     ["followers", t("Followers")],
-    ["friends", t("Friends")],
     ["blocked", t("Blocked")],
     ["suggestions", t("Suggestions")],
     ["search", t("Search")],
@@ -165,29 +163,19 @@ export default function ContactsScreen() {
       ? tab
       : null;
   const listRows =
-    listTab === "following"
-      ? followingRows
-      : listTab === "followers"
-        ? followersRows
-        : listTab === "friends"
-          ? friendsRows
-          : blockedRows;
+    listTab === "following" ? followingRows : listTab === "followers" ? followersRows : blockedRows;
   const listLoading =
     listTab === "following"
       ? contacts.following.isLoading
       : listTab === "followers"
         ? contacts.followers.isLoading
-        : listTab === "friends"
-          ? contacts.friends.isLoading
-          : contacts.blocked.isLoading;
+        : contacts.blocked.isLoading;
   const listEmpty =
     listTab === "following"
       ? t("You are not following anyone yet")
       : listTab === "followers"
         ? t("No followers yet")
-        : listTab === "friends"
-          ? t("No friends yet")
-          : t("No blocked users");
+        : t("No blocked users");
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
@@ -283,16 +271,23 @@ export default function ContactsScreen() {
                 </View>
                 <Button
                   variant="outline"
+                  isIconOnly
                   size="sm"
-                  style={{ minHeight: 28, paddingHorizontal: 10, paddingVertical: 4 }}
+                  style={{ minHeight: 30, minWidth: 30 }}
                   isDisabled={isBusy}
+                  accessibilityLabel={u.isFollowing ? t("Unfollow") : t("Follow")}
+                  testID={u.isFollowing ? "unfollow-btn" : "follow-btn"}
                   onPress={() =>
                     u.isFollowing
                       ? contacts.unfollow.mutate({ targetUserId: u.id })
                       : contacts.follow.mutate({ targetUserId: u.id })
                   }
                 >
-                  <Text>{u.isFollowing ? t("Unfollow") : t("Follow")}</Text>
+                  {u.isFollowing ? (
+                    <UserMinus size={16} color="#111" />
+                  ) : (
+                    <UserPlus size={16} color="#111" />
+                  )}
                 </Button>
                 <Pressable
                   onPress={() => setMenuUser(u)}
@@ -345,16 +340,23 @@ export default function ContactsScreen() {
                 </View>
                 <Button
                   variant="outline"
+                  isIconOnly
                   size="sm"
-                  style={{ minHeight: 28, paddingHorizontal: 10, paddingVertical: 4 }}
+                  style={{ minHeight: 30, minWidth: 30 }}
                   isDisabled={isBusy}
+                  accessibilityLabel={u.isFollowing ? t("Unfollow") : t("Follow")}
+                  testID={u.isFollowing ? "unfollow-btn" : "follow-btn"}
                   onPress={() =>
                     u.isFollowing
                       ? contacts.unfollow.mutate({ targetUserId: u.id })
                       : contacts.follow.mutate({ targetUserId: u.id })
                   }
                 >
-                  <Text>{u.isFollowing ? t("Unfollow") : t("Follow")}</Text>
+                  {u.isFollowing ? (
+                    <UserMinus size={16} color="#111" />
+                  ) : (
+                    <UserPlus size={16} color="#111" />
+                  )}
                 </Button>
                 <Pressable
                   onPress={() => setMenuUser(u)}
@@ -416,12 +418,15 @@ export default function ContactsScreen() {
                     <>
                       <Button
                         variant="outline"
+                        isIconOnly
                         size="sm"
-                        style={{ minHeight: 28, paddingHorizontal: 10, paddingVertical: 4 }}
+                        style={{ minHeight: 30, minWidth: 30 }}
                         isDisabled={isBusy}
+                        accessibilityLabel={t("Unfollow")}
+                        testID="unfollow-btn"
                         onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
                       >
-                        <Text>{t("Unfollow")}</Text>
+                        <UserMinus size={16} color="#111" />
                       </Button>
                       <Pressable
                         onPress={() => setMenuUser(profile)}
@@ -443,6 +448,15 @@ export default function ContactsScreen() {
       <UserActionsSheet
         visible={menuUser !== null}
         user={menuUser}
+        busy={isBusy}
+        error={
+          contacts.follow.isError ||
+          contacts.unfollow.isError ||
+          contacts.block.isError ||
+          contacts.unblock.isError
+            ? t("Could not complete the action. Try again.")
+            : null
+        }
         onClose={() => setMenuUser(null)}
         onAction={(key) => {
           if (menuUser) handleUserAction(menuUser)(key);
