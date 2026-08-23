@@ -20,11 +20,19 @@ async function startMongo() {
     .withExposedPorts(27017)
     .withWaitStrategy(Wait.forLogMessage(/Waiting for connections/i))
     .start();
-  const uri = `mongodb://${container.getHost()}:${container.getMappedPort(27017)}`;
+  const host = `${container.getHost()}:${container.getMappedPort(27017)}`;
+  // directConnection=true: the container announces itself with its internal
+  // hostname, which the test runner cannot resolve — a single-host connection
+  // to the mapped port skips replica-set topology discovery entirely.
+  const uri = `mongodb://${host}/?directConnection=true`;
   const client = new MongoClient(uri);
   await client.connect();
-  // Initiate the replica set and wait for PRIMARY.
-  await client.db("admin").command({ replSetInitiate: undefined });
+  // Initiate the replica set with an EXPLICIT member host (the mapped
+  // address), otherwise mongo uses its container hostname and the client
+  // cannot reach it → server selection timeout.
+  await client
+    .db("admin")
+    .command({ replSetInitiate: { _id: REPLICA_SET, members: [{ _id: 0, host }] } });
   for (let i = 0; i < 30; i += 1) {
     try {
       const status = await client.db("admin").command({ hello: 1 });
