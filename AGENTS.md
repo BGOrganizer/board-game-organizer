@@ -539,6 +539,17 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   ha generato l'invito (`new URL(request.url).origin` in `POST /api/invites`) —
   preview API → link preview, production → link production. Mai al web app e
   mai hardcodare l'URL di produzione.
+- **HeroUI v3 (`@heroui/react` ^3) usa l'API react-aria-components**: niente
+  `startContent/endContent` su DropdownItem (icona dentro i children),
+  niente `variant="light"/"flat"/"solid"` né `color="danger"` sui Button
+  (usare `variant="ghost"/"danger"`), niente `ModalContent`/`size`:
+  `Modal` è composito (`.Backdrop/.Container/.Dialog/.Header/.Body/.Footer`).
+  Controllare i `.d.ts` in `node_modules/@heroui/react/dist/components/*`
+  prima di usare un componente nuovo.
+- **I mock di `useContacts` nei test vanno aggiornati a ogni nuova
+  mutation**: `isBusy` legge `follow/unfollow/block/unblock.isPending` — un
+  mock vecchio (senza `block`/`unblock`) fa crashare i tab test con
+  "Cannot read properties of undefined (reading 'isPending')".
 
 ## CI Rules (trigger intelligenti)
 
