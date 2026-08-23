@@ -138,13 +138,25 @@ export default function ContactsScreen() {
   // address book is only read once. Without consent the list stays empty and
   // a "Add contacts" CTA re-prompts.
   const syncAddressBook = useCallback(async () => {
+    let permission = null;
     try {
-      const status = await Contacts.requestPermissionsAsync();
-      if (!status.granted) {
-        setContactsPermission("denied");
-        return;
+      permission = await Contacts.getPermissionsAsync();
+    } catch {
+      permission = null;
+    }
+    if (!permission || !permission.granted) {
+      try {
+        permission = await Contacts.requestPermissionsAsync();
+      } catch {
+        permission = null;
       }
-      setContactsPermission("granted");
+    }
+    if (!permission || !permission.granted) {
+      setContactsPermission("denied");
+      return;
+    }
+    setContactsPermission("granted");
+    try {
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.Emails],
       });
@@ -491,29 +503,27 @@ export default function ContactsScreen() {
                     ) : null}
                   </View>
                   {listTab === "following" ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        isIconOnly
-                        size="sm"
-                        style={{ minHeight: 30, minWidth: 30 }}
-                        isDisabled={isBusy}
-                        accessibilityLabel={t("Unfollow")}
-                        testID="unfollow-btn"
-                        onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
-                      >
-                        <UserMinus size={16} color="#111" />
-                      </Button>
-                      <Pressable
-                        onPress={() => setMenuUser(profile)}
-                        hitSlop={8}
-                        accessibilityLabel={t("Actions")}
-                        style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
-                      >
-                        <MoreVertical size={18} color="#333" />
-                      </Pressable>
-                    </>
+                    <Button
+                      variant="outline"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 30, minWidth: 30 }}
+                      isDisabled={isBusy}
+                      accessibilityLabel={t("Unfollow")}
+                      testID="unfollow-btn"
+                      onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
+                    >
+                      <UserMinus size={16} color="#111" />
+                    </Button>
                   ) : null}
+                  <Pressable
+                    onPress={() => setMenuUser(profile)}
+                    hitSlop={8}
+                    accessibilityLabel={t("Actions")}
+                    style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
+                  >
+                    <MoreVertical size={18} color="#333" />
+                  </Pressable>
                 </Card>
               );
             })}

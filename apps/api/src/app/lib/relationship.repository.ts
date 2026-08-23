@@ -93,16 +93,22 @@ export class RelationshipRepository {
   };
 
   async clearBidirectional(a: string, b: string, types: RelationshipType[]) {
-    await Promise.all(types.flatMap((t) => [this.delete(a, b, t), this.delete(b, a, t)]));
+    // SERIALIZED on purpose: MongoDB sessions must not be used concurrently
+    // ("may not be used concurrently" error). Promise.all here would throw
+    // whenever this runs inside a transaction (which the handler always
+    // does), making block/remove silently fail with HTTP 500.
+    for (const t of types) {
+      await this.delete(a, b, t);
+      await this.delete(b, a, t);
+    }
   }
 
   async becomeFriends(a: string, b: string) {
-    await Promise.all([
-      this.upsert(a, b, "friend_request", "accepted"),
-      this.upsert(b, a, "friend_request", "accepted"),
-      this.upsert(a, b, "follow", "accepted"),
-      this.upsert(b, a, "follow", "accepted"),
-    ]);
+    // Same rule: sequential upserts, never parallel on a shared session.
+    await this.upsert(a, b, "friend_request", "accepted");
+    await this.upsert(b, a, "friend_request", "accepted");
+    await this.upsert(a, b, "follow", "accepted");
+    await this.upsert(b, a, "follow", "accepted");
   }
 
   async isBlocked(a: string, b: string) {
