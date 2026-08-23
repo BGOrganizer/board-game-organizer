@@ -550,6 +550,14 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   mutation**: `isBusy` legge `follow/unfollow/block/unblock.isPending` — un
   mock vecchio (senza `block`/`unblock`) fa crashare i tab test con
   "Cannot read properties of undefined (reading 'isPending')".
+- **Suggerimenti = contatti salvati su DB**: i suggerimenti non sono più
+  utenti random — il mobile legge la rubrica (permesso esplicito,
+  `expo-contacts`), invia le email a `POST /api/contacts/sync`, l'API fa
+  match con gli utenti registrati e persiste SOLO i match nella collection
+  `contactLinks` (replace semantics). `GET /api/users/suggestions` legge da
+  lì e ritorna `hasContacts` per guidare CTA/empty state. Le stringhe
+  mobile-only vanno aggiunte a mano nei .po (la macro Lingui non vede il
+  mobile runtime `useT`).
 
 ## CI Rules (trigger intelligenti)
 
