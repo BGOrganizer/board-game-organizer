@@ -17,7 +17,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import { BookUser, MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, View } from "react-native";
+import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { useT } from "@/lib/i18n";
@@ -160,42 +160,15 @@ export default function ContactsScreen() {
     // profile: not implemented yet — no-op.
   };
 
-  // Device address book: on first visit to Suggestions we ask for permission.
+  // Device address book: on first visit to Suggestions (and via the "Add
+  // contacts" CTA) we show a CONFIRMATION dialog first. Only if the user
+  // taps "Yes" does the real Android/iOS permission dialog fire. If the user
+  // declines twice the system stops asking (canAskAgain=false) and we open
+  // the app settings instead. The CTA stays tappable until consent is given.
   // With consent the matched registered users are persisted on the API
   // (POST /api/contacts/sync) and suggestions read them from the DB, so the
-  // address book is only read once. Without consent the list stays empty and
-  // a "Add contacts" CTA re-prompts.
-  const syncAddressBook = useCallback(async () => {
-    let permission = null;
-    try {
-      permission = await Contacts.getPermissionsAsync();
-    } catch {
-      permission = null;
-    }
-    if (!permission || !permission.granted) {
-      try {
-        permission = await Contacts.requestPermissionsAsync();
-      } catch {
-        permission = null;
-      }
-    }
-    if (!permission || !permission.granted) {
-      setContactsPermission("denied");
-      // Android/iOS stop showing the system dialog after ~2 denials
-      // (canAskAgain=false). Open the app settings so the user can ALWAYS
-      // re-grant — no limit on how many times they can try.
-      if (permission && permission.canAskAgain === false) {
-        await Linking.openSettings().catch(() => {});
-      }
-      return;
-    }
-    setContactsPermission("granted");
-    // Persist the consent so the CTA never comes back, even across restarts.
-    try {
-      await SecureStore.setItemAsync("contacts_granted", "true");
-    } catch {
-      /* non-fatal */
-    }
+  // address book is only read once.
+  const syncContactsData = useCallback(async () => {
     try {
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.Emails],
@@ -220,6 +193,67 @@ export default function ContactsScreen() {
     }
   }, [contacts.syncContacts]);
 
+  // Fire the REAL system permission request, track denials, and fall back to
+  // the system settings after the second denial.
+  const requestContactsAccess = useCallback(async () => {
+    let permission = null;
+    try {
+      permission = await Contacts.getPermissionsAsync();
+    } catch {
+      permission = null;
+    }
+    if (!permission || !permission.granted) {
+      try {
+        permission = await Contacts.requestPermissionsAsync();
+      } catch {
+        permission = null;
+      }
+    }
+    if (!permission || !permission.granted) {
+      setContactsPermission("denied");
+      // After ~2 denials Android/iOS stop showing the system dialog
+      // (canAskAgain=false). Count denials; on the second one open the app
+      // settings so the user can ALWAYS re-grant (no limit).
+      let denials = 0;
+      try {
+        denials = Number(await SecureStore.getItemAsync("contacts_denials")) || 0;
+      } catch {
+        /* non-fatal */
+      }
+      denials += 1;
+      try {
+        await SecureStore.setItemAsync("contacts_denials", String(denials));
+      } catch {
+        /* non-fatal */
+      }
+      if (denials >= 2 || (permission && permission.canAskAgain === false)) {
+        await Linking.openSettings().catch(() => {});
+      }
+      return;
+    }
+    // Granted: persist so the CTA never comes back, even across restarts.
+    setContactsPermission("granted");
+    try {
+      await SecureStore.setItemAsync("contacts_granted", "true");
+    } catch {
+      /* non-fatal */
+    }
+    await syncContactsData();
+  }, [syncContactsData]);
+
+  // Confirmation dialog BEFORE the real permission request. "No" closes the
+  // dialog and keeps the CTA; "Yes" fires the system permission prompt.
+  const confirmAndRequestContacts = useCallback(() => {
+    Alert.alert(
+      t("Access to contacts"),
+      t("Allow Board Game Organizer to access your contacts to find your friends?"),
+      [
+        { text: t("No"), style: "cancel" },
+        { text: t("Yes"), onPress: () => void requestContactsAccess() },
+      ],
+    );
+  }, [requestContactsAccess, t]);
+
   // Restore a previously granted consent (survives app restarts) so the tab
   // never re-prompts and the "Add contacts" CTA stays hidden.
   useEffect(() => {
@@ -234,11 +268,40 @@ export default function ContactsScreen() {
     };
   }, []);
 
-  // Ask for permission the first time the user opens the Suggestions tab.
+  // When the user grants in the SYSTEM SETTINGS and returns to the app, sync
+  // automatically (AppState → active).
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+      void (async () => {
+        let granted = false;
+        try {
+          const p = await Contacts.getPermissionsAsync();
+          granted = Boolean(p?.granted);
+        } catch {
+          granted = false;
+        }
+        if (granted && contactsPermission !== "granted") {
+          setContactsPermission("granted");
+          try {
+            await SecureStore.setItemAsync("contacts_granted", "true");
+          } catch {
+            /* non-fatal */
+          }
+          await syncContactsData();
+        }
+      })();
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactsPermission, syncContactsData]);
+
+  // Ask for permission the first time the user opens the Suggestions tab
+  // (through the confirmation dialog — never an unprompted system dialog).
   useEffect(() => {
     if (tab !== "suggestions") return;
     if (contactsPermission !== "undetermined") return;
-    void syncAddressBook();
+    confirmAndRequestContacts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
@@ -438,12 +501,12 @@ export default function ContactsScreen() {
                       ? t("Allow address book access to find your friends here.")
                       : t("No suggestions yet — sync your address book to find friends.")}
                   </Text>
-                  {contactsPermission === "denied" ? (
+                  {contactsPermission !== "granted" ? (
                     <Button
                       variant="outline"
                       size="sm"
                       isDisabled={syncingContacts}
-                      onPress={() => void syncAddressBook()}
+                      onPress={confirmAndRequestContacts}
                     >
                       <BookUser size={16} color="#111" />
                       <Text>{t("Add contacts")}</Text>

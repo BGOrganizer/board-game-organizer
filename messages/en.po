@@ -17,6 +17,14 @@ msgstr ""
 msgid "Actions"
 msgstr "Actions"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Add contacts"
+#~ msgstr "Add contacts"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Allow address book access to find your friends here."
+#~ msgstr "Allow address book access to find your friends here."
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
 msgstr "Block"
@@ -69,6 +77,10 @@ msgstr "Copy"
 #: apps/web/src/components/ClaimInvitePage.tsx
 #~ msgid "Could not claim."
 #~ msgstr "Could not claim."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Could not complete the action. Try again."
+#~ msgstr "Could not complete the action. Try again."
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Could not create the invite. Try again."
@@ -165,6 +177,10 @@ msgstr "No blocked users"
 msgid "No followers yet"
 msgstr "No followers yet"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "No friends from your contacts are on Board Game Organizer yet."
+#~ msgstr "No friends from your contacts are on Board Game Organizer yet."
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No friends yet"
 msgstr "No friends yet"
@@ -176,6 +192,10 @@ msgstr "No friends yet"
 #: apps/web/src/components/Contacts.tsx
 msgid "No suggestions right now"
 msgstr "No suggestions right now"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "No suggestions yet — sync your address book to find friends."
+#~ msgstr "No suggestions yet — sync your address book to find friends."
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No users found"
@@ -315,21 +335,17 @@ msgid "You will no longer see each other or find each other. Follow and friendsh
 msgstr "You will no longer see each other or find each other. Follow and friendships will be removed."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Could not complete the action. Try again."
-msgstr "Could not complete the action. Try again."
+msgid "Access to contacts"
+msgstr "Access to contacts"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Allow address book access to find your friends here."
-msgstr "Allow address book access to find your friends here."
+msgid "Allow Board Game Organizer to access your contacts to find your friends?"
+msgstr "Allow Board Game Organizer to access your contacts to find your friends?"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No suggestions yet — sync your address book to find friends."
-msgstr "No suggestions yet — sync your address book to find friends."
+msgid "No"
+msgstr "No"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Add contacts"
-msgstr "Add contacts"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No friends from your contacts are on Board Game Organizer yet."
-msgstr "No friends from your contacts are on Board Game Organizer yet."
+msgid "Yes"
+msgstr "Yes"

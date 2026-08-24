@@ -17,6 +17,14 @@ msgstr ""
 msgid "Actions"
 msgstr "Azioni"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Add contacts"
+#~ msgstr "Aggiungi contatti"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Allow address book access to find your friends here."
+#~ msgstr "Consenti l'accesso alla rubrica per trovare i tuoi amici qui."
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
 msgstr "Blocca"
@@ -69,6 +77,10 @@ msgstr "Copia"
 #: apps/web/src/components/ClaimInvitePage.tsx
 #~ msgid "Could not claim."
 #~ msgstr "Impossibile accettare."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Could not complete the action. Try again."
+#~ msgstr "Impossibile completare l'azione. Riprova."
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Could not create the invite. Try again."
@@ -165,6 +177,10 @@ msgstr "Nessun utente bloccato"
 msgid "No followers yet"
 msgstr "Nessun follower"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "No friends from your contacts are on Board Game Organizer yet."
+#~ msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No friends yet"
 msgstr "Nessun amico"
@@ -176,6 +192,10 @@ msgstr "Nessun amico"
 #: apps/web/src/components/Contacts.tsx
 msgid "No suggestions right now"
 msgstr "Nessun suggerimento"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "No suggestions yet — sync your address book to find friends."
+#~ msgstr "Nessun suggerimento — sincronizza la rubrica per trovare amici."
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No users found"
@@ -315,21 +335,17 @@ msgid "You will no longer see each other or find each other. Follow and friendsh
 msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rimossi."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Could not complete the action. Try again."
-msgstr "Impossibile completare l'azione. Riprova."
+msgid "Access to contacts"
+msgstr "Accesso ai contatti"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Allow address book access to find your friends here."
-msgstr "Consenti l'accesso alla rubrica per trovare i tuoi amici qui."
+msgid "Allow Board Game Organizer to access your contacts to find your friends?"
+msgstr "Consenti a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No suggestions yet — sync your address book to find friends."
-msgstr "Nessun suggerimento — sincronizza la rubrica per trovare amici."
+msgid "No"
+msgstr "No"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Add contacts"
-msgstr "Aggiungi contatti"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No friends from your contacts are on Board Game Organizer yet."
-msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
+msgid "Yes"
+msgstr "Sì"
