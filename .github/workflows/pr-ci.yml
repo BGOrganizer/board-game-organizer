@@ -235,13 +235,26 @@ jobs:
           # must select it in jq — otherwise failed runs (which can still have
           # an APK artifact when only e.g. lint failed) get picked up.
           RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&branch=$GITHUB_HEAD_REF&per_page=10" --jq '.workflow_runs[] | select(.conclusion == "success" and .head_sha != "'"$HEAD_SHA"'") | .id')
+          # ONLY reuse an APK whose SHA has ZERO mobile-relevant diff vs HEAD.
+          # A success run with an APK can be OLDER than the last green SHA the
+          # detect step diffed against (interleaved cancelled/failed runs never
+          # produce an APK), and reusing it would ship stale code silently.
+          MOBILE_PATHS="apps/mobile apps/web packages/shared packages/query packages/store packages/schemas pnpm-lock.yaml pnpm-workspace.yaml .github/actions/mobile-build .github/workflows/pr-ci.yml"
           for id in $RUNS; do
+            RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')
+            # The checkout is fetch-depth:1, so bring the candidate SHA in.
+            git fetch --depth 1 origin "$RUN_SHA" >/dev/null 2>&1 || continue
+            CHANGED=$(git diff --name-only "$RUN_SHA".."$HEAD_SHA" -- $MOBILE_PATHS | grep -v '^apps/mobile/\.maestro/' | grep -v '^apps/mobile/src/.*\.\(test\|spec\)\.' | grep -v '__tests__' | wc -l)
+            if [ "$CHANGED" -gt 0 ]; then
+              echo "APK run $id ($RUN_SHA) stale vs HEAD ($CHANGED mobile change(s)) — skipping"
+              continue
+            fi
             ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal") | .id' 2>/dev/null || true)
             if [ -n "$ART" ]; then RUN_ID="$id"; break; fi
           done
           echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
           if [ -n "$RUN_ID" ]; then echo "reused=true" >> "$GITHUB_OUTPUT"; else echo "reused=false" >> "$GITHUB_OUTPUT"; fi
-          echo "last successful APK run: ${RUN_ID:-none}"
+          echo "last reusable APK run: ${RUN_ID:-none}"
 
       - name: 📥 Download reused APK
         if: steps.reuse.outputs.run-id != ''
