@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
+import * as SecureStore from "expo-secure-store";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
@@ -16,7 +17,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import { BookUser, MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Linking, Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { useT } from "@/lib/i18n";
@@ -63,9 +64,36 @@ function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
-function PresenceDot({ online }: { online: boolean }) {
+/** Avatar with the presence dot floating on its top-right corner. */
+function AvatarWithPresence({
+  name,
+  avatarUrl,
+  online,
+}: {
+  name: string;
+  avatarUrl: string | null;
+  online: boolean;
+}) {
   return (
-    <View className={`ml-1 h-2 w-2 rounded-full ${online ? "bg-green-500" : "bg-gray-400"}`} />
+    <View style={{ position: "relative" }}>
+      <Avatar size="md">
+        {avatarUrl ? <Avatar.Image source={{ uri: avatarUrl }} /> : null}
+        <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
+      </Avatar>
+      <View
+        style={{
+          position: "absolute",
+          top: -1,
+          right: -1,
+          width: 10,
+          height: 10,
+          borderRadius: 5,
+          backgroundColor: online ? "#22c55e" : "#9ca3af",
+          borderWidth: 2,
+          borderColor: "#fff",
+        }}
+      />
+    </View>
   );
 }
 
@@ -153,9 +181,21 @@ export default function ContactsScreen() {
     }
     if (!permission || !permission.granted) {
       setContactsPermission("denied");
+      // Android/iOS stop showing the system dialog after ~2 denials
+      // (canAskAgain=false). Open the app settings so the user can ALWAYS
+      // re-grant — no limit on how many times they can try.
+      if (permission && permission.canAskAgain === false) {
+        await Linking.openSettings().catch(() => {});
+      }
       return;
     }
     setContactsPermission("granted");
+    // Persist the consent so the CTA never comes back, even across restarts.
+    try {
+      await SecureStore.setItemAsync("contacts_granted", "true");
+    } catch {
+      /* non-fatal */
+    }
     try {
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.Emails],
@@ -179,6 +219,20 @@ export default function ContactsScreen() {
       setContactsPermission("denied");
     }
   }, [contacts.syncContacts]);
+
+  // Restore a previously granted consent (survives app restarts) so the tab
+  // never re-prompts and the "Add contacts" CTA stays hidden.
+  useEffect(() => {
+    let active = true;
+    SecureStore.getItemAsync("contacts_granted")
+      .then((v) => {
+        if (active && v === "true") setContactsPermission("granted");
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Ask for permission the first time the user opens the Suggestions tab.
   useEffect(() => {
@@ -206,6 +260,12 @@ export default function ContactsScreen() {
   }, [query]);
 
   const followingRows = contacts.following.data ?? [];
+  // Ids the viewer follows — used by the Followers tab to render the right
+  // icon (the server-side profile.isFollowing is relative to the list row and
+  // is always false for follower rows).
+  const followingIds = new Set(
+    followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
+  );
   const followersRows = contacts.followers.data ?? [];
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
@@ -312,14 +372,14 @@ export default function ContactsScreen() {
                   width: "100%",
                 }}
               >
-                <Avatar size="md">
-                  {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
-                  <Avatar.Fallback>{u.name?.charAt(0) ?? "?"}</Avatar.Fallback>
-                </Avatar>
+                <AvatarWithPresence
+                  name={u.name}
+                  avatarUrl={u.avatarUrl}
+                  online={u.presence.online}
+                />
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text className="font-medium">{u.name}</Text>
-                    <PresenceDot online={u.presence.online} />
                   </View>
                   {u.email ? (
                     <Text
@@ -355,7 +415,7 @@ export default function ContactsScreen() {
                   onPress={() => setMenuUser(u)}
                   hitSlop={8}
                   accessibilityLabel={t("Actions")}
-                  style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
+                  style={{ padding: 6 }}
                 >
                   <MoreVertical size={18} color="#333" />
                 </Pressable>
@@ -407,14 +467,14 @@ export default function ContactsScreen() {
                   width: "100%",
                 }}
               >
-                <Avatar size="md">
-                  {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
-                  <Avatar.Fallback>{u.name?.charAt(0) ?? "?"}</Avatar.Fallback>
-                </Avatar>
+                <AvatarWithPresence
+                  name={u.name}
+                  avatarUrl={u.avatarUrl}
+                  online={u.presence.online}
+                />
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text className="font-medium">{u.name}</Text>
-                    <PresenceDot online={u.presence.online} />
                   </View>
                   {u.email ? (
                     <Text
@@ -450,7 +510,7 @@ export default function ContactsScreen() {
                   onPress={() => setMenuUser(u)}
                   hitSlop={8}
                   accessibilityLabel={t("Actions")}
-                  style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
+                  style={{ padding: 6 }}
                 >
                   <MoreVertical size={18} color="#333" />
                 </Pressable>
@@ -481,16 +541,14 @@ export default function ContactsScreen() {
                     width: "100%",
                   }}
                 >
-                  <Avatar size="md">
-                    {profile.avatarUrl ? (
-                      <Avatar.Image source={{ uri: profile.avatarUrl }} />
-                    ) : null}
-                    <Avatar.Fallback>{profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
-                  </Avatar>
+                  <AvatarWithPresence
+                    name={profile.name}
+                    avatarUrl={profile.avatarUrl}
+                    online={profile.presence.online}
+                  />
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <Text className="font-medium">{profile.name}</Text>
-                      <PresenceDot online={profile.presence.online} />
                     </View>
                     {profile.email ? (
                       <Text
@@ -515,12 +573,35 @@ export default function ContactsScreen() {
                     >
                       <UserMinus size={16} color="#111" />
                     </Button>
+                  ) : listTab === "followers" ? (
+                    <Button
+                      variant="outline"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 30, minWidth: 30 }}
+                      isDisabled={isBusy}
+                      accessibilityLabel={
+                        followingIds.has(profile.id) ? t("Unfollow") : t("Follow")
+                      }
+                      testID={followingIds.has(profile.id) ? "unfollow-btn" : "follow-btn"}
+                      onPress={() =>
+                        followingIds.has(profile.id)
+                          ? contacts.unfollow.mutate({ targetUserId: profile.id })
+                          : contacts.follow.mutate({ targetUserId: profile.id })
+                      }
+                    >
+                      {followingIds.has(profile.id) ? (
+                        <UserMinus size={16} color="#111" />
+                      ) : (
+                        <UserPlus size={16} color="#111" />
+                      )}
+                    </Button>
                   ) : null}
                   <Pressable
                     onPress={() => setMenuUser(profile)}
                     hitSlop={8}
                     accessibilityLabel={t("Actions")}
-                    style={{ padding: 6, borderRadius: 6, backgroundColor: "#f1f1f4" }}
+                    style={{ padding: 6 }}
                   >
                     <MoreVertical size={18} color="#333" />
                   </Pressable>

@@ -1,6 +1,6 @@
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Ban, Eye, UserMinus, UserPlus } from "lucide-react-native";
-import { useState } from "react";
+import { Ban, Eye, UserMinus, UserPlus, X } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
@@ -37,6 +37,13 @@ export function UserActionsSheet({
 }) {
   const t = useT();
   const [confirmBlock, setConfirmBlock] = useState(false);
+
+  // Reset the confirmation state whenever the sheet closes (Cancel button,
+  // backdrop tap, or after an action), so opening it on ANOTHER contact never
+  // shows the previous block-confirmation.
+  useEffect(() => {
+    if (!visible) setConfirmBlock(false);
+  }, [visible]);
 
   if (!user) return null;
 
@@ -114,13 +121,14 @@ export function UserActionsSheet({
                   <Text style={styles.itemTextWhite}>{t("Block")}</Text>
                 </Pressable>
                 <Pressable
-                  style={styles.item}
+                  style={[styles.item, styles.confirmCancel, busy && styles.itemBusy]}
                   disabled={busy}
                   onPress={() => {
                     setConfirmBlock(false);
                     onClose();
                   }}
                 >
+                  <X size={18} color="#111" />
                   <Text style={styles.itemText}>{t("Cancel")}</Text>
                 </Pressable>
               </View>
@@ -180,7 +188,20 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 16, fontWeight: "600", marginBottom: 8 },
   confirmText: { fontSize: 14, color: "#374151", marginBottom: 12 },
-  confirmRow: { gap: 8 },
+  confirmRow: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between",
+  },
+  confirmCancel: {
+    flex: 1,
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   item: {
     flexDirection: "row",
     alignItems: "center",
@@ -190,7 +211,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#e5e7eb",
   },
-  itemDanger: { backgroundColor: "#dc2626", borderRadius: 8, padding: 12, borderBottomWidth: 0 },
+  itemDanger: {
+    backgroundColor: "#dc2626",
+    borderRadius: 8,
+    padding: 12,
+    borderBottomWidth: 0,
+    flex: 1,
+    justifyContent: "center",
+  },
   itemBusy: { opacity: 0.6 },
   itemText: { fontSize: 15, color: "#111" },
   itemTextWhite: { fontSize: 15, color: "#fff", fontWeight: "600" },

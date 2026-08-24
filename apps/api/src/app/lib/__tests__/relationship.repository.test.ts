@@ -162,7 +162,16 @@ describe("RelationshipRepository (Phase 1 collections)", () => {
     const rows = await repo.list("me", "block", "blocked", "from");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual({ fromUserId: "me", toUserId: "blocked_1" });
-    expect(collections[COLLECTIONS.BLOCKS].col.find).toHaveBeenCalled();
+    expect(collections[COLLECTIONS.BLOCKS].col.find).toHaveBeenCalledWith(
+      expect.objectContaining({ fromUserId: "me" }),
+      {},
+    );
+    // Regression #2: the filter must NOT exclude the blocked users themselves
+    // ($nin blocked would hide exactly the rows the Blocked tab must show).
+    expect(collections[COLLECTIONS.BLOCKS].col.find).toHaveBeenCalledWith(
+      expect.not.objectContaining({ toUserId: expect.anything() }),
+      {},
+    );
     expect(collections[COLLECTIONS.FRIEND_REQUESTS].col.find).not.toHaveBeenCalled();
   });
 

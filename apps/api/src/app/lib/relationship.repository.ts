@@ -179,9 +179,16 @@ export class RelationshipRepository {
       }>;
     }
 
-    const filter = { [selfField]: userId, [otherField]: { $nin: blocked } };
+    const filter: Record<string, unknown> = { [selfField]: userId };
+    if (type !== "block") {
+      // Only follow/friend lists hide blocked users. The BLOCKED list itself
+      // must NOT apply the $nin filter: getBlockedUserIds returns both
+      // directions, so excluding them would hide exactly the users we want to
+      // show (the ones the viewer blocked) → empty Blocked tab.
+      filter[otherField] = { $nin: blocked };
+    }
     if (type === "friend_request") {
-      (filter as Record<string, unknown>).status = status;
+      filter.status = status;
     }
     // block/follow live in their own collections (no status column);
     // friend requests carry a status. "blocked" lists MUST read the blocks
