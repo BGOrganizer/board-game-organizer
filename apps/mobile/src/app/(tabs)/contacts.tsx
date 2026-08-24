@@ -193,9 +193,23 @@ export default function ContactsScreen() {
     }
   }, [contacts.syncContacts]);
 
-  // Fire the REAL system permission request, track denials, and fall back to
-  // the system settings after the second denial.
+  // Fire the REAL system permission request and track denials. A denial only
+  // returns to the screen (the CTA stays). The app settings are opened ONLY
+  // when the user taps "Yes" again after already denying twice — the system
+  // dialog would not re-appear anyway (canAskAgain=false).
   const requestContactsAccess = useCallback(async () => {
+    let denials = 0;
+    try {
+      denials = Number(await SecureStore.getItemAsync("contacts_denials")) || 0;
+    } catch {
+      /* non-fatal */
+    }
+    if (denials >= 2) {
+      // Consent was given to try again ("Yes") but the OS won't show the
+      // dialog anymore → straight to the app settings.
+      await Linking.openSettings().catch(() => {});
+      return;
+    }
     let permission = null;
     try {
       permission = await Contacts.getPermissionsAsync();
@@ -210,24 +224,13 @@ export default function ContactsScreen() {
       }
     }
     if (!permission || !permission.granted) {
+      // Declined the system dialog → back to the screen, no redirect.
       setContactsPermission("denied");
-      // After ~2 denials Android/iOS stop showing the system dialog
-      // (canAskAgain=false). Count denials; on the second one open the app
-      // settings so the user can ALWAYS re-grant (no limit).
-      let denials = 0;
-      try {
-        denials = Number(await SecureStore.getItemAsync("contacts_denials")) || 0;
-      } catch {
-        /* non-fatal */
-      }
       denials += 1;
       try {
         await SecureStore.setItemAsync("contacts_denials", String(denials));
       } catch {
         /* non-fatal */
-      }
-      if (denials >= 2 || (permission && permission.canAskAgain === false)) {
-        await Linking.openSettings().catch(() => {});
       }
       return;
     }
@@ -269,32 +272,47 @@ export default function ContactsScreen() {
   }, []);
 
   // When the user grants in the SYSTEM SETTINGS and returns to the app, sync
-  // automatically (AppState → active).
+  // automatically (AppState → active). Android can lag a moment before the
+  // permission state updates, so re-check briefly instead of trusting a
+  // single read.
+  const checkContactsGranted = useCallback(async () => {
+    for (let i = 0; i < 5; i += 1) {
+      let granted = false;
+      try {
+        const p = await Contacts.getPermissionsAsync();
+        granted = Boolean(p?.granted);
+      } catch {
+        granted = false;
+      }
+      if (granted) {
+        setContactsPermission("granted");
+        try {
+          await SecureStore.setItemAsync("contacts_granted", "true");
+        } catch {
+          /* non-fatal */
+        }
+        await syncContactsData();
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }, [syncContactsData]);
+
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active") return;
-      void (async () => {
-        let granted = false;
-        try {
-          const p = await Contacts.getPermissionsAsync();
-          granted = Boolean(p?.granted);
-        } catch {
-          granted = false;
-        }
-        if (granted && contactsPermission !== "granted") {
-          setContactsPermission("granted");
-          try {
-            await SecureStore.setItemAsync("contacts_granted", "true");
-          } catch {
-            /* non-fatal */
-          }
-          await syncContactsData();
-        }
-      })();
+      if (state === "active") void checkContactsGranted();
     });
     return () => sub.remove();
+  }, [checkContactsGranted]);
+
+  // Re-check when re-entering the Suggestions tab: some Android launchers
+  // miss the AppState foreground event, so this is the safety net.
+  useEffect(() => {
+    if (tab !== "suggestions") return;
+    if (contactsPermission === "granted") return;
+    void checkContactsGranted();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contactsPermission, syncContactsData]);
+  }, [tab]);
 
   // Ask for permission the first time the user opens the Suggestions tab
   // (through the confirmation dialog — never an unprompted system dialog).
