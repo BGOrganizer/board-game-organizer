@@ -69,16 +69,20 @@ export function InviteCard({
       ) : create.isError ? (
         <p className="text-sm text-danger">{t`Could not create the invite. Try again.`}</p>
       ) : create.data ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <code className="min-w-0 flex-1 break-all text-sm">{create.data.link}</code>
-          <Button size="sm" variant="outline" onPress={onCopy}>
-            <Copy className="h-4 w-4" />
-            {copied ? t`Copied!` : t`Copy`}
-          </Button>
-          <Button size="sm" variant="primary" onPress={() => create.mutate()}>
-            <UserPlus className="h-4 w-4" />
-            {t`New invite`}
-          </Button>
+        <div className="flex flex-col gap-2">
+          <code className="min-w-0 break-all rounded bg-default-100 p-2 text-sm">
+            {create.data.link}
+          </code>
+          <div className="flex flex-col gap-2">
+            <Button size="sm" variant="outline" onPress={onCopy}>
+              <Copy className="h-4 w-4" />
+              {copied ? t`Copied!` : t`Copy`}
+            </Button>
+            <Button size="sm" variant="primary" onPress={() => create.mutate()}>
+              <UserPlus className="h-4 w-4" />
+              {t`New invite`}
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-3">

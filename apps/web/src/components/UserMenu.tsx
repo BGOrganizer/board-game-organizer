@@ -109,7 +109,16 @@ export function UserMenu({
             onAction={(k) => handle(k as UserActionKey)}
           >
             {items.map((item) => (
-              <Dropdown.Item key={item.key} className={item.danger ? "text-danger" : ""}>
+              <Dropdown.Item
+                key={item.key}
+                id={item.key}
+                className={item.danger ? "text-danger" : ""}
+                // MenuItem.onAction is () => void (no arg) in react-aria, and
+                // Menu.onAction receives the item's ID. HeroUI's Dropdown.Item
+                // passes an id-less onAction, so the menu-level handler would
+                // never fire. Call the handler directly on each item instead.
+                onAction={() => handle(item.key)}
+              >
                 <span className="flex items-center gap-2">
                   {item.icon}
                   {item.label}
