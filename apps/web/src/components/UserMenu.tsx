@@ -1,9 +1,11 @@
 "use client";
 
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Button, Dropdown, Modal, useOverlayState } from "@heroui/react";
+import { Button, Dropdown } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Ban, Eye, MoreVertical, UserMinus, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type UserActionKey = "block" | "unblock" | "follow" | "unfollow" | "profile";
 
@@ -11,10 +13,10 @@ export type UserActionKey = "block" | "unblock" | "follow" | "unfollow" | "profi
  * Kebab (⋯) menu on a contact row: block/unblock, follow/unfollow and
  * view-profile (disabled for now). Block requires confirmation.
  *
- * HeroUI v3 Dropdown is composite (react-aria-components based): the Menu
- * must live inside a Dropdown.Popover, otherwise it renders inline and
- * appears permanently open. Closing on outside-click / action is handled by
- * the MenuTrigger automatically.
+ * The confirmation uses a plain portal dialog (NOT the HeroUI v3 Modal,
+ * whose composite DialogTrigger/Overlay wiring kept showing a backdrop
+ * without the dialog, needing a second click and never closing cleanly).
+ * A controlled div overlay is deterministic and works everywhere.
  */
 export function UserMenu({
   user,
@@ -26,10 +28,7 @@ export function UserMenu({
   onAction: (key: UserActionKey) => void;
 }) {
   const { t } = useLingui();
-  // HeroUI overlay state: the canonical way to drive a controlled Modal
-  // (plain useState + isOpen doesn't engage the DialogTrigger correctly —
-  // backdrop appeared but the dialog didn't until a second render).
-  const modal = useOverlayState();
+  const [confirm, setConfirm] = useState(false);
 
   const items: Array<{
     key: UserActionKey;
@@ -89,7 +88,7 @@ export function UserMenu({
 
   const handle = (key: UserActionKey) => {
     if (key === "block") {
-      modal.open();
+      setConfirm(true);
       return;
     }
     onAction(key);
@@ -106,19 +105,12 @@ export function UserMenu({
           </Button>
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom end">
-          <Dropdown.Menu
-            disabledKeys={items.filter((i) => i.disabled).map((i) => i.key)}
-            onAction={(k) => handle(k as UserActionKey)}
-          >
+          <Dropdown.Menu disabledKeys={items.filter((i) => i.disabled).map((i) => i.key)}>
             {items.map((item) => (
               <Dropdown.Item
                 key={item.key}
                 id={item.key}
                 className={item.danger ? "text-danger" : ""}
-                // MenuItem.onAction is () => void (no arg) in react-aria, and
-                // Menu.onAction receives the item's ID. HeroUI's Dropdown.Item
-                // passes an id-less onAction, so the menu-level handler would
-                // never fire. Call the handler directly on each item instead.
                 onAction={() => handle(item.key)}
               >
                 <span className="flex items-center gap-2">
@@ -131,34 +123,71 @@ export function UserMenu({
         </Dropdown.Popover>
       </Dropdown>
 
-      <Modal state={modal}>
-        <Modal.Backdrop />
-        <Modal.Container placement="center">
-          <Modal.Dialog>
-            <Modal.Header>{t`Block ${user.name}?`}</Modal.Header>
-            <Modal.Body>
-              <p className="text-sm text-default-500">
-                {t`You will no longer see each other or find each other. Follow and friendships will be removed.`}
-              </p>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="ghost" onPress={modal.close}>
-                {t`Cancel`}
-              </Button>
-              <Button
-                variant="danger"
-                isDisabled={busy}
-                onPress={() => {
-                  modal.close();
-                  onAction("block");
-                }}
-              >
-                {t`Block`}
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal>
+      {confirm && (
+        <BlockConfirmDialog
+          name={user.name}
+          busy={busy}
+          onCancel={() => setConfirm(false)}
+          onConfirm={() => {
+            setConfirm(false);
+            onAction("block");
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function BlockConfirmDialog({
+  name,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  name: string;
+  busy?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useLingui();
+
+  // Close on Escape.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  // Must render after mount (createPortal needs the client document).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop: click closes, dim never lingers because it unmounts with the dialog. */}
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative z-10 w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl"
+      >
+        <h2 className="text-lg font-semibold text-gray-900">{t`Block ${name}?`}</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          {t`You will no longer see each other or find each other. Follow and friendships will be removed.`}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="ghost" onPress={onCancel}>
+            {t`Cancel`}
+          </Button>
+          <Button variant="danger" isDisabled={busy} onPress={onConfirm}>
+            {t`Block`}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
