@@ -9,7 +9,7 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "lucide-react";
+import { UserMinus, UserPlus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
@@ -24,7 +24,7 @@ function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 }
 
-type TabKey = "following" | "followers" | "friends" | "blocked" | "suggestions" | "search";
+type TabKey = "following" | "followers" | "blocked" | "suggestions" | "search";
 
 function ContactCard({
   name,
@@ -43,21 +43,20 @@ function ContactCard({
 }) {
   return (
     <Card className="flex flex-row items-center gap-3 p-3">
-      {" "}
-      <Avatar size="md" color="accent">
-        <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
-        <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
-      </Avatar>
+      <div className="relative">
+        <Avatar size="md" color="accent">
+          <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
+          <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
+        </Avatar>
+        <span
+          className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-white ${
+            online ? "bg-green-500" : "bg-gray-300"
+          }`}
+          title={online ? "online" : "offline"}
+        />
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1 truncate font-medium">
-          {name}
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${
-              online ? "bg-green-500" : "bg-gray-300"
-            }`}
-            title={online ? "online" : "offline"}
-          />
-        </p>
+        <p className="truncate font-medium">{name}</p>
         {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
       </div>
       {action}
@@ -155,10 +154,15 @@ export function Contacts() {
   }, [query]);
 
   const followingRows = contacts.following.data ?? [];
+  // Ids the viewer follows — used by the Followers tab to render the right
+  // icon (server-side isFollowing is always false for follower rows).
+  const followingIds = new Set(
+    followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
+  );
   const followersRows = contacts.followers.data ?? [];
-  const friendsRows = contacts.friends.data ?? [];
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
+  const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
   // List tabs: which query feeds each tab, plus the empty-state copy.
@@ -168,7 +172,6 @@ export function Contacts() {
     rows: typeof followingRows;
     isLoading: boolean;
     empty: string;
-    showUnfollow: boolean;
   }> = [
     {
       key: "following",
@@ -176,7 +179,6 @@ export function Contacts() {
       rows: followingRows,
       isLoading: contacts.following.isLoading,
       empty: t`You are not following anyone yet`,
-      showUnfollow: true,
     },
     {
       key: "followers",
@@ -184,15 +186,6 @@ export function Contacts() {
       rows: followersRows,
       isLoading: contacts.followers.isLoading,
       empty: t`No followers yet`,
-      showUnfollow: false,
-    },
-    {
-      key: "friends",
-      label: t`Friends`,
-      rows: friendsRows,
-      isLoading: contacts.friends.isLoading,
-      empty: t`No friends yet`,
-      showUnfollow: false,
     },
     {
       key: "blocked",
@@ -200,7 +193,6 @@ export function Contacts() {
       rows: blockedRows,
       isLoading: contacts.blocked.isLoading,
       empty: t`No blocked users`,
-      showUnfollow: false,
     },
   ];
 
@@ -213,7 +205,6 @@ export function Contacts() {
           [
             ["following", t`Following`],
             ["followers", t`Followers`],
-            ["friends", t`Friends`],
             ["blocked", t`Blocked`],
             ["suggestions", t`Suggestions`],
             ["search", t`Search`],
@@ -272,16 +263,22 @@ export function Contacts() {
                 online={u.presence.online}
                 action={
                   <Button
+                    isIconOnly
                     size="sm"
                     variant="outline"
                     isDisabled={isBusy}
+                    aria-label={u.isFollowing ? t`Unfollow` : t`Follow`}
                     onPress={() =>
                       u.isFollowing
                         ? contacts.unfollow.mutate({ targetUserId: u.id })
                         : contacts.follow.mutate({ targetUserId: u.id })
                     }
                   >
-                    {u.isFollowing ? t`Unfollow` : t`Follow`}
+                    {u.isFollowing ? (
+                      <UserMinus className="h-4 w-4" />
+                    ) : (
+                      <UserPlus className="h-4 w-4" />
+                    )}
                   </Button>
                 }
                 menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
@@ -295,7 +292,11 @@ export function Contacts() {
         <div className="space-y-2">
           {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
           {suggestions.length === 0 && !contacts.suggestions.isLoading && (
-            <p className="text-sm text-default-500">{t`No suggestions right now`}</p>
+            <p className="text-sm text-default-500">
+              {hasContacts
+                ? t`No friends from your contacts are on Board Game Organizer yet.`
+                : t`Sync your address book from the mobile app to see friend suggestions here.`}
+            </p>
           )}
           {suggestions.map((u) => (
             <ContactCard
@@ -306,12 +307,14 @@ export function Contacts() {
               online={u.presence.online}
               action={
                 <Button
+                  isIconOnly
                   size="sm"
                   variant="outline"
                   isDisabled={isBusy}
+                  aria-label={t`Follow`}
                   onPress={() => contacts.follow.mutate({ targetUserId: u.id })}
                 >
-                  {t`Follow`}
+                  <UserPlus className="h-4 w-4" />
                 </Button>
               }
               menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
@@ -340,14 +343,35 @@ export function Contacts() {
                     avatarUrl={profile.avatarUrl}
                     online={profile.presence.online}
                     action={
-                      listTab.showUnfollow ? (
+                      listTab.key === "following" ? (
                         <Button
+                          isIconOnly
                           size="sm"
                           variant="outline"
                           isDisabled={isBusy}
+                          aria-label={t`Unfollow`}
                           onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
                         >
-                          {t`Unfollow`}
+                          <UserMinus className="h-4 w-4" />
+                        </Button>
+                      ) : listTab.key === "followers" ? (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="outline"
+                          isDisabled={isBusy}
+                          aria-label={followingIds.has(profile.id) ? t`Unfollow` : t`Follow`}
+                          onPress={() =>
+                            followingIds.has(profile.id)
+                              ? contacts.unfollow.mutate({ targetUserId: profile.id })
+                              : contacts.follow.mutate({ targetUserId: profile.id })
+                          }
+                        >
+                          {followingIds.has(profile.id) ? (
+                            <UserMinus className="h-4 w-4" />
+                          ) : (
+                            <UserPlus className="h-4 w-4" />
+                          )}
                         </Button>
                       ) : undefined
                     }

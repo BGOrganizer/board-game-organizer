@@ -45,12 +45,12 @@ beforeEach(() => {
 describe("GET /api/users/suggestions", () => {
   it("returns 401 when unauthenticated", async () => {
     authMock.mockResolvedValue({ userId: null });
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/users/suggestions"));
     expect(res.status).toBe(401);
   });
 
   it("returns an empty list with hasContacts=false when no contacts were synced", async () => {
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/users/suggestions"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ users: [], nextCursor: null, hasContacts: false });
@@ -79,7 +79,7 @@ describe("GET /api/users/suggestions", () => {
       }),
     };
     getDbMock.mockResolvedValue(db as never);
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/users/suggestions"));
     const body = await res.json();
     expect(body.hasContacts).toBe(true);
     expect(body.users).toHaveLength(1);

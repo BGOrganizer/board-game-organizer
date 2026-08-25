@@ -63,7 +63,7 @@ describe("POST /api/admin/sync-user", () => {
 
 describe("OPTIONS", () => {
   it("returns CORS headers for preflight", async () => {
-    const res = await OPTIONS();
+    const res = await OPTIONS(new Request("http://localhost/api/admin/sync-user"));
     expect(res.status).toBe(204);
   });
 });

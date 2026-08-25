@@ -28,13 +28,13 @@ const SEARCH_WINDOW_MS = 60_000;
  *   perceives nothing).
  */
 /** CORS preflight. */
-export function OPTIONS() {
-  return corsOptions();
+export function OPTIONS(request: Request) {
+  return corsOptions(request);
 }
 
 export async function GET(request: Request) {
   const { userId } = await auth();
-  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   pruneRateLimitBuckets();
   const limited = rateLimit(`search:${userId}`, SEARCH_LIMIT, SEARCH_WINDOW_MS);
@@ -42,13 +42,14 @@ export async function GET(request: Request) {
     return corsJson(
       { error: "Rate limit exceeded" },
       { status: 429, headers: { "Retry-After": String(limited.retryAfterSeconds) } },
+      request,
     );
   }
 
   const parsed = searchContactsParamsSchema.safeParse(
     Object.fromEntries(new URL(request.url).searchParams),
   );
-  if (!parsed.success) return corsJson({ error: "Invalid query" }, { status: 400 });
+  if (!parsed.success) return corsJson({ error: "Invalid query" }, { status: 400 }, request);
 
   const { query } = parsed.data;
   const db = await getDb();
@@ -102,8 +103,11 @@ export async function GET(request: Request) {
       isFriend: friendSet.has(u.clerkId),
     }));
 
-  return corsJson({
-    users: result.slice(0, 50),
-    nextCursor: null,
-  });
+  return corsJson(
+    {
+      users: result.slice(0, 50),
+      nextCursor: null,
+    },
+    request,
+  );
 }

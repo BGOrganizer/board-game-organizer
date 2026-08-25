@@ -14,16 +14,16 @@ import { COLLECTIONS, getDb } from "@/app/lib/db";
  * Non-matching emails are never stored. Returns the matched users so the UI
  * can refresh suggestions immediately.
  */
-export function OPTIONS() {
-  return corsOptions();
+export function OPTIONS(request: Request) {
+  return corsOptions(request);
 }
 
 export async function POST(request: Request) {
   const { userId } = await auth();
-  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const parsed = syncContactsSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return corsJson({ error: "Invalid payload" }, { status: 400 });
+  if (!parsed.success) return corsJson({ error: "Invalid payload" }, { status: 400 }, request);
 
   const emails = parsed.data.emails.map((e) => e.trim().toLowerCase());
 
@@ -38,5 +38,5 @@ export async function POST(request: Request) {
   const repo = new ContactLinksRepository(db);
   const stored = await repo.replaceForUser(userId, matches);
 
-  return corsJson({ stored, users: matches });
+  return corsJson({ stored, users: matches }, request);
 }

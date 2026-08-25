@@ -24,18 +24,25 @@ export function getCorsHeaders(request: NextRequest | Request) {
   };
 }
 
-/** JSON response with CORS headers attached. */
-export function corsJson(body: unknown, init: ResponseInit = {}) {
+/** JSON response with CORS headers attached. Pass the incoming request so the
+ * real Origin header is echoed (a synthesized request has no origin and would
+ * answer `*`, which browsers reject for credentialed/authorized requests). */
+export function corsJson(body: unknown, init: ResponseInit = {}, request?: Request) {
   return Response.json(body, {
     ...init,
     headers: {
-      ...getCorsHeaders(new Request("http://cors", { method: "GET" })),
+      ...getCorsHeaders(request ?? new Request("http://cors")),
       ...init.headers,
     },
   });
 }
 
-/** OPTIONS preflight response for CORS. */
-export function corsOptions() {
-  return new Response(null, { status: 204, headers: getCorsHeaders(new Request("http://cors")) });
+/** OPTIONS preflight response for CORS. Accepts the request so the real
+ * Origin header reaches getCorsHeaders (a synthesized request has no origin
+ * and would answer `*`, which browsers reject for credentialed requests). */
+export function corsOptions(request?: Request) {
+  return new Response(null, {
+    status: 204,
+    headers: getCorsHeaders(request ?? new Request("http://cors")),
+  });
 }

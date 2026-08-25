@@ -22,20 +22,20 @@ const syncUserSchema = z.object({
   avatarUrl: z.string().url().optional(),
 });
 
-export function OPTIONS() {
-  return corsOptions();
+export function OPTIONS(request: Request) {
+  return corsOptions(request);
 }
 
 export async function POST(request: Request) {
   const secret = process.env.CLERK_SECRET_KEY;
   const auth = request.headers.get("authorization");
   if (!secret || auth !== `Bearer ${secret}`) {
-    return corsJson({ error: "Unauthorized" }, { status: 401 });
+    return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   }
 
   const parsed = syncUserSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return corsJson({ error: "Invalid payload" }, { status: 400 });
+    return corsJson({ error: "Invalid payload" }, { status: 400 }, request);
   }
 
   const db = await getDb();
@@ -50,5 +50,5 @@ export async function POST(request: Request) {
     e2e: true,
   });
 
-  return corsJson({ ok: true, clerkId });
+  return corsJson({ ok: true, clerkId }, request);
 }

@@ -11,8 +11,8 @@ export const httpError = (status: number, message: string) =>
 const bodySchema = z.object({ targetUserId: z.string().min(1) });
 
 /** CORS preflight for the relationships route. */
-export function OPTIONS() {
-  return corsOptions();
+export function OPTIONS(request: Request) {
+  return corsOptions(request);
 }
 
 export function typedMutationHandler(
@@ -23,11 +23,11 @@ export function typedMutationHandler(
 ) {
   return async (req: Request) => {
     const { userId } = await auth();
-    if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+    if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, req);
 
     const type = new URL(req.url).searchParams.get("type") ?? "";
     const action = table[type];
-    if (!action) return corsJson({ error: `Unsupported type: ${type}` }, { status: 400 });
+    if (!action) return corsJson({ error: `Unsupported type: ${type}` }, { status: 400 }, req);
 
     // DELETE requests may carry no body: parse defensively so a missing body
     // yields a 400 (not an uncaught JSON error → 500) and a targetUserId is
@@ -38,30 +38,30 @@ export function typedMutationHandler(
       try {
         body = JSON.parse(rawBody);
       } catch {
-        return corsJson({ error: "Bad request" }, { status: 400 });
+        return corsJson({ error: "Bad request" }, { status: 400 }, req);
       }
     }
     const parsed = bodySchema.safeParse(body);
-    if (!parsed.success) return corsJson({ error: "Bad request" }, { status: 400 });
+    if (!parsed.success) return corsJson({ error: "Bad request" }, { status: 400 }, req);
 
     try {
       const extra = await withTransaction((session, db) =>
         action(userId, parsed.data.targetUserId, new RelationshipRepository(db, session)),
       );
-      return corsJson({ success: true, ...(extra ?? {}) });
+      return corsJson({ success: true, ...(extra ?? {}) }, {}, req);
     } catch (err: any) {
-      return corsJson({ error: err.message ?? "Error" }, { status: err.status ?? 500 });
+      return corsJson({ error: err.message ?? "Error" }, { status: err.status ?? 500 }, req);
     }
   };
 }
 
 export async function listHandler(req: Request) {
   const { userId } = await auth();
-  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, req);
 
   const type = new URL(req.url).searchParams.get("type") as ListType;
   const config = LISTS[type];
-  if (!config) return corsJson({ error: "Invalid type" }, { status: 400 });
+  if (!config) return corsJson({ error: "Invalid type" }, { status: 400 }, req);
 
   const { enrichRelationshipsWithUsers } = await import("./enrichUsers");
   const db = await getDb();
@@ -69,5 +69,5 @@ export async function listHandler(req: Request) {
   // LISTS[type] è una union di tuple readonly: destructuring invece dello spread (TS2556)
   const [relType, relStatus, direction] = config;
   const relationships = await repo.list(userId, relType, relStatus, direction);
-  return corsJson(await enrichRelationshipsWithUsers(db, relationships, userId));
+  return corsJson(await enrichRelationshipsWithUsers(db, relationships, userId), req);
 }

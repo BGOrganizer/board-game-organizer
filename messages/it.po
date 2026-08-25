@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Access to contacts"
+#~ msgstr "Accesso ai contatti"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Actions"
 msgstr "Azioni"
@@ -24,6 +28,10 @@ msgstr "Azioni"
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow address book access to find your friends here."
 #~ msgstr "Consenti l'accesso alla rubrica per trovare i tuoi amici qui."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
+#~ msgstr "Consenti a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
@@ -115,7 +123,6 @@ msgstr "Follower"
 msgid "Following"
 msgstr "Seguiti"
 
-#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
@@ -169,29 +176,37 @@ msgstr "Partite"
 msgid "New invite"
 msgstr "Nuovo invito"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "No"
+#~ msgstr "No"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No blocked users"
 msgstr "Nessun utente bloccato"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "No contacts found in your address book."
+#~ msgstr "Nessun contatto trovato nella tua rubrica."
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No followers yet"
 msgstr "Nessun follower"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "No friends from your contacts are on Board Game Organizer yet."
-#~ msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
+#: apps/web/src/components/Contacts.tsx
+msgid "No friends from your contacts are on Board Game Organizer yet."
+msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No friends yet"
-msgstr "Nessun amico"
+#~ msgid "No friends yet"
+#~ msgstr "Nessun amico"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
 #~ msgstr "Nessun invito ancora — creane uno da condividere."
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No suggestions right now"
-msgstr "Nessun suggerimento"
+#~ msgid "No suggestions right now"
+#~ msgstr "Nessun suggerimento"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No suggestions yet — sync your address book to find friends."
@@ -297,6 +312,10 @@ msgstr "Registrati"
 msgid "Suggestions"
 msgstr "Suggerimenti"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Sync your address book from the mobile app to see friend suggestions here."
+msgstr "Sincronizza la rubrica dall'app mobile per vedere suggerimenti di amici qui."
+
 #: apps/web/src/components/Header.tsx
 msgid "Toggle menu"
 msgstr "Attiva/disattiva menu"
@@ -322,6 +341,10 @@ msgstr "Visualizza profilo"
 msgid "Welcome to Board Game Organizer"
 msgstr "Benvenuto in Board Game Organizer"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Yes"
+#~ msgstr "Sì"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "You are not following anyone yet"
 msgstr "Non segui ancora nessuno"
@@ -333,19 +356,3 @@ msgstr "Non segui ancora nessuno"
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."
 msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rimossi."
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Access to contacts"
-msgstr "Accesso ai contatti"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Allow Board Game Organizer to access your contacts to find your friends?"
-msgstr "Consenti a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No"
-msgstr "No"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Yes"
-msgstr "Sì"

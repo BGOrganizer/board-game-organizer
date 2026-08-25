@@ -20,25 +20,25 @@ export function OPTIONS() {
 
 export async function POST(request: Request) {
   const { userId } = await auth();
-  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const body = await request.json().catch(() => null);
   const parsed = claimInviteParamsSchema.safeParse(body ?? {});
-  if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 });
+  if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 }, request);
 
   const { token } = parsed.data;
   const db = await getDb();
 
   const invite = await new InvitesRepository(db).findByToken(token);
-  if (!invite) return corsJson({ error: "Invite not found" }, { status: 404 });
+  if (!invite) return corsJson({ error: "Invite not found" }, { status: 404 }, request);
   if (invite.inviterUserId === userId) {
-    return corsJson({ error: "You cannot claim your own invite" }, { status: 400 });
+    return corsJson({ error: "You cannot claim your own invite" }, { status: 400 }, request);
   }
   if (invite.status !== "pending") {
-    return corsJson({ error: "Invite already claimed" }, { status: 409 });
+    return corsJson({ error: "Invite already claimed" }, { status: 409 }, request);
   }
   if (invite.expiresAt.getTime() <= Date.now()) {
-    return corsJson({ error: "Invite expired" }, { status: 410 });
+    return corsJson({ error: "Invite expired" }, { status: 410 }, request);
   }
 
   // Mutual connection: both become followers AND friends (the claimed user
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   });
 
   if (!result.claimed) {
-    return corsJson({ error: "Invite already claimed" }, { status: 409 });
+    return corsJson({ error: "Invite already claimed" }, { status: 409 }, request);
   }
 
   const inviter = await db
@@ -63,15 +63,18 @@ export async function POST(request: Request) {
       { clerkId: invite.inviterUserId },
       { projection: { _id: 0, clerkId: 1, name: 1, email: 1, avatarUrl: 1 } },
     );
-  return corsJson({
-    success: true,
-    inviter: inviter
-      ? {
-          id: inviter.clerkId,
-          name: inviter.name,
-          email: inviter.email,
-          avatarUrl: inviter.avatarUrl ?? null,
-        }
-      : null,
-  });
+  return corsJson(
+    {
+      success: true,
+      inviter: inviter
+        ? {
+            id: inviter.clerkId,
+            name: inviter.name,
+            email: inviter.email,
+            avatarUrl: inviter.avatarUrl ?? null,
+          }
+        : null,
+    },
+    request,
+  );
 }

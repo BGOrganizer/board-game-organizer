@@ -12,17 +12,17 @@ import { COLLECTIONS, getDb } from "@/app/lib/db";
  * server-side from recency elsewhere; this endpoint just records state.
  */
 /** CORS preflight. */
-export function OPTIONS() {
-  return corsOptions();
+export function OPTIONS(request: Request) {
+  return corsOptions(request);
 }
 
 export async function POST(request: Request) {
   const { userId } = await auth();
-  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const body = await request.json().catch(() => null);
   const parsed = presenceUpdateParamsSchema.safeParse(body ?? {});
-  if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 });
+  if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 }, request);
 
   const { status } = parsed.data;
   const now = new Date();
@@ -50,5 +50,5 @@ export async function POST(request: Request) {
     { upsert: true },
   );
 
-  return corsJson({ success: true, lastActiveAt: now.toISOString() });
+  return corsJson({ success: true, lastActiveAt: now.toISOString() }, request);
 }

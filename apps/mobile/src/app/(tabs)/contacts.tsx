@@ -261,11 +261,33 @@ export default function ContactsScreen() {
   // never re-prompts and the "Add contacts" CTA stays hidden.
   useEffect(() => {
     let active = true;
-    SecureStore.getItemAsync("contacts_granted")
-      .then((v) => {
-        if (active && v === "true") setContactsPermission("granted");
-      })
-      .catch(() => {});
+    (async () => {
+      // Real OS permission is the source of truth (the user may have revoked
+      // it in the settings). The SecureStore flag is a fast path only.
+      let granted = false;
+      try {
+        const p = await Contacts.getPermissionsAsync();
+        granted = Boolean(p?.granted);
+      } catch {
+        granted = false;
+      }
+      if (!granted) {
+        try {
+          const stored = await SecureStore.getItemAsync("contacts_granted");
+          granted = stored === "true";
+        } catch {
+          granted = false;
+        }
+      }
+      if (active && granted) {
+        setContactsPermission("granted");
+        try {
+          await SecureStore.setItemAsync("contacts_granted", "true");
+        } catch {
+          /* non-fatal */
+        }
+      }
+    })();
     return () => {
       active = false;
     };
@@ -511,32 +533,33 @@ export default function ContactsScreen() {
             {syncingContacts && <ContactListSkeleton count={2} />}
             {!contacts.suggestions.isLoading &&
               !syncingContacts &&
-              suggestions.length === 0 &&
-              !hasContacts && (
+              contactsPermission !== "granted" && (
                 <View style={{ gap: 8 }}>
                   <Text className="text-sm text-muted">
                     {contactsPermission === "denied"
                       ? t("Allow address book access to find your friends here.")
                       : t("No suggestions yet — sync your address book to find friends.")}
                   </Text>
-                  {contactsPermission !== "granted" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      isDisabled={syncingContacts}
-                      onPress={confirmAndRequestContacts}
-                    >
-                      <BookUser size={16} color="#111" />
-                      <Text>{t("Add contacts")}</Text>
-                    </Button>
-                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    isDisabled={syncingContacts}
+                    onPress={confirmAndRequestContacts}
+                  >
+                    <BookUser size={16} color="#111" />
+                    <Text>{t("Add contacts")}</Text>
+                  </Button>
                 </View>
               )}
-            {!contacts.suggestions.isLoading && suggestions.length === 0 && hasContacts && (
-              <Text className="text-sm text-muted">
-                {t("No friends from your contacts are on Board Game Organizer yet.")}
-              </Text>
-            )}
+            {!contacts.suggestions.isLoading &&
+              contactsPermission === "granted" &&
+              suggestions.length === 0 && (
+                <Text className="text-sm text-muted">
+                  {hasContacts
+                    ? t("No friends from your contacts are on Board Game Organizer yet.")
+                    : t("No contacts found in your address book.")}
+                </Text>
+              )}
             {suggestions.map((u) => (
               <Card
                 key={u.id}

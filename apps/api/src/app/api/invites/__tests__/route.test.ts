@@ -186,3 +186,18 @@ describe("POST /api/invites/claim", () => {
     expect(res.status).toBe(410);
   });
 });
+
+describe("OPTIONS /api/invites", () => {
+  it("returns CORS headers echoing the request origin", async () => {
+    const { OPTIONS } = await import("../route");
+    const req = new Request("http://localhost/api/invites", {
+      method: "OPTIONS",
+      headers: { origin: "https://web-x-board-game-organizers-projects.vercel.app" },
+    });
+    const res = await OPTIONS(req);
+    expect(res.status).toBe(204);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://web-x-board-game-organizers-projects.vercel.app",
+    );
+  });
+});

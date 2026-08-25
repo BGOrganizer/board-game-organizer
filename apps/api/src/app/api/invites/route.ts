@@ -9,13 +9,18 @@ import { InvitesRepository } from "@/app/lib/invites.repository";
  * THIS API (the origin that received the request), so preview deployments
  * generate preview links and production generates production links.
  */
+/** CORS preflight (missing = browsers reject the POST → invites silently fail). */
+export function OPTIONS(request: Request) {
+  return corsOptions(request);
+}
+
 export async function POST(request: Request) {
   const { userId } = await auth();
-  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const body = await request.json().catch(() => null);
   const parsed = createInviteParamsSchema.safeParse(body ?? {});
-  if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 });
+  if (!parsed.success) return corsJson({ error: "Invalid body" }, { status: 400 }, request);
 
   const db = await getDb();
   const invite = await new InvitesRepository(db).create(userId, parsed.data.email);
@@ -31,5 +36,6 @@ export async function POST(request: Request) {
       expiresAt: invite.expiresAt.toISOString(),
     },
     { status: 201 },
+    request,
   );
 }

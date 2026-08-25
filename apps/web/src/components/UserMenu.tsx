@@ -96,8 +96,12 @@ export function UserMenu({
   return (
     <>
       <Dropdown>
-        <Dropdown.Trigger aria-label={t`Actions`}>
-          <MoreVertical className="h-4 w-4" />
+        <Dropdown.Trigger>
+          {/* Dropdown.Trigger IS a react-aria Button: it needs an interactive
+              child (a Button), an icon alone is not clickable. */}
+          <Button isIconOnly size="sm" variant="ghost" aria-label={t`Actions`}>
+            <MoreVertical className="h-4 w-4" />
+          </Button>
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom end">
           <Dropdown.Menu

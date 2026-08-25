@@ -16,20 +16,20 @@ import { COLLECTIONS, getDb } from "@/app/lib/db";
  * as a suggestion).
  */
 /** CORS preflight. */
-export function OPTIONS() {
-  return corsOptions();
+export function OPTIONS(request: Request) {
+  return corsOptions(request);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const { userId } = await auth();
-  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 });
+  if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   const db = await getDb();
   const repo = new ContactLinksRepository(db);
   const contactClerkIds = await repo.contactClerkIdsForUser(userId);
 
   if (!contactClerkIds.length) {
-    return corsJson({ users: [], nextCursor: null, hasContacts: false });
+    return corsJson({ users: [], nextCursor: null, hasContacts: false }, {}, request);
   }
 
   const [blockedByMe, blockedMe] = await Promise.all([
@@ -62,5 +62,5 @@ export async function GET() {
       isFollowing: false,
     }));
 
-  return corsJson({ users: suggestions, nextCursor: null, hasContacts: true });
+  return corsJson({ users: suggestions, nextCursor: null, hasContacts: true }, {}, request);
 }
