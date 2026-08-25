@@ -558,6 +558,24 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   lì e ritorna `hasContacts` per guidare CTA/empty state. Le stringhe
   mobile-only vanno aggiunte a mano nei .po (la macro Lingui non vede il
   mobile runtime `useT`).
+- **HeroUI v3 Modal è inaffidabile per dialog controllati**: il composito
+  (DialogTrigger/Overlay) mostrava backdrop senza dialog, richiedeva doppio
+  click e non chiudeva l'overlay. Usare un dialog portale custom
+  (`createPortal` + div fisso, chiude su Cancel/Escape/backdrop) —
+  deterministico.
+- **Dropdown HeroUI v3**: `MenuItem.onAction` è `() => void` (nessun id) →
+  `onAction` a livello di Menu non scatta. Attaccare `onAction` a OGNI
+  `Dropdown.Item` direttamente. Il `Dropdown.Trigger` è un Button react-aria:
+  deve contenere un Button cliccabile (un'icona nuda non è cliccabile).
+- **Interpolazione i18n runtime web**: `t\`Block ${name}?\`` via macro
+  runtime cerca l'id letterale interpolato → hash fallback (es. "vPh7mM").
+  Usare `i18n.t({ id: "Block {0}?", values: { name } })` con `i18n` da
+  `@lingui/core` (NON `useLingui` core — causa timeout nei test).
+- **Blocco non rimuove follow/amicizie**: l'utente bloccato non deve
+  accorgersi di essere bloccato. `CREATE.block` elimina SOLO le friend
+  request pendenti e salva il blocco; i follow/amicizie esistenti restano
+  (invisibili per il bloccante, visibili al bloccato). Allo sblocco tutto
+  è come prima.
 
 ## CI Rules (trigger intelligenti)
 
