@@ -39,8 +39,12 @@ msgstr "Block"
 
 #. placeholder {0}: user.name
 #: apps/web/src/components/UserMenu.tsx
-msgid "Block {0}?"
-msgstr "Block {0}?"
+#~ msgid "Block {0}?"
+#~ msgstr "Block {0}?"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Block contact"
+msgstr "Block contact"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Blocked"

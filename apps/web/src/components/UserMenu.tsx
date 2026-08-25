@@ -149,7 +149,7 @@ function BlockConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
 
   // Close on Escape.
   useEffect(() => {
@@ -175,10 +175,8 @@ function BlockConfirmDialog({
         className="relative z-10 w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl"
       >
         <h2 className="text-lg font-semibold text-gray-900">
-          {/* Runtime interpolation via i18n.t with values: the instance from
-              useLingui() is the provider's initialized i18n (the imported
-              core singleton is NOT — it crashed the page). */}
-          {i18n.t({ id: "Block {0}?", values: { name } })}
+          {/* Static title (no interpolation): "Block contact". */}
+          {t`Block contact`}
         </h2>
         <p className="mt-2 text-sm text-gray-500">
           {t`You will no longer see each other or find each other. Follow and friendships will be removed.`}
