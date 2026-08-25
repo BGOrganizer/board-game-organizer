@@ -14,8 +14,9 @@ web, API, and mobile, all in one TypeScript monorepo.
 | Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
 | API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
 | Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
-| Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) |
-| Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage) · commitlint · Maestro · Playwright |
+| Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) · `@board-game-organizer/schemas` (DB models + zod DTOs) |
+| i18n | **LinguiJS** (it + en catalogs, web + mobile) — see AGENTS.md |
+| Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage ≥ 50% per app) · commitlint · Maestro · Playwright |
 
 ## Features
 
@@ -26,12 +27,27 @@ web, API, and mobile, all in one TypeScript monorepo.
 - Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
 - App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
+- **Contacts tab** (web + mobile): Following/Followers/Blocked lists, follow/unfollow,
+  address-book suggestions (mobile: permission-gated, matched registered users persisted
+  in `contactLinks`; 'Add contacts' CTA re-prompts when denied), prefix search (with block
+  policy + rate limit), presence green-dot (heartbeat), coherent follow state across
+  sections (TanStack Query cache invalidation), block/unblock with confirmation via a
+  kebab action menu (mobile bottom sheet / web dropdown)
+- **Invites** (Phase 3): shareable invite links with 7-day TTL (`POST /api/invites`,
+  `POST /api/invites/claim`); claiming makes both users MUTUAL followers/friends. UI: an
+  `InviteCard` (card + button, no email form) above the Contacts tabs. The link ALWAYS points
+  at the **API** that generated it (preview API → preview link, production → production link);
+  claim happens on the public page `/invite/<token>` HOSTED BY THE API (Clerk sign-in modal +
+  Bearer claim). Icons via lucide-react / lucide-react-native.
 - E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI — test users are
   provisioned via the Clerk API per run and deleted afterwards (never accumulate)
 
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
 - Groups, match scheduling, venues, ELO rankings, marketplace
+
+**Release 2 (deferred)** — see `plan.md`: friend requests UI + expired-invite
+cleanup job.
 
 ## Prerequisites
 

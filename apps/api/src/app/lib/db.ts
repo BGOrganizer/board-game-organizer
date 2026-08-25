@@ -30,4 +30,12 @@ export async function withTransaction<T>(
   }
 }
 
-export const COLLECTIONS = { RELATIONSHIPS: "relationships" } as const;
+export const COLLECTIONS = {
+  USERS: "users",
+  FOLLOWS: "follows",
+  FRIEND_REQUESTS: "friendRequests",
+  BLOCKS: "blocks",
+  INVITES: "invites",
+  RELATIONSHIPS: "relationships",
+  CONTACT_LINKS: "contactLinks",
+} as const;

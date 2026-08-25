@@ -2,18 +2,24 @@
 
 import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth, useClerk } from "@clerk/nextjs";
-import { Avatar, Button, Card, Spinner } from "@heroui/react";
-import { useRouter } from "next/navigation";
+import { Avatar, Button, Card, Skeleton } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useState } from "react";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 }
 
+// NEXT_PUBLIC_* reads are only inlined by Next.js in project files, so the
+// bypass must be read here and passed down to the shared API helpers.
+function protectionBypass(): string | undefined {
+  return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
+}
+
 export function Profile() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
-  const router = useRouter();
+  const { t } = useLingui();
   const [token, setToken] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -46,7 +52,7 @@ export function Profile() {
     isError,
     error,
     refetch,
-  } = useProfileQuery({ apiUrl: apiUrl(), token });
+  } = useProfileQuery({ apiUrl: apiUrl(), token, protectionBypass: protectionBypass() });
 
   const handleLogout = useCallback(async () => {
     try {
@@ -55,24 +61,34 @@ export function Profile() {
     } finally {
       setIsSigningOut(false);
     }
-  }, [signOut, router]);
+  }, [signOut]);
 
   // Full-screen placeholder while the logout is in flight (mirrors the
   // mobile behaviour).
   if (isSigningOut) {
     return (
       <div className="mt-6 flex min-h-[60vh] items-center justify-center">
-        <Spinner size="lg" />
+        <Skeleton animationType="pulse" className="h-16 w-48 rounded-lg" />
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="mt-6 flex items-center justify-center gap-2">
-        <Spinner size="sm" />
-        <p className="text-sm text-default-400">Caricamento...</p>
-      </div>
+      <Card className="mt-4 rounded-xl p-6">
+        <div className="flex flex-row items-center gap-4">
+          <Skeleton animationType="pulse" className="h-16 w-16 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton animationType="pulse" className="h-4 w-2/3 rounded" />
+            <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
+          </div>
+        </div>
+        <div className="mt-4 flex flex-row gap-6">
+          {[0, 1, 2].map((n) => (
+            <Skeleton key={`stat-${n}`} animationType="pulse" className="h-8 w-12 rounded" />
+          ))}
+        </div>
+      </Card>
     );
   }
 
@@ -80,11 +96,11 @@ export function Profile() {
     return (
       <Card className="mt-4 rounded-xl p-4">
         <p className="text-sm text-danger">
-          Errore durante il caricamento del profilo:{" "}
+          {t`Error while loading the profile:`}{" "}
           {error instanceof Error ? error.message : String(error)}
         </p>
         <Button className="mt-3" variant="outline" onPress={() => refetch()}>
-          Riprova
+          {t`Retry`}
         </Button>
       </Card>
     );
@@ -108,24 +124,24 @@ export function Profile() {
       <div className="mt-4 flex gap-6">
         <div>
           <p className="text-xl font-bold">{profile.stats.gamesOwned}</p>
-          <p className="text-xs text-default-400">Owned</p>
+          <p className="text-xs text-default-400">{t`Owned`}</p>
         </div>
         <div>
           <p className="text-xl font-bold">{profile.stats.gamesPlayed}</p>
-          <p className="text-xs text-default-400">Played</p>
+          <p className="text-xs text-default-400">{t`Played`}</p>
         </div>
         <div>
           <p className="text-xl font-bold">{profile.stats.friends}</p>
-          <p className="text-xs text-default-400">Friends</p>
+          <p className="text-xs text-default-400">{t`Friends`}</p>
         </div>
       </div>
 
       <p className="mt-3 text-xs text-default-400">
-        Plan: {profile.plan} &middot; Language: {profile.preferredLanguage}
+        {t`Plan:`} {profile.plan} &middot; {t`Language:`} {profile.preferredLanguage}
       </p>
 
       <Button className="mt-6" variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
-        Logout
+        {t`Logout`}
       </Button>
     </Card>
   );

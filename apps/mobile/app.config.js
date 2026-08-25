@@ -28,6 +28,7 @@ module.exports = {
       "expo-secure-store",
       "@sentry/react-native",
       "expo-font",
+      "expo-contacts",
     ],
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL,

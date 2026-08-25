@@ -2,18 +2,19 @@
 
 import { Show, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { Button, cn, Link as HeroUILink } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 type NavLinkProps = {
   href: string;
   label: string;
-  icon?: React.ReactNode;
   exact?: boolean;
+  onClick?: () => void;
 };
 
-function NavLink({ href, label, icon, exact = false }: NavLinkProps) {
+function NavLink({ href, label, exact = false, onClick }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
 
@@ -21,12 +22,12 @@ function NavLink({ href, label, icon, exact = false }: NavLinkProps) {
     <HeroUILink>
       <Link
         href={href}
+        onClick={onClick}
         className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-md transition-colors",
           isActive ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-600 hover:bg-gray-100",
         )}
       >
-        {/* {icon} */}
         {label}
       </Link>
     </HeroUILink>
@@ -35,8 +36,16 @@ function NavLink({ href, label, icon, exact = false }: NavLinkProps) {
 
 export function Header() {
   const { user } = useUser();
+  const { t } = useLingui();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const router = useRouter();
+
+  const navLinks = [
+    { href: "/matches", label: t`Matches` },
+    { href: "/groups", label: t`Groups` },
+    { href: "/organizations", label: t`Organizations` },
+    { href: "/contacts", label: t`Contacts` },
+    { href: "/profile", label: t`Profile` },
+  ];
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
@@ -46,7 +55,7 @@ export function Header() {
             type="button"
             className="md:hidden"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
+            aria-label={t`Toggle menu`}
             aria-expanded={isMenuOpen}
           >
             <span className="sr-only">Menu</span>
@@ -81,30 +90,20 @@ export function Header() {
           fallback={
             <div className="hidden items-center gap-4 md:flex">
               <SignInButton>
-                <Button variant="primary">Sign In</Button>
+                <Button variant="primary">{t`Sign In`}</Button>
               </SignInButton>
               <SignUpButton>
-                <Button variant="outline">Sign Up</Button>
+                <Button variant="outline">{t`Sign Up`}</Button>
               </SignUpButton>
             </div>
           }
         >
           <ul className="hidden items-center gap-4 md:flex">
-            <li>
-              <NavLink href="/matches" label="Matches" />
-            </li>
-            <li>
-              <NavLink href="/groups" label="Groups" />
-            </li>
-            <li>
-              <NavLink href="/organizations" label="Organizations" />
-            </li>
-            <li>
-              <NavLink href="/contacts" label="Contacts" />
-            </li>
-            <li>
-              <NavLink href="/profile" label="Profile" />
-            </li>
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <NavLink href={link.href} label={link.label} />
+              </li>
+            ))}
           </ul>
 
           <div className="flex items-center gap-2">
@@ -123,29 +122,23 @@ export function Header() {
               fallback={
                 <li className="mt-4 flex flex-col gap-2 border-t border-separator pt-4">
                   <SignInButton>
-                    <Button variant="primary">Sign In</Button>
+                    <Button variant="primary">{t`Sign In`}</Button>
                   </SignInButton>
                   <SignUpButton>
-                    <Button variant="outline">Sign Up</Button>
+                    <Button variant="outline">{t`Sign Up`}</Button>
                   </SignUpButton>
                 </li>
               }
             >
-              <li>
-                <NavLink href="/matches" label="Matches" />
-              </li>
-              <li>
-                <NavLink href="/groups" label="Groups" />
-              </li>
-              <li>
-                <NavLink href="/organizations" label="Organizations" />
-              </li>
-              <li>
-                <NavLink href="/contacts" label="Contacts" />
-              </li>
-              <li>
-                <NavLink href="/profile" label="Profile" />
-              </li>
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <NavLink
+                    href={link.href}
+                    label={link.label}
+                    onClick={() => setIsMenuOpen(false)}
+                  />
+                </li>
+              ))}
             </Show>
           </ul>
         </div>

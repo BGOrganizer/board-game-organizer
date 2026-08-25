@@ -19,7 +19,7 @@ const E2E_EMAIL = process.env.E2E_EMAIL ?? "";
 
 test("welcome screen shows for signed-out visitors", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Benvenuto in Board Game Organizer")).toBeVisible();
+  await expect(page.getByText("Welcome to Board Game Organizer")).toBeVisible();
   await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible();
 });
 
@@ -55,7 +55,7 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
 
   // UI logout (full-screen spinner placeholder) → back to the welcome screen.
   await page.getByRole("button", { name: /logout/i }).click();
-  await expect(page.getByText("Benvenuto in Board Game Organizer")).toBeVisible({
+  await expect(page.getByText("Welcome to Board Game Organizer")).toBeVisible({
     timeout: 30_000,
   });
 });

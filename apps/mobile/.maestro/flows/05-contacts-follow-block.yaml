@@ -1,0 +1,60 @@
+appId: com.bgo.mobile
+---
+# 5. Social flow: search user B (target) → follow → block via kebab menu →
+#    Blocked tab → unblock.
+#    Requires a signed-in session (run right after flow 02-login) and the
+#    target's email injected as ${EMAIL_2}.
+- tapOn: "Contacts"
+- extendedWaitUntil:
+    visible: "Search"
+    timeout: 60000
+- tapOn: "Search"
+- extendedWaitUntil:
+    visible: ".*[Ss]earch.*users.*"
+    timeout: 30000
+- tapOn: ".*[Ss]earch.*users.*"
+- inputText: ${EMAIL_2}
+# Search fires automatically on debounce; the target row (name "E2E Target")
+# must appear once it is mirrored into the users collection.
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+# Follow the target via the icon-only button (resource-id follow-btn) →
+# the icon flips to UserMinus (unfollow-btn) once the mutation lands.
+- tapOn:
+    id: "follow-btn"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- assertVisible:
+    id: "unfollow-btn"
+# Open the kebab action sheet (accessibility label "Actions") and block.
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Block"
+    timeout: 30000
+- tapOn: "Block"
+# Confirmation view: confirm the block (testID confirm-block-btn).
+- extendedWaitUntil:
+    visible:
+      id: "confirm-block-btn"
+    timeout: 30000
+- tapOn:
+    id: "confirm-block-btn"
+# The blocked user must disappear from search results (blockedByMe policy).
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+# Blocked tab lists the target; unblock via kebab → search shows them again.
+- tapOn: "Blocked"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Unblock"
+    timeout: 30000
+- tapOn: "Unblock"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000

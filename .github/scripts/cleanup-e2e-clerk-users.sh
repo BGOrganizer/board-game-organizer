@@ -2,10 +2,10 @@
 # Cleans up Clerk E2E test users (Board Game Organizer CI).
 #
 # Usage:
-#   cleanup-e2e-clerk-users.sh [user_id]
+#   cleanup-e2e-clerk-users.sh [user_id ...]
 #
-# 1. Deletes the user provisioned for THIS run (the user_id captured when it
-#    was created), so one run = one user and they never accumulate.
+# 1. Deletes the users provisioned for THIS run (the user_ids captured when
+#    they were created), so one run = its users and they never accumulate.
 # 2. Sweeps orphaned test users left behind by runs that were killed before
 #    cleanup could run: any user flagged public_metadata.e2e == true and
 #    created more than 24h ago. The age filter keeps concurrent PR runs safe
@@ -29,11 +29,13 @@ delete_user() {
   esac
 }
 
-# 1) The user provisioned for this run (empty if provisioning failed earlier).
-if [ -n "${1:-}" ]; then
-  echo "Deleting this run's E2E user: $1"
-  delete_user "$1"
-fi
+# 1) The users provisioned for this run (empty if provisioning failed earlier).
+for id in "$@"; do
+  if [ -n "${id:-}" ]; then
+    echo "Deleting this run's E2E user: $id"
+    delete_user "$id"
+  fi
+done
 
 # 2) Orphan sweep: stale e2e users (>24h old) from interrupted runs.
 echo "Sweeping stale E2E users (public_metadata.e2e == true, created >24h ago)..."

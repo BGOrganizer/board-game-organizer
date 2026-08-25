@@ -24,7 +24,13 @@ export const CREATE: Record<string, Action> = {
   },
 
   block: async (userId, targetUserId, repo) => {
-    await repo.clearBidirectional(userId, targetUserId, ["follow", "friend_request", "friend"]);
+    // The blocked user must not notice they were blocked: their follow toward
+    // the viewer SURVIVES (so after unblock they still follow the viewer).
+    // The VIEWER's follow toward the blocked user is removed — after unblock
+    // the viewer is no longer following them (product spec). Pending friend
+    // requests are cleared (they would otherwise stay visible as incoming).
+    await repo.delete(userId, targetUserId, "follow");
+    await repo.clearBidirectional(userId, targetUserId, ["friend_request"]);
     await repo.upsert(userId, targetUserId, "block", "blocked");
   },
 };

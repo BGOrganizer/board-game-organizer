@@ -9,6 +9,8 @@ export interface UseProfileOptions {
   token: string | null | undefined;
   /** Extra gate for the query (e.g. only when the user is signed in). */
   enabled?: boolean;
+  /** Vercel preview protection-bypass token (passed by the web app). */
+  protectionBypass?: string | null;
 }
 
 /**
@@ -16,10 +18,15 @@ export interface UseProfileOptions {
  * API. Mutations live in `queryClient.invalidateQueries(["profile"])`
  * callers — Zustand never stores this server data.
  */
-export function useProfileQuery({ apiUrl, token, enabled = true }: UseProfileOptions) {
+export function useProfileQuery({
+  apiUrl,
+  token,
+  enabled = true,
+  protectionBypass,
+}: UseProfileOptions) {
   return useQuery<UserProfile>({
     queryKey: ["profile", apiUrl, token],
-    queryFn: () => fetchProfile(apiUrl, token as string),
+    queryFn: () => fetchProfile(apiUrl, token as string, protectionBypass),
     enabled: enabled && Boolean(token) && Boolean(apiUrl),
     staleTime: 60_000,
     retry: 1,

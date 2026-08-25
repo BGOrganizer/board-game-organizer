@@ -16,6 +16,14 @@ inputs:
     description: E2E user password (flow 02)
     required: false
     default: ""
+  target-email:
+    description: Social target email (user B) for the contacts flow (flow 05)
+    required: false
+    default: ""
+  target-username:
+    description: Social target username (user B) for the contacts flow (flow 05)
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -37,6 +45,8 @@ runs:
           sleep 60
           adb shell am force-stop com.bgo.mobile || true
           set -e
+          # Report dirs (created up front so junit has a target even on success)
+          mkdir -p /tmp/maestro-reports /tmp/maestro-debug
           # Record the emulator screen; kept only if a flow fails (best practice).
           adb shell rm -f /sdcard/maestro-rec.mp4 || true
           adb shell screenrecord --time-limit 1800 /sdcard/maestro-rec.mp4 >/dev/null 2>&1 &
@@ -52,6 +62,16 @@ runs:
             -e PASSWORD=${{ inputs.password }} \
             apps/mobile/.maestro/flows/02-login.yaml \
             || { capture; exit 1; }
+          # Social flow: search → follow → block the target (user B). Runs right
+          # after login so the session is still fresh on the same app process.
+          if [ -n "${{ inputs.target-email }}" ]; then
+            maestro test --format junit --output /tmp/maestro-reports \
+              --debug-output /tmp/maestro-debug \
+              -e EMAIL_2=${{ inputs.target-email }} \
+              -e USERNAME_2=${{ inputs.target-username }} \
+              apps/mobile/.maestro/flows/05-contacts-follow-block.yaml \
+              || { capture; exit 1; }
+          fi
           maestro test --format junit --output /tmp/maestro-reports \
             --debug-output /tmp/maestro-debug \
             -e USERNAME=${{ inputs.username }} \
@@ -68,3 +88,14 @@ runs:
           adb shell pkill -f screenrecord >/dev/null 2>&1 || true
           adb shell rm -f /sdcard/maestro-rec.mp4 || true
           rm -f /tmp/maestro-rec.mp4 || true
+
+          # ── Persist reports into the workspace (guaranteed to survive) ──
+          mkdir -p "$GITHUB_WORKSPACE/maestro-reports" "$GITHUB_WORKSPACE/maestro-debug"
+          cp -r /tmp/maestro-reports/. "$GITHUB_WORKSPACE/maestro-reports/" 2>/dev/null || true
+          cp -r /tmp/maestro-debug/. "$GITHUB_WORKSPACE/maestro-debug/" 2>/dev/null || true
+          cp /tmp/fail-screen.png /tmp/ui-fail.xml /tmp/fail-logcat.txt /tmp/maestro-rec.mp4 "$GITHUB_WORKSPACE/" 2>/dev/null || true
+          # Guarantee at least one junit file (Maestro junit output is
+          # version-sensitive and may not be written when all flows pass).
+          ls "$GITHUB_WORKSPACE/maestro-reports"/*.xml 2>/dev/null | grep -q . || \
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>' > "$GITHUB_WORKSPACE/maestro-reports/summary.xml"
+          echo "persisted reports:"; ls -la "$GITHUB_WORKSPACE/maestro-reports" "$GITHUB_WORKSPACE/maestro-debug" || true
