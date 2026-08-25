@@ -2,7 +2,6 @@
 
 import type { ContactUser } from "@board-game-organizer/shared";
 import { Button, Dropdown } from "@heroui/react";
-import { i18n } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import { Ban, Eye, MoreVertical, UserMinus, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -150,7 +149,7 @@ function BlockConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
   // Close on Escape.
   useEffect(() => {
@@ -176,9 +175,9 @@ function BlockConfirmDialog({
         className="relative z-10 w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl"
       >
         <h2 className="text-lg font-semibold text-gray-900">
-          {/* Runtime interpolation: t`Block ${name}?` would look up the literal
-              string as an id (hash fallback → garbage). Use the catalog id
-              'Block {0}?' with values. */}
+          {/* Runtime interpolation via i18n.t with values: the instance from
+              useLingui() is the provider's initialized i18n (the imported
+              core singleton is NOT — it crashed the page). */}
           {i18n.t({ id: "Block {0}?", values: { name } })}
         </h2>
         <p className="mt-2 text-sm text-gray-500">
