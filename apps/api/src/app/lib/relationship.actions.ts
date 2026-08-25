@@ -24,11 +24,12 @@ export const CREATE: Record<string, Action> = {
   },
 
   block: async (userId, targetUserId, repo) => {
-    // Do NOT remove existing follow/friend edges: the blocked user must not
-    // notice they were blocked. Blocking only hides them everywhere (the
-    // block filter in list/search/suggestions) — on unblock everything is
-    // exactly as it was. Only remove a pending friend request (it would
-    // otherwise stay visible as an incoming request).
+    // The blocked user must not notice they were blocked: their follow toward
+    // the viewer SURVIVES (so after unblock they still follow the viewer).
+    // The VIEWER's follow toward the blocked user is removed — after unblock
+    // the viewer is no longer following them (product spec). Pending friend
+    // requests are cleared (they would otherwise stay visible as incoming).
+    await repo.delete(userId, targetUserId, "follow");
     await repo.clearBidirectional(userId, targetUserId, ["friend_request"]);
     await repo.upsert(userId, targetUserId, "block", "blocked");
   },

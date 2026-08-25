@@ -75,11 +75,13 @@ describe("CREATE.friend_request", () => {
 });
 
 describe("CREATE.block", () => {
-  it("stores the block WITHOUT removing follow/friend edges (blocked user must not notice)", async () => {
+  it("removes the viewer's follow, keeps the blocked user's follow, stores the block", async () => {
     const repo = createFakeRepo();
     await CREATE.block("user_1", "user_2", repo);
-    // Only pending friend requests are cleared; follow/friend edges are kept
-    // so on unblock everything is exactly as before the block.
+    // The viewer stops following the blocked user (one-way delete).
+    expect(repo.delete).toHaveBeenCalledWith("user_1", "user_2", "follow");
+    // Only pending friend requests are cleared; the blocked user's follow
+    // toward the viewer survives so they don't notice being blocked.
     expect(repo.clearBidirectional).toHaveBeenCalledWith("user_1", "user_2", ["friend_request"]);
     expect(repo.upsert).toHaveBeenCalledWith("user_1", "user_2", "block", "blocked");
   });
