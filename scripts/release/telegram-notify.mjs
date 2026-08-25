@@ -11,8 +11,10 @@
 //
 // The message is composed as HTML (Telegram parse_mode=HTML): markdown
 // headers/bullets from the changelog are converted, content is HTML-escaped
-// and truncated to stay under Telegram's 4096-char limit. The links file is
-// inserted as-is (it is already HTML).
+// and truncated to stay under Telegram's 4096-char limit. The links file
+// (APK / web / API preview URLs) is inserted RIGHT AFTER THE TITLE, BEFORE
+// the changelog, so the links are always visible even when the message is
+// truncated (the changelog is what gets cut, never the links).
 import { readFileSync } from "node:fs";
 
 // biome-ignore lint/suspicious/noUndeclaredEnvVars: set by CI secrets
@@ -61,7 +63,8 @@ if (changelogFile) {
 }
 const links = linksFile ? readFileSync(linksFile, "utf8") : "";
 
-let text = [title, changelog, links].filter(Boolean).join("\n\n");
+// Links FIRST (after the title) so they always survive truncation.
+let text = [title, links, changelog].filter(Boolean).join("\n\n");
 if (text.length > maxLength) {
   // Truncate on a line boundary: each mdToHtml line is self-contained HTML,
   // so slicing mid-line could leave an unclosed tag and Telegram rejects it
