@@ -73,12 +73,12 @@ export function InviteCard({
           <code className="min-w-0 break-all rounded bg-default-100 p-2 text-sm">
             {create.data.link}
           </code>
-          <div className="flex flex-col gap-2">
-            <Button size="sm" variant="outline" onPress={onCopy}>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="flex-1" onPress={onCopy}>
               <Copy className="h-4 w-4" />
               {copied ? t`Copied!` : t`Copy`}
             </Button>
-            <Button size="sm" variant="primary" onPress={() => create.mutate()}>
+            <Button size="sm" variant="primary" className="flex-1" onPress={() => create.mutate()}>
               <UserPlus className="h-4 w-4" />
               {t`New invite`}
             </Button>

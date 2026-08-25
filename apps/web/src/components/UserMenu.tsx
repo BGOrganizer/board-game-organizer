@@ -1,10 +1,9 @@
 "use client";
 
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Button, Dropdown, Modal } from "@heroui/react";
+import { Button, Dropdown, Modal, useOverlayState } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Ban, Eye, MoreVertical, UserMinus, UserPlus } from "lucide-react";
-import { useState } from "react";
 
 export type UserActionKey = "block" | "unblock" | "follow" | "unfollow" | "profile";
 
@@ -27,7 +26,10 @@ export function UserMenu({
   onAction: (key: UserActionKey) => void;
 }) {
   const { t } = useLingui();
-  const [confirm, setConfirm] = useState(false);
+  // HeroUI overlay state: the canonical way to drive a controlled Modal
+  // (plain useState + isOpen doesn't engage the DialogTrigger correctly —
+  // backdrop appeared but the dialog didn't until a second render).
+  const modal = useOverlayState();
 
   const items: Array<{
     key: UserActionKey;
@@ -87,7 +89,7 @@ export function UserMenu({
 
   const handle = (key: UserActionKey) => {
     if (key === "block") {
-      setConfirm(true);
+      modal.open();
       return;
     }
     onAction(key);
@@ -129,9 +131,9 @@ export function UserMenu({
         </Dropdown.Popover>
       </Dropdown>
 
-      <Modal isOpen={confirm} onOpenChange={setConfirm}>
+      <Modal state={modal}>
         <Modal.Backdrop />
-        <Modal.Container>
+        <Modal.Container placement="center">
           <Modal.Dialog>
             <Modal.Header>{t`Block ${user.name}?`}</Modal.Header>
             <Modal.Body>
@@ -140,14 +142,14 @@ export function UserMenu({
               </p>
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="ghost" onPress={() => setConfirm(false)}>
+              <Button variant="ghost" onPress={modal.close}>
                 {t`Cancel`}
               </Button>
               <Button
                 variant="danger"
                 isDisabled={busy}
                 onPress={() => {
-                  setConfirm(false);
+                  modal.close();
                   onAction("block");
                 }}
               >
