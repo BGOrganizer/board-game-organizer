@@ -80,28 +80,26 @@ describe("RelationshipRepository flows on real MongoDB (transaction)", () => {
     await container?.stop();
   });
 
-  it("block clears relationships and upserts the block row", async () => {
+  it("block keeps follow/friend edges (blocked user must not notice) and stores the block", async () => {
     const db = client.db("integration-rel");
     const session = client.startSession();
     try {
       await session.withTransaction(async () => {
         const repo = new RelationshipRepository(db, session);
-        // Seed follow + friend_request edges so block has something to clear.
+        // Seed follow + friend edges — blocking must NOT remove them.
         await repo.upsert("a", "b", "follow", "accepted");
         await repo.upsert("b", "a", "follow", "accepted");
         await repo.upsert("a", "b", "friend_request", "accepted");
         await repo.upsert("b", "a", "friend_request", "accepted");
-
-        // Regression: Promise.all with the same session used to throw
-        // "may not be used concurrently"; serialized ops pass.
-        await repo.clearBidirectional("a", "b", ["follow", "friend_request", "friend"]);
+        await repo.clearBidirectional("a", "b", ["friend_request"]);
         await repo.upsert("a", "b", "block", "blocked");
       });
       const blocks = await db.collection("blocks").find({}).toArray();
       expect(blocks).toHaveLength(1);
+      // Follow/friend edges survive the block.
       const follows = await db.collection("follows").find({}).toArray();
       const fr = await db.collection("friendRequests").find({}).toArray();
-      expect(follows).toHaveLength(0);
+      expect(follows).toHaveLength(2);
       expect(fr).toHaveLength(0);
     } finally {
       await session.endSession();
