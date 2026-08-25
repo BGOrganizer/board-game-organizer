@@ -571,11 +571,12 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   runtime cerca l'id letterale interpolato → hash fallback (es. "vPh7mM").
   Usare `i18n.t({ id: "Block {0}?", values: { name } })` con `i18n` da
   `@lingui/core` (NON `useLingui` core — causa timeout nei test).
-- **Blocco non rimuove follow/amicizie**: l'utente bloccato non deve
-  accorgersi di essere bloccato. `CREATE.block` elimina SOLO le friend
-  request pendenti e salva il blocco; i follow/amicizie esistenti restano
-  (invisibili per il bloccante, visibili al bloccato). Allo sblocco tutto
-  è come prima.
+- **Blocco (policy finale)**: al blocco il FOLLOW DEL BLOCKANTE verso il
+  bloccato viene eliminato (unidirezionale), mentre il follow del bloccato
+  verso il bloccante resta — così l'utente bloccato non si accorge di nulla e
+  allo sblocco l'asimmetria è: lui segue me, io non seguo lui. Si eliminano
+  solo le friend request pendenti. Test unit + integration coprono l'edge
+  b→a sopravvissuto.
 
 ## CI Rules (trigger intelligenti)
 
