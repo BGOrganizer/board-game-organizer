@@ -39,6 +39,16 @@ const maxLength = Number(getArg("max-length") ?? 3500);
 
 const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// Stray HTML tags left in the changelog by semantic-release notes
+// (e.g. "## <small>1.2.1 (2026-08-26)</small>"): drop them so they are
+// not shown as raw text after escaping.
+const cleanHtmlTags = (s) => s.replace(/<\/?(?:small|sub|sup|br|hr)\s*\/?>/gi, "");
+
+// Markdown links → Telegram HTML anchors. Applied AFTER escaping (the href
+// is plain ASCII in practice; the link text is already escaped).
+const linksToHtml = (s) =>
+  s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>');
+
 function mdToHtml(md) {
   return md
     .split("\n")
@@ -46,12 +56,17 @@ function mdToHtml(md) {
       const trimmed = line.trim();
       if (!trimmed) return "";
       const header = trimmed.match(/^#{2,4}\s+(.*)/);
-      if (header) return `<b>${escapeHtml(header[1])}</b>`;
+      if (header) return `<b>${escapeHtml(cleanHtmlTags(header[1]))}</b>`;
       const bullet = trimmed.match(/^[-*]\s+(.*)/);
-      if (bullet) return `• ${escapeHtml(bullet[1])}`;
+      if (bullet) {
+        const text = escapeHtml(cleanHtmlTags(bullet[1]));
+        // semantic-release wraps the commit subject in **bold**: convert it
+        // (after escaping — the ** markers are untouched by escapeHtml).
+        return `• ${linksToHtml(text).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")}`;
+      }
       const bold = trimmed.match(/^\*\*(.*)\*\*$/);
-      if (bold) return `<b>${escapeHtml(bold[1])}</b>`;
-      return escapeHtml(trimmed);
+      if (bold) return `<b>${escapeHtml(cleanHtmlTags(bold[1]))}</b>`;
+      return linksToHtml(escapeHtml(cleanHtmlTags(trimmed)));
     })
     .filter(Boolean)
     .join("\n");
