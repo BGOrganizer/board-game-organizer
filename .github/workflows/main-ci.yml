@@ -95,7 +95,12 @@ jobs:
     needs: release
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # A fresh eas build --local from a cold cache (cache key changes after the
+    # semantic-release bump touches package.json) takes ~1.5h on GitHub
+    # runners — 90 minutes was too tight and cancelled the build during
+    # packageRelease. 180 minutes gives the cold build headroom; follow-up
+    # builds reuse the EAS/gradle caches and finish much faster.
+    timeout-minutes: 180
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
