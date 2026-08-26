@@ -1,3 +1,8 @@
+## <small>1.2.1 (2026-08-26)</small>
+
+* fix(ci): pr-ci E2E jobs missing provision in needs — tests were skipped ([dab6dc3](https://github.com/BGOrganizer/board-game-organizer/commit/dab6dc3))
+* revert: chore(release): 1.2.0 ([270e4fd](https://github.com/BGOrganizer/board-game-organizer/commit/270e4fd))
+
 ## 1.1.0 (2026-08-16)
 
 * Merge pull request #14 from BGOrganizer/fix/release-flow-ui ([a511922](https://github.com/BGOrganizer/board-game-organizer/commit/a511922)), closes [#14](https://github.com/BGOrganizer/board-game-organizer/issues/14)
