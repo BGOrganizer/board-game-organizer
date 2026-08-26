@@ -229,7 +229,10 @@ jobs:
         id: provision
         uses: ./.github/actions/provision-e2e-user
         with:
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+          # Production E2E runs against the LIVE Clerk instance (web
+          # production + released APK use pk_live). The preview/test
+          # instance key (CLERK_SECRET_KEY) stays for pr-ci only.
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
 
       - name: ⚡ Install Maestro CLI
         run: |
@@ -247,7 +250,7 @@ jobs:
       - name: 🗑️ Cleanup E2E test user
         if: always()
         env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
           USER_ID: ${{ steps.provision.outputs.user_id }}
         run: |
           bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
@@ -299,16 +302,20 @@ jobs:
         id: provision
         uses: ./.github/actions/provision-e2e-user
         with:
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+          # Production E2E runs against the LIVE Clerk instance (web
+          # production uses pk_live). The preview/test instance key
+          # (CLERK_SECRET_KEY) stays for pr-ci only.
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
 
       - name: 🔄 Mirror E2E users into the production users collection
         # Deterministic seeding: the Clerk webhook only fires for the Clerk
         # dashboard webhook URL (production endpoint) and can lag; the admin
-        # sync-user endpoint (Bearer == CLERK_SECRET_KEY) mirrors both users
-        # synchronously so the contacts E2E search finds the target.
+        # sync-user endpoint (Bearer == the API production's CLERK_SECRET_KEY
+        # env, currently the LIVE key) mirrors both users synchronously so the
+        # contacts E2E search finds the target.
         env:
           API_URL: https://api-chi-two-97.vercel.app
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
         run: |
           AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
           curl -fsS -X POST "$API_URL/api/admin/sync-user" \
@@ -332,8 +339,9 @@ jobs:
           E2E_EMAIL: ${{ steps.provision.outputs.email }}
           E2E_EMAIL_2: ${{ steps.provision.outputs.email_2 }}
           E2E_USERNAME_2: ${{ steps.provision.outputs.username_2 }}
-          # Clerk testing token (global setup) + ticket sign-in helper:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          # Clerk testing token (global setup) + ticket sign-in helper —
+          # LIVE instance (matches web production's pk_live):
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
         run: pnpm test:e2e
 
@@ -348,7 +356,7 @@ jobs:
       - name: 🗑️ Cleanup E2E test user
         if: always()
         env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
           USER_ID: ${{ steps.provision.outputs.user_id }}
         run: |
           bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"

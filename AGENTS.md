@@ -622,3 +622,23 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
   caricamento del profilo (se l'API profile fallisce con 401, il logout
   spariva e l'E2E andava in timeout sul click). Logout = azione globale,
   renderizzarlo anche nel ramo errore.
+
+## Lessons Learned (due ambienti Clerk — preview vs production)
+
+- Esistono DUE istanze Clerk: **preview/test** (`pk_test_…singular-marten-79`,
+  chiave `CLERK_SECRET_KEY`) e **production/live** (`pk_live_…`,
+  `CLERK_SECRET_KEY_PRODUCTION`). Il GitHub secret `CLERK_SECRET_KEY` è quella
+  di preview: usarla verso l'API production dà 401 (mismatch istanza).
+- **pr-ci / preview**: tutto su `CLERK_SECRET_KEY` (test) — preview deploy usa
+  l'istanza test.
+- **main-ci / production**: i job E2E (provision, mirror sync-user, testing
+  token, cleanup) usano `CLERK_SECRET_KEY_PRODUCTION` (live) — il Bearer del
+  sync-user deve combaciare con l'env `CLERK_SECRET_KEY` di Vercel api
+  production (attualmente la live).
+- Coerenza richiesta: web production (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` su
+  Vercel) e APK (`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` vars GitHub) devono usare
+  la pk dell'istanza GIUSTA, altrimenti i token emessi dal frontend non
+  vengono verificati dall'API (profile → 401).
+- I tag orfani da release fallite vanno cancellati insieme al revert del bump
+  (vedi lezione precedente), altrimenti semantic-release considera la
+  versione già rilasciata.
