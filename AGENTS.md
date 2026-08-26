@@ -597,3 +597,28 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
 - **mobile-e2e.yml** (workflow singolo per test veloci): builda APK
   (profilo **internal**, NON development) e runna i flow Maestro. Serve per
   iterare velocemente senza tutta la pr-ci.
+
+## Lessons Learned (rilascio + CI, turno main-ci #9)
+
+- **main-ci build APK**: `timeout-minutes` deve essere 180, NON 90. Una
+  `eas build --local` fresca (cache invalidata perché il bump semantico tocca
+  `apps/mobile/package.json`) dura ~88-90 min sulle runner GitHub: a 90 min il
+  job veniva cancellato durante `packageRelease`. Su pr-ci la build veniva
+  RIUSATA (zero diff mobile) → il timeout non si era mai visto.
+- **Tag orfani da publish fallito**: se il publish job fallisce DOPO aver
+  creato il tag (release non creata), semantic-release considera la versione
+  già rilasciata → "no release" → `published=false` → build skippata. Se il
+  bump è committato ma il tag non esiste, revertare il bump e cancellare il
+  tag prima di pushare nuovi fix, così semantic-release rigenera il bump.
+- **`[skip ci]` nel messaggio**: un commit il cui subject contiene
+  `[skip ci]` (es. `git revert` di un commit `chore(release): … [skip ci]`)
+  NON triggera i workflow. Verificare il subject del commit prima del push.
+- **pr-ci needs dei job E2E**: `e2e-maestro` e `e2e-playwright` usano
+  `needs.provision.outputs.*` — `provision` DEVE essere nella loro lista
+  `needs`, altrimenti `E2E_EMAIL`/`E2E_EMAIL_2` sono vuoti e i test
+  (sign-in/profile/logout, contacts) vengono SILENZIOSAMENTE skippati →
+  pr-ci falsi verdi. Controllare il junit (skipped > 0) se i test non girano.
+- **Logout sempre raggiungibile**: il bottone Logout non deve dipendere dal
+  caricamento del profilo (se l'API profile fallisce con 401, il logout
+  spariva e l'E2E andava in timeout sul click). Logout = azione globale,
+  renderizzarlo anche nel ramo errore.
