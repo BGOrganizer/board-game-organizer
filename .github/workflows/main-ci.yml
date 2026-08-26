@@ -301,6 +301,25 @@ jobs:
         with:
           clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
 
+      - name: 🔄 Mirror E2E users into the production users collection
+        # Deterministic seeding: the Clerk webhook only fires for the Clerk
+        # dashboard webhook URL (production endpoint) and can lag; the admin
+        # sync-user endpoint (Bearer == CLERK_SECRET_KEY) mirrors both users
+        # synchronously so the contacts E2E search finds the target.
+        env:
+          API_URL: https://api-chi-two-97.vercel.app
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
+          curl -fsS -X POST "$API_URL/api/admin/sync-user" \
+            -H "$AUTH" -H "Content-Type: application/json" \
+            -d '{"clerkId":"${{ steps.provision.outputs.user_id }}","email":"${{ steps.provision.outputs.email }}","name":"E2E Test"}' \
+            && echo "actor synced"
+          curl -fsS -X POST "$API_URL/api/admin/sync-user" \
+            -H "$AUTH" -H "Content-Type: application/json" \
+            -d '{"clerkId":"${{ steps.provision.outputs.user_id_2 }}","email":"${{ steps.provision.outputs.email_2 }}","name":"E2E Target"}' \
+            && echo "target synced"
+
       - name: 🌐 Install Playwright browsers
         working-directory: apps/web
         run: |
