@@ -311,6 +311,8 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: https://web-rosy-phi-82.vercel.app
           E2E_EMAIL: ${{ steps.provision.outputs.email }}
+          E2E_EMAIL_2: ${{ steps.provision.outputs.email_2 }}
+          E2E_USERNAME_2: ${{ steps.provision.outputs.username_2 }}
           # Clerk testing token (global setup) + ticket sign-in helper:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
