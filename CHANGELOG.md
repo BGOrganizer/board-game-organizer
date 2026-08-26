@@ -1,3 +1,7 @@
+## <small>1.2.3 (2026-08-26)</small>
+
+* fix(ci): production E2E on live Clerk instance + revert unpublished 1.2.2 bump ([7d18655](https://github.com/BGOrganizer/board-game-organizer/commit/7d18655))
+
 ## <small>1.2.2 (2026-08-26)</small>
 
 * fix(ci): main-ci — mirror E2E users into production DB before Playwright ([af02f69](https://github.com/BGOrganizer/board-game-organizer/commit/af02f69))
