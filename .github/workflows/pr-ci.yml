@@ -425,7 +425,7 @@ jobs:
   # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:
     name: 🎬 Maestro E2E (mobile)
-    needs: [build-mobile-internal, sync-e2e-users]
+    needs: [build-mobile-internal, sync-e2e-users, provision]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -502,7 +502,7 @@ jobs:
   # ---------------------------------------------------------- Playwright E2E
   e2e-playwright:
     name: 🎭 Playwright E2E (web)
-    needs: [deploy-preview-web, sync-e2e-users]
+    needs: [deploy-preview-web, sync-e2e-users, provision]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout

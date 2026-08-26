@@ -99,9 +99,17 @@ export function Profile() {
           {t`Error while loading the profile:`}{" "}
           {error instanceof Error ? error.message : String(error)}
         </p>
-        <Button className="mt-3" variant="outline" onPress={() => refetch()}>
-          {t`Retry`}
-        </Button>
+        <div className="mt-3 flex gap-3">
+          <Button variant="outline" onPress={() => refetch()}>
+            {t`Retry`}
+          </Button>
+          {/* Logout must stay reachable even when the profile fails to load
+              (e.g. API 401): it is a global action, not part of the
+              profile data. E2E relies on it after a failed profile load. */}
+          <Button variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
+            {t`Logout`}
+          </Button>
+        </div>
       </Card>
     );
   }
