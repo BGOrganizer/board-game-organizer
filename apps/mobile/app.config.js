@@ -2,7 +2,7 @@ module.exports = {
   expo: {
     name: "board-game-organizer",
     slug: "board-game-organizer",
-    version: "1.2.0",
+    version: "1.1.0",
     orientation: "portrait",
     scheme: "bgo",
     userInterfaceStyle: "automatic",
