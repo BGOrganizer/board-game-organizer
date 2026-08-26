@@ -1,9 +1,3 @@
-## <small>1.2.2 (2026-08-26)</small>
-
-* fix(ci): main-ci Playwright — pass E2E_EMAIL_2/E2E_USERNAME_2 so contacts E2E runs on production too ([efb5d71](https://github.com/BGOrganizer/board-game-organizer/commit/efb5d71))
-* fix(ci): Telegram changelog formatting — markdown links and <small> tags ([7b44af0](https://github.com/BGOrganizer/board-game-organizer/commit/7b44af0))
-* docs: AGENTS — release/CI lessons (APK timeout, orphan tags, skip-ci, E2E needs, logout) ([5566e6b](https://github.com/BGOrganizer/board-game-organizer/commit/5566e6b))
-
 ## <small>1.2.1 (2026-08-26)</small>
 
 * fix(ci): pr-ci E2E jobs missing provision in needs — tests were skipped ([dab6dc3](https://github.com/BGOrganizer/board-game-organizer/commit/dab6dc3))
