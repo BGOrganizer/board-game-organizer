@@ -36,7 +36,30 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
   await searchInput.fill(E2E_EMAIL_2);
 
   // The target row appears once the webhook mirroring lands (poll).
-  await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 90_000 });
+  try {
+    await expect(page.getByText("E2E Target").first()).toBeVisible({
+      timeout: 90_000,
+    });
+  } catch (e) {
+    // Debug: log the REAL search API response (status + body) so a failed
+    // run shows whether the API returned [] (doc missing / DB mismatch) or
+    // an error (401/429/500) that the UI masks as "No users found".
+    const debug = await page.evaluate(async (q) => {
+      try {
+        const clerk = window.__clerk_loaded as any;
+        const t = (await clerk?.session?.getToken?.()) ?? null;
+        const r = await fetch(
+          `https://api.board-game-organizer.com/api/users/search?query=${encodeURIComponent(q)}`,
+          { headers: t ? { Authorization: `Bearer ${t}` } : {} },
+        );
+        return { status: r.status, body: (await r.text()).slice(0, 500) };
+      } catch (err) {
+        return { error: String(err) };
+      }
+    }, E2E_EMAIL_2);
+    console.log("SEARCH-DEBUG", JSON.stringify(debug));
+    throw e;
+  }
 
   // -- Follow → button flips to Unfollow.
   await page.getByRole("button", { name: "Follow", exact: true }).first().click();
