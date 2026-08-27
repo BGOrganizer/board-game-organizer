@@ -317,7 +317,7 @@ jobs:
         # env, currently the LIVE key) mirrors both users synchronously so the
         # contacts E2E search finds the target.
         env:
-          API_URL: https://api-chi-two-97.vercel.app
+          API_URL: https://api.board-game-organizer.com
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
         run: |
           AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
@@ -338,7 +338,7 @@ jobs:
       - name: 🎭 Run Playwright against production
         working-directory: apps/web
         env:
-          PLAYWRIGHT_BASE_URL: https://web-rosy-phi-82.vercel.app
+          PLAYWRIGHT_BASE_URL: https://board-game-organizer.com
           E2E_EMAIL: ${{ steps.provision.outputs.email }}
           E2E_EMAIL_2: ${{ steps.provision.outputs.email_2 }}
           E2E_USERNAME_2: ${{ steps.provision.outputs.username_2 }}
@@ -430,7 +430,7 @@ jobs:
           REL_ID=$(jq -r .id /tmp/release.json)
           BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" | jq -r .body)
-          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://web-rosy-phi-82.vercel.app\n- **API:** https://api-chi-two-97.vercel.app\n- **APK:** allegato alla release' "$BODY")
+          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release' "$BODY")
           PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
           curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -489,8 +489,8 @@ jobs:
         run: |
           cat > /tmp/telegram-links.html <<EOF
           📱 <a href="$RELEASE_URL">APK (internal)</a>
-          🌐 <a href="https://web-rosy-phi-82.vercel.app">Web (produzione)</a>
-          🔌 <a href="https://api-chi-two-97.vercel.app">API (produzione)</a>
+          🌐 <a href="https://board-game-organizer.com">Web (produzione)</a>
+          🔌 <a href="https://api.board-game-organizer.com">API (produzione)</a>
           EOF
 
       - name: 📤 Send Telegram notification
