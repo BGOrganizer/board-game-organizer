@@ -124,7 +124,10 @@ jobs:
         with:
           profile: internal
           expo-token: ${{ secrets.EXPO_TOKEN }}
-          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          # Production build: the released APK must talk to the LIVE Clerk
+          # instance (pk_live). The pk_test variable stays for preview builds
+          # (pr-ci / mobile-e2e / mobile-development).
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
 
@@ -340,9 +343,9 @@ jobs:
           E2E_EMAIL_2: ${{ steps.provision.outputs.email_2 }}
           E2E_USERNAME_2: ${{ steps.provision.outputs.username_2 }}
           # Clerk testing token (global setup) + ticket sign-in helper —
-          # LIVE instance (matches web production's pk_live):
+          # LIVE instance (web production now serves pk_live):
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
         run: pnpm test:e2e
 
       - name: 📤 Upload Playwright report
