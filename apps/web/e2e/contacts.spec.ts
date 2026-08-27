@@ -46,13 +46,13 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
     // an error (401/429/500) that the UI masks as "No users found".
     const debug = await page.evaluate(async (q) => {
       try {
-        const clerk = window.__clerk_loaded as any;
+        const clerk = (window as any).Clerk ?? (window as any).__clerk_loaded;
         const t = (await clerk?.session?.getToken?.()) ?? null;
         const r = await fetch(
           `https://api.board-game-organizer.com/api/users/search?query=${encodeURIComponent(q)}`,
           { headers: t ? { Authorization: `Bearer ${t}` } : {} },
         );
-        return { status: r.status, body: (await r.text()).slice(0, 500) };
+        return { status: r.status, body: (await r.text()).slice(0, 500), hasToken: Boolean(t) };
       } catch (err) {
         return { error: String(err) };
       }
