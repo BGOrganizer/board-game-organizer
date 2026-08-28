@@ -94,11 +94,28 @@ export function Contacts() {
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     let active = true;
-    getToken()
-      .then((tok) => {
-        if (active) setToken(tok ?? null);
-      })
-      .catch(() => active && setToken(null));
+    let attempts = 0;
+    const obtain = () => {
+      if (!active) return;
+      getToken()
+        .then((tok) => {
+          if (!active) return;
+          if (tok) {
+            setToken(tok);
+          } else if (attempts < 10) {
+            // The Clerk client can still be booting right after the page
+            // loads: getToken() resolves null, and if we store null the
+            // search silently fails ("No session token"). Retry until a
+            // real token appears so the first search always has one.
+            attempts += 1;
+            setTimeout(obtain, 500);
+          } else {
+            setToken(null);
+          }
+        })
+        .catch(() => active && setToken(null));
+    };
+    obtain();
     return () => {
       active = false;
     };
@@ -145,6 +162,10 @@ export function Contacts() {
       return;
     }
     debounceRef.current = setTimeout(() => {
+      // If the session token is not ready yet (Clerk client still booting),
+      // skip: the token effect below re-runs the pending search once the
+      // token arrives, so the search is never silently lost.
+      if (!token) return;
       contacts.runSearch(query);
     }, 300);
     return () => {
@@ -152,6 +173,14 @@ export function Contacts() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+
+  // Re-run a pending search as soon as the session token becomes available
+  // (the debounce above skipped it while getToken() was still null).
+  const hasPendingSearch = query.trim().length >= 4 && !token;
+  useEffect(() => {
+    if (token && hasPendingSearch) contacts.runSearch(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const followingRows = contacts.following.data ?? [];
   // Ids the viewer follows — used by the Followers tab to render the right
