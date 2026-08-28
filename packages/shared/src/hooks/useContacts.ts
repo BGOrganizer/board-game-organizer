@@ -150,7 +150,12 @@ export function searchUsers(
       `${apiUrl}/api/users/search?query=${encodeURIComponent(query)}`,
       protectionBypass,
     ),
-    { headers: apiHeaders(token) },
+    // GET: Authorization only — no Content-Type, so the request stays a
+    // simple CORS request (no preflight). A Content-Type header on a GET
+    // forces an OPTIONS preflight; browsers then reject the response if
+    // the allow-origin is "*" with allow-credentials, surfacing as
+    // "Failed to fetch" with no response event at all.
+    { headers: { Authorization: `Bearer ${token}` } },
   ).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as { users: ContactUser[] };
