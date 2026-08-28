@@ -1,29 +1,3 @@
-## <small>1.2.2 (2026-08-28)</small>
-
-* test(web): contacts E2E — reload before search to force a fresh session token ([c435877](https://github.com/BGOrganizer/board-game-organizer/commit/c435877))
-* test(web): debug the contacts E2E search failure — log real API response ([722438b](https://github.com/BGOrganizer/board-game-organizer/commit/722438b))
-* test(web): fix contacts E2E debug — use window.Clerk for the session token ([9a77994](https://github.com/BGOrganizer/board-game-organizer/commit/9a77994))
-* chore(release): 1.2.2 [skip ci] ([73b13f3](https://github.com/BGOrganizer/board-game-organizer/commit/73b13f3))
-* chore(release): 1.2.2 [skip ci] ([3a19f8c](https://github.com/BGOrganizer/board-game-organizer/commit/3a19f8c))
-* chore(release): 1.2.2 [skip ci] ([3aec0d6](https://github.com/BGOrganizer/board-game-organizer/commit/3aec0d6))
-* chore(release): 1.2.2 [skip ci] ([fda3b76](https://github.com/BGOrganizer/board-game-organizer/commit/fda3b76))
-* chore(release): 1.2.2 [skip ci] ([9d21288](https://github.com/BGOrganizer/board-game-organizer/commit/9d21288))
-* chore(release): 1.2.2 [skip ci] ([7539740](https://github.com/BGOrganizer/board-game-organizer/commit/7539740))
-* chore(release): 1.2.3 [skip ci] ([e6bcd4b](https://github.com/BGOrganizer/board-game-organizer/commit/e6bcd4b))
-* revert: chore(release): 1.2.2 (unpublished — contacts E2E debug run) ([824e28c](https://github.com/BGOrganizer/board-game-organizer/commit/824e28c))
-* revert: chore(release): 1.2.2 (unpublished — debug run) ([55c469b](https://github.com/BGOrganizer/board-game-organizer/commit/55c469b))
-* revert: chore(release): 1.2.2 (unpublished — E2E gate failed) ([f8133b2](https://github.com/BGOrganizer/board-game-organizer/commit/f8133b2))
-* revert: chore(release): 1.2.2 (unpublished — version reset for re-release) ([0c86270](https://github.com/BGOrganizer/board-game-organizer/commit/0c86270))
-* revert: chore(release): 1.2.2 [skip ci] ([0b39f91](https://github.com/BGOrganizer/board-game-organizer/commit/0b39f91))
-* revert: chore(release): 1.2.3 (unpublished — Clerk instance mismatch on production web) ([498ec1e](https://github.com/BGOrganizer/board-game-organizer/commit/498ec1e))
-* fix(ci): main-ci — mirror E2E users into production DB before Playwright ([af02f69](https://github.com/BGOrganizer/board-game-organizer/commit/af02f69))
-* fix(ci): main-ci Playwright — pass E2E_EMAIL_2/E2E_USERNAME_2 so contacts E2E runs on production too ([efb5d71](https://github.com/BGOrganizer/board-game-organizer/commit/efb5d71))
-* fix(ci): main-ci production builds/E2E use the LIVE Clerk publishable keys ([9242891](https://github.com/BGOrganizer/board-game-organizer/commit/9242891))
-* fix(ci): production E2E on live Clerk instance + revert unpublished 1.2.2 bump ([7d18655](https://github.com/BGOrganizer/board-game-organizer/commit/7d18655))
-* fix(ci): production URLs — board-game-organizer.com + api.board-game-organizer.com ([cc81939](https://github.com/BGOrganizer/board-game-organizer/commit/cc81939))
-* fix(ci): Telegram changelog formatting — markdown links and <small> tags ([7b44af0](https://github.com/BGOrganizer/board-game-organizer/commit/7b44af0))
-* docs: AGENTS — release/CI lessons (APK timeout, orphan tags, skip-ci, E2E needs, logout) ([5566e6b](https://github.com/BGOrganizer/board-game-organizer/commit/5566e6b))
-
 ## <small>1.2.2 (2026-08-27)</small>
 
 * revert: chore(release): 1.2.2 (unpublished — contacts E2E debug run) ([824e28c](https://github.com/BGOrganizer/board-game-organizer/commit/824e28c))
