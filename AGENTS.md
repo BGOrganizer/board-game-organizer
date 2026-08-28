@@ -642,3 +642,27 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
 - I tag orfani da release fallite vanno cancellati insieme al revert del bump
   (vedi lezione precedente), altrimenti semantic-release considera la
   versione già rilasciata.
+
+## Lessons Learned (migrazione domini custom production — run #27-#45)
+
+- **Cambio dominio Vercel ≠ aggiornamento env**: spostando web/api da
+  `web-rosy-phi-82`/`api-chi-two-97.vercel.app` ai custom domain, le env
+  `NEXT_PUBLIC_API_URL` (Vercel web) e `EXPO_PUBLIC_API_URL` (vars GitHub)
+  restavano ai vecchi alias eliminati → la web puntava a un host morto.
+  Sintomo: contacts E2E "No users found" (il fetch fallisce con "Failed to
+  fetch" — la UI maschera l'errore come lista vuota; `page.on("request")`
+  mostra l'URL reale). Fix: `extra-env` nel main-ci (deterministico) +
+  vars GitHub aggiornati.
+- **"Failed to fetch" nel browser senza risposta catturabile** =
+  l'host è irraggiungibile/CORS bloccato. `page.on("request")` rivela l'URL
+  che la UI chiama davvero (a differenza di `response`, che non scatta se
+  la fetch muore in rete).
+- **Falso positivo test profile**: `getByText("E2E Test")` è il NOME
+  UTENTE nell'header, non i dati del profilo — il test 4 passa anche se
+  il fetch `/api/profiles` fallisce. Assertion debole.
+- **Il dialog di blocco web**: `getByRole("dialog")` può risolvere 2
+  elementi (il kebab dropdown lascia un role=dialog residuo) → usare
+  `.last()` nel test.
+- **Debug E2E efficace**: log nel componente (console del browser) +
+  `page.on("console")` nel test + `page.on("request")` per l'URL reale.
+  Ogni run di debug ha isolato un pezzo: token → mutate → URL.
