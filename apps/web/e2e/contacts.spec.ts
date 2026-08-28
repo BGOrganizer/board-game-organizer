@@ -38,6 +38,12 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
     timeout: 60_000,
   });
 
+  // Forward browser console lines (Contacts token/debounce diagnostics) to
+  // the Playwright log so a failing run shows what the component saw.
+  page.on("console", (msg) => {
+    if (msg.text().startsWith("CONTACTS-")) console.log("BROWSER:", msg.text());
+  });
+
   // -- Search tab, type the target's email (auto-search on debounce).
   await page.getByRole("button", { name: "Search" }).click();
   const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });

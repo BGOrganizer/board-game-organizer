@@ -101,19 +101,20 @@ export function Contacts() {
         .then((tok) => {
           if (!active) return;
           if (tok) {
+            console.log("CONTACTS-TOKEN", { attempt: attempts, got: "yes" });
             setToken(tok);
           } else if (attempts < 10) {
-            // The Clerk client can still be booting right after the page
-            // loads: getToken() resolves null, and if we store null the
-            // search silently fails ("No session token"). Retry until a
-            // real token appears so the first search always has one.
             attempts += 1;
             setTimeout(obtain, 500);
           } else {
+            console.log("CONTACTS-TOKEN", { attempt: attempts, got: "give-up" });
             setToken(null);
           }
         })
-        .catch(() => active && setToken(null));
+        .catch(() => {
+          console.log("CONTACTS-TOKEN", { attempt: attempts, got: "error" });
+          if (active) setToken(null);
+        });
     };
     obtain();
     return () => {
@@ -165,7 +166,11 @@ export function Contacts() {
       // If the session token is not ready yet (Clerk client still booting),
       // skip: the token effect below re-runs the pending search once the
       // token arrives, so the search is never silently lost.
-      if (!token) return;
+      if (!token) {
+        console.log("CONTACTS-DEBOUNCE", { query, token: "null" });
+        return;
+      }
+      console.log("CONTACTS-DEBOUNCE", { query, token: "set" });
       contacts.runSearch(query);
     }, 300);
     return () => {
