@@ -56,6 +56,12 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
     }
   });
 
+  // Log the EXACT URL the UI requests for the search (even when the fetch
+  // fails with CORS/network errors, the request event still fires).
+  page.on("request", (req) => {
+    if (req.url().includes("/api/users/search")) console.log("UI-REQ", req.url());
+  });
+
   // -- Search tab, type the target's email (auto-search on debounce).
   await page.getByRole("button", { name: "Search" }).click();
   const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
