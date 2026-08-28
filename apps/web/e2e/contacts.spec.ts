@@ -28,53 +28,26 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
 
   await signInAsActor(page);
   await page.goto("/contacts");
-  // Reload after the first paint: the Contacts tab captures its session
-  // token on mount (getToken at effect time) — a reload guarantees a fresh
-  // token before the first search, otherwise the search can 401 (stale
-  // short-lived JWT) and the UI masks the failure as "No users found".
-  await page.reload();
+
+  // Wait until the Clerk client has an active session in THIS page context.
+  // The Contacts tab captures its token on mount and the search calls
+  // getToken() — if the client is still booting, getToken() resolves null,
+  // resolveToken throws, and the UI silently shows "No users found"
+  // (no API call is ever made, which the UI masks as an empty result).
+  await page.waitForFunction(() => Boolean((window as any).Clerk?.session), null, {
+    timeout: 60_000,
+  });
+
+  // -- Search tab, type the target's email (auto-search on debounce).
   await page.getByRole("button", { name: "Search" }).click();
   const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
   await expect(searchInput).toBeVisible();
   await searchInput.fill(E2E_EMAIL_2);
 
-  // Log the UI's actual API calls (the UI masks a failed search as an
-  // empty list, so capture every /api/users/search response here).
-  const searchResponses: string[] = [];
-  page.on("response", (res) => {
-    if (res.url().includes("/api/users/search")) {
-      res.text().then((t) => {
-        searchResponses.push(`${res.status()} ${t.slice(0, 200)}`);
-      });
-    }
+  // The target row appears once the mirroring lands (poll).
+  await expect(page.getByText("E2E Target").first()).toBeVisible({
+    timeout: 90_000,
   });
-
-  // The target row appears once the webhook mirroring lands (poll).
-  try {
-    await expect(page.getByText("E2E Target").first()).toBeVisible({
-      timeout: 90_000,
-    });
-  } catch (e) {
-    // Debug: log the REAL search API response (status + body) so a failed
-    // run shows whether the API returned [] (doc missing / DB mismatch) or
-    // an error (401/429/500) that the UI masks as "No users found".
-    const debug = await page.evaluate(async (q) => {
-      try {
-        const clerk = (window as any).Clerk ?? (window as any).__clerk_loaded;
-        const t = (await clerk?.session?.getToken?.()) ?? null;
-        const r = await fetch(
-          `https://api.board-game-organizer.com/api/users/search?query=${encodeURIComponent(q)}`,
-          { headers: t ? { Authorization: `Bearer ${t}` } : {} },
-        );
-        return { status: r.status, body: (await r.text()).slice(0, 500), hasToken: Boolean(t) };
-      } catch (err) {
-        return { error: String(err) };
-      }
-    }, E2E_EMAIL_2);
-    console.log("SEARCH-DEBUG", JSON.stringify(debug));
-    console.log("UI-SEARCH-RESPONSES", JSON.stringify(searchResponses));
-    throw e;
-  }
 
   // -- Follow → button flips to Unfollow.
   await page.getByRole("button", { name: "Follow", exact: true }).first().click();
