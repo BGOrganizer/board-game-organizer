@@ -101,18 +101,15 @@ export function Contacts() {
         .then((tok) => {
           if (!active) return;
           if (tok) {
-            console.log("CONTACTS-TOKEN", { attempt: attempts, got: "yes" });
             setToken(tok);
           } else if (attempts < 10) {
             attempts += 1;
             setTimeout(obtain, 500);
           } else {
-            console.log("CONTACTS-TOKEN", { attempt: attempts, got: "give-up" });
             setToken(null);
           }
         })
         .catch(() => {
-          console.log("CONTACTS-TOKEN", { attempt: attempts, got: "error" });
           if (active) setToken(null);
         });
     };
@@ -140,18 +137,6 @@ export function Contacts() {
   }, [token, getToken]);
 
   const contacts = useContacts(apiUrl(), token, getToken, protectionBypass());
-
-  // Temporary diagnostics: log the exact search mutation outcome so a failed
-  // E2E run shows whether the fetch never fired, errored, or returned data.
-  useEffect(() => {
-    if (contacts.search.isError) {
-      const e = contacts.search.error;
-      console.log("CONTACTS-SEARCH-ERROR", e instanceof Error ? e.message : String(e));
-    }
-    if (contacts.search.isSuccess) {
-      console.log("CONTACTS-SEARCH-OK", JSON.stringify(contacts.search.data).slice(0, 200));
-    }
-  }, [contacts.search.isError, contacts.search.isSuccess, contacts.search.error, contacts.search.data]);
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
@@ -178,11 +163,7 @@ export function Contacts() {
       // If the session token is not ready yet (Clerk client still booting),
       // skip: the token effect below re-runs the pending search once the
       // token arrives, so the search is never silently lost.
-      if (!token) {
-        console.log("CONTACTS-DEBOUNCE", { query, token: "null" });
-        return;
-      }
-      console.log("CONTACTS-DEBOUNCE", { query, token: "set" });
+      if (!token) return;
       contacts.runSearch(query);
     }, 300);
     return () => {

@@ -185,6 +185,11 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets[matrix.project-id-secret] }}
+          # Web production must call the custom-domain API, NOT the old
+          # Vercel alias (api-chi-two-97 died with the project rename). The
+          # project env on Vercel may still hold the old value, so pin the
+          # build-time override here (deterministic, like the Clerk keys).
+          extra-env: ${{ matrix.app == 'web' && 'NEXT_PUBLIC_API_URL=https://api.board-game-organizer.com' || '' }}
 
   # -------------------------------------------------- Maestro E2E (released APK)
   e2e-maestro:

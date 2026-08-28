@@ -38,30 +38,6 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
     timeout: 60_000,
   });
 
-  // Forward browser console lines (Contacts token/debounce diagnostics) to
-  // the Playwright log so a failing run shows what the component saw.
-  page.on("console", (msg) => {
-    if (msg.text().startsWith("CONTACTS-")) console.log("BROWSER:", msg.text());
-  });
-
-  // Capture every search API response the UI actually receives (status +
-  // body), so a failed run shows what the component got vs. what a manual
-  // fetch returns.
-  page.on("response", (res) => {
-    if (res.url().includes("/api/users/search")) {
-      res
-        .text()
-        .then((t) => console.log("UI-RESP", res.status(), t.slice(0, 220)))
-        .catch(() => {});
-    }
-  });
-
-  // Log the EXACT URL the UI requests for the search (even when the fetch
-  // fails with CORS/network errors, the request event still fires).
-  page.on("request", (req) => {
-    if (req.url().includes("/api/users/search")) console.log("UI-REQ", req.url());
-  });
-
   // -- Search tab, type the target's email (auto-search on debounce).
   await page.getByRole("button", { name: "Search" }).click();
   const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
