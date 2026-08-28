@@ -38,6 +38,17 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
   await expect(searchInput).toBeVisible();
   await searchInput.fill(E2E_EMAIL_2);
 
+  // Log the UI's actual API calls (the UI masks a failed search as an
+  // empty list, so capture every /api/users/search response here).
+  const searchResponses: string[] = [];
+  page.on("response", (res) => {
+    if (res.url().includes("/api/users/search")) {
+      res.text().then((t) => {
+        searchResponses.push(`${res.status()} ${t.slice(0, 200)}`);
+      });
+    }
+  });
+
   // The target row appears once the webhook mirroring lands (poll).
   try {
     await expect(page.getByText("E2E Target").first()).toBeVisible({
@@ -61,6 +72,7 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
       }
     }, E2E_EMAIL_2);
     console.log("SEARCH-DEBUG", JSON.stringify(debug));
+    console.log("UI-SEARCH-RESPONSES", JSON.stringify(searchResponses));
     throw e;
   }
 
