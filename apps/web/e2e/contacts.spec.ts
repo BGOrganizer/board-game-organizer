@@ -28,8 +28,11 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
 
   await signInAsActor(page);
   await page.goto("/contacts");
-
-  // -- Search tab, type the target's email (auto-search on debounce).
+  // Reload after the first paint: the Contacts tab captures its session
+  // token on mount (getToken at effect time) — a reload guarantees a fresh
+  // token before the first search, otherwise the search can 401 (stale
+  // short-lived JWT) and the UI masks the failure as "No users found".
+  await page.reload();
   await page.getByRole("button", { name: "Search" }).click();
   const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
   await expect(searchInput).toBeVisible();
