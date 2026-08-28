@@ -44,6 +44,18 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
     if (msg.text().startsWith("CONTACTS-")) console.log("BROWSER:", msg.text());
   });
 
+  // Capture every search API response the UI actually receives (status +
+  // body), so a failed run shows what the component got vs. what a manual
+  // fetch returns.
+  page.on("response", (res) => {
+    if (res.url().includes("/api/users/search")) {
+      res
+        .text()
+        .then((t) => console.log("UI-RESP", res.status(), t.slice(0, 220)))
+        .catch(() => {});
+    }
+  });
+
   // -- Search tab, type the target's email (auto-search on debounce).
   await page.getByRole("button", { name: "Search" }).click();
   const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
