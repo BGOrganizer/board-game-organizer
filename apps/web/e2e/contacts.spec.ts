@@ -70,7 +70,7 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
   // -- Block via the kebab menu + confirmation dialog.
   await page.getByRole("button", { name: "Actions" }).first().click();
   await page.getByRole("menuitem", { name: /block/i }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog").last();
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Block", exact: true }).click();
 
