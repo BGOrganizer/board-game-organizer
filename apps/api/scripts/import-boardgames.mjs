@@ -88,8 +88,10 @@ const col = (name) => {
 };
 const iId = col("id");
 const iName = col("name");
-const iYear = col("year published");
-const iThumb = col("thumbnail");
+const iYear = col("yearpublished");
+// The bg_ranks dump has NO thumbnail column; the cover URL follows the
+// standard BGG pattern https://cf.geekdo-static.com/covers/{id}.jpg.
+const thumbFor = (id) => `https://cf.geekdo-static.com/covers/${id}.jpg`;
 
 const games = [];
 for (const r of rows.slice(1)) {
@@ -102,7 +104,7 @@ for (const r of rows.slice(1)) {
     id,
     name,
     yearPublished: Number.isFinite(year) && year > 0 ? year : null,
-    thumbnail: (r[iThumb] ?? "").trim() || null,
+    thumbnail: thumbFor(id),
   });
 }
 
