@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithI18n } from "@/test-utils";
 import { Matches } from "@/components/Matches";
+import { renderWithI18n } from "@/test-utils";
 
 const useMatchesMock = vi.fn();
 
