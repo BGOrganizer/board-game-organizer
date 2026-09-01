@@ -280,6 +280,9 @@ importers:
       '@heroui/styles':
         specifier: ^3.2.1
         version: 3.2.1(tailwind-merge@3.4.0)(tailwindcss@4.3.1)
+      '@internationalized/date':
+        specifier: ^3.12.2
+        version: 3.12.2
       '@lingui/core':
         specifier: ^6.6.0
         version: 6.6.0(@babel/core@7.29.7)(@babel/types@8.0.4)(babel-plugin-macros@3.1.0)
@@ -411,6 +414,9 @@ importers:
 
   packages/shared:
     dependencies:
+      '@board-game-organizer/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       '@tanstack/react-query':
         specifier: ^5.101.2
         version: 5.101.2(react@19.2.7)

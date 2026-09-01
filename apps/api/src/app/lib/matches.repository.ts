@@ -1,5 +1,5 @@
-import type { Match } from "@board-game-organizer/schemas";
 import { randomUUID } from "node:crypto";
+import type { Match } from "@board-game-organizer/schemas";
 import type { Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 

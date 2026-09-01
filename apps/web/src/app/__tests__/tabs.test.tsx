@@ -22,6 +22,12 @@ vi.mock("@clerk/nextjs", () => ({
 
 vi.mock("@board-game-organizer/shared", () => ({
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
+  useMatches: () => ({
+    list: { isPending: false, isError: false, data: [] },
+    create: { isError: false, mutateAsync: vi.fn(), isPending: false },
+    search: { isPending: false, isError: false, mutate: vi.fn(), data: null },
+    thing: { isPending: false, isError: false, mutate: vi.fn(), data: null },
+  }),
   useProfileQuery: () => ({
     data: {
       id: "user_1",
@@ -80,9 +86,9 @@ describe("tab pages", () => {
     unmountOrgs();
   });
 
-  it("renders the matches page with the counter", async () => {
-    const { getByText } = renderWithI18n(await Matches());
-    expect(getByText("Counter (Zustand)")).toBeTruthy();
+  it("renders the matches page with the create button", async () => {
+    const { getByLabelText } = renderWithI18n(await Matches());
+    expect(getByLabelText(/create a match/i)).toBeTruthy();
   });
 
   it("renders the profile page with the profile card", async () => {

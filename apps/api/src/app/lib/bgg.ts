@@ -1,5 +1,5 @@
-import { BoardGameGeekClient } from "bgg-client";
 import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/schemas";
+import { BoardGameGeekClient } from "bgg-client";
 
 /**
  * Thin wrapper around `bgg-client` (BoardGameGeek XML API2).
@@ -41,9 +41,7 @@ export async function gameDetails(id: number): Promise<BggThingResponse> {
     throw new Error(`Game ${id} not found`);
   }
   const primaryName =
-    thing.name.find((n) => n.type === "primary")?.value ??
-    thing.name[0]?.value ??
-    "Unknown";
+    thing.name.find((n) => n.type === "primary")?.value ?? thing.name[0]?.value ?? "Unknown";
   return {
     id: thing.id,
     name: primaryName,

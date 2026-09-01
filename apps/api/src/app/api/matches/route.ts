@@ -31,11 +31,7 @@ export async function POST(request: Request) {
   const { name, dates, minPlayers, maxPlayers, invitedUserIds, gameIds } = parsed.data;
 
   if (maxPlayers < minPlayers) {
-    return corsJson(
-      { error: "maxPlayers must be >= minPlayers" },
-      { status: 400 },
-      request,
-    );
+    return corsJson({ error: "maxPlayers must be >= minPlayers" }, { status: 400 }, request);
   }
 
   const db = await getDb();

@@ -28,9 +28,7 @@ export type Match = z.infer<typeof matchModel>;
 /** Request body to create a match (validated at the API boundary). */
 export const createMatchSchema = z.object({
   name: z.string().trim().min(5, "Name must be at least 5 characters"),
-  dates: z
-    .array(z.string().min(1))
-    .min(1, "At least one date is required"),
+  dates: z.array(z.string().min(1)).min(1, "At least one date is required"),
   minPlayers: z.number().int().min(1, "Minimum players must be at least 1"),
   maxPlayers: z.number().int(),
   invitedUserIds: z.array(z.string()).default([]),
