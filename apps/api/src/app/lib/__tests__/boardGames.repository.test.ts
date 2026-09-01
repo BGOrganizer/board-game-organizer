@@ -23,7 +23,9 @@ describe("BoardGamesRepository", () => {
       { id: 174430, name: "Gloomhaven", yearPublished: 2017, thumbnail: null },
     ]);
     expect(n).toBe(1);
-    const ops = colMock.bulkWrite.mock.calls[0][0];
+    const ops = colMock.bulkWrite.mock.calls[0][0] as Array<{
+      updateOne: { filter: { id: number }; update: { $set: { name: string } }; upsert: boolean };
+    }>;
     expect(ops).toHaveLength(2);
     expect(ops[0].updateOne.filter).toEqual({ id: 342942 });
     expect(ops[0].updateOne.update.$set.name).toBe("Cascadia");
