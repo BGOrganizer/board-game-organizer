@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { type CounterSlice, createCounterSlice } from "./slices/counterSlice";
+import { createMatchWizardSlice, type MatchWizardSlice } from "./slices/matchWizardSlice";
 import { createUiSlice, type UiSlice } from "./slices/uiSlice";
 
 /**
@@ -24,9 +25,10 @@ import { createUiSlice, type UiSlice } from "./slices/uiSlice";
  * }));
  * ```
  */
-export type AppStore = CounterSlice & UiSlice;
+export type AppStore = CounterSlice & UiSlice & MatchWizardSlice;
 
 export const useAppStore = create<AppStore>()((...a) => ({
   ...createCounterSlice(...a),
   ...createUiSlice(...a),
+  ...createMatchWizardSlice(...a),
 }));

@@ -54,7 +54,8 @@
     "tailwind-variants": "^3.2.2",
     "tailwindcss": "^4.3.1",
     "uniwind": "^1.9.0",
-    "@react-native-community/datetimepicker": "8.6.0"
+    "@react-native-community/datetimepicker": "8.6.0",
+    "@board-game-organizer/schemas": "workspace:*"
   },
   "devDependencies": {
     "@board-game-organizer/biome-config": "workspace:*",
