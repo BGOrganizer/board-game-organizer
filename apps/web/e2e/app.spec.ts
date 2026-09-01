@@ -42,10 +42,10 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
   await clerk.signIn({ page, emailAddress: E2E_EMAIL });
 
   // signIn() completes in-page (no navigation): reload so the server component
-  // sees the session and redirects to /matches with the Counter.
+  // sees the session and redirects to /matches.
   await page.goto("/");
   await page.waitForURL("**/matches", { timeout: 60_000 });
-  await expect(page.getByText("Counter (Zustand)")).toBeVisible({
+  await expect(page.getByText("Matches")).toBeVisible({
     timeout: 60_000,
   });
 

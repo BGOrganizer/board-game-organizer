@@ -88,12 +88,16 @@ export function MatchWizard() {
   }, [pendingGame, clearPending]);
 
   const step1Valid = useMemo(
-    () => name.trim().length >= 5 && dateSlots.every((s) => s.value !== null),
+    // The auto-appended empty slot must not block progress: at least one
+    // filled date + valid name is enough to continue.
+    () => name.trim().length >= 5 && dateSlots.some((s) => s.value !== null),
     [name, dateSlots],
   );
   const step2Valid = useMemo(
-    () => minPlayers >= 1 && maxPlayers >= minPlayers && userSlots.every((s) => s.user !== null),
-    [minPlayers, maxPlayers, userSlots],
+    // Invite slots are optional (populated at will); the player range is the
+    // only required field of step 2.
+    () => minPlayers >= 1 && maxPlayers >= minPlayers,
+    [minPlayers, maxPlayers],
   );
   const step3Valid = useMemo(() => gameSlots.some((s) => s.game !== null), [gameSlots]);
 

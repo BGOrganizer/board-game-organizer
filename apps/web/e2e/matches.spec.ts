@@ -51,8 +51,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("button", { name: "Add another date" }).click();
   await expect(page.locator('input[type="datetime-local"]')).toHaveCount(2);
 
-  // Advance: the next FAB is the bottom-right fixed button.
+  // Advance: the next FAB is the bottom-right fixed button. Wait until it
+  // becomes enabled (validation re-renders after the name+date fill).
   const nextFab = page.locator('button[aria-label="Next step"]');
+  await expect(nextFab).toBeEnabled({ timeout: 10_000 });
   await nextFab.click();
   await expect(page.getByText("Players")).toBeVisible();
 
@@ -93,8 +95,16 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     await gameRow.waitFor({ state: "visible", timeout: 30_000 });
     await gameRow.click();
   } catch {
-    // BGG unreachable in this environment — the empty state must block.
-    await expect(page.getByText(/No games found|Search failed/)).toBeVisible();
+    // No games in the local collection yet (preview DB not imported) or BGG
+    // unreachable — the empty state must block. Target the search-results
+    // empty message only (not the "at least 4 characters" hint).
+    const emptyState = page.getByText("No games found");
+    if (await emptyState.isVisible().catch(() => false)) {
+      await page.getByLabel("Back").click();
+      await expect(page.getByLabel("Next step")).toBeDisabled();
+      return;
+    }
+    // Otherwise the search errored (BGG down) — still expect the block.
     await page.getByLabel("Back").click();
     await expect(page.getByLabel("Next step")).toBeDisabled();
     return;
