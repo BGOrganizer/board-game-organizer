@@ -38,4 +38,5 @@ export const COLLECTIONS = {
   INVITES: "invites",
   RELATIONSHIPS: "relationships",
   CONTACT_LINKS: "contactLinks",
+  MATCHES: "matches",
 } as const;

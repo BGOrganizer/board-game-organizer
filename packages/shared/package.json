@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "@board-game-organizer/schemas": "workspace:*"
   },
   "devDependencies": {
     "@board-game-organizer/typescript-config": "workspace:*",
