@@ -43,7 +43,7 @@ export function Matches() {
   if (creating) {
     return (
       <div className="mx-auto w-full max-w-md">
-        <MatchWizard />
+        <MatchWizard onCreated={() => setCreating(false)} />
       </div>
     );
   }

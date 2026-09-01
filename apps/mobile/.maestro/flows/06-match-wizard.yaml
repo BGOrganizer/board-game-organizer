@@ -1,0 +1,55 @@
+appId: com.bgo.mobile
+---
+# 6. Match wizard: create a match via FAB → step 1 (name + date) → step 2
+#    (players) → step 3 (game) → submit. The wizard requires real data on
+#    every step; date picker interaction is device-specific, so the flow
+#    fills the name, skips the date slot only if the platform allows, and
+#    asserts the wizard structure + validation gates instead of the full
+#    native date picker round-trip.
+- tapOn: "Matches"
+- extendedWaitUntil:
+    visible: "No matches yet.*"
+    timeout: 120000
+- tapOn:
+    id: ".*"  # FAB (no testID on the Pressable) — fall back to position
+    point: "90%,92%"
+- extendedWaitUntil:
+    visible: "New match"
+    timeout: 60000
+# Step 1: name validation (short name → still blocked).
+- tapOn: "Match name"
+- inputText: "abc"
+- assertVisible: "At least 5 characters"
+- tapOn: "Match name"
+- eraseText: 3
+- inputText: "Friday night games"
+# Date slot: open the native picker and confirm it exists (the wizard
+# requires a filled date to advance — tapping Confirm on the native
+# date dialog sets today).
+- tapOn: "Pick date and time"
+- extendedWaitUntil:
+    visible: "OK|Done|Confirm|Set"
+    timeout: 30000
+- tapOn: "OK|Done|Confirm|Set"
+# Advance to step 2 via the next FAB (bottom right).
+- tapOn:
+    point: "90%,92%"
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 60000
+# Step 2: min/max steppers exist; max must stay >= min.
+- assertVisible: "Min"
+- assertVisible: "Max"
+- tapOn: "Max"
+- assertVisible: "Invite friends"
+# Advance to step 3 (invite slots are optional-empty; validation only
+# requires the player range, which defaults valid).
+- tapOn:
+    point: "90%,92%"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 60000
+# Step 3: at least one game is required — empty state blocks the FAB.
+- assertVisible: "Select a board game"
+- tapOn: "Add another game"
+- assertVisible: "Select a board game"

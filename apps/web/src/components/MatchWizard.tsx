@@ -3,10 +3,9 @@
 import type { CreateMatchInput } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Button, Card, Input } from "@heroui/react";
+import { Button, Card } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Gamepad2, Minus, Plus, Users, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SearchGamePage } from "./SearchGamePage";
 import { SearchUserPage } from "./SearchUserPage";
@@ -34,10 +33,9 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function MatchWizard() {
+export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { t } = useLingui();
-  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -133,11 +131,21 @@ export function MatchWizard() {
     };
     try {
       await matches.create.mutateAsync(input);
-      router.refresh();
+      onCreated?.();
     } catch {
       // surface error
     }
-  }, [step3Valid, name, dateSlots, minPlayers, maxPlayers, userSlots, gameSlots, matches, router]);
+  }, [
+    step3Valid,
+    name,
+    dateSlots,
+    minPlayers,
+    maxPlayers,
+    userSlots,
+    gameSlots,
+    matches,
+    onCreated,
+  ]);
 
   const next = () => {
     if (step === 1 && step1Valid) setStep(2);
@@ -161,7 +169,7 @@ export function MatchWizard() {
   const fabBack = step > 1 && (
     <Button
       isIconOnly
-      variant="flat"
+      variant="secondary"
       className="fixed bottom-6 left-6 z-40 h-14 w-14 rounded-full shadow-lg"
       aria-label={t`Previous step`}
       onPress={back}
@@ -225,14 +233,17 @@ export function MatchWizard() {
       {step === 1 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">{t`New match`}</h2>
-          <Input
-            label={t`Match name`}
-            placeholder={t`e.g. Friday night games`}
+          <p className="text-sm font-medium">{t`Match name`}</p>
+          <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            isInvalid={name.trim().length > 0 && name.trim().length < 5}
-            errorMessage={t`At least 5 characters`}
+            placeholder={t`e.g. Friday night games`}
+            aria-label={t`Match name`}
+            className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
           />
+          {name.trim().length > 0 && name.trim().length < 5 && (
+            <p className="text-sm text-danger">{t`At least 5 characters`}</p>
+          )}{" "}
           <p className="text-sm text-default-500">{t`When could you play?`}</p>
           <div className="space-y-2">
             {dateSlots.map((slot) => (
@@ -262,7 +273,11 @@ export function MatchWizard() {
               </div>
             ))}
           </div>
-          <Button variant="flat" startContent={<Plus className="h-4 w-4" />} onPress={addDateSlot}>
+          <Button
+            variant="secondary"
+            startContent={<Plus className="h-4 w-4" />}
+            onPress={addDateSlot}
+          >
             {t`Add another date`}
           </Button>
         </div>
@@ -326,7 +341,7 @@ export function MatchWizard() {
             {userSlots.map((slot) => (
               <div key={slot.id} className="flex items-center gap-2">
                 <Button
-                  variant="flat"
+                  variant="secondary"
                   className="flex-1 justify-start"
                   onPress={() => setSearchTarget({ slotId: slot.id })}
                 >
@@ -376,7 +391,7 @@ export function MatchWizard() {
             {gameSlots.map((slot) => (
               <div key={slot.id} className="flex items-center gap-2">
                 <Button
-                  variant="flat"
+                  variant="secondary"
                   className="flex-1 justify-start"
                   onPress={() => setGameTarget({ slotId: slot.id })}
                 >
@@ -420,7 +435,11 @@ export function MatchWizard() {
               </div>
             ))}
           </div>
-          <Button variant="flat" startContent={<Plus className="h-4 w-4" />} onPress={addGameSlot}>
+          <Button
+            variant="secondary"
+            startContent={<Plus className="h-4 w-4" />}
+            onPress={addGameSlot}
+          >
             {t`Add another game`}
           </Button>
           {matches.create.isError && (

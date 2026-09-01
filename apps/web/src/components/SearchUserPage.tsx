@@ -2,9 +2,9 @@
 
 import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
 import { withProtectionBypass } from "@board-game-organizer/shared";
-import { Button, Input, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Search, UserPlus, X } from "lucide-react";
+import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -115,23 +115,12 @@ export function SearchUserPage({
         <h2 className="text-lg font-semibold">{t`Invite friends`}</h2>
       </div>
 
-      <Input
+      <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t`Search users (at least 4 characters)`}
-        startContent={<Search className="h-4 w-4 text-default-400" />}
-        endContent={
-          query ? (
-            <button
-              type="button"
-              aria-label={t`Clear`}
-              onClick={() => setQuery("")}
-              className="text-default-400 hover:text-default-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null
-        }
+        aria-label={t`Search users by name or email`}
+        className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
       />
 
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
