@@ -19,7 +19,6 @@
     "@board-game-organizer/schemas": "workspace:*",
     "@board-game-organizer/shared": "workspace:*",
     "@clerk/nextjs": "^7.5.8",
-    "bgg-client": "^2.1.4",
     "mongodb": "^7.4.0",
     "next": "^16.2.0",
     "react": "^19.0.0",

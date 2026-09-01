@@ -39,4 +39,5 @@ export const COLLECTIONS = {
   RELATIONSHIPS: "relationships",
   CONTACT_LINKS: "contactLinks",
   MATCHES: "matches",
+  BOARD_GAMES: "boardGames",
 } as const;

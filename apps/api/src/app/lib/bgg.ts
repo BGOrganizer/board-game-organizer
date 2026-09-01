@@ -1,51 +1,42 @@
 import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/schemas";
-import { BoardGameGeekClient } from "bgg-client";
+import type { Db } from "mongodb";
+import { COLLECTIONS } from "@/app/lib/db";
 
 /**
- * Thin wrapper around `bgg-client` (BoardGameGeek XML API2).
+ * BoardGameGeek game lookup backed by the local `boardGames` collection
+ * (imported from the official BGG `bg_ranks` CSV dump — id, name, year,
+ * thumbnail only, per product decision).
  *
- * - The BGG client requires an API key (BGG_API_KEY env). When the key is
- *   missing we return an explicit error instead of crashing the API.
- * - bgg-client rate-limits to 1 req/5s to comply with BGG's suggested rate.
- *   Search results are intentionally minimal (id + name) — details (image,
- *   year) are fetched via `thing` only when a game is selected, so the
- *   search list stays fast.
+ * No BGG API key needed at runtime: the CSV is imported once (admin
+ * endpoint + import script) and search/thing read from Mongo. This also
+ * avoids BGG's 1 req/5s rate limit entirely for search.
  */
 
-let client: BoardGameGeekClient | null = null;
-
-function getClient(): BoardGameGeekClient {
-  if (!client) {
-    const key = process.env.BGG_API_KEY;
-    if (!key) {
-      throw new Error("BGG_API_KEY is not configured");
-    }
-    client = new BoardGameGeekClient(key);
-  }
-  return client;
+export async function searchGames(db: Db, query: string): Promise<BggSearchItem[]> {
+  const col = db.collection(COLLECTIONS.BOARD_GAMES);
+  const rows = await col
+    .find(
+      { name: { $regex: `^${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, $options: "i" } },
+      { projection: { _id: 0, id: 1, name: 1 } },
+    )
+    .limit(25)
+    .toArray();
+  return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
-export async function searchGames(query: string): Promise<BggSearchItem[]> {
-  const c = getClient();
-  const results = await c.search(query, { type: "boardgame" });
-  return results
-    .map((r) => ({ id: r.id, name: r.name.value }))
-    .filter((r) => r.name.length > 0)
-    .slice(0, 25);
-}
-
-export async function gameDetails(id: number): Promise<BggThingResponse> {
-  const c = getClient();
-  const thing = await c.thing(id);
-  if (!thing) {
+export async function gameDetails(db: Db, id: number): Promise<BggThingResponse> {
+  const col = db.collection(COLLECTIONS.BOARD_GAMES);
+  const row = await col.findOne(
+    { id },
+    { projection: { _id: 0, id: 1, name: 1, yearPublished: 1, thumbnail: 1 } },
+  );
+  if (!row) {
     throw new Error(`Game ${id} not found`);
   }
-  const primaryName =
-    thing.name.find((n) => n.type === "primary")?.value ?? thing.name[0]?.value ?? "Unknown";
   return {
-    id: thing.id,
-    name: primaryName,
-    imageUrl: thing.thumbnail ?? null,
-    year: thing.yearpublished?.value ?? null,
+    id: row.id,
+    name: row.name,
+    imageUrl: row.thumbnail ?? null,
+    year: row.yearPublished ?? null,
   };
 }

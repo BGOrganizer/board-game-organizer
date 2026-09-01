@@ -25,6 +25,17 @@ export const matchModel = z.object({
 
 export type Match = z.infer<typeof matchModel>;
 
+/** A board game imported from the BGG bg_ranks CSV dump (id/name/year/thumbnail). */
+export const boardGameModel = z.object({
+  id: z.number(),
+  name: z.string(),
+  yearPublished: z.number().nullable().optional(),
+  thumbnail: z.string().nullable().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type BoardGame = z.infer<typeof boardGameModel>;
+
 /** Request body to create a match (validated at the API boundary). */
 export const createMatchSchema = z.object({
   name: z.string().trim().min(5, "Name must be at least 5 characters"),

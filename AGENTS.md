@@ -666,3 +666,17 @@ GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose ex
 - **Debug E2E efficace**: log nel componente (console del browser) +
   `page.on("console")` nel test + `page.on("request")` per l'URL reale.
   Ogni run di debug ha isolato un pezzo: token → mutate → URL.
+
+## BGG giochi (match wizard) — fonte dati
+
+- **Niente bgg-client/API key a runtime**: la ricerca giochi legge la
+  collection `boardGames` (importata dal dump ufficiale BGG `bg_ranks`:
+  boardgamegeek.com/data_dumps/bg_ranks → `boardgame_ranks.csv.zip`, serve
+  sessione loggata BGG per scaricarlo). Colonne usate: ID, Name, Year
+  Published, Thumbnail.
+- **Import**: `POST /api/admin/import-games` (Bearer == CLERK_SECRET_KEY,
+  come sync-user) + script `apps/api/scripts/import-boardgames.mjs` che parsa
+  il CSV e lo carica in chunk da 500. Idempotente (upsert su id BGG).
+- **Perché**: il dump evita il rate-limit BGG (1 req/5s) e non richiede API
+  key; la ricerca è un prefix-regex sul nome nella collection.
+- Per aggiornare il catalogo: riscaricare il dump e rilanciare lo script.
