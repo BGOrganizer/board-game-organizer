@@ -143,8 +143,8 @@ export function SearchGamePage({
             </div>
             <Button
               size="sm"
-              color="primary"
-              isLoading={picking === item.id}
+              variant="primary"
+              isDisabled={picking === item.id}
               onPress={() => void select(item)}
             >
               {t`Select`}

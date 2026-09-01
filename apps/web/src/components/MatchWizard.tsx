@@ -157,7 +157,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
   const fabNext = (
     <Button
       isIconOnly
-      color="primary"
+      variant="primary"
       className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
       aria-label={t`Next step`}
       isDisabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
@@ -273,11 +273,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
               </div>
             ))}
           </div>
-          <Button
-            variant="secondary"
-            startContent={<Plus className="h-4 w-4" />}
-            onPress={addDateSlot}
-          >
+          <Button variant="secondary" onPress={addDateSlot}>
             {t`Add another date`}
           </Button>
         </div>
@@ -435,11 +431,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
               </div>
             ))}
           </div>
-          <Button
-            variant="secondary"
-            startContent={<Plus className="h-4 w-4" />}
-            onPress={addGameSlot}
-          >
+          <Button variant="secondary" onPress={addGameSlot}>
             {t`Add another game`}
           </Button>
           {matches.create.isError && (

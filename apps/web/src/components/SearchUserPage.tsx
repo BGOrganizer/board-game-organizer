@@ -153,8 +153,7 @@ export function SearchUserPage({
             </div>
             <Button
               size="sm"
-              color="primary"
-              startContent={<UserPlus className="h-4 w-4" />}
+              variant="primary"
               onPress={() =>
                 onSelect({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl })
               }
