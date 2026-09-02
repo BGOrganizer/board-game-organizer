@@ -1,0 +1,52 @@
+name: Import BoardGames (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      api-url:
+        description: "Base URL of the target API (preview or production)"
+        required: true
+        type: string
+      csv-url:
+        description: "URL of the boardgames_ranks.csv dump (direct file or POST-to-download page)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+        with:
+          install: "false"
+
+      - name: ⬇️ Download CSV dump
+        shell: bash
+        run: |
+          # temp.sh serves an HTML page on GET and the file on POST; try
+          # GET first, fall back to POST when the result is not CSV.
+          curl -fsSL "${{ github.event.inputs.csv-url }}" -o /tmp/ranks.csv \
+            || curl -fsSL -X POST "${{ github.event.inputs.csv-url }}" -o /tmp/ranks.csv
+          if ! head -c 20 /tmp/ranks.csv | grep -q "^id,"; then
+            echo "Downloaded content is not the CSV dump (page HTML?)."
+            exit 1
+          fi
+          wc -l /tmp/ranks.csv
+
+      - name: 🚚 Import into the target API
+        env:
+          BGG_CSV: /tmp/ranks.csv
+          BGG_IMPORT_URL: ${{ github.event.inputs.api-url }}/api/admin/import-games
+          BGG_IMPORT_TOKEN: ${{ secrets.CLERK_SECRET_KEY }}
+          BGG_CHUNK: "50"
+        shell: bash
+        run: node apps/api/scripts/import-boardgames.mjs | tail -5
