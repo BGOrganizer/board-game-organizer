@@ -19,7 +19,7 @@ async function signInAsActor(page: import("@playwright/test").Page) {
   await clerk.signIn({ page, emailAddress: E2E_EMAIL });
   await page.goto("/");
   await page.waitForURL("**/matches", { timeout: 60_000 });
-  await expect(page.getByText("Counter (Zustand)")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("Matches")).toBeVisible({ timeout: 60_000 });
 }
 
 test("contacts: search, follow/unfollow, block/unblock the social target", async ({ page }) => {

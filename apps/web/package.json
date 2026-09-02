@@ -29,7 +29,9 @@
     "postcss": "^8.5.15",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwindcss": "^4.3.1"
+    "tailwindcss": "^4.3.1",
+    "@internationalized/date": "^3.12.2",
+    "@board-game-organizer/schemas": "workspace:*"
   },
   "devDependencies": {
     "@board-game-organizer/biome-config": "workspace:*",
