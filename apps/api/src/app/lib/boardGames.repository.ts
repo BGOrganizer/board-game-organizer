@@ -43,6 +43,9 @@ export class BoardGamesRepository {
   }
 
   async count(): Promise<number> {
-    return this.col.countDocuments();
+    // estimatedDocumentCount: countDocuments() on Atlas serverless can
+    // under-report on large collections (observed 156k vs 180k actual).
+    // The import total is informational only.
+    return this.col.estimatedDocumentCount();
   }
 }

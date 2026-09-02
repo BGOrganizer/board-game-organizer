@@ -5,6 +5,7 @@ const dbMock = { collection: vi.fn() };
 const colMock = {
   bulkWrite: vi.fn(async (ops: unknown) => ({ upsertedCount: 1, modifiedCount: 0 })),
   countDocuments: vi.fn(async () => 42),
+  estimatedDocumentCount: vi.fn(async () => 42),
 };
 dbMock.collection.mockReturnValue(colMock);
 

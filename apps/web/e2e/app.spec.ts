@@ -49,9 +49,12 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
     timeout: 60_000,
   });
 
-  // Profile page shows the API data (name of the provisioned user).
+  // Profile page shows the API data (name of the provisioned user). The
+  // header also shows the first name, so target the page heading.
   await page.goto("/profile");
-  await expect(page.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "E2E Test" })).toBeVisible({
+    timeout: 30_000,
+  });
 
   // UI logout (full-screen spinner placeholder) → back to the welcome screen.
   await page.getByRole("button", { name: /logout/i }).click();
