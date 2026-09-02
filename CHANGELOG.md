@@ -1,3 +1,8 @@
+## 1.3.0 (2026-09-02)
+
+* feat(matches): match creation wizard (web + mobile) with BGG game picker (#17) ([38688e6](https://github.com/BGOrganizer/board-game-organizer/commit/38688e6)), closes [#17](https://github.com/BGOrganizer/board-game-organizer/issues/17)
+* docs: AGENTS — domain-migration env pitfalls and E2E debug techniques ([066ed56](https://github.com/BGOrganizer/board-game-organizer/commit/066ed56))
+
 ## <small>1.2.2 (2026-08-28)</small>
 
 * chore: reset version to 1.2.1 (unpublished 1.2.2 — contacts E2E fix in flight) ([f9564d0](https://github.com/BGOrganizer/board-game-organizer/commit/f9564d0))
