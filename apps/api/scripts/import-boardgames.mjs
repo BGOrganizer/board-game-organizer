@@ -120,6 +120,7 @@ for (const r of rows.slice(1)) {
 console.log(`Parsed ${games.length} games from ${rows.length - 1} rows`);
 const start = SKIP_CHUNKS * CHUNK;
 const end = Math.min(games.length, END_CHUNKS * CHUNK);
+let total = 0;
 for (let i = start; i < end; i += CHUNK) {
   const chunk = games.slice(i, i + CHUNK);
   const res = await postChunk(chunk);
