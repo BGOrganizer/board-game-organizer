@@ -11,6 +11,16 @@ on:
         description: "URL of the boardgames_ranks.csv dump (direct file or POST-to-download page)"
         required: true
         type: string
+      skip-chunks:
+        description: "Skip the first N chunks (resume support; 0 = full import)"
+        required: false
+        type: string
+        default: "0"
+      end-chunks:
+        description: "Stop after N chunks (parallel fan-out; empty = run to the end)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -48,5 +58,7 @@ jobs:
           BGG_IMPORT_URL: ${{ github.event.inputs.api-url }}/api/admin/import-games?x-vercel-protection-bypass=${{ secrets.VERCEL_PROTECTION_BYPASS }}
           BGG_IMPORT_TOKEN: ${{ secrets.CLERK_SECRET_KEY }}
           BGG_CHUNK: "500"
+          BGG_SKIP_CHUNKS: ${{ github.event.inputs.skip-chunks }}
+          BGG_END_CHUNKS: ${{ github.event.inputs.end-chunks }}
         shell: bash
         run: node apps/api/scripts/import-boardgames.mjs | tail -5
