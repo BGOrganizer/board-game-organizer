@@ -1,3 +1,9 @@
+## <small>1.3.1 (2026-09-04)</small>
+
+* Merge pull request #18 from BGOrganizer/fix/bgg-search-routing ([a28ed34](https://github.com/BGOrganizer/board-game-organizer/commit/a28ed34)), closes [#18](https://github.com/BGOrganizer/board-game-organizer/issues/18)
+* ci: add manual import-boardgames workflow (dispatch) ([6a05cfd](https://github.com/BGOrganizer/board-game-organizer/commit/6a05cfd))
+* fix(api): bgg route split + estimatedDocumentCount ([7e7e3e4](https://github.com/BGOrganizer/board-game-organizer/commit/7e7e3e4))
+
 ## 1.3.0 (2026-09-02)
 
 * feat(matches): match creation wizard (web + mobile) with BGG game picker (#17) ([38688e6](https://github.com/BGOrganizer/board-game-organizer/commit/38688e6)), closes [#17](https://github.com/BGOrganizer/board-game-organizer/issues/17)
