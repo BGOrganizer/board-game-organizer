@@ -17,7 +17,10 @@ import { readFileSync } from "node:fs";
 const CSV_PATH = process.env.BGG_CSV;
 const URL = process.env.BGG_IMPORT_URL;
 const TOKEN = process.env.BGG_IMPORT_TOKEN;
-const CHUNK = 500;
+const CHUNK = Number(process.env.BGG_CHUNK ?? 500);
+// Resume support: skip the first N chunks (a serverless timeout on the first
+// run stops mid-way; restarting from 0 only re-upserts the imported ranks).
+const SKIP_CHUNKS = Number(process.env.BGG_SKIP_CHUNKS ?? 0);
 
 if (!CSV_PATH || !URL || !TOKEN) {
   console.error("Missing BGG_CSV / BGG_IMPORT_URL / BGG_IMPORT_TOKEN");
@@ -110,7 +113,7 @@ for (const r of rows.slice(1)) {
 
 console.log(`Parsed ${games.length} games from ${rows.length - 1} rows`);
 let total = 0;
-for (let i = 0; i < games.length; i += CHUNK) {
+for (let i = SKIP_CHUNKS * CHUNK; i < games.length; i += CHUNK) {
   const chunk = games.slice(i, i + CHUNK);
   const res = await postChunk(chunk);
   total += res.written ?? chunk.length;
