@@ -47,6 +47,6 @@ jobs:
           BGG_CSV: /tmp/ranks.csv
           BGG_IMPORT_URL: ${{ github.event.inputs.api-url }}/api/admin/import-games?x-vercel-protection-bypass=${{ secrets.VERCEL_PROTECTION_BYPASS }}
           BGG_IMPORT_TOKEN: ${{ secrets.CLERK_SECRET_KEY }}
-          BGG_CHUNK: "50"
+          BGG_CHUNK: "500"
         shell: bash
         run: node apps/api/scripts/import-boardgames.mjs | tail -5
