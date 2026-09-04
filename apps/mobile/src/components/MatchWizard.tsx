@@ -2,7 +2,7 @@ import type { CreateMatchInput } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -106,6 +106,29 @@ export function MatchWizard() {
     setDateSlots((p) => (p.length <= 1 ? p : p.filter((s) => s.id !== id)));
   const setDateSlot = (id: string, iso: string) =>
     setDateSlots((p) => p.map((s) => (s.id === id ? { ...s, value: iso } : s)));
+
+  // Android has no "datetime" mode (ANDROID_MODE is date | time only);
+  // passing mode="datetime" makes the lib crash on unmount
+  // (pickers["datetime"] is undefined -> "dismiss of undefined"). Chain the
+  // date and time dialogs with the imperative API instead.
+  const pickDateTimeOnAndroid = (slotId: string, initial: Date) => {
+    DateTimePickerAndroid.open({
+      value: initial,
+      mode: "date",
+      onChange: (event, date) => {
+        if (event.type !== "set" || !date) return; // cancelled
+        DateTimePickerAndroid.open({
+          value: date,
+          mode: "time",
+          onChange: (timeEvent, dateTime) => {
+            if (timeEvent.type === "set" && dateTime) {
+              setDateSlot(slotId, dateTime.toISOString());
+            }
+          },
+        });
+      },
+    });
+  };
 
   const slotCount = maxPlayers - 1;
   useEffect(() => {
@@ -230,8 +253,13 @@ export function MatchWizard() {
               <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Pressable
                   onPress={() => {
+                    const base = slot.value ? new Date(slot.value) : new Date();
+                    if (Platform.OS === "android") {
+                      pickDateTimeOnAndroid(slot.id, base);
+                      return;
+                    }
                     setPickingDate(slot.id);
-                    setDateValue(slot.value ? new Date(slot.value) : new Date());
+                    setDateValue(base);
                   }}
                   style={{
                     flex: 1,
@@ -398,19 +426,16 @@ export function MatchWizard() {
       {fabBack}
       {fabNext}
 
-      {/* Native date/time picker (Android shows inline, iOS a modal). */}
-      {pickingDate && (
+      {/* Native date/time picker: iOS renders an inline spinner (datetime
+          mode exists on iOS); Android uses the imperative chained date →
+          time dialogs in pickDateTimeOnAndroid. */}
+      {Platform.OS !== "android" && pickingDate && (
         <DateTimePicker
           value={dateValue}
           mode="datetime"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event, date) => {
-            if (Platform.OS === "android") {
-              setPickingDate(null);
-              if (event.type === "set" && date) setDateSlot(pickingDate, date.toISOString());
-            } else if (date) {
-              setDateSlot(pickingDate, date.toISOString());
-            }
+          display="spinner"
+          onChange={(_, date) => {
+            if (date) setDateSlot(pickingDate, date.toISOString());
           }}
         />
       )}
