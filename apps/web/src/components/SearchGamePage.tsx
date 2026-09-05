@@ -5,13 +5,15 @@ import { withProtectionBypass } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Gamepad2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface Props {
   apiUrl: string;
   token: string | null;
   getToken?: () => Promise<string | null>;
   protectionBypass?: string | null;
+  /** Game ids already picked in other wizard slots — hidden from results. */
+  excludeIds?: number[];
   onSelect: (game: {
     id: number;
     name: string;
@@ -32,6 +34,7 @@ export function SearchGamePage({
   token,
   getToken,
   protectionBypass,
+  excludeIds = [],
   onSelect,
   onClose,
 }: Props) {
@@ -41,6 +44,7 @@ export function SearchGamePage({
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
 
   // Search fires only at >= 4 chars.
   useEffect(() => {
@@ -64,7 +68,9 @@ export function SearchGamePage({
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { items: BggSearchItem[] };
-        if (active) setItems(data.items);
+        // A game already picked in another slot stays hidden: it can only
+        // be played once in a match.
+        if (active) setItems(data.items.filter((i) => !excludeSet.has(i.id)));
       } catch {
         if (active) setError(t`Search failed`);
       } finally {
@@ -75,7 +81,7 @@ export function SearchGamePage({
       active = false;
       clearTimeout(timer);
     };
-  }, [query, apiUrl, token, getToken, protectionBypass, t]);
+  }, [query, apiUrl, token, getToken, protectionBypass, t, excludeSet]);
 
   const select = async (item: BggSearchItem) => {
     setPicking(item.id);

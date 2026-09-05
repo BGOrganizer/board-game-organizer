@@ -102,11 +102,18 @@ export default function SearchUserScreen() {
       : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
 
   const select = (u: ContactUser) => {
+    if (!slotId) {
+      // Route param missing (deep link / stale navigation): the selection
+      // can't be routed back to a wizard slot — drop it instead of leaving
+      // a dangling pending that would confuse the next pick.
+      console.warn("[match] select user without slotId, ignoring");
+      return;
+    }
     setPendingUser(slotId, {
       id: u.id,
-      name: u.name,
-      email: u.email,
-      avatarUrl: u.avatarUrl,
+      name: u.name ?? "",
+      email: u.email ?? null,
+      avatarUrl: u.avatarUrl ?? null,
     });
     router.back();
   };

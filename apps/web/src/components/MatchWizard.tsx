@@ -54,7 +54,9 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
 
   // Search page routing (client-side, modal-like overlay).
   const [searchTarget, setSearchTarget] = useState<{ slotId: string } | null>(null);
-  const [gameTarget, setGameTarget] = useState<{ slotId: string } | null>(null);
+  const [gameTarget, setGameTarget] = useState<{ slotId: string; excludeIds: number[] } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -81,10 +83,13 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
     [name, dateSlots],
   );
   const step2Valid = useMemo(
-    // Invite slots are optional (populated at will); the player range is the
-    // only required field of step 2.
-    () => minPlayers >= 1 && maxPlayers >= minPlayers,
-    [minPlayers, maxPlayers],
+    // The creator counts as one player: with minPlayers=N the wizard needs
+    // at least N-1 invited users, and the range must be coherent.
+    () =>
+      minPlayers >= 1 &&
+      maxPlayers >= minPlayers &&
+      userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
+    [minPlayers, maxPlayers, userSlots],
   );
   const step3Valid = useMemo(() => gameSlots.some((s) => s.game !== null), [gameSlots]);
 
@@ -207,6 +212,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
         token={token}
         getToken={getToken}
         protectionBypass={protectionBypass()}
+        excludeIds={gameTarget.excludeIds}
         onSelect={(game) => {
           setGameSlots((prev) =>
             prev.map((s) => (s.id === gameTarget.slotId ? { ...s, game } : s)),
@@ -393,7 +399,17 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
                 <Button
                   variant="secondary"
                   className="flex-1 justify-start"
-                  onPress={() => setGameTarget({ slotId: slot.id })}
+                  onPress={() =>
+                    setGameTarget({
+                      slotId: slot.id,
+                      excludeIds: gameSlots
+                        .filter(
+                          (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
+                            s.id !== slot.id && s.game !== null,
+                        )
+                        .map((s) => s.game.id),
+                    })
+                  }
                 >
                   {slot.game ? (
                     <span className="flex items-center gap-2">

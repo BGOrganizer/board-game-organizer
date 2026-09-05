@@ -8,7 +8,16 @@ import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Text } from "heroui-native/text";
-import { ArrowLeft, CalendarClock, Gamepad2, Minus, Plus, Users, X } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  Gamepad2,
+  Minus,
+  Plus,
+  Users,
+  X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
@@ -94,10 +103,14 @@ export function MatchWizard() {
     [name, dateSlots],
   );
   const step2Valid = useMemo(
-    // Invite slots are optional (populated at will); the player range is the
-    // only required field of step 2.
-    () => minPlayers >= 1 && maxPlayers >= minPlayers,
-    [minPlayers, maxPlayers],
+    // All required slots must be filled: the creator counts as one player,
+    // so with minPlayers=N there must be at least N-1 invited users. The
+    // range itself must be coherent too.
+    () =>
+      minPlayers >= 1 &&
+      maxPlayers >= minPlayers &&
+      userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
+    [minPlayers, maxPlayers, userSlots],
   );
   const step3Valid = useMemo(() => gameSlots.some((s) => s.game !== null), [gameSlots]);
 
@@ -170,7 +183,7 @@ export function MatchWizard() {
         elevation: 6,
       }}
     >
-      <Plus color="#fff" size={26} />
+      <ArrowRight color="#fff" size={26} />
     </Pressable>
   );
   const fabBack =
@@ -341,7 +354,19 @@ export function MatchWizard() {
               <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Pressable
                   onPress={() =>
-                    router.push({ pathname: "/match/search-game", params: { slotId: slot.id } })
+                    router.push({
+                      pathname: "/match/search-game",
+                      params: {
+                        slotId: slot.id,
+                        exclude: gameSlots
+                          .filter(
+                            (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
+                              s.id !== slot.id && s.game !== null,
+                          )
+                          .map((s) => s.game.id)
+                          .join(","),
+                      },
+                    })
                   }
                   style={{
                     flex: 1,
