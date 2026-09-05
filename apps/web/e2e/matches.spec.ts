@@ -47,13 +47,18 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(dateInput).toHaveValue("2026-09-05T20:00");
 
   // Adding a second date slot appends another empty input; removing the
-  // only remaining slot is blocked (one stays).
+  // only remaining slot is blocked (one stays). Every added slot must be
+  // filled before the wizard lets you advance.
   await page.getByRole("button", { name: "Add another date" }).click();
-  await expect(page.locator('input[type="datetime-local"]')).toHaveCount(2);
+  const dateInputs = page.locator('input[type="datetime-local"]');
+  await expect(dateInputs).toHaveCount(2);
+  const nextFab = page.locator('button[aria-label="Next step"]');
+  await expect(nextFab).toBeDisabled(); // second date still empty
+  await dateInputs.nth(1).fill("2026-09-06T21:00");
+  await expect(dateInputs.nth(1)).toHaveValue("2026-09-06T21:00");
 
   // Advance: the next FAB is the bottom-right fixed button. Wait until it
   // becomes enabled (validation re-renders after the name+date fill).
-  const nextFab = page.locator('button[aria-label="Next step"]');
   await expect(nextFab).toBeEnabled({ timeout: 10_000 });
   await nextFab.click();
   await expect(page.getByText("Players")).toBeVisible();

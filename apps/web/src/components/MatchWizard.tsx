@@ -5,7 +5,7 @@ import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Button, Card } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Gamepad2, Minus, Plus, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Users, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SearchGamePage } from "./SearchGamePage";
 import { SearchUserPage } from "./SearchUserPage";
@@ -77,9 +77,9 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
   });
 
   const step1Valid = useMemo(
-    // The auto-appended empty slot must not block progress: at least one
-    // filled date + valid name is enough to continue.
-    () => name.trim().length >= 5 && dateSlots.some((s) => s.value !== null),
+    // Every date slot must be filled: an added-but-empty slot blocks
+    // progress (no "skip the second date" loophole).
+    () => name.trim().length >= 5 && dateSlots.every((s) => s.value !== null),
     [name, dateSlots],
   );
   const step2Valid = useMemo(
@@ -91,7 +91,11 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
       userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
     [minPlayers, maxPlayers, userSlots],
   );
-  const step3Valid = useMemo(() => gameSlots.some((s) => s.game !== null), [gameSlots]);
+  const step3Valid = useMemo(
+    // Every added game slot must hold a game (same rule as the dates).
+    () => gameSlots.every((s) => s.game !== null),
+    [gameSlots],
+  );
 
   // ---- Step 1: date slots ----
   const addDateSlot = useCallback(() => {
@@ -172,7 +176,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
       isDisabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
       onPress={next}
     >
-      <Plus className="h-6 w-6" />
+      <ArrowRight className="h-6 w-6" />
     </Button>
   );
   const fabBack = step > 1 && (

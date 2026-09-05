@@ -53,8 +53,12 @@ export default function SearchUserScreen() {
           { headers: { Authorization: `Bearer ${token}` } },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { relationships: RelationshipRow[] };
-        if (active) setFriends(data.relationships);
+        // The endpoint returns a bare array of RelationshipRow (not an
+        // envelope): mapping data.relationships would crash with
+        // "cannot read property map of undefined".
+        const data = (await res.json()) as RelationshipRow[] | { relationships: RelationshipRow[] };
+        const rows = Array.isArray(data) ? data : (data.relationships ?? []);
+        if (active) setFriends(rows);
       } catch {
         if (active) setError(t("Could not load friends"));
       }

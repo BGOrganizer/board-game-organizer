@@ -97,9 +97,9 @@ export function MatchWizard() {
   }, [pendingGame, clearPending]);
 
   const step1Valid = useMemo(
-    // The auto-appended empty slot must not block progress: at least one
-    // filled date + valid name is enough to continue.
-    () => name.trim().length >= 5 && dateSlots.some((s) => s.value !== null),
+    // Every date slot must be filled: an added-but-empty slot blocks
+    // progress (no "skip the second date" loophole).
+    () => name.trim().length >= 5 && dateSlots.every((s) => s.value !== null),
     [name, dateSlots],
   );
   const step2Valid = useMemo(
@@ -112,7 +112,11 @@ export function MatchWizard() {
       userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
     [minPlayers, maxPlayers, userSlots],
   );
-  const step3Valid = useMemo(() => gameSlots.some((s) => s.game !== null), [gameSlots]);
+  const step3Valid = useMemo(
+    // Every added game slot must hold a game (same rule as the dates).
+    () => gameSlots.every((s) => s.game !== null),
+    [gameSlots],
+  );
 
   const addDateSlot = () => setDateSlots((p) => [...p, { id: uid(), value: null }]);
   const removeDateSlot = (id: string) =>
