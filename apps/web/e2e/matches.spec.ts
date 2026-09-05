@@ -47,13 +47,18 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(dateInput).toHaveValue("2026-09-05T20:00");
 
   // Adding a second date slot appends another empty input; removing the
-  // only remaining slot is blocked (one stays).
+  // only remaining slot is blocked (one stays). Every added slot must be
+  // filled before the wizard lets you advance.
   await page.getByRole("button", { name: "Add another date" }).click();
-  await expect(page.locator('input[type="datetime-local"]')).toHaveCount(2);
+  const dateInputs = page.locator('input[type="datetime-local"]');
+  await expect(dateInputs).toHaveCount(2);
+  const nextFab = page.locator('button[aria-label="Next step"]');
+  await expect(nextFab).toBeDisabled(); // second date still empty
+  await dateInputs.nth(1).fill("2026-09-06T21:00");
+  await expect(dateInputs.nth(1)).toHaveValue("2026-09-06T21:00");
 
   // Advance: the next FAB is the bottom-right fixed button. Wait until it
   // becomes enabled (validation re-renders after the name+date fill).
-  const nextFab = page.locator('button[aria-label="Next step"]');
   await expect(nextFab).toBeEnabled({ timeout: 10_000 });
   await nextFab.click();
   await expect(page.getByText("Players")).toBeVisible();
@@ -71,9 +76,29 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     .first()
     .click();
   await expect(page.getByPlaceholder(/Search users/)).toBeVisible();
-  await page.getByLabel("Back").click();
 
-  // Advance to step 3 (range valid by default; invite slots may be empty).
+  // The creator counts as one player: min=2 needs at least one invite. The
+  // E2E target is a friend only when the test users follow each other — try
+  // to pick one; if the picker is empty (no friends), lower min to 1 so the
+  // step becomes valid without invites.
+  const addBtn = page.getByRole("button", { name: "Add" }).first();
+  let friendPicked = false;
+  try {
+    await addBtn.waitFor({ state: "visible", timeout: 10_000 });
+    await addBtn.click();
+    friendPicked = true;
+  } catch {
+    // No friends available — the picker is empty.
+  }
+  await page.getByLabel("Back").click();
+  await expect(page.getByText("Players")).toBeVisible();
+
+  if (!friendPicked) {
+    // min=1 means a solo match is allowed — no invites required.
+    await page.getByLabel("Decrease min players").click();
+  }
+
+  // Advance to step 3 (range valid, invites filled or min=1).
   await nextFab.click();
   await expect(page.getByText("Board games")).toBeVisible();
 
