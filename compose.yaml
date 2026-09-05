@@ -11,7 +11,12 @@ services:
       - "${MONGODB_PORT:-27017}:27017"
     volumes:
       - mongodb-data:/data/db
-      - ${BGG_CSV_PATH:-./data/boardgame_ranks.csv}:/data/boardgame_ranks.csv:ro
+      - type: bind
+        source: ${BGG_CSV_PATH:-./data/boardgame_ranks.csv}
+        target: /data/boardgame_ranks.csv
+        read_only: true
+        bind:
+          create_host_path: false
       - ./docker/mongodb/start-mongodb.sh:/scripts/start-mongodb.sh:ro
       - ./docker/mongodb/import-bgg.sh:/scripts/import-bgg.sh:ro
       - ./docker/mongodb/import-bgg.js:/scripts/import-bgg.js:ro

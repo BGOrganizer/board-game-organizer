@@ -4,8 +4,8 @@ set -euo pipefail
 : "${MONGODB_URI:?MONGODB_URI is required}"
 : "${BGG_CSV:?BGG_CSV is required}"
 
-if [[ ! -s "$BGG_CSV" ]]; then
-  echo "BGG CSV not found or empty: $BGG_CSV" >&2
+if [[ ! -f "$BGG_CSV" || ! -s "$BGG_CSV" ]]; then
+  echo "BGG CSV not found, not a file, or empty: $BGG_CSV" >&2
   exit 1
 fi
 
