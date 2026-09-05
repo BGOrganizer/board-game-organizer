@@ -78,7 +78,7 @@ Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile
 ### Local MongoDB and BGG catalog
 
 Download and extract the authenticated BGG `bg_ranks` dump to
-`data/boardgame_ranks.csv`, then start the replica set:
+`data/boardgames_ranks.csv`, then start the replica set:
 
 ```bash
 docker compose up -d --wait --wait-timeout 600

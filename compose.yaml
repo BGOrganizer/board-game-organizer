@@ -6,14 +6,14 @@ services:
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     environment:
       MONGODB_URI: mongodb://localhost:27017/${MONGODB_DB_NAME:-board-game-organizer}?replicaSet=rs0&directConnection=true
-      BGG_CSV: /data/boardgame_ranks.csv
+      BGG_CSV: /data/boardgames_ranks.csv
     ports:
       - "${MONGODB_PORT:-27017}:27017"
     volumes:
       - mongodb-data:/data/db
       - type: bind
-        source: ${BGG_CSV_PATH:-./data/boardgame_ranks.csv}
-        target: /data/boardgame_ranks.csv
+        source: ${BGG_CSV_PATH:-./data/boardgames_ranks.csv}
+        target: /data/boardgames_ranks.csv
         read_only: true
         bind:
           create_host_path: false

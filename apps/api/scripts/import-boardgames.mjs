@@ -3,7 +3,7 @@
  * Import the BGG `bg_ranks` CSV dump into the `boardGames` collection.
  *
  * Usage:
- *   BGG_CSV=/path/to/boardgame_ranks.csv \
+ *   BGG_CSV=/path/to/boardgames_ranks.csv \
  *   BGG_IMPORT_URL=https://api.board-game-organizer.com/api/admin/import-games \
  *   BGG_IMPORT_TOKEN=sk_live_... node apps/api/scripts/import-boardgames.mjs
  *

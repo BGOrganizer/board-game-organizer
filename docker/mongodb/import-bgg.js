@@ -9,7 +9,11 @@ source.aggregate(
       $project: {
         _id: 0,
         id: { $convert: { input: "$id", to: "int", onError: null, onNull: null } },
-        name: { $trim: { input: { $ifNull: ["$name", ""] } } },
+        name: {
+          $trim: {
+            input: { $convert: { input: "$name", to: "string", onError: "", onNull: "" } },
+          },
+        },
         yearPublished: {
           $convert: { input: "$yearpublished", to: "int", onError: null, onNull: null },
         },
