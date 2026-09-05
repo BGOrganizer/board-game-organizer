@@ -29,6 +29,7 @@ module.exports = {
       "@sentry/react-native",
       "expo-font",
       "expo-contacts",
+      "@react-native-community/datetimepicker",
     ],
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL,

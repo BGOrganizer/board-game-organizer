@@ -316,7 +316,7 @@ export default function ContactsScreen() {
         await syncContactsData();
         return;
       }
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise<void>((resolve) => setTimeout(resolve, 400));
     }
   }, [syncContactsData]);
 
