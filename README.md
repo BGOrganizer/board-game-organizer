@@ -75,6 +75,28 @@ pnpm dev              # run all apps
 
 Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile dev`.
 
+### Local MongoDB and BGG catalog
+
+Download and extract the authenticated BGG `bg_ranks` dump to
+`data/boardgame_ranks.csv`, then start the replica set:
+
+```bash
+docker compose up -d --wait --wait-timeout 600
+docker compose logs -f mongodb
+```
+
+Every MongoDB container start stages and validates the CSV, then replaces the `boardGames`
+collection. MongoDB becomes healthy only after replica-set initialization and import complete.
+Configure the API with:
+
+```env
+MONGODB_URI=mongodb://localhost:27017/?replicaSet=rs0&directConnection=true
+MONGODB_DB_NAME=board-game-organizer
+```
+
+Use `BGG_CSV_PATH=/absolute/path/file.csv docker compose up -d` to load a CSV stored elsewhere.
+Remove containers with `docker compose down`; add `-v` only when the local database may be deleted.
+
 ## Quality
 
 ```bash

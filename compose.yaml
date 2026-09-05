@@ -1,0 +1,31 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: bgo-mongodb
+    entrypoint: ["bash", "/scripts/start-mongodb.sh"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    environment:
+      MONGODB_URI: mongodb://localhost:27017/${MONGODB_DB_NAME:-board-game-organizer}?replicaSet=rs0&directConnection=true
+      BGG_CSV: /data/boardgame_ranks.csv
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb-data:/data/db
+      - ${BGG_CSV_PATH:-./data/boardgame_ranks.csv}:/data/boardgame_ranks.csv:ro
+      - ./docker/mongodb/start-mongodb.sh:/scripts/start-mongodb.sh:ro
+      - ./docker/mongodb/import-bgg.sh:/scripts/import-bgg.sh:ro
+      - ./docker/mongodb/import-bgg.js:/scripts/import-bgg.js:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "test -f /tmp/bgg-import-complete && mongosh mongodb://localhost:27017/admin?directConnection=true --quiet --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'",
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 300
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  mongodb-data:
