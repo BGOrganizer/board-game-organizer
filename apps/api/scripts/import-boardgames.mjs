@@ -21,6 +21,9 @@ const CHUNK = Number(process.env.BGG_CHUNK ?? 500);
 // Resume support: skip the first N chunks (a serverless timeout on the first
 // run stops mid-way; restarting from 0 only re-upserts the imported ranks).
 const SKIP_CHUNKS = Number(process.env.BGG_SKIP_CHUNKS ?? 0);
+// Stop after this many chunks from the start (parallel fan-out support;
+// undefined = run to the end).
+const END_CHUNKS = process.env.BGG_END_CHUNKS ? Number(process.env.BGG_END_CHUNKS) : Infinity;
 
 if (!CSV_PATH || !URL || !TOKEN) {
   console.error("Missing BGG_CSV / BGG_IMPORT_URL / BGG_IMPORT_TOKEN");
@@ -73,6 +76,9 @@ async function postChunk(games) {
     method: "POST",
     headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ games }),
+    // Serverless cold starts + Atlas writes can take a while; a hung
+    // request must not stall the whole import forever.
+    signal: AbortSignal.timeout(120_000),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -112,8 +118,10 @@ for (const r of rows.slice(1)) {
 }
 
 console.log(`Parsed ${games.length} games from ${rows.length - 1} rows`);
+const start = SKIP_CHUNKS * CHUNK;
+const end = Math.min(games.length, END_CHUNKS * CHUNK);
 let total = 0;
-for (let i = SKIP_CHUNKS * CHUNK; i < games.length; i += CHUNK) {
+for (let i = start; i < end; i += CHUNK) {
   const chunk = games.slice(i, i + CHUNK);
   const res = await postChunk(chunk);
   total += res.written ?? chunk.length;
@@ -121,4 +129,4 @@ for (let i = SKIP_CHUNKS * CHUNK; i < games.length; i += CHUNK) {
     `chunk ${i / CHUNK + 1}: +${res.written ?? chunk.length} (collection: ${res.total ?? "?"})`,
   );
 }
-console.log(`Done. Wrote ${total} games.`);
+console.log(`Done (chunks ${start / CHUNK}-${end / CHUNK}). Wrote ${total} games.`);

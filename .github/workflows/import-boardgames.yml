@@ -11,6 +11,16 @@ on:
         description: "URL of the boardgames_ranks.csv dump (direct file or POST-to-download page)"
         required: true
         type: string
+      skip-chunks:
+        description: "Skip the first N chunks (resume support; 0 = full import)"
+        required: false
+        type: string
+        default: "0"
+      end-chunks:
+        description: "Stop after N chunks (parallel fan-out; empty = run to the end)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -32,10 +42,10 @@ jobs:
       - name: ⬇️ Download CSV dump
         shell: bash
         run: |
-          # temp.sh serves an HTML page on GET and the file on POST; try
-          # GET first, fall back to POST when the result is not CSV.
-          curl -fsSL "${{ github.event.inputs.csv-url }}" -o /tmp/ranks.csv \
-            || curl -fsSL -X POST "${{ github.event.inputs.csv-url }}" -o /tmp/ranks.csv
+          # temp.sh serves an HTML page on GET and the file on POST. Always
+          # POST first; fall back to GET for hosts with direct links.
+          curl -fsSL -X POST "${{ github.event.inputs.csv-url }}" -o /tmp/ranks.csv \
+            || curl -fsSL "${{ github.event.inputs.csv-url }}" -o /tmp/ranks.csv
           if ! head -c 20 /tmp/ranks.csv | grep -q "^id,"; then
             echo "Downloaded content is not the CSV dump (page HTML?)."
             exit 1
@@ -45,8 +55,10 @@ jobs:
       - name: 🚚 Import into the target API
         env:
           BGG_CSV: /tmp/ranks.csv
-          BGG_IMPORT_URL: ${{ github.event.inputs.api-url }}/api/admin/import-games
+          BGG_IMPORT_URL: ${{ github.event.inputs.api-url }}/api/admin/import-games?x-vercel-protection-bypass=${{ secrets.VERCEL_PROTECTION_BYPASS }}
           BGG_IMPORT_TOKEN: ${{ secrets.CLERK_SECRET_KEY }}
-          BGG_CHUNK: "50"
+          BGG_CHUNK: "500"
+          BGG_SKIP_CHUNKS: ${{ github.event.inputs.skip-chunks }}
+          BGG_END_CHUNKS: ${{ github.event.inputs.end-chunks }}
         shell: bash
         run: node apps/api/scripts/import-boardgames.mjs | tail -5
