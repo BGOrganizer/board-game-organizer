@@ -9,7 +9,7 @@ import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import { ArrowLeft, Gamepad2 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
@@ -23,8 +23,18 @@ export default function SearchGameScreen() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const t = useT();
   const router = useRouter();
-  const { slotId } = useLocalSearchParams<{ slotId: string }>();
+  const { slotId, exclude } = useLocalSearchParams<{ slotId: string; exclude?: string }>();
   const setPendingGame = useAppStore((s) => s.setPendingGame);
+  const excludedIds = useMemo(
+    () =>
+      new Set(
+        (exclude ?? "")
+          .split(",")
+          .filter(Boolean)
+          .map((x) => Number(x)),
+      ),
+    [exclude],
+  );
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<BggSearchItem[]>([]);
@@ -62,7 +72,9 @@ export default function SearchGameScreen() {
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { items: BggSearchItem[] };
-        if (active) setItems(data.items);
+        // Games already chosen in another wizard slot stay hidden: a game
+        // can only be played once in a match.
+        if (active) setItems(data.items.filter((i) => !excludedIds.has(i.id)));
       } catch {
         if (active) setError(t("Search failed"));
       } finally {
@@ -73,7 +85,7 @@ export default function SearchGameScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, token, t]);
+  }, [query, token, t, excludedIds]);
 
   const select = async (item: BggSearchItem) => {
     setPicking(item.id);
