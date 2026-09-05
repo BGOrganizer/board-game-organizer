@@ -1,3 +1,15 @@
+## <small>1.3.2 (2026-09-05)</small>
+
+* Merge pull request #19 from BGOrganizer/fix/import-workflow ([1956f00](https://github.com/BGOrganizer/board-game-organizer/commit/1956f00)), closes [#19](https://github.com/BGOrganizer/board-game-organizer/issues/19)
+* Merge pull request #20 from BGOrganizer/fix/datepicker-android-crash ([529d232](https://github.com/BGOrganizer/board-game-organizer/commit/529d232)), closes [#20](https://github.com/BGOrganizer/board-game-organizer/issues/20)
+* fix(ci): declare total accumulator in import script ([2a34068](https://github.com/BGOrganizer/board-game-organizer/commit/2a34068))
+* fix(mobile): datepicker crash on Android (datetime mode) ([de6e653](https://github.com/BGOrganizer/board-game-organizer/commit/de6e653))
+* fix(wizard): all fields valid to advance, friend picker crash, web arrow ([129d952](https://github.com/BGOrganizer/board-game-organizer/commit/129d952))
+* fix(wizard): mobile step validation, game dedupe, next arrow ([fbb808c](https://github.com/BGOrganizer/board-game-organizer/commit/fbb808c))
+* ci: import script timeout + parallel skip/end chunks ([8b81324](https://github.com/BGOrganizer/board-game-organizer/commit/8b81324))
+* ci: import-boardgames POST-first download + preview bypass ([e12769f](https://github.com/BGOrganizer/board-game-organizer/commit/e12769f))
+* ci: import-boardgames use chunk 500 ([6785541](https://github.com/BGOrganizer/board-game-organizer/commit/6785541))
+
 ## <small>1.3.1 (2026-09-04)</small>
 
 * Merge pull request #18 from BGOrganizer/fix/bgg-search-routing ([a28ed34](https://github.com/BGOrganizer/board-game-organizer/commit/a28ed34)), closes [#18](https://github.com/BGOrganizer/board-game-organizer/issues/18)
