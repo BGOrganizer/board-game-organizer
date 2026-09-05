@@ -33,11 +33,12 @@ export async function POST(request: Request) {
   let event: { type: string; data: Record<string, unknown> };
   try {
     const wh = new Webhook(secret);
-    event = wh.verify(payload, {
+    wh.verify(payload, {
       "svix-id": svixId,
       "svix-timestamp": svixTimestamp,
       "svix-signature": svixSignature,
-    }) as { type: string; data: Record<string, unknown> };
+    });
+    event = JSON.parse(payload) as { type: string; data: Record<string, unknown> };
   } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }

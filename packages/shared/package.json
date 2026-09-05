@@ -10,14 +10,14 @@
     }
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.2",
-    "react": "^19.0.0",
-    "@board-game-organizer/schemas": "workspace:*"
+    "@board-game-organizer/schemas": "workspace:*",
+    "@tanstack/react-query": "^5.102.8",
+    "react": "^19.2.8"
   },
   "devDependencies": {
     "@board-game-organizer/typescript-config": "workspace:*",
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }

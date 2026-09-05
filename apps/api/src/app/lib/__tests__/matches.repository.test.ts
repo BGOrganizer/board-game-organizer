@@ -7,7 +7,9 @@ const colMock = {
   insertOne: vi.fn(async (doc: unknown) => ({ insertedId: "id" })),
   findOne: vi.fn(async () => null),
   find: vi.fn(() => ({
-    sort: vi.fn(() => ({ toArray: async () => [] })),
+    sort: vi.fn(() => ({
+      toArray: async () => [] as Array<{ id: string; clerkId: string }>,
+    })),
   })),
 };
 dbMock.collection.mockReturnValue(colMock);
