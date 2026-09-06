@@ -1,6 +1,22 @@
 # Board Game Organizer Social API — Bruno
 
-Open this directory as a Bruno collection, then select the `Local` environment.
+## Open the native Bruno collection (recommended)
+
+In Bruno, choose **Open Collection** and select this directory:
+
+```text
+D:\git\board-game-organizer\apps\api\bruno\social-api
+```
+
+Select the **folder**, not `bruno.json`. That file is only the folder manifest, not an exported collection; importing it can produce `Unsupported collection format`.
+Then select the `Local` environment. The native collection includes response assertions.
+
+## Import a single file instead
+
+Choose **Import Collection** and select `../board-game-organizer-social.postman_collection.json` (Postman Collection v2.1 format).
+This alternative contains the same 20 requests and collection variables, but not the native Bruno test scripts. Set the variables at collection level after importing; it does not create a `Local` environment.
+
+The CLI accepts the native request files. Authenticated local requests still require a running API and fresh JWTs; parsing a collection does not prove those requests pass.
 
 ## Local setup
 
