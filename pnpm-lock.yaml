@@ -93,6 +93,9 @@ importers:
       '@board-game-organizer/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
+      '@next/env':
+        specifier: 16.3.4
+        version: 16.3.4
       '@types/node':
         specifier: ^26.4.1
         version: 26.4.1

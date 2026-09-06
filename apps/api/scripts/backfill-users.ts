@@ -6,8 +6,10 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { getDb } from "../src/app/lib/db";
 import { UsersRepository } from "../src/app/lib/users.repository";
+import { loadApiEnv } from "./load-env";
 
 async function main() {
+  loadApiEnv();
   const client = await clerkClient();
   const repo = new UsersRepository(await getDb());
 
