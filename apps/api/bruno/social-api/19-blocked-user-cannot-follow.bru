@@ -1,0 +1,22 @@
+meta {
+  name: Blocked target cannot follow actor
+  type: http
+  seq: 19
+}
+
+put {
+  url: {{baseUrl}}/api/follows/{{actorUserId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{targetToken}}
+}
+
+tests {
+  test("hides blocker with 404", function () {
+    expect(res.getStatus()).to.equal(404);
+    expect(res.getBody()).to.deep.equal({ error: "User not found" });
+  });
+}

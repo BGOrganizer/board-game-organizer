@@ -13,8 +13,8 @@ function createFakeCol(overrides: Record<string, unknown> = {}) {
   return { col, calls };
 }
 
-function createRepo(col: ReturnType<typeof createFakeCol>["col"]) {
-  return new UsersRepository({ collection: () => col } as never);
+function createRepo(col: ReturnType<typeof createFakeCol>["col"], session?: unknown) {
+  return new UsersRepository({ collection: () => col } as never, session as never);
 }
 
 describe("UsersRepository", () => {
@@ -61,13 +61,37 @@ describe("UsersRepository", () => {
     const { col } = createFakeCol();
     const repo = createRepo(col);
     await repo.findById("user_1");
-    expect(col.findOne).toHaveBeenCalledWith({ clerkId: "user_1" });
+    expect(col.findOne).toHaveBeenCalledWith({ clerkId: "user_1" }, {});
   });
 
   it("deleteByClerkId deletes by clerkId", async () => {
     const { col } = createFakeCol();
     const repo = createRepo(col);
     await repo.deleteByClerkId("user_1");
-    expect(col.deleteOne).toHaveBeenCalledWith({ clerkId: "user_1" });
+    expect(col.deleteOne).toHaveBeenCalledWith({ clerkId: "user_1" }, {});
+  });
+
+  it("passes a transaction session to every operation", async () => {
+    const { col } = createFakeCol();
+    const session = { id: "session" };
+    const repo = createRepo(col, session);
+    await repo.upsertFromClerk({
+      id: "user_1",
+      email: "a@b.it",
+      name: "A",
+      preferredLanguage: "en",
+    });
+    await repo.findById("user_1");
+    await repo.findByEmail("a@b.it");
+    await repo.deleteByClerkId("user_1");
+
+    expect(col.findOneAndUpdate).toHaveBeenCalledWith(
+      { clerkId: "user_1" },
+      expect.any(Object),
+      expect.objectContaining({ session }),
+    );
+    expect(col.findOne).toHaveBeenNthCalledWith(1, { clerkId: "user_1" }, { session });
+    expect(col.findOne).toHaveBeenNthCalledWith(2, { email: "a@b.it" }, { session });
+    expect(col.deleteOne).toHaveBeenCalledWith({ clerkId: "user_1" }, { session });
   });
 });

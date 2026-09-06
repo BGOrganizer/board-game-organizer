@@ -1,5 +1,5 @@
 import type { User } from "@board-game-organizer/schemas";
-import type { Db } from "mongodb";
+import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /**
@@ -10,7 +10,10 @@ import { COLLECTIONS } from "@/app/lib/db";
  * `auth()` in route handlers.
  */
 export class UsersRepository {
-  constructor(private db: Db) {}
+  constructor(
+    private db: Db,
+    private session?: ClientSession,
+  ) {}
 
   private get col() {
     return this.db.collection<User>(COLLECTIONS.USERS);
@@ -44,19 +47,23 @@ export class UsersRepository {
           createdAt: now,
         },
       },
-      { upsert: true, returnDocument: "after" },
+      {
+        upsert: true,
+        returnDocument: "after",
+        ...(this.session ? { session: this.session } : {}),
+      },
     );
   }
 
   findById(clerkId: string) {
-    return this.col.findOne({ clerkId });
+    return this.col.findOne({ clerkId }, this.session ? { session: this.session } : {});
   }
 
   findByEmail(email: string) {
-    return this.col.findOne({ email });
+    return this.col.findOne({ email }, this.session ? { session: this.session } : {});
   }
 
   deleteByClerkId(clerkId: string) {
-    return this.col.deleteOne({ clerkId });
+    return this.col.deleteOne({ clerkId }, this.session ? { session: this.session } : {});
   }
 }

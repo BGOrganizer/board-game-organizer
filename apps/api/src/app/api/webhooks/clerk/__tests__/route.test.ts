@@ -4,7 +4,16 @@ import { POST } from "../route";
 
 vi.mock("@/app/lib/db", () => ({
   getDb: vi.fn(async () => ({})),
+  withTransaction: vi.fn(async (callback) => callback({ id: "session" }, {})),
 }));
+
+vi.mock("@/app/lib/relationship.repository", () => {
+  const instance = { deleteAllForUser: vi.fn(async () => undefined) };
+  return {
+    RelationshipRepository: vi.fn().mockImplementation(() => instance),
+    __lastInstance: instance,
+  };
+});
 
 vi.mock("@/app/lib/users.repository", () => {
   const instance = {
@@ -17,9 +26,16 @@ vi.mock("@/app/lib/users.repository", () => {
   };
 });
 
+import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { UsersRepository } from "@/app/lib/users.repository";
 
 const repoMock = vi.mocked(UsersRepository);
+const relationshipRepoMock = vi.mocked(RelationshipRepository);
+const relationshipInstance = vi.mocked(
+  (await import("@/app/lib/relationship.repository")) as unknown as {
+    __lastInstance: { deleteAllForUser: ReturnType<typeof vi.fn> };
+  },
+).__lastInstance;
 const lastInstance = vi.mocked(
   (await import("@/app/lib/users.repository")) as unknown as {
     __lastInstance: {
@@ -132,6 +148,8 @@ describe("POST /api/webhooks/clerk", () => {
     expect(res.status).toBe(200);
     const instance = lastInstance;
     expect(instance.deleteByClerkId).toHaveBeenCalledWith("user_3");
+    expect(relationshipRepoMock).toHaveBeenCalled();
+    expect(relationshipInstance.deleteAllForUser).toHaveBeenCalledWith("user_3");
   });
 
   it("ignores unknown event types", async () => {

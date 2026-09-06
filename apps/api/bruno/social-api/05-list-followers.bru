@@ -1,0 +1,22 @@
+meta {
+  name: Target lists followers
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/follows?direction=followers
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{targetToken}}
+}
+
+tests {
+  test("returns an array", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an("array");
+  });
+}

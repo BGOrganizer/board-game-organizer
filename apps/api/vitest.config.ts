@@ -21,6 +21,25 @@ export default defineConfig({
         functions: 50,
         branches: 50,
         statements: 50,
+        "src/app/api/{blocks,follows,friend-requests,friends,relationships}/**/*.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/api/users/search/route.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/{blocks,enrichUsers,relationship.http,relationship.repository,relationship.service}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
       },
     },
   },

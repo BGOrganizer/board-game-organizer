@@ -12,6 +12,7 @@ vi.mock("@/app/lib/db", () => ({
         collection: vi.fn(() => ({
           findOne: vi.fn(async () => null),
           findOneAndUpdate: vi.fn(async () => null),
+          updateOne: vi.fn(async () => ({ acknowledged: true })),
           insertOne: vi.fn(async () => ({ insertedId: "id" })),
           find: vi.fn(() => ({
             sort: vi.fn(() => ({ limit: vi.fn(() => ({ toArray: async () => [] })) })),

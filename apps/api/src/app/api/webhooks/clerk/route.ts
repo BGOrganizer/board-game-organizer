@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
-import { getDb } from "@/app/lib/db";
+import { getDb, withTransaction } from "@/app/lib/db";
+import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { UsersRepository } from "@/app/lib/users.repository";
 
 /**
@@ -43,12 +44,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const repo = new UsersRepository(await getDb());
   const data = event.data;
 
   switch (event.type) {
     case "user.created":
     case "user.updated": {
+      const repo = new UsersRepository(await getDb());
       const email =
         (data.email_addresses as { email_address?: string }[] | undefined)?.[0]?.email_address ??
         "";
@@ -67,7 +68,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
     case "user.deleted": {
-      await repo.deleteByClerkId(data.id as string);
+      await withTransaction(async (session, db) => {
+        await new UsersRepository(db, session).deleteByClerkId(data.id as string);
+        await new RelationshipRepository(db, session).deleteAllForUser(data.id as string);
+      });
       return NextResponse.json({ success: true });
     }
     default:

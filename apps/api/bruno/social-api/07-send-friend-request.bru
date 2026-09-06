@@ -1,0 +1,21 @@
+meta {
+  name: Actor sends friend request
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/friend-requests/{{targetUserId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{actorToken}}
+}
+
+tests {
+  test("returns 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

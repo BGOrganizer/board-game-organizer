@@ -1,97 +1,131 @@
 import { describe, expect, it, vi } from "vitest";
 import { enrichRelationshipsWithUsers } from "../enrichUsers";
 
-/** Mock db: users collection + blocks collection (no blocks by default). */
-function fakeDb(
-  users: Array<Record<string, unknown>>,
-  blocks: Array<Record<string, unknown>> = [],
-) {
+function fakeDb(data: Record<string, Array<Record<string, unknown>>>) {
   return {
-    collection: vi.fn((name: string) => {
-      if (name === "blocks") {
-        return { find: vi.fn(() => ({ toArray: async () => blocks })) };
-      }
-      return { find: vi.fn(() => ({ toArray: async () => users })) };
-    }),
+    collection: vi.fn((name: string) => ({
+      find: vi.fn((query: Record<string, unknown>, options?: Record<string, unknown>) => ({
+        options,
+        toArray: async () =>
+          (data[name] ?? []).filter((row) => {
+            if (name !== "blocks") return true;
+            if (query.fromUserId) return row.fromUserId === query.fromUserId;
+            if (query.toUserId) return row.toUserId === query.toUserId;
+            return true;
+          }),
+      })),
+    })),
   };
 }
 
 describe("enrichRelationshipsWithUsers", () => {
-  it("attaches local user profiles (with presence) to relationship rows", async () => {
-    const db = fakeDb([
-      {
-        clerkId: "user_2",
-        name: "Bob",
-        email: "bob@bgo.it",
-        avatarUrl: null,
-        presence: { online: true, lastActiveAt: new Date() },
-      },
-    ]);
+  it("enriches both edge directions and complete friendship state in one session", async () => {
+    const db = fakeDb({
+      users: [
+        {
+          clerkId: "user_b",
+          name: "Bob",
+          email: "bob@example.com",
+          avatarUrl: "avatar",
+          presence: { online: true, lastActiveAt: "now" },
+        },
+        {
+          clerkId: "user_c",
+          name: "Carol",
+          email: "carol@example.com",
+          presence: { online: false, lastActiveAt: "then" },
+        },
+      ],
+      follows: [
+        { fromUserId: "user_a", toUserId: "user_b" },
+        { fromUserId: "user_b", toUserId: "user_a" },
+      ],
+      friendRequests: [
+        { fromUserId: "user_a", toUserId: "user_b", status: "accepted" },
+        { fromUserId: "user_b", toUserId: "user_a", status: "accepted" },
+      ],
+      blocks: [],
+    });
+    const session = { id: "session" };
+
     const rows = await enrichRelationshipsWithUsers(
       db as never,
-      [{ fromUserId: "user_1", toUserId: "user_2" }],
-      "user_1",
+      [
+        { fromUserId: "user_a", toUserId: "user_b" },
+        { fromUserId: "user_c", toUserId: "user_a" },
+      ],
+      "user_a",
+      session as never,
     );
+
     expect(rows[0].profile).toMatchObject({
-      id: "user_2",
-      name: "Bob",
-      presence: { online: true },
+      id: "user_b",
+      avatarUrl: "avatar",
+      blockedByMe: false,
+      blockedMe: false,
+      isFollowing: true,
+      isFollower: true,
+      isFriend: true,
+    });
+    expect(rows[1].profile).toMatchObject({
+      id: "user_c",
+      avatarUrl: null,
+      isFollowing: false,
+      isFollower: false,
+      isFriend: false,
     });
   });
 
-  it("returns null profile when the user is not mirrored yet", async () => {
-    const db = fakeDb([]);
+  it("returns a null profile for an unsynchronized relationship target", async () => {
     const rows = await enrichRelationshipsWithUsers(
-      db as never,
-      [{ fromUserId: "user_1", toUserId: "ghost" }],
-      "user_1",
+      fakeDb({ users: [], follows: [], friendRequests: [], blocks: [] }) as never,
+      [{ fromUserId: "user_a", toUserId: "user_missing" }],
+      "user_a",
     );
-    expect(rows[0].profile).toBeNull();
+    expect(rows).toEqual([{ fromUserId: "user_a", toUserId: "user_missing", profile: null }]);
   });
 
-  it("hides presence and flags blockedMe when the profile owner blocked the viewer", async () => {
-    const db = fakeDb(
-      [
+  it("hides presence for blocks in either direction", async () => {
+    const db = fakeDb({
+      users: [
         {
-          clerkId: "user_2",
+          clerkId: "user_b",
           name: "Bob",
-          email: "bob@bgo.it",
-          avatarUrl: null,
-          presence: { online: true, lastActiveAt: new Date() },
+          email: "bob@example.com",
+          presence: { online: true, lastActiveAt: "now" },
+        },
+        {
+          clerkId: "user_c",
+          name: "Carol",
+          email: "carol@example.com",
+          presence: { online: true, lastActiveAt: "now" },
         },
       ],
-      [{ fromUserId: "user_2", toUserId: "user_1" }],
-    );
+      follows: [],
+      friendRequests: [],
+      blocks: [
+        { fromUserId: "user_a", toUserId: "user_b" },
+        { fromUserId: "user_c", toUserId: "user_a" },
+      ],
+    });
     const rows = await enrichRelationshipsWithUsers(
       db as never,
-      [{ fromUserId: "user_1", toUserId: "user_2" }],
-      "user_1",
+      [
+        { fromUserId: "user_a", toUserId: "user_b" },
+        { fromUserId: "user_a", toUserId: "user_c" },
+      ],
+      "user_a",
     );
+
     expect(rows[0].profile).toMatchObject({
-      id: "user_2",
+      blockedByMe: true,
+      blockedMe: false,
+      presence: { online: false, lastActiveAt: "" },
+    });
+    expect(rows[1].profile).toMatchObject({
+      blockedByMe: false,
       blockedMe: true,
-      presence: { online: false },
+      presence: { online: false, lastActiveAt: "" },
     });
-  });
-
-  it("flags blockedByMe when the viewer blocked the profile owner", async () => {
-    const db = fakeDb(
-      [
-        {
-          clerkId: "user_2",
-          name: "Bob",
-          email: "bob@bgo.it",
-          avatarUrl: null,
-          presence: { online: true, lastActiveAt: new Date() },
-        },
-      ],
-      [{ fromUserId: "user_1", toUserId: "user_2" }],
-    );
-    const rows = await enrichRelationshipsWithUsers(
-      db as never,
-      [{ fromUserId: "user_1", toUserId: "user_2" }],
-      "user_1",
-    );
-    expect(rows[0].profile).toMatchObject({ blockedByMe: true });
   });
 });
