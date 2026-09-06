@@ -3,13 +3,14 @@
  * Backfill: mirrors ALL existing Clerk users into the `users` collection.
  * Idempotent (upserts) — safe to re-run. Needs CLERK_SECRET_KEY.
  */
-import { clerkClient } from "@clerk/nextjs/server";
 import { getDb } from "../src/app/lib/db";
 import { UsersRepository } from "../src/app/lib/users.repository";
 import { loadApiEnv } from "./load-env";
 
 async function main() {
   loadApiEnv();
+  // Clerk captures environment values when its module is imported.
+  const { clerkClient } = await import("@clerk/nextjs/server");
   const client = await clerkClient();
   const repo = new UsersRepository(await getDb());
 
