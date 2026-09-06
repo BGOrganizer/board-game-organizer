@@ -14,7 +14,9 @@ Then select the `Local` environment. The native collection includes response ass
 ## Import a single file instead
 
 Choose **Import Collection** and select `../board-game-organizer-social.postman_collection.json` (Postman Collection v2.1 format).
-This alternative contains the same 20 requests and collection variables, but not the native Bruno test scripts. Set the variables at collection level after importing; it does not create a `Local` environment.
+This alternative contains the same 20 requests and collection variables, but not the native Bruno test scripts.
+
+After importing the collection, open its environment manager, choose **Import**, and select `../Local.postman_environment.json` (Postman environment format). Then select `Local` as the active environment. It contains the same six variables as `environments/Local.bru`; both JWT values are intentionally empty. Fill in user IDs and fresh JWTs locally, without committing them.
 
 The CLI accepts the native request files. Authenticated local requests still require a running API and fresh JWTs; parsing a collection does not prove those requests pass.
 
