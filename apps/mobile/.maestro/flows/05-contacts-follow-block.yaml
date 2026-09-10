@@ -122,13 +122,11 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-- tapOn: "Actions"
-- tapOn: "Send friend request"
 - tapOn:
-    id: "confirm-friend-request-btn"
+    id: "friend-request-btn"
 - extendedWaitUntil:
     notVisible:
-      id: "confirm-friend-request-btn"
+      id: "friend-request-btn"
     timeout: 30000
 
 # Switch to target, accept, and verify the Friends tab.
@@ -192,15 +190,18 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
-# Accepting creates mutual follows. Search keeps the row visible while toggling it.
+# One action removes friendship plus the actor's follow and refreshes every list.
+- tapOn:
+    id: "remove-friend-btn"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
 - tapOn: "Search"
 - tapOn: ".*[Ss]earch.*users.*"
 - inputText: ${EMAIL_2}
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-- tapOn:
-    id: "unfollow-btn"
 - extendedWaitUntil:
     visible:
       id: "follow-btn"
@@ -211,7 +212,7 @@ appId: com.bgo.mobile
     visible:
       id: "unfollow-btn"
     timeout: 30000
-# Block removes the friendship and hides the target.
+# Block hides the target.
 - tapOn: "Actions"
 - extendedWaitUntil:
     visible: "Block"

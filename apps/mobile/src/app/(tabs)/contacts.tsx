@@ -15,7 +15,16 @@ import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { BookUser, Check, MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
+import {
+  BookUser,
+  Check,
+  MoreVertical,
+  UserMinus,
+  UserPlus,
+  UserRoundPlus,
+  UserRoundX,
+  X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
@@ -157,17 +166,26 @@ export default function ContactsScreen() {
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
+    contacts.unfriend.isPending ||
     contacts.friendRequest.isPending ||
     contacts.acceptFriendRequest.isPending ||
     contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
     contacts.unblock.isPending;
-  const requestActionFailed =
-    contacts.acceptFriendRequest.isError || contacts.rejectFriendRequest.isError;
+  const actionFailed =
+    contacts.follow.isError ||
+    contacts.unfollow.isError ||
+    contacts.unfriend.isError ||
+    contacts.friendRequest.isError ||
+    contacts.acceptFriendRequest.isError ||
+    contacts.rejectFriendRequest.isError ||
+    contacts.block.isError ||
+    contacts.unblock.isError;
 
   const handleUserAction = (u: ContactUser) => async (key: string) => {
     if (key === "follow") await contacts.follow.mutateAsync({ targetUserId: u.id });
     else if (key === "unfollow") await contacts.unfollow.mutateAsync({ targetUserId: u.id });
+    else if (key === "unfriend") await contacts.unfriend.mutateAsync({ targetUserId: u.id });
     else if (key === "friend_request") {
       await contacts.friendRequest.mutateAsync({ targetUserId: u.id });
     } else if (key === "block") await contacts.block.mutateAsync({ targetUserId: u.id });
@@ -437,10 +455,79 @@ export default function ContactsScreen() {
         : listTab === "friends"
           ? t("No friends yet")
           : t("No blocked users");
+  const canSendFriendRequest = (user: ContactUser) =>
+    friendRequestsLoaded &&
+    !user.isFriend &&
+    !user.blockedByMe &&
+    !user.blockedMe &&
+    !pendingRequestIds.has(user.id) &&
+    !sentRequestIds.has(user.id);
+  const relationshipActions = (user: ContactUser) => {
+    if (user.blockedByMe || user.blockedMe) return null;
+    if (user.isFriend) {
+      return (
+        <Button
+          variant="danger-soft"
+          isIconOnly
+          size="sm"
+          style={{ minHeight: 30, minWidth: 30 }}
+          isDisabled={isBusy}
+          accessibilityLabel={`${t("Remove friend")}: ${user.name}`}
+          testID="remove-friend-btn"
+          onPress={() => contacts.unfriend.mutate({ targetUserId: user.id })}
+        >
+          <UserRoundX size={16} color="#dc2626" />
+        </Button>
+      );
+    }
+    return (
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Button
+          variant="outline"
+          isIconOnly
+          size="sm"
+          style={{ minHeight: 30, minWidth: 30 }}
+          isDisabled={isBusy}
+          accessibilityLabel={user.isFollowing ? t("Unfollow") : t("Follow")}
+          testID={user.isFollowing ? "unfollow-btn" : "follow-btn"}
+          onPress={() =>
+            user.isFollowing
+              ? contacts.unfollow.mutate({ targetUserId: user.id })
+              : contacts.follow.mutate({ targetUserId: user.id })
+          }
+        >
+          {user.isFollowing ? (
+            <UserMinus size={16} color="#111" />
+          ) : (
+            <UserPlus size={16} color="#111" />
+          )}
+        </Button>
+        {canSendFriendRequest(user) && (
+          <Button
+            variant="outline"
+            isIconOnly
+            size="sm"
+            style={{ minHeight: 30, minWidth: 30 }}
+            isDisabled={isBusy}
+            accessibilityLabel={t("Send friend request")}
+            testID="friend-request-btn"
+            onPress={() => contacts.friendRequest.mutate({ targetUserId: user.id })}
+          >
+            <UserRoundPlus size={16} color="#111" />
+          </Button>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <InviteCard apiUrl={apiUrl()} token={token} />
+      {actionFailed && (
+        <Text accessibilityRole="alert" className="mt-2 text-sm text-danger">
+          {t("Could not complete the action. Try again.")}
+        </Text>
+      )}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -530,26 +617,7 @@ export default function ContactsScreen() {
                     </Text>
                   ) : null}
                 </View>
-                <Button
-                  variant="outline"
-                  isIconOnly
-                  size="sm"
-                  style={{ minHeight: 30, minWidth: 30 }}
-                  isDisabled={isBusy}
-                  accessibilityLabel={u.isFollowing ? t("Unfollow") : t("Follow")}
-                  testID={u.isFollowing ? "unfollow-btn" : "follow-btn"}
-                  onPress={() =>
-                    u.isFollowing
-                      ? contacts.unfollow.mutate({ targetUserId: u.id })
-                      : contacts.follow.mutate({ targetUserId: u.id })
-                  }
-                >
-                  {u.isFollowing ? (
-                    <UserMinus size={16} color="#111" />
-                  ) : (
-                    <UserPlus size={16} color="#111" />
-                  )}
-                </Button>
+                {relationshipActions(u)}
                 <Pressable
                   onPress={() => setMenuUser(u)}
                   hitSlop={8}
@@ -565,11 +633,6 @@ export default function ContactsScreen() {
 
         {tab === "requests" && (
           <View style={{ gap: 20 }}>
-            {requestActionFailed && (
-              <Text accessibilityRole="alert" className="text-sm text-danger">
-                {t("Could not complete the action. Try again.")}
-              </Text>
-            )}
             {[
               {
                 key: "received",
@@ -730,26 +793,7 @@ export default function ContactsScreen() {
                     </Text>
                   ) : null}
                 </View>
-                <Button
-                  variant="outline"
-                  isIconOnly
-                  size="sm"
-                  style={{ minHeight: 30, minWidth: 30 }}
-                  isDisabled={isBusy}
-                  accessibilityLabel={u.isFollowing ? t("Unfollow") : t("Follow")}
-                  testID={u.isFollowing ? "unfollow-btn" : "follow-btn"}
-                  onPress={() =>
-                    u.isFollowing
-                      ? contacts.unfollow.mutate({ targetUserId: u.id })
-                      : contacts.follow.mutate({ targetUserId: u.id })
-                  }
-                >
-                  {u.isFollowing ? (
-                    <UserMinus size={16} color="#111" />
-                  ) : (
-                    <UserPlus size={16} color="#111" />
-                  )}
-                </Button>
+                {relationshipActions(u)}
                 <Pressable
                   onPress={() => setMenuUser(u)}
                   hitSlop={8}
@@ -779,6 +823,12 @@ export default function ContactsScreen() {
             {listRows.map((row) => {
               const profile = row.profile;
               if (!profile) return null;
+              const actionUser =
+                listTab === "following"
+                  ? { ...profile, isFollowing: true }
+                  : listTab === "followers"
+                    ? { ...profile, isFollowing: followingIds.has(profile.id) }
+                    : profile;
               return (
                 <Card
                   key={profile.id}
@@ -809,45 +859,9 @@ export default function ContactsScreen() {
                       </Text>
                     ) : null}
                   </View>
-                  {listTab === "following" ? (
-                    <Button
-                      variant="outline"
-                      isIconOnly
-                      size="sm"
-                      style={{ minHeight: 30, minWidth: 30 }}
-                      isDisabled={isBusy}
-                      accessibilityLabel={t("Unfollow")}
-                      testID="unfollow-btn"
-                      onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
-                    >
-                      <UserMinus size={16} color="#111" />
-                    </Button>
-                  ) : listTab === "followers" ? (
-                    <Button
-                      variant="outline"
-                      isIconOnly
-                      size="sm"
-                      style={{ minHeight: 30, minWidth: 30 }}
-                      isDisabled={isBusy}
-                      accessibilityLabel={
-                        followingIds.has(profile.id) ? t("Unfollow") : t("Follow")
-                      }
-                      testID={followingIds.has(profile.id) ? "unfollow-btn" : "follow-btn"}
-                      onPress={() =>
-                        followingIds.has(profile.id)
-                          ? contacts.unfollow.mutate({ targetUserId: profile.id })
-                          : contacts.follow.mutate({ targetUserId: profile.id })
-                      }
-                    >
-                      {followingIds.has(profile.id) ? (
-                        <UserMinus size={16} color="#111" />
-                      ) : (
-                        <UserPlus size={16} color="#111" />
-                      )}
-                    </Button>
-                  ) : null}
+                  {listTab === "blocked" ? null : relationshipActions(actionUser)}
                   <Pressable
-                    onPress={() => setMenuUser(profile)}
+                    onPress={() => setMenuUser(actionUser)}
                     hitSlop={8}
                     accessibilityLabel={t("Actions")}
                     style={{ padding: 6 }}
@@ -865,26 +879,8 @@ export default function ContactsScreen() {
         visible={menuUser !== null}
         user={menuUser}
         busy={isBusy}
-        canSendFriendRequest={
-          menuUser !== null &&
-          friendRequestsLoaded &&
-          !menuUser.isFriend &&
-          !menuUser.blockedByMe &&
-          !menuUser.blockedMe &&
-          !pendingRequestIds.has(menuUser.id) &&
-          !sentRequestIds.has(menuUser.id)
-        }
-        error={
-          contacts.follow.isError ||
-          contacts.unfollow.isError ||
-          contacts.friendRequest.isError ||
-          contacts.acceptFriendRequest.isError ||
-          contacts.rejectFriendRequest.isError ||
-          contacts.block.isError ||
-          contacts.unblock.isError
-            ? t("Could not complete the action. Try again.")
-            : null
-        }
+        canSendFriendRequest={menuUser !== null && canSendFriendRequest(menuUser)}
+        error={actionFailed ? t("Could not complete the action. Try again.") : null}
         onClose={() => setMenuUser(null)}
         onAction={(key) => (menuUser ? handleUserAction(menuUser)(key) : Promise.resolve())}
       />

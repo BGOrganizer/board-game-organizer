@@ -180,11 +180,23 @@ describe("RelationshipService", () => {
     );
   });
 
-  it("removes an existing friendship and preserves follows", async () => {
-    const repo = createRepo({ isFriend: vi.fn(async () => true) });
+  it("removes an existing friendship and the caller's follow", async () => {
+    const calls: string[] = [];
+    const repo = createRepo({
+      isFriend: vi.fn(async () => true),
+      unfriend: vi.fn(async () => {
+        calls.push("unfriend");
+        return { deletedCount: 2 };
+      }),
+      unfollow: vi.fn(async () => {
+        calls.push("unfollow");
+        return { deletedCount: 1 };
+      }),
+    });
     await new RelationshipService(repo).unfriend(USER, TARGET);
+    expect(calls).toEqual(["unfriend", "unfollow"]);
     expect(repo.unfriend).toHaveBeenCalledWith(USER, TARGET);
-    expect(repo.unfollow).not.toHaveBeenCalled();
+    expect(repo.unfollow).toHaveBeenCalledWith(USER, TARGET);
   });
 
   it("rejects removal of a missing friendship", async () => {

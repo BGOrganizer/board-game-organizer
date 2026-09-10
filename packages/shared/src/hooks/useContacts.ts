@@ -261,8 +261,8 @@ async function respondToFriendRequestWithToken(
  *
  * When `getToken` is provided (Clerk), every query/mutation resolves a
  * FRESH token right before the call, so a rotating Clerk JWT never turns
- * into stale-session 401s. After a successful follow/unfollow the contacts
- * lists and suggestions are invalidated (refetched) and an active search is
+ * into stale-session 401s. After every successful relationship mutation the
+ * contact lists and suggestions are invalidated (refetched) and an active search is
  * re-run, so buttons reflect the new state without manual refresh.
  */
 export function useContacts(
@@ -371,6 +371,20 @@ export function useContacts(
     onSuccess: () => refreshContacts(),
   });
 
+  const unfriend = useMutation({
+    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+      relationshipMutationWithToken(
+        apiUrl,
+        token,
+        getToken,
+        "DELETE",
+        "friend",
+        targetUserId,
+        protectionBypass,
+      ),
+    onSuccess: () => refreshContacts(),
+  });
+
   const friendRequest = useMutation({
     mutationFn: ({ targetUserId }: { targetUserId: string }) =>
       relationshipMutationWithToken(
@@ -466,6 +480,7 @@ export function useContacts(
       suggestions,
       follow,
       unfollow,
+      unfriend,
       friendRequest,
       acceptFriendRequest,
       rejectFriendRequest,
@@ -486,6 +501,7 @@ export function useContacts(
       suggestions,
       follow,
       unfollow,
+      unfriend,
       friendRequest,
       acceptFriendRequest,
       rejectFriendRequest,

@@ -5,6 +5,7 @@ import { renderWithI18n } from "@/test-utils";
 
 const mocks = vi.hoisted(() => ({
   friendRequest: vi.fn(),
+  unfriend: vi.fn(),
   acceptFriendRequest: vi.fn(),
   rejectFriendRequest: vi.fn(),
   friends: false,
@@ -89,6 +90,7 @@ vi.mock("@board-game-organizer/shared", () => ({
     search: { data: null, isPending: false, isError: false },
     follow: { mutate: vi.fn(), isPending: false, isError: false },
     unfollow: { mutate: vi.fn(), isPending: false, isError: false },
+    unfriend: { mutate: mocks.unfriend, isPending: false, isError: mocks.actionError },
     friendRequest: {
       mutate: mocks.friendRequest,
       isPending: false,
@@ -148,7 +150,9 @@ describe("Contacts friend request action", () => {
   it("sends a request for an eligible contact", () => {
     renderWithI18n(<Contacts />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Send friend request: Target User" }));
     fireEvent.click(screen.getByRole("button", { name: "Request friendship" }));
+    expect(mocks.friendRequest).toHaveBeenCalledTimes(2);
     expect(mocks.friendRequest).toHaveBeenCalledWith({ targetUserId: "user_2" });
   });
 
@@ -160,6 +164,8 @@ describe("Contacts friend request action", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Friends" }));
     expect(screen.getByText("Target User")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Remove friend: Target User" }));
+    expect(mocks.unfriend).toHaveBeenCalledWith({ targetUserId: "user_2" });
 
     fireEvent.click(screen.getByRole("button", { name: "Friend requests" }));
     expect(screen.getByRole("heading", { name: "Received" })).toBeTruthy();

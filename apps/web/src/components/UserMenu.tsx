@@ -3,7 +3,15 @@
 import type { ContactUser } from "@board-game-organizer/shared";
 import { Button, Dropdown } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Ban, Eye, MoreVertical, UserMinus, UserPlus, UserRoundPlus } from "lucide-react";
+import {
+  Ban,
+  Eye,
+  MoreVertical,
+  UserMinus,
+  UserPlus,
+  UserRoundPlus,
+  UserRoundX,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -12,12 +20,13 @@ export type UserActionKey =
   | "unblock"
   | "follow"
   | "unfollow"
+  | "unfriend"
   | "friend_request"
   | "profile";
 
 /**
- * Kebab (⋯) menu on a contact row: block/unblock, follow/unfollow and
- * view-profile (disabled for now). Block requires confirmation.
+ * Kebab (⋯) menu on a contact row: relationship, block/unblock and
+ * view-profile (disabled for now). Block and friend requests require confirmation.
  *
  * The confirmation uses a plain portal dialog (NOT the HeroUI v3 Modal,
  * whose composite DialogTrigger/Overlay wiring kept showing a backdrop
@@ -58,38 +67,77 @@ export function UserMenu({
           disabled: true,
         },
       ]
-    : [
-        {
-          key: user.isFollowing ? "unfollow" : "follow",
-          label: user.isFollowing ? t`Unfollow` : t`Follow`,
-          icon: user.isFollowing ? (
-            <UserMinus className="h-4 w-4" />
-          ) : (
-            <UserPlus className="h-4 w-4" />
-          ),
-        },
-        ...(canSendFriendRequest
-          ? [
-              {
-                key: "friend_request" as const,
-                label: t`Send friend request`,
-                icon: <UserRoundPlus className="h-4 w-4" />,
-              },
-            ]
-          : []),
-        {
-          key: "block",
-          label: t`Block`,
-          icon: <Ban className="h-4 w-4" />,
-          danger: true,
-        },
-        {
-          key: "profile",
-          label: t`View profile`,
-          icon: <Eye className="h-4 w-4" />,
-          disabled: true,
-        },
-      ];
+    : user.blockedMe
+      ? [
+          ...(user.isFollowing
+            ? [
+                {
+                  key: "unfollow" as const,
+                  label: t`Unfollow`,
+                  icon: <UserMinus className="h-4 w-4" />,
+                },
+              ]
+            : []),
+          {
+            key: "profile",
+            label: t`View profile`,
+            icon: <Eye className="h-4 w-4" />,
+            disabled: true,
+          },
+        ]
+      : user.isFriend
+        ? [
+            {
+              key: "unfriend",
+              label: t`Remove friend`,
+              icon: <UserRoundX className="h-4 w-4" />,
+              danger: true,
+            },
+            {
+              key: "block",
+              label: t`Block`,
+              icon: <Ban className="h-4 w-4" />,
+              danger: true,
+            },
+            {
+              key: "profile",
+              label: t`View profile`,
+              icon: <Eye className="h-4 w-4" />,
+              disabled: true,
+            },
+          ]
+        : [
+            {
+              key: user.isFollowing ? "unfollow" : "follow",
+              label: user.isFollowing ? t`Unfollow` : t`Follow`,
+              icon: user.isFollowing ? (
+                <UserMinus className="h-4 w-4" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              ),
+            },
+            ...(canSendFriendRequest
+              ? [
+                  {
+                    key: "friend_request" as const,
+                    label: t`Send friend request`,
+                    icon: <UserRoundPlus className="h-4 w-4" />,
+                  },
+                ]
+              : []),
+            {
+              key: "block",
+              label: t`Block`,
+              icon: <Ban className="h-4 w-4" />,
+              danger: true,
+            },
+            {
+              key: "profile",
+              label: t`View profile`,
+              icon: <Eye className="h-4 w-4" />,
+              disabled: true,
+            },
+          ];
 
   const handle = (key: UserActionKey) => {
     if (key === "block" || key === "friend_request") {

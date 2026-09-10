@@ -441,6 +441,11 @@ msgstr "Profile"
 msgid "Received"
 msgstr "Received"
 
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Remove friend"
+msgstr "Remove friend"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove game"
 msgstr "Remove game"
@@ -505,6 +510,7 @@ msgstr "Select a board game"
 msgid "Select a friend"
 msgstr "Select a friend"
 
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
 msgid "Send friend request"
 msgstr "Send friend request"

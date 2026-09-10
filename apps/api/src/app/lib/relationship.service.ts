@@ -108,7 +108,9 @@ export class RelationshipService {
     if (!(await this.repo.isFriend(userId, targetUserId))) {
       throw new RelationshipError(404, "Friendship not found");
     }
+    // Relationship routes run in one transaction; keep session operations sequential.
     await this.repo.unfriend(userId, targetUserId);
+    await this.repo.unfollow(userId, targetUserId);
   }
 
   async block(userId: string, targetUserId: string) {

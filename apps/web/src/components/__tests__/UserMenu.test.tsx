@@ -33,6 +33,20 @@ describe("UserMenu", () => {
     expect(onAction).toHaveBeenCalledWith("unfollow");
   });
 
+  it("offers one relationship action for friends", async () => {
+    const onAction = vi.fn();
+    renderWithI18n(
+      <UserMenu user={{ ...user, isFriend: true, isFollowing: true }} onAction={onAction} />,
+    );
+
+    await openMenu();
+    expect(screen.queryByRole("menuitem", { name: "Follow" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Unfollow" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Send friend request" })).toBeNull();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Remove friend" }));
+    expect(onAction).toHaveBeenCalledWith("unfriend");
+  });
+
   it("confirms friend requests in an accessible dialog", async () => {
     const onAction = vi.fn();
     renderWithI18n(<UserMenu user={user} canSendFriendRequest onAction={onAction} />);
@@ -75,6 +89,18 @@ describe("UserMenu", () => {
     expect(screen.queryByRole("menuitem", { name: "Send friend request" })).toBeNull();
     fireEvent.click(screen.getByRole("menuitem", { name: "Unblock" }));
     expect(onAction).toHaveBeenCalledWith("unblock");
+  });
+
+  it("offers only safe cleanup when the other user blocked the viewer", async () => {
+    const onAction = vi.fn();
+    renderWithI18n(
+      <UserMenu user={{ ...user, blockedMe: true, isFollowing: true }} onAction={onAction} />,
+    );
+
+    await openMenu();
+    expect(screen.queryByRole("menuitem", { name: "Block" })).toBeNull();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Unfollow" }));
+    expect(onAction).toHaveBeenCalledWith("unfollow");
   });
 
   it("disables actions while another mutation is pending", async () => {

@@ -20,6 +20,12 @@ function Harness() {
       >
         Send
       </button>
+      <button type="button" onClick={() => contacts.unfriend.mutate({ targetUserId: "user_2" })}>
+        Unfriend
+      </button>
+      <button type="button" onClick={() => contacts.runSearch("target")}>
+        Search
+      </button>
       <button
         type="button"
         onClick={() => contacts.acceptFriendRequest.mutate({ targetUserId: "user_2" })}
@@ -46,7 +52,7 @@ afterEach(() => {
 });
 
 describe("useContacts friend request", () => {
-  it("sends, accepts and rejects friend requests with a fresh Clerk token", async () => {
+  it("sends, accepts, rejects and removes friendship with a fresh Clerk token", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (!init?.method) {
@@ -88,6 +94,7 @@ describe("useContacts friend request", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Accept" }));
     fireEvent.click(screen.getByRole("button", { name: "Reject" }));
+    fireEvent.click(screen.getByRole("button", { name: "Unfriend" }));
 
     await waitFor(() => {
       const responses = fetchMock.mock.calls.filter(
@@ -108,8 +115,58 @@ describe("useContacts friend request", () => {
             "Bearer fresh-token",
         ),
       ).toBe(true);
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            String(input) ===
+              "https://api.example.test/api/relationships?type=friend&x-vercel-protection-bypass=preview-token" &&
+            init?.method === "DELETE" &&
+            init.body === JSON.stringify({ targetUserId: "user_2" }),
+        ),
+      ).toBe(true);
     });
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(10));
+  });
+
+  it("refreshes every contact list and active search after unfriend", async () => {
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify(
+            String(input).includes("/api/users/suggestions")
+              ? { users: [], nextCursor: null, hasContacts: false }
+              : String(input).includes("/api/users/search")
+                ? { users: [], nextCursor: null }
+                : [],
+          ),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Harness />, { wrapper });
+
+    const listUrls = [
+      "type=following",
+      "type=followers",
+      "type=friends",
+      "type=pending",
+      "type=sent",
+      "type=blocked",
+      "/api/users/suggestions",
+    ];
+    const getCount = (part: string) =>
+      fetchMock.mock.calls.filter(([input, init]) => String(input).includes(part) && !init?.method)
+        .length;
+    await waitFor(() => expect(listUrls.every((url) => getCount(url) === 1)).toBe(true));
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(getCount("/api/users/search") === 1).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Unfriend" }));
+
+    await waitFor(() => {
+      expect(listUrls.every((url) => getCount(url) > 1)).toBe(true);
+      expect(getCount("/api/users/search")).toBe(2);
+    });
   });
 
   it("surfaces a failed friend-request response", async () => {

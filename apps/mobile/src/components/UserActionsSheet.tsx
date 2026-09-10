@@ -1,5 +1,5 @@
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Ban, Eye, UserMinus, UserPlus, UserRoundPlus, X } from "lucide-react-native";
+import { Ban, Eye, UserMinus, UserPlus, UserRoundPlus, UserRoundX, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
@@ -13,8 +13,8 @@ export interface UserActionItem {
 }
 
 /**
- * Bottom-sheet-style action menu for a contact row: block/unblock,
- * follow/unfollow, view profile (disabled for now). Triggered by the ⋯
+ * Bottom-sheet-style action menu for a contact row: relationship,
+ * block/unblock, view profile (disabled for now). Triggered by the ⋯
  * kebab button next to the follow button.
  *
  * `busy` disables the rows while a mutation is in flight (the list cards
@@ -53,6 +53,7 @@ export function UserActionsSheet({
   const labels: Record<UserActionKey, string> = {
     follow: t("Follow"),
     unfollow: t("Unfollow"),
+    unfriend: t("Remove friend"),
     friend_request: t("Send friend request"),
     block: t("Block"),
     unblock: t("Unblock"),
@@ -61,13 +62,14 @@ export function UserActionsSheet({
   const items: UserActionItem[] = userActionKeys(user, canSendFriendRequest).map((key) => ({
     key,
     label: labels[key],
-    destructive: key === "block",
+    destructive: key === "block" || key === "unfriend",
     disabled: key === "profile",
   }));
 
   const icons: Record<UserActionItem["key"], React.ReactNode> = {
     follow: <UserPlus size={18} color="#111" />,
     unfollow: <UserMinus size={18} color="#111" />,
+    unfriend: <UserRoundX size={18} color="#dc2626" />,
     block: <Ban size={18} color="#dc2626" />,
     unblock: <Ban size={18} color="#111" />,
     friend_request: <UserRoundPlus size={18} color="#111" />,

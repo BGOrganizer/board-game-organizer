@@ -9,7 +9,7 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, UserMinus, UserPlus, X } from "lucide-react";
+import { Check, UserMinus, UserPlus, UserRoundPlus, UserRoundX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
@@ -153,6 +153,7 @@ export function Contacts() {
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
+    contacts.unfriend.isPending ||
     contacts.friendRequest.isPending ||
     contacts.acceptFriendRequest.isPending ||
     contacts.rejectFriendRequest.isPending ||
@@ -161,6 +162,7 @@ export function Contacts() {
   const actionFailed =
     contacts.follow.isError ||
     contacts.unfollow.isError ||
+    contacts.unfriend.isError ||
     contacts.friendRequest.isError ||
     contacts.acceptFriendRequest.isError ||
     contacts.rejectFriendRequest.isError ||
@@ -170,6 +172,7 @@ export function Contacts() {
   const handleUserAction = (u: ContactUser) => (key: UserActionKey) => {
     if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
     else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
+    else if (key === "unfriend") contacts.unfriend.mutate({ targetUserId: u.id });
     else if (key === "friend_request") contacts.friendRequest.mutate({ targetUserId: u.id });
     else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
     else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
@@ -229,6 +232,53 @@ export function Contacts() {
     !user.blockedMe &&
     !pendingRequestIds.has(user.id) &&
     !sentRequestIds.has(user.id);
+  const relationshipActions = (user: ContactUser) => {
+    if (user.blockedByMe || user.blockedMe) return undefined;
+    if (user.isFriend) {
+      return (
+        <Button
+          isIconOnly
+          size="sm"
+          variant="danger-soft"
+          isDisabled={isBusy}
+          aria-label={`${t`Remove friend`}: ${user.name}`}
+          onPress={() => contacts.unfriend.mutate({ targetUserId: user.id })}
+        >
+          <UserRoundX className="h-4 w-4" />
+        </Button>
+      );
+    }
+    return (
+      <div className="flex gap-2">
+        <Button
+          isIconOnly
+          size="sm"
+          variant="outline"
+          isDisabled={isBusy}
+          aria-label={user.isFollowing ? t`Unfollow` : t`Follow`}
+          onPress={() =>
+            user.isFollowing
+              ? contacts.unfollow.mutate({ targetUserId: user.id })
+              : contacts.follow.mutate({ targetUserId: user.id })
+          }
+        >
+          {user.isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+        </Button>
+        {canSendFriendRequest(user) && (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="outline"
+            isDisabled={isBusy}
+            aria-label={`${t`Send friend request`}: ${user.name}`}
+            onPress={() => contacts.friendRequest.mutate({ targetUserId: user.id })}
+          >
+            <UserRoundPlus className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    );
+  };
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
@@ -350,26 +400,7 @@ export function Contacts() {
                 email={u.email}
                 avatarUrl={u.avatarUrl}
                 online={u.presence.online}
-                action={
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="outline"
-                    isDisabled={isBusy}
-                    aria-label={u.isFollowing ? t`Unfollow` : t`Follow`}
-                    onPress={() =>
-                      u.isFollowing
-                        ? contacts.unfollow.mutate({ targetUserId: u.id })
-                        : contacts.follow.mutate({ targetUserId: u.id })
-                    }
-                  >
-                    {u.isFollowing ? (
-                      <UserMinus className="h-4 w-4" />
-                    ) : (
-                      <UserPlus className="h-4 w-4" />
-                    )}
-                  </Button>
-                }
+                action={relationshipActions(u)}
                 menu={
                   <UserMenu
                     user={u}
@@ -489,18 +520,7 @@ export function Contacts() {
               email={u.email}
               avatarUrl={u.avatarUrl}
               online={u.presence.online}
-              action={
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="outline"
-                  isDisabled={isBusy}
-                  aria-label={t`Follow`}
-                  onPress={() => contacts.follow.mutate({ targetUserId: u.id })}
-                >
-                  <UserPlus className="h-4 w-4" />
-                </Button>
-              }
+              action={relationshipActions(u)}
               menu={
                 <UserMenu
                   user={u}
@@ -533,6 +553,12 @@ export function Contacts() {
               {listTab.rows.map((row) => {
                 const profile = row.profile;
                 if (!profile) return null;
+                const actionUser =
+                  listTab.key === "following"
+                    ? { ...profile, isFollowing: true }
+                    : listTab.key === "followers"
+                      ? { ...profile, isFollowing: followingIds.has(profile.id) }
+                      : profile;
                 return (
                   <ContactCard
                     key={profile.id}
@@ -540,45 +566,13 @@ export function Contacts() {
                     email={profile.email}
                     avatarUrl={profile.avatarUrl}
                     online={profile.presence.online}
-                    action={
-                      listTab.key === "following" ? (
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="outline"
-                          isDisabled={isBusy}
-                          aria-label={t`Unfollow`}
-                          onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
-                        >
-                          <UserMinus className="h-4 w-4" />
-                        </Button>
-                      ) : listTab.key === "followers" ? (
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="outline"
-                          isDisabled={isBusy}
-                          aria-label={followingIds.has(profile.id) ? t`Unfollow` : t`Follow`}
-                          onPress={() =>
-                            followingIds.has(profile.id)
-                              ? contacts.unfollow.mutate({ targetUserId: profile.id })
-                              : contacts.follow.mutate({ targetUserId: profile.id })
-                          }
-                        >
-                          {followingIds.has(profile.id) ? (
-                            <UserMinus className="h-4 w-4" />
-                          ) : (
-                            <UserPlus className="h-4 w-4" />
-                          )}
-                        </Button>
-                      ) : undefined
-                    }
+                    action={listTab.key === "blocked" ? undefined : relationshipActions(actionUser)}
                     menu={
                       <UserMenu
-                        user={profile}
+                        user={actionUser}
                         busy={isBusy}
-                        canSendFriendRequest={canSendFriendRequest(profile)}
-                        onAction={handleUserAction(profile)}
+                        canSendFriendRequest={canSendFriendRequest(actionUser)}
+                        onAction={handleUserAction(actionUser)}
                       />
                     }
                   />

@@ -22,6 +22,14 @@ describe("userActionKeys", () => {
     ]);
   });
 
+  it("offers one relationship action for friends", () => {
+    expect(userActionKeys({ ...user, isFriend: true, isFollowing: true }, true)).toEqual([
+      "unfriend",
+      "block",
+      "profile",
+    ]);
+  });
+
   it("limits users blocked by the viewer to unblock", () => {
     expect(userActionKeys({ ...user, blockedByMe: true }, true)).toEqual(["unblock", "profile"]);
   });

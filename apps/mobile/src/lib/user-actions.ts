@@ -5,12 +5,14 @@ export type UserActionKey =
   | "unblock"
   | "follow"
   | "unfollow"
+  | "unfriend"
   | "friend_request"
   | "profile";
 
 export function userActionKeys(user: ContactUser, canSendFriendRequest: boolean): UserActionKey[] {
   if (user.blockedByMe) return ["unblock", "profile"];
   if (user.blockedMe) return user.isFollowing ? ["unfollow", "profile"] : ["profile"];
+  if (user.isFriend) return ["unfriend", "block", "profile"];
 
   return [
     user.isFollowing ? "unfollow" : "follow",

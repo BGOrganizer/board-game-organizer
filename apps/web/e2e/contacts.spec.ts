@@ -111,10 +111,13 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await received.getByRole("button", { name: /Decline friend request/ }).click();
   await expect(received.getByText("No received friend requests")).toBeVisible({ timeout: 30_000 });
 
-  // A rejected request can be sent again, then accepted.
+  // A rejected request can be sent again from the direct row action, then accepted.
   await page.reload();
   await findTarget(page);
-  await sendFriendRequest(page);
+  await page.getByRole("button", { name: /Send friend request: E2E Target/ }).click();
+  await expect(page.getByRole("button", { name: /Send friend request: E2E Target/ })).toBeHidden({
+    timeout: 30_000,
+  });
   await targetPage.reload();
   await targetPage.getByRole("button", { name: "Friend requests" }).click();
   const receivedAgain = targetPage.getByRole("heading", { name: "Received" }).locator("..");
@@ -128,9 +131,10 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(page.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
   await targetContext.close();
 
-  // Accepting creates a mutual follow. Search keeps the row visible while toggling it.
+  // One action removes friendship plus the actor's follow and refreshes every list.
+  await page.getByRole("button", { name: /Remove friend: E2E Target/ }).click();
+  await expect(page.getByText("E2E Target")).toBeHidden({ timeout: 30_000 });
   await findTarget(page);
-  await page.getByRole("button", { name: "Unfollow", exact: true }).first().click();
   await expect(page.getByRole("button", { name: "Follow", exact: true }).first()).toBeVisible({
     timeout: 30_000,
   });

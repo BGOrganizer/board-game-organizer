@@ -7,6 +7,7 @@ import { MatchInvitationsRepository } from "../../src/app/lib/match-invitations.
 import { MatchesRepository } from "../../src/app/lib/matches.repository";
 import { migrate } from "../../src/app/lib/migrate";
 import { RelationshipRepository } from "../../src/app/lib/relationship.repository";
+import { RelationshipService } from "../../src/app/lib/relationship.service";
 import { UsersRepository } from "../../src/app/lib/users.repository";
 
 const ACTOR = "user_actor";
@@ -159,9 +160,9 @@ describe("API repositories on a MongoDB replica set", () => {
     await expect(relationships.listFollowing(ACTOR)).resolves.toHaveLength(1);
     await expect(relationships.listFollowing(TARGET)).resolves.toHaveLength(1);
 
-    await relationships.unfriend(ACTOR, TARGET);
+    await transact((repository) => new RelationshipService(repository).unfriend(ACTOR, TARGET));
     expect(await relationships.isFriend(ACTOR, TARGET)).toBe(false);
-    await expect(relationships.listFollowing(ACTOR)).resolves.toHaveLength(1);
+    await expect(relationships.listFollowing(ACTOR)).resolves.toEqual([]);
     await expect(relationships.listFollowing(TARGET)).resolves.toHaveLength(1);
   });
 
