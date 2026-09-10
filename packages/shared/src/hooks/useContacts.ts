@@ -122,6 +122,7 @@ export async function fetchSuggestionsWithToken(
 export async function syncContactsWithToken(
   apiUrl: string,
   emails: string[],
+  phoneNumbers: string[],
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
   protectionBypass?: string | null,
@@ -130,7 +131,7 @@ export async function syncContactsWithToken(
   const res = await fetch(withProtectionBypass(`${apiUrl}/api/contacts/sync`, protectionBypass), {
     method: "POST",
     headers: { ...apiHeaders(freshToken), "Content-Type": "application/json" },
-    body: JSON.stringify({ emails }),
+    body: JSON.stringify({ emails, phoneNumbers }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as {
@@ -231,6 +232,29 @@ async function relationshipMutationWithToken(
   );
 }
 
+async function respondToFriendRequestWithToken(
+  apiUrl: string,
+  token: string | null | undefined,
+  getToken: (() => Promise<string | null>) | undefined,
+  targetUserId: string,
+  decision: "accept" | "reject",
+  protectionBypass?: string | null,
+) {
+  const res = await fetch(
+    withProtectionBypass(
+      `${apiUrl}/api/friend-requests/${encodeURIComponent(targetUserId)}`,
+      protectionBypass,
+    ),
+    {
+      method: "PATCH",
+      headers: apiHeaders(await resolveToken(token, getToken)),
+      body: JSON.stringify({ decision }),
+    },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as { success: boolean };
+}
+
 /**
  * All contact queries + mutations in one hook. The web Contacts tab and the
  * mobile Contacts screen share this surface.
@@ -270,6 +294,21 @@ export function useContacts(
     queryKey: ["contacts", "friends", apiUrl, token],
     queryFn: () =>
       fetchRelationshipsWithToken(apiUrl, token, getToken, "friends", protectionBypass),
+    enabled,
+    staleTime: 30_000,
+  });
+
+  const pending = useQuery({
+    queryKey: ["contacts", "pending", apiUrl, token],
+    queryFn: () =>
+      fetchRelationshipsWithToken(apiUrl, token, getToken, "pending", protectionBypass),
+    enabled,
+    staleTime: 30_000,
+  });
+
+  const sent = useQuery({
+    queryKey: ["contacts", "sent", apiUrl, token],
+    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "sent", protectionBypass),
     enabled,
     staleTime: 30_000,
   });
@@ -332,6 +371,46 @@ export function useContacts(
     onSuccess: () => refreshContacts(),
   });
 
+  const friendRequest = useMutation({
+    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+      relationshipMutationWithToken(
+        apiUrl,
+        token,
+        getToken,
+        "POST",
+        "friend_request",
+        targetUserId,
+        protectionBypass,
+      ),
+    onSuccess: () => refreshContacts(),
+  });
+
+  const acceptFriendRequest = useMutation({
+    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+      respondToFriendRequestWithToken(
+        apiUrl,
+        token,
+        getToken,
+        targetUserId,
+        "accept",
+        protectionBypass,
+      ),
+    onSuccess: () => refreshContacts(),
+  });
+
+  const rejectFriendRequest = useMutation({
+    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+      respondToFriendRequestWithToken(
+        apiUrl,
+        token,
+        getToken,
+        targetUserId,
+        "reject",
+        protectionBypass,
+      ),
+    onSuccess: () => refreshContacts(),
+  });
+
   const block = useMutation({
     mutationFn: ({ targetUserId }: { targetUserId: string }) =>
       relationshipMutationWithToken(
@@ -361,8 +440,8 @@ export function useContacts(
   });
 
   const syncContacts = useMutation({
-    mutationFn: ({ emails }: { emails: string[] }) =>
-      syncContactsWithToken(apiUrl, emails, token, getToken, protectionBypass),
+    mutationFn: ({ emails, phoneNumbers }: { emails: string[]; phoneNumbers: string[] }) =>
+      syncContactsWithToken(apiUrl, emails, phoneNumbers, token, getToken, protectionBypass),
     // New contacts → refresh suggestions (which read contactLinks from the DB).
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts", "suggestions"] }),
   });
@@ -381,10 +460,15 @@ export function useContacts(
       following,
       followers,
       friends,
+      pending,
+      sent,
       blocked,
       suggestions,
       follow,
       unfollow,
+      friendRequest,
+      acceptFriendRequest,
+      rejectFriendRequest,
       block,
       unblock,
       syncContacts,
@@ -396,10 +480,15 @@ export function useContacts(
       following,
       followers,
       friends,
+      pending,
+      sent,
       blocked,
       suggestions,
       follow,
       unfollow,
+      friendRequest,
+      acceptFriendRequest,
+      rejectFriendRequest,
       block,
       unblock,
       syncContacts,

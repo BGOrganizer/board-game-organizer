@@ -27,13 +27,31 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/app/api/{matches,match-invitations}/**/*.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/api/users/search/route.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/app/lib/{blocks,enrichUsers,relationship.http,relationship.repository,relationship.service}.ts":
+        "src/app/api/{admin/sync-user,contacts/sync,webhooks/clerk}/route.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/{migrate,users.repository}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/{blocks,boardGames.repository,enrichUsers,match-invitations.repository,match.http,match.service,matches.repository,relationship.http,relationship.repository,relationship.service}.ts":
           {
             lines: 100,
             functions: 100,

@@ -1,4 +1,4 @@
-import type { User } from "@board-game-organizer/schemas";
+import { normalizePhoneNumberForMatching, type User } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
@@ -24,11 +24,13 @@ export class UsersRepository {
     email: string;
     name: string;
     avatarUrl?: string;
+    mobileNumber?: string | null;
     preferredLanguage: "en" | "it";
     plan?: string;
     e2e?: boolean;
   }) {
     const now = new Date();
+    const mobileNumberNormalized = normalizePhoneNumberForMatching(user.mobileNumber);
     return this.col.findOneAndUpdate(
       { clerkId: user.id },
       {
@@ -36,11 +38,18 @@ export class UsersRepository {
           email: user.email,
           name: user.name,
           ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
+          ...(typeof user.mobileNumber === "string" ? { mobileNumber: user.mobileNumber } : {}),
+          ...(mobileNumberNormalized ? { mobileNumberNormalized } : {}),
           preferredLanguage: user.preferredLanguage,
           plan: user.plan ?? "free",
           ...(user.e2e !== undefined ? { e2e: user.e2e } : {}),
           updatedAt: now,
         },
+        ...(user.mobileNumber === null
+          ? { $unset: { mobileNumber: "", mobileNumberNormalized: "" } }
+          : user.mobileNumber !== undefined && !mobileNumberNormalized
+            ? { $unset: { mobileNumberNormalized: "" } }
+            : {}),
         $setOnInsert: {
           clerkId: user.id,
           presence: { online: false, lastActiveAt: now },

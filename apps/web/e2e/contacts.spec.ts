@@ -1,5 +1,6 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 /**
  * Social contacts E2E (Playwright, web preview).
@@ -12,21 +13,50 @@ import { expect, test } from "@playwright/test";
  */
 const E2E_EMAIL = process.env.E2E_EMAIL ?? "";
 const E2E_EMAIL_2 = process.env.E2E_EMAIL_2 ?? "";
+const E2E_PHONE_2 = process.env.E2E_PHONE_2 ?? "";
 
-async function signInAsActor(page: import("@playwright/test").Page) {
+async function signIn(page: import("@playwright/test").Page, emailAddress: string) {
   await setupClerkTestingToken({ page });
   await page.goto("/");
-  await clerk.signIn({ page, emailAddress: E2E_EMAIL });
+  await clerk.signIn({ page, emailAddress });
   await page.goto("/");
-  await page.waitForURL("**/matches", { timeout: 60_000 });
+  await completeMobileNumberIfNeeded(page);
   await expect(page.getByText("Matches")).toBeVisible({ timeout: 60_000 });
 }
 
-test("contacts: search, follow/unfollow, block/unblock the social target", async ({ page }) => {
-  test.setTimeout(240_000);
-  test.skip(!E2E_EMAIL || !E2E_EMAIL_2, "E2E users not set (CI provisions them)");
+async function findTarget(page: import("@playwright/test").Page) {
+  await page.getByRole("button", { name: "Search" }).click();
+  const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
+  await expect(searchInput).toBeVisible();
+  await searchInput.fill(E2E_EMAIL_2);
+  await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 90_000 });
+}
 
-  await signInAsActor(page);
+async function sendFriendRequest(page: import("@playwright/test").Page) {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.getByRole("button", { name: "Actions" }).first().click();
+  await page.getByRole("menuitem", { name: "Send friend request" }).click();
+  const dialog = page.getByRole("dialog", { name: "Send friend request?" });
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  const request = page.waitForRequest(
+    (candidate) => candidate.method() === "POST" && candidate.url().includes("type=friend_request"),
+  );
+  await dialog.getByRole("button", { name: "Send request" }).click();
+  await request;
+  await page.setViewportSize({ width: 1280, height: 800 });
+}
+
+test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page, browser }) => {
+  test.setTimeout(420_000);
+  test.skip(!E2E_EMAIL || !E2E_EMAIL_2 || !E2E_PHONE_2, "E2E users not set (CI provisions them)");
+
+  await signIn(page, E2E_EMAIL);
+  const suggestionsRequestPromise = page.waitForRequest((request) =>
+    request.url().includes("/api/users/suggestions"),
+  );
   await page.goto("/contacts");
 
   // Wait until the Clerk client has an active session in THIS page context.
@@ -34,19 +64,75 @@ test("contacts: search, follow/unfollow, block/unblock the social target", async
   // getToken() — if the client is still booting, getToken() resolves null,
   // resolveToken throws, and the UI silently shows "No users found"
   // (no API call is ever made, which the UI masks as an empty result).
-  await page.waitForFunction(() => Boolean((window as any).Clerk?.session), null, {
+  await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.session), null, {
     timeout: 60_000,
   });
 
-  // -- Search tab, type the target's email (auto-search on debounce).
-  await page.getByRole("button", { name: "Search" }).click();
-  const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
-  await expect(searchInput).toBeVisible();
-  await searchInput.fill(E2E_EMAIL_2);
+  // Simulate a mobile address-book sync with phone only, then verify the
+  // persisted suggestion is visible from the web client.
+  const suggestionsRequest = await suggestionsRequestPromise;
+  const syncUrl = new URL(suggestionsRequest.url());
+  syncUrl.pathname = "/api/contacts/sync";
+  const token = await page.evaluate(() => {
+    const clerk = Reflect.get(window, "Clerk");
+    if (!clerk?.session) throw new Error("Clerk session unavailable");
+    return clerk.session.getToken();
+  });
+  if (!token) throw new Error("Clerk token unavailable");
+  await page.evaluate(
+    async ({ phone, token, url }) => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumbers: [phone] }),
+      });
+      if (!response.ok) throw new Error(`Contact sync failed: ${response.status}`);
+    },
+    { phone: E2E_PHONE_2, token, url: syncUrl.toString() },
+  );
+  await page.reload();
+  await page.getByRole("button", { name: "Suggestions" }).click();
+  await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 90_000 });
 
-  // The target row appears once the mirroring lands (poll).
-  await expect(page.getByText("E2E Target").first()).toBeVisible({
-    timeout: 90_000,
+  await findTarget(page);
+  await sendFriendRequest(page);
+  await page.getByRole("button", { name: "Friend requests" }).click();
+  const sent = page.getByRole("heading", { name: "Sent" }).locator("..");
+  await expect(sent.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
+
+  // The target sees both request sections and can reject the incoming request.
+  const targetContext = await browser.newContext({ baseURL: new URL(page.url()).origin });
+  const targetPage = await targetContext.newPage();
+  await signIn(targetPage, E2E_EMAIL_2);
+  await targetPage.goto("/contacts");
+  await targetPage.getByRole("button", { name: "Friend requests" }).click();
+  const received = targetPage.getByRole("heading", { name: "Received" }).locator("..");
+  await expect(received.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+  await received.getByRole("button", { name: /Decline friend request/ }).click();
+  await expect(received.getByText("No received friend requests")).toBeVisible({ timeout: 30_000 });
+
+  // A rejected request can be sent again, then accepted.
+  await page.reload();
+  await findTarget(page);
+  await sendFriendRequest(page);
+  await targetPage.reload();
+  await targetPage.getByRole("button", { name: "Friend requests" }).click();
+  const receivedAgain = targetPage.getByRole("heading", { name: "Received" }).locator("..");
+  await expect(receivedAgain.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+  await receivedAgain.getByRole("button", { name: /Accept friend request/ }).click();
+  await targetPage.getByRole("button", { name: "Friends" }).click();
+  await expect(targetPage.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+
+  await page.reload();
+  await page.getByRole("button", { name: "Friends" }).click();
+  await expect(page.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
+  await targetContext.close();
+
+  // Accepting creates a mutual follow. Search keeps the row visible while toggling it.
+  await findTarget(page);
+  await page.getByRole("button", { name: "Unfollow", exact: true }).first().click();
+  await expect(page.getByRole("button", { name: "Follow", exact: true }).first()).toBeVisible({
+    timeout: 30_000,
   });
 
   // -- Follow → button flips to Unfollow.

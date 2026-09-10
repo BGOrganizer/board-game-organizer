@@ -7,12 +7,12 @@ import { useLingui } from "@lingui/react/macro";
 export function LoginFallback() {
   const { t } = useLingui();
   return (
-    <div className="flex flex-col items-center gap-6 pt-16 text-center">
-      <h2 className="text-2xl font-bold">{t`Welcome to Board Game Organizer`}</h2>
+    <div className="flex min-w-0 flex-col items-center gap-6 pt-8 text-center sm:pt-16">
+      <h2 className="text-xl font-bold sm:text-2xl">{t`Welcome to Board Game Organizer`}</h2>
       <p className="max-w-md text-default-500">
         {t`Organize your board game collection, track your matches and connect with other players.`}
       </p>
-      <div className="flex gap-3">
+      <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         <SignInButton mode="modal">
           <Button>{t`Sign In`}</Button>
         </SignInButton>

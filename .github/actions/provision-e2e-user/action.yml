@@ -29,6 +29,9 @@ outputs:
   email_2:
     description: Generated target email (e2e_target.<ts>@gmail.com)
     value: ${{ steps.provision.outputs.email_2 }}
+  phone_2:
+    description: Generated target mobile number for contact matching
+    value: ${{ steps.provision.outputs.phone_2 }}
   password_2:
     description: Target password
     value: ${{ steps.provision.outputs.password_2 }}
@@ -70,17 +73,19 @@ runs:
         # shared users collection before the E2E suites run.
         USERNAME_2="e2e_target_$TS"
         EMAIL_2="e2e_target.$TS@gmail.com"
+        PHONE_2="+1555${TS: -7}"
         PASSWORD_2="E2eTargetPass!2026"
         STATUS_2=$(curl -s -o /tmp/clerk-user-2.json -w "%{http_code}" \
           -X POST "https://api.clerk.com/v1/users" \
           -H "Authorization: Bearer $CLERK_SECRET_KEY" \
           -H "Content-Type: application/json" \
-          -d "{\"username\":\"$USERNAME_2\",\"email_address\":[\"$EMAIL_2\"],\"password\":\"$PASSWORD_2\",\"first_name\":\"E2E Target\",\"public_metadata\":{\"e2e\":true}}")
+          -d "{\"username\":\"$USERNAME_2\",\"email_address\":[\"$EMAIL_2\"],\"password\":\"$PASSWORD_2\",\"first_name\":\"E2E Target\",\"public_metadata\":{\"e2e\":true},\"unsafe_metadata\":{\"mobileNumber\":\"$PHONE_2\"}}")
         echo "Clerk create target → HTTP $STATUS_2"
         if [ "$STATUS_2" != "200" ] && [ "$STATUS_2" != "201" ] && [ "$STATUS_2" != "409" ]; then
           cat /tmp/clerk-user-2.json; exit 1
         fi
         echo "username_2=$USERNAME_2" >> "$GITHUB_OUTPUT"
         echo "email_2=$EMAIL_2" >> "$GITHUB_OUTPUT"
+        echo "phone_2=$PHONE_2" >> "$GITHUB_OUTPUT"
         echo "password_2=$PASSWORD_2" >> "$GITHUB_OUTPUT"
         echo "user_id_2=$(jq -r .id /tmp/clerk-user-2.json)" >> "$GITHUB_OUTPUT"

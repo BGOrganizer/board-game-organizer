@@ -15,11 +15,12 @@ import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { BookUser, MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
+import { BookUser, Check, MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
+import { contactSyncPayload } from "@/lib/contacts";
 import { useT } from "@/lib/i18n";
 
 /** Placeholder shown while a contact list is loading. */
@@ -58,7 +59,14 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
     </View>
   );
 }
-type TabKey = "following" | "followers" | "friends" | "blocked" | "suggestions" | "search";
+type TabKey =
+  | "following"
+  | "followers"
+  | "friends"
+  | "requests"
+  | "blocked"
+  | "suggestions"
+  | "search";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -149,14 +157,21 @@ export default function ContactsScreen() {
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
+    contacts.friendRequest.isPending ||
+    contacts.acceptFriendRequest.isPending ||
+    contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
     contacts.unblock.isPending;
+  const requestActionFailed =
+    contacts.acceptFriendRequest.isError || contacts.rejectFriendRequest.isError;
 
-  const handleUserAction = (u: ContactUser) => (key: string) => {
-    if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
-    else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
-    else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
-    else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
+  const handleUserAction = (u: ContactUser) => async (key: string) => {
+    if (key === "follow") await contacts.follow.mutateAsync({ targetUserId: u.id });
+    else if (key === "unfollow") await contacts.unfollow.mutateAsync({ targetUserId: u.id });
+    else if (key === "friend_request") {
+      await contacts.friendRequest.mutateAsync({ targetUserId: u.id });
+    } else if (key === "block") await contacts.block.mutateAsync({ targetUserId: u.id });
+    else if (key === "unblock") await contacts.unblock.mutateAsync({ targetUserId: u.id });
     // profile: not implemented yet — no-op.
   };
 
@@ -171,22 +186,13 @@ export default function ContactsScreen() {
   const syncContactsData = useCallback(async () => {
     try {
       const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Emails],
+        fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
       });
-      const emails = Array.from(
-        new Set(
-          data
-            .flatMap((c) => (c.emails ?? []).map((e) => e.email?.trim().toLowerCase() ?? ""))
-            .filter(Boolean),
-        ),
-      );
-      if (emails.length) {
-        setSyncingContacts(true);
-        try {
-          await contacts.syncContacts.mutateAsync({ emails });
-        } finally {
-          setSyncingContacts(false);
-        }
+      setSyncingContacts(true);
+      try {
+        await contacts.syncContacts.mutateAsync(contactSyncPayload(data));
+      } finally {
+        setSyncingContacts(false);
       }
     } catch {
       setContactsPermission("denied");
@@ -370,6 +376,16 @@ export default function ContactsScreen() {
     followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
   );
   const followersRows = contacts.followers.data ?? [];
+  const friendsRows = contacts.friends.data ?? [];
+  const pendingRows = contacts.pending.data ?? [];
+  const sentRows = contacts.sent.data ?? [];
+  const pendingRequestIds = new Set(
+    pendingRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const sentRequestIds = new Set(
+    sentRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
@@ -378,6 +394,8 @@ export default function ContactsScreen() {
   const tabButtons: Array<[TabKey, string]> = [
     ["following", t("Following")],
     ["followers", t("Followers")],
+    ["friends", t("Friends")],
+    ["requests", t("Friend requests")],
     ["blocked", t("Blocked")],
     ["suggestions", t("Suggestions")],
     ["search", t("Search")],
@@ -388,19 +406,37 @@ export default function ContactsScreen() {
       ? tab
       : null;
   const listRows =
-    listTab === "following" ? followingRows : listTab === "followers" ? followersRows : blockedRows;
+    listTab === "following"
+      ? followingRows
+      : listTab === "followers"
+        ? followersRows
+        : listTab === "friends"
+          ? friendsRows
+          : blockedRows;
   const listLoading =
     listTab === "following"
       ? contacts.following.isLoading
       : listTab === "followers"
         ? contacts.followers.isLoading
-        : contacts.blocked.isLoading;
+        : listTab === "friends"
+          ? contacts.friends.isLoading
+          : contacts.blocked.isLoading;
+  const listError =
+    listTab === "following"
+      ? contacts.following.isError
+      : listTab === "followers"
+        ? contacts.followers.isError
+        : listTab === "friends"
+          ? contacts.friends.isError
+          : contacts.blocked.isError;
   const listEmpty =
     listTab === "following"
       ? t("You are not following anyone yet")
       : listTab === "followers"
         ? t("No followers yet")
-        : t("No blocked users");
+        : listTab === "friends"
+          ? t("No friends yet")
+          : t("No blocked users");
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
@@ -527,6 +563,110 @@ export default function ContactsScreen() {
           </View>
         )}
 
+        {tab === "requests" && (
+          <View style={{ gap: 20 }}>
+            {requestActionFailed && (
+              <Text accessibilityRole="alert" className="text-sm text-danger">
+                {t("Could not complete the action. Try again.")}
+              </Text>
+            )}
+            {[
+              {
+                key: "received",
+                label: t("Received"),
+                rows: pendingRows,
+                isLoading: contacts.pending.isLoading,
+                isError: contacts.pending.isError,
+                empty: t("No received friend requests"),
+              },
+              {
+                key: "sent",
+                label: t("Sent"),
+                rows: sentRows,
+                isLoading: contacts.sent.isLoading,
+                isError: contacts.sent.isError,
+                empty: t("No sent friend requests"),
+              },
+            ].map((section) => (
+              <View key={section.key} style={{ gap: 8 }}>
+                <Text className="font-semibold text-foreground">{section.label}</Text>
+                {section.isLoading && <ContactListSkeleton count={2} />}
+                {section.isError && (
+                  <Text accessibilityRole="alert" className="text-sm text-danger">
+                    {t("Could not load friend requests")}
+                  </Text>
+                )}
+                {!section.isLoading && !section.isError && section.rows.length === 0 && (
+                  <Text className="text-sm text-muted">{section.empty}</Text>
+                )}
+                {section.rows.map((row) => {
+                  const profile = row.profile;
+                  if (!profile) return null;
+                  return (
+                    <Card
+                      key={profile.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: 12,
+                        width: "100%",
+                      }}
+                    >
+                      <AvatarWithPresence
+                        name={profile.name}
+                        avatarUrl={profile.avatarUrl}
+                        online={profile.presence.online}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text className="font-medium text-foreground">{profile.name}</Text>
+                        {profile.email ? (
+                          <Text className="text-sm text-muted" numberOfLines={1}>
+                            {profile.email}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {section.key === "received" ? (
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            isDisabled={isBusy}
+                            accessibilityLabel={`${t("Accept friend request")}: ${profile.name}`}
+                            testID="accept-friend-request-btn"
+                            onPress={() =>
+                              contacts.acceptFriendRequest.mutate({ targetUserId: profile.id })
+                            }
+                          >
+                            <Check size={16} color="#fff" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger-soft"
+                            isIconOnly
+                            isDisabled={isBusy}
+                            accessibilityLabel={`${t("Decline friend request")}: ${profile.name}`}
+                            testID="decline-friend-request-btn"
+                            onPress={() =>
+                              contacts.rejectFriendRequest.mutate({ targetUserId: profile.id })
+                            }
+                          >
+                            <X size={16} color="#dc2626" />
+                          </Button>
+                        </View>
+                      ) : (
+                        <Chip size="sm" variant="secondary">
+                          <Text className="text-muted">{t("Sent")}</Text>
+                        </Chip>
+                      )}
+                    </Card>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        )}
+
         {tab === "suggestions" && (
           <View style={{ gap: 8 }}>
             {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
@@ -626,7 +766,12 @@ export default function ContactsScreen() {
         {listTab && (
           <View style={{ gap: 8 }}>
             {listLoading && <ContactListSkeleton count={4} />}
-            {listRows.length === 0 && !listLoading && (
+            {listError && (
+              <Text accessibilityRole="alert" className="text-sm text-danger">
+                {listTab === "friends" ? t("Could not load friends") : t("Could not load contacts")}
+              </Text>
+            )}
+            {listRows.length === 0 && !listLoading && !listError && (
               <Text className="text-sm text-muted" style={{ textAlign: "left" }}>
                 {listEmpty}
               </Text>
@@ -720,18 +865,28 @@ export default function ContactsScreen() {
         visible={menuUser !== null}
         user={menuUser}
         busy={isBusy}
+        canSendFriendRequest={
+          menuUser !== null &&
+          friendRequestsLoaded &&
+          !menuUser.isFriend &&
+          !menuUser.blockedByMe &&
+          !menuUser.blockedMe &&
+          !pendingRequestIds.has(menuUser.id) &&
+          !sentRequestIds.has(menuUser.id)
+        }
         error={
           contacts.follow.isError ||
           contacts.unfollow.isError ||
+          contacts.friendRequest.isError ||
+          contacts.acceptFriendRequest.isError ||
+          contacts.rejectFriendRequest.isError ||
           contacts.block.isError ||
           contacts.unblock.isError
             ? t("Could not complete the action. Try again.")
             : null
         }
         onClose={() => setMenuUser(null)}
-        onAction={(key) => {
-          if (menuUser) handleUserAction(menuUser)(key);
-        }}
+        onAction={(key) => (menuUser ? handleUserAction(menuUser)(key) : Promise.resolve())}
       />
     </View>
   );

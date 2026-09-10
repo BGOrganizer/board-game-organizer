@@ -9,7 +9,7 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { UserMinus, UserPlus, X } from "lucide-react";
+import { Check, UserMinus, UserPlus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
@@ -24,7 +24,14 @@ function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 }
 
-type TabKey = "following" | "followers" | "blocked" | "suggestions" | "search";
+type TabKey =
+  | "following"
+  | "followers"
+  | "friends"
+  | "requests"
+  | "blocked"
+  | "suggestions"
+  | "search";
 
 function ContactCard({
   name,
@@ -42,25 +49,31 @@ function ContactCard({
   menu?: React.ReactNode;
 }) {
   return (
-    <Card className="flex flex-row items-center gap-3 p-3">
-      <div className="relative">
-        <Avatar size="md" color="accent">
-          <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
-          <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
-        </Avatar>
-        <span
-          className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-white ${
-            online ? "bg-green-500" : "bg-gray-300"
-          }`}
-          title={online ? "online" : "offline"}
-        />
+    <Card className="flex min-w-0 flex-col gap-3 p-3 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="relative shrink-0">
+          <Avatar size="md" color="accent">
+            <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
+            <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
+          </Avatar>
+          <span
+            className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-white ${
+              online ? "bg-green-500" : "bg-gray-300"
+            }`}
+            title={online ? "online" : "offline"}
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{name}</p>
+          {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{name}</p>
-        {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
-      </div>
-      {action}
-      {menu}
+      {action || menu ? (
+        <div className="flex shrink-0 items-center justify-end gap-1 self-end sm:self-auto">
+          {action}
+          {menu}
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -71,7 +84,7 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="space-y-2">
       {keys.map((key) => (
-        <Card key={key} className="flex flex-row items-center gap-3 p-3">
+        <Card key={key} className="flex min-w-0 items-center gap-3 p-3">
           <Skeleton animationType="pulse" className="h-10 w-10 rounded-full" />
           <div className="flex-1 space-y-1">
             <Skeleton animationType="pulse" className="h-3 w-2/3 rounded" />
@@ -140,12 +153,24 @@ export function Contacts() {
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
+    contacts.friendRequest.isPending ||
+    contacts.acceptFriendRequest.isPending ||
+    contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
     contacts.unblock.isPending;
+  const actionFailed =
+    contacts.follow.isError ||
+    contacts.unfollow.isError ||
+    contacts.friendRequest.isError ||
+    contacts.acceptFriendRequest.isError ||
+    contacts.rejectFriendRequest.isError ||
+    contacts.block.isError ||
+    contacts.unblock.isError;
 
   const handleUserAction = (u: ContactUser) => (key: UserActionKey) => {
     if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
     else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
+    else if (key === "friend_request") contacts.friendRequest.mutate({ targetUserId: u.id });
     else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
     else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
     // profile: not implemented yet — no-op.
@@ -187,6 +212,23 @@ export function Contacts() {
     followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
   );
   const followersRows = contacts.followers.data ?? [];
+  const friendsRows = contacts.friends.data ?? [];
+  const pendingRows = contacts.pending.data ?? [];
+  const sentRows = contacts.sent.data ?? [];
+  const pendingRequestIds = new Set(
+    pendingRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const sentRequestIds = new Set(
+    sentRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
+  const canSendFriendRequest = (user: ContactUser) =>
+    friendRequestsLoaded &&
+    !user.isFriend &&
+    !user.blockedByMe &&
+    !user.blockedMe &&
+    !pendingRequestIds.has(user.id) &&
+    !sentRequestIds.has(user.id);
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
@@ -198,6 +240,7 @@ export function Contacts() {
     label: string;
     rows: typeof followingRows;
     isLoading: boolean;
+    isError: boolean;
     empty: string;
   }> = [
     {
@@ -205,6 +248,7 @@ export function Contacts() {
       label: t`Following`,
       rows: followingRows,
       isLoading: contacts.following.isLoading,
+      isError: contacts.following.isError,
       empty: t`You are not following anyone yet`,
     },
     {
@@ -212,26 +256,44 @@ export function Contacts() {
       label: t`Followers`,
       rows: followersRows,
       isLoading: contacts.followers.isLoading,
+      isError: contacts.followers.isError,
       empty: t`No followers yet`,
+    },
+    {
+      key: "friends",
+      label: t`Friends`,
+      rows: friendsRows,
+      isLoading: contacts.friends.isLoading,
+      isError: contacts.friends.isError,
+      empty: t`No friends yet`,
     },
     {
       key: "blocked",
       label: t`Blocked`,
       rows: blockedRows,
       isLoading: contacts.blocked.isLoading,
+      isError: contacts.blocked.isError,
       empty: t`No blocked users`,
     },
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <InviteCard apiUrl={apiUrl()} protectionBypass={protectionBypass()} />
+
+      {actionFailed ? (
+        <p role="alert" className="text-sm text-danger">
+          {t`Could not complete the action. Try again.`}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {(
           [
             ["following", t`Following`],
             ["followers", t`Followers`],
+            ["friends", t`Friends`],
+            ["requests", t`Friend requests`],
             ["blocked", t`Blocked`],
             ["suggestions", t`Suggestions`],
             ["search", t`Search`],
@@ -308,10 +370,105 @@ export function Contacts() {
                     )}
                   </Button>
                 }
-                menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
+                menu={
+                  <UserMenu
+                    user={u}
+                    busy={isBusy}
+                    canSendFriendRequest={canSendFriendRequest(u)}
+                    onAction={handleUserAction(u)}
+                  />
+                }
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === "requests" && (
+        <div className="space-y-5">
+          {[
+            {
+              key: "received",
+              label: t`Received`,
+              rows: pendingRows,
+              isLoading: contacts.pending.isLoading,
+              isError: contacts.pending.isError,
+              empty: t`No received friend requests`,
+            },
+            {
+              key: "sent",
+              label: t`Sent`,
+              rows: sentRows,
+              isLoading: contacts.sent.isLoading,
+              isError: contacts.sent.isError,
+              empty: t`No sent friend requests`,
+            },
+          ].map((section) => (
+            <section
+              className="space-y-2"
+              key={section.key}
+              aria-labelledby={`${section.key}-title`}
+            >
+              <h2 id={`${section.key}-title`} className="text-sm font-semibold">
+                {section.label}
+              </h2>
+              {section.isLoading && <ContactListSkeleton count={2} />}
+              {section.isError && (
+                <p role="alert" className="text-sm text-danger">
+                  {t`Could not load friend requests`}
+                </p>
+              )}
+              {!section.isLoading && !section.isError && section.rows.length === 0 && (
+                <p className="text-sm text-default-500">{section.empty}</p>
+              )}
+              {section.rows.map((row) => {
+                const profile = row.profile;
+                if (!profile) return null;
+                return (
+                  <ContactCard
+                    key={profile.id}
+                    name={profile.name}
+                    email={profile.email}
+                    avatarUrl={profile.avatarUrl}
+                    online={profile.presence.online}
+                    action={
+                      section.key === "received" ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            isDisabled={isBusy}
+                            aria-label={`${t`Accept friend request`}: ${profile.name}`}
+                            onPress={() =>
+                              contacts.acceptFriendRequest.mutate({ targetUserId: profile.id })
+                            }
+                          >
+                            <Check className="h-4 w-4" />
+                            {t`Accept`}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger-soft"
+                            isDisabled={isBusy}
+                            aria-label={`${t`Decline friend request`}: ${profile.name}`}
+                            onPress={() =>
+                              contacts.rejectFriendRequest.mutate({ targetUserId: profile.id })
+                            }
+                          >
+                            <X className="h-4 w-4" />
+                            {t`Decline`}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Chip size="sm" variant="soft">
+                          {t`Sent`}
+                        </Chip>
+                      )
+                    }
+                  />
+                );
+              })}
+            </section>
+          ))}
         </div>
       )}
 
@@ -344,7 +501,14 @@ export function Contacts() {
                   <UserPlus className="h-4 w-4" />
                 </Button>
               }
-              menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
+              menu={
+                <UserMenu
+                  user={u}
+                  busy={isBusy}
+                  canSendFriendRequest={canSendFriendRequest(u)}
+                  onAction={handleUserAction(u)}
+                />
+              }
             />
           ))}
         </div>
@@ -356,7 +520,14 @@ export function Contacts() {
           .map((listTab) => (
             <div className="space-y-2" key={listTab.key}>
               {listTab.isLoading && <ContactListSkeleton count={4} />}
-              {listTab.rows.length === 0 && !listTab.isLoading && (
+              {listTab.isError && (
+                <p role="alert" className="text-sm text-danger">
+                  {listTab.key === "friends"
+                    ? t`Could not load friends`
+                    : t`Could not load contacts`}
+                </p>
+              )}
+              {listTab.rows.length === 0 && !listTab.isLoading && !listTab.isError && (
                 <p className="text-sm text-default-500">{listTab.empty}</p>
               )}
               {listTab.rows.map((row) => {
@@ -403,7 +574,12 @@ export function Contacts() {
                       ) : undefined
                     }
                     menu={
-                      <UserMenu user={profile} busy={isBusy} onAction={handleUserAction(profile)} />
+                      <UserMenu
+                        user={profile}
+                        busy={isBusy}
+                        canSendFriendRequest={canSendFriendRequest(profile)}
+                        onAction={handleUserAction(profile)}
+                      />
                     }
                   />
                 );

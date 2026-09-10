@@ -3,6 +3,7 @@
  * Backfill: mirrors ALL existing Clerk users into the `users` collection.
  * Idempotent (upserts) — safe to re-run. Needs CLERK_SECRET_KEY.
  */
+import { getMobileNumber } from "@board-game-organizer/schemas";
 import { getDb } from "../src/app/lib/db";
 import { UsersRepository } from "../src/app/lib/users.repository";
 import { loadApiEnv } from "./load-env";
@@ -26,6 +27,7 @@ async function main() {
         email,
         name: [u.firstName, u.lastName].filter(Boolean).join(" ") || email,
         avatarUrl: u.imageUrl || undefined,
+        mobileNumber: getMobileNumber(u.unsafeMetadata),
         preferredLanguage: "en",
         e2e: (u.publicMetadata as { e2e?: boolean } | undefined)?.e2e === true ? true : undefined,
       });

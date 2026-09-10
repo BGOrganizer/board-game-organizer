@@ -16,5 +16,16 @@ appId: com.bgo.mobile
 - inputText: ${PASSWORD}
 - tapOn: "Continue"
 - extendedWaitUntil:
+    visible: "Mobile number|Matches"
+    timeout: 120000
+- runFlow:
+    when:
+      visible: "Mobile number"
+    commands:
+      - tapOn:
+          id: "mobile-number-input"
+      - inputText: "not a formatted phone"
+      - tapOn: "Continue"
+- extendedWaitUntil:
     visible: "Matches"
     timeout: 120000

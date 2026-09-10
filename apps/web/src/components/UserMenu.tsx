@@ -3,11 +3,17 @@
 import type { ContactUser } from "@board-game-organizer/shared";
 import { Button, Dropdown } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Ban, Eye, MoreVertical, UserMinus, UserPlus } from "lucide-react";
+import { Ban, Eye, MoreVertical, UserMinus, UserPlus, UserRoundPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-export type UserActionKey = "block" | "unblock" | "follow" | "unfollow" | "profile";
+export type UserActionKey =
+  | "block"
+  | "unblock"
+  | "follow"
+  | "unfollow"
+  | "friend_request"
+  | "profile";
 
 /**
  * Kebab (⋯) menu on a contact row: block/unblock, follow/unfollow and
@@ -21,14 +27,16 @@ export type UserActionKey = "block" | "unblock" | "follow" | "unfollow" | "profi
 export function UserMenu({
   user,
   busy,
+  canSendFriendRequest = false,
   onAction,
 }: {
   user: ContactUser;
   busy?: boolean;
+  canSendFriendRequest?: boolean;
   onAction: (key: UserActionKey) => void;
 }) {
   const { t } = useLingui();
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<"block" | "friend_request" | null>(null);
 
   const items: Array<{
     key: UserActionKey;
@@ -50,45 +58,42 @@ export function UserMenu({
           disabled: true,
         },
       ]
-    : user.isFollowing
-      ? [
-          {
-            key: "unfollow",
-            label: t`Unfollow`,
-            icon: <UserMinus className="h-4 w-4" />,
-          },
-          {
-            key: "block",
-            label: t`Block`,
-            icon: <Ban className="h-4 w-4" />,
-            danger: true,
-          },
-          {
-            key: "profile",
-            label: t`View profile`,
-            icon: <Eye className="h-4 w-4" />,
-            disabled: true,
-          },
-        ]
-      : [
-          { key: "follow", label: t`Follow`, icon: <UserPlus className="h-4 w-4" /> },
-          {
-            key: "block",
-            label: t`Block`,
-            icon: <Ban className="h-4 w-4" />,
-            danger: true,
-          },
-          {
-            key: "profile",
-            label: t`View profile`,
-            icon: <Eye className="h-4 w-4" />,
-            disabled: true,
-          },
-        ];
+    : [
+        {
+          key: user.isFollowing ? "unfollow" : "follow",
+          label: user.isFollowing ? t`Unfollow` : t`Follow`,
+          icon: user.isFollowing ? (
+            <UserMinus className="h-4 w-4" />
+          ) : (
+            <UserPlus className="h-4 w-4" />
+          ),
+        },
+        ...(canSendFriendRequest
+          ? [
+              {
+                key: "friend_request" as const,
+                label: t`Send friend request`,
+                icon: <UserRoundPlus className="h-4 w-4" />,
+              },
+            ]
+          : []),
+        {
+          key: "block",
+          label: t`Block`,
+          icon: <Ban className="h-4 w-4" />,
+          danger: true,
+        },
+        {
+          key: "profile",
+          label: t`View profile`,
+          icon: <Eye className="h-4 w-4" />,
+          disabled: true,
+        },
+      ];
 
   const handle = (key: UserActionKey) => {
-    if (key === "block") {
-      setConfirm(true);
+    if (key === "block" || key === "friend_request") {
+      setConfirm(key);
       return;
     }
     onAction(key);
@@ -105,7 +110,9 @@ export function UserMenu({
           </Button>
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom end">
-          <Dropdown.Menu disabledKeys={items.filter((i) => i.disabled).map((i) => i.key)}>
+          <Dropdown.Menu
+            disabledKeys={items.filter((item) => busy || item.disabled).map((item) => item.key)}
+          >
             {items.map((item) => (
               <Dropdown.Item
                 key={item.key}
@@ -124,13 +131,14 @@ export function UserMenu({
       </Dropdown>
 
       {confirm && (
-        <BlockConfirmDialog
-          name={user.name}
+        <ConfirmDialog
+          action={confirm}
           busy={busy}
-          onCancel={() => setConfirm(false)}
+          onCancel={() => setConfirm(null)}
           onConfirm={() => {
-            setConfirm(false);
-            onAction("block");
+            const action = confirm;
+            setConfirm(null);
+            onAction(action);
           }}
         />
       )}
@@ -138,13 +146,13 @@ export function UserMenu({
   );
 }
 
-function BlockConfirmDialog({
-  name,
+function ConfirmDialog({
+  action,
   busy,
   onCancel,
   onConfirm,
 }: {
-  name: string;
+  action: "block" | "friend_request";
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -172,21 +180,28 @@ function BlockConfirmDialog({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative z-10 w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl"
+        aria-labelledby="contact-confirm-title"
+        className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-background p-4 shadow-2xl sm:p-5"
       >
-        <h2 className="text-lg font-semibold text-gray-900">
-          {/* Static title (no interpolation): "Block contact". */}
-          {t`Block contact`}
+        <h2 id="contact-confirm-title" className="text-lg font-semibold text-foreground">
+          {action === "block" ? t`Block contact` : t`Send friend request?`}
         </h2>
-        <p className="mt-2 text-sm text-gray-500">
-          {t`You will no longer see each other or find each other. Follow and friendships will be removed.`}
+        <p className="mt-2 text-sm text-default-500">
+          {action === "block"
+            ? t`You will no longer see each other or find each other. Follow and friendships will be removed.`
+            : t`They can accept or decline your request.`}
         </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onPress={onCancel}>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button className="w-full sm:w-auto" variant="ghost" onPress={onCancel}>
             {t`Cancel`}
           </Button>
-          <Button variant="danger" isDisabled={busy} onPress={onConfirm}>
-            {t`Block`}
+          <Button
+            className="w-full sm:w-auto"
+            variant={action === "block" ? "danger" : "primary"}
+            isDisabled={busy}
+            onPress={onConfirm}
+          >
+            {action === "block" ? t`Block` : t`Send request`}
           </Button>
         </div>
       </div>

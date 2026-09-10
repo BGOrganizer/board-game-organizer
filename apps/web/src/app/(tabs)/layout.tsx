@@ -1,4 +1,5 @@
 import { Header } from "@/components/Header";
+import { MobileNumberGate } from "@/components/MobileNumberGate";
 
 export default function TabsLayout({
   children,
@@ -6,9 +7,13 @@ export default function TabsLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen">
-      <Header />
-      <main className="mx-auto max-w-2xl px-4 py-12">{children}</main>
-    </div>
+    <MobileNumberGate>
+      <div className="min-h-screen">
+        <Header />
+        <main className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
+          {children}
+        </main>
+      </div>
+    </MobileNumberGate>
   );
 }

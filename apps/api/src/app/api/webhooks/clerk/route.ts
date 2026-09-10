@@ -1,3 +1,4 @@
+import { getMobileNumber } from "@board-game-organizer/schemas";
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { getDb, withTransaction } from "@/app/lib/db";
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
         email,
         name: [firstName, lastName].filter(Boolean).join(" ") || email,
         avatarUrl: (data.image_url as string | undefined) ?? undefined,
+        mobileNumber: getMobileNumber(data.unsafe_metadata) ?? null,
         preferredLanguage: normalizeLocale(data.preferred_language as string | undefined),
         plan: (data.plan as string | undefined) ?? undefined,
         e2e:

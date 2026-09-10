@@ -171,7 +171,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
     <Button
       isIconOnly
       variant="primary"
-      className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
+      className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
       aria-label={t`Next step`}
       isDisabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
       onPress={next}
@@ -183,7 +183,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
     <Button
       isIconOnly
       variant="secondary"
-      className="fixed bottom-6 left-6 z-40 h-14 w-14 rounded-full shadow-lg"
+      className="fixed bottom-4 left-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:left-6 sm:h-14 sm:w-14"
       aria-label={t`Previous step`}
       onPress={back}
     >
@@ -229,7 +229,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-md pb-28">
+    <div className="mx-auto w-full max-w-3xl pb-28">
       {/* Step indicator */}
       <div className="mb-4 flex items-center justify-center gap-2 text-sm">
         {[1, 2, 3].map((s) => (
@@ -296,7 +296,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
       {step === 2 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">{t`Players`}</h2>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-8">
             <div className="flex items-center gap-2">
               <Button
                 isIconOnly
@@ -352,18 +352,20 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
               <div key={slot.id} className="flex items-center gap-2">
                 <Button
                   variant="secondary"
-                  className="flex-1 justify-start"
+                  className="min-w-0 flex-1 justify-start"
                   onPress={() => setSearchTarget({ slotId: slot.id })}
                 >
                   {slot.user ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
                       {slot.user.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={slot.user.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
                       ) : null}
-                      <span className="text-left">
-                        <span className="block text-sm font-medium">{slot.user.name}</span>
-                        <span className="block text-xs text-default-400">{slot.user.email}</span>
+                      <span className="min-w-0 text-left">
+                        <span className="block truncate text-sm font-medium">{slot.user.name}</span>
+                        <span className="block truncate text-xs text-default-400">
+                          {slot.user.email}
+                        </span>
                       </span>
                     </span>
                   ) : (
@@ -402,7 +404,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
               <div key={slot.id} className="flex items-center gap-2">
                 <Button
                   variant="secondary"
-                  className="flex-1 justify-start"
+                  className="min-w-0 flex-1 justify-start"
                   onPress={() =>
                     setGameTarget({
                       slotId: slot.id,
@@ -416,15 +418,15 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
                   }
                 >
                   {slot.game ? (
-                    <span className="flex items-center gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
                       {slot.game.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={slot.game.imageUrl} alt="" className="h-6 w-6 rounded" />
                       ) : (
                         <Gamepad2 className="h-6 w-6 text-default-400" />
                       )}
-                      <span className="text-left">
-                        <span className="block text-sm font-medium">{slot.game.name}</span>
+                      <span className="min-w-0 text-left">
+                        <span className="block truncate text-sm font-medium">{slot.game.name}</span>
                         {slot.game.year ? (
                           <span className="block text-xs text-default-400">{slot.game.year}</span>
                         ) : null}

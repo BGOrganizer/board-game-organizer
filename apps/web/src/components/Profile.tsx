@@ -67,7 +67,7 @@ export function Profile() {
   // mobile behaviour).
   if (isSigningOut) {
     return (
-      <div className="mt-6 flex min-h-[60vh] items-center justify-center">
+      <div className="mx-auto mt-6 flex min-h-[60vh] w-full max-w-3xl items-center justify-center">
         <Skeleton animationType="pulse" className="h-16 w-48 rounded-lg" />
       </div>
     );
@@ -75,7 +75,7 @@ export function Profile() {
 
   if (isLoading) {
     return (
-      <Card className="mt-4 rounded-xl p-6">
+      <Card className="mx-auto mt-4 w-full max-w-3xl rounded-xl p-4 sm:p-6">
         <div className="flex flex-row items-center gap-4">
           <Skeleton animationType="pulse" className="h-16 w-16 rounded-full" />
           <div className="flex-1 space-y-2">
@@ -83,7 +83,7 @@ export function Profile() {
             <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
           </div>
         </div>
-        <div className="mt-4 flex flex-row gap-6">
+        <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-6">
           {[0, 1, 2].map((n) => (
             <Skeleton key={`stat-${n}`} animationType="pulse" className="h-8 w-12 rounded" />
           ))}
@@ -94,12 +94,12 @@ export function Profile() {
 
   if (isError) {
     return (
-      <Card className="mt-4 rounded-xl p-4">
+      <Card className="mx-auto mt-4 w-full max-w-3xl rounded-xl p-4 sm:p-6">
         <p className="text-sm text-danger">
           {t`Error while loading the profile:`}{" "}
           {error instanceof Error ? error.message : String(error)}
         </p>
-        <div className="mt-3 flex gap-3">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           <Button variant="outline" onPress={() => refetch()}>
             {t`Retry`}
           </Button>
@@ -117,19 +117,19 @@ export function Profile() {
   if (!profile) return null;
 
   return (
-    <Card className="mt-6 rounded-xl p-6">
-      <div className="flex items-center gap-4">
+    <Card className="mx-auto mt-6 w-full max-w-3xl rounded-xl p-4 sm:p-6">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         <Avatar size="lg" color="accent">
           <Avatar.Image src={profile.avatarUrl} alt={profile.name} />
           <Avatar.Fallback>{profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
         </Avatar>
-        <div>
-          <h2 className="text-lg font-semibold">{profile.name}</h2>
-          <p className="text-sm text-default-500">{profile.email}</p>
+        <div className="min-w-0">
+          <h2 className="truncate text-lg font-semibold">{profile.name}</h2>
+          <p className="break-all text-sm text-default-500">{profile.email}</p>
         </div>
       </div>
 
-      <div className="mt-4 flex gap-6">
+      <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-6">
         <div>
           <p className="text-xl font-bold">{profile.stats.gamesOwned}</p>
           <p className="text-xs text-default-400">{t`Owned`}</p>
@@ -148,7 +148,12 @@ export function Profile() {
         {t`Plan:`} {profile.plan} &middot; {t`Language:`} {profile.preferredLanguage}
       </p>
 
-      <Button className="mt-6" variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
+      <Button
+        className="mt-6 w-full sm:w-auto"
+        variant="outline"
+        isDisabled={isSigningOut}
+        onPress={handleLogout}
+      >
         {t`Logout`}
       </Button>
     </Card>

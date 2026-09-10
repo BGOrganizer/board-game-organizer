@@ -1,18 +1,17 @@
 import { z } from "zod";
 
 /**
- * DTOs for device-contacts sync (`POST /api/contacts/sync`).
+ * DTOs for device-contact sync (`POST /api/contacts/sync`).
  *
- * The mobile app reads the device address book (with user consent) and sends
- * the contact emails here. The API matches them against registered users and
- * persists the matches in the `contactLinks` collection (source: "device") —
- * so the contact list is stored server-side and suggestions don't require
- * re-reading the address book on every visit.
+ * Mobile reads the device address book after user consent and sends contact
+ * emails and phone numbers. The API persists registered-user matches only, so
+ * suggestions remain available across devices without storing unmatched data.
  */
 
-/** Payload: the (normalized) emails from the device address book. */
+/** Payload from the device address book. */
 export const syncContactsSchema = z.object({
-  emails: z.array(z.string().email().max(320)).max(1000),
+  emails: z.array(z.string().trim().email().max(320)).max(1000).default([]),
+  phoneNumbers: z.array(z.string().max(64)).max(1000).default([]),
 });
 
 /** One matched, persisted contact link. */

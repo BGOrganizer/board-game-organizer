@@ -107,7 +107,7 @@ export function SearchUserPage({
       : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
 
   return (
-    <div className="mx-auto w-full max-w-md pb-8">
+    <div className="mx-auto w-full max-w-5xl pb-8">
       <div className="mb-4 flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
@@ -133,11 +133,11 @@ export function SearchUserPage({
       {!loading && shown.length === 0 && query.trim().length >= 4 && (
         <p className="mt-3 text-sm text-default-500">{t`No users found`}</p>
       )}
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
         {shown.map((u) => (
           <div
             key={u.id}
-            className="flex items-center gap-3 rounded-xl border border-default-200 p-3"
+            className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border border-default-200 p-3 sm:flex-row sm:items-center"
           >
             {u.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -152,6 +152,7 @@ export function SearchUserPage({
               <p className="truncate text-xs text-default-400">{u.email}</p>
             </div>
             <Button
+              className="w-full shrink-0 sm:w-auto"
               size="sm"
               variant="primary"
               onPress={() =>

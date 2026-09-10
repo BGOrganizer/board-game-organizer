@@ -103,6 +103,7 @@ describe("POST /api/webhooks/clerk", () => {
         image_url: "https://img/a.png",
         preferred_language: "it",
         public_metadata: { e2e: true },
+        unsafe_metadata: { mobileNumber: " +39 123 " },
       },
     };
     const headers = sign(payload, secret);
@@ -121,6 +122,7 @@ describe("POST /api/webhooks/clerk", () => {
         email: "a@b.it",
         name: "Alessandro Mancini",
         preferredLanguage: "it",
+        mobileNumber: "+39 123",
         e2e: true,
       }),
     );
@@ -129,13 +131,22 @@ describe("POST /api/webhooks/clerk", () => {
   it("normalizes unsupported locales to en", async () => {
     const payload = {
       type: "user.updated",
-      data: { id: "user_2", first_name: "Bob", email_addresses: [], preferred_language: "fr" },
+      data: {
+        id: "user_2",
+        email_addresses: [],
+        preferred_language: "fr",
+      },
     };
     const headers = sign(payload, secret);
     await POST(new Request("http://x", { method: "POST", body: JSON.stringify(payload), headers }));
     const instance = lastInstance;
     expect(instance.upsertFromClerk).toHaveBeenCalledWith(
-      expect.objectContaining({ preferredLanguage: "en", e2e: undefined }),
+      expect.objectContaining({
+        name: "",
+        preferredLanguage: "en",
+        mobileNumber: null,
+        e2e: undefined,
+      }),
     );
   });
 

@@ -10,6 +10,8 @@ shared code being changed. Prefer current code and workflow files over historica
 Core rules:
 
 - Keep changes small, complete, and tested.
+- Keep user-facing feature behavior in parity across web and mobile unless a platform exception is explicit.
+- Internationalize every user-facing string and update both English and Italian catalogs.
 - Fix root causes in shared code instead of patching each caller.
 - Do not add speculative abstractions, dependencies, or scaffolding.
 - Never weaken validation, authentication, authorization, accessibility, or data-safety checks.
@@ -30,8 +32,8 @@ Implemented product areas:
 - Social graph: follows, friend requests, friendships, blocks, user search, presence, and contact-based
   suggestions.
 - Shareable invites with seven-day expiry and authenticated claim flow.
-- Match creation and listing, including date slots, player limits, friend invitations, and board-game
-  selection.
+- Match creation, listing, detail, and invitation lifecycle, including date slots, player limits,
+  friend invitations, and board-game selection.
 - BoardGameGeek catalog import and MongoDB-backed game search.
 - English and Italian localization.
 - Web Playwright and mobile Maestro end-to-end coverage.
@@ -207,7 +209,11 @@ Current route surface:
 | `/api/contacts/sync` | POST | Replace caller's matched address-book contacts |
 | `/api/invites` | POST | Create invite |
 | `/api/invites/claim` | POST | Claim invite and connect users |
-| `/api/matches` | GET, POST | List and create matches |
+| `/api/matches` | GET, POST | List accessible matches and create planning matches |
+| `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, update planning fields, or delete match as admin |
+| `/api/matches/[matchId]/invitations` | GET, POST | List and create match invitations as admin |
+| `/api/matches/[matchId]/invitations/[invitationId]` | DELETE | Remove an invitation or accepted player as admin |
+| `/api/match-invitations/[invitationId]` | PATCH, DELETE | Accept or decline an invitation; leave a planning match |
 | `/api/bgg/search` | GET | Search imported board-game catalog |
 | `/api/bgg/thing` | GET | Get imported game details |
 | `/api/webhooks/clerk` | POST | Mirror Clerk user events |
@@ -227,6 +233,13 @@ existing Clerk accounts idempotently.
 A Clerk account alone does not make a user searchable. The corresponding document must exist in the
 `users` collection.
 
+Web and mobile enforce a post-signup mobile-number step before application access. The value is a
+required non-empty string with no phone-format or SMS validation, stored in Clerk `unsafeMetadata`
+as `mobileNumber`, and mirrored into MongoDB by `user.updated` webhooks. Backfill and administrative
+sync paths preserve the same field when present. Contact discovery derives a 7–15 digit lookup key,
+normalizes `00` and `+` international prefixes without country inference, and ignores ambiguous
+numbers claimed by multiple accounts.
+
 `GET /api/profiles` uses `enrichSingleUser` from `lib/clerk.ts`; do not duplicate direct Clerk calls.
 Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 
@@ -241,6 +254,7 @@ Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 - `invites`
 - `contactLinks`
 - `matches`
+- `matchInvitations`
 - `boardGames`
 - legacy `relationships`, retained only as a migration constant
 
@@ -268,6 +282,25 @@ Invite tokens are 128-bit base64url values with seven-day expiry. Creation links
 `new URL(request.url).origin`; preview APIs create preview links and production creates production
 links. Claim UI is hosted by the API at `/invite/[token]`, uses Clerk modal sign-in, and claims with a
 Bearer token. Successful claim connects both users.
+
+### Matches
+
+New matches always start as `PLANNING`. Match creation and initial invitation writes share one MongoDB
+transaction. Names, ISO date slots, player limits, game IDs, invitee IDs, friendship, block state, and
+catalog existence are validated on the API. `minPlayers` is at least two, `maxPlayers` is not lower,
+and at least one date and game are required.
+
+Match invitations live in `matchInvitations`, not on the match document. Admin counts as one player,
+so invitation records cannot exceed `maxPlayers - 1`; declined invitations still occupy their slot
+until removed. Only admin can invite, and duplicate invitation records are rejected. While planning, admin can
+replace title, dates, games, `minPlayers`, and `maxPlayers`. Updated values retain creation constraints;
+`maxPlayers` cannot drop below `minPlayers` or occupied invitation positions.
+
+Pending invitees can accept or decline while match is planning. Accepted invitees can leave while
+planning; leaving deletes invitation so admin can invite them again. Admin can remove pending,
+declined, or accepted invitations while planning. Admin alone can delete a match; match and every
+invitation are deleted in one transaction. No invitation response or departure is allowed after
+status becomes `CREATED`.
 
 ### Board-game catalog
 
@@ -330,8 +363,9 @@ must visibly reflect active state.
 
 Use `lucide-react-native` icons only.
 
-Address-book suggestions require explicit `expo-contacts` permission. Sync emails to
-`POST /api/contacts/sync`; persist only registered matches in `contactLinks`. Repeated denials lead to
+Address-book suggestions require explicit `expo-contacts` permission. Sync emails and phone numbers
+to `POST /api/contacts/sync`; persist only unambiguous registered matches in `contactLinks` and discard
+unmatched address-book values. Repeated denials lead to
 an open-settings path, not silent permission loops.
 
 HeroUI Native Skeleton has no intrinsic size. Give each skeleton explicit width, height, and border
@@ -385,6 +419,11 @@ Every product feature requires both:
 
 - Playwright coverage for web in `apps/web/e2e`;
 - Maestro coverage for mobile in `apps/mobile/.maestro/flows`.
+
+New and changed feature behavior must have 100% acceptance-path coverage across unit, API, and E2E
+suites. Add per-file 100% line, function, branch, and statement thresholds for deterministic logic
+measured by Vitest. Because Playwright and Maestro do not expose statement metrics, exercise every
+user-visible success, empty, failure, and action path on both clients.
 
 Social E2E uses two provisioned users. Wait for Clerk webhook mirroring before searching for the target.
 Never allow missing E2E environment variables to silently skip authenticated tests. Inspect JUnit

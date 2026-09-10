@@ -1,5 +1,6 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 /**
  * Match wizard E2E (Playwright, web).
@@ -18,7 +19,7 @@ async function signInAsActor(page: import("@playwright/test").Page) {
   await page.goto("/");
   await clerk.signIn({ page, emailAddress: E2E_EMAIL });
   await page.goto("/");
-  await page.waitForURL("**/matches", { timeout: 60_000 });
+  await completeMobileNumberIfNeeded(page);
   await expect(page.getByText("Matches")).toBeVisible({ timeout: 60_000 });
 }
 
@@ -27,7 +28,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   test.skip(!E2E_EMAIL, "E2E_EMAIL not set (CI provisions the user)");
 
   await signInAsActor(page);
-  await page.waitForFunction(() => Boolean((window as any).Clerk?.session), null, {
+  await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.session), null, {
     timeout: 60_000,
   });
 
@@ -114,7 +115,6 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   const gameSearch = page.getByPlaceholder(/Search board games/);
   await gameSearch.fill("Cascadia");
 
-  const firstGame = page.locator("text=/^[A-Za-z].*Cascadia/i").first();
   const gameRow = page.getByRole("button", { name: "Select" }).first();
   try {
     await gameRow.waitFor({ state: "visible", timeout: 30_000 });

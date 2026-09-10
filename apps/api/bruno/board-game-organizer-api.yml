@@ -1,0 +1,1285 @@
+opencollection: 1.0.0
+info:
+  name: Board Game Organizer API
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ''
+      port: ''
+      auth:
+        username: ''
+        password: ''
+      bypassProxy: ''
+  environments:
+  - name: BGO Local
+    variables:
+    - name: baseUrl
+      value: http://localhost:4000
+    - name: actorUserId
+      value: user_replace_actor
+    - name: targetUserId
+      value: user_replace_target
+    - name: searchQuery
+      value: boardgameorganizer.bgo@gmail.com
+    - name: actorToken
+      secret: true
+      value: ''
+    - name: targetToken
+      secret: true
+      value: ''
+    - name: user_1_clerk_token
+      value: ''
+      secret: true
+    - name: user_1_session_id
+      value: ''
+    - name: user_2_session_id
+      value: ''
+    - name: user_2_clerk_token
+      value: ''
+      secret: true
+    - name: user2Id
+      value: user_replace_2
+    - name: user1Id
+      value: user_replace_1
+    - name: CLERK_SECRET_KEY
+      value: ''
+      secret: true
+    - name: matchId
+      value: ''
+    - name: matchInvitationId
+      value: ''
+    - name: gameId
+      value: '342942'
+items:
+- info:
+    name: 01 Health
+    type: http
+    seq: 2
+  http:
+    method: GET
+    url: '{{baseUrl}}/api/health'
+    auth: inherit
+  settings:
+    encodeUrl: true
+    timeout: 0
+    followRedirects: true
+    maxRedirects: 5
+    forwardAuthorizationHeader: false
+- info:
+    name: 02 Search users
+    type: http
+    seq: 1
+  http:
+    method: GET
+    url: '{{baseUrl}}/api/users/search?query={{searchQuery}}'
+    headers:
+    - name: Authorization
+      value: Bearer {{user_1_clerk_token}}
+    auth: inherit
+  settings:
+    encodeUrl: true
+    timeout: 0
+    followRedirects: true
+    maxRedirects: 5
+    forwardAuthorizationHeader: false
+- info:
+    name: Authentication User 2
+    type: folder
+    seq: 4
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Create Session User 2
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: https://api.clerk.com/v1/sessions
+      headers:
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"user_id\": \"{{user2Id}}\"\n}"
+      auth:
+        type: bearer
+        token: '{{CLERK_SECRET_KEY}}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Sessione creata'', function () { expect(res.getStatus()).to.equal(200); });
+
+          bru.setCollectionVar(''user_2_session_id'', res.getBody().id);
+
+          bru.setEnvVar(''user_2_session_id'', res.getBody().id);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Create Session User 1
+      type: http
+      seq: 3
+    http:
+      method: POST
+      url: https://api.clerk.com/v1/sessions
+      headers:
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"user_id\": \"{{user1Id}}\"\n}"
+      auth:
+        type: bearer
+        token: '{{CLERK_SECRET_KEY}}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Sessione creata'', function () { expect(res.getStatus()).to.equal(200); });
+
+          bru.setCollectionVar(''user_1_session_id'', res.getBody().id);
+
+          bru.setEnvVar(''user_1_session_id'', res.getBody().id);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Generate Token User 1
+      type: http
+      seq: 4
+    http:
+      method: POST
+      url: https://api.clerk.com/v1/sessions/{{user_1_session_id}}/tokens
+      headers:
+      - name: Content-Type
+        value: application/json
+      auth:
+        type: bearer
+        token: '{{CLERK_SECRET_KEY}}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Token generato'', function () { expect(res.getStatus()).to.equal(200); });
+
+          bru.setCollectionVar(''user_1_clerk_token'', res.getBody().jwt);
+
+          bru.setEnvVar(''user_1_clerk_token'', res.getBody().jwt);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Generate Token User 2
+      type: http
+      seq: 2
+    http:
+      method: POST
+      url: https://api.clerk.com/v1/sessions/{{user_2_session_id}}/tokens
+      headers:
+      - name: Content-Type
+        value: application/json
+      auth:
+        type: bearer
+        token: '{{CLERK_SECRET_KEY}}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Token generato'', function () { expect(res.getStatus()).to.equal(200); });
+
+          bru.setCollectionVar(''user_2_clerk_token'', res.getBody().jwt);
+
+          bru.setEnvVar(''user_2_clerk_token'', res.getBody().jwt);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Authentication User 1
+    type: folder
+    seq: 3
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Create Session User
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: https://api.clerk.com/v1/sessions
+      headers:
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"user_id\": \"{{user1Id}}\"\n}"
+      auth:
+        type: bearer
+        token: '{{CLERK_SECRET_KEY}}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Sessione creata'', function () { expect(res.getStatus()).to.equal(200); });
+
+          bru.setCollectionVar(''user_1_session_id'', res.getBody().id);
+
+          bru.setEnvVar(''user_1_session_id'', res.getBody().id);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Generate Token User
+      type: http
+      seq: 2
+    http:
+      method: POST
+      url: https://api.clerk.com/v1/sessions/{{user_1_session_id}}/tokens
+      headers:
+      - name: Content-Type
+        value: application/json
+      auth:
+        type: bearer
+        token: '{{CLERK_SECRET_KEY}}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Token generato'', function () { expect(res.getStatus()).to.equal(200); });
+
+          bru.setCollectionVar(''user_1_clerk_token'', res.getBody().jwt);
+
+          bru.setEnvVar(''user_1_clerk_token'', res.getBody().jwt);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Blocking User 1
+    type: folder
+    seq: 9
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Block User
+      type: http
+      seq: 1
+    http:
+      method: PUT
+      url: '{{baseUrl}}/api/blocks/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists blocked users
+      type: http
+      seq: 2
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/blocks'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Unblocks user
+      type: http
+      seq: 3
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/blocks/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Blocking User 2
+    type: folder
+    seq: 10
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Block User
+      type: http
+      seq: 1
+    http:
+      method: PUT
+      url: '{{baseUrl}}/api/blocks/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists blocked users
+      type: http
+      seq: 2
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/blocks'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Unblocks user
+      type: http
+      seq: 3
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/blocks/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Following User 2
+    type: folder
+    seq: 6
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Follows target
+      type: http
+      seq: 19
+    http:
+      method: PUT
+      url: '{{baseUrl}}/api/follows/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists followers
+      type: http
+      seq: 2
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/follows?direction=followers'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists following
+      type: http
+      seq: 2
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/follows?direction=following'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Unfollows target
+      type: http
+      seq: 6
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/follows/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Friendships User 1
+    type: folder
+    seq: 7
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Accepts frient request
+      type: http
+      seq: 2
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/friend-requests/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"decision\": \"accept\"\n}"
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Cancels outgoing request
+      type: http
+      seq: 6
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/friend-requests/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists friends
+      type: http
+      seq: 7
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/friends'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists incoming requests
+      type: http
+      seq: 4
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/friend-requests?direction=incoming'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists outgoing requests
+      type: http
+      seq: 5
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/friend-requests?direction=outgoing'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Rejects friend request
+      type: http
+      seq: 3
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/friend-requests/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"decision\": \"reject\"\n}"
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Removes target friendship
+      type: http
+      seq: 8
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/friends/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Sends friend request
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: '{{baseUrl}}/api/friend-requests/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Following User 1
+    type: folder
+    seq: 5
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Follows target
+      type: http
+      seq: 19
+    http:
+      method: PUT
+      url: '{{baseUrl}}/api/follows/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists followers
+      type: http
+      seq: 2
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/follows?direction=followers'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists following
+      type: http
+      seq: 2
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/follows?direction=following'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Unfollows target
+      type: http
+      seq: 6
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/follows/{{user2Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Friendships User 2
+    type: folder
+    seq: 8
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Accepts frient request
+      type: http
+      seq: 2
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/friend-requests/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"decision\": \"accept\"\n}"
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Cancels outgoing request
+      type: http
+      seq: 6
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/friend-requests/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists friends
+      type: http
+      seq: 7
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/friends'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists incoming requests
+      type: http
+      seq: 4
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/friend-requests?direction=incoming'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Lists outgoing requests
+      type: http
+      seq: 5
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/friend-requests?direction=outgoing'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Rejects friend request
+      type: http
+      seq: 3
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/friend-requests/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      body:
+        type: json
+        data: "{\n  \"decision\": \"reject\"\n}"
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Removes target friendship
+      type: http
+      seq: 8
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/friends/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Sends friend request
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: '{{baseUrl}}/api/friend-requests/{{user1Id}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+- info:
+    name: Matches
+    type: folder
+    seq: 11
+  request:
+    auth: inherit
+  items:
+  - info:
+      name: Create planning match with invitation
+      type: http
+      seq: 1
+    http:
+      method: POST
+      url: '{{baseUrl}}/api/matches'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: "{\n  \"name\": \"Friday games\",\n  \"dates\": [\"2026-10-01T20:00:00.000Z\"],\n  \"minPlayers\": 2,\n  \"\
+          maxPlayers\": 2,\n  \"invitedUserIds\": [\"{{user2Id}}\"],\n  \"gameIds\": [{{gameId}}]\n}"
+    runtime:
+      scripts:
+      - type: after-response
+        code: "test('Status 201', function () { expect(res.getStatus()).to.equal(201); });\nconst body = res.getBody();\n\
+          bru.setEnvVar('matchId', body.match.id);\nif (body.match.invitations.length > 0) {\n  bru.setEnvVar('matchInvitationId',\
+          \ body.match.invitations[0].id);\n}"
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: List matches as admin
+      type: http
+      seq: 2
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/matches'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Get match detail as admin
+      type: http
+      seq: 3
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/matches/{{matchId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: List match invitations as admin
+      type: http
+      seq: 4
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/matches/{{matchId}}/invitations'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Decline invitation as invitee
+      type: http
+      seq: 5
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/match-invitations/{{matchInvitationId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: '{"decision":"decline"}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Remove declined invitation as admin
+      type: http
+      seq: 6
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/matches/{{matchId}}/invitations/{{matchInvitationId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Invite after admin removal
+      type: http
+      seq: 7
+    http:
+      method: POST
+      url: '{{baseUrl}}/api/matches/{{matchId}}/invitations'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: '{"inviteeUserId":"{{user2Id}}"}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Status 201'', function () { expect(res.getStatus()).to.equal(201); });
+
+          const body = res.getBody();
+
+          bru.setEnvVar(''matchInvitationId'', body.invitation.id);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Accept invitation as invitee
+      type: http
+      seq: 8
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/match-invitations/{{matchInvitationId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: '{"decision":"accept"}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: List matches as invitee
+      type: http
+      seq: 9
+    http:
+      method: GET
+      url: '{{baseUrl}}/api/matches'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Remove accepted player as admin
+      type: http
+      seq: 10
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/matches/{{matchId}}/invitations/{{matchInvitationId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Invite removed player again
+      type: http
+      seq: 11
+    http:
+      method: POST
+      url: '{{baseUrl}}/api/matches/{{matchId}}/invitations'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: '{"inviteeUserId":"{{user2Id}}"}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Status 201'', function () { expect(res.getStatus()).to.equal(201); });
+
+          const body = res.getBody();
+
+          bru.setEnvVar(''matchInvitationId'', body.invitation.id);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Accept re-invitation as invitee
+      type: http
+      seq: 12
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/match-invitations/{{matchInvitationId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: '{"decision":"accept"}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Leave planning match as invitee
+      type: http
+      seq: 13
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/match-invitations/{{matchInvitationId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_2_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Update planning match as admin
+      type: http
+      seq: 14
+    http:
+      method: PATCH
+      url: '{{baseUrl}}/api/matches/{{matchId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: "{\n  \"name\": \"Updated Friday games\",\n  \"dates\": [\"2026-11-01T20:00:00.000Z\", \"2026-11-02T20:00:00.000Z\"\
+          ],\n  \"minPlayers\": 2,\n  \"maxPlayers\": 3,\n  \"gameIds\": [{{gameId}}]\n}"
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Create pending invitation before deletion
+      type: http
+      seq: 15
+    http:
+      method: POST
+      url: '{{baseUrl}}/api/matches/{{matchId}}/invitations'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      - name: Content-Type
+        value: application/json
+      auth: inherit
+      body:
+        type: json
+        data: '{"inviteeUserId":"{{user2Id}}"}'
+    runtime:
+      scripts:
+      - type: after-response
+        code: 'test(''Status 201'', function () { expect(res.getStatus()).to.equal(201); });
+
+          const body = res.getBody();
+
+          bru.setEnvVar(''matchInvitationId'', body.invitation.id);'
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+  - info:
+      name: Delete match and invitations as admin
+      type: http
+      seq: 16
+    http:
+      method: DELETE
+      url: '{{baseUrl}}/api/matches/{{matchId}}'
+      headers:
+      - name: Authorization
+        value: Bearer {{user_1_clerk_token}}
+      auth: inherit
+    runtime:
+      scripts:
+      - type: after-response
+        code: test('Status 200', function () { expect(res.getStatus()).to.equal(200); });
+    settings:
+      encodeUrl: true
+      timeout: 0
+      followRedirects: true
+      maxRedirects: 5
+      forwardAuthorizationHeader: false
+request:
+  variables:
+  - name: baseUrl
+    value: http://localhost:4000
+  - name: actorUserId
+    value: user_replace_actor
+  - name: targetUserId
+    value: user_replace_target
+  - name: actorToken
+    value: ''
+    secret: true
+  - name: targetToken
+    value: ''
+    secret: true
+  - name: searchQuery
+    value: target@example.com
+  - name: session_id
+    value: ''
+  - name: clerk_token
+    value: ''
+    secret: true
+  - name: user_1_session_id
+    value: ''
+  - name: user_1_clerk_token
+    value: ''
+    secret: true
+  - name: user_2_session_id
+    value: ''
+  - name: user_2_clerk_token
+    value: ''
+    secret: true
+docs:
+  content: Run authentication first, make both users friends, then run Matches in sequence. Set two Clerk user IDs, fresh
+    session JWTs, and an imported BGG game ID. Match and invitation IDs are captured automatically.
+  type: text/markdown
+bundled: true
+extensions:
+  bruno:
+    ignore:
+    - node_modules
+    - .git
+    exportedAt: '2026-09-07T15:11:05.584Z'
+    exportedUsing: Bruno

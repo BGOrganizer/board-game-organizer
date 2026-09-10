@@ -1,11 +1,12 @@
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Ban, Eye, UserMinus, UserPlus, X } from "lucide-react-native";
+import { Ban, Eye, UserMinus, UserPlus, UserRoundPlus, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
+import { type UserActionKey, userActionKeys } from "@/lib/user-actions";
 
 export interface UserActionItem {
-  key: "block" | "unblock" | "follow" | "unfollow" | "profile";
+  key: UserActionKey;
   label: string;
   destructive?: boolean;
   disabled?: boolean;
@@ -25,6 +26,7 @@ export function UserActionsSheet({
   user,
   busy,
   error,
+  canSendFriendRequest = false,
   onClose,
   onAction,
 }: {
@@ -32,59 +34,62 @@ export function UserActionsSheet({
   user: ContactUser | null;
   busy?: boolean;
   error?: string | null;
+  canSendFriendRequest?: boolean;
   onClose: () => void;
-  onAction: (key: UserActionItem["key"]) => void;
+  onAction: (key: UserActionItem["key"]) => Promise<void>;
 }) {
   const t = useT();
-  const [confirmBlock, setConfirmBlock] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"block" | "friend_request" | null>(null);
 
   // Reset the confirmation state whenever the sheet closes (Cancel button,
   // backdrop tap, or after an action), so opening it on ANOTHER contact never
   // shows the previous block-confirmation.
   useEffect(() => {
-    if (!visible) setConfirmBlock(false);
+    if (!visible) setConfirmAction(null);
   }, [visible]);
 
   if (!user) return null;
 
-  const items: UserActionItem[] = user.blockedByMe
-    ? [
-        { key: "unblock", label: t("Unblock") },
-        { key: "profile", label: t("View profile"), disabled: true },
-      ]
-    : user.blockedMe
-      ? [
-          { key: "unfollow", label: t("Unfollow") },
-          { key: "profile", label: t("View profile"), disabled: true },
-        ]
-      : user.isFollowing
-        ? [
-            { key: "unfollow", label: t("Unfollow") },
-            { key: "block", label: t("Block"), destructive: true },
-            { key: "profile", label: t("View profile"), disabled: true },
-          ]
-        : [
-            { key: "follow", label: t("Follow") },
-            { key: "block", label: t("Block"), destructive: true },
-            { key: "profile", label: t("View profile"), disabled: true },
-          ];
+  const labels: Record<UserActionKey, string> = {
+    follow: t("Follow"),
+    unfollow: t("Unfollow"),
+    friend_request: t("Send friend request"),
+    block: t("Block"),
+    unblock: t("Unblock"),
+    profile: t("View profile"),
+  };
+  const items: UserActionItem[] = userActionKeys(user, canSendFriendRequest).map((key) => ({
+    key,
+    label: labels[key],
+    destructive: key === "block",
+    disabled: key === "profile",
+  }));
 
   const icons: Record<UserActionItem["key"], React.ReactNode> = {
     follow: <UserPlus size={18} color="#111" />,
     unfollow: <UserMinus size={18} color="#111" />,
     block: <Ban size={18} color="#dc2626" />,
     unblock: <Ban size={18} color="#111" />,
+    friend_request: <UserRoundPlus size={18} color="#111" />,
     profile: <Eye size={18} color="#9ca3af" />,
+  };
+
+  const runAction = async (key: UserActionItem["key"]) => {
+    try {
+      await onAction(key);
+      onClose();
+    } catch {
+      // Mutation error remains visible in the open sheet.
+    }
   };
 
   const handleItem = (item: UserActionItem) => {
     if (item.disabled || busy) return;
-    if (item.key === "block") {
-      setConfirmBlock(true);
+    if (item.key === "block" || item.key === "friend_request") {
+      setConfirmAction(item.key);
       return;
     }
-    onAction(item.key);
-    onClose();
+    void runAction(item.key);
   };
 
   return (
@@ -94,39 +99,47 @@ export function UserActionsSheet({
           <View style={styles.handle} />
           <Text style={styles.title}>{user.name}</Text>
 
-          {confirmBlock ? (
+          {confirmAction ? (
             <View>
+              <Text style={styles.confirmTitle}>
+                {confirmAction === "block" ? t("Block contact") : t("Send friend request?")}
+              </Text>
               <Text style={styles.confirmText}>
-                {t("Block")} {user.name}?{" "}
-                {t(
-                  "You will no longer see each other or find each other. Follow and friendships will be removed.",
-                )}
+                {confirmAction === "block"
+                  ? t(
+                      "You will no longer see each other or find each other. Follow and friendships will be removed.",
+                    )
+                  : t("They can accept or decline your request.")}
               </Text>
               <View style={styles.confirmRow}>
                 <Pressable
-                  style={[styles.item, styles.itemDanger, busy && styles.itemBusy]}
+                  style={[
+                    styles.item,
+                    confirmAction === "block" ? styles.itemDanger : styles.itemPrimary,
+                    busy && styles.itemBusy,
+                  ]}
                   disabled={busy}
-                  testID="confirm-block-btn"
-                  onPress={() => {
-                    setConfirmBlock(false);
-                    onAction("block");
-                    onClose();
-                  }}
+                  testID={
+                    confirmAction === "block" ? "confirm-block-btn" : "confirm-friend-request-btn"
+                  }
+                  onPress={() => void runAction(confirmAction)}
                 >
                   {busy ? (
                     <ActivityIndicator size="small" color="#fff" />
-                  ) : (
+                  ) : confirmAction === "block" ? (
                     <Ban size={18} color="#fff" />
+                  ) : (
+                    <UserRoundPlus size={18} color="#fff" />
                   )}
-                  <Text style={styles.itemTextWhite}>{t("Block")}</Text>
+                  <Text style={styles.itemTextWhite}>
+                    {confirmAction === "block" ? t("Block") : t("Send request")}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={[styles.item, styles.confirmCancel, busy && styles.itemBusy]}
                   disabled={busy}
-                  onPress={() => {
-                    setConfirmBlock(false);
-                    onClose();
-                  }}
+                  testID="cancel-confirmation-btn"
+                  onPress={() => setConfirmAction(null)}
                 >
                   <X size={18} color="#111" />
                   <Text style={styles.itemText}>{t("Cancel")}</Text>
@@ -187,6 +200,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: { fontSize: 16, fontWeight: "600", marginBottom: 8 },
+  confirmTitle: { fontSize: 16, fontWeight: "600", color: "#111", marginBottom: 6 },
   confirmText: { fontSize: 14, color: "#374151", marginBottom: 12 },
   confirmRow: {
     flexDirection: "row",
@@ -213,6 +227,14 @@ const styles = StyleSheet.create({
   },
   itemDanger: {
     backgroundColor: "#dc2626",
+    borderRadius: 8,
+    padding: 12,
+    borderBottomWidth: 0,
+    flex: 1,
+    justifyContent: "center",
+  },
+  itemPrimary: {
+    backgroundColor: "#006fee",
     borderRadius: 8,
     padding: 12,
     borderBottomWidth: 0,

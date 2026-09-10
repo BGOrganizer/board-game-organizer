@@ -10,6 +10,7 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/matches",
+  useRouter: () => ({ replace: vi.fn() }),
 }));
 
 vi.mock("@clerk/nextjs", () => ({
@@ -23,7 +24,10 @@ vi.mock("@clerk/nextjs", () => ({
     fallback: React.ReactNode;
     children: React.ReactNode;
   }) => (when === "signed-in" ? children : fallback),
-  useUser: () => ({ user: null }),
+  useUser: () => ({
+    isLoaded: true,
+    user: { unsafeMetadata: { mobileNumber: "e2e" } },
+  }),
   SignInButton: ({ children }: { children: React.ReactNode }) => (
     <button type="button">{children}</button>
   ),

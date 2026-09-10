@@ -42,14 +42,14 @@ export function Matches() {
 
   if (creating) {
     return (
-      <div className="mx-auto w-full max-w-md">
+      <div className="mx-auto w-full max-w-3xl">
         <MatchWizard onCreated={() => setCreating(false)} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-md pb-24">
+    <div className="mx-auto w-full max-w-6xl pb-24">
       <h2 className="mb-4 text-lg font-semibold">{t`Matches`}</h2>
 
       {matches.list.isPending && (
@@ -63,7 +63,7 @@ export function Matches() {
         <p className="text-sm text-default-500">{t`No matches yet — create your first one!`}</p>
       )}
 
-      <div className="space-y-2">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {matches.list.data?.map((m) => (
           <Card key={m.id} className="rounded-xl p-4">
             <p className="font-semibold">{m.name}</p>
@@ -85,7 +85,7 @@ export function Matches() {
         isIconOnly
         variant="primary"
         aria-label={t`Create a match`}
-        className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
+        className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
         onPress={() => setCreating(true)}
       >
         <Plus className="h-6 w-6" />
