@@ -1,9 +1,27 @@
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Ban, Eye, UserMinus, UserPlus, UserRoundPlus, UserRoundX, X } from "lucide-react-native";
+import {
+  Ban,
+  Check,
+  Eye,
+  UserMinus,
+  UserPlus,
+  UserRoundPlus,
+  UserRoundX,
+  X,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
-import { type UserActionKey, userActionKeys } from "@/lib/user-actions";
+import { type FriendRequestContext, type UserActionKey, userActionKeys } from "@/lib/user-actions";
+
+export type UserActionConfirmation =
+  | "block"
+  | "unfriend"
+  | "friend_request"
+  | "accept_friend_request"
+  | "reject_friend_request"
+  | "cancel_friend_request"
+  | "respond_friend_request";
 
 export interface UserActionItem {
   key: UserActionKey;
@@ -27,6 +45,8 @@ export function UserActionsSheet({
   busy,
   error,
   canSendFriendRequest = false,
+  friendRequest,
+  initialConfirmAction,
   onClose,
   onAction,
 }: {
@@ -35,18 +55,21 @@ export function UserActionsSheet({
   busy?: boolean;
   error?: string | null;
   canSendFriendRequest?: boolean;
+  friendRequest?: FriendRequestContext;
+  initialConfirmAction?: UserActionConfirmation;
   onClose: () => void;
   onAction: (key: UserActionItem["key"]) => Promise<void>;
 }) {
   const t = useT();
-  const [confirmAction, setConfirmAction] = useState<"block" | "friend_request" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<UserActionConfirmation | null>(null);
 
   // Reset the confirmation state whenever the sheet closes (Cancel button,
   // backdrop tap, or after an action), so opening it on ANOTHER contact never
   // shows the previous block-confirmation.
   useEffect(() => {
     if (!visible) setConfirmAction(null);
-  }, [visible]);
+    else if (initialConfirmAction) setConfirmAction(initialConfirmAction);
+  }, [visible, initialConfirmAction]);
 
   if (!user) return null;
 
@@ -55,16 +78,25 @@ export function UserActionsSheet({
     unfollow: t("Unfollow"),
     unfriend: t("Remove friend"),
     friend_request: t("Send friend request"),
+    accept_friend_request: t("Accept friend request"),
+    reject_friend_request: t("Decline friend request"),
+    cancel_friend_request: t("Cancel friend request"),
     block: t("Block"),
     unblock: t("Unblock"),
     profile: t("View profile"),
   };
-  const items: UserActionItem[] = userActionKeys(user, canSendFriendRequest).map((key) => ({
-    key,
-    label: labels[key],
-    destructive: key === "block" || key === "unfriend",
-    disabled: key === "profile",
-  }));
+  const items: UserActionItem[] = userActionKeys(user, canSendFriendRequest, friendRequest).map(
+    (key) => ({
+      key,
+      label: labels[key],
+      destructive:
+        key === "block" ||
+        key === "unfriend" ||
+        key === "reject_friend_request" ||
+        key === "cancel_friend_request",
+      disabled: key === "profile",
+    }),
+  );
 
   const icons: Record<UserActionItem["key"], React.ReactNode> = {
     follow: <UserPlus size={18} color="#111" />,
@@ -73,6 +105,9 @@ export function UserActionsSheet({
     block: <Ban size={18} color="#dc2626" />,
     unblock: <Ban size={18} color="#111" />,
     friend_request: <UserRoundPlus size={18} color="#111" />,
+    accept_friend_request: <Check size={18} color="#111" />,
+    reject_friend_request: <X size={18} color="#dc2626" />,
+    cancel_friend_request: <X size={18} color="#dc2626" />,
     profile: <Eye size={18} color="#9ca3af" />,
   };
 
@@ -87,12 +122,84 @@ export function UserActionsSheet({
 
   const handleItem = (item: UserActionItem) => {
     if (item.disabled || busy) return;
-    if (item.key === "block" || item.key === "friend_request") {
+    if (
+      item.key === "block" ||
+      item.key === "unfriend" ||
+      item.key === "friend_request" ||
+      item.key === "accept_friend_request" ||
+      item.key === "reject_friend_request" ||
+      item.key === "cancel_friend_request"
+    ) {
       setConfirmAction(item.key);
       return;
     }
     void runAction(item.key);
   };
+
+  const confirmation = (() => {
+    switch (confirmAction) {
+      case "block":
+        return {
+          title: t("Block contact"),
+          text: t(
+            "You will no longer see each other or find each other. Follow and friendships will be removed.",
+          ),
+          label: t("Block"),
+          danger: true,
+          icon: <Ban size={18} color="#fff" />,
+        };
+      case "unfriend":
+        return {
+          title: t("Remove friend?"),
+          text: t("The friendship and your follow will be removed."),
+          label: t("Remove friend"),
+          danger: true,
+          icon: <UserRoundX size={18} color="#fff" />,
+        };
+      case "friend_request":
+        return {
+          title: t("Send friend request?"),
+          text: t("They can accept or decline your request."),
+          label: t("Send request"),
+          danger: false,
+          icon: <UserRoundPlus size={18} color="#fff" />,
+        };
+      case "accept_friend_request":
+        return {
+          title: t("Accept friend request?"),
+          text: t("You will become friends and follow each other."),
+          label: t("Accept"),
+          danger: false,
+          icon: <Check size={18} color="#fff" />,
+        };
+      case "reject_friend_request":
+        return {
+          title: t("Decline friend request?"),
+          text: t("The friend request will be declined."),
+          label: t("Decline"),
+          danger: true,
+          icon: <X size={18} color="#fff" />,
+        };
+      case "cancel_friend_request":
+        return {
+          title: t("Cancel friend request?"),
+          text: t("The sent friend request will be removed."),
+          label: t("Cancel request"),
+          danger: true,
+          icon: <X size={18} color="#fff" />,
+        };
+      case "respond_friend_request":
+        return {
+          title: t("Respond to friend request"),
+          text: t("Accept or decline this friend request."),
+          label: "",
+          danger: false,
+          icon: null,
+        };
+      default:
+        return null;
+    }
+  })();
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -101,42 +208,53 @@ export function UserActionsSheet({
           <View style={styles.handle} />
           <Text style={styles.title}>{user.name}</Text>
 
-          {confirmAction ? (
+          {confirmAction && confirmation ? (
             <View>
-              <Text style={styles.confirmTitle}>
-                {confirmAction === "block" ? t("Block contact") : t("Send friend request?")}
-              </Text>
-              <Text style={styles.confirmText}>
-                {confirmAction === "block"
-                  ? t(
-                      "You will no longer see each other or find each other. Follow and friendships will be removed.",
-                    )
-                  : t("They can accept or decline your request.")}
-              </Text>
+              <Text style={styles.confirmTitle}>{confirmation.title}</Text>
+              <Text style={styles.confirmText}>{confirmation.text}</Text>
               <View style={styles.confirmRow}>
-                <Pressable
-                  style={[
-                    styles.item,
-                    confirmAction === "block" ? styles.itemDanger : styles.itemPrimary,
-                    busy && styles.itemBusy,
-                  ]}
-                  disabled={busy}
-                  testID={
-                    confirmAction === "block" ? "confirm-block-btn" : "confirm-friend-request-btn"
-                  }
-                  onPress={() => void runAction(confirmAction)}
-                >
-                  {busy ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : confirmAction === "block" ? (
-                    <Ban size={18} color="#fff" />
-                  ) : (
-                    <UserRoundPlus size={18} color="#fff" />
-                  )}
-                  <Text style={styles.itemTextWhite}>
-                    {confirmAction === "block" ? t("Block") : t("Send request")}
-                  </Text>
-                </Pressable>
+                {confirmAction === "respond_friend_request" ? (
+                  <>
+                    <Pressable
+                      style={[styles.item, styles.itemDanger, busy && styles.itemBusy]}
+                      disabled={busy}
+                      testID="respond-reject-friend-request-btn"
+                      onPress={() => void runAction("reject_friend_request")}
+                    >
+                      <X size={18} color="#fff" />
+                      <Text style={styles.itemTextWhite}>{t("Decline")}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.item, styles.itemPrimary, busy && styles.itemBusy]}
+                      disabled={busy}
+                      testID="respond-accept-friend-request-btn"
+                      onPress={() => void runAction("accept_friend_request")}
+                    >
+                      <Check size={18} color="#fff" />
+                      <Text style={styles.itemTextWhite}>{t("Accept")}</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable
+                    style={[
+                      styles.item,
+                      confirmation.danger ? styles.itemDanger : styles.itemPrimary,
+                      busy && styles.itemBusy,
+                    ]}
+                    disabled={busy}
+                    testID={
+                      confirmAction === "block"
+                        ? "confirm-block-btn"
+                        : confirmAction === "friend_request"
+                          ? "confirm-friend-request-btn"
+                          : `confirm-${confirmAction}-btn`
+                    }
+                    onPress={() => void runAction(confirmAction)}
+                  >
+                    {busy ? <ActivityIndicator size="small" color="#fff" /> : confirmation.icon}
+                    <Text style={styles.itemTextWhite}>{confirmation.label}</Text>
+                  </Pressable>
+                )}
                 <Pressable
                   style={[styles.item, styles.confirmCancel, busy && styles.itemBusy]}
                   disabled={busy}
@@ -205,9 +323,8 @@ const styles = StyleSheet.create({
   confirmTitle: { fontSize: 16, fontWeight: "600", color: "#111", marginBottom: 6 },
   confirmText: { fontSize: 14, color: "#374151", marginBottom: 12 },
   confirmRow: {
-    flexDirection: "row",
+    flexDirection: "column",
     gap: 8,
-    justifyContent: "space-between",
   },
   confirmCancel: {
     flex: 1,

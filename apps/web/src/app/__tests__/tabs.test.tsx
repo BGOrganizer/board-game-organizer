@@ -15,6 +15,7 @@ vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
     isLoaded: true,
     isSignedIn: true,
+    userId: "user_1",
     getToken: vi.fn().mockResolvedValue("token"),
   }),
   useClerk: () => ({ signOut: vi.fn() }),
@@ -55,6 +56,7 @@ vi.mock("@board-game-organizer/shared", () => ({
     unfollow: { mutate: vi.fn(), isPending: false },
     unfriend: { mutate: vi.fn(), isPending: false, isError: false },
     friendRequest: { mutate: vi.fn(), isPending: false, isError: false },
+    cancelFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
     acceptFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
     rejectFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
     block: { mutate: vi.fn(), isPending: false },

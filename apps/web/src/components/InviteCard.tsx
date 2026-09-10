@@ -62,12 +62,18 @@ export function InviteCard({
   return (
     <Card className="p-4">
       {create.isPending ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div
+          role="status"
+          aria-label={t`Creating invite`}
+          className="flex flex-col gap-3 sm:flex-row sm:items-center"
+        >
           <Skeleton animationType="pulse" className="h-9 w-32 rounded-lg" />
           <Skeleton animationType="pulse" className="h-4 flex-1 rounded" />
         </div>
       ) : create.isError ? (
-        <p className="text-sm text-danger">{t`Could not create the invite. Try again.`}</p>
+        <p role="alert" className="text-sm text-danger">
+          {t`Could not create the invite. Try again.`}
+        </p>
       ) : create.data ? (
         <div className="flex flex-col gap-2">
           <code className="min-w-0 break-all rounded bg-default-100 p-2 text-sm">

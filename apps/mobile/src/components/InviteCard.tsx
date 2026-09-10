@@ -4,8 +4,8 @@ import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
 import { UserPlus } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Share, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Share, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
 /**
@@ -41,6 +41,7 @@ export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | 
         setLink(row.link);
         share(row.link);
       },
+      onError: () => Alert.alert(t("Action failed"), t("Could not create the invite. Try again.")),
     });
   };
 

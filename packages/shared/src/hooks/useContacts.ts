@@ -1,6 +1,11 @@
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useState } from "react";
+import {
+  type ContactAction,
+  type ContactMutationVariables,
+  optimisticContactData,
+} from "./contactOptimistic";
 
 /** Presence snapshot attached to a contact (Phase 2). */
 export interface ContactPresence {
@@ -270,6 +275,7 @@ export function useContacts(
   token: string | null | undefined,
   getToken?: () => Promise<string | null>,
   protectionBypass?: string | null,
+  currentUserId?: string | null,
 ) {
   const queryClient = useQueryClient();
   const enabled = Boolean(apiUrl) && Boolean(token);
@@ -328,23 +334,48 @@ export function useContacts(
     staleTime: 60_000,
   });
 
-  const search = useMutation({
-    mutationFn: ({ query }: { query: string }) =>
-      searchUsersWithToken(apiUrl, token, getToken, query, protectionBypass),
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchResult = useQuery({
+    queryKey: ["contacts", `search:${searchQuery}`, apiUrl, token],
+    queryFn: () => searchUsersWithToken(apiUrl, token, getToken, searchQuery, protectionBypass),
+    enabled: enabled && searchQuery.length >= 4,
+    staleTime: 30_000,
   });
-  // Keep the last executed search so follow/unfollow can re-run it and the
-  // buttons (follow → unfollow) update without a manual re-search.
-  const lastSearchQuery = useRef<string | null>(null);
+  const search = useMemo(
+    () => ({ ...searchResult, isPending: searchResult.isFetching }),
+    [searchResult],
+  );
 
-  const refreshContacts = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["contacts"] });
-    if (lastSearchQuery.current) {
-      search.mutate({ query: lastSearchQuery.current });
-    }
-  }, [queryClient, search]);
+  const refreshContacts = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+    [queryClient],
+  );
+
+  const optimisticOptions = (action: ContactAction) => ({
+    scope: { id: "contacts" },
+    onMutate: async (variables: ContactMutationVariables) => {
+      await queryClient.cancelQueries({ queryKey: ["contacts"] });
+      const snapshots = queryClient.getQueriesData({ queryKey: ["contacts"] });
+      for (const [queryKey, data] of snapshots) {
+        queryClient.setQueryData(
+          queryKey,
+          optimisticContactData(queryKey, data, action, variables, currentUserId),
+        );
+      }
+      return snapshots;
+    },
+    onError: (
+      _error: Error,
+      _variables: ContactMutationVariables,
+      snapshots: Array<[readonly unknown[], unknown]> | undefined,
+    ) => {
+      for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
+    },
+    onSettled: () => refreshContacts(),
+  });
 
   const follow = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       relationshipMutationWithToken(
         apiUrl,
         token,
@@ -354,11 +385,11 @@ export function useContacts(
         targetUserId,
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("follow"),
   });
 
   const unfollow = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       relationshipMutationWithToken(
         apiUrl,
         token,
@@ -368,11 +399,11 @@ export function useContacts(
         targetUserId,
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("unfollow"),
   });
 
   const unfriend = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       relationshipMutationWithToken(
         apiUrl,
         token,
@@ -382,11 +413,11 @@ export function useContacts(
         targetUserId,
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("unfriend"),
   });
 
   const friendRequest = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       relationshipMutationWithToken(
         apiUrl,
         token,
@@ -396,11 +427,25 @@ export function useContacts(
         targetUserId,
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("friend_request"),
+  });
+
+  const cancelFriendRequest = useMutation({
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
+      relationshipMutationWithToken(
+        apiUrl,
+        token,
+        getToken,
+        "DELETE",
+        "friend_request",
+        targetUserId,
+        protectionBypass,
+      ),
+    ...optimisticOptions("cancel_friend_request"),
   });
 
   const acceptFriendRequest = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       respondToFriendRequestWithToken(
         apiUrl,
         token,
@@ -409,11 +454,11 @@ export function useContacts(
         "accept",
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("accept_friend_request"),
   });
 
   const rejectFriendRequest = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       respondToFriendRequestWithToken(
         apiUrl,
         token,
@@ -422,11 +467,11 @@ export function useContacts(
         "reject",
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("reject_friend_request"),
   });
 
   const block = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       relationshipMutationWithToken(
         apiUrl,
         token,
@@ -436,11 +481,11 @@ export function useContacts(
         targetUserId,
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("block"),
   });
 
   const unblock = useMutation({
-    mutationFn: ({ targetUserId }: { targetUserId: string }) =>
+    mutationFn: ({ targetUserId }: ContactMutationVariables) =>
       relationshipMutationWithToken(
         apiUrl,
         token,
@@ -450,7 +495,7 @@ export function useContacts(
         targetUserId,
         protectionBypass,
       ),
-    onSuccess: () => refreshContacts(),
+    ...optimisticOptions("unblock"),
   });
 
   const syncContacts = useMutation({
@@ -460,14 +505,7 @@ export function useContacts(
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts", "suggestions"] }),
   });
 
-  // Keep the search mutation wired so the component can re-run it via refreshContacts.
-  const runSearch = useCallback(
-    (query: string) => {
-      lastSearchQuery.current = query.trim() || null;
-      search.mutate({ query: query.trim() });
-    },
-    [search],
-  );
+  const runSearch = useCallback((query: string) => setSearchQuery(query.trim()), []);
 
   return useMemo(
     () => ({
@@ -482,6 +520,7 @@ export function useContacts(
       unfollow,
       unfriend,
       friendRequest,
+      cancelFriendRequest,
       acceptFriendRequest,
       rejectFriendRequest,
       block,
@@ -503,6 +542,7 @@ export function useContacts(
       unfollow,
       unfriend,
       friendRequest,
+      cancelFriendRequest,
       acceptFriendRequest,
       rejectFriendRequest,
       block,

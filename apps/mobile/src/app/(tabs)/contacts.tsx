@@ -17,20 +17,20 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import {
   BookUser,
-  Check,
   MoreVertical,
   UserMinus,
   UserPlus,
-  UserRoundPlus,
+  UserRoundCheck,
   UserRoundX,
   X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
-import { UserActionsSheet } from "@/components/UserActionsSheet";
+import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
 import { contactSyncPayload } from "@/lib/contacts";
 import { useT } from "@/lib/i18n";
+import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
 
 /** Placeholder shown while a contact list is loading. */
 function ContactListSkeleton({ count = 4 }: { count?: number }) {
@@ -115,12 +115,14 @@ function AvatarWithPresence({
 }
 
 export default function ContactsScreen() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
   const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
+  const [menuFriendRequest, setMenuFriendRequest] = useState<FriendRequestContext>();
+  const [initialConfirmAction, setInitialConfirmAction] = useState<UserActionConfirmation>();
   const [contactsPermission, setContactsPermission] = useState<
     "undetermined" | "granted" | "denied"
   >("undetermined");
@@ -143,8 +145,7 @@ export default function ContactsScreen() {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn]);
+  }, [getToken, isLoaded, isSignedIn]);
 
   // Presence heartbeat: keep the green-dot fresh while the screen is open.
   // Uses a fresh session token each beat so the JWT rotation never 401s.
@@ -162,12 +163,13 @@ export default function ContactsScreen() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken);
+  const contacts = useContacts(apiUrl(), token, getToken, undefined, userId);
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
     contacts.unfriend.isPending ||
     contacts.friendRequest.isPending ||
+    contacts.cancelFriendRequest.isPending ||
     contacts.acceptFriendRequest.isPending ||
     contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
@@ -177,20 +179,46 @@ export default function ContactsScreen() {
     contacts.unfollow.isError ||
     contacts.unfriend.isError ||
     contacts.friendRequest.isError ||
+    contacts.cancelFriendRequest.isError ||
     contacts.acceptFriendRequest.isError ||
     contacts.rejectFriendRequest.isError ||
     contacts.block.isError ||
     contacts.unblock.isError;
 
-  const handleUserAction = (u: ContactUser) => async (key: string) => {
-    if (key === "follow") await contacts.follow.mutateAsync({ targetUserId: u.id });
-    else if (key === "unfollow") await contacts.unfollow.mutateAsync({ targetUserId: u.id });
-    else if (key === "unfriend") await contacts.unfriend.mutateAsync({ targetUserId: u.id });
-    else if (key === "friend_request") {
-      await contacts.friendRequest.mutateAsync({ targetUserId: u.id });
-    } else if (key === "block") await contacts.block.mutateAsync({ targetUserId: u.id });
-    else if (key === "unblock") await contacts.unblock.mutateAsync({ targetUserId: u.id });
-    // profile: not implemented yet — no-op.
+  const openUserActions = (
+    user: ContactUser,
+    friendRequest?: FriendRequestContext,
+    confirmation?: UserActionConfirmation,
+  ) => {
+    setMenuUser(user);
+    setMenuFriendRequest(friendRequest);
+    setInitialConfirmAction(confirmation);
+  };
+  const closeUserActions = () => {
+    setMenuUser(null);
+    setMenuFriendRequest(undefined);
+    setInitialConfirmAction(undefined);
+  };
+  const handleUserAction = (user: ContactUser) => async (key: UserActionKey) => {
+    const variables = { targetUserId: user.id, targetUser: user };
+    try {
+      if (key === "follow") await contacts.follow.mutateAsync(variables);
+      else if (key === "unfollow") await contacts.unfollow.mutateAsync(variables);
+      else if (key === "unfriend") await contacts.unfriend.mutateAsync(variables);
+      else if (key === "friend_request") await contacts.friendRequest.mutateAsync(variables);
+      else if (key === "cancel_friend_request") {
+        await contacts.cancelFriendRequest.mutateAsync(variables);
+      } else if (key === "accept_friend_request") {
+        await contacts.acceptFriendRequest.mutateAsync(variables);
+      } else if (key === "reject_friend_request") {
+        await contacts.rejectFriendRequest.mutateAsync(variables);
+      } else if (key === "block") await contacts.block.mutateAsync(variables);
+      else if (key === "unblock") await contacts.unblock.mutateAsync(variables);
+      // profile: not implemented yet — no-op.
+    } catch (error) {
+      Alert.alert(t("Action failed"), t("Could not complete the action. Try again."));
+      throw error;
+    }
   };
 
   // Device address book: on first visit to Suggestions (and via the "Add
@@ -202,20 +230,25 @@ export default function ContactsScreen() {
   // (POST /api/contacts/sync) and suggestions read them from the DB, so the
   // address book is only read once.
   const syncContactsData = useCallback(async () => {
+    let data: Awaited<ReturnType<typeof Contacts.getContactsAsync>>["data"];
     try {
-      const { data } = await Contacts.getContactsAsync({
+      ({ data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-      });
-      setSyncingContacts(true);
-      try {
-        await contacts.syncContacts.mutateAsync(contactSyncPayload(data));
-      } finally {
-        setSyncingContacts(false);
-      }
+      }));
     } catch {
       setContactsPermission("denied");
+      return;
     }
-  }, [contacts.syncContacts]);
+
+    setSyncingContacts(true);
+    try {
+      await contacts.syncContacts.mutateAsync(contactSyncPayload(data));
+    } catch {
+      Alert.alert(t("Action failed"), t("Could not sync contacts. Try again."));
+    } finally {
+      setSyncingContacts(false);
+    }
+  }, [contacts.syncContacts, t]);
 
   // Fire the REAL system permission request and track denials. A denial only
   // returns to the screen (the CTA stays). The app settings are opened ONLY
@@ -240,14 +273,14 @@ export default function ContactsScreen() {
     } catch {
       permission = null;
     }
-    if (!permission || !permission.granted) {
+    if (!permission?.granted) {
       try {
         permission = await Contacts.requestPermissionsAsync();
       } catch {
         permission = null;
       }
     }
-    if (!permission || !permission.granted) {
+    if (!permission?.granted) {
       // Declined the system dialog → back to the screen, no redirect.
       setContactsPermission("denied");
       denials += 1;
@@ -357,8 +390,7 @@ export default function ContactsScreen() {
     if (tab !== "suggestions") return;
     if (contactsPermission === "granted") return;
     void checkContactsGranted();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, [checkContactsGranted, contactsPermission, tab]);
 
   // Ask for permission the first time the user opens the Suggestions tab
   // (through the confirmation dialog — never an unprompted system dialog).
@@ -366,8 +398,7 @@ export default function ContactsScreen() {
     if (tab !== "suggestions") return;
     if (contactsPermission !== "undetermined") return;
     confirmAndRequestContacts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, [confirmAndRequestContacts, contactsPermission, tab]);
 
   // Auto-search on input: fires 300ms after the user stops typing, only when
   // at least 4 characters are present (min prefix length per product spec).
@@ -383,8 +414,7 @@ export default function ContactsScreen() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [contacts.runSearch, query]);
 
   const followingRows = contacts.following.data ?? [];
   // Ids the viewer follows — used by the Followers tab to render the right
@@ -474,49 +504,31 @@ export default function ContactsScreen() {
           isDisabled={isBusy}
           accessibilityLabel={`${t("Remove friend")}: ${user.name}`}
           testID="remove-friend-btn"
-          onPress={() => contacts.unfriend.mutate({ targetUserId: user.id })}
+          onPress={() => openUserActions(user, undefined, "unfriend")}
         >
           <UserRoundX size={16} color="#dc2626" />
         </Button>
       );
     }
     return (
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <Button
-          variant="outline"
-          isIconOnly
-          size="sm"
-          style={{ minHeight: 30, minWidth: 30 }}
-          isDisabled={isBusy}
-          accessibilityLabel={user.isFollowing ? t("Unfollow") : t("Follow")}
-          testID={user.isFollowing ? "unfollow-btn" : "follow-btn"}
-          onPress={() =>
-            user.isFollowing
-              ? contacts.unfollow.mutate({ targetUserId: user.id })
-              : contacts.follow.mutate({ targetUserId: user.id })
-          }
-        >
-          {user.isFollowing ? (
-            <UserMinus size={16} color="#111" />
-          ) : (
-            <UserPlus size={16} color="#111" />
-          )}
-        </Button>
-        {canSendFriendRequest(user) && (
-          <Button
-            variant="outline"
-            isIconOnly
-            size="sm"
-            style={{ minHeight: 30, minWidth: 30 }}
-            isDisabled={isBusy}
-            accessibilityLabel={t("Send friend request")}
-            testID="friend-request-btn"
-            onPress={() => contacts.friendRequest.mutate({ targetUserId: user.id })}
-          >
-            <UserRoundPlus size={16} color="#111" />
-          </Button>
+      <Button
+        variant="outline"
+        isIconOnly
+        size="sm"
+        style={{ minHeight: 30, minWidth: 30 }}
+        isDisabled={isBusy}
+        accessibilityLabel={user.isFollowing ? t("Unfollow") : t("Follow")}
+        testID={user.isFollowing ? "unfollow-btn" : "follow-btn"}
+        onPress={() =>
+          void handleUserAction(user)(user.isFollowing ? "unfollow" : "follow").catch(() => {})
+        }
+      >
+        {user.isFollowing ? (
+          <UserMinus size={16} color="#111" />
+        ) : (
+          <UserPlus size={16} color="#111" />
         )}
-      </View>
+      </Button>
     );
   };
 
@@ -690,38 +702,36 @@ export default function ContactsScreen() {
                         ) : null}
                       </View>
                       {section.key === "received" ? (
-                        <View style={{ flexDirection: "row", gap: 8 }}>
-                          <Button
-                            size="sm"
-                            isIconOnly
-                            isDisabled={isBusy}
-                            accessibilityLabel={`${t("Accept friend request")}: ${profile.name}`}
-                            testID="accept-friend-request-btn"
-                            onPress={() =>
-                              contacts.acceptFriendRequest.mutate({ targetUserId: profile.id })
-                            }
-                          >
-                            <Check size={16} color="#fff" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger-soft"
-                            isIconOnly
-                            isDisabled={isBusy}
-                            accessibilityLabel={`${t("Decline friend request")}: ${profile.name}`}
-                            testID="decline-friend-request-btn"
-                            onPress={() =>
-                              contacts.rejectFriendRequest.mutate({ targetUserId: profile.id })
-                            }
-                          >
-                            <X size={16} color="#dc2626" />
-                          </Button>
-                        </View>
+                        <Button
+                          size="sm"
+                          isIconOnly
+                          isDisabled={isBusy}
+                          accessibilityLabel={`${t("Respond to friend request")}: ${profile.name}`}
+                          testID="respond-friend-request-btn"
+                          onPress={() =>
+                            openUserActions(profile, "incoming", "respond_friend_request")
+                          }
+                        >
+                          <UserRoundCheck size={16} color="#fff" />
+                        </Button>
                       ) : (
                         <Chip size="sm" variant="secondary">
                           <Text className="text-muted">{t("Sent")}</Text>
                         </Chip>
                       )}
+                      <Pressable
+                        onPress={() =>
+                          openUserActions(
+                            profile,
+                            section.key === "received" ? "incoming" : "outgoing",
+                          )
+                        }
+                        hitSlop={8}
+                        accessibilityLabel={t("Actions")}
+                        style={{ padding: 6 }}
+                      >
+                        <MoreVertical size={18} color="#333" />
+                      </Pressable>
                     </Card>
                   );
                 })}
@@ -880,8 +890,10 @@ export default function ContactsScreen() {
         user={menuUser}
         busy={isBusy}
         canSendFriendRequest={menuUser !== null && canSendFriendRequest(menuUser)}
+        friendRequest={menuFriendRequest}
+        initialConfirmAction={initialConfirmAction}
         error={actionFailed ? t("Could not complete the action. Try again.") : null}
-        onClose={() => setMenuUser(null)}
+        onClose={closeUserActions}
         onAction={(key) => (menuUser ? handleUserAction(menuUser)(key) : Promise.resolve())}
       />
     </View>

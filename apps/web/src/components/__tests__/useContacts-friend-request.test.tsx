@@ -4,38 +4,39 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const targetUser = {
+  id: "user_2",
+  name: "Target User",
+  email: "target@example.com",
+  avatarUrl: null,
+  presence: { online: false, lastActiveAt: "2026-01-01T00:00:00.000Z" },
+};
+const variables = { targetUserId: targetUser.id, targetUser };
+
 function Harness() {
   const contacts = useContacts(
     "https://api.example.test",
     "stale-token",
     async () => "fresh-token",
     "preview-token",
+    "user_1",
   );
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => contacts.friendRequest.mutate({ targetUserId: "user_2" })}
-      >
+      <button type="button" onClick={() => contacts.friendRequest.mutate(variables)}>
         Send
       </button>
-      <button type="button" onClick={() => contacts.unfriend.mutate({ targetUserId: "user_2" })}>
+      <button type="button" onClick={() => contacts.unfriend.mutate(variables)}>
         Unfriend
       </button>
       <button type="button" onClick={() => contacts.runSearch("target")}>
         Search
       </button>
-      <button
-        type="button"
-        onClick={() => contacts.acceptFriendRequest.mutate({ targetUserId: "user_2" })}
-      >
+      <button type="button" onClick={() => contacts.acceptFriendRequest.mutate(variables)}>
         Accept
       </button>
-      <button
-        type="button"
-        onClick={() => contacts.rejectFriendRequest.mutate({ targetUserId: "user_2" })}
-      >
+      <button type="button" onClick={() => contacts.rejectFriendRequest.mutate(variables)}>
         Reject
       </button>
       {contacts.rejectFriendRequest.isError ? <span>Request failed</span> : null}

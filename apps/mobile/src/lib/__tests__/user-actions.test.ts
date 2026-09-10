@@ -30,8 +30,24 @@ describe("userActionKeys", () => {
     ]);
   });
 
+  it("uses friend-request actions for incoming and outgoing contexts", () => {
+    expect(userActionKeys(user, true, "incoming")).toEqual([
+      "follow",
+      "accept_friend_request",
+      "reject_friend_request",
+      "block",
+      "profile",
+    ]);
+    expect(userActionKeys(user, true, "outgoing")).toEqual([
+      "follow",
+      "cancel_friend_request",
+      "block",
+      "profile",
+    ]);
+  });
+
   it("limits users blocked by the viewer to unblock", () => {
-    expect(userActionKeys({ ...user, blockedByMe: true }, true)).toEqual(["unblock", "profile"]);
+    expect(userActionKeys({ ...user, blockedByMe: true }, true)).toEqual(["unblock"]);
   });
 
   it("allows only safe cleanup when the other user blocked the viewer", () => {

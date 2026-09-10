@@ -441,6 +441,7 @@ pnpm --filter mobile test
 pnpm --filter web test
 pnpm --filter api test
 pnpm --filter schemas test
+pnpm --filter shared test
 pnpm --filter api test:integration
 pnpm build
 ```
@@ -457,7 +458,7 @@ Runs on every non-main branch push:
 1. commitlint
 2. Biome
 3. typecheck
-4. unit tests for mobile, web, API, and schemas
+4. unit tests for mobile, web, API, schemas, and shared deterministic helpers
 5. API integration tests
 
 No builds, deployments, or E2E.

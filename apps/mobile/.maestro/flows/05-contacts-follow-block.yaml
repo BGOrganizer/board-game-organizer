@@ -55,6 +55,26 @@ appId: com.bgo.mobile
     visible: "E2E Target"
     timeout: 30000
 - assertVisible: "Sent"
+# Cancel the outgoing request from its menu, then send it again.
+- tapOn: "Actions"
+- tapOn: "Cancel friend request"
+- tapOn:
+    id: "confirm-cancel_friend_request-btn"
+- extendedWaitUntil:
+    visible: "No sent friend requests"
+    timeout: 30000
+- tapOn: "Search"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- tapOn: "Actions"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- tapOn: "Friend requests"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
 
 # Switch to target and reject the incoming request.
 - tapOn: "Profile"
@@ -88,7 +108,9 @@ appId: com.bgo.mobile
     timeout: 60000
 - assertVisible: "Received"
 - tapOn:
-    id: "decline-friend-request-btn"
+    id: "respond-friend-request-btn"
+- tapOn:
+    id: "respond-reject-friend-request-btn"
 - extendedWaitUntil:
     notVisible: "E2E Test"
     timeout: 30000
@@ -122,11 +144,13 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
+- tapOn: "Actions"
+- tapOn: "Send friend request"
 - tapOn:
-    id: "friend-request-btn"
+    id: "confirm-friend-request-btn"
 - extendedWaitUntil:
     notVisible:
-      id: "friend-request-btn"
+      id: "confirm-friend-request-btn"
     timeout: 30000
 
 # Switch to target, accept, and verify the Friends tab.
@@ -157,7 +181,9 @@ appId: com.bgo.mobile
     visible: "E2E Test"
     timeout: 60000
 - tapOn:
-    id: "accept-friend-request-btn"
+    id: "respond-friend-request-btn"
+- tapOn:
+    id: "respond-accept-friend-request-btn"
 - tapOn: "Friends"
 - extendedWaitUntil:
     visible: "E2E Test"
@@ -193,6 +219,8 @@ appId: com.bgo.mobile
 # One action removes friendship plus the actor's follow and refreshes every list.
 - tapOn:
     id: "remove-friend-btn"
+- tapOn:
+    id: "confirm-unfriend-btn"
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000

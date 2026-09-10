@@ -6,6 +6,7 @@ import { renderWithI18n } from "@/test-utils";
 const mocks = vi.hoisted(() => ({
   friendRequest: vi.fn(),
   unfriend: vi.fn(),
+  cancelFriendRequest: vi.fn(),
   acceptFriendRequest: vi.fn(),
   rejectFriendRequest: vi.fn(),
   friends: false,
@@ -36,6 +37,7 @@ vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
     isLoaded: true,
     isSignedIn: true,
+    userId: "user_1",
     getToken: vi.fn().mockResolvedValue("token"),
   }),
 }));
@@ -96,6 +98,11 @@ vi.mock("@board-game-organizer/shared", () => ({
       isPending: false,
       isError: mocks.actionError,
     },
+    cancelFriendRequest: {
+      mutate: mocks.cancelFriendRequest,
+      isPending: false,
+      isError: false,
+    },
     acceptFriendRequest: {
       mutate: mocks.acceptFriendRequest,
       isPending: false,
@@ -117,19 +124,26 @@ vi.mock("@board-game-organizer/shared", () => ({
 vi.mock("@/components/UserMenu", () => ({
   UserMenu: ({
     canSendFriendRequest,
+    friendRequest,
     onAction,
   }: {
     canSendFriendRequest?: boolean;
+    friendRequest?: "incoming" | "outgoing";
     onAction: (key: string) => void;
-  }) => (
-    <button
-      type="button"
-      disabled={!canSendFriendRequest}
-      onClick={() => onAction("friend_request")}
-    >
-      Request friendship
-    </button>
-  ),
+  }) =>
+    friendRequest === "outgoing" ? (
+      <button type="button" onClick={() => onAction("cancel_friend_request")}>
+        Cancel friend request
+      </button>
+    ) : (
+      <button
+        type="button"
+        disabled={!canSendFriendRequest}
+        onClick={() => onAction("friend_request")}
+      >
+        Request friendship
+      </button>
+    ),
 }));
 
 describe("Contacts friend request action", () => {
@@ -150,13 +164,14 @@ describe("Contacts friend request action", () => {
   it("sends a request for an eligible contact", () => {
     renderWithI18n(<Contacts />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Send friend request: Target User" }));
     fireEvent.click(screen.getByRole("button", { name: "Request friendship" }));
-    expect(mocks.friendRequest).toHaveBeenCalledTimes(2);
-    expect(mocks.friendRequest).toHaveBeenCalledWith({ targetUserId: "user_2" });
+    expect(mocks.friendRequest).toHaveBeenCalledWith({
+      targetUserId: "user_2",
+      targetUser: expect.objectContaining({ id: "user_2" }),
+    });
   });
 
-  it("shows friends and handles received and sent friend requests", () => {
+  it("shows friends and handles received and sent friend requests", async () => {
     mocks.friends = true;
     mocks.pending = true;
     mocks.sent = true;
@@ -165,16 +180,33 @@ describe("Contacts friend request action", () => {
     fireEvent.click(screen.getByRole("button", { name: "Friends" }));
     expect(screen.getByText("Target User")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove friend: Target User" }));
-    expect(mocks.unfriend).toHaveBeenCalledWith({ targetUserId: "user_2" });
+    fireEvent.click(await screen.findByRole("button", { name: "Remove friend" }));
+    expect(mocks.unfriend).toHaveBeenCalledWith({
+      targetUserId: "user_2",
+      targetUser: expect.objectContaining({ id: "user_2" }),
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Friend requests" }));
     expect(screen.getByRole("heading", { name: "Received" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Sent" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Accept friend request: Target User" }));
-    fireEvent.click(screen.getByRole("button", { name: "Decline friend request: Target User" }));
+    fireEvent.click(screen.getByRole("button", { name: "Respond to friend request: Target User" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Accept" }));
+    fireEvent.click(screen.getByRole("button", { name: "Respond to friend request: Target User" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Decline" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel friend request" }));
 
-    expect(mocks.acceptFriendRequest).toHaveBeenCalledWith({ targetUserId: "user_2" });
-    expect(mocks.rejectFriendRequest).toHaveBeenCalledWith({ targetUserId: "user_2" });
+    expect(mocks.cancelFriendRequest).toHaveBeenCalledWith({
+      targetUserId: "user_2",
+      targetUser: expect.objectContaining({ id: "user_2" }),
+    });
+    expect(mocks.acceptFriendRequest).toHaveBeenCalledWith({
+      targetUserId: "user_2",
+      targetUser: expect.objectContaining({ id: "user_2" }),
+    });
+    expect(mocks.rejectFriendRequest).toHaveBeenCalledWith({
+      targetUserId: "user_2",
+      targetUser: expect.objectContaining({ id: "user_2" }),
+    });
   });
 
   it("shows empty and failed friend states", () => {

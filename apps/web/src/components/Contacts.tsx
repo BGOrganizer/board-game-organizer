@@ -9,8 +9,9 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, UserMinus, UserPlus, UserRoundPlus, UserRoundX, X } from "lucide-react";
+import { UserMinus, UserPlus, UserRoundCheck, UserRoundX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 
@@ -97,11 +98,13 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
 }
 
 export function Contacts() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t } = useLingui();
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
+  const [confirmUnfriend, setConfirmUnfriend] = useState<ContactUser | null>(null);
+  const [requestDecision, setRequestDecision] = useState<ContactUser | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -130,8 +133,7 @@ export function Contacts() {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn]);
+  }, [getToken, isLoaded, isSignedIn]);
 
   // Presence heartbeat: keep the green-dot fresh while the tab is open.
   // Uses a fresh session token each beat so the JWT rotation never 401s.
@@ -149,12 +151,13 @@ export function Contacts() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken, protectionBypass());
+  const contacts = useContacts(apiUrl(), token, getToken, protectionBypass(), userId);
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
     contacts.unfriend.isPending ||
     contacts.friendRequest.isPending ||
+    contacts.cancelFriendRequest.isPending ||
     contacts.acceptFriendRequest.isPending ||
     contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
@@ -164,18 +167,23 @@ export function Contacts() {
     contacts.unfollow.isError ||
     contacts.unfriend.isError ||
     contacts.friendRequest.isError ||
+    contacts.cancelFriendRequest.isError ||
     contacts.acceptFriendRequest.isError ||
     contacts.rejectFriendRequest.isError ||
     contacts.block.isError ||
     contacts.unblock.isError;
 
-  const handleUserAction = (u: ContactUser) => (key: UserActionKey) => {
-    if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
-    else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
-    else if (key === "unfriend") contacts.unfriend.mutate({ targetUserId: u.id });
-    else if (key === "friend_request") contacts.friendRequest.mutate({ targetUserId: u.id });
-    else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
-    else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
+  const handleUserAction = (user: ContactUser) => (key: UserActionKey) => {
+    const variables = { targetUserId: user.id, targetUser: user };
+    if (key === "follow") contacts.follow.mutate(variables);
+    else if (key === "unfollow") contacts.unfollow.mutate(variables);
+    else if (key === "unfriend") contacts.unfriend.mutate(variables);
+    else if (key === "friend_request") contacts.friendRequest.mutate(variables);
+    else if (key === "cancel_friend_request") contacts.cancelFriendRequest.mutate(variables);
+    else if (key === "accept_friend_request") contacts.acceptFriendRequest.mutate(variables);
+    else if (key === "reject_friend_request") contacts.rejectFriendRequest.mutate(variables);
+    else if (key === "block") contacts.block.mutate(variables);
+    else if (key === "unblock") contacts.unblock.mutate(variables);
     // profile: not implemented yet — no-op.
   };
 
@@ -197,16 +205,7 @@ export function Contacts() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
-
-  // Re-run a pending search as soon as the session token becomes available
-  // (the debounce above skipped it while getToken() was still null).
-  const hasPendingSearch = query.trim().length >= 4 && !token;
-  useEffect(() => {
-    if (token && hasPendingSearch) contacts.runSearch(query);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [contacts.runSearch, query, token]);
 
   const followingRows = contacts.following.data ?? [];
   // Ids the viewer follows — used by the Followers tab to render the right
@@ -242,41 +241,23 @@ export function Contacts() {
           variant="danger-soft"
           isDisabled={isBusy}
           aria-label={`${t`Remove friend`}: ${user.name}`}
-          onPress={() => contacts.unfriend.mutate({ targetUserId: user.id })}
+          onPress={() => setConfirmUnfriend(user)}
         >
           <UserRoundX className="h-4 w-4" />
         </Button>
       );
     }
     return (
-      <div className="flex gap-2">
-        <Button
-          isIconOnly
-          size="sm"
-          variant="outline"
-          isDisabled={isBusy}
-          aria-label={user.isFollowing ? t`Unfollow` : t`Follow`}
-          onPress={() =>
-            user.isFollowing
-              ? contacts.unfollow.mutate({ targetUserId: user.id })
-              : contacts.follow.mutate({ targetUserId: user.id })
-          }
-        >
-          {user.isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-        </Button>
-        {canSendFriendRequest(user) && (
-          <Button
-            isIconOnly
-            size="sm"
-            variant="outline"
-            isDisabled={isBusy}
-            aria-label={`${t`Send friend request`}: ${user.name}`}
-            onPress={() => contacts.friendRequest.mutate({ targetUserId: user.id })}
-          >
-            <UserRoundPlus className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
+      <Button
+        isIconOnly
+        size="sm"
+        variant="outline"
+        isDisabled={isBusy}
+        aria-label={user.isFollowing ? t`Unfollow` : t`Follow`}
+        onPress={() => handleUserAction(user)(user.isFollowing ? "unfollow" : "follow")}
+      >
+        {user.isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+      </Button>
     );
   };
   const blockedRows = contacts.blocked.data ?? [];
@@ -464,36 +445,24 @@ export function Contacts() {
                     online={profile.presence.online}
                     action={
                       section.key === "received" ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            isDisabled={isBusy}
-                            aria-label={`${t`Accept friend request`}: ${profile.name}`}
-                            onPress={() =>
-                              contacts.acceptFriendRequest.mutate({ targetUserId: profile.id })
-                            }
-                          >
-                            <Check className="h-4 w-4" />
-                            {t`Accept`}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger-soft"
-                            isDisabled={isBusy}
-                            aria-label={`${t`Decline friend request`}: ${profile.name}`}
-                            onPress={() =>
-                              contacts.rejectFriendRequest.mutate({ targetUserId: profile.id })
-                            }
-                          >
-                            <X className="h-4 w-4" />
-                            {t`Decline`}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Chip size="sm" variant="soft">
-                          {t`Sent`}
-                        </Chip>
-                      )
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          isDisabled={isBusy}
+                          aria-label={`${t`Respond to friend request`}: ${profile.name}`}
+                          onPress={() => setRequestDecision(profile)}
+                        >
+                          <UserRoundCheck className="h-4 w-4" />
+                        </Button>
+                      ) : undefined
+                    }
+                    menu={
+                      <UserMenu
+                        user={profile}
+                        busy={isBusy}
+                        friendRequest={section.key === "received" ? "incoming" : "outgoing"}
+                        onAction={handleUserAction(profile)}
+                      />
                     }
                   />
                 );
@@ -585,6 +554,51 @@ export function Contacts() {
         <Chip color="warning" variant="soft">
           {t`Sign in to see your contacts`}
         </Chip>
+      )}
+
+      {confirmUnfriend && (
+        <ContactConfirmDialog
+          title={t`Remove friend?`}
+          description={t`The friendship and your follow will be removed.`}
+          busy={isBusy}
+          onCancel={() => setConfirmUnfriend(null)}
+          actions={[
+            {
+              label: t`Remove friend`,
+              variant: "danger",
+              onPress: () => {
+                handleUserAction(confirmUnfriend)("unfriend");
+                setConfirmUnfriend(null);
+              },
+            },
+          ]}
+        />
+      )}
+
+      {requestDecision && (
+        <ContactConfirmDialog
+          title={t`Respond to friend request`}
+          description={t`Accept or decline this friend request.`}
+          busy={isBusy}
+          onCancel={() => setRequestDecision(null)}
+          actions={[
+            {
+              label: t`Decline`,
+              variant: "danger",
+              onPress: () => {
+                handleUserAction(requestDecision)("reject_friend_request");
+                setRequestDecision(null);
+              },
+            },
+            {
+              label: t`Accept`,
+              onPress: () => {
+                handleUserAction(requestDecision)("accept_friend_request");
+                setRequestDecision(null);
+              },
+            },
+          ]}
+        />
       )}
     </div>
   );
