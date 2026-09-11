@@ -85,11 +85,15 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="space-y-2">
       {keys.map((key) => (
-        <Card key={key} className="flex min-w-0 items-center gap-3 p-3">
-          <Skeleton animationType="pulse" className="h-10 w-10 rounded-full" />
-          <div className="flex-1 space-y-1">
-            <Skeleton animationType="pulse" className="h-3 w-2/3 rounded" />
-            <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
+        <Card
+          key={key}
+          data-testid="contact-skeleton-row"
+          className="flex w-full min-w-0 flex-row items-center gap-3 p-3"
+        >
+          <Skeleton animationType="pulse" className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton animationType="pulse" className="h-3 w-48 max-w-full rounded" />
+            <Skeleton animationType="pulse" className="h-3 w-32 max-w-full rounded" />
           </div>
         </Card>
       ))}

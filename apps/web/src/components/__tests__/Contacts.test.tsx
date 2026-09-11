@@ -218,6 +218,19 @@ describe("Contacts friend request action", () => {
     expect(screen.getByText("No sent friend requests")).toBeTruthy();
   });
 
+  it("renders complete skeleton rows while friend requests load", () => {
+    mocks.loading = true;
+    renderWithI18n(<Contacts />);
+    fireEvent.click(screen.getByRole("button", { name: "Friend requests" }));
+
+    const rows = screen.getAllByTestId("contact-skeleton-row");
+    expect(rows).toHaveLength(4);
+    for (const row of rows) {
+      expect(row.className).toContain("flex-row");
+      expect(row.querySelectorAll(".skeleton")).toHaveLength(3);
+    }
+  });
+
   it("surfaces friend and request loading failures", () => {
     mocks.friendsError = true;
     mocks.requestsError = true;

@@ -23,12 +23,18 @@ describe("CORS helpers", () => {
   it("OPTIONS preflight echoes the request origin (regression: used '*' with no origin)", async () => {
     const req = new Request("http://api.local/api/invites", {
       method: "OPTIONS",
-      headers: { origin: "https://web-xyz-board-game-organizers-projects.vercel.app" },
+      headers: {
+        origin: "https://web-xyz-board-game-organizers-projects.vercel.app",
+        "access-control-request-method": "PATCH",
+      },
     });
     const res = corsOptions(req);
     expect(res.status).toBe(204);
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
       "https://web-xyz-board-game-organizers-projects.vercel.app",
+    );
+    expect(res.headers.get("Access-Control-Allow-Methods")).toBe(
+      "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     );
   });
 
