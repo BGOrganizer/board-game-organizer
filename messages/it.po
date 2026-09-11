@@ -734,3 +734,13 @@ msgstr "Scegli data e ora"
 #: apps/web/src/components/InviteCard.tsx
 msgid "Creating invite"
 msgstr "Creazione dell'invito"
+
+#: apps/mobile/src/components/UserActionsSheet.tsx (mobile-only, runtime useT)
+#: apps/web/src/components/UserMenu.tsx
+msgid "Unblock contact?"
+msgstr "Sbloccare il contatto?"
+
+#: apps/mobile/src/components/UserActionsSheet.tsx (mobile-only, runtime useT)
+#: apps/web/src/components/UserMenu.tsx
+msgid "This contact will no longer be blocked."
+msgstr "Questo contatto non sarà più bloccato."

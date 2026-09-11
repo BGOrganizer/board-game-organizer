@@ -115,6 +115,8 @@ describe("UserMenu", () => {
     await openMenu();
     expect(screen.queryByRole("menuitem", { name: "Send friend request" })).toBeNull();
     fireEvent.click(screen.getByRole("menuitem", { name: "Unblock" }));
+    expect(await screen.findByRole("dialog", { name: "Unblock contact?" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Unblock" }));
     expect(onAction).toHaveBeenCalledWith("unblock");
   });
 

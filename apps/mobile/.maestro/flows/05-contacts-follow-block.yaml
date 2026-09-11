@@ -264,6 +264,8 @@ appId: com.bgo.mobile
     visible: "Unblock"
     timeout: 30000
 - tapOn: "Unblock"
+- tapOn:
+    id: "confirm-unblock-btn"
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000

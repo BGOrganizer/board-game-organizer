@@ -16,6 +16,7 @@ import { type FriendRequestContext, type UserActionKey, userActionKeys } from "@
 
 export type UserActionConfirmation =
   | "block"
+  | "unblock"
   | "unfriend"
   | "friend_request"
   | "accept_friend_request"
@@ -124,6 +125,7 @@ export function UserActionsSheet({
     if (item.disabled || busy) return;
     if (
       item.key === "block" ||
+      item.key === "unblock" ||
       item.key === "unfriend" ||
       item.key === "friend_request" ||
       item.key === "accept_friend_request" ||
@@ -146,6 +148,14 @@ export function UserActionsSheet({
           ),
           label: t("Block"),
           danger: true,
+          icon: <Ban size={18} color="#fff" />,
+        };
+      case "unblock":
+        return {
+          title: t("Unblock contact?"),
+          text: t("This contact will no longer be blocked."),
+          label: t("Unblock"),
+          danger: false,
           icon: <Ban size={18} color="#fff" />,
         };
       case "unfriend":
@@ -323,7 +333,7 @@ const styles = StyleSheet.create({
   confirmTitle: { fontSize: 16, fontWeight: "600", color: "#111", marginBottom: 6 },
   confirmText: { fontSize: 14, color: "#374151", marginBottom: 12 },
   confirmRow: {
-    flexDirection: "column",
+    flexDirection: "row",
     gap: 8,
   },
   confirmCancel: {

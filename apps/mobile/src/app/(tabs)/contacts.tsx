@@ -714,11 +714,7 @@ export default function ContactsScreen() {
                         >
                           <UserRoundCheck size={16} color="#fff" />
                         </Button>
-                      ) : (
-                        <Chip size="sm" variant="secondary">
-                          <Text className="text-muted">{t("Sent")}</Text>
-                        </Chip>
-                      )}
+                      ) : null}
                       <Pressable
                         onPress={() =>
                           openUserActions(

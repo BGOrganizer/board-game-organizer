@@ -182,6 +182,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Actions" }).first().click();
   await page.getByRole("menuitem", { name: /unblock/i }).click();
+  await page.getByRole("button", { name: "Unblock", exact: true }).click();
   await expect(page.getByText("No blocked users")).toBeVisible({ timeout: 30_000 });
 
   // Back to search: the target is findable again.

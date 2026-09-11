@@ -31,7 +31,7 @@ export type UserActionKey =
 
 export type FriendRequestContext = "incoming" | "outgoing";
 
-type ConfirmAction = Exclude<UserActionKey, "follow" | "unfollow" | "unblock" | "profile">;
+type ConfirmAction = Exclude<UserActionKey, "follow" | "unfollow" | "profile">;
 
 export function UserMenu({
   user,
@@ -155,6 +155,7 @@ export function UserMenu({
   const handle = (key: UserActionKey) => {
     if (
       key === "block" ||
+      key === "unblock" ||
       key === "unfriend" ||
       key === "friend_request" ||
       key === "accept_friend_request" ||
@@ -175,6 +176,13 @@ export function UserMenu({
           description: t`You will no longer see each other or find each other. Follow and friendships will be removed.`,
           label: t`Block`,
           danger: true,
+        };
+      case "unblock":
+        return {
+          title: t`Unblock contact?`,
+          description: t`This contact will no longer be blocked.`,
+          label: t`Unblock`,
+          danger: false,
         };
       case "unfriend":
         return {
