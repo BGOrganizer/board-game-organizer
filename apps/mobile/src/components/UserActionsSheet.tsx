@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { type FriendRequestContext, type UserActionKey, userActionKeys } from "@/lib/user-actions";
 
@@ -36,15 +36,13 @@ export interface UserActionItem {
  * block/unblock, view profile (disabled for now). Triggered by the ⋯
  * kebab button next to the follow button.
  *
- * `busy` disables the rows while a mutation is in flight (the list cards
- * already grey out via isBusy, but this sheet is rendered separately) and
- * `error` surfaces a failed mutation instead of failing silently.
+ * `busy` prevents duplicate or conflicting actions while the serialized
+ * contact mutation is in flight. Optimistic actions close the sheet immediately.
  */
 export function UserActionsSheet({
   visible,
   user,
   busy,
-  error,
   canSendFriendRequest = false,
   friendRequest,
   initialConfirmAction,
@@ -54,7 +52,6 @@ export function UserActionsSheet({
   visible: boolean;
   user: ContactUser | null;
   busy?: boolean;
-  error?: string | null;
   canSendFriendRequest?: boolean;
   friendRequest?: FriendRequestContext;
   initialConfirmAction?: UserActionConfirmation;
@@ -112,13 +109,12 @@ export function UserActionsSheet({
     profile: <Eye size={18} color="#9ca3af" />,
   };
 
-  const runAction = async (key: UserActionItem["key"]) => {
-    try {
-      await onAction(key);
-      onClose();
-    } catch {
-      // Mutation error remains visible in the open sheet.
-    }
+  const runAction = (key: UserActionItem["key"]) => {
+    const result = onAction(key);
+    onClose();
+    void result.catch(() => {
+      // Parent mutation rolls back optimistic state and shows the localized alert.
+    });
   };
 
   const handleItem = (item: UserActionItem) => {
@@ -261,7 +257,7 @@ export function UserActionsSheet({
                     }
                     onPress={() => void runAction(confirmAction)}
                   >
-                    {busy ? <ActivityIndicator size="small" color="#fff" /> : confirmation.icon}
+                    {confirmation.icon}
                     <Text style={styles.itemTextWhite}>{confirmation.label}</Text>
                   </Pressable>
                 )}
@@ -295,13 +291,10 @@ export function UserActionsSheet({
                   >
                     {item.label}
                   </Text>
-                  {busy && <ActivityIndicator size="small" color="#111" />}
                 </Pressable>
               ))}
             </View>
           )}
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Pressable style={styles.cancel} disabled={busy} onPress={onClose}>
             <Text style={styles.cancelText}>{t("Cancel")}</Text>
@@ -375,7 +368,6 @@ const styles = StyleSheet.create({
   itemTextWhite: { fontSize: 15, color: "#fff", fontWeight: "600" },
   itemTextDanger: { fontSize: 15, color: "#dc2626", fontWeight: "600" },
   itemTextDisabled: { color: "#9ca3af" },
-  error: { marginTop: 10, fontSize: 13, color: "#dc2626", textAlign: "center" },
   cancel: { marginTop: 12, alignItems: "center", paddingVertical: 12 },
   cancelText: { fontSize: 15, color: "#006fee", fontWeight: "600" },
 });

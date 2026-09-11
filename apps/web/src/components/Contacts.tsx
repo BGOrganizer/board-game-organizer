@@ -369,8 +369,8 @@ export function Contacts() {
           {query.trim().length > 0 && query.trim().length < 4 && (
             <p className="text-sm text-default-500">{t`Type at least 4 characters to search`}</p>
           )}
-          {contacts.search.isPending && <ContactListSkeleton count={2} />}
-          {query.trim().length >= 4 && !contacts.search.isPending && searchResults.length === 0 && (
+          {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+          {query.trim().length >= 4 && !contacts.search.isLoading && searchResults.length === 0 && (
             <p className="text-sm text-default-500">{t`No users found`}</p>
           )}
           <div className="space-y-2">

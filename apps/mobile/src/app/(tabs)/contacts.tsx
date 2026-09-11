@@ -174,17 +174,6 @@ export default function ContactsScreen() {
     contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
     contacts.unblock.isPending;
-  const actionFailed =
-    contacts.follow.isError ||
-    contacts.unfollow.isError ||
-    contacts.unfriend.isError ||
-    contacts.friendRequest.isError ||
-    contacts.cancelFriendRequest.isError ||
-    contacts.acceptFriendRequest.isError ||
-    contacts.rejectFriendRequest.isError ||
-    contacts.block.isError ||
-    contacts.unblock.isError;
-
   const openUserActions = (
     user: ContactUser,
     friendRequest?: FriendRequestContext,
@@ -436,6 +425,7 @@ export default function ContactsScreen() {
   const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
+  const visibleSuggestions = contacts.suggestions.isLoading || syncingContacts ? [] : suggestions;
   const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
@@ -535,11 +525,6 @@ export default function ContactsScreen() {
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <InviteCard apiUrl={apiUrl()} token={token} />
-      {actionFailed && (
-        <Text accessibilityRole="alert" className="mt-2 text-sm text-danger">
-          {t("Could not complete the action. Try again.")}
-        </Text>
-      )}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -593,9 +578,9 @@ export default function ContactsScreen() {
                 {t("Type at least 4 characters to search")}
               </Text>
             )}
-            {contacts.search.isPending && <ContactListSkeleton count={2} />}
+            {contacts.search.isLoading && <ContactListSkeleton count={2} />}
             {query.trim().length >= 4 &&
-              !contacts.search.isPending &&
+              !contacts.search.isLoading &&
               searchResults.length === 0 && (
                 <Text style={{ fontSize: 13, color: "#8e8e93" }}>{t("No users found")}</Text>
               )}
@@ -738,8 +723,9 @@ export default function ContactsScreen() {
 
         {tab === "suggestions" && (
           <View style={{ gap: 8 }}>
-            {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
-            {syncingContacts && <ContactListSkeleton count={2} />}
+            {(contacts.suggestions.isLoading || syncingContacts) && (
+              <ContactListSkeleton count={3} />
+            )}
             {!contacts.suggestions.isLoading &&
               !syncingContacts &&
               contactsPermission !== "granted" && (
@@ -761,6 +747,7 @@ export default function ContactsScreen() {
                 </View>
               )}
             {!contacts.suggestions.isLoading &&
+              !syncingContacts &&
               contactsPermission === "granted" &&
               suggestions.length === 0 && (
                 <Text className="text-sm text-muted">
@@ -769,7 +756,7 @@ export default function ContactsScreen() {
                     : t("No contacts found in your address book.")}
                 </Text>
               )}
-            {suggestions.map((u) => (
+            {visibleSuggestions.map((u) => (
               <Card
                 key={u.id}
                 style={{
@@ -888,7 +875,6 @@ export default function ContactsScreen() {
         canSendFriendRequest={menuUser !== null && canSendFriendRequest(menuUser)}
         friendRequest={menuFriendRequest}
         initialConfirmAction={initialConfirmAction}
-        error={actionFailed ? t("Could not complete the action. Try again.") : null}
         onClose={closeUserActions}
         onAction={(key) => (menuUser ? handleUserAction(menuUser)(key) : Promise.resolve())}
       />

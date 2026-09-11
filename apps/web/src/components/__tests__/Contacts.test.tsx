@@ -89,7 +89,7 @@ vi.mock("@board-game-organizer/shared", () => ({
     },
     blocked: { data: [], isLoading: false, isError: false },
     suggestions: { data: { users: [], nextCursor: null, hasContacts: false } },
-    search: { data: null, isPending: false, isError: false },
+    search: { data: null, isLoading: false, isError: false },
     follow: { mutate: vi.fn(), isPending: false, isError: false },
     unfollow: { mutate: vi.fn(), isPending: false, isError: false },
     unfriend: { mutate: mocks.unfriend, isPending: false, isError: mocks.actionError },

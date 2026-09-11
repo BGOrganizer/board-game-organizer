@@ -341,10 +341,7 @@ export function useContacts(
     enabled: enabled && searchQuery.length >= 4,
     staleTime: 30_000,
   });
-  const search = useMemo(
-    () => ({ ...searchResult, isPending: searchResult.isFetching }),
-    [searchResult],
-  );
+  const search = searchResult;
 
   const refreshContacts = useCallback(
     () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),

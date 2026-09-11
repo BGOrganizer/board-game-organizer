@@ -62,7 +62,7 @@ vi.mock("@board-game-organizer/shared", () => ({
     block: { mutate: vi.fn(), isPending: false },
     unblock: { mutate: vi.fn(), isPending: false },
     syncContacts: { mutateAsync: vi.fn(), mutate: vi.fn(), isPending: false },
-    search: { mutate: vi.fn(), data: undefined, isPending: false },
+    search: { mutate: vi.fn(), data: undefined, isLoading: false },
     runSearch: vi.fn(),
     refreshContacts: vi.fn(),
   }),
