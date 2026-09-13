@@ -6,7 +6,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { View } from "react-native";
 
 export default function SignInScreen() {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { isLoaded: isUserLoaded, user } = useUser();
   const router = useRouter();
 

@@ -8,7 +8,7 @@ import { Header } from "@/components/Header";
 import { LoginFallback } from "@/components/LoginFallback";
 
 export default function Index() {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { isLoaded: isUserLoaded, user } = useUser();
 
   if (!isAuthLoaded || (isSignedIn && !isUserLoaded)) {

@@ -8,7 +8,7 @@ import { Platform, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
 export default function TabLayout() {
-  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { isLoaded: isUserLoaded, user } = useUser();
   const t = useT();
 
