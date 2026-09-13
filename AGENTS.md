@@ -325,7 +325,7 @@ HeroUI v3 uses React Aria composition:
 - Do not use obsolete `startContent`, `endContent`, `flat`, `light`, or `solid` APIs.
 - Put item icons inside item children.
 - Attach `onAction` to each `Dropdown.Item`; menu-level `onAction` is not reliable here.
-- `Dropdown.Trigger` must contain an interactive Button.
+- `Dropdown.Trigger` renders an interactive button; do not nest another Button inside it.
 - Prefer the existing custom portal dialog for controlled confirmation dialogs; the HeroUI composite
   modal previously left orphaned overlays.
 - Check installed `.d.ts` files before introducing a HeroUI component API not already used.

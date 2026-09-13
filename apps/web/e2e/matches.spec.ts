@@ -90,7 +90,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   } catch {
     // No friends available — the picker is empty.
   }
-  await page.getByLabel("Back").click();
+  if (!friendPicked) await page.getByLabel("Back").click();
   await expect(page.getByText("Players")).toBeVisible();
 
   if (!friendPicked) {

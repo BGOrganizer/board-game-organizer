@@ -547,9 +547,7 @@ jobs:
     name: 🗑️ Cleanup E2E test user
     needs: [provision, e2e-maestro, e2e-playwright]
     if: always()
-    # Cleanup must never block the PR result: a failure here only means the
-    # next run's orphan sweep (>24h) will take care of it.
-    continue-on-error: true
+    # Cleanup failure must stay visible; otherwise leaked Clerk users accumulate silently.
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout

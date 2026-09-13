@@ -229,7 +229,6 @@ jobs:
     name: 🗑️ Cleanup E2E test user
     needs: [provision, e2e-maestro]
     if: always()
-    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
