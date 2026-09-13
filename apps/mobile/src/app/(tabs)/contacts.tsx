@@ -124,9 +124,11 @@ export default function ContactsScreen() {
   const [menuFriendRequest, setMenuFriendRequest] = useState<FriendRequestContext>();
   const [initialConfirmAction, setInitialConfirmAction] = useState<UserActionConfirmation>();
   const [contactsPermission, setContactsPermission] = useState<
-    "undetermined" | "granted" | "denied"
-  >("undetermined");
+    "checking" | "undetermined" | "granted" | "denied"
+  >("checking");
   const [syncingContacts, setSyncingContacts] = useState(false);
+  const contactsSyncRef = useRef<Promise<void> | null>(null);
+  const contactsPromptShownRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -215,35 +217,48 @@ export default function ContactsScreen() {
   // taps "Yes" does the real Android/iOS permission dialog fire. If the user
   // declines twice the system stops asking (canAskAgain=false) and we open
   // the app settings instead. The CTA stays tappable until consent is given.
-  // With consent the matched registered users are persisted on the API
-  // (POST /api/contacts/sync) and suggestions read them from the DB, so the
-  // address book is only read once.
-  const syncContactsData = useCallback(async () => {
-    let data: Awaited<ReturnType<typeof Contacts.getContactsAsync>>["data"];
-    try {
-      ({ data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-      }));
-    } catch {
-      setContactsPermission("denied");
-      return;
-    }
+  // With consent matched users are persisted through POST /api/contacts/sync;
+  // raw address-book values are never stored locally.
+  const syncContactsMutation = contacts.syncContacts.mutateAsync;
+  const syncContactsData = useCallback(() => {
+    if (contactsSyncRef.current) return contactsSyncRef.current;
 
-    setSyncingContacts(true);
-    try {
-      await contacts.syncContacts.mutateAsync(contactSyncPayload(data));
-    } catch {
-      Alert.alert(t("Action failed"), t("Could not sync contacts. Try again."));
-    } finally {
-      setSyncingContacts(false);
-    }
-  }, [contacts.syncContacts, t]);
+    const sync = (async () => {
+      setSyncingContacts(true);
+      try {
+        const { data } = await Contacts.getContactsAsync({
+          fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
+        });
+        await syncContactsMutation(contactSyncPayload(data));
+      } catch {
+        Alert.alert(t("Action failed"), t("Could not sync contacts. Try again."));
+      } finally {
+        setSyncingContacts(false);
+        contactsSyncRef.current = null;
+      }
+    })();
+    contactsSyncRef.current = sync;
+    return sync;
+  }, [syncContactsMutation, t]);
 
   // Fire the REAL system permission request and track denials. A denial only
   // returns to the screen (the CTA stays). The app settings are opened ONLY
   // when the user taps "Yes" again after already denying twice — the system
   // dialog would not re-appear anyway (canAskAgain=false).
   const requestContactsAccess = useCallback(async () => {
+    let permission = null;
+    try {
+      permission = await Contacts.getPermissionsAsync();
+    } catch {
+      permission = null;
+    }
+    if (permission?.granted) {
+      setContactsPermission("granted");
+      await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
+      await syncContactsData();
+      return;
+    }
+
     let denials = 0;
     try {
       denials = Number(await SecureStore.getItemAsync("contacts_denials")) || 0;
@@ -256,18 +271,10 @@ export default function ContactsScreen() {
       await Linking.openSettings().catch(() => {});
       return;
     }
-    let permission = null;
     try {
-      permission = await Contacts.getPermissionsAsync();
+      permission = await Contacts.requestPermissionsAsync();
     } catch {
       permission = null;
-    }
-    if (!permission?.granted) {
-      try {
-        permission = await Contacts.requestPermissionsAsync();
-      } catch {
-        permission = null;
-      }
     }
     if (!permission?.granted) {
       // Declined the system dialog → back to the screen, no redirect.
@@ -280,13 +287,9 @@ export default function ContactsScreen() {
       }
       return;
     }
-    // Granted: persist so the CTA never comes back, even across restarts.
+
     setContactsPermission("granted");
-    try {
-      await SecureStore.setItemAsync("contacts_granted", "true");
-    } catch {
-      /* non-fatal */
-    }
+    await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
     await syncContactsData();
   }, [syncContactsData]);
 
@@ -303,68 +306,60 @@ export default function ContactsScreen() {
     );
   }, [requestContactsAccess, t]);
 
-  // Restore a previously granted consent (survives app restarts) so the tab
-  // never re-prompts and the "Add contacts" CTA stays hidden.
+  // Native permission is the only source of truth; OS already persists it.
   useEffect(() => {
     let active = true;
-    (async () => {
-      // Real OS permission is the source of truth (the user may have revoked
-      // it in the settings). The SecureStore flag is a fast path only.
-      let granted = false;
-      try {
-        const p = await Contacts.getPermissionsAsync();
-        granted = Boolean(p?.granted);
-      } catch {
-        granted = false;
-      }
-      if (!granted) {
-        try {
-          const stored = await SecureStore.getItemAsync("contacts_granted");
-          granted = stored === "true";
-        } catch {
-          granted = false;
-        }
-      }
-      if (active && granted) {
-        setContactsPermission("granted");
-        try {
-          await SecureStore.setItemAsync("contacts_granted", "true");
-        } catch {
-          /* non-fatal */
-        }
-      }
-    })();
+    void Contacts.getPermissionsAsync()
+      .then((permission) => {
+        if (!active) return;
+        setContactsPermission(
+          permission.granted
+            ? "granted"
+            : permission.status === "denied"
+              ? "denied"
+              : "undetermined",
+        );
+      })
+      .catch(() => {
+        if (active) setContactsPermission("undetermined");
+      });
     return () => {
       active = false;
     };
   }, []);
 
-  // When the user grants in the SYSTEM SETTINGS and returns to the app, sync
-  // automatically (AppState → active). Android can lag a moment before the
-  // permission state updates, so re-check briefly instead of trusting a
-  // single read.
+  // When the user grants in SYSTEM SETTINGS and returns, sync automatically.
   const checkContactsGranted = useCallback(async () => {
-    for (let i = 0; i < 5; i += 1) {
-      let granted = false;
+    if (contactsPermission === "granted") {
       try {
-        const p = await Contacts.getPermissionsAsync();
-        granted = Boolean(p?.granted);
-      } catch {
-        granted = false;
-      }
-      if (granted) {
-        setContactsPermission("granted");
-        try {
-          await SecureStore.setItemAsync("contacts_granted", "true");
-        } catch {
-          /* non-fatal */
+        const permission = await Contacts.getPermissionsAsync();
+        if (!permission.granted) {
+          setContactsPermission("denied");
+          return;
         }
         await syncContactsData();
-        return;
+      } catch {
+        /* keep last known permission state */
+      }
+      return;
+    }
+
+    // Android can lag briefly before publishing the new permission state.
+    for (let i = 0; i < 5; i += 1) {
+      try {
+        const permission = await Contacts.getPermissionsAsync();
+        if (permission.granted) {
+          setContactsPermission("granted");
+          await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
+          await syncContactsData();
+          return;
+        }
+      } catch {
+        /* retry below */
       }
       await new Promise<void>((resolve) => setTimeout(resolve, 400));
     }
-  }, [syncContactsData]);
+  }, [contactsPermission, syncContactsData]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
@@ -373,19 +368,17 @@ export default function ContactsScreen() {
     return () => sub.remove();
   }, [checkContactsGranted]);
 
-  // Re-check when re-entering the Suggestions tab: some Android launchers
-  // miss the AppState foreground event, so this is the safety net.
-  useEffect(() => {
-    if (tab !== "suggestions") return;
-    if (contactsPermission === "granted") return;
-    void checkContactsGranted();
-  }, [checkContactsGranted, contactsPermission, tab]);
-
   // Ask for permission the first time the user opens the Suggestions tab
   // (through the confirmation dialog — never an unprompted system dialog).
   useEffect(() => {
-    if (tab !== "suggestions") return;
-    if (contactsPermission !== "undetermined") return;
+    if (
+      tab !== "suggestions" ||
+      contactsPermission !== "undetermined" ||
+      contactsPromptShownRef.current
+    ) {
+      return;
+    }
+    contactsPromptShownRef.current = true;
     confirmAndRequestContacts();
   }, [confirmAndRequestContacts, contactsPermission, tab]);
 
@@ -425,7 +418,10 @@ export default function ContactsScreen() {
   const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
-  const visibleSuggestions = contacts.suggestions.isLoading || syncingContacts ? [] : suggestions;
+  const visibleSuggestions =
+    contacts.suggestions.isLoading || syncingContacts || contactsPermission === "checking"
+      ? []
+      : suggestions;
   const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
@@ -723,11 +719,12 @@ export default function ContactsScreen() {
 
         {tab === "suggestions" && (
           <View style={{ gap: 8 }}>
-            {(contacts.suggestions.isLoading || syncingContacts) && (
-              <ContactListSkeleton count={3} />
-            )}
+            {(contacts.suggestions.isLoading ||
+              syncingContacts ||
+              contactsPermission === "checking") && <ContactListSkeleton count={3} />}
             {!contacts.suggestions.isLoading &&
               !syncingContacts &&
+              contactsPermission !== "checking" &&
               contactsPermission !== "granted" && (
                 <View style={{ gap: 8 }}>
                   <Text className="text-sm text-muted">
