@@ -102,7 +102,12 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   // Outgoing requests can be cancelled from the contextual menu and sent again.
   await sent.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel friend request" }).click();
+  const cancelResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" && response.url().includes("/api/friend-requests/"),
+  );
   await page.getByRole("button", { name: "Cancel request" }).click();
+  expect((await cancelResponse).ok()).toBe(true);
   await expect(sent.getByText("No sent friend requests")).toBeVisible({ timeout: 30_000 });
   await findTarget(page);
   await sendFriendRequest(page);
@@ -118,7 +123,12 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const received = targetPage.getByRole("heading", { name: "Received" }).locator("..");
   await expect(received.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
   await received.getByRole("button", { name: /Respond to friend request/ }).click();
+  const declineResponse = targetPage.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" && response.url().includes("/api/friend-requests/"),
+  );
   await targetPage.getByRole("button", { name: "Decline", exact: true }).click();
+  expect((await declineResponse).ok()).toBe(true);
   await expect(received.getByText("No received friend requests")).toBeVisible({ timeout: 30_000 });
 
   // A rejected request can be sent again from the contextual action, then accepted.
@@ -130,7 +140,12 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const receivedAgain = targetPage.getByRole("heading", { name: "Received" }).locator("..");
   await expect(receivedAgain.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
   await receivedAgain.getByRole("button", { name: /Respond to friend request/ }).click();
+  const acceptResponse = targetPage.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" && response.url().includes("/api/friend-requests/"),
+  );
   await targetPage.getByRole("button", { name: "Accept", exact: true }).click();
+  expect((await acceptResponse).ok()).toBe(true);
   await targetPage.getByRole("button", { name: "Friends" }).click();
   await expect(targetPage.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
 

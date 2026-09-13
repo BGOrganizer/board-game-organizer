@@ -4,7 +4,7 @@ import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared"
 import { withProtectionBypass } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -54,8 +54,8 @@ export function SearchUserPage({
           { headers: { Authorization: `Bearer ${t}` } },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { relationships: RelationshipRow[] };
-        if (active) setFriends(data.relationships);
+        const data = (await res.json()) as RelationshipRow[];
+        if (active) setFriends(data);
       } catch {
         if (active) setError(t`Could not load friends`);
       }
