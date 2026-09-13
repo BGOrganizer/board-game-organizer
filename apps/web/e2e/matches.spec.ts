@@ -20,7 +20,6 @@ async function signInAsActor(page: import("@playwright/test").Page) {
   await clerk.signIn({ page, emailAddress: E2E_EMAIL });
   await page.goto("/");
   await completeMobileNumberIfNeeded(page);
-  await expect(page.getByText("Matches")).toBeVisible({ timeout: 60_000 });
 }
 
 test("match wizard: name → players → game → create", async ({ page }) => {

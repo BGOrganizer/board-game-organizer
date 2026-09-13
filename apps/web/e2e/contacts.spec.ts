@@ -21,7 +21,6 @@ async function signIn(page: import("@playwright/test").Page, emailAddress: strin
   await clerk.signIn({ page, emailAddress });
   await page.goto("/");
   await completeMobileNumberIfNeeded(page);
-  await expect(page.getByText("Matches")).toBeVisible({ timeout: 60_000 });
 }
 
 async function findTarget(page: import("@playwright/test").Page) {

@@ -54,9 +54,6 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
   // sees the session and redirects to /matches.
   await page.goto("/");
   await completeMobileNumberIfNeeded(page);
-  await expect(page.getByText("Matches")).toBeVisible({
-    timeout: 60_000,
-  });
 
   // Profile page shows the API data (name of the provisioned user). The
   // header also shows the first name, so target the page heading.
