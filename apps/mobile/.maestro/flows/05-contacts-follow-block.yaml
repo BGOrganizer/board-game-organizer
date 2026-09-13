@@ -19,6 +19,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
+- assertNotVisible: "Action failed"
 - waitForAnimationToEnd:
     timeout: 5000
 - assertNotVisible: "Add contacts"

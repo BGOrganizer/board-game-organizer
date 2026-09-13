@@ -228,9 +228,10 @@ export default function ContactsScreen() {
       setSyncingContacts(true);
       let stage = "read";
       try {
-        const { data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-        });
+        const data = await Contacts.Contact.getAllDetails([
+          Contacts.ContactField.EMAILS,
+          Contacts.ContactField.PHONES,
+        ]);
         stage = "request";
         await syncContactsMutation(contactSyncPayload(data));
       } catch (error) {

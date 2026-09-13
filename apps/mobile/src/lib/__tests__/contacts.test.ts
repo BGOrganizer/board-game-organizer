@@ -6,15 +6,19 @@ describe("contactSyncPayload", () => {
     expect(
       contactSyncPayload([
         {
-          emails: [{ email: " User@Example.com " }, { email: "not-an-email" }, { email: null }],
-          phoneNumbers: [{ digits: "393331234567", number: " +39 333 123 4567 " }],
+          emails: [
+            { address: " User@Example.com " },
+            { address: "not-an-email" },
+            { address: null },
+          ],
+          phones: [{ number: " +39 333 123 4567 " }],
         },
         {
-          emails: [{ email: "user@example.com" }],
-          phoneNumbers: [{ digits: "393331234567" }],
+          emails: [{ address: "user@example.com" }],
+          phones: [{ number: "+39 333 123 4567" }],
         },
-        { emails: null, phoneNumbers: null },
-        { phoneNumbers: [{}] },
+        { emails: null, phones: null },
+        { phones: [{}] },
         {},
       ]),
     ).toEqual({
@@ -25,8 +29,8 @@ describe("contactSyncPayload", () => {
 
   it("limits each payload list to API bounds", () => {
     const contacts = Array.from({ length: 1001 }, (_, index) => ({
-      emails: [{ email: `user${index}@example.com` }],
-      phoneNumbers: [{ number: `+39${String(index).padStart(10, "0")}` }],
+      emails: [{ address: `user${index}@example.com` }],
+      phones: [{ number: `+39${String(index).padStart(10, "0")}` }],
     }));
 
     const payload = contactSyncPayload(contacts);
