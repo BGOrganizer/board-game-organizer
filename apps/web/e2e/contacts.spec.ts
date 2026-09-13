@@ -40,11 +40,12 @@ async function sendFriendRequest(page: import("@playwright/test").Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  const request = page.waitForRequest(
-    (candidate) => candidate.method() === "POST" && candidate.url().includes("type=friend_request"),
+  const response = page.waitForResponse(
+    (candidate) =>
+      candidate.request().method() === "POST" && candidate.url().includes("type=friend_request"),
   );
   await dialog.getByRole("button", { name: "Send request" }).click();
-  await request;
+  expect((await response).ok()).toBe(true);
   await page.setViewportSize({ width: 1280, height: 800 });
 }
 
