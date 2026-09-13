@@ -3,7 +3,7 @@
 import type { CreateMatchInput } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Button, Card } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Users, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -83,13 +83,8 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
     [name, dateSlots],
   );
   const step2Valid = useMemo(
-    // The creator counts as one player: with minPlayers=N the wizard needs
-    // at least N-1 invited users, and the range must be coherent.
-    () =>
-      minPlayers >= 1 &&
-      maxPlayers >= minPlayers &&
-      userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
-    [minPlayers, maxPlayers, userSlots],
+    () => minPlayers >= 2 && maxPlayers >= minPlayers,
+    [minPlayers, maxPlayers],
   );
   const step3Valid = useMemo(
     // Every added game slot must hold a game (same rule as the dates).
@@ -121,22 +116,19 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
   }, [slotCount]);
 
   const bumpMin = (delta: number) =>
-    setMinPlayers((v) => Math.max(1, Math.min(maxPlayers, v + delta)));
+    setMinPlayers((v) => Math.max(2, Math.min(maxPlayers, v + delta)));
   const bumpMax = (delta: number) => setMaxPlayers((v) => Math.max(minPlayers, v + delta));
 
   // ---- Step 3: game slots ----
   const addGameSlot = useCallback(() => {
     setGameSlots((prev) => [...prev, { id: uid(), game: null }]);
   }, []);
-  const removeGameSlot = useCallback((id: string) => {
-    setGameSlots((prev) => (prev.length <= 1 ? prev : prev.filter((s) => s.id !== id)));
-  }, []);
 
   const create = useCallback(async () => {
     if (!step3Valid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
-      dates: dateSlots.map((s) => s.value!).filter(Boolean),
+      dates: dateSlots.flatMap((s) => (s.value ? [s.value] : [])),
       minPlayers,
       maxPlayers,
       invitedUserIds: userSlots.map((s) => s.user?.id).filter((x): x is string => Boolean(x)),

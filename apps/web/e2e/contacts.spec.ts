@@ -104,7 +104,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await page.getByRole("menuitem", { name: "Cancel friend request" }).click();
   const cancelResponse = page.waitForResponse(
     (response) =>
-      response.request().method() === "DELETE" && response.url().includes("/api/friend-requests/"),
+      response.request().method() === "DELETE" && response.url().includes("type=friend_request"),
   );
   await page.getByRole("button", { name: "Cancel request" }).click();
   expect((await cancelResponse).ok()).toBe(true);

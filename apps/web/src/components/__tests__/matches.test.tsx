@@ -59,6 +59,31 @@ describe("Matches", () => {
     expect(screen.getByText("New match")).toBeTruthy();
   });
 
+  it("allows a planning match without invites and keeps the minimum at two", async () => {
+    renderWithI18n(<Matches />);
+    fireEvent.click(screen.getByLabelText(/create a match/i));
+    fireEvent.change(screen.getByPlaceholderText(/Friday night games/i), {
+      target: { value: "Friday night games" },
+    });
+    const dateInput = document.querySelector('input[type="datetime-local"]');
+    expect(dateInput).not.toBeNull();
+    fireEvent.change(dateInput as HTMLInputElement, { target: { value: "2099-09-05T20:00" } });
+
+    const next = screen.getByLabelText("Next step") as HTMLButtonElement;
+    expect(next.disabled).toBe(false);
+    fireEvent.click(next);
+    expect(await screen.findByText("Players")).toBeTruthy();
+
+    const min = screen.getByText("Min").parentElement;
+    expect(min?.textContent).toBe("Min2");
+    fireEvent.click(screen.getByLabelText("Decrease min players"));
+    expect(min?.textContent).toBe("Min2");
+    expect(next.disabled).toBe(false);
+
+    fireEvent.click(next);
+    expect(await screen.findByText("Board games")).toBeTruthy();
+  });
+
   it("shows the empty state when there are no matches", () => {
     useMatchesMock.mockReturnValueOnce({
       list: { isPending: false, isError: false, data: [] },

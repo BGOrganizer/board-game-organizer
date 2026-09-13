@@ -77,10 +77,8 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     .click();
   await expect(page.getByPlaceholder(/Search users/)).toBeVisible();
 
-  // The creator counts as one player: min=2 needs at least one invite. The
-  // E2E target is a friend only when the test users follow each other — try
-  // to pick one; if the picker is empty (no friends), lower min to 1 so the
-  // step becomes valid without invites.
+  // Invite a friend when available. Planning matches may start without
+  // invitations; minPlayers still stays at the API minimum of two.
   const addBtn = page.getByRole("button", { name: "Add" }).first();
   let friendPicked = false;
   try {
@@ -93,12 +91,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   if (!friendPicked) await page.getByLabel("Back").click();
   await expect(page.getByText("Players")).toBeVisible();
 
-  if (!friendPicked) {
-    // min=1 means a solo match is allowed — no invites required.
-    await page.getByLabel("Decrease min players").click();
-  }
-
-  // Advance to step 3 (range valid, invites filled or min=1).
+  // Advance to step 3; invitations are optional while planning.
   await nextFab.click();
   await expect(page.getByText("Board games")).toBeVisible();
 
@@ -139,6 +132,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByText("Cascadia").first()).toBeVisible();
 
   // Submit: create the match, back on the list.
+  const createResponse = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/api/matches"),
+  );
   await nextFab.click();
+  expect((await createResponse).ok()).toBe(true);
   await expect(page.getByText(/Friday night games/)).toBeVisible({ timeout: 30_000 });
 });
