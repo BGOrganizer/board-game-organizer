@@ -5,6 +5,7 @@ import {
   useContacts,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
+import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
 import * as SecureStore from "expo-secure-store";
@@ -225,12 +226,15 @@ export default function ContactsScreen() {
 
     const sync = (async () => {
       setSyncingContacts(true);
+      let stage = "read";
       try {
         const { data } = await Contacts.getContactsAsync({
           fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
         });
+        stage = "request";
         await syncContactsMutation(contactSyncPayload(data));
-      } catch {
+      } catch (error) {
+        Sentry.captureException(error, { tags: { operation: "contacts.sync", stage } });
         Alert.alert(t("Action failed"), t("Could not sync contacts. Try again."));
       } finally {
         setSyncingContacts(false);

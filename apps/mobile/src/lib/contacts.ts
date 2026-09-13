@@ -1,4 +1,4 @@
-import { normalizePhoneNumberForMatching } from "@board-game-organizer/schemas";
+import { contactEmailSchema, normalizePhoneNumberForMatching } from "@board-game-organizer/schemas";
 
 interface DeviceContact {
   emails?: Array<{ email?: string | null }> | null;
@@ -15,7 +15,8 @@ export function contactSyncPayload(contacts: DeviceContact[]) {
       contacts
         .flatMap((contact) => contact.emails ?? [])
         .map((email) => email.email?.trim().toLowerCase())
-        .filter(nonEmpty),
+        .filter(nonEmpty)
+        .filter((email) => contactEmailSchema.safeParse(email).success),
     ),
   ).slice(0, 1000);
 

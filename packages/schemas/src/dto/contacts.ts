@@ -8,9 +8,12 @@ import { z } from "zod";
  * suggestions remain available across devices without storing unmatched data.
  */
 
+/** Valid address-book email accepted by contact sync. */
+export const contactEmailSchema = z.string().trim().email().max(320);
+
 /** Payload from the device address book. */
 export const syncContactsSchema = z.object({
-  emails: z.array(z.string().trim().email().max(320)).max(1000).default([]),
+  emails: z.array(contactEmailSchema).max(1000).default([]),
   phoneNumbers: z.array(z.string().max(64)).max(1000).default([]),
 });
 

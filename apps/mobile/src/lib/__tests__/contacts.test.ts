@@ -6,7 +6,7 @@ describe("contactSyncPayload", () => {
     expect(
       contactSyncPayload([
         {
-          emails: [{ email: " User@Example.com " }, { email: null }],
+          emails: [{ email: " User@Example.com " }, { email: "not-an-email" }, { email: null }],
           phoneNumbers: [{ digits: "393331234567", number: " +39 333 123 4567 " }],
         },
         {
