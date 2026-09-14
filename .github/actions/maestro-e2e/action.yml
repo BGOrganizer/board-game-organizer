@@ -50,16 +50,19 @@ runs:
           adb install -r "$APK" || { sleep 30; adb install -r "$APK"; }
           adb shell pm clear com.bgo.mobile || true
           # Clerk Android OAuth must return through both app and SDK callbacks.
-          for CALLBACK in \
-            clerk://com.bgo.mobile.hosted-callback \
-            clerk://com.bgo.mobile.oauth; do
-            RESOLVED=$(adb shell "cmd package resolve-activity --brief \
-              -a android.intent.action.VIEW \
-              -c android.intent.category.BROWSABLE \
-              -d '$CALLBACK'")
-            echo "$CALLBACK -> $RESOLVED"
-            echo "$RESOLVED" | grep -q 'com.bgo.mobile'
-          done
+          adb shell cmd package resolve-activity --brief \
+            -a android.intent.action.VIEW \
+            -c android.intent.category.BROWSABLE \
+            -d 'clerk://com.bgo.mobile.hosted-callback' \
+            | tee /tmp/clerk-hosted-callback.txt \
+            | grep -q 'com.bgo.mobile'
+          adb shell cmd package resolve-activity --brief \
+            -a android.intent.action.VIEW \
+            -c android.intent.category.BROWSABLE \
+            -d 'clerk://com.bgo.mobile.oauth' \
+            | tee /tmp/clerk-oauth-callback.txt \
+            | grep -q 'com.bgo.mobile'
+          cat /tmp/clerk-hosted-callback.txt /tmp/clerk-oauth-callback.txt
           # Pre-warm the app (first cold start on a software emulator is very slow)
           adb shell am start -n com.bgo.mobile/.MainActivity || true
           sleep 60
