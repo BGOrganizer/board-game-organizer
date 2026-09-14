@@ -103,6 +103,12 @@ runs:
             -e USERNAME=${{ inputs.username }} \
             apps/mobile/.maestro/flows/03-profile-logout.yaml \
             || { capture; exit 1; }
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            -e USERNAME=${{ inputs.username }} \
+            -e PASSWORD=${{ inputs.password }} \
+            apps/mobile/.maestro/flows/07-reauth-after-logout.yaml \
+            || { capture; exit 1; }
           # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
           adb shell cmd uimode night yes || true
           maestro test --format junit --output /tmp/maestro-reports \
@@ -123,5 +129,5 @@ runs:
           # Guarantee at least one junit file (Maestro junit output is
           # version-sensitive and may not be written when all flows pass).
           ls "$GITHUB_WORKSPACE/maestro-reports"/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>' > "$GITHUB_WORKSPACE/maestro-reports/summary.xml"
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="5" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>' > "$GITHUB_WORKSPACE/maestro-reports/summary.xml"
           echo "persisted reports:"; ls -la "$GITHUB_WORKSPACE/maestro-reports" "$GITHUB_WORKSPACE/maestro-debug" || true
