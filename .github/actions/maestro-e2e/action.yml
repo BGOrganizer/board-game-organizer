@@ -53,10 +53,10 @@ runs:
           for CALLBACK in \
             clerk://com.bgo.mobile.hosted-callback \
             clerk://com.bgo.mobile.oauth; do
-            RESOLVED=$(adb shell cmd package resolve-activity --brief \
+            RESOLVED=$(adb shell "cmd package resolve-activity --brief \
               -a android.intent.action.VIEW \
               -c android.intent.category.BROWSABLE \
-              -d "$CALLBACK")
+              -d '$CALLBACK'")
             echo "$CALLBACK -> $RESOLVED"
             echo "$RESOLVED" | grep -q 'com.bgo.mobile'
           done
