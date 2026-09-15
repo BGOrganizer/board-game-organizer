@@ -217,7 +217,8 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # Reuse compares prior run SHAs; shallow tips have no diffable ancestry.
+          fetch-depth: 0
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -242,10 +243,9 @@ jobs:
           MOBILE_PATHS="apps/mobile apps/web packages/shared packages/query packages/store packages/schemas pnpm-lock.yaml pnpm-workspace.yaml .github/actions/mobile-build .github/workflows/pr-ci.yml"
           for id in $RUNS; do
             RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')
-            # The checkout is fetch-depth:1, so bring the candidate SHA in.
             # A rewritten/rebased SHA may no longer exist → skip the candidate
             # instead of crashing the whole job.
-            git fetch --depth 1 origin "$RUN_SHA" >/dev/null 2>&1 || continue
+            git cat-file -e "$RUN_SHA^{commit}" 2>/dev/null || continue
             CHANGED=$(git diff --name-only "$RUN_SHA".."$HEAD_SHA" -- $MOBILE_PATHS | grep -v '^apps/mobile/\.maestro/' | grep -v '^apps/mobile/src/.*\.\(test\|spec\)\.' | grep -v '__tests__' | wc -l) || continue
             if [ "$CHANGED" -gt 0 ]; then
               echo "APK run $id ($RUN_SHA) stale vs HEAD ($CHANGED mobile change(s)) — skipping"
