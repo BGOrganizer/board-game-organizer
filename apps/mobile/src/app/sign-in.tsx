@@ -1,6 +1,6 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import { useAuth, useUser } from "@clerk/expo";
-import { AuthView, useAuthViewState } from "@clerk/expo/native";
+import { AuthView } from "@clerk/expo/native";
 import { Redirect, useRouter } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
 import { View } from "react-native";
@@ -8,10 +8,9 @@ import { View } from "react-native";
 export default function SignInScreen() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { isLoaded: isUserLoaded, user } = useUser();
-  const { isLoaded: isAuthFlowLoaded, isAuthFlowComplete } = useAuthViewState();
   const router = useRouter();
 
-  if (isAuthLoaded && isSignedIn && isAuthFlowLoaded && isAuthFlowComplete) {
+  if (isAuthLoaded && isSignedIn) {
     if (!isUserLoaded) {
       return (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>

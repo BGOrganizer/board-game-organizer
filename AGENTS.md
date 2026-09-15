@@ -34,6 +34,7 @@ Implemented product areas:
 - Shareable invites with seven-day expiry and authenticated claim flow.
 - Match creation, listing, detail, and invitation lifecycle, including date slots, player limits,
   friend invitations, and board-game selection.
+- Durable notification inboxes, unread state, and optional FCM/APNs push delivery.
 - BoardGameGeek catalog import and MongoDB-backed game search.
 - English and Italian localization.
 - Web Playwright and mobile Maestro end-to-end coverage.
@@ -143,7 +144,11 @@ Copy examples; never commit generated environment files.
 `MONGODB_URI` is mandatory. Transactions require a replica set.
 
 Mobile reads public variables through `apps/mobile/app.config.js` and
-`Constants.expoConfig.extra`. Web public variables must be read inside `apps/web` and passed to
+`Constants.expoConfig.extra`. Android FCM builds optionally read the `GOOGLE_SERVICES_JSON` EAS file
+secret. API push delivery optionally uses Firebase service-account and APNs token credentials; web
+push optionally uses `NEXT_PUBLIC_FIREBASE_*` values documented in app env examples. Inbox behavior
+must remain functional when push credentials are absent. Web public variables must be read inside
+`apps/web` and passed to
 workspace helpers: Next.js does not reliably inline `NEXT_PUBLIC_*` reads from workspace package
 source.
 
@@ -164,7 +169,7 @@ Vercel preview protection bypass is a **query parameter**, not a custom header. 
 ### TanStack Query
 
 TanStack Query owns all server data: profiles, contacts, relationships, suggestions, matches, games,
-and invite results.
+notifications, and invite results.
 
 Contact query keys use this shape:
 
@@ -214,6 +219,9 @@ Current route surface:
 | `/api/matches/[matchId]/invitations` | GET, POST | List and create match invitations as admin |
 | `/api/matches/[matchId]/invitations/[invitationId]` | DELETE | Remove an invitation or accepted player as admin |
 | `/api/match-invitations/[invitationId]` | PATCH, DELETE | Accept or decline an invitation; leave a planning match |
+| `/api/notifications` | GET, PATCH | List notifications or mark all read |
+| `/api/notifications/[notificationId]` | PATCH | Mark one owned notification read |
+| `/api/push-subscriptions` | POST, DELETE | Register, rotate, or remove a device push token |
 | `/api/bgg/search` | GET | Search imported board-game catalog |
 | `/api/bgg/thing` | GET | Get imported game details |
 | `/api/webhooks/clerk` | POST | Mirror Clerk user events |
@@ -255,6 +263,8 @@ Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 - `contactLinks`
 - `matches`
 - `matchInvitations`
+- `notifications`
+- `pushSubscriptions`
 - `boardGames`
 - legacy `relationships`, retained only as a migration constant
 

@@ -15,6 +15,14 @@ vi.mock("@/app/lib/relationship.repository", () => {
   };
 });
 
+vi.mock("@/app/lib/notifications.repository", () => {
+  const instance = { deleteForUser: vi.fn(async () => undefined) };
+  return {
+    NotificationsRepository: vi.fn().mockImplementation(() => instance),
+    __lastInstance: instance,
+  };
+});
+
 vi.mock("@/app/lib/users.repository", () => {
   const instance = {
     upsertFromClerk: vi.fn(async () => ({ value: null })),
@@ -26,11 +34,18 @@ vi.mock("@/app/lib/users.repository", () => {
   };
 });
 
+import { NotificationsRepository } from "@/app/lib/notifications.repository";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { UsersRepository } from "@/app/lib/users.repository";
 
 const repoMock = vi.mocked(UsersRepository);
+const notificationRepoMock = vi.mocked(NotificationsRepository);
 const relationshipRepoMock = vi.mocked(RelationshipRepository);
+const notificationInstance = vi.mocked(
+  (await import("@/app/lib/notifications.repository")) as unknown as {
+    __lastInstance: { deleteForUser: ReturnType<typeof vi.fn> };
+  },
+).__lastInstance;
 const relationshipInstance = vi.mocked(
   (await import("@/app/lib/relationship.repository")) as unknown as {
     __lastInstance: { deleteAllForUser: ReturnType<typeof vi.fn> };
@@ -161,6 +176,8 @@ describe("POST /api/webhooks/clerk", () => {
     expect(instance.deleteByClerkId).toHaveBeenCalledWith("user_3");
     expect(relationshipRepoMock).toHaveBeenCalled();
     expect(relationshipInstance.deleteAllForUser).toHaveBeenCalledWith("user_3");
+    expect(notificationRepoMock).toHaveBeenCalled();
+    expect(notificationInstance.deleteForUser).toHaveBeenCalledWith("user_3");
   });
 
   it("ignores unknown event types", async () => {

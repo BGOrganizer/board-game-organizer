@@ -33,7 +33,7 @@ const input = {
   gameIds: match.gameIds,
 };
 
-function setup() {
+function setup(withNotifications = false) {
   const matches = {
     create: vi.fn(async () => match),
     listAccessible: vi.fn(async () => [match]),
@@ -64,14 +64,19 @@ function setup() {
     isFriend: vi.fn(async () => true),
   };
   const games = { findExistingIds: vi.fn(async () => [1]) };
+  const notifications = {
+    notify: vi.fn(async () => undefined),
+    notifyMany: vi.fn(async () => undefined),
+  };
   const service = new MatchService(
     matches as never,
     invitations as never,
     users as never,
     relationships as never,
     games as never,
+    withNotifications ? (notifications as never) : undefined,
   );
-  return { service, matches, invitations, users, relationships, games };
+  return { service, matches, invitations, users, relationships, games, notifications };
 }
 
 async function expectMatchError(promise: Promise<unknown>, status: number, message: string) {
@@ -528,6 +533,61 @@ describe("MatchService", () => {
       409,
       "Match changed concurrently",
     );
+  });
+
+  it("creates notifications for match lifecycle", async () => {
+    const { service, invitations, notifications } = setup(true);
+
+    await service.create("user_admin", input);
+    await service.invite("user_admin", match.id, "user_guest");
+    await service.respond("user_guest", invitation.id, "accept");
+    await service.respond("user_guest", invitation.id, "decline");
+    invitations.listByMatch.mockResolvedValue([
+      invitation,
+      { ...invitation, id: "declined", inviteeUserId: "user_declined", status: "DECLINED" },
+    ]);
+    await service.update("user_admin", match.id, {
+      name: match.name,
+      dates: match.dates,
+      minPlayers: match.minPlayers,
+      maxPlayers: match.maxPlayers,
+      gameIds: match.gameIds,
+    });
+
+    expect(notifications.notifyMany).toHaveBeenNthCalledWith(1, [
+      {
+        kind: "match_invitation",
+        recipientUserId: "user_guest",
+        actorUserId: "user_admin",
+        matchName: match.name,
+      },
+    ]);
+    expect(notifications.notify).toHaveBeenNthCalledWith(1, {
+      kind: "match_invitation",
+      recipientUserId: "user_guest",
+      actorUserId: "user_admin",
+      matchName: match.name,
+    });
+    expect(notifications.notify).toHaveBeenNthCalledWith(2, {
+      kind: "match_invitation_accepted",
+      recipientUserId: "user_admin",
+      actorUserId: "user_guest",
+      matchName: match.name,
+    });
+    expect(notifications.notify).toHaveBeenNthCalledWith(3, {
+      kind: "match_invitation_declined",
+      recipientUserId: "user_admin",
+      actorUserId: "user_guest",
+      matchName: match.name,
+    });
+    expect(notifications.notifyMany).toHaveBeenNthCalledWith(2, [
+      {
+        kind: "match_updated",
+        recipientUserId: "user_guest",
+        actorUserId: "user_admin",
+        matchName: match.name,
+      },
+    ]);
   });
 
   it("MatchError retains status and message", () => {

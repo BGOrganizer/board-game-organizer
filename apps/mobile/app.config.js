@@ -12,6 +12,9 @@ module.exports = {
       bundleIdentifier: "com.bgo.mobile",
     },
     android: {
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : {}),
       adaptiveIcon: {
         backgroundColor: "#ffffff",
       },
@@ -29,6 +32,7 @@ module.exports = {
       "@sentry/react-native",
       "expo-font",
       "expo-contacts",
+      "expo-notifications",
       "@react-native-community/datetimepicker",
     ],
     extra: {

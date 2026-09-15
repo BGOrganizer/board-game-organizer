@@ -281,6 +281,32 @@ describe("RelationshipService", () => {
     expect(repo.listBlocked).toHaveBeenCalledWith(USER);
   });
 
+  it("creates notifications for friend-request lifecycle", async () => {
+    const repo = createRepo({
+      findFriendRequest: vi
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ status: "pending" }),
+    });
+    const notifications = { notify: vi.fn(async () => undefined) };
+    const service = new RelationshipService(repo, notifications as never);
+
+    await service.sendFriendRequest(USER, TARGET);
+    await service.respondToFriendRequest(USER, TARGET, "accepted");
+
+    expect(notifications.notify).toHaveBeenNthCalledWith(1, {
+      kind: "friend_request",
+      recipientUserId: TARGET,
+      actorUserId: USER,
+    });
+    expect(notifications.notify).toHaveBeenNthCalledWith(2, {
+      kind: "friend_request_accepted",
+      recipientUserId: TARGET,
+      actorUserId: USER,
+    });
+  });
+
   it("exposes typed relationship errors", () => {
     const error = new RelationshipError(418, "teapot");
     expect(error).toBeInstanceOf(Error);

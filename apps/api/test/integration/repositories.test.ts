@@ -1,4 +1,4 @@
-import { type Db, MongoClient } from "mongodb";
+import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
@@ -6,6 +6,8 @@ import { type MatchError, MatchService } from "../../src/app/lib/match.service";
 import { MatchInvitationsRepository } from "../../src/app/lib/match-invitations.repository";
 import { MatchesRepository } from "../../src/app/lib/matches.repository";
 import { migrate } from "../../src/app/lib/migrate";
+import { NotificationsRepository } from "../../src/app/lib/notifications.repository";
+import { PushSubscriptionsRepository } from "../../src/app/lib/push-subscriptions.repository";
 import { RelationshipRepository } from "../../src/app/lib/relationship.repository";
 import { RelationshipService } from "../../src/app/lib/relationship.service";
 import { UsersRepository } from "../../src/app/lib/users.repository";
@@ -562,6 +564,77 @@ describe("match repositories on MongoDB replica set", () => {
     await expect(new MatchInvitationsRepository(db).listByMatch(created.id)).resolves.toHaveLength(
       1,
     );
+  });
+
+  it("persists, paginates, reads, and cleans notification data", async () => {
+    const createdIds: ObjectId[] = [];
+    const notifications = new NotificationsRepository(db, undefined, createdIds);
+    await notifications.notify({
+      kind: "friend_request",
+      recipientUserId: TARGET,
+      actorUserId: ACTOR,
+    });
+    await db
+      .collection("users")
+      .updateOne({ clerkId: TARGET }, { $set: { preferredLanguage: "it" } });
+    await notifications.notify({
+      kind: "match_invitation",
+      recipientUserId: TARGET,
+      actorUserId: ACTOR,
+      matchName: "Catan",
+    });
+
+    expect(createdIds).toHaveLength(2);
+    const firstPage = await notifications.list(TARGET, 1);
+    expect(firstPage).toMatchObject({ unreadCount: 2 });
+    expect(firstPage.notifications[0]).toMatchObject({
+      title: "Nuovo invito a una partita",
+      href: "/matches",
+      readAt: null,
+    });
+    expect(firstPage.nextCursor).toBe(firstPage.notifications[0]?.id);
+    const secondPage = await notifications.list(TARGET, 1, firstPage.nextCursor ?? undefined);
+    expect(secondPage.notifications[0]).toMatchObject({
+      title: "New friend request",
+      href: "/contacts",
+    });
+    expect(secondPage.nextCursor).toBeNull();
+
+    await notifications.markRead(TARGET, firstPage.notifications[0]?.id ?? "");
+    expect((await notifications.list(TARGET, 5)).unreadCount).toBe(1);
+    await notifications.markAllRead(TARGET);
+    expect((await notifications.list(TARGET, 5)).unreadCount).toBe(0);
+
+    const subscriptions = new PushSubscriptionsRepository(db);
+    await subscriptions.upsert(ACTOR, "token-1234567890123456", "android", "en");
+    await subscriptions.upsert(TARGET, "token-1234567890123456", "web", "it");
+    expect(await subscriptions.listByUser(ACTOR)).toEqual([]);
+    expect(await subscriptions.listByUser(TARGET)).toMatchObject([
+      { provider: "fcm", platform: "web", locale: "it" },
+    ]);
+    await subscriptions.remove(TARGET, "token-1234567890123456");
+    expect(await subscriptions.listByUser(TARGET)).toEqual([]);
+
+    await subscriptions.upsert(ACTOR, "token-abcdefghijklmnop", "ios", "en");
+    await notifications.deleteForUser(ACTOR);
+    expect(await notifications.list(TARGET, 5)).toMatchObject({ notifications: [] });
+    expect(await subscriptions.listByUser(ACTOR)).toEqual([]);
+  });
+
+  it("rolls back notification creation with its source event", async () => {
+    const session = client.startSession();
+    await expect(
+      session.withTransaction(async () => {
+        await new NotificationsRepository(db, session).notify({
+          kind: "friend_request",
+          recipientUserId: TARGET,
+          actorUserId: ACTOR,
+        });
+        throw new Error("rollback notification");
+      }),
+    ).rejects.toThrow("rollback notification");
+    await session.endSession();
+    expect((await new NotificationsRepository(db).list(TARGET, 5)).notifications).toEqual([]);
   });
 
   it("rejects invitations when either user blocked the other", async () => {

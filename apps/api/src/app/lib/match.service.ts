@@ -9,6 +9,7 @@ import { MongoServerError } from "mongodb";
 import type { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import type { MatchInvitationsRepository } from "@/app/lib/match-invitations.repository";
 import type { MatchesRepository } from "@/app/lib/matches.repository";
+import type { NotificationsRepository } from "@/app/lib/notifications.repository";
 import type { RelationshipRepository } from "@/app/lib/relationship.repository";
 import type { UsersRepository } from "@/app/lib/users.repository";
 
@@ -28,6 +29,7 @@ export class MatchService {
     private users: UsersRepository,
     private relationships: RelationshipRepository,
     private games: BoardGamesRepository,
+    private notifications?: NotificationsRepository,
   ) {}
 
   async requireCurrentUser(userId: string) {
@@ -107,6 +109,14 @@ export class MatchService {
       gameIds: input.gameIds,
     });
     const invitations = await this.invitations.createMany(match.id, userId, input.invitedUserIds);
+    await this.notifications?.notifyMany(
+      input.invitedUserIds.map((recipientUserId) => ({
+        kind: "match_invitation" as const,
+        recipientUserId,
+        actorUserId: userId,
+        matchName: match.name,
+      })),
+    );
     return this.toResponse(match, invitations);
   }
 
@@ -158,7 +168,14 @@ export class MatchService {
     }
 
     try {
-      return await this.invitations.create(matchId, userId, inviteeUserId);
+      const invitation = await this.invitations.create(matchId, userId, inviteeUserId);
+      await this.notifications?.notify({
+        kind: "match_invitation",
+        recipientUserId: inviteeUserId,
+        actorUserId: userId,
+        matchName: match.name,
+      });
+      return invitation;
     } catch (error) {
       if (error instanceof MongoServerError && error.code === 11000) {
         throw new MatchError(409, "User is already invited");
@@ -182,6 +199,12 @@ export class MatchService {
       decision === "accept" ? "ACCEPTED" : "DECLINED",
     );
     if (!updated) throw new MatchError(409, "Invitation changed concurrently");
+    await this.notifications?.notify({
+      kind: decision === "accept" ? "match_invitation_accepted" : "match_invitation_declined",
+      recipientUserId: match.clerkId,
+      actorUserId: userId,
+      matchName: match.name,
+    });
     return updated;
   }
 
@@ -237,7 +260,18 @@ export class MatchService {
 
     const updated = await this.matches.updatePlanning(match.id, userId, input);
     if (!updated) throw new MatchError(409, "Match changed concurrently");
-    return this.toResponse(updated, await this.invitations.listByMatch(match.id));
+    const invitations = await this.invitations.listByMatch(match.id);
+    await this.notifications?.notifyMany(
+      invitations
+        .filter((invitation) => invitation.status !== "DECLINED")
+        .map((invitation) => ({
+          kind: "match_updated" as const,
+          recipientUserId: invitation.inviteeUserId,
+          actorUserId: userId,
+          matchName: updated.name,
+        })),
+    );
+    return this.toResponse(updated, invitations);
   }
 
   async deleteMatch(userId: string, matchId: string) {

@@ -38,6 +38,12 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/lib/push-notifications.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/lib/user-actions.ts": {
           lines: 100,
           functions: 100,

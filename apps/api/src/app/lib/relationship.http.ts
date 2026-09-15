@@ -1,9 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
-import type { ClientSession, Db } from "mongodb";
+import type { ClientSession, Db, ObjectId } from "mongodb";
+import { after } from "next/server";
 import { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { withTransaction } from "@/app/lib/db";
 import { enrichRelationshipsWithUsers } from "@/app/lib/enrichUsers";
+import { NotificationsRepository } from "@/app/lib/notifications.repository";
+import { dispatchNotifications } from "@/app/lib/push";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import {
   RelationshipError,
@@ -106,11 +109,18 @@ export async function runRelationshipOperation<T>(
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   try {
+    const createdNotificationIds: ObjectId[] = [];
     const result = await withTransaction(async (session, db) => {
-      const service = new RelationshipService(new RelationshipRepository(db, session));
+      const service = new RelationshipService(
+        new RelationshipRepository(db, session),
+        new NotificationsRepository(db, session, createdNotificationIds),
+      );
       await service.requireCurrentUser(userId);
       return operation({ userId, db, session, service });
     });
+    if (createdNotificationIds.length > 0) {
+      after(() => dispatchNotifications(createdNotificationIds));
+    }
     return corsJson(result ?? { success: true }, { status }, request);
   } catch (error) {
     if (error instanceof RelationshipError) {

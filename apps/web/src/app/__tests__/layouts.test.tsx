@@ -13,6 +13,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
 }));
 
+vi.mock("@/components/NotificationBell", () => ({
+  NotificationBell: () => <button type="button" aria-label="Notifications" />,
+}));
+
 vi.mock("@clerk/nextjs", () => ({
   ClerkProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Show: ({

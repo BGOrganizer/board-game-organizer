@@ -13,8 +13,10 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Uniwind } from "uniwind";
 import "../../global.css";
 
+import { PushNotificationRouter } from "@/components/PushNotificationRouter";
 import { RuntimeError } from "@/components/RuntimeError";
 import { defaultI18n, useT } from "@/lib/i18n";
+import { configureNotificationHandler } from "@/lib/push-notifications";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
@@ -44,6 +46,7 @@ Sentry.init({
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
 });
+configureNotificationHandler();
 
 if (!publishableKey) {
   console.error("[Clerk] Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
@@ -94,11 +97,13 @@ function RootNavigator() {
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <QueryProvider>
         <ThemeSync />
+        <PushNotificationRouter />
         <StatusBar style="auto" />
         <Stack>
           <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
           <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
           <Stack.Screen name="mobile-number" options={{ title: t("Complete your profile") }} />
+          <Stack.Screen name="notifications" options={{ title: t("Notifications") }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
       </QueryProvider>

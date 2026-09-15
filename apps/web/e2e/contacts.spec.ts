@@ -129,6 +129,20 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const targetPage = await targetContext.newPage();
   await signIn(targetPage, E2E_EMAIL_2);
   await targetPage.goto("/contacts");
+  await targetPage.getByRole("button", { name: "Notifications" }).click();
+  await expect(targetPage.getByText("New friend request").first()).toBeVisible({
+    timeout: 30_000,
+  });
+  await targetPage.getByText("View all notifications").click();
+  await expect(targetPage).toHaveURL(/\/notifications$/);
+  await expect(targetPage.getByRole("heading", { name: "Notifications" })).toBeVisible();
+  const markNotificationRead = targetPage.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      /\/api\/notifications\/[a-f\d]{24}/i.test(response.url()),
+  );
+  await targetPage.getByText("New friend request").first().click();
+  expect((await markNotificationRead).ok()).toBe(true);
   await targetPage.getByRole("button", { name: "Friend requests" }).click();
   const received = targetPage.getByRole("heading", { name: "Received" }).locator("..");
   await expect(received.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });

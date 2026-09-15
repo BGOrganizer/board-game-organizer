@@ -1,3 +1,4 @@
+import type { NotificationsRepository } from "@/app/lib/notifications.repository";
 import type { RelationshipEdge, RelationshipRepository } from "@/app/lib/relationship.repository";
 
 export type RelationshipListType =
@@ -19,7 +20,10 @@ export class RelationshipError extends Error {
 
 /** Domain rules for follows, friend requests, friendships, and blocks. */
 export class RelationshipService {
-  constructor(private repo: RelationshipRepository) {}
+  constructor(
+    private repo: RelationshipRepository,
+    private notifications?: NotificationsRepository,
+  ) {}
 
   private rejectSelf(userId: string, targetUserId: string, action: string) {
     if (userId === targetUserId) {
@@ -75,6 +79,11 @@ export class RelationshipService {
     }
 
     await this.repo.setFriendRequest(userId, targetUserId, "pending");
+    await this.notifications?.notify({
+      kind: "friend_request",
+      recipientUserId: targetUserId,
+      actorUserId: userId,
+    });
   }
 
   async respondToFriendRequest(
@@ -90,6 +99,11 @@ export class RelationshipService {
 
     if (decision === "accepted") {
       await this.repo.becomeFriends(userId, senderUserId);
+      await this.notifications?.notify({
+        kind: "friend_request_accepted",
+        recipientUserId: senderUserId,
+        actorUserId: userId,
+      });
     } else {
       await this.repo.setFriendRequest(senderUserId, userId, "rejected");
     }

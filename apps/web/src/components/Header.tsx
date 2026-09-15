@@ -6,6 +6,7 @@ import { useLingui } from "@lingui/react/macro";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 type NavLinkProps = {
   href: string;
@@ -110,6 +111,7 @@ export function Header() {
             <p className="hidden max-w-40 truncate text-sm text-default-500 sm:block">
               {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
             </p>
+            <NotificationBell />
             <UserButton />
           </div>
         </Show>

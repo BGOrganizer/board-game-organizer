@@ -2,6 +2,7 @@ import { getMobileNumber } from "@board-game-organizer/schemas";
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { getDb, withTransaction } from "@/app/lib/db";
+import { NotificationsRepository } from "@/app/lib/notifications.repository";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { UsersRepository } from "@/app/lib/users.repository";
 
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       await withTransaction(async (session, db) => {
         await new UsersRepository(db, session).deleteByClerkId(data.id as string);
         await new RelationshipRepository(db, session).deleteAllForUser(data.id as string);
+        await new NotificationsRepository(db, session).deleteForUser(data.id as string);
       });
       return NextResponse.json({ success: true });
     }

@@ -3,9 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Contacts from "@/app/(tabs)/contacts/page";
 import Groups from "@/app/(tabs)/groups/page";
 import Matches from "@/app/(tabs)/matches/page";
+import Notifications from "@/app/(tabs)/notifications/page";
 import Organizations from "@/app/(tabs)/organizations/page";
 import ProfilePage from "@/app/(tabs)/profile/page";
 import { renderWithI18n } from "@/test-utils";
+
+vi.mock("@/components/NotificationsPage", () => ({
+  NotificationsPage: () => <p>notification inbox</p>,
+}));
 
 vi.mock("next/headers", () => ({
   headers: () => ({ get: () => null }),
@@ -97,6 +102,11 @@ describe("tab pages", () => {
   it("renders the matches page with the create button", async () => {
     const { getByLabelText } = renderWithI18n(await Matches());
     expect(getByLabelText(/create a match/i)).toBeTruthy();
+  });
+
+  it("renders the notification inbox page", () => {
+    renderWithI18n(<Notifications />);
+    expect(screen.getByText("notification inbox")).toBeTruthy();
   });
 
   it("renders the profile page with the profile card", async () => {

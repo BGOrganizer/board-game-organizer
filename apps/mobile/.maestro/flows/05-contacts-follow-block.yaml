@@ -106,6 +106,18 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
+- tapOn:
+    id: "notifications-button"
+- extendedWaitUntil:
+    visible: "New friend request"
+    timeout: 30000
+- assertVisible: "View all notifications"
+- tapOn: "View all notifications"
+- extendedWaitUntil:
+    visible: "Notifications"
+    timeout: 30000
+- assertVisible: "New friend request"
+- back
 - tapOn: "Contacts"
 - tapOn: "Friend requests"
 - extendedWaitUntil:

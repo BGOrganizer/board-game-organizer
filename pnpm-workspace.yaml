@@ -14,6 +14,7 @@ peerDependencyRules:
     "@gorhom/bottom-sheet>react-native-reanimated": ">=3.16.0"
 
 allowBuilds:
+  '@firebase/util': true
   '@sentry/cli': true
   browser-tabs-lock: true
   bufferutil: true
@@ -25,3 +26,10 @@ allowBuilds:
   ssh2: false
   unrs-resolver: true
   utf-8-validate: true
+
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.25'
+  - '@expo/router-server@57.0.10'
+  - babel-preset-expo@57.0.12
+  - expo@57.0.23
+  - expo-notifications@57.0.19

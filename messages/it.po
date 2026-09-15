@@ -34,6 +34,10 @@ msgstr "Accetta o rifiuta questa richiesta di amicizia."
 #~ msgid "Access to contacts"
 #~ msgstr "Accesso ai contatti"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Action failed"
+#~ msgstr "Azione non riuscita"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Actions"
 msgstr "Azioni"
@@ -60,11 +64,11 @@ msgstr "Inserisci il tuo numero di cellulare per continuare."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow address book access to find your friends here."
-#~ msgstr "Consenti l'accesso alla rubrica per trovare i tuoi amici qui."
+#~ msgstr "Consenti l'accesso alla rubrica per trovare qui i tuoi amici."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
-#~ msgstr "Consenti a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
+#~ msgstr "Consentire a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "At least 5 characters"
@@ -173,6 +177,10 @@ msgstr "Impossibile creare l'invito. Riprova."
 msgid "Could not create the match"
 msgstr "Impossibile creare la partita"
 
+#: apps/web/src/components/NotificationBell.tsx
+msgid "Could not enable push notifications"
+msgstr "Impossibile attivare le notifiche push"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Could not load contacts"
 msgstr "Impossibile caricare i contatti"
@@ -194,9 +202,18 @@ msgstr "Impossibile caricare i dettagli del gioco"
 msgid "Could not load matches"
 msgstr "Impossibile caricare le partite"
 
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Could not load notifications"
+msgstr "Impossibile caricare le notifiche"
+
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Could not save mobile number"
 msgstr "Impossibile salvare il numero di cellulare"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Could not sync contacts. Try again."
+#~ msgstr "Impossibile sincronizzare i contatti. Riprova."
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
@@ -209,6 +226,10 @@ msgstr "Crea una partita"
 #: apps/web/src/components/InviteCard.tsx
 msgid "Create invite"
 msgstr "Crea invito"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Creating invite"
+msgstr "Creazione dell'invito"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
@@ -234,6 +255,10 @@ msgstr "Diminuisci il numero minimo di giocatori"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "es. Partite del venerdì sera"
+
+#: apps/web/src/components/NotificationBell.tsx
+msgid "Enable push notifications"
+msgstr "Attiva notifiche push"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
@@ -315,6 +340,15 @@ msgstr "Invita amici"
 msgid "Language:"
 msgstr "Lingua:"
 
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Load more"
+msgstr "Carica altro"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Loading notifications"
+msgstr "Caricamento notifiche"
+
 #: apps/web/src/app/mobile-number/page.tsx
 #: apps/web/src/components/MobileNumberGate.tsx
 msgid "Loading profile"
@@ -327,6 +361,11 @@ msgstr "Caricamento profilo"
 #: apps/web/src/components/Profile.tsx
 msgid "Logout"
 msgstr "Esci"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Mark all as read"
+msgstr "Segna tutte come lette"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Match name"
@@ -401,6 +440,11 @@ msgstr "Nessun gioco trovato"
 msgid "No matches yet — create your first one!"
 msgstr "Nessuna partita — crea la prima!"
 
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "No notifications yet"
+msgstr "Nessuna notifica"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No received friend requests"
 msgstr "Nessuna richiesta di amicizia ricevuta"
@@ -415,12 +459,17 @@ msgstr "Nessuna richiesta di amicizia inviata"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No suggestions yet — sync your address book to find friends."
-#~ msgstr "Nessun suggerimento — sincronizza la rubrica per trovare amici."
+#~ msgstr "Ancora nessun suggerimento — sincronizza la rubrica per trovare amici."
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "No users found"
 msgstr "Nessun utente trovato"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Notifications"
+msgstr "Notifiche"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Optional email (auto-connect on claim)"
@@ -441,6 +490,10 @@ msgstr "Posseduti"
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Paste an invite link or token to claim it"
 #~ msgstr "Incolla un link o un token di invito per accettarlo"
+
+#: apps/mobile/src/app/(tabs)/matches.tsx (mobile-only, runtime useT)
+#~ msgid "Pick date and time"
+#~ msgstr "Scegli data e ora"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Plan:"
@@ -567,7 +620,7 @@ msgstr "Inviate"
 #~ msgid "Share link"
 #~ msgstr "Condividi link"
 
-#: apps/mobile/src/app/_layout.tsx
+#: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
 #~ msgid "Sign in"
 #~ msgstr "Accedi"
 
@@ -576,7 +629,7 @@ msgstr "Inviate"
 msgid "Sign In"
 msgstr "Accedi"
 
-#: apps/mobile/src/components/LoginFallback.tsx
+#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
 #~ msgid "Sign in / Register"
 #~ msgstr "Accedi / Registrati"
 
@@ -597,7 +650,7 @@ msgstr "Accedi per vedere i tuoi contatti"
 msgid "Sign Up"
 msgstr "Registrati"
 
-#: apps/mobile/src/components/Profile.tsx
+#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
 #~ msgid "Sign-in unavailable"
 #~ msgstr "Accesso non disponibile"
 
@@ -626,9 +679,17 @@ msgstr "La richiesta di amicizia inviata verrà rimossa."
 msgid "They can accept or decline your request."
 msgstr "Potrà accettare o rifiutare la tua richiesta."
 
+#: apps/web/src/components/UserMenu.tsx
+msgid "This contact will no longer be blocked."
+msgstr "Questo contatto non sarà più bloccato."
+
 #: apps/web/src/components/Header.tsx
 msgid "Toggle menu"
 msgstr "Attiva/disattiva menu"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Try again"
+msgstr "Riprova"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Type at least 4 characters to search"
@@ -638,10 +699,18 @@ msgstr "Digita almeno 4 caratteri per cercare"
 msgid "Unblock"
 msgstr "Sblocca"
 
+#: apps/web/src/components/UserMenu.tsx
+msgid "Unblock contact?"
+msgstr "Sbloccare il contatto?"
+
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
 msgid "Unfollow"
 msgstr "Non seguire più"
+
+#: apps/web/src/components/NotificationBell.tsx
+msgid "View all notifications"
+msgstr "Vedi tutte le notifiche"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "View profile"
@@ -675,72 +744,6 @@ msgstr "Diventerete amici e vi seguirete a vicenda."
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."
 msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rimossi."
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Access to contacts"
-msgstr "Accesso ai contatti"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Action failed"
-msgstr "Azione non riuscita"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Add contacts"
-msgstr "Aggiungi contatti"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Allow Board Game Organizer to access your contacts to find your friends?"
-msgstr "Consentire a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Allow address book access to find your friends here."
-msgstr "Consenti l'accesso alla rubrica per trovare qui i tuoi amici."
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Could not sync contacts. Try again."
-msgstr "Impossibile sincronizzare i contatti. Riprova."
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No"
-msgstr "No"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No contacts found in your address book."
-msgstr "Nessun contatto trovato nella tua rubrica."
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "No suggestions yet — sync your address book to find friends."
-msgstr "Ancora nessun suggerimento — sincronizza la rubrica per trovare amici."
-
-#: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
-msgid "Sign in"
-msgstr "Accedi"
-
-#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
-msgid "Sign in / Register"
-msgstr "Accedi / Registrati"
-
-#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
-msgid "Sign-in unavailable"
-msgstr "Accesso non disponibile"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Yes"
-msgstr "Sì"
-
-#: apps/mobile/src/app/(tabs)/matches.tsx (mobile-only, runtime useT)
-msgid "Pick date and time"
-msgstr "Scegli data e ora"
-
-#: apps/web/src/components/InviteCard.tsx
-msgid "Creating invite"
-msgstr "Creazione dell'invito"
-
-#: apps/mobile/src/components/UserActionsSheet.tsx (mobile-only, runtime useT)
-#: apps/web/src/components/UserMenu.tsx
-msgid "Unblock contact?"
-msgstr "Sbloccare il contatto?"
-
-#: apps/mobile/src/components/UserActionsSheet.tsx (mobile-only, runtime useT)
-#: apps/web/src/components/UserMenu.tsx
-msgid "This contact will no longer be blocked."
-msgstr "Questo contatto non sarà più bloccato."
+#. Mobile runtime-only message; Lingui extraction does not inspect useT().
+msgid "Open notification settings"
+msgstr "Apri impostazioni notifiche"

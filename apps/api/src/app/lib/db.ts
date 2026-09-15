@@ -40,5 +40,7 @@ export const COLLECTIONS = {
   CONTACT_LINKS: "contactLinks",
   MATCHES: "matches",
   MATCH_INVITATIONS: "matchInvitations",
+  NOTIFICATIONS: "notifications",
+  PUSH_SUBSCRIPTIONS: "pushSubscriptions",
   BOARD_GAMES: "boardGames",
 } as const;

@@ -5,6 +5,7 @@ import { Redirect, Tabs } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
 import { Platform, View } from "react-native";
 
+import { NotificationBell } from "@/components/NotificationBell";
 import { useT } from "@/lib/i18n";
 
 export default function TabLayout() {
@@ -37,6 +38,11 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: "#006fee",
         animation: Platform.OS === "android" ? "none" : "fade",
+        headerRight: () => (
+          <View style={{ marginRight: 12 }}>
+            <NotificationBell />
+          </View>
+        ),
       }}
     >
       <Tabs.Screen
