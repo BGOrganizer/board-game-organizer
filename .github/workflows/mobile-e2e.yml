@@ -137,6 +137,11 @@ jobs:
       email: ${{ steps.provision.outputs.email }}
       password: ${{ steps.provision.outputs.password }}
       user_id: ${{ steps.provision.outputs.user_id }}
+      username_2: ${{ steps.provision.outputs.username_2 }}
+      email_2: ${{ steps.provision.outputs.email_2 }}
+      password_2: ${{ steps.provision.outputs.password_2 }}
+      phone_2: ${{ steps.provision.outputs.phone_2 }}
+      user_id_2: ${{ steps.provision.outputs.user_id_2 }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -200,6 +205,10 @@ jobs:
           apk-path: ${{ steps.apk.outputs.path }}
           username: ${{ needs.provision.outputs.username }}
           password: ${{ needs.provision.outputs.password }}
+          target-email: ${{ needs.provision.outputs.email_2 }}
+          target-username: ${{ needs.provision.outputs.username_2 }}
+          target-password: ${{ needs.provision.outputs.password_2 }}
+          target-phone: ${{ needs.provision.outputs.phone_2 }}
 
       - name: 📤 Upload Maestro reports
         if: always()
@@ -220,7 +229,6 @@ jobs:
     name: 🗑️ Cleanup E2E test user
     needs: [provision, e2e-maestro]
     if: always()
-    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -230,5 +238,6 @@ jobs:
         env:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           USER_ID: ${{ needs.provision.outputs.user_id }}
+          USER_ID_2: ${{ needs.provision.outputs.user_id_2 }}
         run: |
-          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"

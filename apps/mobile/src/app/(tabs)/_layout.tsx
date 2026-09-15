@@ -1,32 +1,18 @@
-import { useAuth } from "@clerk/expo";
+import { getMobileNumber } from "@board-game-organizer/schemas";
+import { useAuth, useUser } from "@clerk/expo";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
-import { useEffect } from "react";
 import { Platform, View } from "react-native";
 
 import { useT } from "@/lib/i18n";
 
-/**
- * Guard: the tabs are only reachable when authenticated. After sign-out the
- * Clerk state flips and this layout redirects back to the welcome screen.
- * Uses router.replace in an effect (NOT a rendered <Redirect>); the pathname
- * check prevents a ping-pong with the index screen's guard while Clerk's auth
- * state settles.
- */
 export default function TabLayout() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { isLoaded: isUserLoaded, user } = useUser();
   const t = useT();
-  const router = useRouter();
-  const pathname = usePathname();
 
-  useEffect(() => {
-    if (isLoaded && !isSignedIn && pathname !== "/") {
-      router.replace("/");
-    }
-  }, [isLoaded, isSignedIn, router, pathname]);
-
-  if (!isLoaded) {
+  if (!isAuthLoaded || (isSignedIn && !isUserLoaded)) {
     return (
       <View
         style={{
@@ -37,15 +23,14 @@ export default function TabLayout() {
           backgroundColor: "transparent",
         }}
       >
-        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 48, borderRadius: 8 }} />
-        <Skeleton isLoading variant="pulse" style={{ width: 128, height: 16, borderRadius: 4 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 32, borderRadius: 8 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: "80%", height: 16, borderRadius: 4 }} />
       </View>
     );
   }
 
-  if (!isSignedIn) {
-    return null; // the effect above navigates back to the welcome screen
-  }
+  if (!isSignedIn) return <Redirect href="/" />;
+  if (!getMobileNumber(user?.unsafeMetadata)) return <Redirect href="/mobile-number" />;
 
   return (
     <Tabs

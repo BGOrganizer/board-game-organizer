@@ -24,6 +24,14 @@ inputs:
     description: Social target username (user B) for the contacts flow (flow 05)
     required: false
     default: ""
+  target-password:
+    description: Social target password (user B) for the contacts flow (flow 05)
+    required: false
+    default: ""
+  target-phone:
+    description: Social target mobile number seeded into the emulator address book
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -37,14 +45,41 @@ runs:
           export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
           export MAESTRO_CLI_NO_ANALYTICS=1
           APK="${{ inputs.apk-path }}"
+          TARGET_PHONE="${{ inputs.target-phone }}"
           echo "APK found: $APK"
           adb install -r "$APK" || { sleep 30; adb install -r "$APK"; }
           adb shell pm clear com.bgo.mobile || true
+          # Clerk Android OAuth must return through both app and SDK callbacks.
+          adb shell cmd package resolve-activity --brief \
+            -a android.intent.action.VIEW \
+            -c android.intent.category.BROWSABLE \
+            -d 'clerk://com.bgo.mobile.hosted-callback' \
+            | tee /tmp/clerk-hosted-callback.txt \
+            | grep -q 'com.bgo.mobile'
+          adb shell cmd package resolve-activity --brief \
+            -a android.intent.action.VIEW \
+            -c android.intent.category.BROWSABLE \
+            -d 'clerk://com.bgo.mobile.oauth' \
+            | tee /tmp/clerk-oauth-callback.txt \
+            | grep -q 'com.bgo.mobile'
+          cat /tmp/clerk-hosted-callback.txt /tmp/clerk-oauth-callback.txt
           # Pre-warm the app (first cold start on a software emulator is very slow)
           adb shell am start -n com.bgo.mobile/.MainActivity || true
           sleep 60
           adb shell am force-stop com.bgo.mobile || true
           set -e
+          if [ -n "$TARGET_PHONE" ]; then
+            adb shell content insert --uri content://com.android.contacts/raw_contacts \
+              --bind account_name:s:bgo-e2e --bind account_type:s:com.bgo.e2e
+            RAW_CONTACT_ID=$(adb shell content query \
+              --uri content://com.android.contacts/raw_contacts \
+              --projection _id | tail -1 | sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p')
+            test -n "$RAW_CONTACT_ID"
+            adb shell content insert --uri content://com.android.contacts/data \
+              --bind raw_contact_id:i:"$RAW_CONTACT_ID" \
+              --bind mimetype:s:vnd.android.cursor.item/phone_v2 \
+              --bind data1:s:"$TARGET_PHONE" --bind data2:i:2
+          fi
           # Report dirs (created up front so junit has a target even on success)
           mkdir -p /tmp/maestro-reports /tmp/maestro-debug
           # Record the emulator screen; kept only if a flow fails (best practice).
@@ -62,13 +97,18 @@ runs:
             -e PASSWORD=${{ inputs.password }} \
             apps/mobile/.maestro/flows/02-login.yaml \
             || { capture; exit 1; }
-          # Social flow: search → follow → block the target (user B). Runs right
-          # after login so the session is still fresh on the same app process.
-          if [ -n "${{ inputs.target-email }}" ]; then
+          # Social flow: request reject/accept, friendship, follow, and block.
+          # Runs after login so the actor session is fresh on the same app process.
+          if [ -n "${{ inputs.target-email }}" ] \
+            && [ -n "${{ inputs.target-username }}" ] \
+            && [ -n "${{ inputs.target-password }}" ]; then
             maestro test --format junit --output /tmp/maestro-reports \
               --debug-output /tmp/maestro-debug \
+              -e USERNAME=${{ inputs.username }} \
+              -e PASSWORD=${{ inputs.password }} \
               -e EMAIL_2=${{ inputs.target-email }} \
               -e USERNAME_2=${{ inputs.target-username }} \
+              -e PASSWORD_2=${{ inputs.target-password }} \
               apps/mobile/.maestro/flows/05-contacts-follow-block.yaml \
               || { capture; exit 1; }
           fi
@@ -76,6 +116,12 @@ runs:
             --debug-output /tmp/maestro-debug \
             -e USERNAME=${{ inputs.username }} \
             apps/mobile/.maestro/flows/03-profile-logout.yaml \
+            || { capture; exit 1; }
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            -e USERNAME=${{ inputs.username }} \
+            -e PASSWORD=${{ inputs.password }} \
+            apps/mobile/.maestro/flows/07-reauth-after-logout.yaml \
             || { capture; exit 1; }
           # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
           adb shell cmd uimode night yes || true
@@ -97,5 +143,5 @@ runs:
           # Guarantee at least one junit file (Maestro junit output is
           # version-sensitive and may not be written when all flows pass).
           ls "$GITHUB_WORKSPACE/maestro-reports"/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>' > "$GITHUB_WORKSPACE/maestro-reports/summary.xml"
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="5" failures="0"><testcase name="all-flows-passed"/></testsuite></testsuites>' > "$GITHUB_WORKSPACE/maestro-reports/summary.xml"
           echo "persisted reports:"; ls -la "$GITHUB_WORKSPACE/maestro-reports" "$GITHUB_WORKSPACE/maestro-debug" || true

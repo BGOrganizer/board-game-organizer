@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GET } from "../route";
+import { GET, OPTIONS } from "../route";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/app/lib/db", () => ({
   getDb: vi.fn(),
-  COLLECTIONS: { USERS: "users", BLOCKS: "blocks" },
+  COLLECTIONS: {
+    USERS: "users",
+    FOLLOWS: "follows",
+    FRIEND_REQUESTS: "friendRequests",
+    BLOCKS: "blocks",
+  },
 }));
 vi.mock("@/app/lib/blocks", () => ({
   getBlockedUserIds: vi.fn(async () => []),
@@ -64,7 +69,12 @@ describe("GET /api/users/search", () => {
     authMock.mockResolvedValueOnce({ userId: "viewer" });
     const findMock = vi.fn<(filter: unknown) => unknown>(() => ({
       limit: vi.fn(() => ({
-        toArray: async () => [fakeUser(), fakeUser({ clerkId: "blocked_user", name: "B" })],
+        toArray: async () => [
+          fakeUser(),
+          fakeUser({ clerkId: "user_2", name: "Alex", avatarUrl: null }),
+          fakeUser({ clerkId: "blocked_user", name: "B" }),
+          fakeUser({ clerkId: "blocker_user", name: "C" }),
+        ],
       })),
     }));
     // The route also reads follows (from/to) and accepted friend requests.
@@ -72,34 +82,55 @@ describe("GET /api/users/search", () => {
       limit: vi.fn(() => ({ toArray: async () => [] })),
       toArray: async () => [],
     }));
+    const friendFind = vi.fn(() => ({
+      toArray: async () => [
+        { fromUserId: "viewer", toUserId: "user_1", status: "accepted" },
+        { fromUserId: "user_1", toUserId: "viewer", status: "accepted" },
+        { fromUserId: "unrelated_a", toUserId: "unrelated_b", status: "accepted" },
+      ],
+    }));
     getDbMock.mockResolvedValueOnce({
       collection: vi.fn((name: string) => ({
-        find: name === "users" ? findMock : emptyFind,
+        find: name === "users" ? findMock : name === "friendRequests" ? friendFind : emptyFind,
       })),
     });
-    const { getBlockedUserIds } = await import("@/app/lib/blocks");
+    const { getBlockedByUserIds, getBlockedUserIds } = await import("@/app/lib/blocks");
     vi.mocked(getBlockedUserIds as () => Promise<string[]>).mockResolvedValueOnce(["blocked_user"]);
+    vi.mocked(getBlockedByUserIds as () => Promise<string[]>).mockResolvedValueOnce([
+      "blocker_user",
+    ]);
 
-    const res = await GET(new Request("http://x/api/users/search?query=al"));
+    const res = await GET(new Request("http://x/api/users/search?query=alice"));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.users).toHaveLength(1);
+    expect(body.users).toHaveLength(2);
     expect(body.users[0].id).toBe("user_1");
     // Coherent relationship state: no follows/friends in this fixture.
     expect(body.users[0].isFollowing).toBe(false);
     expect(body.users[0].isFollower).toBe(false);
-    expect(body.users[0].isFriend).toBe(false);
+    expect(body.users[0].isFriend).toBe(true);
+    expect(body.users[1].isFriend).toBe(false);
 
     // Prefix search: anchored ^$regex, case-insensitive, over name/email.
     const filter = findMock.mock.calls[0]?.[0] as { $or: Array<Record<string, unknown>> };
     expect(filter.$or).toHaveLength(2);
-    expect(filter.$or[0]).toEqual({ name: { $regex: "^al", $options: "i" } });
-    expect(filter.$or[1]).toEqual({ email: { $regex: "^al", $options: "i" } });
+    expect(filter.$or[0]).toEqual({ name: { $regex: "^alice", $options: "i" } });
+    expect(filter.$or[1]).toEqual({ email: { $regex: "^alice", $options: "i" } });
   });
 
-  it("rejects an empty query", async () => {
+  it("supports CORS preflight", async () => {
+    const response = await OPTIONS(new Request("http://x/api/users/search", { method: "OPTIONS" }));
+    expect(response.status).toBe(204);
+  });
+
+  it.each([
+    "http://x/api/users/search?query=",
+    "http://x/api/users/search?query=abc",
+    "http://x/api/users/search?query=alice&query=bob",
+    "http://x/api/users/search?query=alice&unknown=x",
+  ])("rejects invalid query input: %s", async (url) => {
     authMock.mockResolvedValueOnce({ userId: "viewer" });
-    const res = await GET(new Request("http://x/api/users/search?query="));
+    const res = await GET(new Request(url));
     expect(res.status).toBe(400);
   });
 });

@@ -1,0 +1,22 @@
+name: E2E user cleanup
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Cleanup orphaned Clerk E2E users
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Delete E2E users older than two hours
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_USER_MAX_AGE_SECONDS: "7200"
+        run: bash .github/scripts/cleanup-e2e-clerk-users.sh

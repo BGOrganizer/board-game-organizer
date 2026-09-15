@@ -1,0 +1,22 @@
+appId: com.bgo.mobile
+---
+# Re-authenticate in the same app process after Clerk sign-out.
+# Guards against AuthView/native client state leaking across mounts and returning
+# to the provider chooser instead of publishing the new session to Expo Router.
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- assertNotVisible: "Sign in / Register"

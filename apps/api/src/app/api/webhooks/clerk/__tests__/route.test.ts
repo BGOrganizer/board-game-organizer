@@ -4,7 +4,16 @@ import { POST } from "../route";
 
 vi.mock("@/app/lib/db", () => ({
   getDb: vi.fn(async () => ({})),
+  withTransaction: vi.fn(async (callback) => callback({ id: "session" }, {})),
 }));
+
+vi.mock("@/app/lib/relationship.repository", () => {
+  const instance = { deleteAllForUser: vi.fn(async () => undefined) };
+  return {
+    RelationshipRepository: vi.fn().mockImplementation(() => instance),
+    __lastInstance: instance,
+  };
+});
 
 vi.mock("@/app/lib/users.repository", () => {
   const instance = {
@@ -17,9 +26,16 @@ vi.mock("@/app/lib/users.repository", () => {
   };
 });
 
+import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { UsersRepository } from "@/app/lib/users.repository";
 
 const repoMock = vi.mocked(UsersRepository);
+const relationshipRepoMock = vi.mocked(RelationshipRepository);
+const relationshipInstance = vi.mocked(
+  (await import("@/app/lib/relationship.repository")) as unknown as {
+    __lastInstance: { deleteAllForUser: ReturnType<typeof vi.fn> };
+  },
+).__lastInstance;
 const lastInstance = vi.mocked(
   (await import("@/app/lib/users.repository")) as unknown as {
     __lastInstance: {
@@ -87,6 +103,7 @@ describe("POST /api/webhooks/clerk", () => {
         image_url: "https://img/a.png",
         preferred_language: "it",
         public_metadata: { e2e: true },
+        unsafe_metadata: { mobileNumber: " +39 123 " },
       },
     };
     const headers = sign(payload, secret);
@@ -105,6 +122,7 @@ describe("POST /api/webhooks/clerk", () => {
         email: "a@b.it",
         name: "Alessandro Mancini",
         preferredLanguage: "it",
+        mobileNumber: "+39 123",
         e2e: true,
       }),
     );
@@ -113,13 +131,22 @@ describe("POST /api/webhooks/clerk", () => {
   it("normalizes unsupported locales to en", async () => {
     const payload = {
       type: "user.updated",
-      data: { id: "user_2", first_name: "Bob", email_addresses: [], preferred_language: "fr" },
+      data: {
+        id: "user_2",
+        email_addresses: [],
+        preferred_language: "fr",
+      },
     };
     const headers = sign(payload, secret);
     await POST(new Request("http://x", { method: "POST", body: JSON.stringify(payload), headers }));
     const instance = lastInstance;
     expect(instance.upsertFromClerk).toHaveBeenCalledWith(
-      expect.objectContaining({ preferredLanguage: "en", e2e: undefined }),
+      expect.objectContaining({
+        name: "",
+        preferredLanguage: "en",
+        mobileNumber: null,
+        e2e: undefined,
+      }),
     );
   });
 
@@ -132,6 +159,8 @@ describe("POST /api/webhooks/clerk", () => {
     expect(res.status).toBe(200);
     const instance = lastInstance;
     expect(instance.deleteByClerkId).toHaveBeenCalledWith("user_3");
+    expect(relationshipRepoMock).toHaveBeenCalled();
+    expect(relationshipInstance.deleteAllForUser).toHaveBeenCalledWith("user_3");
   });
 
   it("ignores unknown event types", async () => {

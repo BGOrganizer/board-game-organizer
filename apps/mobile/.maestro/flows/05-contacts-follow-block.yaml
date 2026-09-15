@@ -1,51 +1,265 @@
 appId: com.bgo.mobile
 ---
-# 5. Social flow: search user B (target) → follow → block via kebab menu →
-#    Blocked tab → unblock.
-#    Requires a signed-in session (run right after flow 02-login) and the
-#    target's email injected as ${EMAIL_2}.
+# 5. Social flow: suggestions → sent/received requests → reject/accept → friends → block.
+# Requires signed-in actor session (run after flow 02-login).
 - tapOn: "Contacts"
 - extendedWaitUntil:
-    visible: "Search"
+    visible: "Suggestions"
     timeout: 60000
+# Phone-only address-book contact must resolve the registered target.
+- tapOn: "Suggestions"
+- extendedWaitUntil:
+    visible: "Access contacts"
+    timeout: 30000
+- tapOn: "Yes"
+- extendedWaitUntil:
+    visible: ".*[Aa]llow.*contacts.*"
+    timeout: 30000
+- tapOn: "Allow"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- assertNotVisible: "Action failed"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertNotVisible: "Add contacts"
+- assertNotVisible: "Allow address book access to find your friends here."
 - tapOn: "Search"
 - extendedWaitUntil:
     visible: ".*[Ss]earch.*users.*"
     timeout: 30000
 - tapOn: ".*[Ss]earch.*users.*"
 - inputText: ${EMAIL_2}
-# Search fires automatically on debounce; the target row (name "E2E Target")
-# must appear once it is mirrored into the users collection.
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-# Follow the target via the icon-only button (resource-id follow-btn) →
-# the icon flips to UserMinus (unfollow-btn) once the mutation lands.
+# Send and confirm a friend request.
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Send friend request"
+    timeout: 30000
+- tapOn: "Send friend request"
+- extendedWaitUntil:
+    visible:
+      id: "confirm-friend-request-btn"
+    timeout: 30000
+# Cancel returns to action rows without closing the sheet.
 - tapOn:
-    id: "follow-btn"
+    id: "cancel-confirmation-btn"
+- assertVisible: "Send friend request"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirm-friend-request-btn"
+    timeout: 30000
+# Actor sees the outgoing request.
+- tapOn: "Friend requests"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
-- assertVisible:
-    id: "unfollow-btn"
-# Open the kebab action sheet (accessibility label "Actions") and block.
+- assertVisible: "Sent"
+# Cancel the outgoing request from its menu, then send it again.
+- tapOn: "Actions"
+- tapOn: "Cancel friend request"
+- tapOn:
+    id: "confirm-cancel_friend_request-btn"
+- extendedWaitUntil:
+    visible: "No sent friend requests"
+    timeout: 30000
+- tapOn: "Search"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- tapOn: "Actions"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- tapOn: "Friend requests"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+
+# Switch to target and reject the incoming request.
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Logout"
+    timeout: 60000
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Contacts"
+- tapOn: "Friend requests"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- assertVisible: "Received"
+- tapOn:
+    id: "respond-friend-request-btn"
+- tapOn:
+    id: "respond-reject-friend-request-btn"
+- extendedWaitUntil:
+    notVisible: "E2E Test"
+    timeout: 30000
+
+# Switch back to actor and send the rejected request again.
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Contacts"
+- tapOn: "Search"
+- tapOn: ".*[Ss]earch.*users.*"
+- inputText: ${EMAIL_2}
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- tapOn: "Actions"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirm-friend-request-btn"
+    timeout: 30000
+
+# Switch to target, accept, and verify the Friends tab.
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Contacts"
+- tapOn: "Friend requests"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- tapOn:
+    id: "respond-friend-request-btn"
+- tapOn:
+    id: "respond-accept-friend-request-btn"
+- tapOn: "Friends"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 30000
+
+# Return to actor, verify friendship, then exercise follow/block cleanup.
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Contacts"
+- tapOn: "Friends"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+# One action removes friendship plus the actor's follow and refreshes every list.
+- tapOn:
+    id: "remove-friend-btn"
+- tapOn:
+    id: "confirm-unfriend-btn"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+- tapOn: "Search"
+- tapOn: ".*[Ss]earch.*users.*"
+- inputText: ${EMAIL_2}
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- extendedWaitUntil:
+    visible:
+      id: "follow-btn"
+    timeout: 30000
+- tapOn:
+    id: "follow-btn"
+- extendedWaitUntil:
+    visible:
+      id: "unfollow-btn"
+    timeout: 30000
+# Block hides the target.
 - tapOn: "Actions"
 - extendedWaitUntil:
     visible: "Block"
     timeout: 30000
 - tapOn: "Block"
-# Confirmation view: confirm the block (testID confirm-block-btn).
 - extendedWaitUntil:
     visible:
       id: "confirm-block-btn"
     timeout: 30000
 - tapOn:
     id: "confirm-block-btn"
-# The blocked user must disappear from search results (blockedByMe policy).
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000
-# Blocked tab lists the target; unblock via kebab → search shows them again.
 - tapOn: "Blocked"
 - extendedWaitUntil:
     visible: "E2E Target"
@@ -55,6 +269,8 @@ appId: com.bgo.mobile
     visible: "Unblock"
     timeout: 30000
 - tapOn: "Unblock"
+- tapOn:
+    id: "confirm-unblock-btn"
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000

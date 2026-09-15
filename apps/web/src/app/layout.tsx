@@ -39,6 +39,7 @@ export default async function RootLayout({
         <ClerkProvider
           publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={clerkAppearance}
+          signUpForceRedirectUrl="/mobile-number"
         >
           <QueryProvider>
             <LinguiClientProvider initialLocale={locale} initialMessages={messages}>

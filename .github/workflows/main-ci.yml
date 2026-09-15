@@ -68,7 +68,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [mobile, web, api]
+        app: [mobile, web, api, shared]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -254,21 +254,26 @@ jobs:
           apk-path: ${{ steps.apk.outputs.path }}
           username: ${{ steps.provision.outputs.username }}
           password: ${{ steps.provision.outputs.password }}
+          target-email: ${{ steps.provision.outputs.email_2 }}
+          target-username: ${{ steps.provision.outputs.username_2 }}
+          target-password: ${{ steps.provision.outputs.password_2 }}
+          target-phone: ${{ steps.provision.outputs.phone_2 }}
 
       - name: 🗑️ Cleanup E2E test user
         if: always()
         env:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
           USER_ID: ${{ steps.provision.outputs.user_id }}
+          USER_ID_2: ${{ steps.provision.outputs.user_id_2 }}
         run: |
-          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"
 
       - name: 📥 Collect Maestro reports (workspace)
         if: always()
         run: |
           mkdir -p maestro-reports maestro-debug
           ls maestro-reports/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="5" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
           echo "---- maestro-reports ----"; ls -la maestro-reports || true
           echo "---- maestro-debug ----"; ls -la maestro-debug || true
 
@@ -332,7 +337,7 @@ jobs:
             && echo "actor synced"
           curl -fsS -X POST "$API_URL/api/admin/sync-user" \
             -H "$AUTH" -H "Content-Type: application/json" \
-            -d '{"clerkId":"${{ steps.provision.outputs.user_id_2 }}","email":"${{ steps.provision.outputs.email_2 }}","name":"E2E Target"}' \
+            -d '{"clerkId":"${{ steps.provision.outputs.user_id_2 }}","email":"${{ steps.provision.outputs.email_2 }}","name":"E2E Target","mobileNumber":"${{ steps.provision.outputs.phone_2 }}"}' \
             && echo "target synced"
 
       - name: 🌐 Install Playwright browsers
@@ -346,6 +351,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: https://board-game-organizer.com
           E2E_EMAIL: ${{ steps.provision.outputs.email }}
           E2E_EMAIL_2: ${{ steps.provision.outputs.email_2 }}
+          E2E_PHONE_2: ${{ steps.provision.outputs.phone_2 }}
           E2E_USERNAME_2: ${{ steps.provision.outputs.username_2 }}
           # Clerk testing token (global setup) + ticket sign-in helper —
           # LIVE instance (web production now serves pk_live):
@@ -366,8 +372,9 @@ jobs:
         env:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY_PRODUCTION }}
           USER_ID: ${{ steps.provision.outputs.user_id }}
+          USER_ID_2: ${{ steps.provision.outputs.user_id_2 }}
         run: |
-          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID"
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"
 
   # ------------------------------------------------ publish release (after ALL gates)
   publish-release:

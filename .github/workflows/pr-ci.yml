@@ -72,7 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [mobile, web, api, schemas]
+        app: [mobile, web, api, schemas, shared]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -217,7 +217,8 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # Reuse compares prior run SHAs; shallow tips have no diffable ancestry.
+          fetch-depth: 0
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -242,10 +243,9 @@ jobs:
           MOBILE_PATHS="apps/mobile apps/web packages/shared packages/query packages/store packages/schemas pnpm-lock.yaml pnpm-workspace.yaml .github/actions/mobile-build .github/workflows/pr-ci.yml"
           for id in $RUNS; do
             RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')
-            # The checkout is fetch-depth:1, so bring the candidate SHA in.
             # A rewritten/rebased SHA may no longer exist → skip the candidate
             # instead of crashing the whole job.
-            git fetch --depth 1 origin "$RUN_SHA" >/dev/null 2>&1 || continue
+            git cat-file -e "$RUN_SHA^{commit}" 2>/dev/null || continue
             CHANGED=$(git diff --name-only "$RUN_SHA".."$HEAD_SHA" -- $MOBILE_PATHS | grep -v '^apps/mobile/\.maestro/' | grep -v '^apps/mobile/src/.*\.\(test\|spec\)\.' | grep -v '__tests__' | wc -l) || continue
             if [ "$CHANGED" -gt 0 ]; then
               echo "APK run $id ($RUN_SHA) stale vs HEAD ($CHANGED mobile change(s)) — skipping"
@@ -300,6 +300,7 @@ jobs:
       user_id: ${{ steps.provision.outputs.user_id }}
       username_2: ${{ steps.provision.outputs.username_2 }}
       email_2: ${{ steps.provision.outputs.email_2 }}
+      phone_2: ${{ steps.provision.outputs.phone_2 }}
       password_2: ${{ steps.provision.outputs.password_2 }}
       user_id_2: ${{ steps.provision.outputs.user_id_2 }}
     steps:
@@ -419,7 +420,7 @@ jobs:
             && echo "actor synced"
           curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
             -H "$AUTH" -H "Content-Type: application/json" \
-            -d '{"clerkId":"${{ needs.provision.outputs.user_id_2 }}","email":"${{ needs.provision.outputs.email_2 }}","name":"E2E Target"}' \
+            -d '{"clerkId":"${{ needs.provision.outputs.user_id_2 }}","email":"${{ needs.provision.outputs.email_2 }}","name":"E2E Target","mobileNumber":"${{ needs.provision.outputs.phone_2 }}"}' \
             && echo "target synced"
 
   # ------------------------------------------------------------- Maestro E2E
@@ -472,6 +473,8 @@ jobs:
           password: ${{ needs.provision.outputs.password }}
           target-email: ${{ needs.provision.outputs.email_2 }}
           target-username: ${{ needs.provision.outputs.username_2 }}
+          target-password: ${{ needs.provision.outputs.password_2 }}
+          target-phone: ${{ needs.provision.outputs.phone_2 }}
 
       - name: 📥 Collect Maestro reports (workspace)
         if: always()
@@ -481,7 +484,7 @@ jobs:
           # persist step did not (e.g. script exited early on failure).
           mkdir -p maestro-reports maestro-debug
           ls maestro-reports/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="5" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
           echo "---- maestro-reports ----"; ls -la maestro-reports || true
           echo "---- maestro-debug ----"; ls -la maestro-debug || true
 
@@ -524,6 +527,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
           E2E_EMAIL: ${{ needs.provision.outputs.email }}
           E2E_EMAIL_2: ${{ needs.provision.outputs.email_2 }}
+          E2E_PHONE_2: ${{ needs.provision.outputs.phone_2 }}
           E2E_USERNAME_2: ${{ needs.provision.outputs.username_2 }}
           # Clerk testing token (global setup) + ticket sign-in helper:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
@@ -543,9 +547,7 @@ jobs:
     name: 🗑️ Cleanup E2E test user
     needs: [provision, e2e-maestro, e2e-playwright]
     if: always()
-    # Cleanup must never block the PR result: a failure here only means the
-    # next run's orphan sweep (>24h) will take care of it.
-    continue-on-error: true
+    # Cleanup failure must stay visible; otherwise leaked Clerk users accumulate silently.
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout

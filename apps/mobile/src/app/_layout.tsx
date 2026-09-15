@@ -98,6 +98,7 @@ function RootNavigator() {
         <Stack>
           <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
           <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
+          <Stack.Screen name="mobile-number" options={{ title: t("Complete your profile") }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
       </QueryProvider>

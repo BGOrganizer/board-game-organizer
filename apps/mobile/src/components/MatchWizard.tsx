@@ -103,14 +103,8 @@ export function MatchWizard() {
     [name, dateSlots],
   );
   const step2Valid = useMemo(
-    // All required slots must be filled: the creator counts as one player,
-    // so with minPlayers=N there must be at least N-1 invited users. The
-    // range itself must be coherent too.
-    () =>
-      minPlayers >= 1 &&
-      maxPlayers >= minPlayers &&
-      userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
-    [minPlayers, maxPlayers, userSlots],
+    () => minPlayers >= 2 && maxPlayers >= minPlayers,
+    [minPlayers, maxPlayers],
   );
   const step3Valid = useMemo(
     // Every added game slot must hold a game (same rule as the dates).
@@ -155,12 +149,10 @@ export function MatchWizard() {
     });
   }, [slotCount]);
 
-  const bumpMin = (d: number) => setMinPlayers((v) => Math.max(1, Math.min(maxPlayers, v + d)));
+  const bumpMin = (d: number) => setMinPlayers((v) => Math.max(2, Math.min(maxPlayers, v + d)));
   const bumpMax = (d: number) => setMaxPlayers((v) => Math.max(minPlayers, v + d));
 
   const addGameSlot = () => setGameSlots((p) => [...p, { id: uid(), game: null }]);
-  const removeGameSlot = (id: string) =>
-    setGameSlots((p) => (p.length <= 1 ? p : p.filter((s) => s.id !== id)));
 
   const create = useCallback(async () => {
     if (!step3Valid) return;

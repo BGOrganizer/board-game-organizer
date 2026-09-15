@@ -1,222 +1,238 @@
-import { describe, expect, it, vi } from "vitest";
-import { COLLECTIONS } from "@/app/lib/db";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RelationshipRepository } from "../relationship.repository";
 
-/**
- * Fakes the MongoDB collection surface per social collection.
- */
-function createFakeDb() {
-  const collections: Record<string, ReturnType<typeof createFakeCol>> = {
-    [COLLECTIONS.USERS]: createFakeCol(),
-    [COLLECTIONS.FOLLOWS]: createFakeCol(),
-    [COLLECTIONS.FRIEND_REQUESTS]: createFakeCol(),
-    [COLLECTIONS.BLOCKS]: createFakeCol(),
-    [COLLECTIONS.INVITES]: createFakeCol(),
-    [COLLECTIONS.RELATIONSHIPS]: createFakeCol(),
-  };
-  const db = {
-    collection: vi.fn((name: string) => collections[name]?.col ?? createFakeCol().col),
-  };
-  return { db, collections };
-}
-
-function createFakeCol(overrides: Record<string, unknown> = {}) {
-  const calls: unknown[] = [];
-  const col = {
-    calls,
-    findOne: vi.fn(async () => null),
-    findOneAndUpdate: vi.fn(async () => ({ value: null })),
-    deleteOne: vi.fn(async () => ({ deletedCount: 0 })),
-    countDocuments: vi.fn(async () => 0) as unknown as ReturnType<typeof vi.fn>,
-    find: vi.fn(() => ({ toArray: async () => [] })) as unknown as ReturnType<typeof vi.fn>,
-    ...overrides,
-  };
-  return { col, calls };
-}
-
-function createRepo(db: ReturnType<typeof createFakeDb>["db"]) {
-  return new RelationshipRepository(db as never);
-}
-
-describe("RelationshipRepository (Phase 1 collections)", () => {
-  it("find delegates follows to the follows collection", async () => {
-    const { db, collections } = createFakeDb();
-    const repo = createRepo(db);
-    await repo.find("user_1", "user_2", "follow");
-    expect(db.collection).toHaveBeenCalledWith(COLLECTIONS.FOLLOWS);
-    expect(collections[COLLECTIONS.FOLLOWS].col.findOne).toHaveBeenCalledWith(
-      { fromUserId: "user_1", toUserId: "user_2" },
-      {},
-    );
-  });
-
-  it("find delegates friend_request to friendRequests with status filter", async () => {
-    const { db, collections } = createFakeDb();
-    const repo = createRepo(db);
-    await repo.find("user_1", "user_2", "friend_request");
-    expect(collections[COLLECTIONS.FRIEND_REQUESTS].col.findOne).toHaveBeenCalledWith(
-      { fromUserId: "user_1", toUserId: "user_2" },
-      {},
-    );
-  });
-
-  it("isFriend derives from two accepted requests", async () => {
-    const { db, collections } = createFakeDb();
-    collections[COLLECTIONS.FRIEND_REQUESTS].col.countDocuments.mockResolvedValueOnce(2);
-    const repo = createRepo(db);
-    expect(await repo.isFriend("a", "b")).toBe(true);
-  });
-
-  it("upsert writes follow edges without status", async () => {
-    const { db, collections } = createFakeDb();
-    const repo = createRepo(db);
-    await repo.upsert("user_1", "user_2", "follow", "accepted");
-    expect(collections[COLLECTIONS.FOLLOWS].col.findOneAndUpdate).toHaveBeenCalledWith(
-      { fromUserId: "user_1", toUserId: "user_2" },
-      expect.objectContaining({ $set: {} }),
-      expect.objectContaining({ upsert: true }),
-    );
-  });
-
-  it("upsert writes friend_request with status", async () => {
-    const { db, collections } = createFakeDb();
-    const repo = createRepo(db);
-    await repo.upsert("user_1", "user_2", "friend_request", "pending");
-    expect(collections[COLLECTIONS.FRIEND_REQUESTS].col.findOneAndUpdate).toHaveBeenCalledWith(
-      { fromUserId: "user_1", toUserId: "user_2" },
-      expect.objectContaining({ $set: expect.objectContaining({ status: "pending" }) }),
-      expect.objectContaining({ upsert: true }),
-    );
-  });
-
-  it("delete removes the edge from the right collection", async () => {
-    const { db, collections } = createFakeDb();
-    const repo = createRepo(db);
-    await repo.delete("user_1", "user_2", "follow");
-    expect(collections[COLLECTIONS.FOLLOWS].col.deleteOne).toHaveBeenCalledWith(
-      { fromUserId: "user_1", toUserId: "user_2" },
-      {},
-    );
-  });
-
-  it("isBlocked checks both directions in blocks", async () => {
-    const { db, collections } = createFakeDb();
-    collections[COLLECTIONS.BLOCKS].col.countDocuments.mockResolvedValueOnce(1);
-    const repo = createRepo(db);
-    expect(await repo.isBlocked("user_1", "user_2")).toBe(true);
-    expect(collections[COLLECTIONS.BLOCKS].col.countDocuments).toHaveBeenCalledWith(
-      expect.objectContaining({
-        $or: [
-          { fromUserId: "user_1", toUserId: "user_2" },
-          { fromUserId: "user_2", toUserId: "user_1" },
-        ],
+function setup(rows: Record<string, Array<Record<string, unknown>>> = {}) {
+  const collections = new Map<string, ReturnType<typeof makeCollection>>();
+  function makeCollection(name: string) {
+    const cursor = {
+      sort: vi.fn(function sort() {
+        return cursor;
       }),
+      toArray: vi.fn(async () => rows[name] ?? []),
+    };
+    return {
+      countDocuments: vi.fn(async () => 0),
+      findOne: vi.fn(async () => null),
+      findOneAndUpdate: vi.fn(async () => null),
+      updateOne: vi.fn(async () => ({ acknowledged: true })),
+      deleteOne: vi.fn(async () => ({ deletedCount: 1 })),
+      deleteMany: vi.fn(async () => ({ deletedCount: 2 })),
+      find: vi.fn(() => cursor),
+      cursor,
+    };
+  }
+  const db = {
+    collection: vi.fn((name: string) => {
+      if (!collections.has(name)) collections.set(name, makeCollection(name));
+      return collections.get(name);
+    }),
+  };
+  return {
+    db,
+    col(name: string) {
+      db.collection(name);
+      const collection = collections.get(name);
+      if (!collection) throw new Error(`Missing mock collection: ${name}`);
+      return collection;
+    },
+  };
+}
+
+describe("RelationshipRepository", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("checks synchronized users with and without a session", async () => {
+    const fake = setup();
+    fake.col("users").countDocuments.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+    const session = { id: "session" };
+    await expect(
+      new RelationshipRepository(fake.db as never, session as never).userExists("a"),
+    ).resolves.toBe(true);
+    await expect(new RelationshipRepository(fake.db as never).userExists("b")).resolves.toBe(false);
+    expect(fake.col("users").countDocuments).toHaveBeenNthCalledWith(
+      1,
+      { clerkId: "a" },
+      { session },
+    );
+  });
+
+  it("creates idempotent follows and removes them", async () => {
+    const fake = setup();
+    const repo = new RelationshipRepository(fake.db as never);
+    await repo.follow("a", "b");
+    await repo.unfollow("a", "b");
+    expect(fake.col("follows").updateOne).toHaveBeenCalledWith(
+      { fromUserId: "a", toUserId: "b" },
+      { $setOnInsert: expect.objectContaining({ fromUserId: "a", toUserId: "b" }) },
+      { upsert: true },
+    );
+    expect(fake.col("follows").deleteOne).toHaveBeenCalledWith(
+      { fromUserId: "a", toUserId: "b" },
       {},
     );
   });
 
-  it("getBlockedUserIds returns both directions, normalized to the other side", async () => {
-    const { db, collections } = createFakeDb();
-    collections[COLLECTIONS.BLOCKS].col.find.mockReturnValue({
-      toArray: async () => [
-        { fromUserId: "me", toUserId: "them" },
-        { fromUserId: "other", toUserId: "me" },
+  it("finds, creates, responds to, and deletes friend requests", async () => {
+    const fake = setup();
+    const repo = new RelationshipRepository(fake.db as never);
+    await repo.findFriendRequest("a", "b");
+    await repo.setFriendRequest("a", "b", "pending");
+    await repo.setFriendRequest("a", "b", "accepted");
+    await repo.deleteFriendRequest("a", "b", "pending");
+    await repo.deleteFriendRequest("a", "b");
+    await repo.clearFriendRequests("a", "b");
+
+    expect(fake.col("friendRequests").findOne).toHaveBeenCalledWith(
+      { fromUserId: "a", toUserId: "b" },
+      {},
+    );
+    expect(fake.col("friendRequests").findOneAndUpdate).toHaveBeenNthCalledWith(
+      1,
+      { fromUserId: "a", toUserId: "b" },
+      expect.objectContaining({ $unset: { respondedAt: "" } }),
+      expect.objectContaining({ upsert: true }),
+    );
+    expect(fake.col("friendRequests").findOneAndUpdate).toHaveBeenNthCalledWith(
+      2,
+      { fromUserId: "a", toUserId: "b" },
+      expect.objectContaining({
+        $set: expect.objectContaining({ status: "accepted", respondedAt: expect.any(Date) }),
+      }),
+      expect.objectContaining({ upsert: true }),
+    );
+    expect(fake.col("friendRequests").deleteOne).toHaveBeenNthCalledWith(
+      1,
+      { fromUserId: "a", toUserId: "b", status: "pending" },
+      {},
+    );
+    expect(fake.col("friendRequests").deleteOne).toHaveBeenNthCalledWith(
+      2,
+      { fromUserId: "a", toUserId: "b" },
+      {},
+    );
+    expect(fake.col("friendRequests").deleteMany).toHaveBeenCalled();
+  });
+
+  it("creates and removes friendship records while preserving follows on unfriend", async () => {
+    const fake = setup();
+    const repo = new RelationshipRepository(fake.db as never);
+    const calls: string[] = [];
+    vi.spyOn(repo, "setFriendRequest").mockImplementation(async (from, to) => {
+      calls.push(`request:${from}:${to}`);
+      return null;
+    });
+    vi.spyOn(repo, "follow").mockImplementation(async (from, to) => {
+      calls.push(`follow:${from}:${to}`);
+      return {} as never;
+    });
+
+    await repo.becomeFriends("a", "b");
+    await repo.unfriend("a", "b");
+    expect(calls).toEqual(["request:a:b", "request:b:a", "follow:a:b", "follow:b:a"]);
+    expect(fake.col("friendRequests").deleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "accepted" }),
+      {},
+    );
+  });
+
+  it("detects complete and incomplete friendships", async () => {
+    const fake = setup();
+    fake.col("friendRequests").countDocuments.mockResolvedValueOnce(2).mockResolvedValueOnce(1);
+    const repo = new RelationshipRepository(fake.db as never);
+    await expect(repo.isFriend("a", "b")).resolves.toBe(true);
+    await expect(repo.isFriend("a", "b")).resolves.toBe(false);
+  });
+
+  it("creates, finds, removes, and detects blocks", async () => {
+    const fake = setup();
+    fake.col("blocks").countDocuments.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+    const repo = new RelationshipRepository(fake.db as never);
+    await repo.findBlock("a", "b");
+    await repo.block("a", "b");
+    await repo.unblock("a", "b");
+    await expect(repo.isBlocked("a", "b")).resolves.toBe(true);
+    await expect(repo.isBlocked("a", "b")).resolves.toBe(false);
+    expect(fake.col("blocks").updateOne).toHaveBeenCalledWith(
+      { fromUserId: "a", toUserId: "b" },
+      { $setOnInsert: expect.objectContaining({ fromUserId: "a", toUserId: "b" }) },
+      { upsert: true },
+    );
+  });
+
+  it("deletes every social edge for a removed user", async () => {
+    const fake = setup();
+    await new RelationshipRepository(fake.db as never).deleteAllForUser("a");
+    const filter = { $or: [{ fromUserId: "a" }, { toUserId: "a" }] };
+    expect(fake.col("follows").deleteMany).toHaveBeenCalledWith(filter, {});
+    expect(fake.col("friendRequests").deleteMany).toHaveBeenCalledWith(filter, {});
+    expect(fake.col("blocks").deleteMany).toHaveBeenCalledWith(filter, {});
+  });
+
+  it("returns both directions of blocked user ids", async () => {
+    const fake = setup({
+      blocks: [
+        { fromUserId: "a", toUserId: "b" },
+        { fromUserId: "c", toUserId: "a" },
       ],
     });
-    const repo = createRepo(db);
-    const ids = await repo.getBlockedUserIds("me");
-    expect(ids.sort()).toEqual(["other", "them"]);
+    await expect(
+      new RelationshipRepository(fake.db as never).getBlockedUserIds("a"),
+    ).resolves.toEqual(["b", "c"]);
   });
 
-  it("list for follow uses follows and excludes blocked", async () => {
-    const { db, collections } = createFakeDb();
-    collections[COLLECTIONS.BLOCKS].col.find.mockReturnValue({
-      toArray: async () => [{ fromUserId: "me", toUserId: "blocked_1" }],
-    });
-    collections[COLLECTIONS.FOLLOWS].col.find.mockReturnValue({
-      toArray: async () => [{ fromUserId: "me", toUserId: "friend_1" }],
-    });
-    const repo = createRepo(db);
-    const rows = await repo.list("me", "follow", "accepted", "from");
-    expect(rows).toHaveLength(1);
-    expect(collections[COLLECTIONS.FOLLOWS].col.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fromUserId: "me",
-        toUserId: { $nin: ["blocked_1"] },
-      }),
-      {},
+  it("lists following and followers with excluded users", async () => {
+    const fake = setup();
+    const repo = new RelationshipRepository(fake.db as never);
+    await repo.listFollowing("a", ["x"]);
+    await repo.listFollowers("a");
+    expect(fake.col("follows").find).toHaveBeenNthCalledWith(
+      1,
+      { fromUserId: "a", toUserId: { $nin: ["x"] } },
+      { projection: { _id: 0 } },
+    );
+    expect(fake.col("follows").find).toHaveBeenNthCalledWith(
+      2,
+      { toUserId: "a", fromUserId: { $nin: [] } },
+      { projection: { _id: 0 } },
     );
   });
 
-  it("list for block reads the blocks collection (not friend requests)", async () => {
-    const { db, collections } = createFakeDb();
-    collections[COLLECTIONS.BLOCKS].col.find.mockReturnValue({
-      toArray: async () => [{ fromUserId: "me", toUserId: "blocked_1" }],
+  it("derives unique friends only from accepted pairs", async () => {
+    const fake = setup({
+      friendRequests: [
+        { fromUserId: "a", toUserId: "b", status: "accepted" },
+        { fromUserId: "b", toUserId: "a", status: "accepted" },
+        { fromUserId: "a", toUserId: "c", status: "accepted" },
+        { fromUserId: "a", toUserId: "hidden", status: "accepted" },
+        { fromUserId: "hidden", toUserId: "a", status: "accepted" },
+        { fromUserId: "a", toUserId: "a", status: "accepted" },
+      ],
     });
-    // Regression: the Blocked tab listed friend requests instead of blocked
-    // users because the collection selection fell through to friendRequests.
-    collections[COLLECTIONS.FRIEND_REQUESTS].col.find.mockReturnValue({
-      toArray: async () => [{ fromUserId: "me", toUserId: "not-blocked" }],
-    });
-    const repo = createRepo(db);
-    const rows = await repo.list("me", "block", "blocked", "from");
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toEqual({ fromUserId: "me", toUserId: "blocked_1" });
-    expect(collections[COLLECTIONS.BLOCKS].col.find).toHaveBeenCalledWith(
-      expect.objectContaining({ fromUserId: "me" }),
-      {},
+    const rows = await new RelationshipRepository(fake.db as never).listFriends("a", ["hidden"]);
+    expect(rows).toEqual([{ fromUserId: "a", toUserId: "b", status: "accepted" }]);
+  });
+
+  it("lists incoming, outgoing, and blocked relationships newest first", async () => {
+    const fake = setup();
+    const repo = new RelationshipRepository(fake.db as never);
+    await repo.listIncomingFriendRequests("a", ["x"]);
+    await repo.listOutgoingFriendRequests("a");
+    await repo.listBlocked("a");
+    expect(fake.col("friendRequests").find).toHaveBeenNthCalledWith(
+      1,
+      { toUserId: "a", fromUserId: { $nin: ["x"] }, status: "pending" },
+      { projection: { _id: 0 } },
     );
-    // Regression #2: the filter must NOT exclude the blocked users themselves
-    // ($nin blocked would hide exactly the rows the Blocked tab must show).
-    expect(collections[COLLECTIONS.BLOCKS].col.find).toHaveBeenCalledWith(
-      expect.not.objectContaining({ toUserId: expect.anything() }),
-      {},
+    expect(fake.col("friendRequests").find).toHaveBeenNthCalledWith(
+      2,
+      { fromUserId: "a", toUserId: { $nin: [] }, status: "pending" },
+      { projection: { _id: 0 } },
     );
-    expect(collections[COLLECTIONS.FRIEND_REQUESTS].col.find).not.toHaveBeenCalled();
-  });
-
-  it("list for friends filters to bidirectional accepted requests", async () => {
-    const { db, collections } = createFakeDb();
-    collections[COLLECTIONS.BLOCKS].col.find.mockReturnValue({ toArray: async () => [] });
-    collections[COLLECTIONS.FRIEND_REQUESTS].col.find.mockReturnValue({
-      toArray: async () => [{ fromUserId: "me", toUserId: "friend_1" }],
-    });
-    collections[COLLECTIONS.FRIEND_REQUESTS].col.countDocuments.mockResolvedValue(1);
-    const repo = createRepo(db);
-    const rows = await repo.list("me", "friend", "accepted", "from");
-    expect(rows).toHaveLength(1);
-  });
-
-  it("clearBidirectional deletes both directions", async () => {
-    const { db } = createFakeDb();
-    const repo = createRepo(db);
-    await repo.clearBidirectional("a", "b", ["follow", "friend"]);
-    // follow both ways + friend → both friend_requests both ways
-    expect(db.collection).toHaveBeenCalled();
-  });
-
-  it("becomeFriends upserts two friend_requests + two follows", async () => {
-    const { db, collections } = createFakeDb();
-    const repo = createRepo(db);
-    await repo.becomeFriends("a", "b");
-    expect(collections[COLLECTIONS.FRIEND_REQUESTS].col.findOneAndUpdate).toHaveBeenCalledTimes(2);
-    expect(collections[COLLECTIONS.FOLLOWS].col.findOneAndUpdate).toHaveBeenCalledTimes(2);
-  });
-
-  it("getRelationshipStatus reports blocked when target blocked the viewer", async () => {
-    const { db, collections } = createFakeDb();
-    collections[COLLECTIONS.BLOCKS].col.findOne
-      .mockResolvedValueOnce(null as never)
-      .mockResolvedValueOnce({ _id: "1" } as never);
-    const repo = createRepo(db);
-    const status = await repo.getRelationshipStatus("viewer", "target");
-    expect(status).toEqual({
-      isFollowing: false,
-      isFriend: false,
-      friendRequestSent: false,
-      friendRequestReceived: false,
-      hasBlocked: false,
-      isBlockedBy: true,
-    });
+    expect(fake.col("blocks").find).toHaveBeenCalledWith(
+      { fromUserId: "a" },
+      { projection: { _id: 0 } },
+    );
+    expect(fake.col("friendRequests").cursor.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    expect(fake.col("blocks").cursor.sort).toHaveBeenCalledWith({ createdAt: -1 });
   });
 });

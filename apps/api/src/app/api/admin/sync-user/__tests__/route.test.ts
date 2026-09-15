@@ -37,7 +37,6 @@ describe("POST /api/admin/sync-user", () => {
     vi.doMock("@/app/lib/db", () => ({ getDb: async () => fakeDb }));
     vi.doMock("@/app/lib/users.repository", () => ({
       UsersRepository: class {
-        constructor() {}
         upsertFromClerk = upsert;
       },
     }));
@@ -50,6 +49,7 @@ describe("POST /api/admin/sync-user", () => {
         clerkId: "user_123",
         email: "target@e2e.it",
         name: "E2E Target",
+        mobileNumber: " arbitrary value ",
       }),
     });
     const res = await post(req);
@@ -57,7 +57,9 @@ describe("POST /api/admin/sync-user", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.clerkId).toBe("user_123");
-    expect(upsert).toHaveBeenCalled();
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ mobileNumber: "arbitrary value" }),
+    );
   });
 });
 

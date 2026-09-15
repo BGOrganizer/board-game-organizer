@@ -109,7 +109,7 @@ export function SearchGamePage({
   };
 
   return (
-    <div className="mx-auto w-full max-w-md pb-8">
+    <div className="mx-auto w-full max-w-5xl pb-8">
       <div className="mb-4 flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
@@ -135,11 +135,11 @@ export function SearchGamePage({
       {!loading && items.length === 0 && query.trim().length >= 4 && (
         <p className="mt-3 text-sm text-default-500">{t`No games found`}</p>
       )}
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-3 rounded-xl border border-default-200 p-3"
+            className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border border-default-200 p-3 sm:flex-row sm:items-center"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-default-100">
               <Gamepad2 className="h-5 w-5 text-default-400" />
@@ -148,6 +148,7 @@ export function SearchGamePage({
               <p className="truncate text-sm font-medium">{item.name}</p>
             </div>
             <Button
+              className="w-full shrink-0 sm:w-auto"
               size="sm"
               variant="primary"
               isDisabled={picking === item.id}

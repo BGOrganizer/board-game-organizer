@@ -49,11 +49,11 @@ export function Header() {
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
-      <header className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-        <div className="flex items-center gap-4">
+      <header className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <button
             type="button"
-            className="md:hidden"
+            className="shrink-0 lg:hidden"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label={t`Toggle menu`}
             aria-expanded={isMenuOpen}
@@ -83,12 +83,12 @@ export function Header() {
               )}
             </svg>
           </button>
-          <div className="flex items-center gap-3">Board Game Organizer</div>
+          <div className="truncate text-sm font-semibold sm:text-base">Board Game Organizer</div>
         </div>
         <Show
           when="signed-in"
           fallback={
-            <div className="hidden items-center gap-4 md:flex">
+            <div className="hidden items-center gap-3 lg:flex">
               <SignInButton>
                 <Button variant="primary">{t`Sign In`}</Button>
               </SignInButton>
@@ -98,7 +98,7 @@ export function Header() {
             </div>
           }
         >
-          <ul className="hidden items-center gap-4 md:flex">
+          <ul className="hidden items-center gap-2 xl:gap-4 lg:flex">
             {navLinks.map((link) => (
               <li key={link.href}>
                 <NavLink href={link.href} label={link.label} />
@@ -106,8 +106,8 @@ export function Header() {
             ))}
           </ul>
 
-          <div className="flex items-center gap-2">
-            <p className="text-sm text-default-500">
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <p className="hidden max-w-40 truncate text-sm text-default-500 sm:block">
               {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
             </p>
             <UserButton />
@@ -115,8 +115,8 @@ export function Header() {
         </Show>
       </header>
       {isMenuOpen && (
-        <div className="border-t border-separator md:hidden">
-          <ul className="flex flex-col gap-2 p-4">
+        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-separator lg:hidden">
+          <ul className="flex flex-col gap-2 p-3 sm:p-4">
             <Show
               when="signed-in"
               fallback={

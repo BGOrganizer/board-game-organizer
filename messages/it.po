@@ -13,6 +13,23 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Accept"
+msgstr "Accetta"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Accept friend request"
+msgstr "Accetta richiesta di amicizia"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Accept friend request?"
+msgstr "Accettare la richiesta di amicizia?"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Accept or decline this friend request."
+msgstr "Accetta o rifiuta questa richiesta di amicizia."
+
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Access to contacts"
 #~ msgstr "Accesso ai contatti"
@@ -23,19 +40,23 @@ msgstr "Azioni"
 
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Add"
-msgstr ""
+msgstr "Aggiungi"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Add another date"
-msgstr ""
+msgstr "Aggiungi un'altra data"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Add another game"
-msgstr ""
+msgstr "Aggiungi un altro gioco"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Add contacts"
 #~ msgstr "Aggiungi contatti"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Add your mobile number to continue."
+msgstr "Inserisci il tuo numero di cellulare per continuare."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow address book access to find your friends here."
@@ -47,12 +68,12 @@ msgstr ""
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "At least 5 characters"
-msgstr ""
+msgstr "Almeno 5 caratteri"
 
 #: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Back"
-msgstr ""
+msgstr "Indietro"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
@@ -73,11 +94,23 @@ msgstr "Bloccati"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Board games"
-msgstr ""
+msgstr "Giochi da tavolo"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/ContactConfirmDialog.tsx
 msgid "Cancel"
 msgstr "Annulla"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Cancel friend request"
+msgstr "Annulla richiesta di amicizia"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Cancel friend request?"
+msgstr "Annullare la richiesta di amicizia?"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Cancel request"
+msgstr "Annulla richiesta"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
@@ -93,16 +126,24 @@ msgstr "Annulla"
 
 #: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
-msgid "Clear"
-msgstr ""
+#~ msgid "Clear"
+#~ msgstr ""
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Clear search"
 msgstr "Pulisci ricerca"
 
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Complete your profile"
+msgstr "Completa il tuo profilo"
+
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
 msgstr "Contatti"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Continue"
+msgstr "Continua"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Copied!"
@@ -120,9 +161,9 @@ msgstr "Copia"
 #~ msgid "Could not claim."
 #~ msgstr "Impossibile accettare."
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Could not complete the action. Try again."
-#~ msgstr "Impossibile completare l'azione. Riprova."
+#: apps/web/src/components/Contacts.tsx
+msgid "Could not complete the action. Try again."
+msgstr "Impossibile completare l'azione. Riprova."
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Could not create the invite. Try again."
@@ -130,19 +171,32 @@ msgstr "Impossibile creare l'invito. Riprova."
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Could not create the match"
-msgstr ""
+msgstr "Impossibile creare la partita"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Could not load contacts"
+msgstr "Impossibile caricare i contatti"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Could not load friend requests"
+msgstr "Impossibile caricare le richieste di amicizia"
+
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Could not load friends"
-msgstr ""
+msgstr "Impossibile caricare gli amici"
 
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Could not load game details"
-msgstr ""
+msgstr "Impossibile caricare i dettagli del gioco"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Could not load matches"
-msgstr ""
+msgstr "Impossibile caricare le partite"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Could not save mobile number"
+msgstr "Impossibile salvare il numero di cellulare"
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
@@ -150,23 +204,36 @@ msgstr ""
 
 #: apps/web/src/components/Matches.tsx
 msgid "Create a match"
-msgstr ""
+msgstr "Crea una partita"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Create invite"
 msgstr "Crea invito"
 
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Decline"
+msgstr "Rifiuta"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Decline friend request"
+msgstr "Rifiuta richiesta di amicizia"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Decline friend request?"
+msgstr "Rifiutare la richiesta di amicizia?"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Decrease max players"
-msgstr ""
+msgstr "Diminuisci il numero massimo di giocatori"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Decrease min players"
-msgstr ""
+msgstr "Diminuisci il numero minimo di giocatori"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
-msgstr ""
+msgstr "es. Partite del venerdì sera"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
@@ -189,13 +256,18 @@ msgstr "Follower"
 msgid "Following"
 msgstr "Seguiti"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Friend requests"
+msgstr "Richieste di amicizia"
+
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
 
 #: apps/web/src/components/Matches.tsx
 msgid "games"
-msgstr ""
+msgstr "giochi"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Generate a link to connect with someone."
@@ -207,11 +279,11 @@ msgstr "Gruppi"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase max players"
-msgstr ""
+msgstr "Aumenta il numero massimo di giocatori"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase min players"
-msgstr ""
+msgstr "Aumenta il numero minimo di giocatori"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Invite a friend"
@@ -233,7 +305,7 @@ msgstr "Invita un amico"
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Invite friends"
-msgstr ""
+msgstr "Invita amici"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "Invites"
@@ -242,6 +314,11 @@ msgstr ""
 #: apps/web/src/components/Profile.tsx
 msgid "Language:"
 msgstr "Lingua:"
+
+#: apps/web/src/app/mobile-number/page.tsx
+#: apps/web/src/components/MobileNumberGate.tsx
+msgid "Loading profile"
+msgstr "Caricamento profilo"
 
 #: apps/web/src/components/Profile.tsx
 #~ msgid "Loading..."
@@ -253,7 +330,7 @@ msgstr "Esci"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Match name"
-msgstr ""
+msgstr "Nome della partita"
 
 #: apps/web/src/components/Header.tsx
 #: apps/web/src/components/Matches.tsx
@@ -262,15 +339,19 @@ msgstr "Partite"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Max"
-msgstr ""
+msgstr "Massimo"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Max must be at least min"
-msgstr ""
+msgstr "Il massimo deve essere almeno uguale al minimo"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Min"
-msgstr ""
+msgstr "Minimo"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Mobile number"
+msgstr "Numero di cellulare"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "New invite"
@@ -278,11 +359,11 @@ msgstr "Nuovo invito"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "New match"
-msgstr ""
+msgstr "Nuova partita"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Next step"
-msgstr ""
+msgstr "Passaggio successivo"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No"
@@ -305,12 +386,12 @@ msgid "No friends from your contacts are on Board Game Organizer yet."
 msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
 
 #: apps/web/src/components/Contacts.tsx
-#~ msgid "No friends yet"
-#~ msgstr "Nessun amico"
+msgid "No friends yet"
+msgstr "Nessun amico"
 
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "No games found"
-msgstr ""
+msgstr "Nessun gioco trovato"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
@@ -318,7 +399,15 @@ msgstr ""
 
 #: apps/web/src/components/Matches.tsx
 msgid "No matches yet — create your first one!"
-msgstr ""
+msgstr "Nessuna partita — crea la prima!"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No received friend requests"
+msgstr "Nessuna richiesta di amicizia ricevuta"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No sent friend requests"
+msgstr "Nessuna richiesta di amicizia inviata"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No suggestions right now"
@@ -364,48 +453,74 @@ msgstr "Giocate"
 #: apps/web/src/components/Matches.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Players"
-msgstr ""
+msgstr "Giocatori"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Previous step"
-msgstr ""
+msgstr "Passaggio precedente"
 
 #: apps/web/src/components/Header.tsx
 msgid "Profile"
 msgstr "Profilo"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Received"
+msgstr "Ricevute"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Remove friend"
+msgstr "Rimuovi dagli amici"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Remove friend?"
+msgstr "Rimuovere l'amico?"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove game"
-msgstr ""
+msgstr "Rimuovi gioco"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove invite"
-msgstr ""
+msgstr "Rimuovi invito"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove slot"
-msgstr ""
+msgstr "Rimuovi data"
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Reset"
 #~ msgstr "Azzera"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Respond to friend request"
+msgstr "Rispondi alla richiesta di amicizia"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Retry"
 msgstr "Riprova"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Saving…"
+msgstr "Salvataggio…"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Search"
 msgstr "Cerca"
 
 #: apps/web/src/components/SearchGamePage.tsx
+msgid "Search board games"
+msgstr "Cerca giochi da tavolo"
+
+#: apps/web/src/components/SearchGamePage.tsx
 msgid "Search board games (at least 4 characters)"
-msgstr ""
+msgstr "Cerca giochi da tavolo (almeno 4 caratteri)"
 
 #: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Search failed"
-msgstr ""
+msgstr "Ricerca non riuscita"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx
@@ -413,21 +528,38 @@ msgid "Search users (at least 4 characters)"
 msgstr "Cerca utenti (almeno 4 caratteri)"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/SearchUserPage.tsx
 msgid "Search users by name or email"
 msgstr "Cerca utenti per nome o email"
 
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Select"
-msgstr ""
+msgstr "Seleziona"
 
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Select a board game"
-msgstr ""
+msgstr "Seleziona un gioco da tavolo"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Select a friend"
-msgstr ""
+msgstr "Seleziona un amico"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Send friend request"
+msgstr "Invia richiesta di amicizia"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Send friend request?"
+msgstr "Inviare la richiesta di amicizia?"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Send request"
+msgstr "Invia richiesta"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Sent"
+msgstr "Inviate"
 
 #~ msgid "Share"
 #~ msgstr "Condividi"
@@ -477,6 +609,23 @@ msgstr "Suggerimenti"
 msgid "Sync your address book from the mobile app to see friend suggestions here."
 msgstr "Sincronizza la rubrica dall'app mobile per vedere suggerimenti di amici qui."
 
+#: apps/web/src/components/UserMenu.tsx
+msgid "The friend request will be declined."
+msgstr "La richiesta di amicizia verrà rifiutata."
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "The friendship and your follow will be removed."
+msgstr "L'amicizia e il tuo follow verranno rimossi."
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "The sent friend request will be removed."
+msgstr "La richiesta di amicizia inviata verrà rimossa."
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "They can accept or decline your request."
+msgstr "Potrà accettare o rifiutare la tua richiesta."
+
 #: apps/web/src/components/Header.tsx
 msgid "Toggle menu"
 msgstr "Attiva/disattiva menu"
@@ -504,7 +653,7 @@ msgstr "Benvenuto in Board Game Organizer"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "When could you play?"
-msgstr ""
+msgstr "Quando potresti giocare?"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Yes"
@@ -519,5 +668,79 @@ msgstr "Non segui ancora nessuno"
 #~ msgstr "Sei stato invitato"
 
 #: apps/web/src/components/UserMenu.tsx
+msgid "You will become friends and follow each other."
+msgstr "Diventerete amici e vi seguirete a vicenda."
+
+#: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."
 msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rimossi."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Access to contacts"
+msgstr "Accesso ai contatti"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Action failed"
+msgstr "Azione non riuscita"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Add contacts"
+msgstr "Aggiungi contatti"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Allow Board Game Organizer to access your contacts to find your friends?"
+msgstr "Consentire a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Allow address book access to find your friends here."
+msgstr "Consenti l'accesso alla rubrica per trovare qui i tuoi amici."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Could not sync contacts. Try again."
+msgstr "Impossibile sincronizzare i contatti. Riprova."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "No"
+msgstr "No"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "No contacts found in your address book."
+msgstr "Nessun contatto trovato nella tua rubrica."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "No suggestions yet — sync your address book to find friends."
+msgstr "Ancora nessun suggerimento — sincronizza la rubrica per trovare amici."
+
+#: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
+msgid "Sign in"
+msgstr "Accedi"
+
+#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
+msgid "Sign in / Register"
+msgstr "Accedi / Registrati"
+
+#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
+msgid "Sign-in unavailable"
+msgstr "Accesso non disponibile"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Yes"
+msgstr "Sì"
+
+#: apps/mobile/src/app/(tabs)/matches.tsx (mobile-only, runtime useT)
+msgid "Pick date and time"
+msgstr "Scegli data e ora"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Creating invite"
+msgstr "Creazione dell'invito"
+
+#: apps/mobile/src/components/UserActionsSheet.tsx (mobile-only, runtime useT)
+#: apps/web/src/components/UserMenu.tsx
+msgid "Unblock contact?"
+msgstr "Sbloccare il contatto?"
+
+#: apps/mobile/src/components/UserActionsSheet.tsx (mobile-only, runtime useT)
+#: apps/web/src/components/UserMenu.tsx
+msgid "This contact will no longer be blocked."
+msgstr "Questo contatto non sarà più bloccato."

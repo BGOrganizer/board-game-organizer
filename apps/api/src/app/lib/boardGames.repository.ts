@@ -1,5 +1,5 @@
 import type { BoardGame } from "@board-game-organizer/schemas";
-import type { Db } from "mongodb";
+import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /**
@@ -8,7 +8,14 @@ import { COLLECTIONS } from "@/app/lib/db";
  * enough for the wizard picker.
  */
 export class BoardGamesRepository {
-  constructor(private db: Db) {}
+  constructor(
+    private db: Db,
+    private session?: ClientSession,
+  ) {}
+
+  private get opts() {
+    return this.session ? { session: this.session } : {};
+  }
 
   private get col() {
     return this.db.collection<BoardGame>(COLLECTIONS.BOARD_GAMES);
@@ -38,7 +45,7 @@ export class BoardGamesRepository {
         upsert: true,
       },
     }));
-    const res = await this.col.bulkWrite(ops, { ordered: false });
+    const res = await this.col.bulkWrite(ops, { ordered: false, ...this.opts });
     return res.upsertedCount + res.modifiedCount;
   }
 
@@ -46,6 +53,13 @@ export class BoardGamesRepository {
     // estimatedDocumentCount: countDocuments() on Atlas serverless can
     // under-report on large collections (observed 156k vs 180k actual).
     // The import total is informational only.
-    return this.col.estimatedDocumentCount();
+    return this.col.estimatedDocumentCount(this.opts);
+  }
+
+  async findExistingIds(ids: number[]): Promise<number[]> {
+    const games = await this.col
+      .find({ id: { $in: ids } }, { projection: { _id: 0, id: 1 }, ...this.opts })
+      .toArray();
+    return games.map((game) => game.id);
   }
 }
