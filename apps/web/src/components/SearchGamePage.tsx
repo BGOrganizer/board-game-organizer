@@ -4,7 +4,7 @@ import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/sche
 import { withProtectionBypass } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Gamepad2 } from "lucide-react";
+import { ArrowLeft, Gamepad2, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 interface Props {
@@ -139,7 +139,7 @@ export function SearchGamePage({
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border border-default-200 p-3 sm:flex-row sm:items-center"
+            className="flex min-w-0 items-center gap-3 rounded-xl border border-default-200 p-3"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-default-100">
               <Gamepad2 className="h-5 w-5 text-default-400" />
@@ -148,13 +148,15 @@ export function SearchGamePage({
               <p className="truncate text-sm font-medium">{item.name}</p>
             </div>
             <Button
-              className="w-full shrink-0 sm:w-auto"
+              isIconOnly
+              className="shrink-0"
               size="sm"
               variant="primary"
+              aria-label={`${t`Select`}: ${item.name}`}
               isDisabled={picking === item.id}
               onPress={() => void select(item)}
             >
-              {t`Select`}
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
         ))}

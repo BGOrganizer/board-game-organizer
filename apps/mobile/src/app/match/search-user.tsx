@@ -8,9 +8,9 @@ import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { ArrowLeft, UserPlus } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { UserPlus } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
 function apiUrl(): string {
@@ -23,11 +23,22 @@ export default function SearchUserScreen() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const t = useT();
   const router = useRouter();
-  const { slotId } = useLocalSearchParams<{ slotId: string }>();
+  const { slotId, exclude } = useLocalSearchParams<{
+    slotId: string;
+    exclude?: string | string[];
+  }>();
+  const excludedIds = useMemo(() => {
+    const value = Array.isArray(exclude) ? exclude[0] : exclude;
+    return new Set((value ?? "").split(",").filter(Boolean));
+  }, [exclude]);
   const setPendingUser = useAppStore((s) => s.setPendingUser);
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [friends, setFriends] = useState<RelationshipRow[]>([]);
+  const friendIds = useMemo(
+    () => new Set(friends.flatMap((friend) => (friend.profile ? [friend.profile.id] : []))),
+    [friends],
+  );
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +98,7 @@ export default function SearchUserScreen() {
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users);
+        if (active) setResults(data.users.filter((user) => friendIds.has(user.id)));
       } catch {
         if (active) setError(t("Search failed"));
       } finally {
@@ -98,12 +109,13 @@ export default function SearchUserScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, token, t]);
+  }, [query, token, friendIds, t]);
 
-  const shown =
+  const shown = (
     query.trim().length >= 4
       ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
+      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+  ).filter((user) => !excludedIds.has(user.id));
 
   const select = (u: ContactUser) => {
     if (!slotId) {
@@ -124,13 +136,7 @@ export default function SearchUserScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 16 }}>
-        <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
-          <ArrowLeft color="#111" size={22} />
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Invite friends")}</Text>
-      </View>
-      <View style={{ paddingHorizontal: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
         <Input
           value={query}
           onChangeText={setQuery}
@@ -181,9 +187,13 @@ export default function SearchUserScreen() {
               <Text style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Text>
               <Text style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Text>
             </View>
-            <Button size="sm" onPress={() => select(u)}>
-              <UserPlus size={14} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add")}</Text>
+            <Button
+              isIconOnly
+              size="sm"
+              accessibilityLabel={`${t("Add")}: ${u.name}`}
+              onPress={() => select(u)}
+            >
+              <UserPlus size={16} color="#fff" />
             </Button>
           </View>
         ))}

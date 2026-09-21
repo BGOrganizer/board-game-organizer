@@ -8,9 +8,9 @@ import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
-import { ArrowLeft, Gamepad2 } from "lucide-react-native";
+import { Gamepad2, Plus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
 function apiUrl(): string {
@@ -112,13 +112,7 @@ export default function SearchGameScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 16 }}>
-        <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
-          <ArrowLeft color="#111" size={22} />
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Select a board game")}</Text>
-      </View>
-      <View style={{ paddingHorizontal: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
         <Input
           value={query}
           onChangeText={setQuery}
@@ -168,8 +162,14 @@ export default function SearchGameScreen() {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Text>
             </View>
-            <Button size="sm" isDisabled={picking === item.id} onPress={() => void select(item)}>
-              <Text style={{ color: "#fff" }}>{t("Select")}</Text>
+            <Button
+              isIconOnly
+              size="sm"
+              accessibilityLabel={`${t("Select")}: ${item.name}`}
+              isDisabled={picking === item.id}
+              onPress={() => void select(item)}
+            >
+              <Plus size={16} color="#fff" />
             </Button>
           </View>
         ))}

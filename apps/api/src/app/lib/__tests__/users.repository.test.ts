@@ -6,6 +6,7 @@ function createFakeCol(overrides: Record<string, unknown> = {}) {
   const col = {
     calls,
     findOne: vi.fn(async () => null),
+    find: vi.fn(() => ({ toArray: vi.fn(async () => [{ clerkId: "user_1" }]) })),
     findOneAndUpdate: vi.fn(async () => ({ value: null })),
     deleteOne: vi.fn(async () => ({ deletedCount: 0 })),
     ...overrides,
@@ -99,8 +100,13 @@ describe("UsersRepository", () => {
     const { col } = createFakeCol();
     const repo = createRepo(col);
     await repo.findById("user_1");
+    await expect(repo.findByIds(["user_1"])).resolves.toEqual([{ clerkId: "user_1" }]);
     await repo.findByEmail("a@b.it");
     expect(col.findOne).toHaveBeenNthCalledWith(1, { clerkId: "user_1" }, {});
+    expect(col.find).toHaveBeenCalledWith(
+      { clerkId: { $in: ["user_1"] } },
+      { projection: { _id: 0 } },
+    );
     expect(col.findOne).toHaveBeenNthCalledWith(2, { email: "a@b.it" }, {});
   });
 
@@ -122,6 +128,7 @@ describe("UsersRepository", () => {
       preferredLanguage: "en",
     });
     await repo.findById("user_1");
+    await repo.findByIds(["user_1"]);
     await repo.findByEmail("a@b.it");
     await repo.deleteByClerkId("user_1");
 
@@ -131,6 +138,10 @@ describe("UsersRepository", () => {
       expect.objectContaining({ session }),
     );
     expect(col.findOne).toHaveBeenNthCalledWith(1, { clerkId: "user_1" }, { session });
+    expect(col.find).toHaveBeenCalledWith(
+      { clerkId: { $in: ["user_1"] } },
+      { projection: { _id: 0 }, session },
+    );
     expect(col.findOne).toHaveBeenNthCalledWith(2, { email: "a@b.it" }, { session });
     expect(col.deleteOne).toHaveBeenCalledWith({ clerkId: "user_1" }, { session });
   });

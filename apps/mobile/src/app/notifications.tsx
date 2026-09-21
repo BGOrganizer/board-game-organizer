@@ -82,7 +82,7 @@ export default function NotificationsScreen() {
           style={{ flexDirection: "row", gap: 10, width: "100%" }}
           onPress={() => {
             notifications.markRead.mutate(notification.id);
-            router.push(notificationHref({ href: notification.href }));
+            router.push(notificationHref({ href: notification.href, kind: notification.kind }));
           }}
         >
           {!notification.readAt && <View className="mt-2 h-2 w-2 rounded-full bg-accent" />}

@@ -6,6 +6,7 @@ import { Button, Card, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Copy, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 /**
  * Invite-a-friend card: a single button that generates a shareable invite
@@ -22,6 +23,7 @@ export function InviteCard({
 }) {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { t } = useLingui();
+  const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -44,6 +46,7 @@ export function InviteCard({
     token,
     getToken,
     protectionBypass,
+    feedback: mutationFeedback,
   });
 
   const onCopy = async () => {

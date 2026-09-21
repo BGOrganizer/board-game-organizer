@@ -26,6 +26,7 @@ import {
   configureNotificationHandler,
   notificationHref,
   registerMobilePush,
+  requestMobilePushPermission,
 } from "../push-notifications";
 
 describe("mobile push notifications", () => {
@@ -49,15 +50,31 @@ describe("mobile push notifications", () => {
     });
   });
 
-  it("returns unsupported off physical Android and iOS devices", async () => {
-    mocks.device.isDevice = false;
-    await expect(registerMobilePush()).resolves.toEqual({ status: "unsupported" });
-    mocks.device.isDevice = true;
+  it("returns unsupported outside Android and iOS", async () => {
     mocks.platform.OS = "web";
     await expect(registerMobilePush()).resolves.toEqual({ status: "unsupported" });
   });
 
-  it("creates Android channel and returns FCM device token", async () => {
+  it("requests native permission before token registration", async () => {
+    mocks.getPermissionsAsync.mockResolvedValue({ status: "undetermined", canAskAgain: true });
+
+    await expect(requestMobilePushPermission()).resolves.toEqual({ status: "granted" });
+    expect(mocks.requestPermissionsAsync).toHaveBeenCalledOnce();
+    expect(mocks.getDevicePushTokenAsync).not.toHaveBeenCalled();
+  });
+
+  it("does not repeat the prompt when native permission cannot be requested again", async () => {
+    mocks.getPermissionsAsync.mockResolvedValue({ status: "denied", canAskAgain: false });
+
+    await expect(requestMobilePushPermission()).resolves.toEqual({
+      status: "denied",
+      canAskAgain: false,
+    });
+    expect(mocks.requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it("creates Android channel and returns FCM device token on an emulator", async () => {
+    mocks.device.isDevice = false;
     await expect(registerMobilePush()).resolves.toEqual({
       status: "granted",
       token: "native-token",
@@ -73,19 +90,28 @@ describe("mobile push notifications", () => {
 
   it("requests permission on iOS and handles grant or denial", async () => {
     mocks.platform.OS = "ios";
-    mocks.getPermissionsAsync.mockResolvedValue({ status: "undetermined" });
+    mocks.getPermissionsAsync.mockResolvedValue({ status: "undetermined", canAskAgain: true });
     await expect(registerMobilePush()).resolves.toMatchObject({
       status: "granted",
       platform: "ios",
     });
     expect(mocks.setNotificationChannelAsync).not.toHaveBeenCalled();
 
-    mocks.requestPermissionsAsync.mockResolvedValue({ status: "denied" });
-    await expect(registerMobilePush()).resolves.toEqual({ status: "denied" });
+    mocks.requestPermissionsAsync.mockResolvedValue({ status: "denied", canAskAgain: false });
+    await expect(registerMobilePush()).resolves.toEqual({
+      status: "denied",
+      canAskAgain: false,
+    });
   });
 
   it("allows only known in-app notification links", () => {
     expect(notificationHref({ href: "/contacts" })).toBe("/contacts");
+    expect(notificationHref({ href: "/contacts", kind: "friend_request" })).toBe(
+      "/contacts?tab=requests",
+    );
+    expect(notificationHref({ href: "/contacts", kind: "friend_request_accepted" })).toBe(
+      "/contacts?tab=friends",
+    );
     expect(notificationHref({ href: "/matches" })).toBe("/matches");
     expect(notificationHref({ href: "/notifications" })).toBe("/notifications");
     expect(notificationHref({ href: "https://evil.example" })).toBe("/notifications");

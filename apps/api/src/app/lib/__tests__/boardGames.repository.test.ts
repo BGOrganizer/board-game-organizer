@@ -54,4 +54,15 @@ describe("BoardGamesRepository", () => {
       { projection: { _id: 0, id: 1 }, session },
     );
   });
+
+  it("returns selected game details", async () => {
+    await expect(repo().findByIds([342942, 174430])).resolves.toEqual([
+      { id: 342942 },
+      { id: 174430 },
+    ]);
+    expect(colMock.find).toHaveBeenCalledWith(
+      { id: { $in: [342942, 174430] } },
+      { projection: { _id: 0 } },
+    );
+  });
 });

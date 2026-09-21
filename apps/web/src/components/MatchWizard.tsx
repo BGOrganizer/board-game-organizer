@@ -1,12 +1,13 @@
 "use client";
 
-import type { CreateMatchInput } from "@board-game-organizer/schemas";
+import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Users, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { SearchGamePage } from "./SearchGamePage";
 import { SearchUserPage } from "./SearchUserPage";
 
@@ -33,24 +34,52 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+export function MatchWizard({
+  initialData,
+  onCreated,
+}: {
+  initialData?: MatchDetailResponse;
+  onCreated?: () => void;
+}) {
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t } = useLingui();
+  const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1: name + date slots.
-  const [name, setName] = useState("");
-  const [dateSlots, setDateSlots] = useState<DateSlot[]>([{ id: uid(), value: null }]);
+  const [name, setName] = useState(initialData?.match.name ?? "");
+  const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
+    initialData
+      ? initialData.match.dates.map((value) => ({ id: uid(), value }))
+      : [{ id: uid(), value: null }],
+  );
 
   // Step 2: player range + invite slots.
-  const [minPlayers, setMinPlayers] = useState(2);
-  const [maxPlayers, setMaxPlayers] = useState(4);
-  const [userSlots, setUserSlots] = useState<UserSlot[]>([{ id: uid(), user: null }]);
+  const [minPlayers, setMinPlayers] = useState(initialData?.match.minPlayers ?? 2);
+  const [maxPlayers, setMaxPlayers] = useState(initialData?.match.maxPlayers ?? 4);
+  const [userSlots, setUserSlots] = useState<UserSlot[]>(() => {
+    const users = initialData?.invitedPlayers
+      .filter((player) => player.invitation.status !== "DECLINED")
+      .map((user) => ({ id: uid(), user })) ?? [{ id: uid(), user: null }];
+    return users.length > 0 ? users : [{ id: uid(), user: null }];
+  });
 
   // Step 3: game slots.
-  const [gameSlots, setGameSlots] = useState<GameSlot[]>([{ id: uid(), game: null }]);
+  const [gameSlots, setGameSlots] = useState<GameSlot[]>(() => {
+    const games =
+      initialData?.games.map((game) => ({
+        id: uid(),
+        game: {
+          id: game.id,
+          name: game.name,
+          imageUrl: game.thumbnail,
+          year: game.yearPublished,
+        },
+      })) ?? [];
+    return games.length > 0 ? games : [{ id: uid(), game: null }];
+  });
 
   // Search page routing (client-side, modal-like overlay).
   const [searchTarget, setSearchTarget] = useState<{ slotId: string } | null>(null);
@@ -74,6 +103,8 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
     token,
     getToken,
     protectionBypass: protectionBypass(),
+    userId,
+    feedback: mutationFeedback,
   });
 
   const step1Valid = useMemo(
@@ -123,8 +154,15 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
   const addGameSlot = useCallback(() => {
     setGameSlots((prev) => [...prev, { id: uid(), game: null }]);
   }, []);
+  const removeGameSlot = useCallback((id: string) => {
+    setGameSlots((prev) =>
+      prev.length > 1
+        ? prev.filter((slot) => slot.id !== id)
+        : prev.map((slot) => (slot.id === id ? { ...slot, game: null } : slot)),
+    );
+  }, []);
 
-  const create = useCallback(async () => {
+  const save = useCallback(async () => {
     if (!step3Valid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
@@ -135,12 +173,17 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
       gameIds: gameSlots.map((s) => s.game?.id).filter((x): x is number => Boolean(x)),
     };
     try {
-      await matches.create.mutateAsync(input);
+      if (initialData) {
+        await matches.update.mutateAsync({ matchId: initialData.match.id, input });
+      } else {
+        await matches.create.mutateAsync(input);
+      }
       onCreated?.();
     } catch {
-      // surface error
+      // Mutation feedback surfaces the error.
     }
   }, [
+    initialData,
     step3Valid,
     name,
     dateSlots,
@@ -155,7 +198,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
   const next = () => {
     if (step === 1 && step1Valid) setStep(2);
     else if (step === 2 && step2Valid) setStep(3);
-    else if (step === 3 && step3Valid) void create();
+    else if (step === 3 && step3Valid) void save();
   };
   const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s));
 
@@ -164,8 +207,12 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
       isIconOnly
       variant="primary"
       className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
-      aria-label={t`Next step`}
-      isDisabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
+      aria-label={step === 3 && initialData ? t`Save changes` : t`Next step`}
+      isDisabled={
+        matches.create.isPending ||
+        matches.update.isPending ||
+        (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+      }
       onPress={next}
     >
       <ArrowRight className="h-6 w-6" />
@@ -190,9 +237,14 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
         token={token}
         getToken={getToken}
         protectionBypass={protectionBypass()}
+        excludeIds={userSlots.flatMap((slot) =>
+          slot.id !== searchTarget.slotId && slot.user ? [slot.user.id] : [],
+        )}
         onSelect={(user) => {
           setUserSlots((prev) =>
-            prev.map((s) => (s.id === searchTarget.slotId ? { ...s, user } : s)),
+            prev.some((slot) => slot.id !== searchTarget.slotId && slot.user?.id === user.id)
+              ? prev
+              : prev.map((slot) => (slot.id === searchTarget.slotId ? { ...slot, user } : slot)),
           );
           setSearchTarget(null);
         }}
@@ -238,7 +290,7 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
 
       {step === 1 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">{t`New match`}</h2>
+          <h2 className="text-lg font-semibold">{initialData ? t`Edit match` : t`New match`}</h2>
           <p className="text-sm font-medium">{t`Match name`}</p>
           <input
             value={name}
@@ -431,17 +483,13 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
                     </span>
                   )}
                 </Button>
-                {slot.game && (
+                {(slot.game || gameSlots.length > 1) && (
                   <Button
                     isIconOnly
                     variant="ghost"
                     size="sm"
                     aria-label={t`Remove game`}
-                    onPress={() =>
-                      setGameSlots((prev) =>
-                        prev.map((s) => (s.id === slot.id ? { ...s, game: null } : s)),
-                      )
-                    }
+                    onPress={() => removeGameSlot(slot.id)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -449,11 +497,19 @@ export function MatchWizard({ onCreated }: { onCreated?: () => void }) {
               </div>
             ))}
           </div>
-          <Button variant="secondary" onPress={addGameSlot}>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="w-fit self-start text-sm"
+            onPress={addGameSlot}
+          >
+            <Plus className="h-4 w-4" />
             {t`Add another game`}
           </Button>
-          {matches.create.isError && (
-            <p className="text-sm text-danger">{t`Could not create the match`}</p>
+          {(matches.create.isError || matches.update.isError) && (
+            <p className="text-sm text-danger">
+              {initialData ? t`Could not update the match` : t`Could not create the match`}
+            </p>
           )}
         </div>
       )}

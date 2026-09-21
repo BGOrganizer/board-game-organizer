@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -104,6 +105,7 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
 export function Contacts() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t } = useLingui();
+  const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
@@ -155,7 +157,14 @@ export function Contacts() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken, protectionBypass(), userId);
+  const contacts = useContacts(
+    apiUrl(),
+    token,
+    getToken,
+    protectionBypass(),
+    userId,
+    mutationFeedback,
+  );
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||

@@ -31,8 +31,10 @@ vi.mock("@board-game-organizer/shared", () => ({
   useMatches: () => ({
     list: { isPending: false, isError: false, data: [] },
     create: { isError: false, mutateAsync: vi.fn(), isPending: false },
+    update: { isError: false, mutateAsync: vi.fn(), isPending: false },
     search: { isPending: false, isError: false, mutate: vi.fn(), data: null },
     thing: { isPending: false, isError: false, mutate: vi.fn(), data: null },
+    respondInvitation: { isPending: false, isError: false, mutate: vi.fn() },
   }),
   useProfileQuery: () => ({
     data: {

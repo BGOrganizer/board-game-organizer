@@ -17,6 +17,12 @@ vi.mock("@/app/lib/db", async (importOriginal) => {
 const matchId = "69409f64-7414-4e47-815c-36b01c1bff95";
 const invitationId = "5f2c704d-52c8-496a-b7a6-ec1abacee010";
 const match = { id: matchId, status: "PLANNING" };
+const administrator = {
+  id: "user_admin",
+  name: "Admin Player",
+  email: "admin@example.com",
+  avatarUrl: null,
+};
 const invitation = { id: invitationId, status: "PENDING" };
 const createBody = {
   name: "Friday games",
@@ -60,7 +66,12 @@ describe("match API routes", () => {
     vi.spyOn(MatchService.prototype, "requireCurrentUser").mockResolvedValue();
     vi.spyOn(MatchService.prototype, "create").mockResolvedValue(match as never);
     vi.spyOn(MatchService.prototype, "list").mockResolvedValue([match] as never);
-    vi.spyOn(MatchService.prototype, "detail").mockResolvedValue(match as never);
+    vi.spyOn(MatchService.prototype, "detail").mockResolvedValue({
+      match,
+      administrator,
+      invitedPlayers: [],
+      games: [],
+    } as never);
     vi.spyOn(MatchService.prototype, "listInvitations").mockResolvedValue([invitation] as never);
     vi.spyOn(MatchService.prototype, "invite").mockResolvedValue(invitation as never);
     vi.spyOn(MatchService.prototype, "respond").mockResolvedValue(invitation as never);
@@ -170,7 +181,7 @@ describe("match API routes", () => {
   it("returns match detail", async () => {
     const response = await detailRoute.GET(request(`/api/matches/${matchId}`), matchContext());
     expect(response.status).toBe(200);
-    expect(await json(response)).toEqual({ match });
+    expect(await json(response)).toEqual({ match, administrator, invitedPlayers: [], games: [] });
     expect(MatchService.prototype.detail).toHaveBeenCalledWith("user_admin", matchId);
   });
 
@@ -189,6 +200,7 @@ describe("match API routes", () => {
       dates: ["2026-11-01T20:00:00.000Z"],
       minPlayers: 2,
       maxPlayers: 5,
+      invitedUserIds: ["user_guest"],
       gameIds: [1, 2],
     };
     const response = await detailRoute.PATCH(

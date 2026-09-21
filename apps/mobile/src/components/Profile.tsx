@@ -61,6 +61,8 @@ export function Profile() {
       // The (tabs) guard also redirects when the session state flips;
       // this replace makes the transition immediate.
       router.replace("/");
+    } catch {
+      // Clerk keeps the current session active when sign-out fails.
     } finally {
       setIsSigningOut(false);
     }

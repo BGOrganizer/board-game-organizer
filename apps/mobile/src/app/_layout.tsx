@@ -104,6 +104,9 @@ function RootNavigator() {
           <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
           <Stack.Screen name="mobile-number" options={{ title: t("Complete your profile") }} />
           <Stack.Screen name="notifications" options={{ title: t("Notifications") }} />
+          <Stack.Screen name="match/wizard" options={{ title: t("Configure match") }} />
+          <Stack.Screen name="match/search-user" options={{ title: t("Invite friends") }} />
+          <Stack.Screen name="match/search-game" options={{ title: t("Select a board game") }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
       </QueryProvider>

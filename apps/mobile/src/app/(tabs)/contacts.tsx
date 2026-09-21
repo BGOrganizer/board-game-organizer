@@ -8,6 +8,7 @@ import { useAuth } from "@clerk/expo";
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
@@ -29,8 +30,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
-import { contactSyncPayload } from "@/lib/contacts";
+import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts";
 import { useT } from "@/lib/i18n";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
 
 /** Placeholder shown while a contact list is loading. */
@@ -69,15 +71,6 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
     </View>
   );
 }
-type TabKey =
-  | "following"
-  | "followers"
-  | "friends"
-  | "requests"
-  | "blocked"
-  | "suggestions"
-  | "search";
-
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
@@ -118,8 +111,11 @@ function AvatarWithPresence({
 export default function ContactsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
+  const mutationFeedback = useMutationFeedback();
+  const router = useRouter();
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string | string[] }>();
+  const tab = contactTab(tabParam);
   const [token, setToken] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
   const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
   const [menuFriendRequest, setMenuFriendRequest] = useState<FriendRequestContext>();
@@ -166,7 +162,7 @@ export default function ContactsScreen() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken, undefined, userId);
+  const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback);
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
@@ -193,8 +189,7 @@ export default function ContactsScreen() {
   };
   const handleUserAction = (user: ContactUser) => async (key: UserActionKey) => {
     const variables = { targetUserId: user.id, targetUser: user };
-    try {
-      if (key === "follow") await contacts.follow.mutateAsync(variables);
+    if (key === "follow") await contacts.follow.mutateAsync(variables);
       else if (key === "unfollow") await contacts.unfollow.mutateAsync(variables);
       else if (key === "unfriend") await contacts.unfriend.mutateAsync(variables);
       else if (key === "friend_request") await contacts.friendRequest.mutateAsync(variables);
@@ -206,11 +201,7 @@ export default function ContactsScreen() {
         await contacts.rejectFriendRequest.mutateAsync(variables);
       } else if (key === "block") await contacts.block.mutateAsync(variables);
       else if (key === "unblock") await contacts.unblock.mutateAsync(variables);
-      // profile: not implemented yet — no-op.
-    } catch (error) {
-      Alert.alert(t("Action failed"), t("Could not complete the action. Try again."));
-      throw error;
-    }
+    // profile: not implemented yet — no-op.
   };
 
   // Device address book: on first visit to Suggestions (and via the "Add
@@ -221,30 +212,38 @@ export default function ContactsScreen() {
   // With consent matched users are persisted through POST /api/contacts/sync;
   // raw address-book values are never stored locally.
   const syncContactsMutation = contacts.syncContacts.mutateAsync;
-  const syncContactsData = useCallback(() => {
-    if (contactsSyncRef.current) return contactsSyncRef.current;
+  const syncContactsData = useCallback(
+    (showFeedback = true) => {
+      if (contactsSyncRef.current) return contactsSyncRef.current;
 
-    const sync = (async () => {
-      setSyncingContacts(true);
-      let stage = "read";
-      try {
-        const data = await Contacts.Contact.getAllDetails([
-          Contacts.ContactField.EMAILS,
-          Contacts.ContactField.PHONES,
-        ]);
-        stage = "request";
-        await syncContactsMutation(contactSyncPayload(data));
-      } catch (error) {
-        Sentry.captureException(error, { tags: { operation: "contacts.sync", stage } });
-        Alert.alert(t("Action failed"), t("Could not sync contacts. Try again."));
-      } finally {
-        setSyncingContacts(false);
-        contactsSyncRef.current = null;
-      }
-    })();
-    contactsSyncRef.current = sync;
-    return sync;
-  }, [syncContactsMutation, t]);
+      const sync = (async () => {
+        setSyncingContacts(true);
+        let stage = "read";
+        try {
+          const data = await Contacts.Contact.getAllDetails([
+            Contacts.ContactField.EMAILS,
+            Contacts.ContactField.PHONES,
+          ]);
+          stage = "request";
+          await syncContactsMutation({ ...contactSyncPayload(data), silent: !showFeedback });
+        } catch (error) {
+          Sentry.captureException(error, { tags: { operation: "contacts.sync", stage } });
+          if (stage === "read" && showFeedback) {
+            mutationFeedback.onError?.(
+              error instanceof Error ? error : new Error("Could not read contacts"),
+              "sync_contacts",
+            );
+          }
+        } finally {
+          setSyncingContacts(false);
+          contactsSyncRef.current = null;
+        }
+      })();
+      contactsSyncRef.current = sync;
+      return sync;
+    },
+    [mutationFeedback, syncContactsMutation],
+  );
 
   // Fire the REAL system permission request and track denials. A denial only
   // returns to the screen (the CTA stays). The app settings are opened ONLY
@@ -342,7 +341,7 @@ export default function ContactsScreen() {
           setContactsPermission("denied");
           return;
         }
-        await syncContactsData();
+        await syncContactsData(false);
       } catch {
         /* keep last known permission state */
       }
@@ -356,7 +355,7 @@ export default function ContactsScreen() {
         if (permission.granted) {
           setContactsPermission("granted");
           await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
-          await syncContactsData();
+          await syncContactsData(false);
           return;
         }
       } catch {
@@ -430,7 +429,7 @@ export default function ContactsScreen() {
   const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
-  const tabButtons: Array<[TabKey, string]> = [
+  const tabButtons: Array<[ContactTab, string]> = [
     ["following", t("Following")],
     ["followers", t("Followers")],
     ["friends", t("Friends")],
@@ -538,7 +537,7 @@ export default function ContactsScreen() {
               variant={tab === key ? "primary" : "secondary"}
               color={tab === key ? "accent" : "default"}
               size="md"
-              onPress={() => setTab(key)}
+              onPress={() => router.setParams({ tab: key })}
             >
               <Text className={tab === key ? "text-accent-foreground" : "text-muted"}>{label}</Text>
             </Chip>

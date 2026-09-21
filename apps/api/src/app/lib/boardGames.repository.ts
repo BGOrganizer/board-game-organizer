@@ -62,4 +62,8 @@ export class BoardGamesRepository {
       .toArray();
     return games.map((game) => game.id);
   }
+
+  findByIds(ids: number[]): Promise<BoardGame[]> {
+    return this.col.find({ id: { $in: ids } }, { projection: { _id: 0 }, ...this.opts }).toArray();
+  }
 }

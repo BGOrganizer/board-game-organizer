@@ -65,6 +65,15 @@ describe("MobileNumberPage", () => {
     expect(mocks.replace).toHaveBeenCalledWith("/matches");
   });
 
+  it("reports non-error Clerk update failures", async () => {
+    mocks.update.mockRejectedValue("failed");
+    renderWithI18n(<MobileNumberPage />);
+    fireEvent.change(screen.getByLabelText("Mobile number"), { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Could not save mobile number");
+  });
+
   it("keeps form available when Clerk update fails", async () => {
     mocks.update.mockRejectedValue(new Error("failed"));
     renderWithI18n(<MobileNumberPage />);

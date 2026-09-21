@@ -4,14 +4,15 @@ import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared"
 import { withProtectionBypass } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowLeft, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 interface Props {
   apiUrl: string;
   token: string | null;
   getToken?: () => Promise<string | null>;
   protectionBypass?: string | null;
+  excludeIds?: string[];
   onSelect: (user: {
     id: string;
     name: string;
@@ -31,6 +32,7 @@ export function SearchUserPage({
   token,
   getToken,
   protectionBypass,
+  excludeIds = [],
   onSelect,
   onClose,
 }: Props) {
@@ -40,6 +42,11 @@ export function SearchUserPage({
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
+  const friendIds = useMemo(
+    () => new Set(friends.flatMap((friend) => (friend.profile ? [friend.profile.id] : []))),
+    [friends],
+  );
 
   // Load the full friends list once (invite picker) — reused as the empty
   // query state and as the source the search narrows.
@@ -88,7 +95,7 @@ export function SearchUserPage({
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users);
+        if (active) setResults(data.users.filter((user) => friendIds.has(user.id)));
       } catch {
         if (active) setError(t`Search failed`);
       } finally {
@@ -99,12 +106,13 @@ export function SearchUserPage({
       active = false;
       clearTimeout(timer);
     };
-  }, [query, apiUrl, token, getToken, protectionBypass, t]);
+  }, [query, apiUrl, token, getToken, protectionBypass, friendIds, t]);
 
-  const shown =
+  const shown = (
     query.trim().length >= 4
       ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
+      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+  ).filter((user) => !excludeSet.has(user.id));
 
   return (
     <div className="mx-auto w-full max-w-5xl pb-8">
@@ -137,7 +145,7 @@ export function SearchUserPage({
         {shown.map((u) => (
           <div
             key={u.id}
-            className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border border-default-200 p-3 sm:flex-row sm:items-center"
+            className="flex min-w-0 items-center gap-3 rounded-xl border border-default-200 p-3"
           >
             {u.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -152,14 +160,16 @@ export function SearchUserPage({
               <p className="truncate text-xs text-default-400">{u.email}</p>
             </div>
             <Button
-              className="w-full shrink-0 sm:w-auto"
+              isIconOnly
+              className="shrink-0"
               size="sm"
               variant="primary"
+              aria-label={`${t`Add`}: ${u.name}`}
               onPress={() =>
                 onSelect({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl })
               }
             >
-              {t`Add`}
+              <UserPlus className="h-4 w-4" />
             </Button>
           </div>
         ))}

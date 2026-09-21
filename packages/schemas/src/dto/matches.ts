@@ -34,7 +34,33 @@ export type MatchResponse = z.infer<typeof matchResponseSchema>;
 export const listMatchesResponseSchema = z.object({ matches: z.array(matchResponseSchema) });
 export type ListMatchesResponse = z.infer<typeof listMatchesResponseSchema>;
 
-export const matchDetailResponseSchema = z.object({ match: matchResponseSchema });
+export const matchPlayerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+export type MatchPlayer = z.infer<typeof matchPlayerSchema>;
+
+export const matchInvitedPlayerSchema = matchPlayerSchema.extend({
+  invitation: matchInvitationResponseSchema,
+});
+export type MatchInvitedPlayer = z.infer<typeof matchInvitedPlayerSchema>;
+
+export const matchGameResponseSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  yearPublished: z.number().nullable(),
+  thumbnail: z.string().nullable(),
+});
+export type MatchGameResponse = z.infer<typeof matchGameResponseSchema>;
+
+export const matchDetailResponseSchema = z.object({
+  match: matchResponseSchema,
+  administrator: matchPlayerSchema,
+  invitedPlayers: z.array(matchInvitedPlayerSchema),
+  games: z.array(matchGameResponseSchema),
+});
 export type MatchDetailResponse = z.infer<typeof matchDetailResponseSchema>;
 
 export const inviteMatchUserSchema = z.object({ inviteeUserId: targetUserIdSchema }).strict();
@@ -50,6 +76,10 @@ export const updateMatchSchema = z
       .optional(),
     minPlayers: z.number().int().min(2).optional(),
     maxPlayers: z.number().int().min(2).optional(),
+    invitedUserIds: z
+      .array(targetUserIdSchema)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
     gameIds: z
       .array(z.number().int().positive())
       .min(1)
@@ -66,6 +96,13 @@ export const updateMatchSchema = z
       input.maxPlayers === undefined ||
       input.maxPlayers >= input.minPlayers,
     { path: ["maxPlayers"], message: "maxPlayers must be greater than or equal to minPlayers" },
+  )
+  .refine(
+    (input) =>
+      input.invitedUserIds === undefined ||
+      input.maxPlayers === undefined ||
+      input.invitedUserIds.length <= input.maxPlayers - 1,
+    { path: ["invitedUserIds"], message: "Invitations exceed available player positions" },
   );
 export type UpdateMatchInput = z.infer<typeof updateMatchSchema>;
 

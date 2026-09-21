@@ -13,9 +13,7 @@ export const OPTIONS = matchOptions;
 export async function GET(request: Request, context: MatchRouteContext) {
   const matchId = await matchIdFromContext(request, context);
   if (!matchId) return badMatchRequest(request, "Invalid match id");
-  return runMatchOperation(request, async ({ userId, service }) => ({
-    match: await service.detail(userId, matchId),
-  }));
+  return runMatchOperation(request, async ({ userId, service }) => service.detail(userId, matchId));
 }
 
 /** Match admin can update match fields while PLANNING. */

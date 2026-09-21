@@ -1,5 +1,10 @@
 import type { NotificationListResponse, PushPlatform } from "@board-game-organizer/schemas";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { apiHeaders, withProtectionBypass } from "../api";
 
 export interface NotificationsApiOptions {
@@ -67,6 +72,34 @@ async function updatePushSubscription(
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
+function optimisticNotifications(
+  data: InfiniteData<NotificationListResponse> | undefined,
+  notificationId?: string,
+): InfiniteData<NotificationListResponse> | undefined {
+  if (!data) return data;
+  const now = new Date().toISOString();
+  const wasUnread = notificationId
+    ? data.pages.some((page) =>
+        page.notifications.some(
+          (notification) => notification.id === notificationId && !notification.readAt,
+        ),
+      )
+    : false;
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      unreadCount: notificationId ? Math.max(0, page.unreadCount - (wasUnread ? 1 : 0)) : 0,
+      notifications: page.notifications.map((notification) =>
+        !notificationId || notification.id === notificationId
+          ? { ...notification, readAt: notification.readAt ?? now }
+          : notification,
+      ),
+    })),
+  };
+}
+
 export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   const queryClient = useQueryClient();
   const queryKey = ["notifications", options.apiUrl, options.userId, limit] as const;
@@ -78,14 +111,38 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     enabled: options.enabled && Boolean(options.userId),
     refetchInterval: 30_000,
   });
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["notifications"] });
+
+  const optimisticRead = (notificationId?: string) => ({
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      const snapshots = queryClient.getQueriesData<InfiniteData<NotificationListResponse>>({
+        queryKey: ["notifications"],
+      });
+      for (const [key, data] of snapshots) {
+        queryClient.setQueryData(key, optimisticNotifications(data, notificationId));
+      }
+      return snapshots;
+    },
+    onError: (
+      _error: Error,
+      _variables: unknown,
+      snapshots:
+        | Array<[readonly unknown[], InfiniteData<NotificationListResponse> | undefined]>
+        | undefined,
+    ) => {
+      for (const [key, data] of snapshots ?? []) queryClient.setQueryData(key, data);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
   const markRead = useMutation({
     mutationFn: (notificationId: string) => patchNotification(options, notificationId),
-    onSuccess: invalidate,
+    ...optimisticRead(undefined),
+    onMutate: async (notificationId) => optimisticRead(notificationId).onMutate(),
   });
   const markAllRead = useMutation({
     mutationFn: () => patchNotification(options),
-    onSuccess: invalidate,
+    ...optimisticRead(),
   });
   const registerPush = useMutation({
     mutationFn: (input: { token: string; platform: PushPlatform; locale: "en" | "it" }) =>

@@ -58,12 +58,33 @@ function setup(withNotifications = false) {
     deleteByIdForMatch: vi.fn(async () => ({ deletedCount: 1 })),
     deleteAllByMatch: vi.fn(async () => ({ deletedCount: 1 })),
   };
-  const users = { findById: vi.fn(async () => ({ clerkId: "user" })) };
+  const users = {
+    findById: vi.fn(async () => ({ clerkId: "user" })),
+    findByIds: vi.fn(async () => [
+      {
+        clerkId: "user_admin",
+        name: "Admin Player",
+        email: "admin@example.com",
+        avatarUrl: "https://example.com/admin.png",
+      },
+      {
+        clerkId: "user_guest",
+        name: "Guest Player",
+        email: "guest@example.com",
+        avatarUrl: "https://example.com/user.png",
+      },
+    ]),
+  };
   const relationships = {
     isBlocked: vi.fn(async () => false),
     isFriend: vi.fn(async () => true),
   };
-  const games = { findExistingIds: vi.fn(async () => [1]) };
+  const games = {
+    findExistingIds: vi.fn(async () => [1]),
+    findByIds: vi.fn(async () => [
+      { id: 1, name: "Azul", yearPublished: 2017, thumbnail: "https://example.com/azul.png" },
+    ]),
+  };
   const notifications = {
     notify: vi.fn(async () => undefined),
     notifyMany: vi.fn(async () => undefined),
@@ -178,23 +199,151 @@ describe("MatchService", () => {
   it("lists accessible matches and groups invitations", async () => {
     const { service, matches, invitations } = setup();
     const second = { ...match, id: "8923a18c-1b90-4ee4-96fb-88a3d9226b37" };
+    invitations.listByInvitee.mockResolvedValue([
+      invitation,
+      { ...invitation, id: "declined", matchId: second.id, status: "DECLINED" },
+    ]);
+    const accepted = {
+      ...invitation,
+      id: "accepted",
+      inviteeUserId: "user_accepted",
+      status: "ACCEPTED" as const,
+    };
     matches.listAccessible.mockResolvedValue([match, second]);
-    invitations.listByMatchIds.mockResolvedValue([invitation]);
+    invitations.listByMatchIds.mockResolvedValue([
+      invitation,
+      accepted,
+      { ...invitation, id: "other-pending", inviteeUserId: "user_pending" },
+      {
+        ...invitation,
+        id: "other-declined",
+        inviteeUserId: "user_declined",
+        status: "DECLINED" as const,
+      },
+    ]);
     const result = await service.list("user_guest");
     expect(matches.listAccessible).toHaveBeenCalledWith("user_guest", [match.id]);
     expect(invitations.listByMatchIds).toHaveBeenCalledWith([match.id, second.id]);
-    expect(result[0].invitations).toEqual([invitation]);
+    expect(result[0].invitations).toEqual([invitation, accepted]);
     expect(result[1].invitations).toEqual([]);
   });
 
-  it("returns detail to admin and invitee but hides it from others", async () => {
-    await expect(setup().service.detail("user_admin", match.id)).resolves.toMatchObject({
-      id: match.id,
-    });
+  it("returns enriched detail to admin and invitee but hides it from others", async () => {
+    const expected = {
+      match: { id: match.id },
+      administrator: {
+        id: "user_admin",
+        name: "Admin Player",
+        email: "admin@example.com",
+        avatarUrl: "https://example.com/admin.png",
+      },
+      invitedPlayers: [
+        {
+          id: "user_guest",
+          name: "Guest Player",
+          email: "guest@example.com",
+          avatarUrl: "https://example.com/user.png",
+          invitation,
+        },
+      ],
+      games: [
+        {
+          id: 1,
+          name: "Azul",
+          yearPublished: 2017,
+          thumbnail: "https://example.com/azul.png",
+        },
+      ],
+    };
+
+    await expect(setup().service.detail("user_admin", match.id)).resolves.toMatchObject(expected);
     await expect(setup().service.detail("user_guest", match.id)).resolves.toMatchObject({
-      id: match.id,
+      match: { id: match.id, invitations: [invitation] },
+      invitedPlayers: [],
+      games: expected.games,
     });
     await expectMatchError(setup().service.detail("user_other", match.id), 404, "Match not found");
+  });
+
+  it("shows non-admins only accepted players and their own invitation", async () => {
+    const { service, invitations, users } = setup();
+    const accepted = {
+      ...invitation,
+      id: "accepted",
+      inviteeUserId: "user_accepted",
+      status: "ACCEPTED" as const,
+    };
+    invitations.listByMatch.mockResolvedValue([
+      invitation,
+      accepted,
+      { ...invitation, id: "other-pending", inviteeUserId: "user_pending" },
+      {
+        ...invitation,
+        id: "other-declined",
+        inviteeUserId: "user_declined",
+        status: "DECLINED" as const,
+      },
+    ]);
+    users.findByIds.mockResolvedValue([
+      {
+        clerkId: "user_admin",
+        name: "Admin Player",
+        email: "admin@example.com",
+        avatarUrl: "https://example.com/admin.png",
+      },
+      {
+        clerkId: "user_accepted",
+        name: "Accepted Player",
+        email: "accepted@example.com",
+        avatarUrl: "https://example.com/accepted.png",
+      },
+    ]);
+
+    const result = await service.detail("user_guest", match.id);
+
+    expect(result.match.invitations).toEqual([invitation, accepted]);
+    expect(result.administrator).toEqual({
+      id: "user_admin",
+      name: "Admin Player",
+      email: "admin@example.com",
+      avatarUrl: "https://example.com/admin.png",
+    });
+    expect(result.invitedPlayers).toEqual([
+      {
+        id: "user_accepted",
+        name: "Accepted Player",
+        email: "accepted@example.com",
+        avatarUrl: "https://example.com/accepted.png",
+        invitation: accepted,
+      },
+    ]);
+    expect(users.findByIds).toHaveBeenCalledWith(["user_admin", "user_accepted"]);
+  });
+
+  it("keeps detail readable when mirrored users or catalog rows are missing", async () => {
+    const { service, users, games } = setup();
+    users.findByIds.mockResolvedValue([]);
+    games.findByIds.mockResolvedValue([]);
+
+    await expect(service.detail("user_admin", match.id)).resolves.toMatchObject({
+      administrator: {
+        id: "user_admin",
+        name: "user_admin",
+        email: null,
+        avatarUrl: null,
+      },
+      invitedPlayers: [{ id: "user_guest", name: "user_guest", email: null, avatarUrl: null }],
+      games: [],
+    });
+  });
+
+  it("normalizes optional catalog fields in detail", async () => {
+    const { service, games } = setup();
+    games.findByIds.mockResolvedValue([{ id: 1, name: "Azul" }] as never);
+
+    await expect(service.detail("user_admin", match.id)).resolves.toMatchObject({
+      games: [{ id: 1, name: "Azul", yearPublished: null, thumbnail: null }],
+    });
   });
 
   it("returns 404 when match does not exist", async () => {
@@ -421,6 +570,99 @@ describe("MatchService", () => {
     );
   });
 
+  it("atomically reconciles retained, removed, declined, and new invitations on update", async () => {
+    const { service, matches, invitations, notifications } = setup(true);
+    const accepted = { ...invitation, status: "ACCEPTED" as const };
+    const removed = {
+      ...invitation,
+      id: "removed",
+      inviteeUserId: "user_removed",
+    };
+    const declined = {
+      ...invitation,
+      id: "declined",
+      inviteeUserId: "user_reinvited",
+      status: "DECLINED" as const,
+    };
+    const reinvited = {
+      ...invitation,
+      id: "reinvited",
+      inviteeUserId: "user_reinvited",
+    };
+    const added = { ...invitation, id: "added", inviteeUserId: "user_new" };
+    invitations.listByMatch
+      .mockResolvedValueOnce([accepted, removed, declined])
+      .mockResolvedValueOnce([accepted, reinvited, added]);
+    invitations.createMany.mockResolvedValue([reinvited, added]);
+    const changes = {
+      name: "Updated match",
+      dates: ["2026-11-01T20:00:00.000Z"],
+      minPlayers: 2,
+      maxPlayers: 4,
+      invitedUserIds: ["user_guest", "user_reinvited", "user_new"],
+      gameIds: [1],
+    };
+    matches.updatePlanning.mockResolvedValue({ ...match, ...changes });
+
+    await expect(service.update("user_admin", match.id, changes)).resolves.toMatchObject({
+      name: changes.name,
+      invitedUserIds: changes.invitedUserIds,
+    });
+
+    expect(invitations.deleteByIdForMatch).toHaveBeenNthCalledWith(1, removed.id, match.id);
+    expect(invitations.deleteByIdForMatch).toHaveBeenNthCalledWith(2, declined.id, match.id);
+    expect(invitations.createMany).toHaveBeenCalledWith(match.id, "user_admin", [
+      "user_reinvited",
+      "user_new",
+    ]);
+    expect(matches.updatePlanning).toHaveBeenCalledWith(match.id, "user_admin", {
+      name: changes.name,
+      dates: changes.dates,
+      minPlayers: changes.minPlayers,
+      maxPlayers: changes.maxPlayers,
+      gameIds: changes.gameIds,
+    });
+    expect(notifications.notifyMany).toHaveBeenNthCalledWith(1, [
+      {
+        kind: "match_invitation",
+        recipientUserId: "user_reinvited",
+        actorUserId: "user_admin",
+        matchName: changes.name,
+      },
+      {
+        kind: "match_invitation",
+        recipientUserId: "user_new",
+        actorUserId: "user_admin",
+        matchName: changes.name,
+      },
+    ]);
+    expect(notifications.notifyMany).toHaveBeenNthCalledWith(2, [
+      {
+        kind: "match_updated",
+        recipientUserId: "user_guest",
+        actorUserId: "user_admin",
+        matchName: changes.name,
+      },
+    ]);
+  });
+
+  it("validates every final invitee before writing an update", async () => {
+    const { service, matches, invitations, relationships } = setup();
+    relationships.isFriend.mockResolvedValue(false);
+
+    await expectMatchError(
+      service.update("user_admin", match.id, {
+        invitedUserIds: ["user_not_friend"],
+      }),
+      400,
+      "Invited users must be friends of match admin",
+    );
+
+    expect(matches.updatePlanning).not.toHaveBeenCalled();
+    expect(invitations.deleteByIdForMatch).not.toHaveBeenCalled();
+    expect(invitations.createMany).not.toHaveBeenCalled();
+  });
+
   it("admin updates every match field while planning", async () => {
     const { service, matches, invitations, games } = setup();
     const changes = {
@@ -438,7 +680,7 @@ describe("MatchService", () => {
       invitations: [invitation],
     });
     expect(matches.serializeInvitationChange).toHaveBeenCalledWith(match.id);
-    expect(invitations.countByMatch).toHaveBeenCalledWith(match.id);
+    expect(invitations.countByMatch).not.toHaveBeenCalled();
     expect(matches.updatePlanning).toHaveBeenCalledWith(match.id, "user_admin", changes);
     expect(invitations.listByMatch).toHaveBeenCalledWith(match.id);
   });
@@ -494,7 +736,10 @@ describe("MatchService", () => {
     );
 
     const occupied = setup();
-    occupied.invitations.countByMatch.mockResolvedValue(2);
+    occupied.invitations.listByMatch.mockResolvedValue([
+      invitation,
+      { ...invitation, id: "second", inviteeUserId: "user_second" },
+    ]);
     await expectMatchError(
       occupied.service.update("user_admin", match.id, { maxPlayers: 2 }),
       409,

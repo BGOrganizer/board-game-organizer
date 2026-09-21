@@ -386,6 +386,37 @@ describe("match repositories on MongoDB replica set", () => {
     await expect(new MatchInvitationsRepository(db).listByInvitee(TARGET)).resolves.toEqual([]);
   });
 
+  it("atomically updates match fields and reconciles invitations", async () => {
+    await seedMatchDependencies();
+    await relationships.becomeFriends(ACTOR, THIRD);
+    const created = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, invitedUserIds: [TARGET] }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(TARGET, created.invitations[0].id, "accept"),
+    );
+
+    const updated = await withMatchTransaction(({ service }) =>
+      service.update(ACTOR, created.id, {
+        name: "Updated integration match",
+        dates: ["2026-11-01T20:00:00.000Z"],
+        minPlayers: 2,
+        maxPlayers: 3,
+        invitedUserIds: [THIRD],
+        gameIds: [342942],
+      }),
+    );
+
+    expect(updated).toMatchObject({
+      name: "Updated integration match",
+      invitedUserIds: [THIRD],
+    });
+    await expect(new MatchInvitationsRepository(db).listByMatch(created.id)).resolves.toEqual([
+      expect.objectContaining({ inviteeUserId: THIRD, status: "PENDING" }),
+    ]);
+    await expect(new MatchInvitationsRepository(db).listByInvitee(TARGET)).resolves.toEqual([]);
+  });
+
   it("serializes concurrent invites so maxPlayers cannot be exceeded", async () => {
     await seedMatchDependencies();
     await relationships.becomeFriends(ACTOR, THIRD);

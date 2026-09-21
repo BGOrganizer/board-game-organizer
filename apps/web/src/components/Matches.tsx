@@ -4,9 +4,11 @@ import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Button, Card, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarClock, Plus } from "lucide-react";
+import { CalendarClock, Check, Crown, Plus, UserRound, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MatchWizard } from "@/components/MatchWizard";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -17,8 +19,9 @@ function protectionBypass(): string | undefined {
 }
 
 export function Matches() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t } = useLingui();
+  const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -38,6 +41,8 @@ export function Matches() {
     token,
     getToken,
     protectionBypass: protectionBypass(),
+    userId,
+    feedback: mutationFeedback,
   });
 
   if (creating) {
@@ -56,6 +61,7 @@ export function Matches() {
         <div className="space-y-2">
           <Skeleton className="h-20 w-full rounded-xl" />
           <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
         </div>
       )}
       {matches.list.isError && <p className="text-sm text-danger">{t`Could not load matches`}</p>}
@@ -64,29 +70,87 @@ export function Matches() {
       )}
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {matches.list.data?.map((m) => (
-          <Card key={m.id} className="rounded-xl p-4">
-            <p className="font-semibold">{m.name}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-default-500">
-              <CalendarClock className="h-3.5 w-3.5" />
-              {m.dates.map((d) => (
-                <span key={d}>{new Date(d).toLocaleString()}</span>
-              ))}
-            </div>
-            <p className="mt-1 text-xs text-default-400">
-              {t`Players`}: {m.minPlayers}–{m.maxPlayers}
-              {m.gameIds.length > 0 && ` · ${m.gameIds.length} ${t`games`}`}
-            </p>
-          </Card>
-        ))}
+        {matches.list.data?.map((match) => {
+          const invitation = match.invitations.find(
+            (candidate) => candidate.inviteeUserId === userId,
+          );
+          return (
+            <Card key={match.id} className="rounded-xl p-0">
+              <Link
+                href={match.optimistic ? "/matches" : `/matches/${match.id}`}
+                aria-label={`${t`Open match`}: ${match.name}`}
+                aria-disabled={match.optimistic}
+                onClick={(event) => {
+                  if (match.optimistic) event.preventDefault();
+                }}
+                className="w-full cursor-pointer p-4 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold">{match.name}</p>
+                  {match.adminUserId === userId ? (
+                    <Crown aria-label={t`Administrator`} className="h-4 w-4 text-warning" />
+                  ) : (
+                    <UserRound aria-label={t`Player`} className="h-4 w-4 text-default-500" />
+                  )}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-default-500">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {match.dates.map((date) => (
+                    <span key={date}>{new Date(date).toLocaleString()}</span>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-default-400">
+                  {t`Players`}: {match.minPlayers}–{match.maxPlayers}
+                  {match.gameIds.length > 0 && ` · ${match.gameIds.length} ${t`games`}`}
+                </p>
+              </Link>
+
+              {invitation?.status === "PENDING" && (
+                <div className="flex gap-2 border-t border-default-200 p-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-label={t`Decline`}
+                    isDisabled={matches.respondInvitation.isPending}
+                    onPress={() =>
+                      matches.respondInvitation.mutate({
+                        invitationId: invitation.id,
+                        decision: "decline",
+                      })
+                    }
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="hidden sm:inline">{t`Decline`}</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    aria-label={t`Accept`}
+                    isDisabled={matches.respondInvitation.isPending}
+                    onPress={() =>
+                      matches.respondInvitation.mutate({
+                        invitationId: invitation.id,
+                        decision: "accept",
+                      })
+                    }
+                  >
+                    <Check className="h-4 w-4" />
+                    <span className="hidden sm:inline">{t`Accept`}</span>
+                  </Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
       </div>
 
+      {matches.respondInvitation.isError && (
+        <p className="mt-3 text-sm text-danger">{t`Could not update the invitation`}</p>
+      )}
+
       <Button
-        isIconOnly
-        variant="primary"
         aria-label={t`Create a match`}
-        className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
         onPress={() => setCreating(true)}
+        className="fixed right-4 bottom-4 z-40 h-12 w-12 rounded-full shadow-lg sm:right-6 sm:bottom-6 sm:h-14 sm:w-14"
       >
         <Plus className="h-6 w-6" />
       </Button>

@@ -5,8 +5,9 @@ import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
 import { UserPlus } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, Share, Text, View } from "react-native";
+import { Share, Text, View } from "react-native";
 import { useT } from "@/lib/i18n";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 /**
  * Invite-a-friend card (mobile): a single button that generates a shareable
@@ -17,6 +18,7 @@ import { useT } from "@/lib/i18n";
 export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | null }) {
   const { getToken } = useAuth();
   const t = useT();
+  const mutationFeedback = useMutationFeedback();
   const [link, setLink] = useState<string | null>(null);
 
   const create = useInvites({
@@ -25,6 +27,7 @@ export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | 
     getToken,
     // The API builds the link from the origin that received the request, so
     // it always points at the API (preview or production) that created it.
+    feedback: mutationFeedback,
   });
 
   const share = async (text: string) => {
@@ -41,7 +44,6 @@ export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | 
         setLink(row.link);
         share(row.link);
       },
-      onError: () => Alert.alert(t("Action failed"), t("Could not create the invite. Try again.")),
     });
   };
 

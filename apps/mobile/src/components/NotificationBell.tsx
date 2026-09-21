@@ -9,9 +9,13 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import { Bell, CheckCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Linking, Pressable, View } from "react-native";
+import { AppState, Linking, Pressable, View } from "react-native";
 import { defaultI18n, useT } from "@/lib/i18n";
-import { notificationHref, registerMobilePush } from "@/lib/push-notifications";
+import {
+  notificationHref,
+  registerMobilePush,
+  requestMobilePushPermission,
+} from "@/lib/push-notifications";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -23,12 +27,18 @@ export function NotificationBell() {
   const t = useT();
   const registeredRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [permission, setPermission] = useState<Notifications.PermissionStatus | "unsupported">(
-    "unsupported",
-  );
+  const [permission, setPermission] = useState<{
+    status: Notifications.PermissionStatus | "unsupported";
+    canAskAgain: boolean;
+  }>({ status: "unsupported", canAskAgain: false });
   const [pushError, setPushError] = useState(false);
   const notifications = useNotifications(
-    { apiUrl: apiUrl(), getToken, userId, enabled: isLoaded && Boolean(isSignedIn) },
+    {
+      apiUrl: apiUrl(),
+      getToken,
+      userId,
+      enabled: isLoaded && Boolean(isSignedIn),
+    },
     5,
   );
   const registerPushSubscription = notifications.registerPush.mutateAsync;
@@ -38,13 +48,15 @@ export function NotificationBell() {
     if (registrationPromiseRef.current) return registrationPromiseRef.current;
     const promise = (async () => {
       const result = await registerMobilePush();
-      setPermission(
-        result.status === "granted"
-          ? Notifications.PermissionStatus.GRANTED
-          : result.status === "denied"
-            ? Notifications.PermissionStatus.DENIED
-            : "unsupported",
-      );
+      setPermission({
+        status:
+          result.status === "granted"
+            ? Notifications.PermissionStatus.GRANTED
+            : result.status === "denied"
+              ? Notifications.PermissionStatus.DENIED
+              : "unsupported",
+        canAskAgain: result.status === "denied" && result.canAskAgain,
+      });
       if (result.status !== "granted") {
         setPushError(result.status === "unsupported");
         return;
@@ -63,48 +75,107 @@ export function NotificationBell() {
     return promise;
   }, [registerPushSubscription]);
 
+  const refreshPermission = useCallback(async () => {
+    const result = await Notifications.getPermissionsAsync();
+    setPermission({ status: result.status, canAskAgain: result.canAskAgain });
+    return result;
+  }, []);
+
+  const refreshPermissionAndRegister = useCallback(async () => {
+    const result = await refreshPermission();
+    if (result.status === "granted" && !registeredRef.current && isSignedIn) {
+      await registerPush();
+    }
+  }, [isSignedIn, refreshPermission, registerPush]);
+
   useEffect(() => {
-    Notifications.getPermissionsAsync()
-      .then((result) => {
-        setPermission(result.status);
-        if (result.status === "granted" && !registeredRef.current && isSignedIn) {
-          return registerPush();
-        }
-      })
-      .catch(() => setPushError(true));
+    refreshPermissionAndRegister().catch(() => setPushError(true));
+  }, [refreshPermissionAndRegister]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        refreshPermissionAndRegister().catch(() => setPushError(true));
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshPermissionAndRegister]);
+
+  const requestPermissionFromBell = useCallback(async () => {
+    const result = await requestMobilePushPermission();
+    setPermission({
+      status:
+        result.status === "granted"
+          ? Notifications.PermissionStatus.GRANTED
+          : result.status === "denied"
+            ? Notifications.PermissionStatus.DENIED
+            : "unsupported",
+      canAskAgain: result.status === "denied" && result.canAskAgain,
+    });
+    if (result.status === "granted" && !registeredRef.current && isSignedIn) {
+      await registerPush();
+    }
   }, [isSignedIn, registerPush]);
 
-  const openNotification = (id: string, href: string) => {
+  const openNotification = (id: string, href: string, kind: string) => {
     notifications.markRead.mutate(id);
     setIsOpen(false);
-    router.push(notificationHref({ href }));
+    router.push(notificationHref({ href, kind }));
   };
-  const enablePush = () => registerPush().catch(() => setPushError(true));
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      setPushError(false);
+      requestPermissionFromBell().catch(() => setPushError(true));
+    }
+  };
   const countLabel = notifications.unreadCount > 99 ? "99+" : String(notifications.unreadCount);
 
   return (
-    <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Popover.Trigger>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          accessibilityLabel={t("Notifications")}
-          testID="notifications-button"
-          style={{ minHeight: 36, minWidth: 36 }}
-        >
-          <Bell size={20} color="#737373" />
-          {notifications.unreadCount > 0 && (
-            <View
-              pointerEvents="none"
-              className="absolute -right-1 -top-1 min-w-5 items-center rounded-full bg-danger px-1"
-              style={{ minHeight: 20, justifyContent: "center" }}
-            >
-              <Text className="text-[10px] font-bold text-white">{countLabel}</Text>
-            </View>
-          )}
-        </Button>
-      </Popover.Trigger>
+    <Popover isOpen={isOpen} onOpenChange={handleOpenChange}>
+      <View
+        style={{
+          width: 44,
+          height: 40,
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "visible",
+        }}
+      >
+        <Popover.Trigger asChild>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            accessibilityLabel={t("Notifications")}
+            testID="notifications-button"
+            style={{ minHeight: 36, minWidth: 36 }}
+          >
+            <Bell size={20} color="#737373" />
+          </Button>
+        </Popover.Trigger>
+        {notifications.unreadCount > 0 && (
+          <View
+            pointerEvents="none"
+            className="absolute items-center bg-danger"
+            style={{
+              minWidth: 16,
+              height: 16,
+              borderRadius: 8,
+              justifyContent: "center",
+              paddingHorizontal: countLabel.length > 1 ? 3 : 0,
+              right: 1,
+              top: 1,
+              zIndex: 1,
+            }}
+          >
+            <Text style={{ color: "white", fontSize: 9, fontWeight: "700", lineHeight: 11 }}>
+              {countLabel}
+            </Text>
+          </View>
+        )}
+      </View>
       <Popover.Portal>
         <Popover.Overlay />
         <Popover.Content presentation="popover" placement="bottom" align="end" width={320}>
@@ -156,7 +227,9 @@ export function NotificationBell() {
                 key={notification.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${notification.title}. ${notification.description}`}
-                onPress={() => openNotification(notification.id, notification.href)}
+                onPress={() =>
+                  openNotification(notification.id, notification.href, notification.kind)
+                }
                 className="rounded-lg p-2 active:bg-muted/20"
                 style={{ flexDirection: "row", gap: 8, width: "100%" }}
               >
@@ -178,12 +251,7 @@ export function NotificationBell() {
               </Pressable>
             ))}
 
-            {permission === "undetermined" && (
-              <Button size="sm" variant="outline" onPress={enablePush}>
-                {t("Enable push notifications")}
-              </Button>
-            )}
-            {permission === "denied" && (
+            {permission.status === "denied" && !permission.canAskAgain && (
               <Button size="sm" variant="outline" onPress={() => void Linking.openSettings()}>
                 {t("Open notification settings")}
               </Button>
@@ -193,16 +261,18 @@ export function NotificationBell() {
                 {t("Could not enable push notifications")}
               </Text>
             )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onPress={() => {
-                setIsOpen(false);
-                router.push("/notifications");
-              }}
-            >
-              {t("View all notifications")}
-            </Button>
+            {permission.status === "granted" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => {
+                  setIsOpen(false);
+                  router.push("/notifications");
+                }}
+              >
+                {t("View all notifications")}
+              </Button>
+            )}
           </View>
           <Popover.Arrow />
         </Popover.Content>

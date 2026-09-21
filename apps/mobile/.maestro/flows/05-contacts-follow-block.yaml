@@ -108,6 +108,16 @@ appId: com.bgo.mobile
     timeout: 120000
 - tapOn:
     id: "notifications-button"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - assertNotVisible: "View all notifications"
+      - tapOn: "Allow"
+      - extendedWaitUntil:
+          visible: "View all notifications"
+          timeout: 30000
+      - assertNotVisible: "Open notification settings"
 - extendedWaitUntil:
     visible: "New friend request"
     timeout: 30000
@@ -116,10 +126,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Notifications"
     timeout: 30000
-- assertVisible: "New friend request"
-- back
-- tapOn: "Contacts"
-- tapOn: "Friend requests"
+- tapOn: "New friend request"
 - extendedWaitUntil:
     visible: "E2E Test"
     timeout: 60000
@@ -228,11 +235,16 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
-- tapOn: "Contacts"
-- tapOn: "Friends"
+- tapOn:
+    id: "notifications-button"
+- extendedWaitUntil:
+    visible: "Friend request accepted"
+    timeout: 30000
+- tapOn: "Friend request accepted"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
+- assertVisible: "Friends"
 # One action removes friendship plus the actor's follow and refreshes every list.
 - tapOn:
     id: "remove-friend-btn"

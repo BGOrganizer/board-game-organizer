@@ -1,6 +1,7 @@
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
+import type { MutationFeedback } from "../mutationFeedback";
 import {
   type ContactAction,
   type ContactMutationVariables,
@@ -276,6 +277,7 @@ export function useContacts(
   getToken?: () => Promise<string | null>,
   protectionBypass?: string | null,
   currentUserId?: string | null,
+  feedback?: MutationFeedback,
 ) {
   const queryClient = useQueryClient();
   const enabled = Boolean(apiUrl) && Boolean(token);
@@ -359,6 +361,7 @@ export function useContacts(
           optimisticContactData(queryKey, data, action, variables, currentUserId),
         );
       }
+      feedback?.onOptimisticUpdate?.(action);
       return snapshots;
     },
     onError: (
@@ -367,6 +370,7 @@ export function useContacts(
       snapshots: Array<[readonly unknown[], unknown]> | undefined,
     ) => {
       for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
+      feedback?.onError?.(_error, action);
     },
     onSettled: () => refreshContacts(),
   });
@@ -496,10 +500,32 @@ export function useContacts(
   });
 
   const syncContacts = useMutation({
-    mutationFn: ({ emails, phoneNumbers }: { emails: string[]; phoneNumbers: string[] }) =>
-      syncContactsWithToken(apiUrl, emails, phoneNumbers, token, getToken, protectionBypass),
+    mutationFn: ({
+      emails,
+      phoneNumbers,
+    }: {
+      emails: string[];
+      phoneNumbers: string[];
+      silent?: boolean;
+    }) => syncContactsWithToken(apiUrl, emails, phoneNumbers, token, getToken, protectionBypass),
     // New contacts → refresh suggestions (which read contactLinks from the DB).
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contacts", "suggestions"] }),
+    onMutate: async ({ silent }) => {
+      const queryKey = ["contacts", "suggestions"] as const;
+      await queryClient.cancelQueries({ queryKey });
+      const snapshots = queryClient.getQueriesData<{ users: ContactUser[]; hasContacts: boolean }>({
+        queryKey,
+      });
+      for (const [key, data] of snapshots) {
+        if (data) queryClient.setQueryData(key, { ...data, hasContacts: true });
+      }
+      if (!silent) feedback?.onOptimisticUpdate?.("sync_contacts");
+      return snapshots;
+    },
+    onError: (error, { silent }, snapshots) => {
+      for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
+      if (!silent) feedback?.onError?.(error, "sync_contacts");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["contacts", "suggestions"] }),
   });
 
   const runSearch = useCallback((query: string) => setSearchQuery(query.trim()), []);

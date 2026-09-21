@@ -6,6 +6,7 @@ module.exports = {
     orientation: "portrait",
     scheme: "bgo",
     userInterfaceStyle: "automatic",
+    icon: "./assets/icon.png",
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
@@ -15,8 +16,12 @@ module.exports = {
       ...(process.env.GOOGLE_SERVICES_JSON
         ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
         : {}),
+      icon: "./assets/icon.png",
       adaptiveIcon: {
-        backgroundColor: "#ffffff",
+        foregroundImage: "./assets/adaptive-icon-foreground.png",
+        backgroundImage: "./assets/adaptive-icon-background.png",
+        monochromeImage: "./assets/adaptive-icon-monochrome.png",
+        backgroundColor: "#4c2482",
       },
       package: "com.bgo.mobile",
     },

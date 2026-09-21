@@ -52,4 +52,71 @@ appId: com.bgo.mobile
 # Step 3: at least one game is required — empty state blocks the FAB.
 - assertVisible: "Select a board game"
 - tapOn: "Add another game"
+- assertVisible:
+    id: "remove-game-slot"
+- tapOn:
+    id: "remove-game-slot"
+- assertNotVisible:
+    id: "remove-game-slot"
 - assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- tapOn: "Search board games (at least 4 characters)"
+- inputText: "Cascadia"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- tapOn: "Select: Cascadia.*"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+- assertVisible: "Cascadia"
+
+# Submit, open the match and exercise all three HeroUI tabs.
+- tapOn:
+    point: "90%,92%"
+- assertVisible: "Match created"
+- extendedWaitUntil:
+    visible: "Friday night games"
+    timeout: 60000
+- tapOn: "Friday night games"
+- extendedWaitUntil:
+    visible: "Overview"
+    timeout: 30000
+- assertVisible: "Possible dates"
+- tapOn: "Players"
+- assertVisible: "Minimum players"
+- assertVisible: "Maximum players"
+- assertVisible: "Participants"
+- assertVisible: "Administrator"
+- assertVisible: "Accepted"
+- tapOn: "Games"
+- assertVisible: "Cascadia"
+# Admin editing reuses the same wizard and sends changes only on final save.
+- tapOn: "Edit match"
+- extendedWaitUntil:
+    visible: "Edit match"
+    timeout: 30000
+- tapOn: "Match name"
+- eraseText: 18
+- inputText: "Updated game night"
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 30000
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+- tapOn: "Save changes"
+- assertVisible: "Match updated"
+- extendedWaitUntil:
+    visible: "Updated game night"
+    timeout: 30000
+# Admin deletion is destructive and requires native confirmation.
+- tapOn: "Delete match"
+- assertVisible: "Delete match?"
+- tapOn: "Delete match"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 30000
+- assertNotVisible: "Updated game night"

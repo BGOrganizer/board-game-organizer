@@ -1,4 +1,4 @@
-import type { CreateMatchInput } from "@board-game-organizer/schemas";
+import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
@@ -21,6 +21,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, Pressable, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -40,19 +41,41 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function MatchWizard() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse }) {
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
+  const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [name, setName] = useState("");
-  const [dateSlots, setDateSlots] = useState<DateSlot[]>([{ id: uid(), value: null }]);
-  const [minPlayers, setMinPlayers] = useState(2);
-  const [maxPlayers, setMaxPlayers] = useState(4);
-  const [userSlots, setUserSlots] = useState<UserSlot[]>([{ id: uid(), user: null }]);
-  const [gameSlots, setGameSlots] = useState<GameSlot[]>([{ id: uid(), game: null }]);
+  const [name, setName] = useState(initialData?.match.name ?? "");
+  const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
+    initialData
+      ? initialData.match.dates.map((value) => ({ id: uid(), value }))
+      : [{ id: uid(), value: null }],
+  );
+  const [minPlayers, setMinPlayers] = useState(initialData?.match.minPlayers ?? 2);
+  const [maxPlayers, setMaxPlayers] = useState(initialData?.match.maxPlayers ?? 4);
+  const [userSlots, setUserSlots] = useState<UserSlot[]>(() => {
+    const users = initialData?.invitedPlayers
+      .filter((player) => player.invitation.status !== "DECLINED")
+      .map((user) => ({ id: uid(), user })) ?? [{ id: uid(), user: null }];
+    return users.length > 0 ? users : [{ id: uid(), user: null }];
+  });
+  const [gameSlots, setGameSlots] = useState<GameSlot[]>(() => {
+    const games =
+      initialData?.games.map((game) => ({
+        id: uid(),
+        game: {
+          id: game.id,
+          name: game.name,
+          imageUrl: game.thumbnail,
+          year: game.yearPublished,
+        },
+      })) ?? [];
+    return games.length > 0 ? games : [{ id: uid(), game: null }];
+  });
 
   // Which slot is currently picking a date (native picker).
   const [pickingDate, setPickingDate] = useState<string | null>(null);
@@ -73,6 +96,8 @@ export function MatchWizard() {
     apiUrl: apiUrl(),
     token,
     getToken,
+    userId,
+    feedback: mutationFeedback,
   });
 
   // Consume selections written by the search pages (user/game pickers).
@@ -82,7 +107,9 @@ export function MatchWizard() {
   useEffect(() => {
     if (pendingUser) {
       setUserSlots((p) =>
-        p.map((s) => (s.id === pendingUser.slotId ? { ...s, user: pendingUser.user } : s)),
+        p.some((s) => s.id !== pendingUser.slotId && s.user?.id === pendingUser.user.id)
+          ? p
+          : p.map((s) => (s.id === pendingUser.slotId ? { ...s, user: pendingUser.user } : s)),
       );
       clearPending();
     }
@@ -153,8 +180,14 @@ export function MatchWizard() {
   const bumpMax = (d: number) => setMaxPlayers((v) => Math.max(minPlayers, v + d));
 
   const addGameSlot = () => setGameSlots((p) => [...p, { id: uid(), game: null }]);
+  const removeGameSlot = (id: string) =>
+    setGameSlots((p) =>
+      p.length > 1
+        ? p.filter((s) => s.id !== id)
+        : p.map((s) => (s.id === id ? { ...s, game: null } : s)),
+    );
 
-  const create = useCallback(async () => {
+  const save = useCallback(async () => {
     if (!step3Valid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
@@ -165,24 +198,46 @@ export function MatchWizard() {
       gameIds: gameSlots.flatMap((s) => (s.game ? [s.game.id] : [])),
     };
     try {
-      await matches.create.mutateAsync(input);
-      router.back();
+      if (initialData) {
+        await matches.update.mutateAsync({ matchId: initialData.match.id, input });
+        router.back();
+      } else {
+        await matches.create.mutateAsync(input);
+        router.back();
+      }
     } catch {
-      // surface error
+      // Mutation feedback surfaces the error.
     }
-  }, [step3Valid, name, dateSlots, minPlayers, maxPlayers, userSlots, gameSlots, matches, router]);
+  }, [
+    initialData,
+    step3Valid,
+    name,
+    dateSlots,
+    minPlayers,
+    maxPlayers,
+    userSlots,
+    gameSlots,
+    matches,
+    router,
+  ]);
 
   const next = () => {
     if (step === 1 && step1Valid) setStep(2);
     else if (step === 2 && step2Valid) setStep(3);
-    else if (step === 3 && step3Valid) void create();
+    else if (step === 3 && step3Valid) void save();
   };
   const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s));
 
   const fabNext = (
     <Pressable
       onPress={next}
-      disabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
+      accessibilityRole="button"
+      accessibilityLabel={step === 3 && initialData ? t("Save changes") : t("Next step")}
+      disabled={
+        matches.create.isPending ||
+        matches.update.isPending ||
+        (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+      }
       style={{
         position: "absolute",
         right: 20,
@@ -190,9 +245,12 @@ export function MatchWizard() {
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
-          ? "#9ca3af"
-          : "#006fee",
+        backgroundColor:
+          matches.create.isPending ||
+          matches.update.isPending ||
+          (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+            ? "#9ca3af"
+            : "#006fee",
         alignItems: "center",
         justifyContent: "center",
         shadowColor: "#000",
@@ -252,7 +310,9 @@ export function MatchWizard() {
 
         {step === 1 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("New match")}</Text>
+            <Text style={{ fontSize: 18, fontWeight: "600" }}>
+              {initialData ? t("Edit match") : t("New match")}
+            </Text>
             <Input value={name} onChangeText={setName} placeholder={t("e.g. Friday night games")} />
             {name.trim().length > 0 && name.trim().length < 5 && (
               <Text style={{ color: "#f31260", fontSize: 13 }}>{t("At least 5 characters")}</Text>
@@ -329,7 +389,15 @@ export function MatchWizard() {
               <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Pressable
                   onPress={() =>
-                    router.push({ pathname: "/match/search-user", params: { slotId: slot.id } })
+                    router.push({
+                      pathname: "/match/search-user",
+                      params: {
+                        slotId: slot.id,
+                        exclude: userSlots
+                          .flatMap((s) => (s.id !== slot.id && s.user ? [s.user.id] : []))
+                          .join(","),
+                      },
+                    })
                   }
                   style={{
                     flex: 1,
@@ -417,13 +485,12 @@ export function MatchWizard() {
                     )}
                   </View>
                 </Pressable>
-                {slot.game && (
+                {(slot.game || gameSlots.length > 1) && (
                   <Pressable
-                    onPress={() =>
-                      setGameSlots((p) =>
-                        p.map((s) => (s.id === slot.id ? { ...s, game: null } : s)),
-                      )
-                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Remove game")}
+                    testID="remove-game-slot"
+                    onPress={() => removeGameSlot(slot.id)}
                     style={{ padding: 8 }}
                   >
                     <X color="#6b7280" size={18} />
@@ -431,13 +498,20 @@ export function MatchWizard() {
                 )}
               </View>
             ))}
-            <Button onPress={addGameSlot}>
-              <Plus size={16} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add another game")}</Text>
+            <Button
+              size="sm"
+              variant="outline"
+              onPress={addGameSlot}
+              style={{ alignSelf: "flex-start" }}
+            >
+              <Plus size={14} color="#6b7280" />
+              <Text className="text-foreground" style={{ fontSize: 13 }}>
+                {t("Add another game")}
+              </Text>
             </Button>
-            {matches.create.isError && (
+            {(matches.create.isError || matches.update.isError) && (
               <Text style={{ color: "#f31260", fontSize: 13 }}>
-                {t("Could not create the match")}
+                {initialData ? t("Could not update the match") : t("Could not create the match")}
               </Text>
             )}
           </View>

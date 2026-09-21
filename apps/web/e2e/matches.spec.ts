@@ -79,10 +79,12 @@ test("match wizard: name → players → game → create", async ({ page }) => {
 
   // Invite a friend when available. Planning matches may start without
   // invitations; minPlayers still stays at the API minimum of two.
-  const addBtn = page.getByRole("button", { name: "Add" }).first();
+  const addBtn = page.getByRole("button", { name: /^Add:/ }).first();
   let friendPicked = false;
+  let pickedFriendLabel: string | null = null;
   try {
     await addBtn.waitFor({ state: "visible", timeout: 10_000 });
+    pickedFriendLabel = await addBtn.getAttribute("aria-label");
     await addBtn.click();
     friendPicked = true;
   } catch {
@@ -91,9 +93,27 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   if (!friendPicked) await page.getByLabel("Back").click();
   await expect(page.getByText("Players")).toBeVisible();
 
+  if (pickedFriendLabel) {
+    const friendsLoaded = page.waitForResponse(
+      (response) => response.url().includes("/api/relationships?type=friends") && response.ok(),
+    );
+    await page
+      .getByRole("button", { name: /Select a friend/ })
+      .first()
+      .click();
+    await friendsLoaded;
+    await expect(page.getByRole("button", { name: pickedFriendLabel })).toHaveCount(0);
+    await page.getByLabel("Back").click();
+  }
+
   // Advance to step 3; invitations are optional while planning.
   await nextFab.click();
   await expect(page.getByText("Board games")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add another game" }).click();
+  await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(2);
+  await page.getByRole("button", { name: "Remove game" }).last().click();
+  await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(1);
 
   // Step 3: game picker — search fires at >= 4 chars; BGG may be
   // unavailable in CI, so selecting is best-effort: if the search returns
@@ -107,7 +127,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   const gameSearch = page.getByPlaceholder(/Search board games/);
   await gameSearch.fill("Cascadia");
 
-  const gameRow = page.getByRole("button", { name: "Select" }).first();
+  const gameRow = page.getByRole("button", { name: /^Select:/ }).first();
   try {
     await gameRow.waitFor({ state: "visible", timeout: 30_000 });
     await gameRow.click();
@@ -136,6 +156,59 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     (response) => response.request().method() === "POST" && response.url().includes("/api/matches"),
   );
   await nextFab.click();
+  await expect(page.getByText("Match created")).toBeVisible();
   expect((await createResponse).ok()).toBe(true);
   await expect(page.getByText(/Friday night games/)).toBeVisible({ timeout: 30_000 });
+
+  // Open detail and exercise all three HeroUI tabs.
+  await page.getByRole("link", { name: "Open match: Friday night games" }).click();
+  await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Friday night games" })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Players" }).click();
+  await expect(page.getByText("Minimum players")).toBeVisible();
+  await expect(page.getByText("Maximum players")).toBeVisible();
+  await expect(page.getByText("Participants")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Administrator" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Accepted" })).toBeVisible();
+  if (pickedFriendLabel) {
+    await expect(page.getByText(pickedFriendLabel.replace(/^Add:\s*/, ""))).toBeVisible();
+  }
+
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByText("Cascadia").first()).toBeVisible();
+
+  // Admin edits reuse the creation wizard and persist only on the final step.
+  await page.getByRole("button", { name: "Edit match" }).click();
+  await expect(page.getByRole("heading", { name: "Edit match" })).toBeVisible();
+  await page.getByRole("textbox", { name: "Match name" }).fill("Updated game night");
+  await page.getByRole("button", { name: "Next step" }).click();
+  await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
+  await page.getByRole("button", { name: "Next step" }).click();
+  await expect(page.getByRole("heading", { name: "Board games" })).toBeVisible();
+  const updateResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().includes("/api/matches/") &&
+      !response.url().includes("/invitations"),
+  );
+  await page.getByRole("button", { name: "Save changes" }).click();
+  expect((await updateResponse).ok()).toBe(true);
+  await expect(page.getByText("Match updated")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Updated game night" })).toBeVisible();
+
+  // Destructive admin action requires confirmation and removes the match.
+  await page.getByRole("button", { name: "Delete match" }).click();
+  const deleteDialog = page.getByRole("dialog", { name: "Delete match?" });
+  await expect(deleteDialog).toBeVisible();
+  const deleteResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      response.url().includes("/api/matches/") &&
+      !response.url().includes("/invitations"),
+  );
+  await deleteDialog.getByRole("button", { name: "Delete match" }).click();
+  expect((await deleteResponse).ok()).toBe(true);
+  await expect(page).toHaveURL(/\/matches$/);
+  await expect(page.getByText("Updated game night")).toHaveCount(0);
 });

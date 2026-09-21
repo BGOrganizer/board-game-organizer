@@ -1,6 +1,7 @@
 import type {
   CreateMatchInput,
   Match,
+  MatchDetailResponse,
   MatchInvitation,
   MatchResponse,
   UpdateMatchInput,
@@ -71,6 +72,17 @@ export class MatchService {
     }
   }
 
+  private visibleInvitations(
+    match: Match,
+    userId: string,
+    invitations: MatchInvitation[],
+  ): MatchInvitation[] {
+    if (match.clerkId === userId) return invitations;
+    return invitations.filter(
+      (invitation) => invitation.status === "ACCEPTED" || invitation.inviteeUserId === userId,
+    );
+  }
+
   private toResponse(match: Match, invitations: MatchInvitation[]): MatchResponse {
     return {
       id: match.id,
@@ -124,18 +136,18 @@ export class MatchService {
     const receivedInvitations = await this.invitations.listByInvitee(userId);
     const matches = await this.matches.listAccessible(
       userId,
-      receivedInvitations.map((invitation) => invitation.matchId),
+      receivedInvitations
+        .filter((invitation) => invitation.status !== "DECLINED")
+        .map((invitation) => invitation.matchId),
     );
     const invitations = await this.invitations.listByMatchIds(matches.map((match) => match.id));
-    return matches.map((match) =>
-      this.toResponse(
-        match,
-        invitations.filter((invitation) => invitation.matchId === match.id),
-      ),
-    );
+    return matches.map((match) => {
+      const matchInvitations = invitations.filter((invitation) => invitation.matchId === match.id);
+      return this.toResponse(match, this.visibleInvitations(match, userId, matchInvitations));
+    });
   }
 
-  async detail(userId: string, matchId: string): Promise<MatchResponse> {
+  async detail(userId: string, matchId: string): Promise<MatchDetailResponse> {
     const match = await this.requireMatch(matchId);
     const invitations = await this.invitations.listByMatch(matchId);
     if (
@@ -144,7 +156,56 @@ export class MatchService {
     ) {
       throw new MatchError(404, "Match not found");
     }
-    return this.toResponse(match, invitations);
+
+    const visibleInvitations = this.visibleInvitations(match, userId, invitations);
+    const playerInvitations =
+      match.clerkId === userId
+        ? visibleInvitations
+        : visibleInvitations.filter((invitation) => invitation.status === "ACCEPTED");
+
+    // Keep session-bound reads sequential: MongoDB sessions cannot run operations concurrently.
+    const users = await this.users.findByIds([
+      match.clerkId,
+      ...playerInvitations.map((invitation) => invitation.inviteeUserId),
+    ]);
+    const games = await this.games.findByIds(match.gameIds);
+    const usersById = new Map(users.map((user) => [user.clerkId, user]));
+    const gamesById = new Map(games.map((game) => [game.id, game]));
+
+    const administrator = usersById.get(match.clerkId);
+
+    return {
+      match: this.toResponse(match, visibleInvitations),
+      administrator: {
+        id: match.clerkId,
+        name: administrator?.name ?? match.clerkId,
+        email: administrator?.email ?? null,
+        avatarUrl: administrator?.avatarUrl ?? null,
+      },
+      invitedPlayers: playerInvitations.map((invitation) => {
+        const user = usersById.get(invitation.inviteeUserId);
+        return {
+          id: invitation.inviteeUserId,
+          name: user?.name ?? invitation.inviteeUserId,
+          email: user?.email ?? null,
+          avatarUrl: user?.avatarUrl ?? null,
+          invitation,
+        };
+      }),
+      games: match.gameIds.flatMap((id) => {
+        const game = gamesById.get(id);
+        return game
+          ? [
+              {
+                id: game.id,
+                name: game.name,
+                yearPublished: game.yearPublished ?? null,
+                thumbnail: game.thumbnail ?? null,
+              },
+            ]
+          : [];
+      }),
+    };
   }
 
   async listInvitations(userId: string, matchId: string) {
@@ -251,19 +312,67 @@ export class MatchService {
         throw new MatchError(400, "One or more games do not exist");
       }
     }
-    if (input.maxPlayers !== undefined) {
+
+    if (input.invitedUserIds || input.maxPlayers !== undefined) {
       await this.matches.serializeInvitationChange(match.id);
-      if ((await this.invitations.countByMatch(match.id)) > maxPlayers - 1) {
-        throw new MatchError(409, "maxPlayers cannot be lower than occupied player positions");
+    }
+    let invitations = await this.invitations.listByMatch(match.id);
+    const finalInviteeIds =
+      input.invitedUserIds ?? invitations.map((invitation) => invitation.inviteeUserId);
+    if (finalInviteeIds.length > maxPlayers - 1) {
+      throw new MatchError(
+        input.invitedUserIds ? 400 : 409,
+        input.invitedUserIds
+          ? "Invitations exceed available player positions"
+          : "maxPlayers cannot be lower than occupied player positions",
+      );
+    }
+    if (input.invitedUserIds) {
+      for (const inviteeUserId of input.invitedUserIds) {
+        await this.validateInvitee(userId, inviteeUserId);
       }
     }
 
-    const updated = await this.matches.updatePlanning(match.id, userId, input);
+    const { invitedUserIds: _invitedUserIds, ...updates } = input;
+    const updated = await this.matches.updatePlanning(match.id, userId, updates);
     if (!updated) throw new MatchError(409, "Match changed concurrently");
-    const invitations = await this.invitations.listByMatch(match.id);
+
+    const addedInviteeIds = new Set<string>();
+    if (input.invitedUserIds) {
+      const selectedIds = new Set(input.invitedUserIds);
+      const retainedIds = new Set(
+        invitations
+          .filter(
+            (invitation) =>
+              selectedIds.has(invitation.inviteeUserId) && invitation.status !== "DECLINED",
+          )
+          .map((invitation) => invitation.inviteeUserId),
+      );
+      for (const invitation of invitations) {
+        if (!retainedIds.has(invitation.inviteeUserId)) {
+          await this.invitations.deleteByIdForMatch(invitation.id, match.id);
+        }
+      }
+      const newInviteeIds = input.invitedUserIds.filter((id) => !retainedIds.has(id));
+      for (const id of newInviteeIds) addedInviteeIds.add(id);
+      await this.invitations.createMany(match.id, userId, newInviteeIds);
+      invitations = await this.invitations.listByMatch(match.id);
+      await this.notifications?.notifyMany(
+        newInviteeIds.map((recipientUserId) => ({
+          kind: "match_invitation" as const,
+          recipientUserId,
+          actorUserId: userId,
+          matchName: updated.name,
+        })),
+      );
+    }
+
     await this.notifications?.notifyMany(
       invitations
-        .filter((invitation) => invitation.status !== "DECLINED")
+        .filter(
+          (invitation) =>
+            invitation.status !== "DECLINED" && !addedInviteeIds.has(invitation.inviteeUserId),
+        )
         .map((invitation) => ({
           kind: "match_updated" as const,
           recipientUserId: invitation.inviteeUserId,

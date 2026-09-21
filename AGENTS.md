@@ -182,6 +182,11 @@ Every relationship mutation must invalidate the `['contacts']` prefix. If search
 
 Match creation must invalidate the `['matches']` prefix.
 
+Explicit remote mutations must update owned Query caches optimistically when cached state exists. Show an
+action-specific default toast after the optimistic update, then roll back and show an action-specific danger
+toast if the request fails. Notification reads, push-subscription synchronization, logout, profile completion,
+and background synchronization do not show user-action toasts.
+
 Clerk session JWTs rotate. Shared hooks receive `getToken` and resolve a fresh token immediately
 before every request. Do not retain a token snapshot for later network calls.
 
@@ -215,7 +220,7 @@ Current route surface:
 | `/api/invites` | POST | Create invite |
 | `/api/invites/claim` | POST | Claim invite and connect users |
 | `/api/matches` | GET, POST | List accessible matches and create planning matches |
-| `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, update planning fields, or delete match as admin |
+| `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, atomically update planning fields/invitations, or delete match as admin |
 | `/api/matches/[matchId]/invitations` | GET, POST | List and create match invitations as admin |
 | `/api/matches/[matchId]/invitations/[invitationId]` | DELETE | Remove an invitation or accepted player as admin |
 | `/api/match-invitations/[invitationId]` | PATCH, DELETE | Accept or decline an invitation; leave a planning match |
@@ -303,14 +308,21 @@ and at least one date and game are required.
 Match invitations live in `matchInvitations`, not on the match document. Admin counts as one player,
 so invitation records cannot exceed `maxPlayers - 1`; declined invitations still occupy their slot
 until removed. Only admin can invite, and duplicate invitation records are rejected. While planning, admin can
-replace title, dates, games, `minPlayers`, and `maxPlayers`. Updated values retain creation constraints;
-`maxPlayers` cannot drop below `minPlayers` or occupied invitation positions.
+replace title, dates, games, `minPlayers`, `maxPlayers`, and selected invitees through the same wizard used
+for creation. Updated values retain creation constraints. Field changes, new invitations, and invitation
+removals are submitted only on the final wizard step and committed in one transaction; `maxPlayers` cannot
+drop below `minPlayers` or occupied invitation positions.
 
 Pending invitees can accept or decline while match is planning. Accepted invitees can leave while
 planning; leaving deletes invitation so admin can invite them again. Admin can remove pending,
 declined, or accepted invitations while planning. Admin alone can delete a match; match and every
 invitation are deleted in one transaction. No invitation response or departure is allowed after
 status becomes `CREATED`.
+
+Match deletion and leaving are destructive actions. Show each action only when current role and
+invitation status permit it, require an explicit confirmation dialog, disable repeated submission while
+pending, and apply the standard optimistic-cache plus action-specific toast lifecycle. Non-admin match
+details expose accepted players only; keep viewer's own pending invitation solely for response actions.
 
 ### Board-game catalog
 
@@ -376,7 +388,10 @@ Use `lucide-react-native` icons only.
 Address-book suggestions require explicit `expo-contacts` permission. Sync emails and phone numbers
 to `POST /api/contacts/sync`; persist only unambiguous registered matches in `contactLinks` and discard
 unmatched address-book values. Repeated denials lead to
-an open-settings path, not silent permission loops.
+an open-settings path, not silent permission loops. After every native permission action and whenever
+the app returns active from system settings, re-read the native permission and refresh permission-gated
+UI immediately; never rely on stale local permission state. When mobile notification permission is
+askable, pressing the notification bell requests it directly; do not add a second enable button.
 
 HeroUI Native Skeleton has no intrinsic size. Give each skeleton explicit width, height, and border
 radius, and keep parent rows stretched to full width.
@@ -410,6 +425,8 @@ literal that produces a hashed fallback.
 - Keep logout available even when profile loading fails.
 - Do not convert network failures into empty-list success states; preserve an observable error path.
 - Keep buttons, dialogs, dropdowns, and form inputs accessible by role and label.
+- On native mobile and mobile-width web layouts, repeated list-row action buttons are icon-only and
+  must retain an accessible label. Section-level creation actions may keep a compact text label.
 - Search runs automatically after 300 ms, requires at least four characters, and has a clear button;
   do not add a submit button.
 

@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { contactSyncPayload } from "../contacts";
+import { contactSyncPayload, contactTab } from "../contacts";
+
+describe("contactTab", () => {
+  it("selects valid string and array route parameters", () => {
+    expect(contactTab("requests")).toBe("requests");
+    expect(contactTab(["friends", "requests"])).toBe("friends");
+  });
+
+  it("falls back to following for absent or unknown tabs", () => {
+    expect(contactTab(undefined)).toBe("following");
+    expect(contactTab("unknown")).toBe("following");
+  });
+});
 
 describe("contactSyncPayload", () => {
   it("collects unique emails and phone representations", () => {

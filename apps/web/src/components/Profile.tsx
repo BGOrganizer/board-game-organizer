@@ -58,6 +58,8 @@ export function Profile() {
     try {
       setIsSigningOut(true);
       await signOut({ redirectUrl: "/" });
+    } catch {
+      // Clerk keeps the current session active when sign-out fails.
     } finally {
       setIsSigningOut(false);
     }

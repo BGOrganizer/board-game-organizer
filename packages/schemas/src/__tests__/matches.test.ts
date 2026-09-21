@@ -107,7 +107,26 @@ describe("match models and DTOs", () => {
       invitations: [invitation],
     };
     expect(matchResponseSchema.parse(response)).toEqual(response);
-    expect(matchDetailResponseSchema.parse({ match: response })).toEqual({ match: response });
+    const detail = {
+      match: response,
+      administrator: {
+        id: "user_admin",
+        name: "Admin Player",
+        email: "admin@example.com",
+        avatarUrl: null,
+      },
+      invitedPlayers: [
+        {
+          id: "user_guest",
+          name: "Guest Player",
+          email: "guest@example.com",
+          avatarUrl: null,
+          invitation,
+        },
+      ],
+      games: [{ id: 1, name: "Azul", yearPublished: 2017, thumbnail: null }],
+    };
+    expect(matchDetailResponseSchema.parse(detail)).toEqual(detail);
     expect(matchInvitationResponseSchema.parse(invitation)).toEqual(invitation);
   });
 
@@ -137,6 +156,7 @@ describe("match models and DTOs", () => {
         dates: ["2026-11-01T20:00:00.000Z"],
         minPlayers: 2,
         maxPlayers: 5,
+        invitedUserIds: ["user_guest"],
         gameIds: [1, 2],
       }),
     ).toEqual({
@@ -144,6 +164,7 @@ describe("match models and DTOs", () => {
       dates: ["2026-11-01T20:00:00.000Z"],
       minPlayers: 2,
       maxPlayers: 5,
+      invitedUserIds: ["user_guest"],
       gameIds: [1, 2],
     });
     for (const input of [
@@ -157,6 +178,8 @@ describe("match models and DTOs", () => {
       { maxPlayers: 1 },
       { maxPlayers: 2.5 },
       { minPlayers: 4, maxPlayers: 3 },
+      { invitedUserIds: ["user_guest", "user_guest"] },
+      { maxPlayers: 2, invitedUserIds: ["user_one", "user_two"] },
       { gameIds: [] },
       { gameIds: [0] },
       { gameIds: [1.5] },

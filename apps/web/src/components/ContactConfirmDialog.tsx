@@ -56,7 +56,7 @@ export function ContactConfirmDialog({
         </h2>
         <p className="mt-2 text-sm text-default-500">{description}</p>
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button className="w-full sm:w-auto" variant="ghost" onPress={onCancel}>
+          <Button className="w-full sm:w-auto" variant="ghost" isDisabled={busy} onPress={onCancel}>
             {t`Cancel`}
           </Button>
           {actions.map((action) => (

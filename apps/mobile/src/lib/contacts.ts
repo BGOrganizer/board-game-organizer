@@ -5,6 +5,23 @@ interface DeviceContact {
   phones?: Array<{ number?: string | null }> | null;
 }
 
+const CONTACT_TABS = [
+  "following",
+  "followers",
+  "friends",
+  "requests",
+  "blocked",
+  "suggestions",
+  "search",
+] as const;
+
+export type ContactTab = (typeof CONTACT_TABS)[number];
+
+export function contactTab(value: string | string[] | undefined): ContactTab {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return CONTACT_TABS.includes(candidate as ContactTab) ? (candidate as ContactTab) : "following";
+}
+
 function nonEmpty(value: string | null | undefined): value is string {
   return Boolean(value);
 }

@@ -4,10 +4,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-function wrapper() {
-  const client = new QueryClient({
+function wrapper(
+  client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  }),
+) {
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -107,6 +108,37 @@ describe("useNotifications", () => {
       ),
     ).toBe(true);
     expect(options.getToken.mock.calls.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("rolls notification state back after mutation failures", async () => {
+    let failPatch = () => {};
+    vi.mocked(fetch).mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PATCH") {
+        return new Promise<Response>((resolve) => {
+          failPatch = () => resolve(new Response("{}", { status: 500 }));
+        });
+      }
+      return new Response(
+        JSON.stringify({ notifications: [item("first")], unreadCount: 1, nextCursor: null }),
+        { status: 200 },
+      );
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const { result } = renderHook(() => useNotifications(options), {
+      wrapper: wrapper(client),
+    });
+    await waitFor(() => expect(result.current.notifications).toHaveLength(1));
+
+    act(() => result.current.markRead.mutate("first"));
+    await waitFor(() => expect(result.current.notifications[0]?.readAt).not.toBeNull());
+    expect(result.current.unreadCount).toBe(0);
+
+    failPatch();
+    await waitFor(() => expect(result.current.markRead.isError).toBe(true));
+    expect(result.current.notifications[0]?.readAt).toBeNull();
+    expect(result.current.unreadCount).toBe(1);
   });
 
   it("exposes HTTP and missing-auth failures without fetching while disabled", async () => {

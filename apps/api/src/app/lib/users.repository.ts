@@ -68,6 +68,15 @@ export class UsersRepository {
     return this.col.findOne({ clerkId }, this.session ? { session: this.session } : {});
   }
 
+  findByIds(clerkIds: string[]) {
+    return this.col
+      .find(
+        { clerkId: { $in: clerkIds } },
+        { projection: { _id: 0 }, ...(this.session ? { session: this.session } : {}) },
+      )
+      .toArray();
+  }
+
   findByEmail(email: string) {
     return this.col.findOne({ email }, this.session ? { session: this.session } : {});
   }
