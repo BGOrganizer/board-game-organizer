@@ -21,6 +21,7 @@ coverage/
 .agents
 skills-lock.json
 
+apps/mobile/android/
 apps/mobile/build-output/
 .vercel/
 test-results/

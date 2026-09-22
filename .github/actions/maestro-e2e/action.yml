@@ -40,7 +40,7 @@ runs:
       uses: ./.github/actions/android-emulator
       with:
         script: |
-          set +e
+          set -euo pipefail
           export PATH="$ANDROID_HOME/platform-tools:$HOME/.maestro/bin:$PATH"
           export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
           export MAESTRO_CLI_NO_ANALYTICS=1
@@ -67,7 +67,6 @@ runs:
           adb shell am start -n com.bgo.mobile/.MainActivity || true
           sleep 60
           adb shell am force-stop com.bgo.mobile || true
-          set -e
           if [ -n "$TARGET_PHONE" ]; then
             adb shell content insert --uri content://com.android.contacts/raw_contacts \
               --bind account_name:s:bgo-e2e --bind account_type:s:com.bgo.e2e

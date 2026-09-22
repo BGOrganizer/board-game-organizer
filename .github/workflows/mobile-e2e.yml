@@ -119,6 +119,7 @@ jobs:
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 📤 Upload APK artifact
@@ -131,6 +132,7 @@ jobs:
   # ------------------------------------------------ provision E2E test user
   provision:
     name: 👤 Provision E2E test user (Clerk API)
+    needs: [build-mobile-internal]
     runs-on: ubuntu-latest
     outputs:
       username: ${{ steps.provision.outputs.username }}

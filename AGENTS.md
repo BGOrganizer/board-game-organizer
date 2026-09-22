@@ -144,8 +144,8 @@ Copy examples; never commit generated environment files.
 `MONGODB_URI` is mandatory. Transactions require a replica set.
 
 Mobile reads public variables through `apps/mobile/app.config.js` and
-`Constants.expoConfig.extra`. Android FCM builds optionally read the `GOOGLE_SERVICES_JSON` EAS file
-secret. API push delivery optionally uses Firebase service-account and APNs token credentials; web
+`Constants.expoConfig.extra`. Android FCM builds optionally read `GOOGLE_SERVICES_JSON`: EAS may provide a file secret, while
+GitHub Actions expects the JSON document as a repository secret. Never commit `google-services.json`. API push delivery optionally uses Firebase service-account and APNs token credentials; web
 push optionally uses `NEXT_PUBLIC_FIREBASE_*` values documented in app env examples. Inbox behavior
 must remain functional when push credentials are absent. Web public variables must be read inside
 `apps/web` and passed to
@@ -544,6 +544,7 @@ from one Clerk instance return 401 against the other.
 Repository secrets used by workflows:
 
 - `EXPO_TOKEN`
+- `GOOGLE_SERVICES_JSON` (optional; Firebase Android configuration JSON used only for push-enabled APKs)
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_WEB_PROJECT_ID`

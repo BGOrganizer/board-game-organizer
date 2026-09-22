@@ -28,7 +28,13 @@ export async function POST(request: Request) {
   const svixId = request.headers.get("svix-id");
   const svixTimestamp = request.headers.get("svix-timestamp");
   const svixSignature = request.headers.get("svix-signature");
+
   if (!svixId || !svixTimestamp || !svixSignature) {
+    console.warn("Clerk webhook rejected: missing Svix headers", {
+      hasSvixId: Boolean(svixId),
+      hasSvixTimestamp: Boolean(svixTimestamp),
+      hasSvixSignature: Boolean(svixSignature),
+    });
     return NextResponse.json({ error: "Missing svix headers" }, { status: 400 });
   }
 
@@ -43,8 +49,11 @@ export async function POST(request: Request) {
     });
     event = JSON.parse(payload) as { type: string; data: Record<string, unknown> };
   } catch {
+    console.warn("Clerk webhook rejected: invalid signature", { svixId });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
+
+  console.info("Clerk webhook verified", { eventType: event.type, svixId });
 
   const data = event.data;
 

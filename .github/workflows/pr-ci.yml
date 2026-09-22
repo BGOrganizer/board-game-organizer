@@ -52,6 +52,7 @@ jobs:
   # ----------------------------------------------------------------- typecheck
   typecheck:
     name: 🧪 TypeScript typecheck
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -68,9 +69,10 @@ jobs:
   # --------------------------------------------------------------- unit tests
   unit-tests:
     name: 🧪 Unit tests (${{ matrix.app }}) + coverage
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         app: [mobile, web, api, schemas, shared]
     steps:
@@ -104,6 +106,7 @@ jobs:
   # ------------------------------------------------------- integration tests
   integration-tests:
     name: 🐳 API integration tests (testcontainers)
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -136,6 +139,7 @@ jobs:
   # ------------------------------------------------- build api & web (next)
   build-api-web:
     name: 🏗️ Build API + Web (next build)
+    needs: [commitlint, lint, typecheck, unit-tests, integration-tests]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -206,9 +210,6 @@ jobs:
   build-mobile-internal:
     name: 📱 Mobile APK (internal) — build or reuse
     needs: [detect-mobile-changes, deploy-preview-api]
-    # Build even if the API preview deploy failed: fall back to the repo
-    # variable (EXPO_PUBLIC_API_URL) in that case.
-    if: ${{ !cancelled() && needs.detect-mobile-changes.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
@@ -280,6 +281,7 @@ jobs:
           # repo variable when the preview deploy produced no URL.
           api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 📤 Upload APK artifact
@@ -292,6 +294,7 @@ jobs:
   # ------------------------------------------------ provision E2E test user
   provision:
     name: 👤 Provision E2E test users (Clerk API)
+    needs: [deploy-preview-api]
     runs-on: ubuntu-latest
     outputs:
       username: ${{ steps.provision.outputs.username }}
@@ -352,13 +355,27 @@ jobs:
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
+      - name: 🔗 Point Clerk webhook alias to preview
+        env:
+          GIT_BRANCH: ${{ github.head_ref }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          WEBHOOK_ALIAS: clerk-preview-api.board-game-organizer.com
+        run: |
+          # Keep this domain preview-bound so production deploys cannot reclaim it.
+          vercel api "/v9/projects/$VERCEL_PROJECT_ID/domains/$WEBHOOK_ALIAS?teamId=$VERCEL_ORG_ID" \
+            --method=PATCH \
+            --raw-field="gitBranch=$GIT_BRANCH" \
+            --token="$VERCEL_TOKEN" \
+            --silent
+          vercel alias set "$PREVIEW_URL" "$WEBHOOK_ALIAS" --token="$VERCEL_TOKEN"
+
   # ---------------------------------------------------- Vercel preview web
   deploy-preview-web:
     name: 🌐 Vercel preview (Web)
     needs: [build-api-web, deploy-preview-api]
-    # Build even if the API preview deploy failed: fall back to the project
-    # env var (NEXT_PUBLIC_API_URL) in that case.
-    if: ${{ !cancelled() && needs.build-api-web.result == 'success' }}
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -576,7 +593,7 @@ jobs:
       - deploy-preview-web
       - e2e-maestro
       - e2e-playwright
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+      - cleanup-e2e-user
     runs-on: ubuntu-latest
     permissions:
       contents: write # create/update the draft release + attach the APK

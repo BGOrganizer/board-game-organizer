@@ -67,6 +67,7 @@ jobs:
   # ----------------------------------------------------------------- typecheck
   typecheck:
     name: 🧪 TypeScript typecheck
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -81,9 +82,10 @@ jobs:
   # --------------------------------------------------------------- unit tests
   unit-tests:
     name: 🧪 Unit tests (${{ matrix.app }})
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         app: [mobile, web, api, schemas, shared]
     steps:
@@ -99,6 +101,7 @@ jobs:
   # ------------------------------------------------------- integration tests
   integration-tests:
     name: 🐳 API integration tests (testcontainers)
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout

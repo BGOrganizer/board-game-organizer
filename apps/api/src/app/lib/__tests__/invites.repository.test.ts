@@ -7,7 +7,7 @@ const dbMock = {
 };
 // collection() must return the SAME object so repo methods share one mock.
 const colMock = {
-  insertOne: vi.fn(async (doc: unknown) => ({ insertedId: "id" })),
+  insertOne: vi.fn(async (_doc: unknown) => ({ insertedId: "id" })),
   findOne: vi.fn(async () => null),
   find: vi.fn(() => ({
     sort: vi.fn(() => ({ limit: vi.fn(() => ({ toArray: async () => [] })) })),

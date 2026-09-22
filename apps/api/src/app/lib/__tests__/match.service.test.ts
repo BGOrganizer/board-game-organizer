@@ -745,6 +745,15 @@ describe("MatchService", () => {
       409,
       "maxPlayers cannot be lower than occupied player positions",
     );
+
+    await expectMatchError(
+      setup().service.update("user_admin", match.id, {
+        maxPlayers: 2,
+        invitedUserIds: ["user_guest", "user_other"],
+      }),
+      400,
+      "Invitations exceed available player positions",
+    );
   });
 
   it("detects a concurrent match update", async () => {

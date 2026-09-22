@@ -64,9 +64,10 @@ jobs:
   # -------------------------------------------------- coverage upload (Codecov)
   coverage:
     name: 📊 Coverage upload (Codecov)
+    needs: [release]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         app: [mobile, web, api, shared]
     steps:
@@ -92,7 +93,7 @@ jobs:
   # -------------------------------------------------- mobile internal APK (build only)
   build-apk:
     name: 📱 Build APK (internal)
-    needs: release
+    needs: [release, coverage]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     # A fresh eas build --local from a cold cache (cache key changes after the
@@ -130,6 +131,7 @@ jobs:
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: 📤 Upload APK artifact (shared with E2E + publish-release)
         uses: actions/upload-artifact@v4
@@ -141,11 +143,11 @@ jobs:
   # -------------------------------------------------- production deploys
   deploy-production:
     name: 🚀 Vercel production (${{ matrix.app }})
-    needs: release
+    needs: [release, coverage]
     runs-on: ubuntu-latest
     environment: production
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - app: api
