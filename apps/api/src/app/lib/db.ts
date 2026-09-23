@@ -43,4 +43,5 @@ export const COLLECTIONS = {
   NOTIFICATIONS: "notifications",
   PUSH_SUBSCRIPTIONS: "pushSubscriptions",
   BOARD_GAMES: "boardGames",
+  BGG_QUOTA: "bggQuota",
 } as const;

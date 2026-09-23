@@ -9,7 +9,7 @@ const searchSchema = z.object({
 });
 
 /**
- * GET /api/bgg/search?query=… — board game search (id + name) from the
+ * GET /api/bgg/search?query=… — board game search with cached covers from the
  * local `boardGames` collection (imported from the BGG bg_ranks dump).
  *
  * NOTE: this must live in its own route file (api/bgg/search) — Next.js App

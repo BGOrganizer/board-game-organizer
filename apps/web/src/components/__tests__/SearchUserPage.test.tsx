@@ -18,7 +18,7 @@ it("renders friends returned by the relationships API", async () => {
             id: "user_friend",
             name: "E2E Target",
             email: "target@example.com",
-            avatarUrl: null,
+            avatarUrl: "https://example.com/friend.jpg",
           },
         },
         {
@@ -48,6 +48,7 @@ it("renders friends returned by the relationships API", async () => {
   );
 
   expect(await screen.findByText("E2E Target")).toBeTruthy();
+  expect(screen.getByText("E")).toBeTruthy();
   expect(screen.queryByText("Already invited")).toBeNull();
   const add = screen.getByRole("button", { name: "Add: E2E Target" });
   expect(screen.queryByText("Add")).toBeNull();

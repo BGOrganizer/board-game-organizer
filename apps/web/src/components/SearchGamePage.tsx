@@ -25,9 +25,8 @@ interface Props {
 
 /**
  * Board-game picker page (wizard step 3). Searches the BGG API through our
- * backend (/api/bgg/search). Results are id + name only (fast, rate-limit
- * friendly); image + year are fetched lazily via /api/bgg/thing when a game
- * is selected.
+ * backend (/api/bgg/search). Cached covers and years accompany results;
+ * selection resolves the full image via /api/bgg/thing.
  */
 export function SearchGamePage({
   apiUrl,
@@ -141,11 +140,17 @@ export function SearchGamePage({
             key={item.id}
             className="flex min-w-0 items-center gap-3 rounded-xl border border-default-200 p-3"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-default-100">
-              <Gamepad2 className="h-5 w-5 text-default-400" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+              {item.imageUrl ? (
+                // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Gamepad2 className="h-5 w-5 text-default-400" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{item.name}</p>
+              {item.year ? <p className="text-xs text-default-500">{item.year}</p> : null}
             </div>
             <Button
               isIconOnly

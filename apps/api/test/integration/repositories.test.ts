@@ -1,6 +1,7 @@
 import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { searchGames } from "../../src/app/lib/bgg";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
 import { type MatchError, MatchService } from "../../src/app/lib/match.service";
 import { MatchInvitationsRepository } from "../../src/app/lib/match-invitations.repository";
@@ -298,6 +299,45 @@ const matchInput = {
   invitedUserIds: [] as string[],
   gameIds: [342942],
 };
+
+describe("BGG covers on MongoDB replica set", () => {
+  it("claims one global request for concurrent searches and persists the real thumbnail", async () => {
+    vi.stubEnv("BGG_TOKEN", "test-token");
+    const fetchMock = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          '<items><item id="1"><thumbnail>https://cf.geekdo-images.com/azul/thumb.jpg</thumbnail><image>https://cf.geekdo-images.com/azul/full.jpg</image></item></items>',
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await new BoardGamesRepository(db).bulkUpsert([
+        {
+          id: 1,
+          name: "Azul",
+          yearPublished: 2017,
+          thumbnail: "https://cf.geekdo-static.com/covers/1.jpg",
+        },
+      ]);
+      await Promise.all([searchGames(db, "Azul"), searchGames(db, "Azul")]);
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(await searchGames(db, "Azul")).toEqual([
+        {
+          id: 1,
+          name: "Azul",
+          year: 2017,
+          imageUrl: "https://cf.geekdo-images.com/azul/thumb.jpg",
+        },
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+});
 
 describe("match repositories on MongoDB replica set", () => {
   it("creates a zero-invite match, accepts, leaves, and allows re-invitation", async () => {

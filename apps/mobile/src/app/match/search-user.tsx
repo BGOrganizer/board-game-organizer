@@ -4,6 +4,7 @@ import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
@@ -171,18 +172,10 @@ export default function SearchUserScreen() {
               borderColor: "#e5e7eb",
             }}
           >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: "#e5e7eb",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ fontWeight: "600" }}>{u.name?.charAt(0) ?? "?"}</Text>
-            </View>
+            <Avatar size="md">
+              {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
+              <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
+            </Avatar>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Text>
               <Text style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Text>

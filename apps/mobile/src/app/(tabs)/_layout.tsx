@@ -1,8 +1,10 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import { useAuth, useUser } from "@clerk/expo";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs, useRouter } from "expo-router";
+import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
+import { UserRound } from "lucide-react-native";
 import { Platform, View } from "react-native";
 
 import { NotificationBell } from "@/components/NotificationBell";
@@ -12,6 +14,7 @@ export default function TabLayout() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const { isLoaded: isUserLoaded, user } = useUser();
   const t = useT();
+  const router = useRouter();
 
   if (!isAuthLoaded || (isSignedIn && !isUserLoaded)) {
     return (
@@ -39,8 +42,19 @@ export default function TabLayout() {
         tabBarActiveTintColor: "#006fee",
         animation: Platform.OS === "android" ? "none" : "fade",
         headerRight: () => (
-          <View style={{ marginRight: 12 }}>
+          <View style={{ marginRight: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
             <NotificationBell />
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              accessibilityLabel={t("Profile")}
+              testID="profile-button"
+              style={{ minHeight: 36, minWidth: 36 }}
+              onPress={() => router.push("/profile")}
+            >
+              <UserRound size={20} color="#737373" />
+            </Button>
           </View>
         ),
       }}
@@ -71,13 +85,6 @@ export default function TabLayout() {
         options={{
           title: t("Contacts"),
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="address-book" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t("Profile"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="user" color={color} />,
         }}
       />
     </Tabs>

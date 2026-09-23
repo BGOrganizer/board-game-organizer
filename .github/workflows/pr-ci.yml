@@ -157,8 +157,8 @@ jobs:
         run: pnpm --filter web build
 
   # --------------------------------------- mobile change detection
-  # If no mobile-affecting file changed vs the base branch, skip the ~25min
-  # EAS APK build and reuse the last successful APK artifact instead.
+  # Compare against the last successful PR run; ignore unrelated web/API edits.
+  # Reuse APK only when the artifact's own mobile inputs also match HEAD.
   detect-mobile-changes:
     name: 🔍 Detect mobile changes
     runs-on: ubuntu-latest
@@ -170,6 +170,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Check APK change detection
+        run: node --test .github/scripts/mobile-build-changed.test.mjs
+
       - name: 🔍 Diff mobile-affecting paths
         id: check
         env:
@@ -180,31 +186,20 @@ jobs:
           # this branch (not against the PR base — the base diff always
           # contains every historical mobile commit, so changed would be true
           # forever and the APK would rebuild on every run).
-          LAST_GREEN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&conclusion=success&per_page=20" --jq '.workflow_runs[] | select(.head_sha != "'"$HEAD_SHA"'") | .head_sha' | head -1 || true)
-          if [ -z "$LAST_GREEN_SHA" ]; then
-            echo "No previous green run → changed=true"
+          RUNS_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&per_page=100" 2>/dev/null) || RUNS_JSON='{}'
+          LAST_GREEN_SHA=$(echo "$RUNS_JSON" | jq -r --argjson pr "${{ github.event.pull_request.number }}" \
+            '[.workflow_runs[]? | select(.path == ".github/workflows/pr-ci.yml" and .conclusion == "success" and any(.pull_requests[]?; .number == $pr)) | .head_sha][0] // empty') || LAST_GREEN_SHA=''
+          if [ -z "$LAST_GREEN_SHA" ] || ! git cat-file -e "$LAST_GREEN_SHA^{commit}" 2>/dev/null; then
+            echo "No diffable previous green run → changed=true"
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Code that rebuilds the APK: mobile source, the packages the app
-          # imports, and lockfiles, PLUS the CI files that bake env into the
-          # APK (mobile-build action, pr-ci job wiring). Maestro flows and
-          # unit tests are EXCLUDED: new flows or tests without app-code
-          # changes must NOT rebuild.
-          CHANGED=$(
-            git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
-              apps/mobile \
-              apps/web \
-              packages/shared packages/query packages/store packages/schemas \
-              pnpm-lock.yaml pnpm-workspace.yaml \
-              .github/actions/mobile-build .github/workflows/pr-ci.yml |
-              grep -v '^apps/mobile/\.maestro/' |
-              grep -v '^apps/mobile/src/.*\.(test|spec)\.' |
-              grep -v '__tests__' |
-              wc -l
-          )
-          echo "diff vs $LAST_GREEN_SHA → $CHANGED changed file(s)"
-          if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+          # Fail closed: any comparison error triggers a fresh APK.
+          if CHANGED=$(node .github/scripts/mobile-build-changed.mjs "$LAST_GREEN_SHA" "$HEAD_SHA"); then
+            echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
   # -------------------------------------------------- mobile internal build
   build-mobile-internal:
@@ -236,20 +231,21 @@ jobs:
           # NOTE: the API ignores conclusion=success as a query filter, so we
           # must select it in jq — otherwise failed runs (which can still have
           # an APK artifact when only e.g. lint failed) get picked up.
-          RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&branch=$GITHUB_HEAD_REF&per_page=10" --jq '.workflow_runs[] | select(.conclusion == "success" and .head_sha != "'"$HEAD_SHA"'") | .id')
+          RUNS_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&per_page=100" 2>/dev/null) || RUNS_JSON='{}'
+          RUNS=$(echo "$RUNS_JSON" | jq -r --argjson pr "${{ github.event.pull_request.number }}" \
+            '.workflow_runs[]? | select(.path == ".github/workflows/pr-ci.yml" and .conclusion == "success" and any(.pull_requests[]?; .number == $pr)) | .id') || RUNS=''
           # ONLY reuse an APK whose SHA has ZERO mobile-relevant diff vs HEAD.
           # A success run with an APK can be OLDER than the last green SHA the
           # detect step diffed against (interleaved cancelled/failed runs never
           # produce an APK), and reusing it would ship stale code silently.
-          MOBILE_PATHS="apps/mobile apps/web packages/shared packages/query packages/store packages/schemas pnpm-lock.yaml pnpm-workspace.yaml .github/actions/mobile-build .github/workflows/pr-ci.yml"
           for id in $RUNS; do
-            RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')
+            RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha' 2>/dev/null) || continue
             # A rewritten/rebased SHA may no longer exist → skip the candidate
             # instead of crashing the whole job.
             git cat-file -e "$RUN_SHA^{commit}" 2>/dev/null || continue
-            CHANGED=$(git diff --name-only "$RUN_SHA".."$HEAD_SHA" -- $MOBILE_PATHS | grep -v '^apps/mobile/\.maestro/' | grep -v '^apps/mobile/src/.*\.\(test\|spec\)\.' | grep -v '__tests__' | wc -l) || continue
-            if [ "$CHANGED" -gt 0 ]; then
-              echo "APK run $id ($RUN_SHA) stale vs HEAD ($CHANGED mobile change(s)) — skipping"
+            CHANGED=$(node .github/scripts/mobile-build-changed.mjs "$RUN_SHA" "$HEAD_SHA") || continue
+            if [ "$CHANGED" = 'true' ]; then
+              echo "APK run $id ($RUN_SHA) has stale mobile inputs — skipping"
               continue
             fi
             ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal") | .id' 2>/dev/null || true)
@@ -258,6 +254,9 @@ jobs:
           echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
           if [ -n "$RUN_ID" ]; then echo "reused=true" >> "$GITHUB_OUTPUT"; else echo "reused=false" >> "$GITHUB_OUTPUT"; fi
           echo "last reusable APK run: ${RUN_ID:-none}"
+          if [ -n "$RUN_ID" ]; then
+            echo "::warning::Reused APK keeps the API URL baked into run $RUN_ID; it may target an older preview deployment."
+          fi
 
       - name: 📥 Download reused APK
         if: steps.reuse.outputs.run-id != ''
@@ -276,9 +275,8 @@ jobs:
           profile: internal
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          # Option B: point the APK at THIS PR's preview API deployment so
-          # the app talks to the exact code under test. Falls back to the
-          # repo variable when the preview deploy produced no URL.
+          # Fresh APKs target this run's preview API. Reused APKs retain their
+          # original URL until a stable per-PR API alias is available.
           api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}

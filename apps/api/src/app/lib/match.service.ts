@@ -7,6 +7,7 @@ import type {
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
 import { MongoServerError } from "mongodb";
+import { gameThumbnail } from "@/app/lib/bgg";
 import type { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import type { MatchInvitationsRepository } from "@/app/lib/match-invitations.repository";
 import type { MatchesRepository } from "@/app/lib/matches.repository";
@@ -200,7 +201,8 @@ export class MatchService {
                 id: game.id,
                 name: game.name,
                 yearPublished: game.yearPublished ?? null,
-                thumbnail: game.thumbnail ?? null,
+                thumbnail:
+                  gameThumbnail(game.thumbnail ?? null) ?? gameThumbnail(game.image ?? null),
               },
             ]
           : [];

@@ -506,8 +506,9 @@ Runs full pull-request gates:
 10. draft prerelease and Telegram notification after all gates pass
 
 Mobile change detection compares against the last successful PR workflow run on the branch, not the
-PR base. Mobile code, related workspace packages, and lockfiles trigger APK rebuilds. Maestro-only and
-unit-test-only changes do not.
+PR base. Mobile code, related workspace packages, compiled localization, and changes to the mobile
+lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit-test-only, and unrelated
+lockfile changes do not. Compare each reusable artifact's own commit with the PR head before reuse.
 
 Preview web and mobile jobs consume the API preview deployment URL. Protected previews receive
 `VERCEL_PROTECTION_BYPASS` and clients append it to request URLs.

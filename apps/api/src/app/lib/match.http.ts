@@ -4,7 +4,8 @@ import { after } from "next/server";
 import { z } from "zod";
 import { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { withTransaction } from "@/app/lib/db";
+import { getDb, withTransaction } from "@/app/lib/db";
+import { ensureCurrentUser } from "@/app/lib/ensureCurrentUser";
 import { MatchError, MatchService } from "@/app/lib/match.service";
 import { MatchInvitationsRepository } from "@/app/lib/match-invitations.repository";
 import { MatchesRepository } from "@/app/lib/matches.repository";
@@ -111,6 +112,7 @@ export async function runMatchOperation<T>(
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   try {
+    await ensureCurrentUser(userId, await getDb());
     const createdNotificationIds: ObjectId[] = [];
     const result = await withTransaction(async (session, db) => {
       const service = new MatchService(

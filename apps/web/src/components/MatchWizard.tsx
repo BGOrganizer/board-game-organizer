@@ -3,7 +3,7 @@
 import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Button } from "@heroui/react";
+import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Users, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -401,10 +401,10 @@ export function MatchWizard({
                 >
                   {slot.user ? (
                     <span className="flex min-w-0 items-center gap-2">
-                      {slot.user.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={slot.user.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
-                      ) : null}
+                      <Avatar size="md" color="accent">
+                        <Avatar.Image src={slot.user.avatarUrl ?? undefined} alt="" />
+                        <Avatar.Fallback>{slot.user.name.charAt(0) || "?"}</Avatar.Fallback>
+                      </Avatar>
                       <span className="min-w-0 text-left">
                         <span className="block truncate text-sm font-medium">{slot.user.name}</span>
                         <span className="block truncate text-xs text-default-400">
@@ -463,12 +463,18 @@ export function MatchWizard({
                 >
                   {slot.game ? (
                     <span className="flex min-w-0 items-center gap-2">
-                      {slot.game.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={slot.game.imageUrl} alt="" className="h-6 w-6 rounded" />
-                      ) : (
-                        <Gamepad2 className="h-6 w-6 text-default-400" />
-                      )}
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+                        {slot.game.imageUrl ? (
+                          // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                          <img
+                            src={slot.game.imageUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <Gamepad2 className="h-5 w-5 text-default-400" />
+                        )}
+                      </span>
                       <span className="min-w-0 text-left">
                         <span className="block truncate text-sm font-medium">{slot.game.name}</span>
                         {slot.game.year ? (

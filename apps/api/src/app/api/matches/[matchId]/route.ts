@@ -1,4 +1,7 @@
-import { updateMatchSchema } from "@board-game-organizer/schemas";
+import { type MatchDetailResponse, updateMatchSchema } from "@board-game-organizer/schemas";
+import { gameThumbnail, hydrateGames } from "@/app/lib/bgg";
+import { corsJson } from "@/app/lib/cors";
+import { getDb } from "@/app/lib/db";
 import {
   badMatchRequest,
   type MatchRouteContext,
@@ -13,7 +16,24 @@ export const OPTIONS = matchOptions;
 export async function GET(request: Request, context: MatchRouteContext) {
   const matchId = await matchIdFromContext(request, context);
   if (!matchId) return badMatchRequest(request, "Invalid match id");
-  return runMatchOperation(request, async ({ userId, service }) => service.detail(userId, matchId));
+  const response = await runMatchOperation(request, async ({ userId, service }) =>
+    service.detail(userId, matchId),
+  );
+  if (!response.ok) return response;
+  const detail = (await response.json()) as MatchDetailResponse;
+  // Fetch BGG covers only after access checks and the Mongo transaction complete.
+  await hydrateGames(await getDb(), detail.games);
+  return corsJson(
+    {
+      ...detail,
+      games: detail.games.map((game) => ({
+        ...game,
+        thumbnail: gameThumbnail(game.thumbnail),
+      })),
+    },
+    {},
+    request,
+  );
 }
 
 /** Match admin can update match fields while PLANNING. */

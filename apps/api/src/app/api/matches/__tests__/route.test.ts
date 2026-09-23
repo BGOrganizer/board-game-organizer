@@ -9,9 +9,10 @@ import * as detailRoute from "../[matchId]/route";
 import * as matchesRoute from "../route";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
+vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
 vi.mock("@/app/lib/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/app/lib/db")>();
-  return { ...actual, withTransaction: vi.fn() };
+  return { ...actual, withTransaction: vi.fn(), getDb: vi.fn(async () => ({})) };
 });
 
 const matchId = "69409f64-7414-4e47-815c-36b01c1bff95";
@@ -183,6 +184,39 @@ describe("match API routes", () => {
     expect(response.status).toBe(200);
     expect(await json(response)).toEqual({ match, administrator, invitedPlayers: [], games: [] });
     expect(MatchService.prototype.detail).toHaveBeenCalledWith("user_admin", matchId);
+  });
+
+  it("hides invented covers in match details without BGG access", async () => {
+    vi.stubEnv("BGG_TOKEN", "");
+    vi.mocked(MatchService.prototype.detail).mockResolvedValue({
+      match,
+      administrator,
+      invitedPlayers: [],
+      games: [
+        {
+          id: 1,
+          name: "Azul",
+          yearPublished: 2017,
+          thumbnail: "https://cf.geekdo-static.com/covers/1.jpg",
+        },
+      ],
+    } as never);
+    try {
+      const response = await detailRoute.GET(request(`/api/matches/${matchId}`), matchContext());
+      expect(response.status).toBe(200);
+      expect((await json(response)).games).toEqual([
+        { id: 1, name: "Azul", yearPublished: 2017, thumbnail: null },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("never enriches a match detail for an unsigned viewer", async () => {
+    vi.mocked(auth).mockResolvedValue({ userId: null } as never);
+    const response = await detailRoute.GET(request(`/api/matches/${matchId}`), matchContext());
+    expect(response.status).toBe(401);
+    expect(MatchService.prototype.detail).not.toHaveBeenCalled();
   });
 
   it("rejects invalid detail id and query", async () => {

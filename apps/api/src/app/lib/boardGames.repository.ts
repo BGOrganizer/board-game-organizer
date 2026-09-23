@@ -4,8 +4,7 @@ import { COLLECTIONS } from "@/app/lib/db";
 
 /**
  * Repository over the `boardGames` collection (imported from the BGG
- * `bg_ranks` CSV dump). Stores id, name, yearPublished and thumbnail only —
- * enough for the wizard picker.
+ * `bg_ranks` CSV dump). Covers are enriched separately from XML API2.
  */
 export class BoardGamesRepository {
   constructor(

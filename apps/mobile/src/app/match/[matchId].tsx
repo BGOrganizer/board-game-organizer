@@ -15,13 +15,14 @@ import {
   CircleX,
   Clock3,
   Crown,
+  Gamepad2,
   LogOut,
   Pencil,
   Trash2,
   X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { Alert, Image, Pressable, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -371,11 +372,37 @@ function MatchDetailContent({
             ) : (
               <View style={{ gap: 14 }}>
                 {games.map((game) => (
-                  <View key={game.id}>
-                    <Text className="font-medium text-foreground">{game.name}</Text>
-                    {game.yearPublished && (
-                      <Text className="text-xs text-muted">{game.yearPublished}</Text>
-                    )}
+                  <View
+                    key={game.id}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+                  >
+                    <View
+                      className="bg-muted/20"
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {game.thumbnail ? (
+                        <Image
+                          source={{ uri: game.thumbnail }}
+                          accessible={false}
+                          style={{ width: 40, height: 40 }}
+                        />
+                      ) : (
+                        <Gamepad2 size={18} color="#6b7280" />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text className="font-medium text-foreground">{game.name}</Text>
+                      {game.yearPublished ? (
+                        <Text className="text-xs text-muted">{game.yearPublished}</Text>
+                      ) : null}
+                    </View>
                   </View>
                 ))}
               </View>

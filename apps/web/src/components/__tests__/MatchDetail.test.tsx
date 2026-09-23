@@ -121,6 +121,28 @@ describe("MatchDetail", () => {
     expect(screen.getByText("Azul")).toBeTruthy();
   });
 
+  it("shows a game cover and publication year in the games tab", () => {
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        games: [
+          {
+            id: 1,
+            name: "Azul",
+            yearPublished: 2017,
+            thumbnail: "https://cf.geekdo-images.com/a/thumb.jpg",
+          },
+        ],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(screen.getByText("2017")).toBeTruthy();
+    expect(
+      document.querySelector('img[src="https://cf.geekdo-images.com/a/thumb.jpg"]'),
+    ).toBeTruthy();
+  });
+
   it("keeps pending invitation actions above the tabs", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
 

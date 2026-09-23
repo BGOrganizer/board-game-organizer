@@ -2,7 +2,7 @@
 
 import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
 import { withProtectionBypass } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -147,14 +147,10 @@ export function SearchUserPage({
             key={u.id}
             className="flex min-w-0 items-center gap-3 rounded-xl border border-default-200 p-3"
           >
-            {u.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={u.avatarUrl} alt="" className="h-10 w-10 rounded-full" />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-default-100 text-sm font-semibold">
-                {u.name?.charAt(0) ?? "?"}
-              </div>
-            )}
+            <Avatar size="md" color="accent">
+              <Avatar.Image src={u.avatarUrl ?? undefined} alt={u.name} />
+              <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
+            </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{u.name}</p>
               <p className="truncate text-xs text-default-400">{u.email}</p>

@@ -3,8 +3,9 @@ import type { ClientSession, Db, ObjectId } from "mongodb";
 import { after } from "next/server";
 import { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { withTransaction } from "@/app/lib/db";
+import { getDb, withTransaction } from "@/app/lib/db";
 import { enrichRelationshipsWithUsers } from "@/app/lib/enrichUsers";
+import { ensureCurrentUser } from "@/app/lib/ensureCurrentUser";
 import { NotificationsRepository } from "@/app/lib/notifications.repository";
 import { dispatchNotifications } from "@/app/lib/push";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
@@ -109,6 +110,7 @@ export async function runRelationshipOperation<T>(
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
 
   try {
+    await ensureCurrentUser(userId, await getDb());
     const createdNotificationIds: ObjectId[] = [];
     const result = await withTransaction(async (session, db) => {
       const service = new RelationshipService(

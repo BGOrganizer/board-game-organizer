@@ -95,6 +95,8 @@ export const boardGameModel = z.object({
   name: z.string(),
   yearPublished: z.number().nullable().optional(),
   thumbnail: z.string().nullable().optional(),
+  image: z.string().nullable().optional(),
+  imageCheckedAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
 export type BoardGame = z.infer<typeof boardGameModel>;

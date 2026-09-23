@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/expo";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
+import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Text } from "heroui-native/text";
@@ -19,7 +20,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, ScrollView, View } from "react-native";
+import { Image, Platform, Pressable, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -410,7 +411,16 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     borderColor: "#e5e7eb",
                   }}
                 >
-                  <Users color="#6b7280" size={18} />
+                  {slot.user ? (
+                    <Avatar size="md">
+                      {slot.user.avatarUrl ? (
+                        <Avatar.Image source={{ uri: slot.user.avatarUrl }} />
+                      ) : null}
+                      <Avatar.Fallback>{slot.user.name.charAt(0) || "?"}</Avatar.Fallback>
+                    </Avatar>
+                  ) : (
+                    <Users color="#6b7280" size={18} />
+                  )}
                   <View style={{ flex: 1 }}>
                     {slot.user ? (
                       <>
@@ -471,7 +481,27 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     borderColor: "#e5e7eb",
                   }}
                 >
-                  <Gamepad2 color="#6b7280" size={18} />
+                  <View
+                    className="bg-muted/20"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {slot.game?.imageUrl ? (
+                      <Image
+                        source={{ uri: slot.game.imageUrl }}
+                        accessible={false}
+                        style={{ width: 40, height: 40 }}
+                      />
+                    ) : (
+                      <Gamepad2 color="#6b7280" size={18} />
+                    )}
+                  </View>
                   <View style={{ flex: 1 }}>
                     {slot.game ? (
                       <>

@@ -65,6 +65,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Select: Cascadia.*"
     timeout: 30000
+- assertVisible: "2021"
 - tapOn: "Select: Cascadia.*"
 - extendedWaitUntil:
     visible: "Board games"
@@ -91,6 +92,7 @@ appId: com.bgo.mobile
 - assertVisible: "Accepted"
 - tapOn: "Games"
 - assertVisible: "Cascadia"
+- assertVisible: "2021"
 # Admin editing reuses the same wizard and sends changes only on final save.
 - tapOn: "Edit match"
 - extendedWaitUntil:

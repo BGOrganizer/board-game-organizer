@@ -6,13 +6,16 @@ const mocks = vi.hoisted(() => ({
   after: vi.fn((work: () => unknown) => work()),
   dispatch: vi.fn(async () => undefined),
   requireCurrentUser: vi.fn(async () => undefined),
+  ensureCurrentUser: vi.fn(async () => undefined),
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("next/server", () => ({ after: mocks.after }));
 vi.mock("@/app/lib/db", () => ({
   withTransaction: vi.fn(async (work) => work({ id: "session" }, {})),
+  getDb: vi.fn(async () => ({})),
 }));
+vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: mocks.ensureCurrentUser }));
 vi.mock("@/app/lib/push", () => ({ dispatchNotifications: mocks.dispatch }));
 vi.mock("@/app/lib/notifications.repository", () => ({
   NotificationsRepository: vi.fn((_db, _session, createdIds?: ObjectId[]) => {
@@ -43,6 +46,7 @@ describe("post-commit notification delivery", () => {
   it("dispatches match notification ids after transaction success", async () => {
     const response = await runMatchOperation(new Request("http://x"), async () => ({ ok: true }));
     expect(response.status).toBe(200);
+    expect(mocks.ensureCurrentUser).toHaveBeenCalledWith("user_1", {});
     expect(mocks.after).toHaveBeenCalledOnce();
     expect(mocks.dispatch).toHaveBeenCalledWith([new ObjectId("0123456789abcdef01234567")]);
   });
@@ -52,6 +56,7 @@ describe("post-commit notification delivery", () => {
       ok: true,
     }));
     expect(response.status).toBe(200);
+    expect(mocks.ensureCurrentUser).toHaveBeenCalledWith("user_1", {});
     expect(mocks.after).toHaveBeenCalledOnce();
     expect(mocks.dispatch).toHaveBeenCalledWith([new ObjectId("0123456789abcdef01234567")]);
   });

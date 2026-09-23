@@ -112,7 +112,12 @@ export const respondMatchInvitationSchema = z
 export type RespondMatchInvitationInput = z.infer<typeof respondMatchInvitationSchema>;
 
 /** BGG game search result — intentionally minimal. */
-export const bggSearchItemSchema = z.object({ id: z.number(), name: z.string() });
+export const bggSearchItemSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  year: z.number().nullable(),
+  imageUrl: z.string().nullable(),
+});
 export const bggSearchResponseSchema = z.object({ items: z.array(bggSearchItemSchema) });
 export type BggSearchItem = z.infer<typeof bggSearchItemSchema>;
 export type BggSearchResponse = z.infer<typeof bggSearchResponseSchema>;

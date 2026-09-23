@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/app/lib/db", () => ({
   withTransaction: mocks.withTransaction,
+  getDb: vi.fn(async () => ({})),
   COLLECTIONS: {
     USERS: "users",
     FOLLOWS: "follows",
@@ -29,6 +30,7 @@ vi.mock("@/app/lib/db", () => ({
     BLOCKS: "blocks",
   },
 }));
+vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
 vi.mock("@/app/lib/enrichUsers", () => ({ enrichRelationshipsWithUsers: mocks.enrich }));
 vi.mock("@/app/lib/relationship.repository", () => ({
   RelationshipRepository: class RelationshipRepository {},

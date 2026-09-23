@@ -10,7 +10,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Text } from "heroui-native/text";
 import { Gamepad2, Plus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Image, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
 
 function apiUrl(): string {
@@ -157,10 +157,19 @@ export default function SearchGameScreen() {
                 justifyContent: "center",
               }}
             >
-              <Gamepad2 size={18} color="#6b7280" />
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  accessible={false}
+                  style={{ width: 40, height: 40, borderRadius: 8 }}
+                />
+              ) : (
+                <Gamepad2 size={18} color="#6b7280" />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Text>
+              {item.year ? <Text className="text-xs text-muted">{item.year}</Text> : null}
             </View>
             <Button
               isIconOnly

@@ -130,6 +130,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   const gameRow = page.getByRole("button", { name: /^Select:/ }).first();
   try {
     await gameRow.waitFor({ state: "visible", timeout: 30_000 });
+    await expect(gameRow.locator("..").getByText(/\d{4}/)).toBeVisible();
     await gameRow.click();
   } catch {
     // No games in the local collection yet (preview DB not imported) or BGG
@@ -177,6 +178,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
 
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.getByText("Cascadia").first()).toBeVisible();
+  await expect(page.getByText("2021").first()).toBeVisible();
 
   // Admin edits reuse the creation wizard and persist only on the final step.
   await page.getByRole("button", { name: "Edit match" }).click();

@@ -11,6 +11,7 @@ import {
   CircleX,
   Clock3,
   Crown,
+  Gamepad2,
   LogOut,
   Pencil,
   Trash2,
@@ -287,11 +288,21 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             ) : (
               <ul className="divide-y divide-default-200">
                 {games.map((game) => (
-                  <li key={game.id} className="py-3 first:pt-0 last:pb-0">
-                    <p className="text-sm font-medium">{game.name}</p>
-                    {game.yearPublished && (
-                      <p className="text-xs text-default-500">{game.yearPublished}</p>
-                    )}
+                  <li key={game.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+                      {game.thumbnail ? (
+                        // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                        <img src={game.thumbnail} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <Gamepad2 className="h-5 w-5 text-default-400" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{game.name}</p>
+                      {game.yearPublished ? (
+                        <p className="text-xs text-default-500">{game.yearPublished}</p>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>

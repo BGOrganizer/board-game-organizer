@@ -12,8 +12,13 @@ it("hides selected games and uses an icon-only selection action", async () => {
       ok: true,
       json: async () => ({
         items: [
-          { id: 1, name: "Cascadia" },
-          { id: 2, name: "Already selected" },
+          {
+            id: 1,
+            name: "Cascadia",
+            year: 2021,
+            imageUrl: "https://cf.geekdo-images.com/a/thumb.jpg",
+          },
+          { id: 2, name: "Already selected", year: null, imageUrl: null },
         ],
       }),
     })
@@ -41,6 +46,10 @@ it("hides selected games and uses an icon-only selection action", async () => {
   const select = await screen.findByRole("button", { name: "Select: Cascadia" });
   expect(screen.queryByText("Already selected")).toBeNull();
   expect(screen.queryByText("Select")).toBeNull();
+  expect(screen.getByText("2021")).toBeTruthy();
+  expect(document.querySelector("img")?.getAttribute("src")).toBe(
+    "https://cf.geekdo-images.com/a/thumb.jpg",
+  );
   fireEvent.click(select);
 
   await waitFor(() =>
