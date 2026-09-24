@@ -38,18 +38,11 @@ inputs:
     description: Ephemeral E2E database name; overrides preview deployment at runtime.
     required: false
     default: ''
-  expected-branch:
-    description: Git branch expected on the generated Vercel branch alias.
-    required: false
-    default: ''
 
 outputs:
   deployment-url:
     description: Deployment URL
     value: ${{ steps.deploy.outputs.url }}
-  branch-url:
-    description: Verified moving branch alias for an isolated API preview.
-    value: ${{ steps.branch-alias.outputs.url }}
 
 runs:
   using: composite
@@ -189,38 +182,6 @@ runs:
         fi
         url=$(vercel deploy --prebuilt $prod_flag "${runtime_env[@]}" --token="$VERCEL_TOKEN")
         echo "url=$url" >> "$GITHUB_OUTPUT"
-
-    - name: 🔗 Verify moving branch alias
-      id: branch-alias
-      if: ${{ inputs.ci-db-name != '' }}
-      shell: bash
-      env:
-        VERCEL_TOKEN: ${{ inputs.vercel-token }}
-        DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
-        EXPECTED_BRANCH: ${{ inputs.expected-branch }}
-      run: |
-        set -euo pipefail
-        test -n "$EXPECTED_BRANCH"
-        for attempt in {1..20}; do
-          info=$(vercel inspect "$DEPLOYMENT_URL" --json --token="$VERCEL_TOKEN")
-          deployment_id=$(jq -er '.id' <<< "$info")
-          vercel api "/v13/deployments/$deployment_id" --raw --token="$VERCEL_TOKEN" |
-            jq -e --arg expected "$EXPECTED_BRANCH" '.gitSource.ref == $expected' > /dev/null || {
-              echo "Vercel deployment has wrong Git branch metadata" >&2
-              exit 1
-            }
-          alias=$(jq -r '[.aliases[]? | select(startswith("api-git-") and endswith(".vercel.app"))] | if length == 1 then .[0] else empty end' <<< "$info")
-          if [ -n "$alias" ]; then
-            target=$(vercel inspect "https://$alias" --json --token="$VERCEL_TOKEN" 2>/dev/null) || target='{}'
-            if jq -e --arg id "$deployment_id" '.id == $id and .readyState == "READY"' <<< "$target" > /dev/null; then
-              echo "url=https://$alias" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-          sleep 3
-        done
-        echo "Branch alias did not resolve to the ready API deployment" >&2
-        exit 1
 
     - name: 📝 Comment Preview URL
       if: ${{ inputs.production == 'false' && github.event_name == 'pull_request' }}

@@ -41,7 +41,6 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
           ci-db-name: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
-          expected-branch: e2e-${{ github.run_id }}-${{ github.run_attempt }}
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
             MONGODB_DB_NAME=bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}

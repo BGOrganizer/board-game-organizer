@@ -342,7 +342,7 @@ jobs:
     environment: development
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
-      branch-url: ${{ steps.deploy.outputs.branch-url }}
+      branch-url: ${{ steps.branch-alias.outputs.url }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -368,7 +368,6 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
           ci-db-name: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
-          expected-branch: ${{ github.head_ref }}
           # The /invite/<token> claim page is a client component: it needs the
           # Clerk publishable key baked at build time.
           extra-env: |
@@ -400,6 +399,35 @@ jobs:
             -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
             -d "$(jq -cn --arg name "$DB_NAME" '{action:"seed",databaseName:$name}')" |
             jq -e '.ok == true' > /dev/null
+
+      - name: 🔗 Assign and verify moving PR API alias
+        id: branch-alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          EXPECTED_BRANCH: ${{ github.head_ref }}
+          CI_ALIAS: api-pr-${{ github.event.pull_request.number }}-board-game-organizers-projects.vercel.app
+        run: |
+          set -euo pipefail
+          [[ "$CI_ALIAS" =~ ^api-pr-[1-9][0-9]*-board-game-organizers-projects[.]vercel[.]app$ ]] || exit 1
+          info=$(vercel inspect "$DEPLOYMENT_URL" --json --token="$VERCEL_TOKEN")
+          deployment_id=$(jq -er '.id' <<< "$info")
+          vercel api "/v13/deployments/$deployment_id" --raw --token="$VERCEL_TOKEN" |
+            jq -e --arg expected "$EXPECTED_BRANCH" '.meta.githubCommitRef == $expected' > /dev/null || {
+              echo "Vercel deployment has wrong Git branch metadata" >&2
+              exit 1
+            }
+          vercel alias set "$DEPLOYMENT_URL" "$CI_ALIAS" --token="$VERCEL_TOKEN"
+          for attempt in {1..20}; do
+            target=$(vercel inspect "https://$CI_ALIAS" --json --token="$VERCEL_TOKEN" 2>/dev/null) || target='{}'
+            if jq -e --arg id "$deployment_id" '.id == $id and .readyState == "READY"' <<< "$target" > /dev/null; then
+              echo "url=https://$CI_ALIAS" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "PR alias did not resolve to the ready API deployment" >&2
+          exit 1
 
       - name: 🔗 Point Clerk webhook alias to preview
         env:

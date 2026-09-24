@@ -157,8 +157,8 @@ Production endpoints:
 - Web: `https://board-game-organizer.com`
 - API: `https://api.board-game-organizer.com`
 
-Preview web builds use the immutable API Preview URL; PR mobile APKs use its verified moving
-branch alias. No E2E job falls back to a development or production API URL.
+Preview web builds use the immutable API Preview URL; PR mobile APKs use a verified moving
+per-PR alias. No E2E job falls back to a development or production API URL.
 
 Vercel preview protection bypass is a **query parameter**, not a custom header. Use
 `withProtectionBypass()` so CORS preflight requests reach the protected deployment.
@@ -501,7 +501,7 @@ Runs full pull-request gates:
 5. mobile-change detection and internal APK build or reuse
 6. API and web Vercel preview deployments
 7. seed per-run `bgo_ci_<run_id>_<attempt>` database and synchronize two users
-8. Maestro and Playwright E2E; mobile uses a verified moving branch API alias
+8. Maestro and Playwright E2E; mobile uses a verified moving per-PR API alias
 9. unconditional test-user and isolated-database cleanup
 10. draft prerelease and Telegram notification after all gates pass
 
@@ -510,7 +510,7 @@ PR base. Mobile code, related workspace packages, compiled localization, and cha
 lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit-test-only, and unrelated
 lockfile changes do not. Compare each reusable artifact's own commit with the PR head before reuse.
 
-Preview web uses the immutable API deployment URL; PR APKs use the branch alias. Protected previews receive
+Preview web uses the immutable API deployment URL; PR APKs use the per-PR alias. Protected previews receive
 `VERCEL_PROTECTION_BYPASS` and clients append it to request URLs.
 
 ### `main-ci.yml`
