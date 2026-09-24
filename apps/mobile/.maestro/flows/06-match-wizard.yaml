@@ -23,6 +23,12 @@ appId: com.bgo.mobile
 - tapOn: "Match name"
 - eraseText: 3
 - inputText: "Friday night games"
+# Remove one date from inside its row, then fill the remaining slot.
+- tapOn: "Add another date"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn:
+    id: "remove-date-slot"
 # Date slot: open the native picker and confirm it exists (the wizard
 # requires a filled date to advance — tapping Confirm on the native
 # date dialog sets today).
@@ -71,7 +77,6 @@ appId: com.bgo.mobile
     visible: "Board games"
     timeout: 30000
 - assertVisible: "Cascadia"
-
 # Submit, open the match and exercise all three HeroUI tabs.
 - tapOn:
     point: "90%,92%"
@@ -109,6 +114,18 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Board games"
     timeout: 30000
+# Editing reuses the same wizard; remove its selected game, then restore it.
+- tapOn:
+    id: "remove-game-slot"
+- assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- tapOn: "Search board games (at least 4 characters)"
+- inputText: "Cascadia"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- tapOn: "Select: Cascadia.*"
+- assertVisible: "Cascadia"
 - tapOn: "Save changes"
 - assertVisible: "Match updated"
 - extendedWaitUntil:

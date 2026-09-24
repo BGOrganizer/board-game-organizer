@@ -16,8 +16,8 @@ import {
   Gamepad2,
   Minus,
   Plus,
+  Trash2,
   Users,
-  X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Platform, Pressable, ScrollView, View } from "react-native";
@@ -320,7 +320,16 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             )}
             <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("When could you play?")}</Text>
             {dateSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                key={slot.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }}
+              >
                 <Pressable
                   onPress={() => {
                     const base = slot.value ? new Date(slot.value) : new Date();
@@ -337,9 +346,6 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     alignItems: "center",
                     gap: 8,
                     padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
                   }}
                 >
                   <CalendarClock color="#6b7280" size={18} />
@@ -347,13 +353,18 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     {slot.value ? new Date(slot.value).toLocaleString() : t("Pick date and time")}
                   </Text>
                 </Pressable>
-                <Pressable
+                <Button
+                  variant="danger-soft"
+                  isIconOnly
+                  size="sm"
+                  style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                  accessibilityLabel={t("Remove slot")}
+                  testID="remove-date-slot"
+                  isDisabled={dateSlots.length <= 1}
                   onPress={() => removeDateSlot(slot.id)}
-                  disabled={dateSlots.length <= 1}
-                  style={{ padding: 8 }}
                 >
-                  <X color={dateSlots.length <= 1 ? "#d1d5db" : "#6b7280"} size={18} />
-                </Pressable>
+                  <Trash2 color={dateSlots.length <= 1 ? "#d1d5db" : "#dc2626"} size={16} />
+                </Button>
               </View>
             ))}
             <Button onPress={addDateSlot}>
@@ -387,7 +398,16 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             )}
             <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("Invite friends")}</Text>
             {userSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                key={slot.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }}
+              >
                 <Pressable
                   onPress={() =>
                     router.push({
@@ -406,9 +426,6 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     alignItems: "center",
                     gap: 8,
                     padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
                   }}
                 >
                   {slot.user ? (
@@ -433,16 +450,21 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                   </View>
                 </Pressable>
                 {slot.user && (
-                  <Pressable
+                  <Button
+                    variant="danger-soft"
+                    isIconOnly
+                    size="sm"
+                    style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                    accessibilityLabel={t("Remove invite")}
+                    testID="remove-invite-slot"
                     onPress={() =>
                       setUserSlots((p) =>
                         p.map((s) => (s.id === slot.id ? { ...s, user: null } : s)),
                       )
                     }
-                    style={{ padding: 8 }}
                   >
-                    <X color="#6b7280" size={18} />
-                  </Pressable>
+                    <Trash2 color="#dc2626" size={16} />
+                  </Button>
                 )}
               </View>
             ))}
@@ -453,7 +475,16 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
           <View style={{ gap: 16 }}>
             <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Text>
             {gameSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                key={slot.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#e5e7eb",
+                }}
+              >
                 <Pressable
                   onPress={() =>
                     router.push({
@@ -476,9 +507,6 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     alignItems: "center",
                     gap: 8,
                     padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
                   }}
                 >
                   <View
@@ -516,15 +544,17 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                   </View>
                 </Pressable>
                 {(slot.game || gameSlots.length > 1) && (
-                  <Pressable
-                    accessibilityRole="button"
+                  <Button
+                    variant="danger-soft"
+                    isIconOnly
+                    size="sm"
+                    style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
                     accessibilityLabel={t("Remove game")}
                     testID="remove-game-slot"
                     onPress={() => removeGameSlot(slot.id)}
-                    style={{ padding: 8 }}
                   >
-                    <X color="#6b7280" size={18} />
-                  </Pressable>
+                    <Trash2 color="#dc2626" size={16} />
+                  </Button>
                 )}
               </View>
             ))}

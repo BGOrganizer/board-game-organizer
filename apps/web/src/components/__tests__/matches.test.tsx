@@ -81,6 +81,22 @@ describe("Matches", () => {
     expect(screen.getByText("New match")).toBeTruthy();
   });
 
+  it("keeps the red trash button inside each date item", () => {
+    renderWithI18n(<MatchWizard />);
+
+    const first = screen.getByRole("button", { name: "Remove slot" }) as HTMLButtonElement;
+    expect(first.disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Add another date" }));
+
+    const removeButtons = screen.getAllByRole("button", { name: "Remove slot" });
+    const last = removeButtons.at(-1) as HTMLButtonElement;
+    expect(last.className).toContain("button--danger-soft");
+    expect(last.querySelector("svg")?.getAttribute("class")).toContain("lucide-trash");
+    expect(last.parentElement?.querySelector('input[type="datetime-local"]')).not.toBeNull();
+    fireEvent.click(last);
+    expect(screen.getAllByRole("button", { name: "Remove slot" })).toHaveLength(1);
+  });
+
   it("allows a planning match without invites and keeps the minimum at two", async () => {
     renderWithI18n(<Matches />);
     fireEvent.click(screen.getByLabelText(/create a match/i));
@@ -108,7 +124,9 @@ describe("Matches", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add another game" }));
     expect(screen.getAllByRole("button", { name: "Select a board game" })).toHaveLength(2);
     const removeGame = screen.getAllByRole("button", { name: "Remove game" }).at(-1);
-    expect(removeGame).toBeTruthy();
+    expect(removeGame?.className).toContain("button--danger-soft");
+    expect(removeGame?.querySelector("svg")?.getAttribute("class")).toContain("lucide-trash");
+    expect(removeGame?.parentElement?.querySelectorAll("button")).toHaveLength(2);
     if (removeGame) fireEvent.click(removeGame);
     expect(screen.getAllByRole("button", { name: "Select a board game" })).toHaveLength(1);
   });
@@ -170,7 +188,11 @@ describe("Matches", () => {
     );
     fireEvent.click(screen.getByLabelText("Next step"));
     expect(screen.getByText("Guest Player")).toBeTruthy();
-    fireEvent.click(screen.getAllByLabelText("Remove invite")[0] as HTMLElement);
+    const removeInvite = screen.getByRole("button", { name: "Remove invite" });
+    expect(removeInvite.className).toContain("button--danger-soft");
+    expect(removeInvite.querySelector("svg")?.getAttribute("class")).toContain("lucide-trash");
+    expect(removeInvite.parentElement?.querySelectorAll("button")).toHaveLength(2);
+    fireEvent.click(removeInvite);
     expect(update.mutateAsync).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Next step"));
     expect(screen.getByText("Cascadia")).toBeTruthy();

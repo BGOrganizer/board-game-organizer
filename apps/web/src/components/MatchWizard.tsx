@@ -5,7 +5,7 @@ import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { SearchGamePage } from "./SearchGamePage";
@@ -305,13 +305,16 @@ export function MatchWizard({
           <p className="text-sm text-default-500">{t`When could you play?`}</p>
           <div className="space-y-2">
             {dateSlots.map((slot) => (
-              <div key={slot.id} className="flex items-center gap-2">
+              <div
+                key={slot.id}
+                className="flex w-full items-center gap-2 rounded-lg border border-default-200 pr-2 focus-within:border-primary"
+              >
                 {/* Native datetime-local: the accessible best practice for
                     date+time picking on the web (no extra deps, keyboard
                     friendly). The value is stored as ISO in the slot. */}
                 <input
                   type="datetime-local"
-                  className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm outline-none"
                   value={slot.value ? toLocalInputValue(slot.value) : ""}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -320,13 +323,14 @@ export function MatchWizard({
                 />
                 <Button
                   isIconOnly
-                  variant="ghost"
+                  variant="danger-soft"
                   size="sm"
+                  className="shrink-0"
                   aria-label={t`Remove slot`}
                   isDisabled={dateSlots.length <= 1}
                   onPress={() => removeDateSlot(slot.id)}
                 >
-                  <X className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
@@ -393,10 +397,10 @@ export function MatchWizard({
           <p className="text-sm text-default-500">{t`Invite friends`}</p>
           <div className="space-y-2">
             {userSlots.map((slot) => (
-              <div key={slot.id} className="flex items-center gap-2">
+              <div key={slot.id} className="relative w-full">
                 <Button
                   variant="secondary"
-                  className="min-w-0 flex-1 justify-start"
+                  className="w-full min-w-0 justify-start pr-12"
                   onPress={() => setSearchTarget({ slotId: slot.id })}
                 >
                   {slot.user ? (
@@ -422,8 +426,9 @@ export function MatchWizard({
                 {slot.user && (
                   <Button
                     isIconOnly
-                    variant="ghost"
+                    variant="danger-soft"
                     size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
                     aria-label={t`Remove invite`}
                     onPress={() =>
                       setUserSlots((prev) =>
@@ -431,7 +436,7 @@ export function MatchWizard({
                       )
                     }
                   >
-                    <X className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -445,10 +450,10 @@ export function MatchWizard({
           <h2 className="text-lg font-semibold">{t`Board games`}</h2>
           <div className="space-y-2">
             {gameSlots.map((slot) => (
-              <div key={slot.id} className="flex items-center gap-2">
+              <div key={slot.id} className="relative w-full">
                 <Button
                   variant="secondary"
-                  className="min-w-0 flex-1 justify-start"
+                  className="w-full min-w-0 justify-start pr-12"
                   onPress={() =>
                     setGameTarget({
                       slotId: slot.id,
@@ -492,12 +497,13 @@ export function MatchWizard({
                 {(slot.game || gameSlots.length > 1) && (
                   <Button
                     isIconOnly
-                    variant="ghost"
+                    variant="danger-soft"
                     size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2"
                     aria-label={t`Remove game`}
                     onPress={() => removeGameSlot(slot.id)}
                   >
-                    <X className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
               </div>

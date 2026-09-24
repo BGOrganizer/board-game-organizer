@@ -56,6 +56,13 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(nextFab).toBeDisabled(); // second date still empty
   await dateInputs.nth(1).fill("2026-09-06T21:00");
   await expect(dateInputs.nth(1)).toHaveValue("2026-09-06T21:00");
+  const removeDate = page.getByRole("button", { name: "Remove slot" }).last();
+  await expect(removeDate).toHaveClass(/button--danger-soft/);
+  await expect(removeDate.locator("..").locator('input[type="datetime-local"]')).toBeVisible();
+  await removeDate.click();
+  await expect(dateInputs).toHaveCount(1);
+  await page.getByRole("button", { name: "Add another date" }).click();
+  await dateInputs.nth(1).fill("2026-09-06T21:00");
 
   // Advance: the next FAB is the bottom-right fixed button. Wait until it
   // becomes enabled (validation re-renders after the name+date fill).
@@ -112,7 +119,12 @@ test("match wizard: name → players → game → create", async ({ page }) => {
 
   await page.getByRole("button", { name: "Add another game" }).click();
   await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(2);
-  await page.getByRole("button", { name: "Remove game" }).last().click();
+  const removeEmptyGame = page.getByRole("button", { name: "Remove game" }).last();
+  await expect(removeEmptyGame).toHaveClass(/button--danger-soft/);
+  await expect(
+    removeEmptyGame.locator("..").getByRole("button", { name: /Select a board game/ }),
+  ).toBeVisible();
+  await removeEmptyGame.click();
   await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(1);
 
   // Cascadia is seeded in the isolated CI database.
@@ -128,6 +140,18 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await gameRow.waitFor({ state: "visible", timeout: 30_000 });
   await expect(gameRow.locator("..").getByText(/\d{4}/)).toBeVisible();
   await gameRow.click();
+  // Removing a selected game clears its slot without opening the picker.
+  await expect(page.getByText("Cascadia").first()).toBeVisible();
+  const removeSelectedGame = page.getByRole("button", { name: "Remove game" });
+  await expect(removeSelectedGame).toHaveClass(/button--danger-soft/);
+  await removeSelectedGame.click();
+  await expect(page.getByRole("button", { name: /Select a board game/ })).toBeVisible();
+  await page.getByRole("button", { name: /Select a board game/ }).click();
+  await page.getByPlaceholder(/Search board games/).fill("Cascadia");
+  await page
+    .getByRole("button", { name: /^Select:/ })
+    .first()
+    .click();
 
   // Back on the wizard with the game selected.
   await expect(page.getByText("Board games")).toBeVisible();
@@ -165,8 +189,19 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("button", { name: "Edit match" }).click();
   await expect(page.getByRole("heading", { name: "Edit match" })).toBeVisible();
   await page.getByRole("textbox", { name: "Match name" }).fill("Updated game night");
+  const editDates = page.locator('input[type="datetime-local"]');
+  await expect(editDates).toHaveCount(2);
+  await page.getByRole("button", { name: "Remove slot" }).last().click();
+  await expect(editDates).toHaveCount(1);
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
+  if (pickedFriendLabel) {
+    const removeInvite = page.getByRole("button", { name: "Remove invite" });
+    await expect(removeInvite).toHaveClass(/button--danger-soft/);
+    await expect(removeInvite.locator("..").locator("button")).toHaveCount(2);
+    await removeInvite.click();
+    await expect(page.getByRole("button", { name: "Remove invite" })).toHaveCount(0);
+  }
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Board games" })).toBeVisible();
   const updateResponse = page.waitForResponse(
