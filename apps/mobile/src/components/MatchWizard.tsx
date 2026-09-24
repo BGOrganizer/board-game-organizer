@@ -357,17 +357,19 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     {slot.value ? new Date(slot.value).toLocaleString() : t("Pick date and time")}
                   </Text>
                 </Pressable>
-                <Button
-                  variant="danger-soft"
-                  isIconOnly
-                  size="sm"
-                  style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
-                  accessibilityLabel={t("Remove slot")}
-                  testID="remove-date-slot"
-                  onPress={() => removeDateSlot(slot.id)}
-                >
-                  <Trash2 color="#dc2626" size={16} />
-                </Button>
+                {(dateSlots.length > 1 || slot.value !== null) && (
+                  <Button
+                    variant="danger-soft"
+                    isIconOnly
+                    size="sm"
+                    style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                    accessibilityLabel={t("Remove slot")}
+                    testID="remove-date-slot"
+                    onPress={() => removeDateSlot(slot.id)}
+                  >
+                    <Trash2 color="#dc2626" size={16} />
+                  </Button>
+                )}
               </View>
             ))}
             <Button onPress={addDateSlot}>

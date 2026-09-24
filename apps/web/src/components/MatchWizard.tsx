@@ -134,7 +134,7 @@ export function MatchWizard({
         : prev.map((slot) => (slot.id === id ? { ...slot, value: null } : slot)),
     );
   }, []);
-  const setDateSlot = useCallback((id: string, iso: string) => {
+  const setDateSlot = useCallback((id: string, iso: string | null) => {
     setDateSlots((prev) => prev.map((s) => (s.id === id ? { ...s, value: iso } : s)));
   }, []);
 
@@ -322,19 +322,21 @@ export function MatchWizard({
                   value={slot.value ? toLocalInputValue(slot.value) : ""}
                   onChange={(e) => {
                     const v = e.target.value;
-                    if (v) setDateSlot(slot.id, new Date(v).toISOString());
+                    setDateSlot(slot.id, v ? new Date(v).toISOString() : null);
                   }}
                 />
-                <Button
-                  isIconOnly
-                  variant="danger-soft"
-                  size="sm"
-                  className="shrink-0"
-                  aria-label={t`Remove slot`}
-                  onPress={() => removeDateSlot(slot.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {(dateSlots.length > 1 || slot.value !== null) && (
+                  <Button
+                    isIconOnly
+                    variant="danger-soft"
+                    size="sm"
+                    className="shrink-0"
+                    aria-label={t`Remove slot`}
+                    onPress={() => removeDateSlot(slot.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>

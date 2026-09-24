@@ -23,11 +23,15 @@ appId: com.bgo.mobile
 - tapOn: "Match name"
 - eraseText: 3
 - inputText: "Friday night games"
+- assertNotVisible:
+    id: "remove-date-slot"
 # Remove one date from inside its row, then fill the remaining slot.
 - tapOn: "Add another date"
 - assertVisible:
     id: "remove-date-slot"
 - tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
     id: "remove-date-slot"
 # Date slot: open the native picker and confirm it exists (the wizard
 # requires a filled date to advance — tapping Confirm on the native
@@ -37,8 +41,12 @@ appId: com.bgo.mobile
     visible: "OK|Done|Confirm|Set"
     timeout: 30000
 - tapOn: "OK|Done|Confirm|Set"
-# The final date's trash stays enabled: clear it, keep its input, and refill it.
+- assertVisible:
+    id: "remove-date-slot"
+# The final date's trash appears only while a date is selected.
 - tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
     id: "remove-date-slot"
 - assertVisible: "Pick date and time"
 - tapOn: "Pick date and time"
@@ -46,6 +54,8 @@ appId: com.bgo.mobile
     visible: "OK|Done|Confirm|Set"
     timeout: 30000
 - tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
 # Advance to step 2 via the next FAB (bottom right).
 - tapOn:
     point: "90%,92%"
@@ -115,7 +125,11 @@ appId: com.bgo.mobile
 - tapOn: "Match name"
 - eraseText: 18
 - inputText: "Updated game night"
+- assertVisible:
+    id: "remove-date-slot"
 - tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
     id: "remove-date-slot"
 - assertVisible: "Pick date and time"
 - tapOn: "Pick date and time"
@@ -123,6 +137,8 @@ appId: com.bgo.mobile
     visible: "OK|Done|Confirm|Set"
     timeout: 30000
 - tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
 - tapOn: "Next step"
 - extendedWaitUntil:
     visible: "Players"

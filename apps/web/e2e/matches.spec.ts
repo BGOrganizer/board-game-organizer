@@ -43,14 +43,20 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   // Fill a valid name + one date slot (native datetime-local input).
   await nameInput.fill("Friday night games");
   const dateInput = page.locator('input[type="datetime-local"]').first();
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
   await dateInput.fill("2026-09-05T20:00");
   await expect(dateInput).toHaveValue("2026-09-05T20:00");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
+  await dateInput.fill("");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
+  await dateInput.fill("2026-09-05T20:00");
 
   // Added empty dates block progress; deleting the last remaining date clears
   // its input instead of removing the slot.
   await page.getByRole("button", { name: "Add another date" }).click();
   const dateInputs = page.locator('input[type="datetime-local"]');
   await expect(dateInputs).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(2);
   const nextFab = page.locator('button[aria-label="Next step"]');
   await expect(nextFab).toBeDisabled(); // second date still empty
   await dateInputs.nth(1).fill("2026-09-06T21:00");
@@ -65,8 +71,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await clearLastDate.click();
   await expect(dateInputs).toHaveCount(1);
   await expect(dateInputs.first()).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
   await expect(nextFab).toBeDisabled();
   await dateInputs.first().fill("2026-09-05T20:00");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
   await page.getByRole("button", { name: "Add another date" }).click();
   await dateInputs.nth(1).fill("2026-09-06T21:00");
 
@@ -202,8 +210,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("button", { name: "Remove slot" }).click();
   await expect(editDates).toHaveCount(1);
   await expect(editDates.first()).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Next step" })).toBeDisabled();
   await editDates.first().fill("2026-09-05T20:00");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
   if (pickedFriendLabel) {

@@ -84,7 +84,7 @@ describe("Matches", () => {
   it("clears the sole date and removes extra dates without hiding the last input", () => {
     renderWithI18n(<MatchWizard />);
 
-    const first = screen.getByRole("button", { name: "Remove slot" }) as HTMLButtonElement;
+    expect(screen.queryByRole("button", { name: "Remove slot" })).toBeNull();
     const input = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     const next = screen.getByRole("button", { name: "Next step" }) as HTMLButtonElement;
     fireEvent.change(screen.getByPlaceholderText(/Friday night games/i), {
@@ -92,16 +92,22 @@ describe("Matches", () => {
     });
     fireEvent.change(input, { target: { value: "2099-09-05T20:00" } });
     expect(next.disabled).toBe(false);
-    expect(first.disabled).toBe(false);
+    const first = screen.getByRole("button", { name: "Remove slot" }) as HTMLButtonElement;
     fireEvent.click(first);
     expect(input.value).toBe("");
+    expect(screen.queryByRole("button", { name: "Remove slot" })).toBeNull();
     expect(document.querySelector('input[type="datetime-local"]')).toBe(input);
     expect(next.disabled).toBe(true);
 
     fireEvent.change(input, { target: { value: "2099-09-05T20:00" } });
+    fireEvent.change(input, { target: { value: "" } });
+    expect(screen.queryByRole("button", { name: "Remove slot" })).toBeNull();
+    expect(next.disabled).toBe(true);
+    fireEvent.change(input, { target: { value: "2099-09-05T20:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Add another date" }));
 
     const removeButtons = screen.getAllByRole("button", { name: "Remove slot" });
+    expect(removeButtons).toHaveLength(2);
     const last = removeButtons.at(-1) as HTMLButtonElement;
     expect(last.className).toContain("button--danger-soft");
     expect(last.querySelector("svg")?.getAttribute("class")).toContain("lucide-trash");
