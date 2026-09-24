@@ -13,7 +13,7 @@ export function OPTIONS(request: Request) {
   return corsOptions(request);
 }
 
-/** Only an isolated Preview deployment can seed or drop its own run database. */
+/** Only an isolated Preview deployment can seed or clear its own run database. */
 export async function POST(request: Request) {
   const secret = process.env.CLERK_SECRET_KEY;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
@@ -26,13 +26,17 @@ export async function POST(request: Request) {
 
   const db = await getDb();
   if (parsed.data.action === "seed") {
-    await db.dropDatabase();
+    // Run IDs are unique; creating indexes is enough to initialize a fresh database.
     await migrate(db);
     await new BoardGamesRepository(db).bulkUpsert([
       { id: 295947, name: "Cascadia", yearPublished: 2021 },
     ]);
   } else {
-    await db.dropDatabase();
+    // Atlas readWrite can drop collections but not databases. Once the last
+    // collection is removed, MongoDB no longer retains the CI database.
+    for (const { name } of await db.listCollections({}, { nameOnly: true }).toArray()) {
+      await db.collection(name).drop();
+    }
   }
   return corsJson({ ok: true }, {}, request);
 }

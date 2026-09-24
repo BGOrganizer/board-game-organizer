@@ -658,7 +658,7 @@ jobs:
     if: always() && needs.deploy-preview-api.outputs.url != ''
     runs-on: ubuntu-latest
     steps:
-      - name: 🗑️ Drop only this run's database
+      - name: 🗑️ Clear only this run's database collections
         env:
           API_URL: ${{ needs.deploy-preview-api.outputs.url }}
           BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}

@@ -5,11 +5,17 @@ import { migrate } from "@/app/lib/migrate";
 import { OPTIONS, POST } from "../route";
 
 const mocks = vi.hoisted(() => ({
-  dropDatabase: vi.fn(async () => true),
+  listCollections: vi.fn(() => ({
+    toArray: async () => [{ name: "users" }, { name: "boardGames" }],
+  })),
+  dropCollection: vi.fn(async (_name: string) => true),
   bulkUpsert: vi.fn(async () => 1),
 }));
 vi.mock("@/app/lib/db", () => ({
-  getDb: vi.fn(async () => ({ dropDatabase: mocks.dropDatabase })),
+  getDb: vi.fn(async () => ({
+    listCollections: mocks.listCollections,
+    collection: (name: string) => ({ drop: () => mocks.dropCollection(name) }),
+  })),
 }));
 vi.mock("@/app/lib/migrate", () => ({ migrate: vi.fn(async () => ({})) }));
 vi.mock("@/app/lib/boardGames.repository", () => ({
@@ -57,23 +63,30 @@ describe("POST /api/admin/ci-db", () => {
     const res = await POST(request(body("seed")));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(mocks.dropDatabase).toHaveBeenCalledTimes(1);
+    expect(mocks.dropCollection).not.toHaveBeenCalled();
     expect(migrate).toHaveBeenCalledWith(
-      expect.objectContaining({ dropDatabase: mocks.dropDatabase }),
+      expect.objectContaining({ listCollections: mocks.listCollections }),
     );
     expect(BoardGamesRepository).toHaveBeenCalledWith(
-      expect.objectContaining({ dropDatabase: mocks.dropDatabase }),
+      expect.objectContaining({ listCollections: mocks.listCollections }),
     );
     expect(mocks.bulkUpsert).toHaveBeenCalledWith([
       { id: 295947, name: "Cascadia", yearPublished: 2021 },
     ]);
   });
 
-  it("drops only its own database without reseeding", async () => {
+  it("removes every collection in its own database without reseeding", async () => {
     const res = await POST(request(body("cleanup")));
     expect(res.status).toBe(200);
-    expect(mocks.dropDatabase).toHaveBeenCalledTimes(1);
+    expect(mocks.listCollections).toHaveBeenCalledWith({}, { nameOnly: true });
+    expect(mocks.dropCollection.mock.calls.map(([name]) => name)).toEqual(["users", "boardGames"]);
     expect(migrate).not.toHaveBeenCalled();
+  });
+
+  it("treats cleanup of an empty CI database as success", async () => {
+    mocks.listCollections.mockReturnValueOnce({ toArray: async () => [] });
+    expect((await POST(request(body("cleanup")))).status).toBe(200);
+    expect(mocks.dropCollection).not.toHaveBeenCalled();
   });
 
   it("handles preflight", () => {
