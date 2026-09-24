@@ -1,5 +1,6 @@
 "use client";
 
+import type { MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Card, Skeleton, Tabs } from "@heroui/react";
@@ -39,7 +40,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<"delete" | "leave" | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [editingMatch, setEditingMatch] = useState<MatchDetailResponse | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -61,6 +62,23 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     feedback: mutationFeedback,
     matchId,
   });
+
+  // Keep the draft mounted when a background refetch or token rotation changes query state.
+  if (
+    editingMatch?.match.id === matchId &&
+    isSignedIn &&
+    editingMatch.match.adminUserId === userId
+  ) {
+    return (
+      <div className="mx-auto w-full max-w-3xl space-y-4 pb-24">
+        <Button variant="ghost" onPress={() => setEditingMatch(null)}>
+          <ArrowLeft className="h-4 w-4" />
+          {t`Back to match`}
+        </Button>
+        <MatchWizard initialData={editingMatch} onCreated={() => setEditingMatch(null)} />
+      </div>
+    );
+  }
 
   if (matches.detail.isPending) {
     return (
@@ -84,7 +102,8 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     );
   }
 
-  const { match, administrator, invitedPlayers, games } = matches.detail.data;
+  const matchData = matches.detail.data;
+  const { match, administrator, invitedPlayers, games } = matchData;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const isAdmin = match.adminUserId === userId;
   const canLeave = match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
@@ -103,18 +122,6 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     router.replace("/matches");
     router.refresh();
   };
-
-  if (editing && isAdmin) {
-    return (
-      <div className="mx-auto w-full max-w-3xl space-y-4 pb-24">
-        <Button variant="ghost" onPress={() => setEditing(false)}>
-          <ArrowLeft className="h-4 w-4" />
-          {t`Back to match`}
-        </Button>
-        <MatchWizard initialData={matches.detail.data} onCreated={() => setEditing(false)} />
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -316,7 +323,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           isIconOnly
           aria-label={t`Edit match`}
           className="fixed right-4 bottom-4 z-40 h-12 w-12 rounded-full shadow-lg sm:right-6 sm:bottom-6 sm:h-14 sm:w-14"
-          onPress={() => setEditing(true)}
+          onPress={() => setEditingMatch(matchData)}
         >
           <Pencil className="h-6 w-6" />
         </Button>

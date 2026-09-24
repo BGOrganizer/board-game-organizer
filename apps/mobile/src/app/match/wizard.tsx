@@ -1,3 +1,4 @@
+import type { MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
@@ -21,6 +22,7 @@ export default function MatchWizardScreen() {
   const t = useT();
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
+  const [initialData, setInitialData] = useState<MatchDetailResponse | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -42,6 +44,21 @@ export default function MatchWizardScreen() {
     matchId: matchId ?? "",
   });
 
+  useEffect(() => {
+    const data = detail.detail.data;
+    if (matchId && data?.match.id === matchId && data.match.adminUserId === userId) {
+      setInitialData((current) => (current?.match.id === matchId ? current : data));
+    }
+  }, [detail.detail.data, matchId, userId]);
+
+  const editData = matchId
+    ? initialData?.match.id === matchId
+      ? initialData
+      : detail.detail.data?.match.id === matchId
+        ? detail.detail.data
+        : null
+    : null;
+
   if (!matchId) {
     return (
       <View style={{ flex: 1 }}>
@@ -51,7 +68,7 @@ export default function MatchWizardScreen() {
     );
   }
 
-  if (detail.detail.isPending) {
+  if (!editData && detail.detail.isPending) {
     return (
       <View style={{ flex: 1, padding: 20, gap: 12 }}>
         <Stack.Screen options={{ title: t("Edit match") }} />
@@ -70,9 +87,10 @@ export default function MatchWizardScreen() {
   }
 
   if (
-    detail.detail.isError ||
-    !detail.detail.data ||
-    detail.detail.data.match.adminUserId !== userId
+    (!initialData && detail.detail.isError) ||
+    !editData ||
+    !isSignedIn ||
+    editData.match.adminUserId !== userId
   ) {
     return (
       <View style={{ flex: 1, padding: 20 }}>
@@ -85,7 +103,7 @@ export default function MatchWizardScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: t("Edit match") }} />
-      <MatchWizard initialData={detail.detail.data} />
+      <MatchWizard initialData={editData} />
     </View>
   );
 }

@@ -1,9 +1,12 @@
 import type { MatchDetailResponse } from "@board-game-organizer/schemas";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { MatchDetail } from "@/components/MatchDetail";
 import { renderWithI18n } from "@/test-utils";
+import { messages } from "../../../../../messages/en.js";
 
 const useMatchDetailMock = vi.fn();
 const authMock = vi.hoisted(() => ({ userId: "user_guest" }));
@@ -33,7 +36,10 @@ vi.mock("@board-game-organizer/shared", () => ({
 }));
 vi.mock("@/components/MatchWizard", () => ({
   MatchWizard: ({ initialData }: { initialData: MatchDetailResponse }) => (
-    <div>{`Edit wizard: ${initialData.match.name}`}</div>
+    <div>
+      {`Edit wizard: ${initialData.match.name}`}
+      <input aria-label="Draft name" defaultValue={initialData.match.name} />
+    </div>
   ),
 }));
 vi.mock("next/navigation", () => ({
@@ -171,6 +177,42 @@ describe("MatchDetail", () => {
     expect(screen.getByText("Edit wizard: Friday night games")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back to match" }));
     expect(screen.getByRole("button", { name: "Edit match" })).toBeTruthy();
+  });
+
+  it("keeps the unsaved edit mounted through refetch loading, errors and new data", () => {
+    authMock.userId = "user_admin";
+    const i18n = setupI18n({ locale: "en", messages: { en: messages } });
+    const detailView = () => (
+      <I18nProvider i18n={i18n}>
+        <MatchDetail matchId={invitation.matchId} />
+      </I18nProvider>
+    );
+    const view = render(detailView());
+    fireEvent.click(screen.getByRole("button", { name: "Edit match" }));
+    const draft = screen.getByRole("textbox", { name: "Draft name" }) as HTMLInputElement;
+    fireEvent.change(draft, { target: { value: "Unsaved edit" } });
+
+    useMatchDetailMock.mockReturnValue({
+      ...result(undefined),
+      detail: { data: undefined, isPending: true, isError: false },
+    });
+    view.rerender(detailView());
+    expect(screen.getByRole("textbox", { name: "Draft name" })).toBe(draft);
+    expect(draft.value).toBe("Unsaved edit");
+
+    useMatchDetailMock.mockReturnValue({
+      ...result(undefined),
+      detail: { data: undefined, isPending: false, isError: true },
+    });
+    view.rerender(detailView());
+    expect(screen.getByRole("textbox", { name: "Draft name" })).toBe(draft);
+
+    useMatchDetailMock.mockReturnValue(
+      result({ ...detail, match: { ...detail.match, name: "Changed remotely" } }),
+    );
+    view.rerender(detailView());
+    expect(screen.getByText("Edit wizard: Friday night games")).toBeTruthy();
+    expect(draft.value).toBe("Unsaved edit");
   });
 
   it("confirms match deletion for admins", () => {
