@@ -128,7 +128,11 @@ export function MatchWizard({
     setDateSlots((prev) => [...prev, { id: uid(), value: null }]);
   }, []);
   const removeDateSlot = useCallback((id: string) => {
-    setDateSlots((prev) => (prev.length <= 1 ? prev : prev.filter((s) => s.id !== id)));
+    setDateSlots((prev) =>
+      prev.length > 1
+        ? prev.filter((slot) => slot.id !== id)
+        : prev.map((slot) => (slot.id === id ? { ...slot, value: null } : slot)),
+    );
   }, []);
   const setDateSlot = useCallback((id: string, iso: string) => {
     setDateSlots((prev) => prev.map((s) => (s.id === id ? { ...s, value: iso } : s)));
@@ -327,7 +331,6 @@ export function MatchWizard({
                   size="sm"
                   className="shrink-0"
                   aria-label={t`Remove slot`}
-                  isDisabled={dateSlots.length <= 1}
                   onPress={() => removeDateSlot(slot.id)}
                 >
                   <Trash2 className="h-4 w-4" />

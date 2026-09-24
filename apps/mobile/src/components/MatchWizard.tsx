@@ -142,7 +142,11 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
 
   const addDateSlot = () => setDateSlots((p) => [...p, { id: uid(), value: null }]);
   const removeDateSlot = (id: string) =>
-    setDateSlots((p) => (p.length <= 1 ? p : p.filter((s) => s.id !== id)));
+    setDateSlots((p) =>
+      p.length > 1
+        ? p.filter((slot) => slot.id !== id)
+        : p.map((slot) => (slot.id === id ? { ...slot, value: null } : slot)),
+    );
   const setDateSlot = (id: string, iso: string) =>
     setDateSlots((p) => p.map((s) => (s.id === id ? { ...s, value: iso } : s)));
 
@@ -360,10 +364,9 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                   style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
                   accessibilityLabel={t("Remove slot")}
                   testID="remove-date-slot"
-                  isDisabled={dateSlots.length <= 1}
                   onPress={() => removeDateSlot(slot.id)}
                 >
-                  <Trash2 color={dateSlots.length <= 1 ? "#d1d5db" : "#dc2626"} size={16} />
+                  <Trash2 color="#dc2626" size={16} />
                 </Button>
               </View>
             ))}

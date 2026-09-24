@@ -81,11 +81,24 @@ describe("Matches", () => {
     expect(screen.getByText("New match")).toBeTruthy();
   });
 
-  it("keeps the red trash button inside each date item", () => {
+  it("clears the sole date and removes extra dates without hiding the last input", () => {
     renderWithI18n(<MatchWizard />);
 
     const first = screen.getByRole("button", { name: "Remove slot" }) as HTMLButtonElement;
-    expect(first.disabled).toBe(true);
+    const input = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
+    const next = screen.getByRole("button", { name: "Next step" }) as HTMLButtonElement;
+    fireEvent.change(screen.getByPlaceholderText(/Friday night games/i), {
+      target: { value: "Friday night games" },
+    });
+    fireEvent.change(input, { target: { value: "2099-09-05T20:00" } });
+    expect(next.disabled).toBe(false);
+    expect(first.disabled).toBe(false);
+    fireEvent.click(first);
+    expect(input.value).toBe("");
+    expect(document.querySelector('input[type="datetime-local"]')).toBe(input);
+    expect(next.disabled).toBe(true);
+
+    fireEvent.change(input, { target: { value: "2099-09-05T20:00" } });
     fireEvent.click(screen.getByRole("button", { name: "Add another date" }));
 
     const removeButtons = screen.getAllByRole("button", { name: "Remove slot" });
@@ -95,6 +108,8 @@ describe("Matches", () => {
     expect(last.parentElement?.querySelector('input[type="datetime-local"]')).not.toBeNull();
     fireEvent.click(last);
     expect(screen.getAllByRole("button", { name: "Remove slot" })).toHaveLength(1);
+    expect(input.value).toBe("2099-09-05T20:00");
+    expect(next.disabled).toBe(false);
   });
 
   it("allows a planning match without invites and keeps the minimum at two", async () => {

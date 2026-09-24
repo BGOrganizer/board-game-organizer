@@ -46,9 +46,8 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await dateInput.fill("2026-09-05T20:00");
   await expect(dateInput).toHaveValue("2026-09-05T20:00");
 
-  // Adding a second date slot appends another empty input; removing the
-  // only remaining slot is blocked (one stays). Every added slot must be
-  // filled before the wizard lets you advance.
+  // Added empty dates block progress; deleting the last remaining date clears
+  // its input instead of removing the slot.
   await page.getByRole("button", { name: "Add another date" }).click();
   const dateInputs = page.locator('input[type="datetime-local"]');
   await expect(dateInputs).toHaveCount(2);
@@ -61,6 +60,13 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(removeDate.locator("..").locator('input[type="datetime-local"]')).toBeVisible();
   await removeDate.click();
   await expect(dateInputs).toHaveCount(1);
+  const clearLastDate = page.getByRole("button", { name: "Remove slot" });
+  await expect(clearLastDate).toBeEnabled();
+  await clearLastDate.click();
+  await expect(dateInputs).toHaveCount(1);
+  await expect(dateInputs.first()).toHaveValue("");
+  await expect(nextFab).toBeDisabled();
+  await dateInputs.first().fill("2026-09-05T20:00");
   await page.getByRole("button", { name: "Add another date" }).click();
   await dateInputs.nth(1).fill("2026-09-06T21:00");
 
@@ -193,6 +199,11 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(editDates).toHaveCount(2);
   await page.getByRole("button", { name: "Remove slot" }).last().click();
   await expect(editDates).toHaveCount(1);
+  await page.getByRole("button", { name: "Remove slot" }).click();
+  await expect(editDates).toHaveCount(1);
+  await expect(editDates.first()).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Next step" })).toBeDisabled();
+  await editDates.first().fill("2026-09-05T20:00");
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
   if (pickedFriendLabel) {
