@@ -115,10 +115,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("button", { name: "Remove game" }).last().click();
   await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(1);
 
-  // Step 3: game picker — search fires at >= 4 chars; BGG may be
-  // unavailable in CI, so selecting is best-effort: if the search returns
-  // results, pick the first game; otherwise assert the empty state blocks
-  // the next FAB.
+  // Cascadia is seeded in the isolated CI database.
   await page
     .getByRole("button", { name: /Select a board game/ })
     .first()
@@ -128,25 +125,9 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await gameSearch.fill("Cascadia");
 
   const gameRow = page.getByRole("button", { name: /^Select:/ }).first();
-  try {
-    await gameRow.waitFor({ state: "visible", timeout: 30_000 });
-    await expect(gameRow.locator("..").getByText(/\d{4}/)).toBeVisible();
-    await gameRow.click();
-  } catch {
-    // No games in the local collection yet (preview DB not imported) or BGG
-    // unreachable — the empty state must block. Target the search-results
-    // empty message only (not the "at least 4 characters" hint).
-    const emptyState = page.getByText("No games found");
-    if (await emptyState.isVisible().catch(() => false)) {
-      await page.getByLabel("Back").click();
-      await expect(page.getByLabel("Next step")).toBeDisabled();
-      return;
-    }
-    // Otherwise the search errored (BGG down) — still expect the block.
-    await page.getByLabel("Back").click();
-    await expect(page.getByLabel("Next step")).toBeDisabled();
-    return;
-  }
+  await gameRow.waitFor({ state: "visible", timeout: 30_000 });
+  await expect(gameRow.locator("..").getByText(/\d{4}/)).toBeVisible();
+  await gameRow.click();
 
   // Back on the wizard with the game selected.
   await expect(page.getByText("Board games")).toBeVisible();

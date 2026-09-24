@@ -157,9 +157,8 @@ Production endpoints:
 - Web: `https://board-game-organizer.com`
 - API: `https://api.board-game-organizer.com`
 
-Preview web and mobile builds must receive the API preview URL produced by `deploy-preview-api`.
-If API preview deployment fails, workflow conditions intentionally allow fallback to configured
-repository variables.
+Preview web builds use the immutable API Preview URL; PR mobile APKs use its verified moving
+branch alias. No E2E job falls back to a development or production API URL.
 
 Vercel preview protection bypass is a **query parameter**, not a custom header. Use
 `withProtectionBypass()` so CORS preflight requests reach the protected deployment.
@@ -230,7 +229,8 @@ Current route surface:
 | `/api/bgg/search` | GET | Search imported board-game catalog |
 | `/api/bgg/thing` | GET | Get imported game details |
 | `/api/webhooks/clerk` | POST | Mirror Clerk user events |
-| `/api/admin/sync-user` | POST | Administrative user mirror |
+| `/api/admin/sync-user` | GET, POST | Authenticated CI database attestation and administrative user mirror |
+| `/api/admin/ci-db` | POST | Authenticated, name-guarded PR E2E database seed/cleanup |
 | `/api/admin/import-games` | POST | Chunked catalog import |
 
 Most routes expose `OPTIONS` through CORS helpers. Keep CORS handling centralized in
@@ -500,9 +500,9 @@ Runs full pull-request gates:
 4. API and web builds
 5. mobile-change detection and internal APK build or reuse
 6. API and web Vercel preview deployments
-7. two-user synchronization
-8. Maestro and Playwright E2E
-9. unconditional test-user cleanup
+7. seed per-run `bgo_ci_<run_id>_<attempt>` database and synchronize two users
+8. Maestro and Playwright E2E; mobile uses a verified moving branch API alias
+9. unconditional test-user and isolated-database cleanup
 10. draft prerelease and Telegram notification after all gates pass
 
 Mobile change detection compares against the last successful PR workflow run on the branch, not the
@@ -510,7 +510,7 @@ PR base. Mobile code, related workspace packages, compiled localization, and cha
 lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit-test-only, and unrelated
 lockfile changes do not. Compare each reusable artifact's own commit with the PR head before reuse.
 
-Preview web and mobile jobs consume the API preview deployment URL. Protected previews receive
+Preview web uses the immutable API deployment URL; PR APKs use the branch alias. Protected previews receive
 `VERCEL_PROTECTION_BYPASS` and clients append it to request URLs.
 
 ### `main-ci.yml`
@@ -536,8 +536,7 @@ from one Clerk instance return 401 against the other.
 ### Other workflows
 
 - `mobile-development.yml`: manual development APK from `main`, attached to latest release.
-- `mobile-e2e.yml`: standalone mobile APK and Maestro iteration workflow; currently manual or limited
-  to its configured branch/path trigger.
+- `mobile-e2e.yml`: manual Maestro iteration deploys an isolated API Preview and cleans its own CI database.
 - `import-boardgames.yml`: manual BoardGameGeek CSV import into a chosen API deployment.
 
 ## 14. Required GitHub configuration

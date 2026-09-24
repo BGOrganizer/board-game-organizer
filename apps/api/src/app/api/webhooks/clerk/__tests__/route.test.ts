@@ -1,5 +1,6 @@
 import { Webhook } from "svix";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getDb, withTransaction } from "@/app/lib/db";
 import { POST } from "../route";
 
 vi.mock("@/app/lib/db", () => ({
@@ -26,6 +27,7 @@ vi.mock("@/app/lib/notifications.repository", () => {
 vi.mock("@/app/lib/users.repository", () => {
   const instance = {
     upsertFromClerk: vi.fn(async () => ({ value: null })),
+    findById: vi.fn(async () => ({ clerkId: "user_3" })),
     deleteByClerkId: vi.fn(async () => ({ deletedCount: 1 })),
   };
   return {
@@ -55,6 +57,7 @@ const lastInstance = vi.mocked(
   (await import("@/app/lib/users.repository")) as unknown as {
     __lastInstance: {
       upsertFromClerk: ReturnType<typeof vi.fn>;
+      findById: ReturnType<typeof vi.fn>;
       deleteByClerkId: ReturnType<typeof vi.fn>;
     };
   },
@@ -78,6 +81,9 @@ describe("POST /api/webhooks/clerk", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.CLERK_WEBHOOK_SECRET = secret;
+    process.env.MONGODB_DB_NAME = "bgo_ci_12_1";
+    process.env.CLERK_WEBHOOK_DB_NAME = "bgo_dev";
+    lastInstance.findById.mockResolvedValue({ clerkId: "user_3" });
   });
 
   it("rejects when CLERK_WEBHOOK_SECRET is missing", async () => {
@@ -117,7 +123,7 @@ describe("POST /api/webhooks/clerk", () => {
         email_addresses: [{ email_address: "a@b.it" }],
         image_url: "https://img/a.png",
         preferred_language: "it",
-        public_metadata: { e2e: true },
+        public_metadata: { e2e: false },
         unsafe_metadata: { mobileNumber: " +39 123 " },
       },
     };
@@ -138,9 +144,85 @@ describe("POST /api/webhooks/clerk", () => {
         name: "Alessandro Mancini",
         preferredLanguage: "it",
         mobileNumber: "+39 123",
-        e2e: true,
+        e2e: undefined,
       }),
     );
+    expect(getDb).toHaveBeenCalledWith("bgo_dev");
+  });
+
+  it.each(["bgo_ci_12_1", "bgo_dev"])(
+    "ignores verified E2E events from %s while ordinary users go to dev DB",
+    async (appDb) => {
+      process.env.MONGODB_DB_NAME = appDb;
+      const payload = {
+        type: "user.created",
+        data: { id: "user_ci", public_metadata: { e2e: true } },
+      };
+      const res = await POST(
+        new Request("http://x", {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: sign(payload, secret),
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(getDb).not.toHaveBeenCalled();
+      expect(lastInstance.upsertFromClerk).not.toHaveBeenCalled();
+    },
+  );
+
+  it("retains production E2E mirroring without a webhook DB override", async () => {
+    delete process.env.CLERK_WEBHOOK_DB_NAME;
+    process.env.MONGODB_DB_NAME = "bgo_prod";
+    const payload = {
+      type: "user.updated",
+      data: { id: "user_ci", public_metadata: { e2e: true } },
+    };
+    const res = await POST(
+      new Request("http://x", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: sign(payload, secret),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(lastInstance.upsertFromClerk).toHaveBeenCalledWith(
+      expect.objectContaining({ e2e: true }),
+    );
+    expect(getDb).toHaveBeenCalledWith("bgo_prod");
+  });
+
+  it.each([undefined, "bgo_ci_12_1", "bgo_ci_99_1"])(
+    "rejects webhook routing to E2E DB %s",
+    async (webhookName) => {
+      if (webhookName) process.env.CLERK_WEBHOOK_DB_NAME = webhookName;
+      else delete process.env.CLERK_WEBHOOK_DB_NAME;
+      const payload = { type: "user.created", data: { id: "user_dev" } };
+      const res = await POST(
+        new Request("http://x", {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: sign(payload, secret),
+        }),
+      );
+      expect(res.status).toBe(503);
+      expect(getDb).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects missing database configuration", async () => {
+    delete process.env.MONGODB_DB_NAME;
+    delete process.env.CLERK_WEBHOOK_DB_NAME;
+    const payload = { type: "user.created", data: { id: "user_dev" } };
+    const res = await POST(
+      new Request("http://x", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: sign(payload, secret),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(getDb).not.toHaveBeenCalled();
   });
 
   it("normalizes unsupported locales to en", async () => {
@@ -174,10 +256,26 @@ describe("POST /api/webhooks/clerk", () => {
     expect(res.status).toBe(200);
     const instance = lastInstance;
     expect(instance.deleteByClerkId).toHaveBeenCalledWith("user_3");
+    expect(getDb).toHaveBeenCalledWith("bgo_dev");
+    expect(withTransaction).toHaveBeenCalledWith(expect.any(Function), "bgo_dev");
     expect(relationshipRepoMock).toHaveBeenCalled();
     expect(relationshipInstance.deleteAllForUser).toHaveBeenCalledWith("user_3");
     expect(notificationRepoMock).toHaveBeenCalled();
     expect(notificationInstance.deleteForUser).toHaveBeenCalledWith("user_3");
+  });
+
+  it("skips E2E deletions when no user was mirrored into dev", async () => {
+    lastInstance.findById.mockResolvedValueOnce(null);
+    const payload = { type: "user.deleted", data: { id: "user_ci" } };
+    const res = await POST(
+      new Request("http://x", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: sign(payload, secret),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(withTransaction).not.toHaveBeenCalled();
   });
 
   it("ignores unknown event types", async () => {

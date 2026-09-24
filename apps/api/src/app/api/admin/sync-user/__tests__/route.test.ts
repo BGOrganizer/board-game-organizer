@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { OPTIONS, POST } from "../route";
+import { GET, OPTIONS, POST } from "../route";
 
 const originalEnv = process.env;
 
@@ -8,6 +8,38 @@ beforeEach(() => {
   process.env = { ...originalEnv, CLERK_SECRET_KEY: "sk_test_sync" };
   // The route uses dynamic imports for db/repo through the module cache;
   // the mocked UsersRepository below is wired via vi.mock hoisting.
+});
+
+describe("GET /api/admin/sync-user", () => {
+  it("attests the runtime database only with admin authorization", async () => {
+    process.env.MONGODB_DB_NAME = "bgo_ci_12_1";
+    process.env.CLERK_WEBHOOK_DB_NAME = "bgo_dev";
+    const url = "http://localhost/api/admin/sync-user";
+    expect((await GET(new Request(url))).status).toBe(401);
+    const res = GET(new Request(url, { headers: { authorization: "Bearer sk_test_sync" } }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ databaseName: "bgo_ci_12_1", webhookDbReady: true });
+  });
+
+  it("reports when webhook routing is not isolated", async () => {
+    delete process.env.CLERK_WEBHOOK_DB_NAME;
+    const res = GET(
+      new Request("http://localhost/api/admin/sync-user", {
+        headers: { authorization: "Bearer sk_test_sync" },
+      }),
+    );
+    expect((await res.json()).webhookDbReady).toBe(false);
+  });
+
+  it("does not accept an empty secret", async () => {
+    delete process.env.CLERK_SECRET_KEY;
+    const res = GET(
+      new Request("http://localhost/api/admin/sync-user", {
+        headers: { authorization: "Bearer undefined" },
+      }),
+    );
+    expect(res.status).toBe(401);
+  });
 });
 
 describe("POST /api/admin/sync-user", () => {

@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------- commitlint
@@ -208,7 +208,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
-      reused: ${{ steps.reuse.outputs.reused }}
+      reused: ${{ steps.verify-apk.outputs.reused || steps.reuse.outputs.reused }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -254,9 +254,6 @@ jobs:
           echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
           if [ -n "$RUN_ID" ]; then echo "reused=true" >> "$GITHUB_OUTPUT"; else echo "reused=false" >> "$GITHUB_OUTPUT"; fi
           echo "last reusable APK run: ${RUN_ID:-none}"
-          if [ -n "$RUN_ID" ]; then
-            echo "::warning::Reused APK keeps the API URL baked into run $RUN_ID; it may target an older preview deployment."
-          fi
 
       - name: 📥 Download reused APK
         if: steps.reuse.outputs.run-id != ''
@@ -267,26 +264,44 @@ jobs:
           run-id: ${{ steps.reuse.outputs.run-id }}
           github-token: ${{ github.token }}
 
+      - name: 🔎 Verify reused APK targets this PR branch
+        id: verify-apk
+        if: steps.reuse.outputs.run-id != ''
+        env:
+          EXPECTED_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+        run: |
+          if [ -n "$EXPECTED_API_URL" ] && [ "$(cat apps/mobile/build-output/api-url.txt 2>/dev/null)" = "$EXPECTED_API_URL" ]; then
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "reused=false" >> "$GITHUB_OUTPUT"
+            rm -rf apps/mobile/build-output
+            echo "APK provenance missing or stale; rebuilding"
+          fi
+
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
-        if: steps.reuse.outputs.run-id == ''
+        if: steps.reuse.outputs.run-id == '' || steps.verify-apk.outputs.reused != 'true'
         uses: ./.github/actions/mobile-build
         with:
           profile: internal
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          # Fresh APKs target this run's preview API. Reused APKs retain their
-          # original URL until a stable per-PR API alias is available.
-          api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
+          api-url: ${{ needs.deploy-preview-api.outputs.branch-url }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: 🏷️ Record API URL embedded in new APK
+        if: steps.build.outcome == 'success'
+        env:
+          API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+        run: printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-internal
-          path: ${{ steps.reuse.outputs.run-id != '' && 'apps/mobile/build-output' || steps.build.outputs.artifact-path }}
+          path: apps/mobile/build-output/
           retention-days: 7
 
   # ------------------------------------------------ provision E2E test user
@@ -327,11 +342,15 @@ jobs:
     environment: development
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
+      branch-url: ${{ steps.deploy.outputs.branch-url }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: 🔗 Restore PR branch metadata for Vercel alias
+        run: git switch -C "$GITHUB_HEAD_REF"
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -348,10 +367,39 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          ci-db-name: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+          expected-branch: ${{ github.head_ref }}
           # The /invite/<token> claim page is a client component: it needs the
           # Clerk publishable key baked at build time.
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            MONGODB_DB_NAME=bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+
+      - name: 🔒 Attest API runtime database before any E2E writes
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          EXPECTED_DB: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" |
+            jq -e --arg expected "$EXPECTED_DB" '.databaseName == $expected and .webhookDbReady == true' > /dev/null
+
+      - name: 🌱 Seed isolated CI database
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg name "$DB_NAME" '{action:"seed",databaseName:$name}')" |
+            jq -e '.ok == true' > /dev/null
 
       - name: 🔗 Point Clerk webhook alias to preview
         env:
@@ -423,9 +471,8 @@ jobs:
           BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |
-          # Deterministic mirroring: the Clerk webhook only reaches the
-          # production deployment (which may be on main, without this route),
-          # so CI seeds the preview DB directly via the sync-user endpoint
+          # The signed webhook skips E2E users; sync them only into this run's
+          # isolated database via the authenticated admin endpoint.
           # (Bearer == CLERK_SECRET_KEY).
           AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
           Q="x-vercel-protection-bypass=$BYPASS"
@@ -576,6 +623,27 @@ jobs:
         run: |
           bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"
 
+  # -------------------------------------------------- isolated DB cleanup
+  cleanup-e2e-db:
+    name: 🗑️ Drop isolated PR E2E database
+    needs: [deploy-preview-api, cleanup-e2e-user]
+    if: always() && needs.deploy-preview-api.outputs.url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🗑️ Drop only this run's database
+        env:
+          API_URL: ${{ needs.deploy-preview-api.outputs.url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
+            jq -e '.ok == true' > /dev/null
+
   # ----------------------------------------------------------- draft release
   draft-release:
     name: 📦 Draft prerelease (APK + changelog) → Telegram
@@ -592,6 +660,7 @@ jobs:
       - e2e-maestro
       - e2e-playwright
       - cleanup-e2e-user
+      - cleanup-e2e-db
     runs-on: ubuntu-latest
     permissions:
       contents: write # create/update the draft release + attach the APK

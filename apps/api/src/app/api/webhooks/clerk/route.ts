@@ -56,11 +56,29 @@ export async function POST(request: Request) {
   console.info("Clerk webhook verified", { eventType: event.type, svixId });
 
   const data = event.data;
+  const appDbName = process.env.MONGODB_DB_NAME;
+  const webhookDbName = process.env.CLERK_WEBHOOK_DB_NAME || appDbName;
+  if (
+    !webhookDbName ||
+    (appDbName?.startsWith("bgo_ci_") &&
+      (webhookDbName === appDbName || webhookDbName.startsWith("bgo_ci_")))
+  ) {
+    // Svix retries a 503; never mirror dev users into an ephemeral E2E database.
+    return NextResponse.json({ error: "Webhook database not configured" }, { status: 503 });
+  }
 
   switch (event.type) {
     case "user.created":
     case "user.updated": {
-      const repo = new UsersRepository(await getDb());
+      // CI users are mirrored directly into their run's DB by admin/sync-user.
+      if (
+        process.env.CLERK_WEBHOOK_DB_NAME &&
+        data.public_metadata &&
+        (data.public_metadata as { e2e?: boolean }).e2e === true
+      ) {
+        return NextResponse.json({ success: true });
+      }
+      const repo = new UsersRepository(await getDb(webhookDbName));
       const email =
         (data.email_addresses as { email_address?: string }[] | undefined)?.[0]?.email_address ??
         "";
@@ -80,11 +98,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
     case "user.deleted": {
+      // Delete events omit public_metadata. Skip unknown CI users instead of
+      // running a transaction against dev; clean old mirrored users if present.
+      if (!(await new UsersRepository(await getDb(webhookDbName)).findById(data.id as string))) {
+        return NextResponse.json({ success: true });
+      }
       await withTransaction(async (session, db) => {
         await new UsersRepository(db, session).deleteByClerkId(data.id as string);
         await new RelationshipRepository(db, session).deleteAllForUser(data.id as string);
         await new NotificationsRepository(db, session).deleteForUser(data.id as string);
-      });
+      }, webhookDbName);
       return NextResponse.json({ success: true });
     }
     default:
