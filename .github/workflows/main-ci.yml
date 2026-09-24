@@ -1,4 +1,4 @@
-name: 🚀 Main CI/CD (bump → build → E2E → publish release → Telegram)
+name: 🚀 Main CI/CD (verify merge → E2E → release → production)
 
 on:
   push:
@@ -8,18 +8,40 @@ permissions:
   contents: write # semantic-release commits the bump; publish-release creates the release
   statuses: write # vercel-deploy / github-script sets commit status for production
 
-concurrency:
-  group: main-ci
-  cancel-in-progress: false
-
 jobs:
-  # ------------------------------------------------------------- bump (no release)
+  # Every merged commit gets its own verification run; only release preparation
+  # is serialized. GitHub can replace a pending run in a concurrency group.
+  quality:
+    name: 🧹 Lint and typecheck merged code
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧹 Biome
+        run: pnpm lint
+
+      - name: 🧪 TypeScript
+        run: pnpm typecheck
+
+      - name: 🔒 CI isolation contract
+        run: node --test .github/scripts/main-ci-isolation.test.mjs
+
+  # Release bump/tag only after merged-code E2E succeeds.
   release:
     name: 📦 semantic-release (bump + changelog, no publish)
+    needs: [quality, coverage, integration-tests, e2e-maestro, e2e-playwright, cleanup-e2e]
     runs-on: ubuntu-latest
+    concurrency:
+      group: main-release
+      cancel-in-progress: false
     outputs:
       version: ${{ steps.meta.outputs.version }}
       published: ${{ steps.meta.outputs.published }}
+      sha: ${{ steps.meta.outputs.sha }}
     steps:
       - name: 📥 Checkout (full history for semantic-release)
         uses: actions/checkout@v4
@@ -29,7 +51,19 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
+      - name: 🔒 Release only latest validated main commit
+        id: current
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then
+            echo 'ok=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ok=false' >> "$GITHUB_OUTPUT"
+            echo 'Newer main commit exists; this run was verified but will not release.'
+          fi
+
       - name: 🔑 Configure push credentials (release PAT bypasses branch protection)
+        if: steps.current.outputs.ok == 'true'
         # actions/checkout sets an Authorization extraheader that OVERRIDES the
         # credentials embedded in the URL — the push would authenticate as the
         # workflow bot (no bypass). Remove it and set the remote URL with the
@@ -43,6 +77,7 @@ jobs:
           git config --global user.email "bot@bgo.dev"
 
       - name: 🚀 Run semantic-release (SKIP_PUBLISH — release created after the gates)
+        if: steps.current.outputs.ok == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SKIP_PUBLISH: "true"
@@ -52,24 +87,29 @@ jobs:
         id: meta
         run: |
           VERSION=$(node -p "require('./apps/mobile/app.config.js').expo.version")
-          LAST=$(git log -1 --format=%s)
+          SHA=$(git rev-parse HEAD)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if echo "$LAST" | grep -q '^chore(release):'; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          if [ "${{ steps.current.outputs.ok }}" = true ] && [ "$SHA" != "$GITHUB_SHA" ]; then
+            test "$(git log -1 --format=%s)" != ''
+            git log -1 --format=%s | grep -q '^chore(release):'
+            test "$(git rev-parse "v$VERSION^{}")" = "$SHA"
+            test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$SHA"
+            echo 'published=true' >> "$GITHUB_OUTPUT"
           else
-            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo 'published=false' >> "$GITHUB_OUTPUT"
           fi
-          echo "new version: $VERSION (bump committed: $LAST)"
+          echo "verified merge: $GITHUB_SHA; release SHA: $SHA; version: $VERSION"
 
   # -------------------------------------------------- coverage upload (Codecov)
   coverage:
     name: 📊 Coverage upload (Codecov)
-    needs: [release]
+    needs: [quality]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
-        app: [mobile, web, api, shared]
+        app: [mobile, web, api, schemas, shared]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -86,9 +126,24 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/${{ matrix.app }}/coverage/lcov.info
+          files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
           flags: unit,${{ matrix.app }}
           fail_ci_if_error: false
+
+  # -------------------------------------------------- MongoDB replica-set integration
+  integration-tests:
+    name: 🐳 API integration tests (Testcontainers)
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🐳 Run API integration tests
+        run: pnpm --filter api test:integration --coverage
 
   # -------------------------------------------------- mobile internal APK (build only)
   build-apk:
@@ -103,21 +158,13 @@ jobs:
     # builds reuse the EAS/gradle caches and finish much faster.
     timeout-minutes: 180
     steps:
-      - name: 📥 Checkout
+      - name: 📥 Checkout pinned release commit
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          ref: ${{ needs.release.outputs.sha }}
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit (version bump)
-        # The run's checkout is on the trigger SHA (pre-bump): semantic-release
-        # pushed the version bump (app.config.js → VERSION) mid-run. Sync to
-        # origin/main so the APK is built with the RELEASED version.
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
 
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
@@ -143,8 +190,7 @@ jobs:
   # -------------------------------------------------- isolated Main E2E APK
   build-e2e-apk:
     name: 📱 Build APK for isolated Main E2E
-    needs: [release, coverage, deploy-e2e-api]
-    if: needs.release.outputs.published == 'true'
+    needs: [deploy-e2e-api]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -153,11 +199,6 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync release commit (version bump)
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
 
       - name: 🏗️ Build E2E APK against isolated Preview
         id: build
@@ -181,7 +222,8 @@ jobs:
   # -------------------------------------------------- production deploys
   deploy-production:
     name: 🚀 Vercel production (${{ matrix.app }})
-    needs: [release, coverage]
+    needs: [release, build-apk]
+    if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     environment: production
     strategy:
@@ -199,20 +241,20 @@ jobs:
             project-id-secret: VERCEL_WEB_PROJECT_ID
             status-context: vercel/web/production
     steps:
-      - name: 📥 Checkout
+      - name: 📥 Checkout pinned release commit
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          ref: ${{ needs.release.outputs.sha }}
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
-      - name: 🔄 Sync to the release commit (version bump)
-        # Same as build-apk: deploy the released code (bump commit), not the
-        # pre-bump trigger SHA (package.json version drift).
+      - name: 🔒 Ensure this release is still latest
+        env:
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
       - name: 🚀 Deploy to Vercel (production)
         uses: ./.github/actions/vercel-deploy
@@ -246,8 +288,7 @@ jobs:
   # -------------------------------------------------- isolated E2E Preview deployments
   deploy-e2e-api:
     name: 🔌 Isolated Main E2E API Preview
-    needs: [release, coverage]
-    if: needs.release.outputs.published == 'true'
+    needs: [quality, coverage, integration-tests]
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -258,11 +299,6 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync release commit (version bump)
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
 
       - name: 🚀 Deploy isolated API Preview
         id: deploy
@@ -315,8 +351,7 @@ jobs:
 
   deploy-e2e-web:
     name: 🌐 Isolated Main E2E Web Preview
-    needs: [release, coverage, deploy-e2e-api]
-    if: needs.release.outputs.published == 'true'
+    needs: [deploy-e2e-api]
     runs-on: ubuntu-latest
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
@@ -326,11 +361,6 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync release commit (version bump)
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
 
       - name: 🚀 Deploy isolated Web Preview
         id: deploy
@@ -401,8 +431,7 @@ jobs:
   # -------------------------------------------------- Maestro E2E (isolated Preview)
   e2e-maestro:
     name: 🎬 Maestro E2E (mobile — isolated Preview)
-    needs: [release, build-e2e-apk, provision-e2e-users]
-    if: needs.release.outputs.published == 'true' && needs.build-e2e-apk.result == 'success'
+    needs: [build-e2e-apk, provision-e2e-users]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -416,11 +445,6 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit (version bump)
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
 
       - name: ☕ Set up JDK 17 (Maestro requirement)
         uses: actions/setup-java@v4
@@ -483,8 +507,7 @@ jobs:
   # -------------------------------------------------- Playwright E2E (isolated Preview)
   e2e-playwright:
     name: 🎭 Playwright E2E (web — isolated Preview)
-    needs: [release, deploy-e2e-web, provision-e2e-users]
-    if: needs.release.outputs.published == 'true'
+    needs: [deploy-e2e-web, provision-e2e-users]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -494,11 +517,6 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit (version bump)
-        run: |
-          git fetch --depth=1 origin main
-          git checkout -f origin/main
 
       - name: 🌐 Install Playwright browsers
         working-directory: apps/web
@@ -528,8 +546,8 @@ jobs:
   # ------------------------------------------------ isolated E2E cleanup
   cleanup-e2e:
     name: 🗑️ Clean test Clerk users and isolated database
-    needs: [release, deploy-e2e-api, provision-e2e-users, e2e-maestro, e2e-playwright]
-    if: always() && needs.release.outputs.published == 'true'
+    needs: [deploy-e2e-api, provision-e2e-users, e2e-maestro, e2e-playwright]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -566,18 +584,14 @@ jobs:
     outputs:
       release_url: ${{ steps.publish.outputs.release_url }}
     steps:
-      - name: "📥 Checkout (full history: bump commit + merge commit)"
+      - name: 📥 Checkout pinned release commit (full history)
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.release.outputs.sha }}
           fetch-depth: 0
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🔄 Sync to the release commit
-        run: |
-          git fetch origin main
-          git checkout -f origin/main
 
       - name: 📦 Create the GitHub release (changelog from the bump commit)
         id: publish

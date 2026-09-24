@@ -515,16 +515,16 @@ Preview web uses the immutable API deployment URL; PR APKs use the per-PR alias.
 
 ### `main-ci.yml`
 
-On merge to main:
+On every merge to main:
 
-1. semantic-release calculates one product version from Conventional Commits;
-2. release scripts update changelog, all app package versions, and Expo version;
-3. production internal APK and separate isolated-E2E APK build with 180-minute timeouts;
-4. production API and web deploy, then read-only smoke checks;
-5. released code deploys to isolated API/web Previews using test Clerk; Maestro and Playwright run against those Previews;
-6. test users and the run-scoped CI database are cleaned unconditionally;
-7. GitHub release publishes the production APK only after gates pass;
-8. Telegram notification sends release links and changelog.
+1. lint, typecheck, unit coverage (mobile, web, API, schemas, shared), and API integration tests run on the merge SHA;
+2. that SHA deploys to isolated API/web Previews using test Clerk and `bgo_ci_<run>_<attempt>`; Maestro uses a separate E2E APK, Playwright uses the Preview web app;
+3. test users and the run-scoped CI database are cleaned even when E2E fails; failed gates never deploy to production;
+4. only the latest verified merge may run semantic-release; the resulting release SHA is pinned for the production APK and deployments;
+5. production API and web deploy only after E2E and APK build pass, then run read-only smoke checks;
+6. GitHub release publishes the production APK after the gates; Telegram notification sends release links and changelog.
+
+Main verification has no workflow-wide concurrency group so every merge runs E2E. Release preparation alone is serialized; a newer merge can supersede a pending release, not its verification.
 
 Release commits use `[skip ci]` to avoid recursion. If a failed release leaves a tag without a release,
 remove the orphan tag and restore version state before retrying; semantic-release treats existing tags
