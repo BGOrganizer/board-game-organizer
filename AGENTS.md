@@ -519,11 +519,12 @@ On merge to main:
 
 1. semantic-release calculates one product version from Conventional Commits;
 2. release scripts update changelog, all app package versions, and Expo version;
-3. internal APK builds with a 180-minute timeout;
-4. production API and web deploy;
-5. Maestro and Playwright run against released artifacts and production;
-6. GitHub release publishes only after gates pass;
-7. Telegram notification sends release links and changelog.
+3. production internal APK and separate isolated-E2E APK build with 180-minute timeouts;
+4. production API and web deploy, then read-only smoke checks;
+5. released code deploys to isolated API/web Previews using test Clerk; Maestro and Playwright run against those Previews;
+6. test users and the run-scoped CI database are cleaned unconditionally;
+7. GitHub release publishes the production APK only after gates pass;
+8. Telegram notification sends release links and changelog.
 
 Release commits use `[skip ci]` to avoid recursion. If a failed release leaves a tag without a release,
 remove the orphan tag and restore version state before retrying; semantic-release treats existing tags

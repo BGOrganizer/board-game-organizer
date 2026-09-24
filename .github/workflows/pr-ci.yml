@@ -49,6 +49,9 @@ jobs:
       - name: 🧹 Biome check
         run: pnpm lint
 
+      - name: 🔒 Check Main CI E2E isolation
+        run: node --test .github/scripts/main-ci-isolation.test.mjs
+
   # ----------------------------------------------------------------- typecheck
   typecheck:
     name: 🧪 TypeScript typecheck
