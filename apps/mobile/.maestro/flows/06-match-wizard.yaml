@@ -108,6 +108,12 @@ appId: com.bgo.mobile
     visible: "Overview"
     timeout: 30000
 - assertVisible: "Possible dates"
+- tapOn:
+    id: "choose-date"
+- assertVisible: "Choose date"
+- tapOn: "Yes"
+- assertVisible: "Choice saved"
+- assertVisible: "Choose date: Yes"
 - tapOn: "Players"
 - assertVisible: "Minimum players"
 - assertVisible: "Maximum players"
@@ -117,6 +123,12 @@ appId: com.bgo.mobile
 - tapOn: "Games"
 - assertVisible: "Cascadia"
 - assertVisible: "2021"
+- tapOn:
+    id: "choose-game"
+- assertVisible: "Choose game"
+- tapOn: "If I have to"
+- assertVisible: "Choice saved"
+- assertVisible: "Choose game: If I have to"
 # Admin editing reuses the same wizard and sends changes only on final save.
 - tapOn: "Edit match"
 - extendedWaitUntil:

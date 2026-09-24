@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Match, MatchStatus } from "@board-game-organizer/schemas";
+import type { Match, MatchStatus, SetMatchChoiceInput } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
@@ -36,6 +36,7 @@ export class MatchesRepository {
       minPlayers: match.minPlayers,
       maxPlayers: match.maxPlayers,
       gameIds: match.gameIds,
+      ...(match.choices ? { choices: match.choices } : {}),
       status: match.status ?? "PLANNING",
       createdAt: match.createdAt,
       updatedAt: match.updatedAt ?? match.createdAt,
@@ -100,6 +101,32 @@ export class MatchesRepository {
       { returnDocument: "after", projection: { _id: 0 }, ...this.opts },
     );
     return match ? this.normalize(match) : null;
+  }
+
+  setChoice(id: string, userId: string, input: SetMatchChoiceInput) {
+    const key = input.kind === "dates" ? String(Date.parse(input.itemId)) : String(input.itemId);
+    return this.col.updateOne(
+      { id, [input.kind === "dates" ? "dates" : "gameIds"]: input.itemId },
+      { $set: { [`choices.${userId}.${input.kind}.${key}`]: input.choice } },
+      this.opts,
+    );
+  }
+
+  clearChoices(id: string, userId: string) {
+    if (!/^[A-Za-z0-9_-]+$/.test(userId)) throw new Error("Invalid user id");
+    return this.col.updateOne({ id }, { $unset: { [`choices.${userId}`]: "" } }, this.opts);
+  }
+
+  clearRemovedOptionChoices(match: Match, removedDates: string[], removedGames: number[]) {
+    const unset: Record<string, ""> = {};
+    for (const userId of Object.keys(match.choices ?? {})) {
+      if (!/^[A-Za-z0-9_-]+$/.test(userId)) throw new Error("Invalid user id");
+      for (const date of removedDates) unset[`choices.${userId}.dates.${Date.parse(date)}`] = "";
+      for (const id of removedGames) unset[`choices.${userId}.games.${id}`] = "";
+    }
+    if (Object.keys(unset).length > 0) {
+      return this.col.updateOne({ id: match.id }, { $unset: unset }, this.opts);
+    }
   }
 
   deleteById(id: string, clerkId: string) {

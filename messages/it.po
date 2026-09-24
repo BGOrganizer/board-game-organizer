@@ -139,6 +139,22 @@ msgstr "Annulla richiesta"
 #~ msgid "Changes applied"
 #~ msgstr "Modifiche applicate"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Choice saved"
+msgstr "Scelta salvata"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Choose date"
+msgstr "Scegli la data"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Choose game"
+msgstr "Scegli il gioco"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+msgid "Choose preference"
+msgstr "Scegli la preferenza"
+
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
 #~ msgstr "Accetta"
@@ -289,6 +305,10 @@ msgstr "Impossibile rifiutare la richiesta di amicizia"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not remove friend"
 msgstr "Impossibile rimuovere l'amico"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not save choice"
+msgstr "Impossibile salvare la scelta"
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Could not save mobile number"
@@ -457,6 +477,10 @@ msgstr "Genera un link per connetterti con qualcuno."
 msgid "Groups"
 msgstr "Gruppi"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "If I have to"
+msgstr "Se proprio devo"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase max players"
 msgstr "Aumenta il numero massimo di giocatori"
@@ -607,9 +631,9 @@ msgstr "Nuova partita"
 msgid "Next step"
 msgstr "Passaggio successivo"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "No"
-#~ msgstr "No"
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No"
+msgstr "No"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No blocked users"
@@ -676,6 +700,10 @@ msgstr "Nessuna richiesta di amicizia inviata"
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "No users found"
 msgstr "Nessun utente trovato"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Not known"
+msgstr "Non conosciuta"
 
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
@@ -992,9 +1020,9 @@ msgstr "Benvenuto in Board Game Organizer"
 msgid "When could you play?"
 msgstr "Quando potresti giocare?"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Yes"
-#~ msgstr "Sì"
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Yes"
+msgstr "Sì"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "You are not following anyone yet"

@@ -5,6 +5,7 @@ import type {
   MatchDetailResponse,
   MatchInvitationResponse,
   MatchResponse,
+  SetMatchChoiceInput,
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
@@ -70,6 +71,23 @@ async function fetchMatchDetail(
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as MatchDetailResponse;
+}
+
+async function setMatchChoiceRequest(
+  apiUrl: string,
+  token: string,
+  matchId: string,
+  input: SetMatchChoiceInput,
+  protectionBypass?: string | null,
+) {
+  const res = await fetch(
+    withProtectionBypass(
+      `${apiUrl}/api/matches/${encodeURIComponent(matchId)}/choices`,
+      protectionBypass,
+    ),
+    { method: "PATCH", headers: apiHeaders(token), body: JSON.stringify(input) },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 async function createMatch(
@@ -485,6 +503,43 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
     staleTime: 30_000,
   });
 
+  const setChoice = useMutation({
+    mutationFn: async (input: SetMatchChoiceInput) =>
+      setMatchChoiceRequest(
+        apiUrl,
+        await resolveToken(token, getToken),
+        matchId,
+        input,
+        protectionBypass,
+      ),
+    onMutate: async (input) => {
+      const key = ["matches", "detail", matchId, apiUrl, token];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<MatchDetailResponse>(key);
+      if (previous) {
+        const field = input.kind;
+        const id = input.kind === "dates" ? String(Date.parse(input.itemId)) : String(input.itemId);
+        queryClient.setQueryData<MatchDetailResponse>(key, {
+          ...previous,
+          choices: {
+            ...previous.choices,
+            [field]: { ...previous.choices?.[field], [id]: input.choice },
+          },
+        });
+      }
+      feedback?.onOptimisticUpdate?.("set_match_choice");
+      return { key, previous };
+    },
+    onError: (error: Error, _input, context) => {
+      if (context?.previous) queryClient.setQueryData(context.key, context.previous);
+      feedback?.onError?.(error, "set_match_choice");
+    },
+    onSettled: (_data, error) =>
+      queryClient.invalidateQueries({
+        queryKey: ["matches", "detail", matchId],
+        refetchType: error ? "active" : "none",
+      }),
+  });
   const deleteMatch = useMutation({
     mutationFn: async (id: string) =>
       deleteMatchRequest(apiUrl, await resolveToken(token, getToken), id, protectionBypass),
@@ -550,7 +605,7 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
   });
 
   return useMemo(
-    () => ({ detail, respondInvitation, deleteMatch, leaveMatch }),
-    [detail, respondInvitation, deleteMatch, leaveMatch],
+    () => ({ detail, respondInvitation, setChoice, deleteMatch, leaveMatch }),
+    [detail, respondInvitation, setChoice, deleteMatch, leaveMatch],
   );
 }

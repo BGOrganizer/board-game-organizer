@@ -96,6 +96,61 @@ describe("MatchesRepository", () => {
     );
   });
 
+  it("writes choices atomically only for still-existing options", async () => {
+    const { db, collection } = setup();
+    const repo = new MatchesRepository(db as never);
+    await repo.setChoice(stored.id, "user_1", {
+      kind: "dates",
+      itemId: input.dates[0],
+      choice: "YES",
+    });
+    expect(collection.updateOne).toHaveBeenCalledWith(
+      { id: stored.id, dates: input.dates[0] },
+      { $set: { [`choices.user_1.dates.${Date.parse(input.dates[0])}`]: "YES" } },
+      {},
+    );
+    await repo.setChoice(stored.id, "user_1", { kind: "games", itemId: 342942, choice: "NO" });
+    expect(collection.updateOne).toHaveBeenCalledWith(
+      { id: stored.id, gameIds: 342942 },
+      { $set: { "choices.user_1.games.342942": "NO" } },
+      {},
+    );
+  });
+
+  it("clears a departing player's choices and removed match options", async () => {
+    const { db, collection } = setup();
+    const repo = new MatchesRepository(db as never);
+    await repo.clearChoices(stored.id, "user_1");
+    expect(collection.updateOne).toHaveBeenCalledWith(
+      { id: stored.id },
+      { $unset: { "choices.user_1": "" } },
+      {},
+    );
+    await repo.clearRemovedOptionChoices(
+      {
+        ...stored,
+        choices: {
+          user_1: {
+            dates: { [String(Date.parse(input.dates[0]))]: "YES" },
+            games: { "342942": "NO" },
+          },
+        },
+      } as never,
+      input.dates,
+      [342942],
+    );
+    expect(collection.updateOne).toHaveBeenCalledWith(
+      { id: stored.id },
+      {
+        $unset: {
+          [`choices.user_1.dates.${Date.parse(input.dates[0])}`]: "",
+          "choices.user_1.games.342942": "",
+        },
+      },
+      {},
+    );
+  });
+
   it("updates planning match fields and normalizes result", async () => {
     const changes = {
       name: "Updated games",

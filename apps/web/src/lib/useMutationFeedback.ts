@@ -36,6 +36,7 @@ export function useMutationFeedback(): MutationFeedback {
       create_invite: { success: t`Invite link created`, error: t`Could not create invite link` },
       create_match: { success: t`Match created`, error: t`Could not create match` },
       update_match: { success: t`Match updated`, error: t`Could not update match` },
+      set_match_choice: { success: t`Choice saved`, error: t`Could not save choice` },
       delete_match: { success: t`Match deleted`, error: t`Could not delete match` },
       leave_match: { success: t`You left the match`, error: t`Could not leave match` },
       accept_match_invitation: {

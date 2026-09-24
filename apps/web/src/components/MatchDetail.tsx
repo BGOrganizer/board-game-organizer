@@ -1,9 +1,13 @@
 "use client";
 
-import type { MatchDetailResponse } from "@board-game-organizer/schemas";
+import type {
+  MatchChoice,
+  MatchDetailResponse,
+  SetMatchChoiceInput,
+} from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Card, Skeleton, Tabs } from "@heroui/react";
+import { Avatar, Button, Card, Dropdown, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
@@ -31,6 +35,71 @@ function apiUrl(): string {
 
 function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
+}
+
+const choiceValues = ["UNKNOWN", "YES", "NO", "IF_NEEDED"] as const;
+const choiceColors: Record<MatchChoice, string> = {
+  UNKNOWN: "text-default-500",
+  YES: "text-success",
+  NO: "text-danger",
+  IF_NEEDED: "text-warning",
+};
+
+function ChoiceDropdown({
+  label,
+  choice,
+  pending,
+  onChoose,
+}: {
+  label: string;
+  choice: MatchChoice;
+  pending: boolean;
+  onChoose: (choice: MatchChoice) => void;
+}) {
+  const { t } = useLingui();
+  const labels: Record<MatchChoice, string> = {
+    UNKNOWN: t`Not known`,
+    YES: t`Yes`,
+    NO: t`No`,
+    IF_NEEDED: t`If I have to`,
+  };
+  return (
+    <Dropdown>
+      <Dropdown.Trigger
+        aria-label={`${label}: ${labels[choice]}`}
+        className={`button button--icon-only button--sm button--ghost shrink-0 ${choiceColors[choice]}`}
+      >
+        <span aria-hidden="true" className="text-lg leading-none">
+          ●
+        </span>
+      </Dropdown.Trigger>
+      <Dropdown.Popover placement="bottom end">
+        <Dropdown.Menu
+          aria-label={label}
+          selectionMode="single"
+          selectedKeys={new Set([choice])}
+          disabledKeys={pending ? choiceValues : []}
+        >
+          {choiceValues.map((value) => (
+            <Dropdown.Item
+              key={value}
+              id={value}
+              textValue={labels[value]}
+              onAction={() => onChoose(value)}
+            >
+              <span
+                className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-current ${choiceColors[value]}`}
+                aria-hidden="true"
+              >
+                {choice === value && <span className="size-2 rounded-full bg-current" />}
+              </span>
+              <span className={choiceColors[value]}>{labels[value]}</span>
+            </Dropdown.Item>
+          ))}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
 }
 
 export function MatchDetail({ matchId }: { matchId: string }) {
@@ -107,6 +176,8 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const isAdmin = match.adminUserId === userId;
   const canLeave = match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
+  const canChoose = isAdmin || ownInvitation?.status === "ACCEPTED";
+  const choose = (input: SetMatchChoiceInput) => matches.setChoice.mutate(input);
   const participants = [
     { ...administrator, status: "ACCEPTED" as const, isAdministrator: true },
     ...invitedPlayers.map((player) => ({
@@ -217,8 +288,16 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               <h2 className="mb-2 text-sm font-semibold">{t`Possible dates`}</h2>
               <ul className="space-y-2 text-sm text-default-600">
                 {match.dates.map((date) => (
-                  <li key={date}>
+                  <li key={date} className="flex items-center justify-between gap-2">
                     <time dateTime={date}>{new Date(date).toLocaleString()}</time>
+                    {canChoose && (
+                      <ChoiceDropdown
+                        label={t`Choose date`}
+                        choice={matchData.choices?.dates?.[String(Date.parse(date))] ?? "UNKNOWN"}
+                        pending={matches.setChoice.isPending}
+                        onChoose={(choice) => choose({ kind: "dates", itemId: date, choice })}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -304,12 +383,20 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                         <Gamepad2 className="h-5 w-5 text-default-400" />
                       )}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{game.name}</p>
                       {game.yearPublished ? (
                         <p className="text-xs text-default-500">{game.yearPublished}</p>
                       ) : null}
                     </div>
+                    {canChoose && (
+                      <ChoiceDropdown
+                        label={t`Choose game`}
+                        choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                        pending={matches.setChoice.isPending}
+                        onChoose={(choice) => choose({ kind: "games", itemId: game.id, choice })}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>

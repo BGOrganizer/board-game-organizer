@@ -1,9 +1,10 @@
-import type { MatchDetailResponse } from "@board-game-organizer/schemas";
+import type { MatchChoice, MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
+import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
@@ -30,6 +31,37 @@ function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
+const choiceValues = ["UNKNOWN", "YES", "NO", "IF_NEEDED"] as const;
+const choiceColors: Record<MatchChoice, string> = {
+  UNKNOWN: "text-muted",
+  YES: "text-success",
+  NO: "text-danger",
+  IF_NEEDED: "text-warning",
+};
+const choiceBorders: Record<MatchChoice, string> = {
+  UNKNOWN: "border-muted",
+  YES: "border-success",
+  NO: "border-danger",
+  IF_NEEDED: "border-warning",
+};
+const choiceBackgrounds: Record<MatchChoice, string> = {
+  UNKNOWN: "bg-muted",
+  YES: "bg-success",
+  NO: "bg-danger",
+  IF_NEEDED: "bg-warning",
+};
+
+function choiceLabel(choice: MatchChoice, t: ReturnType<typeof useT>): string {
+  if (choice === "YES") return t("Yes");
+  if (choice === "NO") return t("No");
+  if (choice === "IF_NEEDED") return t("If I have to");
+  return t("Not known");
+}
+
+type ActiveChoice =
+  | { kind: "dates"; itemId: string; title: string }
+  | { kind: "games"; itemId: number; title: string };
+
 export default function MatchDetailScreen() {
   const { matchId: matchIdParam } = useLocalSearchParams<{ matchId: string | string[] }>();
   const matchId = Array.isArray(matchIdParam) ? matchIdParam[0] : matchIdParam;
@@ -39,6 +71,7 @@ export default function MatchDetailScreen() {
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [activeChoice, setActiveChoice] = useState<ActiveChoice | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -157,6 +190,8 @@ export default function MatchDetailScreen() {
             setActiveTab={setActiveTab}
             isResponding={matches.respondInvitation.isPending}
             responseError={matches.respondInvitation.isError}
+            choicePending={matches.setChoice.isPending}
+            openChoice={setActiveChoice}
             respond={(invitationId, decision) =>
               matches.respondInvitation.mutate(
                 { invitationId, decision },
@@ -170,6 +205,68 @@ export default function MatchDetailScreen() {
           />
         )}
       </ScrollView>
+      <BottomSheet
+        isOpen={activeChoice !== null}
+        onOpenChange={(open) => {
+          if (!open) setActiveChoice(null);
+        }}
+      >
+        <BottomSheet.Portal>
+          <BottomSheet.Overlay />
+          <BottomSheet.Content>
+            <BottomSheet.Title>{activeChoice?.title ?? t("Choose preference")}</BottomSheet.Title>
+            {choiceValues.map((choice) => {
+              const label = choiceLabel(choice, t);
+              const selected =
+                activeChoice?.kind === "dates"
+                  ? (matches.detail.data?.choices?.dates?.[
+                      String(Date.parse(activeChoice.itemId))
+                    ] ?? "UNKNOWN") === choice
+                  : (matches.detail.data?.choices?.games?.[String(activeChoice?.itemId)] ??
+                      "UNKNOWN") === choice;
+              return (
+                <Pressable
+                  key={choice}
+                  accessibilityRole="radio"
+                  accessibilityLabel={label}
+                  accessibilityState={{ checked: selected, disabled: matches.setChoice.isPending }}
+                  disabled={matches.setChoice.isPending}
+                  onPress={() => {
+                    if (activeChoice?.kind === "dates")
+                      matches.setChoice.mutate({
+                        kind: "dates",
+                        itemId: activeChoice.itemId,
+                        choice,
+                      });
+                    else if (activeChoice)
+                      matches.setChoice.mutate({
+                        kind: "games",
+                        itemId: activeChoice.itemId,
+                        choice,
+                      });
+                    setActiveChoice(null);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    paddingVertical: 14,
+                  }}
+                >
+                  <View
+                    className={`h-5 w-5 items-center justify-center rounded-full border-2 ${choiceBorders[choice]}`}
+                  >
+                    {selected && (
+                      <View className={`h-2.5 w-2.5 rounded-full ${choiceBackgrounds[choice]}`} />
+                    )}
+                  </View>
+                  <Text className={`text-base ${choiceColors[choice]}`}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </BottomSheet.Content>
+        </BottomSheet.Portal>
+      </BottomSheet>
       {editableMatch ? (
         <Pressable
           accessibilityRole="button"
@@ -208,6 +305,8 @@ function MatchDetailContent({
   setActiveTab,
   isResponding,
   responseError,
+  choicePending,
+  openChoice,
   respond,
 }: {
   data: MatchDetailResponse;
@@ -216,11 +315,14 @@ function MatchDetailContent({
   setActiveTab: (value: string) => void;
   isResponding: boolean;
   responseError: boolean;
+  choicePending: boolean;
+  openChoice: (choice: ActiveChoice) => void;
   respond: (invitationId: string, decision: "accept" | "decline") => void;
 }) {
   const t = useT();
   const { match, administrator, invitedPlayers, games } = data;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
+  const canChoose = match.adminUserId === userId || ownInvitation?.status === "ACCEPTED";
   const participants = [
     { ...administrator, status: "ACCEPTED" as const, isAdministrator: true },
     ...invitedPlayers.map((player) => ({
@@ -284,11 +386,39 @@ function MatchDetailContent({
             <Text className="text-xl font-semibold text-foreground">{match.name}</Text>
             <Text className="mt-5 font-semibold text-foreground">{t("Possible dates")}</Text>
             <View style={{ gap: 8, marginTop: 8 }}>
-              {match.dates.map((date) => (
-                <Text key={date} className="text-sm text-muted">
-                  {new Date(date).toLocaleString()}
-                </Text>
-              ))}
+              {match.dates.map((date) => {
+                const choice = data.choices?.dates?.[String(Date.parse(date))] ?? "UNKNOWN";
+                return (
+                  <View
+                    key={date}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                    }}
+                  >
+                    <Text className="text-sm text-muted" style={{ flex: 1 }}>
+                      {new Date(date).toLocaleString()}
+                    </Text>
+                    {canChoose && (
+                      <Button
+                        variant="ghost"
+                        isIconOnly
+                        size="sm"
+                        isDisabled={choicePending}
+                        testID="choose-date"
+                        accessibilityLabel={`${t("Choose date")}: ${choiceLabel(choice, t)}`}
+                        onPress={() =>
+                          openChoice({ kind: "dates", itemId: date, title: t("Choose date") })
+                        }
+                      >
+                        <Text className={`text-xl ${choiceColors[choice]}`}>●</Text>
+                      </Button>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </Card>
         </Tabs.Content>
@@ -403,6 +533,25 @@ function MatchDetailContent({
                         <Text className="text-xs text-muted">{game.yearPublished}</Text>
                       ) : null}
                     </View>
+                    {canChoose && (
+                      <Button
+                        variant="ghost"
+                        isIconOnly
+                        size="sm"
+                        isDisabled={choicePending}
+                        testID="choose-game"
+                        accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
+                        onPress={() =>
+                          openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
+                        }
+                      >
+                        <Text
+                          className={`text-xl ${choiceColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}`}
+                        >
+                          ●
+                        </Text>
+                      </Button>
+                    )}
                   </View>
                 ))}
               </View>

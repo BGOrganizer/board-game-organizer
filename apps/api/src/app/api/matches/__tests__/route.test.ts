@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withTransaction } from "@/app/lib/db";
 import { MatchError, MatchService } from "@/app/lib/match.service";
 import * as invitationRoute from "../../match-invitations/[invitationId]/route";
+import * as choiceRoute from "../[matchId]/choices/route";
 import * as adminInvitationRoute from "../[matchId]/invitations/[invitationId]/route";
 import * as invitationsRoute from "../[matchId]/invitations/route";
 import * as detailRoute from "../[matchId]/route";
@@ -80,6 +81,7 @@ describe("match API routes", () => {
     vi.spyOn(MatchService.prototype, "removeInvitation").mockResolvedValue();
     vi.spyOn(MatchService.prototype, "update").mockResolvedValue(match as never);
     vi.spyOn(MatchService.prototype, "deleteMatch").mockResolvedValue();
+    vi.spyOn(MatchService.prototype, "setChoice").mockResolvedValue();
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -267,6 +269,48 @@ describe("match API routes", () => {
         )
       ).status,
     ).toBe(400);
+  });
+
+  it("validates and authenticates date/game choices", async () => {
+    const dateChoice = { kind: "dates", itemId: "2026-09-12T18:00:00.000Z", choice: "YES" };
+    const gameChoice = { kind: "games", itemId: 1, choice: "IF_NEEDED" };
+    for (const choice of [dateChoice, gameChoice]) {
+      const response = await choiceRoute.PATCH(
+        request(`/api/matches/${matchId}/choices`, "PATCH", JSON.stringify(choice)),
+        matchContext(),
+      );
+      expect(response.status).toBe(200);
+      expect(MatchService.prototype.setChoice).toHaveBeenCalledWith("user_admin", matchId, choice);
+    }
+    expect(
+      (
+        await choiceRoute.PATCH(
+          request(
+            `/api/matches/${matchId}/choices`,
+            "PATCH",
+            JSON.stringify({ ...gameChoice, choice: "MAYBE" }),
+          ),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await choiceRoute.PATCH(
+          request(`/api/matches/not-an-id/choices`, "PATCH", JSON.stringify(dateChoice)),
+          matchContext("not-an-id"),
+        )
+      ).status,
+    ).toBe(400);
+    vi.mocked(auth).mockResolvedValue({ userId: null } as never);
+    expect(
+      (
+        await choiceRoute.PATCH(
+          request(`/api/matches/${matchId}/choices`, "PATCH", JSON.stringify(dateChoice)),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(401);
   });
 
   it("deletes a match as admin and validates id", async () => {

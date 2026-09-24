@@ -220,6 +220,7 @@ Current route surface:
 | `/api/invites/claim` | POST | Claim invite and connect users |
 | `/api/matches` | GET, POST | List accessible matches and create planning matches |
 | `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, atomically update planning fields/invitations, or delete match as admin |
+| `/api/matches/[matchId]/choices` | PATCH | Save caller's choice for a match date or game as admin or accepted invitee |
 | `/api/matches/[matchId]/invitations` | GET, POST | List and create match invitations as admin |
 | `/api/matches/[matchId]/invitations/[invitationId]` | DELETE | Remove an invitation or accepted player as admin |
 | `/api/match-invitations/[invitationId]` | PATCH, DELETE | Accept or decline an invitation; leave a planning match |

@@ -10,6 +10,7 @@ import {
   matchModel,
   matchResponseSchema,
   respondMatchInvitationSchema,
+  setMatchChoiceSchema,
   updateMatchSchema,
 } from "../index";
 
@@ -79,6 +80,28 @@ describe("createMatchSchema", () => {
 });
 
 describe("match models and DTOs", () => {
+  it("validates choices and rejects forged items", () => {
+    expect(
+      setMatchChoiceSchema.parse({
+        kind: "dates",
+        itemId: "2026-09-05T20:00:00.000Z",
+        choice: "UNKNOWN",
+      }).choice,
+    ).toBe("UNKNOWN");
+    expect(
+      setMatchChoiceSchema.parse({ kind: "games", itemId: 1, choice: "IF_NEEDED" }).choice,
+    ).toBe("IF_NEEDED");
+    expect(
+      setMatchChoiceSchema.safeParse({ kind: "dates", itemId: "2026-09-05", choice: "YES" })
+        .success,
+    ).toBe(false);
+    expect(
+      setMatchChoiceSchema.safeParse({ kind: "games", itemId: -1, choice: "YES" }).success,
+    ).toBe(false);
+    expect(
+      setMatchChoiceSchema.safeParse({ kind: "games", itemId: 1, choice: "MAYBE" }).success,
+    ).toBe(false);
+  });
   it("validates stored match and invitation", () => {
     expect(matchModel.parse(match)).toEqual(match);
     expect(matchInvitationModel.parse(invitation)).toEqual(invitation);

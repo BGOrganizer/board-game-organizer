@@ -372,6 +372,41 @@ describe("match repositories on MongoDB replica set", () => {
     expect(reinvited.id).not.toBe(invited.id);
   });
 
+  it("persists participant choices without exposing other users and clears them on departure", async () => {
+    await seedMatchDependencies();
+    const created = await withMatchTransaction(({ service }) => service.create(ACTOR, matchInput));
+    const invited = await withMatchTransaction(({ service }) =>
+      service.invite(ACTOR, created.id, TARGET),
+    );
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.setChoice(TARGET, created.id, { kind: "games", itemId: 342942, choice: "YES" }),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    await withMatchTransaction(({ service }) => service.respond(TARGET, invited.id, "accept"));
+    await withMatchTransaction(({ service }) =>
+      service.setChoice(TARGET, created.id, { kind: "games", itemId: 342942, choice: "YES" }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.setChoice(ACTOR, created.id, {
+        kind: "dates",
+        itemId: matchInput.dates[0],
+        choice: "IF_NEEDED",
+      }),
+    );
+    expect(
+      (await withMatchTransaction(({ service }) => service.detail(TARGET, created.id))).choices,
+    ).toEqual({ dates: {}, games: { "342942": "YES" } });
+    expect(
+      (await withMatchTransaction(({ service }) => service.detail(ACTOR, created.id))).choices
+        ?.dates?.[String(Date.parse(matchInput.dates[0]))],
+    ).toBe("IF_NEEDED");
+    await withMatchTransaction(({ service }) => service.leave(TARGET, invited.id));
+    expect(
+      (await new MatchesRepository(db).findById(created.id))?.choices?.[TARGET],
+    ).toBeUndefined();
+  });
+
   it("removes declined invitation before re-invite and blocks late departure", async () => {
     await seedMatchDependencies();
     const created = await withMatchTransaction(({ service }) =>

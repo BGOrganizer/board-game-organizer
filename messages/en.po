@@ -139,6 +139,22 @@ msgstr "Cancel request"
 #~ msgid "Changes applied"
 #~ msgstr "Changes applied"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Choice saved"
+msgstr "Choice saved"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Choose date"
+msgstr "Choose date"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Choose game"
+msgstr "Choose game"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+msgid "Choose preference"
+msgstr "Choose preference"
+
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
 #~ msgstr "Claim"
@@ -289,6 +305,10 @@ msgstr "Could not reject friend request"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not remove friend"
 msgstr "Could not remove friend"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not save choice"
+msgstr "Could not save choice"
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Could not save mobile number"
@@ -457,6 +477,10 @@ msgstr "Generate a link to connect with someone."
 msgid "Groups"
 msgstr "Groups"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "If I have to"
+msgstr "If I have to"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase max players"
 msgstr "Increase max players"
@@ -607,9 +631,9 @@ msgstr "New match"
 msgid "Next step"
 msgstr "Next step"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "No"
-#~ msgstr "No"
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No"
+msgstr "No"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No blocked users"
@@ -676,6 +700,10 @@ msgstr "No sent friend requests"
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "No users found"
 msgstr "No users found"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Not known"
+msgstr "Not known"
 
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
@@ -992,9 +1020,9 @@ msgstr "Welcome to Board Game Organizer"
 msgid "When could you play?"
 msgstr "When could you play?"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Yes"
-#~ msgstr "Yes"
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Yes"
+msgstr "Yes"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "You are not following anyone yet"

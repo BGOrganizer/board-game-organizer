@@ -24,7 +24,7 @@ async function signInAsActor(page: import("@playwright/test").Page) {
 
 test("match wizard: name → players → game → create", async ({ page }) => {
   test.setTimeout(240_000);
-  test.skip(!E2E_EMAIL, "E2E_EMAIL not set (CI provisions the user)");
+  if (!E2E_EMAIL) throw new Error("E2E_EMAIL is required for match E2E");
 
   await signInAsActor(page);
   await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.session), null, {
@@ -184,6 +184,15 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("link", { name: "Open match: Friday night games" }).click();
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Friday night games" })).toBeVisible();
+  const dateChoiceResponse = page.waitForResponse(
+    (response) => response.request().method() === "PATCH" && response.url().includes("/choices"),
+  );
+  await page.getByRole("button", { name: "Choose date: Not known" }).first().click();
+  await page.getByRole("menuitemradio", { name: "Yes" }).click();
+  expect((await dateChoiceResponse).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Choose date: Yes" }).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Choose date: Yes" }).first()).toBeVisible();
 
   await page.getByRole("tab", { name: "Players" }).click();
   await expect(page.getByText("Minimum players")).toBeVisible();
@@ -198,6 +207,15 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.getByText("Cascadia").first()).toBeVisible();
   await expect(page.getByText("2021").first()).toBeVisible();
+  const gameChoiceResponse = page.waitForResponse(
+    (response) => response.request().method() === "PATCH" && response.url().includes("/choices"),
+  );
+  await page.getByRole("button", { name: "Choose game: Not known" }).first().click();
+  await page.getByRole("menuitemradio", { name: "If I have to" }).click();
+  expect((await gameChoiceResponse).ok()).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "Choose game: If I have to" }).first(),
+  ).toBeVisible();
 
   // Admin edits reuse the creation wizard and persist only on the final step.
   await page.getByRole("button", { name: "Edit match" }).click();

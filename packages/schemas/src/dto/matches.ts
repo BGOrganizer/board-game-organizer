@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { matchInvitationStatusSchema, matchStatusSchema } from "../models/matches";
+import {
+  matchChoiceSchema,
+  matchChoicesSchema,
+  matchInvitationStatusSchema,
+  matchStatusSchema,
+} from "../models/matches";
 import { targetUserIdSchema } from "./common";
 
 export const matchInvitationResponseSchema = z.object({
@@ -60,8 +65,23 @@ export const matchDetailResponseSchema = z.object({
   administrator: matchPlayerSchema,
   invitedPlayers: z.array(matchInvitedPlayerSchema),
   games: z.array(matchGameResponseSchema),
+  choices: matchChoicesSchema.optional(),
 });
 export type MatchDetailResponse = z.infer<typeof matchDetailResponseSchema>;
+
+export const setMatchChoiceSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("dates"),
+    itemId: z.iso.datetime({ offset: true }),
+    choice: matchChoiceSchema,
+  }),
+  z.object({
+    kind: z.literal("games"),
+    itemId: z.number().int().positive(),
+    choice: matchChoiceSchema,
+  }),
+]);
+export type SetMatchChoiceInput = z.infer<typeof setMatchChoiceSchema>;
 
 export const inviteMatchUserSchema = z.object({ inviteeUserId: targetUserIdSchema }).strict();
 export type InviteMatchUserInput = z.infer<typeof inviteMatchUserSchema>;

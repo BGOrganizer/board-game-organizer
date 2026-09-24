@@ -7,6 +7,14 @@ export type MatchStatus = z.infer<typeof matchStatusSchema>;
 export const matchInvitationStatusSchema = z.enum(["PENDING", "ACCEPTED", "DECLINED"]);
 export type MatchInvitationStatus = z.infer<typeof matchInvitationStatusSchema>;
 
+export const matchChoiceSchema = z.enum(["UNKNOWN", "YES", "NO", "IF_NEEDED"]);
+export type MatchChoice = z.infer<typeof matchChoiceSchema>;
+
+export const matchChoicesSchema = z.object({
+  dates: z.record(z.string(), matchChoiceSchema).optional(),
+  games: z.record(z.string(), matchChoiceSchema).optional(),
+});
+
 /** Match persisted independently from invitation lifecycle. */
 export const matchModel = z.object({
   id: z.uuid(),
@@ -17,6 +25,7 @@ export const matchModel = z.object({
   minPlayers: z.number().int().min(2),
   maxPlayers: z.number().int().min(2),
   gameIds: z.array(z.number().int().positive()).min(1),
+  choices: z.record(z.string(), matchChoicesSchema).optional(),
   status: matchStatusSchema,
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),

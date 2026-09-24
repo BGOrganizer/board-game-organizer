@@ -60,6 +60,59 @@ const detail = {
 describe("useMatchDetail", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("optimistically saves a choice with a fresh token and rolls back on failure", async () => {
+    const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };
+    const getToken = vi.fn().mockResolvedValue("fresh-token");
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    let failPatch = () => {};
+    const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) =>
+      init?.method === "PATCH"
+        ? new Promise<Response>((resolve) => {
+            failPatch = () => resolve(new Response("error", { status: 409 }));
+          })
+        : Promise.resolve(new Response(JSON.stringify(detail), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(
+      () =>
+        useMatchDetail({
+          apiUrl: "https://api.example.com",
+          token: "initial-token",
+          getToken,
+          feedback,
+          matchId: invitation.matchId,
+        }),
+      { wrapper: wrapper(client) },
+    );
+    await waitFor(() => expect(result.current.detail.data).toBeTruthy());
+    act(() =>
+      result.current.setChoice.mutate({
+        kind: "dates",
+        itemId: detail.match.dates[0],
+        choice: "YES",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        result.current.detail.data?.choices?.dates?.[String(Date.parse(detail.match.dates[0]))],
+      ).toBe("YES"),
+    );
+    expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("set_match_choice");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://api.example.com/api/matches/${invitation.matchId}/choices`,
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({ Authorization: "Bearer fresh-token" }),
+      }),
+    );
+    failPatch();
+    await waitFor(() => expect(result.current.setChoice.isError).toBe(true));
+    expect(result.current.detail.data?.choices?.dates).toBeUndefined();
+    expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "set_match_choice");
+  });
+
   it("loads accessible details and responds to invitations with a fresh token", async () => {
     const getToken = vi.fn().mockResolvedValue("fresh-token");
     const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };

@@ -39,6 +39,9 @@ function setup(withNotifications = false) {
     listAccessible: vi.fn(async () => [match]),
     findById: vi.fn(async () => match as Match | null),
     serializeInvitationChange: vi.fn(async () => ({ modifiedCount: 1 })),
+    setChoice: vi.fn(async () => ({ matchedCount: 1 })),
+    clearChoices: vi.fn(async () => ({ modifiedCount: 1 })),
+    clearRemovedOptionChoices: vi.fn(async () => ({ modifiedCount: 1 })),
     updatePlanning: vi.fn(async () => ({ ...match, maxPlayers: 4 }) as Match | null),
     deleteById: vi.fn(async () => ({ deletedCount: 1 })),
   };
@@ -105,6 +108,80 @@ async function expectMatchError(promise: Promise<unknown>, status: number, messa
 }
 
 describe("MatchService", () => {
+  it("forgets choices for dates removed while planning", async () => {
+    const { service, matches } = setup();
+    matches.findById.mockResolvedValueOnce({
+      ...match,
+      choices: { user_admin: { dates: { [String(Date.parse(match.dates[0]))]: "YES" } } },
+    });
+    await service.update("user_admin", match.id, { dates: ["2026-10-02T20:00:00.000Z"] });
+    expect(matches.clearRemovedOptionChoices).toHaveBeenCalledWith(
+      expect.objectContaining({ id: match.id }),
+      match.dates,
+      [],
+    );
+  });
+
+  it("allows admin and accepted invitees to choose only existing dates and games", async () => {
+    const { service, matches, invitations } = setup();
+    await service.setChoice("user_admin", match.id, {
+      kind: "dates",
+      itemId: match.dates[0],
+      choice: "YES",
+    });
+    expect(matches.setChoice).toHaveBeenCalledWith(match.id, "user_admin", {
+      kind: "dates",
+      itemId: match.dates[0],
+      choice: "YES",
+    });
+
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    await service.setChoice("user_guest", match.id, {
+      kind: "games",
+      itemId: 1,
+      choice: "IF_NEEDED",
+    });
+    expect(matches.setChoice).toHaveBeenCalledWith(match.id, "user_guest", {
+      kind: "games",
+      itemId: 1,
+      choice: "IF_NEEDED",
+    });
+    expect((await service.detail("user_guest", match.id)).choices).toEqual({
+      dates: {},
+      games: {},
+    });
+
+    await expectMatchError(
+      service.setChoice("user_guest", match.id, { kind: "games", itemId: 2, choice: "NO" }),
+      409,
+      "Match option no longer exists",
+    );
+    matches.setChoice.mockResolvedValueOnce({ matchedCount: 0 });
+    await expectMatchError(
+      service.setChoice("user_admin", match.id, {
+        kind: "dates",
+        itemId: match.dates[0],
+        choice: "NO",
+      }),
+      409,
+      "Match option no longer exists",
+    );
+    invitations.listByMatch.mockResolvedValue([invitation]);
+    await expectMatchError(
+      service.setChoice("user_guest", match.id, { kind: "games", itemId: 1, choice: "YES" }),
+      403,
+      "Only accepted participants can choose",
+    );
+    await expectMatchError(
+      service.setChoice("user_other", match.id, {
+        kind: "dates",
+        itemId: match.dates[0],
+        choice: "YES",
+      }),
+      403,
+      "Only accepted participants can choose",
+    );
+  });
   beforeEach(() => vi.restoreAllMocks());
 
   it("requires a synchronized current user", async () => {

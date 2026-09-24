@@ -4,6 +4,7 @@ import type {
   MatchDetailResponse,
   MatchInvitation,
   MatchResponse,
+  SetMatchChoiceInput,
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
 import { MongoServerError } from "mongodb";
@@ -177,6 +178,10 @@ export class MatchService {
 
     return {
       match: this.toResponse(match, visibleInvitations),
+      choices: {
+        dates: match.choices?.[userId]?.dates ?? {},
+        games: match.choices?.[userId]?.games ?? {},
+      },
       administrator: {
         id: match.clerkId,
         name: administrator?.name ?? match.clerkId,
@@ -208,6 +213,29 @@ export class MatchService {
           : [];
       }),
     };
+  }
+
+  async setChoice(userId: string, matchId: string, input: SetMatchChoiceInput) {
+    const match = await this.requireMatch(matchId);
+    if (match.clerkId !== userId) {
+      const invitations = await this.invitations.listByMatch(matchId);
+      if (
+        !invitations.some(
+          (invitation) => invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+        )
+      ) {
+        throw new MatchError(403, "Only accepted participants can choose");
+      }
+    }
+    if (
+      input.kind === "dates"
+        ? !match.dates.includes(input.itemId)
+        : !match.gameIds.includes(input.itemId)
+    )
+      throw new MatchError(409, "Match option no longer exists");
+    if (!/^[A-Za-z0-9_-]+$/.test(userId)) throw new MatchError(403, "Invalid user id");
+    const updated = await this.matches.setChoice(matchId, userId, input);
+    if (updated.matchedCount === 0) throw new MatchError(409, "Match option no longer exists");
   }
 
   async listInvitations(userId: string, matchId: string) {
@@ -283,6 +311,7 @@ export class MatchService {
     }
     const result = await this.invitations.deleteAccepted(invitation.id, userId);
     if (result.deletedCount === 0) throw new MatchError(409, "Invitation changed concurrently");
+    await this.matches.clearChoices(match.id, userId);
   }
 
   async removeInvitation(userId: string, matchId: string, invitationId: string) {
@@ -296,6 +325,7 @@ export class MatchService {
     await this.matches.serializeInvitationChange(match.id);
     const result = await this.invitations.deleteByIdForMatch(invitationId, matchId);
     if (result.deletedCount === 0) throw new MatchError(409, "Invitation changed concurrently");
+    await this.matches.clearChoices(match.id, invitation.inviteeUserId);
   }
 
   async update(userId: string, matchId: string, input: UpdateMatchInput) {
@@ -338,6 +368,13 @@ export class MatchService {
     const { invitedUserIds: _invitedUserIds, ...updates } = input;
     const updated = await this.matches.updatePlanning(match.id, userId, updates);
     if (!updated) throw new MatchError(409, "Match changed concurrently");
+    if (match.choices && (input.dates || input.gameIds)) {
+      await this.matches.clearRemovedOptionChoices(
+        match,
+        match.dates.filter((date) => input.dates && !input.dates.includes(date)),
+        match.gameIds.filter((id) => input.gameIds && !input.gameIds.includes(id)),
+      );
+    }
 
     const addedInviteeIds = new Set<string>();
     if (input.invitedUserIds) {
@@ -353,6 +390,7 @@ export class MatchService {
       for (const invitation of invitations) {
         if (!retainedIds.has(invitation.inviteeUserId)) {
           await this.invitations.deleteByIdForMatch(invitation.id, match.id);
+          await this.matches.clearChoices(match.id, invitation.inviteeUserId);
         }
       }
       const newInviteeIds = input.invitedUserIds.filter((id) => !retainedIds.has(id));

@@ -14,6 +14,7 @@ const routerMock = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
 const mutate = vi.fn();
 const deleteMutate = vi.fn();
 const leaveMutate = vi.fn();
+const setChoiceMutate = vi.fn();
 
 beforeAll(() => {
   Object.defineProperty(Element.prototype, "getAnimations", {
@@ -102,6 +103,7 @@ function result(data: typeof detail | undefined = detail) {
     respondInvitation: { mutate, isPending: false, isError: false },
     deleteMatch: { mutate: deleteMutate, isPending: false, isError: false },
     leaveMatch: { mutate: leaveMutate, isPending: false, isError: false },
+    setChoice: { mutate: setChoiceMutate, isPending: false },
   };
 }
 
@@ -213,6 +215,28 @@ describe("MatchDetail", () => {
     view.rerender(detailView());
     expect(screen.getByText("Edit wizard: Friday night games")).toBeTruthy();
     expect(draft.value).toBe("Unsaved edit");
+  });
+
+  it("shows date/game choice menus only to admin or accepted invitees", () => {
+    authMock.userId = "user_guest";
+    const view = renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    expect(screen.queryByRole("button", { name: /Choose date/ })).toBeNull();
+    view.unmount();
+
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, invitations: [{ ...invitation, status: "ACCEPTED" }] },
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("button", { name: /Choose date/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Yes" }));
+    expect(setChoiceMutate).toHaveBeenCalledWith({
+      kind: "dates",
+      itemId: detail.match.dates[0],
+      choice: "YES",
+    });
   });
 
   it("confirms match deletion for admins", () => {
