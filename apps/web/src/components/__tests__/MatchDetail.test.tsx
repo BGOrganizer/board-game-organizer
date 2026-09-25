@@ -232,7 +232,7 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     const dateAction = screen.getByRole("button", { name: /Choose date/ });
     expect(dateAction.className).toContain("button--outline");
-    expect(dateAction.querySelector("svg.lucide-vote")).toBeTruthy();
+    expect(dateAction.querySelector("svg.lucide-circle-question-mark")).toBeTruthy();
     fireEvent.click(dateAction);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Yes" }));
     expect(setChoiceMutate).toHaveBeenCalledWith({
@@ -243,7 +243,38 @@ describe("MatchDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     const gameAction = screen.getByRole("button", { name: /Choose game/ });
     expect(gameAction.className).toContain("button--outline");
-    expect(gameAction.querySelector("svg.lucide-vote")).toBeTruthy();
+    expect(gameAction.querySelector("svg.lucide-circle-question-mark")).toBeTruthy();
+  });
+
+  it("changes date and game icons with the selected choice", () => {
+    authMock.userId = "user_admin";
+    const dateKey = String(Date.parse(detail.match.dates[0]));
+    useMatchDetailMock.mockReturnValue(
+      result({ ...detail, choices: { dates: { [dateKey]: "YES" }, games: { "1": "NO" } } }),
+    );
+    const view = renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    const dateAction = screen.getByRole("button", { name: "Choose date: Yes" });
+    expect(dateAction.className).toContain("text-success");
+    expect(dateAction.querySelector("svg.lucide-circle-check")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    const gameAction = screen.getByRole("button", { name: "Choose game: No" });
+    expect(gameAction.className).toContain("text-danger");
+    expect(gameAction.querySelector("svg.lucide-circle-x")).toBeTruthy();
+    view.unmount();
+
+    useMatchDetailMock.mockReturnValue(
+      result({ ...detail, choices: { dates: { [dateKey]: "IF_NEEDED" }, games: {} } }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    const warningAction = screen.getByRole("button", { name: "Choose date: If I have to" });
+    expect(warningAction.className).toContain("text-warning");
+    expect(warningAction.querySelector("svg.lucide-circle-alert")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(
+      screen
+        .getByRole("button", { name: "Choose game: Not known" })
+        .querySelector("svg.lucide-circle-question-mark"),
+    ).toBeTruthy();
   });
 
   it("confirms match deletion for admins", () => {

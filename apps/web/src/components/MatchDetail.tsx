@@ -12,7 +12,9 @@ import { useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
   Check,
+  CircleAlert,
   CircleCheck,
+  CircleQuestionMark,
   CircleX,
   Clock3,
   Crown,
@@ -20,7 +22,6 @@ import {
   LogOut,
   Pencil,
   Trash2,
-  Vote,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +46,12 @@ const choiceColors: Record<MatchChoice, string> = {
   NO: "text-danger",
   IF_NEEDED: "text-warning",
 };
+const choiceIcons = {
+  UNKNOWN: CircleQuestionMark,
+  YES: CircleCheck,
+  NO: CircleX,
+  IF_NEEDED: CircleAlert,
+} as const;
 
 function ChoiceDropdown({
   label,
@@ -58,6 +65,7 @@ function ChoiceDropdown({
   onChoose: (choice: MatchChoice) => void;
 }) {
   const { t } = useLingui();
+  const ChoiceIcon = choiceIcons[choice];
   const labels: Record<MatchChoice, string> = {
     UNKNOWN: t`Not known`,
     YES: t`Yes`,
@@ -70,7 +78,7 @@ function ChoiceDropdown({
         aria-label={`${label}: ${labels[choice]}`}
         className={`button button--icon-only button--sm button--outline shrink-0 ${choiceColors[choice]}`}
       >
-        <Vote aria-hidden="true" className="h-4 w-4" />
+        <ChoiceIcon aria-hidden="true" className="h-4 w-4" />
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end">
         <Dropdown.Menu

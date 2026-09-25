@@ -13,7 +13,9 @@ import { Tabs } from "heroui-native/tabs";
 import { Text } from "heroui-native/text";
 import {
   Check,
+  CircleAlert,
   CircleCheck,
+  CircleQuestionMark,
   CircleX,
   Clock3,
   Crown,
@@ -21,7 +23,6 @@ import {
   LogOut,
   Pencil,
   Trash2,
-  Vote,
   X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
@@ -40,6 +41,17 @@ const choiceColors: Record<MatchChoice, string> = {
   NO: "text-danger",
   IF_NEEDED: "text-warning",
 };
+const choiceIcons = {
+  UNKNOWN: CircleQuestionMark,
+  YES: CircleCheck,
+  NO: CircleX,
+  IF_NEEDED: CircleAlert,
+} as const;
+
+function ChoiceIcon({ choice, color }: { choice: MatchChoice; color: string }) {
+  const Icon = choiceIcons[choice];
+  return <Icon size={18} color={color} />;
+}
 const choiceBorders: Record<MatchChoice, string> = {
   UNKNOWN: "border-muted",
   YES: "border-success",
@@ -427,7 +439,7 @@ function MatchDetailContent({
                           openChoice({ kind: "dates", itemId: date, title: t("Choose date") })
                         }
                       >
-                        <Vote size={18} color={iconColors[choice]} />
+                        <ChoiceIcon choice={choice} color={iconColors[choice]} />
                       </Button>
                     )}
                   </View>
@@ -559,8 +571,8 @@ function MatchDetailContent({
                           openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
                         }
                       >
-                        <Vote
-                          size={18}
+                        <ChoiceIcon
+                          choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
                           color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
                         />
                       </Button>
