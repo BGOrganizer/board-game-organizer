@@ -230,13 +230,20 @@ describe("MatchDetail", () => {
       }),
     );
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
-    fireEvent.click(screen.getByRole("button", { name: /Choose date/ }));
+    const dateAction = screen.getByRole("button", { name: /Choose date/ });
+    expect(dateAction.className).toContain("button--outline");
+    expect(dateAction.querySelector("svg.lucide-vote")).toBeTruthy();
+    fireEvent.click(dateAction);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Yes" }));
     expect(setChoiceMutate).toHaveBeenCalledWith({
       kind: "dates",
       itemId: detail.match.dates[0],
       choice: "YES",
     });
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    const gameAction = screen.getByRole("button", { name: /Choose game/ });
+    expect(gameAction.className).toContain("button--outline");
+    expect(gameAction.querySelector("svg.lucide-vote")).toBeTruthy();
   });
 
   it("confirms match deletion for admins", () => {

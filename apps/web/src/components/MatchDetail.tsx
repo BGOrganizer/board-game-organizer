@@ -20,6 +20,7 @@ import {
   LogOut,
   Pencil,
   Trash2,
+  Vote,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -67,11 +68,9 @@ function ChoiceDropdown({
     <Dropdown>
       <Dropdown.Trigger
         aria-label={`${label}: ${labels[choice]}`}
-        className={`button button--icon-only button--sm button--ghost shrink-0 ${choiceColors[choice]}`}
+        className={`button button--icon-only button--sm button--outline shrink-0 ${choiceColors[choice]}`}
       >
-        <span aria-hidden="true" className="text-lg leading-none">
-          ●
-        </span>
+        <Vote aria-hidden="true" className="h-4 w-4" />
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end">
         <Dropdown.Menu

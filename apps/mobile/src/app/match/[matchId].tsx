@@ -7,6 +7,7 @@ import { Avatar } from "heroui-native/avatar";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Text } from "heroui-native/text";
@@ -20,6 +21,7 @@ import {
   LogOut,
   Pencil,
   Trash2,
+  Vote,
   X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
@@ -320,6 +322,18 @@ function MatchDetailContent({
   respond: (invitationId: string, decision: "accept" | "decline") => void;
 }) {
   const t = useT();
+  const [muted, success, danger, warning] = useThemeColor([
+    "muted",
+    "success",
+    "danger",
+    "warning",
+  ]);
+  const iconColors: Record<MatchChoice, string> = {
+    UNKNOWN: muted,
+    YES: success,
+    NO: danger,
+    IF_NEEDED: warning,
+  };
   const { match, administrator, invitedPlayers, games } = data;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const canChoose = match.adminUserId === userId || ownInvitation?.status === "ACCEPTED";
@@ -403,7 +417,7 @@ function MatchDetailContent({
                     </Text>
                     {canChoose && (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         isIconOnly
                         size="sm"
                         isDisabled={choicePending}
@@ -413,7 +427,7 @@ function MatchDetailContent({
                           openChoice({ kind: "dates", itemId: date, title: t("Choose date") })
                         }
                       >
-                        <Text className={`text-xl ${choiceColors[choice]}`}>●</Text>
+                        <Vote size={18} color={iconColors[choice]} />
                       </Button>
                     )}
                   </View>
@@ -535,7 +549,7 @@ function MatchDetailContent({
                     </View>
                     {canChoose && (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         isIconOnly
                         size="sm"
                         isDisabled={choicePending}
@@ -545,11 +559,10 @@ function MatchDetailContent({
                           openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
                         }
                       >
-                        <Text
-                          className={`text-xl ${choiceColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}`}
-                        >
-                          ●
-                        </Text>
+                        <Vote
+                          size={18}
+                          color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
+                        />
                       </Button>
                     )}
                   </View>
