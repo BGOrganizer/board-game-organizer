@@ -29,6 +29,8 @@ export const matchResponseSchema = z.object({
   invitedUserIds: z.array(z.string()),
   gameIds: z.array(z.number()),
   status: matchStatusSchema,
+  selectedDate: z.string().optional(),
+  selectedGameId: z.number().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   invitations: z.array(matchInvitationResponseSchema),
@@ -82,6 +84,9 @@ export const setMatchChoiceSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type SetMatchChoiceInput = z.infer<typeof setMatchChoiceSchema>;
+
+export const setMatchStatusSchema = z.object({ status: matchStatusSchema }).strict();
+export type SetMatchStatusInput = z.infer<typeof setMatchStatusSchema>;
 
 export const inviteMatchUserSchema = z.object({ inviteeUserId: targetUserIdSchema }).strict();
 export type InviteMatchUserInput = z.infer<typeof inviteMatchUserSchema>;

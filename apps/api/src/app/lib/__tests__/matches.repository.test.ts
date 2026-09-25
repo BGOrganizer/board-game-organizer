@@ -105,13 +105,21 @@ describe("MatchesRepository", () => {
       choice: "YES",
     });
     expect(collection.updateOne).toHaveBeenCalledWith(
-      { id: stored.id, dates: input.dates[0] },
+      {
+        id: stored.id,
+        $or: [{ status: "PLANNING" }, { status: { $exists: false } }],
+        dates: input.dates[0],
+      },
       { $set: { [`choices.user_1.dates.${Date.parse(input.dates[0])}`]: "YES" } },
       {},
     );
     await repo.setChoice(stored.id, "user_1", { kind: "games", itemId: 342942, choice: "NO" });
     expect(collection.updateOne).toHaveBeenCalledWith(
-      { id: stored.id, gameIds: 342942 },
+      {
+        id: stored.id,
+        $or: [{ status: "PLANNING" }, { status: { $exists: false } }],
+        gameIds: 342942,
+      },
       { $set: { "choices.user_1.games.342942": "NO" } },
       {},
     );
@@ -187,11 +195,25 @@ describe("MatchesRepository", () => {
 
   it("updates match status and timestamp", async () => {
     const { db, collection } = setup();
-    await new MatchesRepository(db as never).setStatus(stored.id, "CREATED");
-    expect(collection.updateOne).toHaveBeenCalledWith(
-      { id: stored.id },
-      { $set: { status: "CREATED", updatedAt: expect.any(String) } },
-      {},
+    await new MatchesRepository(db as never).setStatus(stored.id, "user_1", "PLANNING", "CREATED", {
+      date: stored.dates[0],
+      gameId: stored.gameIds[0],
+    });
+    expect(collection.findOneAndUpdate).toHaveBeenCalledWith(
+      {
+        id: stored.id,
+        clerkId: "user_1",
+        $or: [{ status: "PLANNING" }, { status: { $exists: false } }],
+      },
+      {
+        $set: {
+          status: "CREATED",
+          selectedDate: stored.dates[0],
+          selectedGameId: stored.gameIds[0],
+          updatedAt: expect.any(String),
+        },
+      },
+      { returnDocument: "after", projection: { _id: 0 } },
     );
   });
 });

@@ -27,6 +27,8 @@ export const matchModel = z.object({
   gameIds: z.array(z.number().int().positive()).min(1),
   choices: z.record(z.string(), matchChoicesSchema).optional(),
   status: matchStatusSchema,
+  selectedDate: z.iso.datetime({ offset: true }).optional(),
+  selectedGameId: z.number().int().positive().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });

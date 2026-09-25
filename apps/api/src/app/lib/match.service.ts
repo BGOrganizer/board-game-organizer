@@ -25,6 +25,27 @@ export class MatchError extends Error {
   }
 }
 
+export function pickSharedOption<T extends string | number>(
+  options: T[],
+  kind: "dates" | "games",
+  choices: Match["choices"],
+  participants: string[],
+  adminId: string,
+): T | undefined {
+  let winner: { option: T; yes: number; adminYes: boolean } | undefined;
+  for (const option of options) {
+    const key = kind === "dates" ? String(Date.parse(String(option))) : String(option);
+    const votes = participants.map((id) => choices?.[id]?.[kind]?.[key] ?? "UNKNOWN");
+    if (votes.some((vote) => vote !== "YES" && vote !== "IF_NEEDED")) continue;
+    const yes = votes.filter((vote) => vote === "YES").length;
+    const adminYes = choices?.[adminId]?.[kind]?.[key] === "YES";
+    if (!winner || yes > winner.yes || (yes === winner.yes && adminYes && !winner.adminYes)) {
+      winner = { option, yes, adminYes };
+    }
+  }
+  return winner?.option;
+}
+
 export class MatchService {
   constructor(
     private matches: MatchesRepository,
@@ -79,6 +100,9 @@ export class MatchService {
     userId: string,
     invitations: MatchInvitation[],
   ): MatchInvitation[] {
+    if (match.status === "CREATED") {
+      return invitations.filter((invitation) => invitation.status === "ACCEPTED");
+    }
     if (match.clerkId === userId) return invitations;
     return invitations.filter(
       (invitation) => invitation.status === "ACCEPTED" || invitation.inviteeUserId === userId,
@@ -96,6 +120,8 @@ export class MatchService {
       invitedUserIds: invitations.map((invitation) => invitation.inviteeUserId),
       gameIds: match.gameIds,
       status: match.status,
+      ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
+      ...(match.selectedGameId ? { selectedGameId: match.selectedGameId } : {}),
       createdAt: match.createdAt,
       updatedAt: match.updatedAt,
       invitations,
@@ -143,9 +169,17 @@ export class MatchService {
         .map((invitation) => invitation.matchId),
     );
     const invitations = await this.invitations.listByMatchIds(matches.map((match) => match.id));
-    return matches.map((match) => {
+    return matches.flatMap((match) => {
       const matchInvitations = invitations.filter((invitation) => invitation.matchId === match.id);
-      return this.toResponse(match, this.visibleInvitations(match, userId, matchInvitations));
+      if (
+        match.status === "CREATED" &&
+        match.clerkId !== userId &&
+        !matchInvitations.some(
+          (invitation) => invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+        )
+      )
+        return [];
+      return [this.toResponse(match, this.visibleInvitations(match, userId, matchInvitations))];
     });
   }
 
@@ -154,7 +188,11 @@ export class MatchService {
     const invitations = await this.invitations.listByMatch(matchId);
     if (
       match.clerkId !== userId &&
-      !invitations.some((invitation) => invitation.inviteeUserId === userId)
+      !invitations.some(
+        (invitation) =>
+          invitation.inviteeUserId === userId &&
+          (match.status === "PLANNING" || invitation.status === "ACCEPTED"),
+      )
     ) {
       throw new MatchError(404, "Match not found");
     }
@@ -217,6 +255,7 @@ export class MatchService {
 
   async setChoice(userId: string, matchId: string, input: SetMatchChoiceInput) {
     const match = await this.requireMatch(matchId);
+    this.requirePlanning(match);
     if (match.clerkId !== userId) {
       const invitations = await this.invitations.listByMatch(matchId);
       if (
@@ -238,10 +277,45 @@ export class MatchService {
     if (updated.matchedCount === 0) throw new MatchError(409, "Match option no longer exists");
   }
 
+  async setStatus(userId: string, matchId: string, status: "PLANNING" | "CREATED") {
+    // Lock the match document before reading votes and invitations inside the transaction.
+    if ((await this.matches.serializeInvitationChange(matchId)).matchedCount === 0) {
+      throw new MatchError(404, "Match not found");
+    }
+    const match = await this.requireMatch(matchId);
+    this.requireAdmin(match, userId);
+    if (match.status === status) throw new MatchError(409, "Match already has this status");
+    const invitations = await this.invitations.listByMatch(matchId);
+    const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
+    let selected: { date: string; gameId: number } | undefined;
+    if (status === "CREATED") {
+      if (accepted.length + 1 < match.minPlayers) {
+        throw new MatchError(409, "Not enough accepted players");
+      }
+      const participants = [userId, ...accepted.map((invitation) => invitation.inviteeUserId)];
+      const date = pickSharedOption(match.dates, "dates", match.choices, participants, userId);
+      const gameId = pickSharedOption(match.gameIds, "games", match.choices, participants, userId);
+      if (!date || !gameId) throw new MatchError(409, "No shared date and game choices");
+      selected = { date, gameId };
+    }
+    const updated = await this.matches.setStatus(matchId, userId, match.status, status, selected);
+    if (!updated) throw new MatchError(409, "Match status changed concurrently");
+    await this.notifications?.notifyMany(
+      accepted.map((invitation) => ({
+        kind: status === "CREATED" ? ("match_created" as const) : ("match_replanning" as const),
+        recipientUserId: invitation.inviteeUserId,
+        actorUserId: userId,
+        matchName: updated.name,
+      })),
+    );
+    return this.toResponse(updated, this.visibleInvitations(updated, userId, invitations));
+  }
+
   async listInvitations(userId: string, matchId: string) {
     const match = await this.requireMatch(matchId);
     this.requireAdmin(match, userId);
-    return this.invitations.listByMatch(matchId);
+    const invitations = await this.invitations.listByMatch(matchId);
+    return this.visibleInvitations(match, userId, invitations);
   }
 
   async invite(userId: string, matchId: string, inviteeUserId: string) {
@@ -285,6 +359,7 @@ export class MatchService {
     if (invitation.status !== "PENDING") {
       throw new MatchError(409, "Invitation already answered");
     }
+    await this.matches.serializeInvitationChange(match.id);
     const updated = await this.invitations.respond(
       invitation.id,
       decision === "accept" ? "ACCEPTED" : "DECLINED",
@@ -309,6 +384,7 @@ export class MatchService {
     if (invitation.status !== "ACCEPTED") {
       throw new MatchError(409, "Only accepted participants can leave");
     }
+    await this.matches.serializeInvitationChange(match.id);
     const result = await this.invitations.deleteAccepted(invitation.id, userId);
     if (result.deletedCount === 0) throw new MatchError(409, "Invitation changed concurrently");
     await this.matches.clearChoices(match.id, userId);

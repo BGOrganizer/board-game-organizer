@@ -1,7 +1,7 @@
-import type { Match, MatchInvitation } from "@board-game-organizer/schemas";
+import type { Match, MatchChoice, MatchInvitation } from "@board-game-organizer/schemas";
 import { MongoServerError } from "mongodb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MatchError, MatchService } from "@/app/lib/match.service";
+import { MatchError, MatchService, pickSharedOption } from "@/app/lib/match.service";
 
 const match: Match = {
   id: "69409f64-7414-4e47-815c-36b01c1bff95",
@@ -38,7 +38,21 @@ function setup(withNotifications = false) {
     create: vi.fn(async () => match),
     listAccessible: vi.fn(async () => [match]),
     findById: vi.fn(async () => match as Match | null),
-    serializeInvitationChange: vi.fn(async () => ({ modifiedCount: 1 })),
+    serializeInvitationChange: vi.fn(async () => ({ modifiedCount: 1, matchedCount: 1 })),
+    setStatus: vi.fn(
+      async (
+        _id: string,
+        _admin: string,
+        _previous: string,
+        status: "CREATED" | "PLANNING",
+        selected?: { date: string; gameId: number },
+      ) =>
+        ({
+          ...match,
+          status,
+          ...(selected ? { selectedDate: selected.date, selectedGameId: selected.gameId } : {}),
+        }) as Match | null,
+    ),
     setChoice: vi.fn(async () => ({ matchedCount: 1 })),
     clearChoices: vi.fn(async () => ({ modifiedCount: 1 })),
     clearRemovedOptionChoices: vi.fn(async () => ({ modifiedCount: 1 })),
@@ -107,7 +121,158 @@ async function expectMatchError(promise: Promise<unknown>, status: number, messa
   await expect(promise).rejects.toEqual(expect.objectContaining({ status, message }));
 }
 
+describe("shared match choices", () => {
+  it("requires every participant to accept an option and ranks YES, admin YES, then admin option order", () => {
+    const dates = [
+      "2026-10-01T20:00:00.000Z",
+      "2026-10-02T20:00:00.000Z",
+      "2026-10-03T20:00:00.000Z",
+    ];
+    const [a, b, c] = dates.map((date) => String(Date.parse(date)));
+    const guestDates: Record<string, MatchChoice> = {
+      [a]: "YES",
+      [b]: "IF_NEEDED",
+      [c]: "IF_NEEDED",
+    };
+    const votes: Match["choices"] = {
+      user_admin: { dates: { [a]: "IF_NEEDED", [b]: "YES", [c]: "YES" } },
+      user_guest: { dates: guestDates },
+    };
+    const participants = ["user_admin", "user_guest"];
+    expect(pickSharedOption(dates, "dates", votes, participants, "user_admin")).toBe(dates[1]);
+    guestDates[b] = "YES";
+    expect(pickSharedOption(dates, "dates", votes, participants, "user_admin")).toBe(dates[1]);
+    guestDates[b] = "NO";
+    guestDates[c] = "UNKNOWN";
+    expect(pickSharedOption(dates, "dates", votes, participants, "user_admin")).toBe(dates[0]);
+    guestDates[a] = "UNKNOWN";
+    expect(pickSharedOption(dates, "dates", votes, participants, "user_admin")).toBeUndefined();
+    expect(
+      pickSharedOption(
+        [2, 1],
+        "games",
+        {
+          user_admin: { games: { "1": "YES", "2": "YES" } },
+          user_guest: { games: { "1": "YES", "2": "YES" } },
+        },
+        participants,
+        "user_admin",
+      ),
+    ).toBe(2);
+  });
+});
+
 describe("MatchService", () => {
+  it("confirms only with enough accepted participants and shared votes, then reopens and notifies only accepted invitees", async () => {
+    const { service, matches, invitations, notifications } = setup(true);
+    const accepted = { ...invitation, status: "ACCEPTED" as const };
+    const pending = { ...invitation, id: "pending", inviteeUserId: "user_pending" };
+    invitations.listByMatch.mockResolvedValue([accepted, pending]);
+    await expectMatchError(
+      service.setStatus("user_guest", match.id, "CREATED"),
+      403,
+      "Only match admin can manage match",
+    );
+    await expectMatchError(
+      service.setStatus("user_admin", match.id, "CREATED"),
+      409,
+      "No shared date and game choices",
+    );
+    expect(matches.setStatus).not.toHaveBeenCalled();
+    expect(notifications.notifyMany).not.toHaveBeenCalled();
+    const key = String(Date.parse(match.dates[0]));
+    matches.findById.mockResolvedValue({
+      ...match,
+      choices: {
+        user_admin: { dates: { [key]: "YES" }, games: { "1": "IF_NEEDED" } },
+        user_guest: { dates: { [key]: "IF_NEEDED" }, games: { "1": "YES" } },
+        user_pending: { dates: { [key]: "NO" }, games: { "1": "NO" } },
+      },
+    });
+    const created = await service.setStatus("user_admin", match.id, "CREATED");
+    expect(created).toMatchObject({
+      status: "CREATED",
+      selectedDate: match.dates[0],
+      selectedGameId: 1,
+    });
+    expect(created.invitations).toHaveLength(1);
+    expect(matches.setStatus).toHaveBeenCalledWith(match.id, "user_admin", "PLANNING", "CREATED", {
+      date: match.dates[0],
+      gameId: 1,
+    });
+    expect(notifications.notifyMany).toHaveBeenCalledWith([
+      {
+        kind: "match_created",
+        recipientUserId: "user_guest",
+        actorUserId: "user_admin",
+        matchName: match.name,
+      },
+    ]);
+    matches.findById.mockResolvedValue({
+      ...match,
+      status: "CREATED",
+      selectedDate: match.dates[0],
+      selectedGameId: 1,
+    });
+    await expectMatchError(
+      service.setChoice("user_admin", match.id, { kind: "games", itemId: 1, choice: "YES" }),
+      409,
+      "Match is no longer in planning",
+    );
+    const replanned = await service.setStatus("user_admin", match.id, "PLANNING");
+    expect(replanned.status).toBe("PLANNING");
+    expect(matches.setStatus).toHaveBeenCalledWith(
+      match.id,
+      "user_admin",
+      "CREATED",
+      "PLANNING",
+      undefined,
+    );
+    expect(notifications.notifyMany).toHaveBeenLastCalledWith([
+      {
+        kind: "match_replanning",
+        recipientUserId: "user_guest",
+        actorUserId: "user_admin",
+        matchName: match.name,
+      },
+    ]);
+  });
+
+  it("hides unaccepted invitees while created and restores access in planning", async () => {
+    const { service, matches, invitations } = setup();
+    matches.findById.mockResolvedValue({ ...match, status: "CREATED" });
+    matches.listAccessible.mockResolvedValue([{ ...match, status: "CREATED" }]);
+    expect(await service.list("user_guest")).toEqual([]);
+    await expectMatchError(service.detail("user_guest", match.id), 404, "Match not found");
+    const adminView = await service.detail("user_admin", match.id);
+    expect(await service.listInvitations("user_admin", match.id)).toEqual([]);
+    expect(adminView.match.invitations).toEqual([]);
+    expect(adminView.invitedPlayers).toEqual([]);
+    matches.findById.mockResolvedValue(match);
+    matches.listAccessible.mockResolvedValue([match]);
+    expect(await service.list("user_guest")).toHaveLength(1);
+    expect((await service.detail("user_guest", match.id)).match.invitations).toHaveLength(1);
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    matches.findById.mockResolvedValue({ ...match, status: "CREATED" });
+    expect((await service.detail("user_guest", match.id)).match.invitations).toHaveLength(1);
+  });
+
+  it("rejects confirmation below minimum or when a participant has not agreed", async () => {
+    const { service, matches, invitations } = setup();
+    matches.findById.mockResolvedValue({ ...match, minPlayers: 3 });
+    await expectMatchError(
+      service.setStatus("user_admin", match.id, "CREATED"),
+      409,
+      "Not enough accepted players",
+    );
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    await expectMatchError(
+      service.setStatus("user_admin", match.id, "CREATED"),
+      409,
+      "Not enough accepted players",
+    );
+    expect(matches.setStatus).not.toHaveBeenCalled();
+  });
   it("forgets choices for dates removed while planning", async () => {
     const { service, matches } = setup();
     matches.findById.mockResolvedValueOnce({

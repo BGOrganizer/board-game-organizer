@@ -38,6 +38,8 @@ export class MatchesRepository {
       gameIds: match.gameIds,
       ...(match.choices ? { choices: match.choices } : {}),
       status: match.status ?? "PLANNING",
+      ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
+      ...(match.selectedGameId ? { selectedGameId: match.selectedGameId } : {}),
       createdAt: match.createdAt,
       updatedAt: match.updatedAt ?? match.createdAt,
     };
@@ -106,7 +108,11 @@ export class MatchesRepository {
   setChoice(id: string, userId: string, input: SetMatchChoiceInput) {
     const key = input.kind === "dates" ? String(Date.parse(input.itemId)) : String(input.itemId);
     return this.col.updateOne(
-      { id, [input.kind === "dates" ? "dates" : "gameIds"]: input.itemId },
+      {
+        id,
+        $or: [{ status: "PLANNING" }, { status: { $exists: false } }],
+        [input.kind === "dates" ? "dates" : "gameIds"]: input.itemId,
+      },
       { $set: { [`choices.${userId}.${input.kind}.${key}`]: input.choice } },
       this.opts,
     );
@@ -133,11 +139,36 @@ export class MatchesRepository {
     return this.col.deleteOne({ id, clerkId }, this.opts);
   }
 
-  async setStatus(id: string, status: MatchStatus) {
-    return this.col.updateOne(
-      { id },
-      { $set: { status, updatedAt: new Date().toISOString() } },
-      this.opts,
+  async setStatus(
+    id: string,
+    clerkId: string,
+    previousStatus: MatchStatus,
+    status: MatchStatus,
+    selected?: { date: string; gameId: number },
+  ): Promise<Match | null> {
+    const updated = await this.col.findOneAndUpdate(
+      {
+        id,
+        clerkId,
+        ...(previousStatus === "PLANNING"
+          ? { $or: [{ status: "PLANNING" as const }, { status: { $exists: false } }] }
+          : { status: previousStatus }),
+      },
+      selected
+        ? {
+            $set: {
+              status,
+              selectedDate: selected.date,
+              selectedGameId: selected.gameId,
+              updatedAt: new Date().toISOString(),
+            },
+          }
+        : {
+            $set: { status, updatedAt: new Date().toISOString() },
+            $unset: { selectedDate: "", selectedGameId: "" },
+          },
+      { returnDocument: "after", projection: { _id: 0 }, ...this.opts },
     );
+    return updated ? this.normalize(updated) : null;
   }
 }

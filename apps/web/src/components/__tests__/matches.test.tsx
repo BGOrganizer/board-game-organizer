@@ -62,6 +62,31 @@ describe("Matches", () => {
     expect(screen.getByText("Matches")).toBeTruthy();
   });
 
+  it("lists only the confirmed date for a created match", () => {
+    const listedMatch = baseMock.list.data[0];
+    if (!listedMatch) throw new Error("Expected match fixture");
+    const selectedDate = "2026-09-06T20:00:00.000Z";
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: {
+        ...baseMock.list,
+        data: [
+          {
+            ...listedMatch,
+            status: "CREATED",
+            dates: [...listedMatch.dates, selectedDate],
+            selectedDate,
+            selectedGameId: 342942,
+          },
+        ],
+      },
+    });
+    renderWithI18n(<Matches />);
+    expect(screen.getByText("Confirmed")).toBeTruthy();
+    expect(screen.getByText(new Date(selectedDate).toLocaleString())).toBeTruthy();
+    expect(screen.queryByText(new Date(listedMatch.dates[0]).toLocaleString())).toBeNull();
+  });
+
   it("identifies matches administered by the current user", () => {
     const listedMatch = baseMock.list.data[0];
     if (!listedMatch) throw new Error("Expected match fixture");

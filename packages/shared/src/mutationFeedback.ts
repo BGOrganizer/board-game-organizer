@@ -13,6 +13,8 @@ export type MutationFeedbackAction =
   | "create_match"
   | "update_match"
   | "set_match_choice"
+  | "create_match_status"
+  | "replan_match"
   | "delete_match"
   | "leave_match"
   | "accept_match_invitation"

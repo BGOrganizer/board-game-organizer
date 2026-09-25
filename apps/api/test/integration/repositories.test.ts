@@ -260,6 +260,7 @@ async function withMatchTransaction<T>(
     matches: MatchesRepository;
     invitations: MatchInvitationsRepository;
   }) => Promise<T>,
+  notify = false,
 ): Promise<T> {
   const session = client.startSession();
   try {
@@ -275,6 +276,7 @@ async function withMatchTransaction<T>(
           new UsersRepository(db, session),
           new RelationshipRepository(db, session),
           new BoardGamesRepository(db, session),
+          notify ? new NotificationsRepository(db, session) : undefined,
         ),
       });
     });
@@ -407,6 +409,86 @@ describe("match repositories on MongoDB replica set", () => {
     ).toBeUndefined();
   });
 
+  it("confirms with shared votes, hides pending invitees, and restores their access on replan", async () => {
+    await seedMatchDependencies();
+    await relationships.becomeFriends(ACTOR, THIRD);
+    const created = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, {
+        ...matchInput,
+        invitedUserIds: [TARGET, THIRD],
+      }),
+    );
+    const invitations = await new MatchInvitationsRepository(db).listByMatch(created.id);
+    const accepted = invitations.find((invitation) => invitation.inviteeUserId === TARGET);
+    if (!accepted) throw new Error("Expected target invitation");
+    await withMatchTransaction(({ service }) => service.respond(TARGET, accepted.id, "accept"));
+    for (const userId of [ACTOR, TARGET]) {
+      await withMatchTransaction(({ service }) =>
+        service.setChoice(userId, created.id, {
+          kind: "dates",
+          itemId: matchInput.dates[0],
+          choice: "YES",
+        }),
+      );
+      await withMatchTransaction(({ service }) =>
+        service.setChoice(userId, created.id, {
+          kind: "games",
+          itemId: matchInput.gameIds[0],
+          choice: "IF_NEEDED",
+        }),
+      );
+    }
+    const confirmed = await withMatchTransaction(
+      ({ service }) => service.setStatus(ACTOR, created.id, "CREATED"),
+      true,
+    );
+    expect(confirmed).toMatchObject({
+      status: "CREATED",
+      selectedDate: matchInput.dates[0],
+      selectedGameId: matchInput.gameIds[0],
+    });
+    expect(confirmed.invitations).toHaveLength(1);
+    expect(await withMatchTransaction(({ service }) => service.list(THIRD))).toEqual([]);
+    await expect(
+      withMatchTransaction(({ service }) => service.detail(THIRD, created.id)),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.setChoice(TARGET, created.id, {
+          kind: "games",
+          itemId: matchInput.gameIds[0],
+          choice: "YES",
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      (await new NotificationsRepository(db).list(TARGET, 10)).notifications.map(
+        (item) => item.kind,
+      ),
+    ).toContain("match_created");
+    expect((await new NotificationsRepository(db).list(THIRD, 10)).notifications).toEqual([]);
+    await withMatchTransaction(
+      ({ service }) => service.setStatus(ACTOR, created.id, "PLANNING"),
+      true,
+    );
+    expect((await new MatchesRepository(db).findById(created.id))?.selectedDate).toBeUndefined();
+    expect(
+      (await withMatchTransaction(({ service }) => service.detail(THIRD, created.id))).match
+        .invitations,
+    ).toHaveLength(2);
+    expect(
+      (await new NotificationsRepository(db).list(TARGET, 10)).notifications.map(
+        (item) => item.kind,
+      ),
+    ).toContain("match_replanning");
+    const pending = invitations.find((invitation) => invitation.inviteeUserId === THIRD);
+    if (!pending) throw new Error("Expected pending invitation");
+    await withMatchTransaction(({ service }) => service.respond(THIRD, pending.id, "accept"));
+    await expect(
+      withMatchTransaction(({ service }) => service.setStatus(ACTOR, created.id, "CREATED")),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
   it("removes declined invitation before re-invite and blocks late departure", async () => {
     await seedMatchDependencies();
     const created = await withMatchTransaction(({ service }) =>
@@ -428,7 +510,10 @@ describe("match repositories on MongoDB replica set", () => {
     expect(reinvited.id).not.toBe(invitation.id);
     await withMatchTransaction(({ service }) => service.respond(TARGET, reinvited.id, "accept"));
 
-    await new MatchesRepository(db).setStatus(created.id, "CREATED");
+    await new MatchesRepository(db).setStatus(created.id, ACTOR, "PLANNING", "CREATED", {
+      date: created.dates[0],
+      gameId: created.gameIds[0],
+    });
     await expect(
       withMatchTransaction(({ service }) => service.leave(TARGET, reinvited.id)),
     ).rejects.toEqual(
@@ -606,7 +691,10 @@ describe("match repositories on MongoDB replica set", () => {
       }),
     );
 
-    await new MatchesRepository(db).setStatus(created.id, "CREATED");
+    await new MatchesRepository(db).setStatus(created.id, ACTOR, "PLANNING", "CREATED", {
+      date: created.dates[0],
+      gameId: created.gameIds[0],
+    });
     await expect(
       withMatchTransaction(({ service }) =>
         service.update(ACTOR, created.id, { name: "Finalized title" }),

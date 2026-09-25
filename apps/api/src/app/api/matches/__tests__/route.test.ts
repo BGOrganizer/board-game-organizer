@@ -7,6 +7,7 @@ import * as choiceRoute from "../[matchId]/choices/route";
 import * as adminInvitationRoute from "../[matchId]/invitations/[invitationId]/route";
 import * as invitationsRoute from "../[matchId]/invitations/route";
 import * as detailRoute from "../[matchId]/route";
+import * as statusRoute from "../[matchId]/status/route";
 import * as matchesRoute from "../route";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
@@ -82,6 +83,7 @@ describe("match API routes", () => {
     vi.spyOn(MatchService.prototype, "update").mockResolvedValue(match as never);
     vi.spyOn(MatchService.prototype, "deleteMatch").mockResolvedValue();
     vi.spyOn(MatchService.prototype, "setChoice").mockResolvedValue();
+    vi.spyOn(MatchService.prototype, "setStatus").mockResolvedValue(match as never);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -269,6 +271,50 @@ describe("match API routes", () => {
         )
       ).status,
     ).toBe(400);
+  });
+
+  it("validates and authenticates match status transitions", async () => {
+    const path = `/api/matches/${matchId}/status`;
+    const response = await statusRoute.PATCH(
+      request(path, "PATCH", JSON.stringify({ status: "CREATED" })),
+      matchContext(),
+    );
+    expect(response.status).toBe(200);
+    expect(await json(response)).toEqual({ match });
+    expect(MatchService.prototype.setStatus).toHaveBeenCalledWith("user_admin", matchId, "CREATED");
+    expect(
+      (
+        await statusRoute.PATCH(
+          request(path, "PATCH", JSON.stringify({ status: "OTHER" })),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await statusRoute.PATCH(
+          request(path, "PATCH", JSON.stringify({ status: "PLANNING", other: true })),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await statusRoute.PATCH(
+          request(path, "PATCH", JSON.stringify({ status: "CREATED" })),
+          matchContext("invalid"),
+        )
+      ).status,
+    ).toBe(400);
+    vi.mocked(auth).mockResolvedValue({ userId: null } as never);
+    expect(
+      (
+        await statusRoute.PATCH(
+          request(path, "PATCH", JSON.stringify({ status: "CREATED" })),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(401);
   });
 
   it("validates and authenticates date/game choices", async () => {

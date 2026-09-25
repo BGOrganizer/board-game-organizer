@@ -87,6 +87,9 @@ export function Matches() {
               >
                 <div className="flex items-center gap-2">
                   <p className="font-semibold">{match.name}</p>
+                  <span className="text-xs text-default-500">
+                    {match.status === "CREATED" ? t`Confirmed` : t`Planning`}
+                  </span>
                   {match.adminUserId === userId ? (
                     <Crown aria-label={t`Administrator`} className="h-4 w-4 text-warning" />
                   ) : (
@@ -95,13 +98,18 @@ export function Matches() {
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-default-500">
                   <CalendarClock className="h-3.5 w-3.5" />
-                  {match.dates.map((date) => (
+                  {(match.status === "CREATED" && match.selectedDate
+                    ? [match.selectedDate]
+                    : match.dates
+                  ).map((date) => (
                     <span key={date}>{new Date(date).toLocaleString()}</span>
                   ))}
                 </div>
                 <p className="mt-1 text-xs text-default-400">
                   {t`Players`}: {match.minPlayers}–{match.maxPlayers}
-                  {match.gameIds.length > 0 && ` · ${match.gameIds.length} ${t`games`}`}
+                  {match.status === "PLANNING" &&
+                    match.gameIds.length > 0 &&
+                    ` · ${match.gameIds.length} ${t`games`}`}
                 </p>
               </Link>
 

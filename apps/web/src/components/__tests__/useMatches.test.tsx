@@ -113,6 +113,65 @@ describe("useMatchDetail", () => {
     expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "set_match_choice");
   });
 
+  it("optimistically transitions status, confirms server selection, and rolls back a failed reopen", async () => {
+    const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    let serverDetail = detail;
+    let finishPatch = (_response: Response) => {};
+    const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) =>
+      init?.method === "PATCH"
+        ? new Promise<Response>((resolve) => {
+            finishPatch = resolve;
+          })
+        : Promise.resolve(new Response(JSON.stringify(serverDetail), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(
+      () =>
+        useMatchDetail({
+          apiUrl: "https://api.example.com",
+          token: "initial",
+          getToken: async () => "fresh-token",
+          feedback,
+          matchId: invitation.matchId,
+        }),
+      { wrapper: wrapper(client) },
+    );
+    await waitFor(() => expect(result.current.detail.data?.match.status).toBe("PLANNING"));
+    act(() => result.current.setStatus.mutate("CREATED"));
+    await waitFor(() => expect(result.current.detail.data?.match.status).toBe("CREATED"));
+    expect(result.current.detail.data?.invitedPlayers).toEqual([]);
+    expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("create_match_status");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://api.example.com/api/matches/${invitation.matchId}/status`,
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ status: "CREATED" }),
+        headers: expect.objectContaining({ Authorization: "Bearer fresh-token" }),
+      }),
+    );
+    const created = {
+      ...detail.match,
+      status: "CREATED",
+      selectedDate: detail.match.dates[0],
+      selectedGameId: 1,
+      invitedUserIds: [],
+      invitations: [],
+    };
+    serverDetail = { ...detail, match: created, invitedPlayers: [] };
+    finishPatch(new Response(JSON.stringify({ match: created }), { status: 200 }));
+    await waitFor(() => expect(result.current.setStatus.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.detail.data?.match.selectedGameId).toBe(1));
+    act(() => result.current.setStatus.mutate("PLANNING"));
+    await waitFor(() => expect(result.current.detail.data?.match.status).toBe("PLANNING"));
+    finishPatch(new Response("error", { status: 409 }));
+    await waitFor(() => expect(result.current.setStatus.isError).toBe(true));
+    expect(result.current.detail.data?.match.status).toBe("CREATED");
+    expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "replan_match");
+  });
+
   it("loads accessible details and responds to invitations with a fresh token", async () => {
     const getToken = vi.fn().mockResolvedValue("fresh-token");
     const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };

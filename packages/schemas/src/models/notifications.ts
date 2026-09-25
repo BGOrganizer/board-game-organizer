@@ -7,6 +7,8 @@ export const NOTIFICATION_KINDS = [
   "match_invitation_accepted",
   "match_invitation_declined",
   "match_updated",
+  "match_created",
+  "match_replanning",
 ] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];

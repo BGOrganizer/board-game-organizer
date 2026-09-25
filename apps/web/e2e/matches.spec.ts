@@ -22,6 +22,78 @@ async function signInAsActor(page: import("@playwright/test").Page) {
   await completeMobileNumberIfNeeded(page);
 }
 
+test("admin confirms a shared match and reopens planning", async ({ page }) => {
+  if (!E2E_EMAIL) throw new Error("E2E_EMAIL required for match E2E");
+  await signInAsActor(page);
+  await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.user?.id));
+  const adminUserId = await page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
+  const matchId = "e1a9a989-5d0f-4f4c-9cf9-c08c4ae17102";
+  const date = "2026-10-01T20:00:00.000Z";
+  let status: "PLANNING" | "CREATED" = "PLANNING";
+  await page.route(`**/api/matches/${matchId}*`, async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/status")) {
+      status = (route.request().postDataJSON() as { status: typeof status }).status;
+    }
+    const match = {
+      id: matchId,
+      adminUserId,
+      name: "Shared game night",
+      dates: [date],
+      minPlayers: 2,
+      maxPlayers: 3,
+      gameIds: [342942],
+      status,
+      ...(status === "CREATED" ? { selectedDate: date, selectedGameId: 342942 } : {}),
+      createdAt: date,
+      updatedAt: date,
+      invitedUserIds: ["user_accepted"],
+      invitations: [
+        {
+          id: "2e6d06a2-734b-47ad-a8a2-08c4ea17f491",
+          matchId,
+          inviterUserId: adminUserId,
+          inviteeUserId: "user_accepted",
+          status: "ACCEPTED",
+          createdAt: date,
+          updatedAt: date,
+        },
+      ],
+    };
+    await route.fulfill({
+      json: path.endsWith("/status")
+        ? { match }
+        : {
+            match,
+            administrator: { id: adminUserId, name: "Admin", email: null, avatarUrl: null },
+            invitedPlayers: [
+              {
+                id: "user_accepted",
+                name: "Guest",
+                email: null,
+                avatarUrl: null,
+                invitation: match.invitations[0],
+              },
+            ],
+            games: [{ id: 342942, name: "Ark Nova", yearPublished: 2021, thumbnail: null }],
+            choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
+          },
+    });
+  });
+  await page.goto(`/matches/${matchId}`);
+  await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm match" }).click();
+  await expect(page.getByText("Confirmed date")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Choose date/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByText("Ark Nova")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to planning" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
+  await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Choose date: Yes" })).toBeVisible();
+});
+
 test("match wizard: name → players → game → create", async ({ page }) => {
   test.setTimeout(240_000);
   if (!E2E_EMAIL) throw new Error("E2E_EMAIL is required for match E2E");
@@ -184,6 +256,13 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("link", { name: "Open match: Friday night games" }).click();
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Friday night games" })).toBeVisible();
+  const confirmResponse = page.waitForResponse(
+    (response) => response.request().method() === "PATCH" && response.url().includes("/status"),
+  );
+  await page.getByRole("button", { name: "Confirm match" }).click();
+  expect((await confirmResponse).status()).toBe(409);
+  await expect(page.getByText("Could not confirm match")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   const dateChoiceResponse = page.waitForResponse(
     (response) => response.request().method() === "PATCH" && response.url().includes("/choices"),
   );

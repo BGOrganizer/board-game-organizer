@@ -11,6 +11,7 @@ import { Avatar, Button, Card, Dropdown, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
+  CalendarCheck2,
   Check,
   CircleAlert,
   CircleCheck,
@@ -21,6 +22,7 @@ import {
   Gamepad2,
   LogOut,
   Pencil,
+  RotateCcw,
   Trash2,
   X,
 } from "lucide-react";
@@ -183,7 +185,8 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const isAdmin = match.adminUserId === userId;
   const canLeave = match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
-  const canChoose = isAdmin || ownInvitation?.status === "ACCEPTED";
+  const canChoose =
+    match.status === "PLANNING" && (isAdmin || ownInvitation?.status === "ACCEPTED");
   const choose = (input: SetMatchChoiceInput) => matches.setChoice.mutate(input);
   const participants = [
     { ...administrator, status: "ACCEPTED" as const, isAdministrator: true },
@@ -205,15 +208,32 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <div className="flex flex-row-reverse items-center justify-between gap-3">
         {isAdmin ? (
-          <Button
-            size="sm"
-            variant="danger"
-            aria-label={t`Delete match`}
-            onPress={() => setConfirmAction("delete")}
-          >
-            <Trash2 className="h-4 w-4" />
-            {t`Delete match`}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              isDisabled={matches.setStatus.isPending || matches.setChoice.isPending}
+              onPress={() =>
+                matches.setStatus.mutate(match.status === "PLANNING" ? "CREATED" : "PLANNING")
+              }
+            >
+              {match.status === "PLANNING" ? (
+                <CalendarCheck2 className="h-4 w-4" />
+              ) : (
+                <RotateCcw className="h-4 w-4" />
+              )}
+              {match.status === "PLANNING" ? t`Confirm match` : t`Back to planning`}
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              aria-label={t`Delete match`}
+              onPress={() => setConfirmAction("delete")}
+            >
+              <Trash2 className="h-4 w-4" />
+              {t`Delete match`}
+            </Button>
+          </div>
         ) : canLeave ? (
           <Button
             size="sm"
@@ -291,10 +311,18 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         <Tabs.Panel id="overview">
           <Card className="space-y-4 rounded-xl p-5">
             <h1 className="text-xl font-semibold">{match.name}</h1>
+            {isAdmin && match.status === "PLANNING" && (
+              <p className="text-sm text-default-500">{t`Confirm after enough players accept and everyone chooses a shared date and game.`}</p>
+            )}
             <div>
-              <h2 className="mb-2 text-sm font-semibold">{t`Possible dates`}</h2>
+              <h2 className="mb-2 text-sm font-semibold">
+                {match.status === "CREATED" ? t`Confirmed date` : t`Possible dates`}
+              </h2>
               <ul className="space-y-2 text-sm text-default-600">
-                {match.dates.map((date) => (
+                {(match.status === "CREATED" && match.selectedDate
+                  ? [match.selectedDate]
+                  : match.dates
+                ).map((date) => (
                   <li key={date} className="flex items-center justify-between gap-2">
                     <time dateTime={date}>{new Date(date).toLocaleString()}</time>
                     {canChoose && (
@@ -380,32 +408,34 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               <p className="text-sm text-default-500">{t`No selected games`}</p>
             ) : (
               <ul className="divide-y divide-default-200">
-                {games.map((game) => (
-                  <li key={game.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
-                      {game.thumbnail ? (
-                        // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-                        <img src={game.thumbnail} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <Gamepad2 className="h-5 w-5 text-default-400" />
+                {games
+                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
+                  .map((game) => (
+                    <li key={game.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+                        {game.thumbnail ? (
+                          // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                          <img src={game.thumbnail} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Gamepad2 className="h-5 w-5 text-default-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{game.name}</p>
+                        {game.yearPublished ? (
+                          <p className="text-xs text-default-500">{game.yearPublished}</p>
+                        ) : null}
+                      </div>
+                      {canChoose && (
+                        <ChoiceDropdown
+                          label={t`Choose game`}
+                          choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                          pending={matches.setChoice.isPending}
+                          onChoose={(choice) => choose({ kind: "games", itemId: game.id, choice })}
+                        />
                       )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{game.name}</p>
-                      {game.yearPublished ? (
-                        <p className="text-xs text-default-500">{game.yearPublished}</p>
-                      ) : null}
-                    </div>
-                    {canChoose && (
-                      <ChoiceDropdown
-                        label={t`Choose game`}
-                        choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                        pending={matches.setChoice.isPending}
-                        onChoose={(choice) => choose({ kind: "games", itemId: game.id, choice })}
-                      />
-                    )}
-                  </li>
-                ))}
+                    </li>
+                  ))}
               </ul>
             )}
           </Card>

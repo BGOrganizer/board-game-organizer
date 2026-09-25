@@ -12,6 +12,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Text } from "heroui-native/text";
 import {
+  CalendarCheck2,
   Check,
   CircleAlert,
   CircleCheck,
@@ -22,6 +23,7 @@ import {
   Gamepad2,
   LogOut,
   Pencil,
+  RotateCcw,
   Trash2,
   X,
 } from "lucide-react-native";
@@ -205,6 +207,8 @@ export default function MatchDetailScreen() {
             isResponding={matches.respondInvitation.isPending}
             responseError={matches.respondInvitation.isError}
             choicePending={matches.setChoice.isPending}
+            statusPending={matches.setStatus.isPending}
+            changeStatus={(status) => matches.setStatus.mutate(status)}
             openChoice={setActiveChoice}
             respond={(invitationId, decision) =>
               matches.respondInvitation.mutate(
@@ -320,6 +324,8 @@ function MatchDetailContent({
   isResponding,
   responseError,
   choicePending,
+  statusPending,
+  changeStatus,
   openChoice,
   respond,
 }: {
@@ -330,6 +336,8 @@ function MatchDetailContent({
   isResponding: boolean;
   responseError: boolean;
   choicePending: boolean;
+  statusPending: boolean;
+  changeStatus: (status: "CREATED" | "PLANNING") => void;
   openChoice: (choice: ActiveChoice) => void;
   respond: (invitationId: string, decision: "accept" | "decline") => void;
 }) {
@@ -348,7 +356,9 @@ function MatchDetailContent({
   };
   const { match, administrator, invitedPlayers, games } = data;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
-  const canChoose = match.adminUserId === userId || ownInvitation?.status === "ACCEPTED";
+  const canChoose =
+    match.status === "PLANNING" &&
+    (match.adminUserId === userId || ownInvitation?.status === "ACCEPTED");
   const participants = [
     { ...administrator, status: "ACCEPTED" as const, isAdministrator: true },
     ...invitedPlayers.map((player) => ({
@@ -393,6 +403,32 @@ function MatchDetailContent({
         <Text className="text-sm text-danger">{t("Could not update the invitation")}</Text>
       )}
 
+      {match.adminUserId === userId && (
+        <View style={{ gap: 8 }}>
+          <Button
+            variant="outline"
+            isDisabled={statusPending || choicePending}
+            onPress={() => changeStatus(match.status === "PLANNING" ? "CREATED" : "PLANNING")}
+          >
+            {match.status === "PLANNING" ? (
+              <CalendarCheck2 size={18} color={success} />
+            ) : (
+              <RotateCcw size={18} color={muted} />
+            )}
+            <Button.Label>
+              {match.status === "PLANNING" ? t("Confirm match") : t("Back to planning")}
+            </Button.Label>
+          </Button>
+          {match.status === "PLANNING" && (
+            <Text className="text-sm text-muted">
+              {t(
+                "Confirm after enough players accept and everyone chooses a shared date and game.",
+              )}
+            </Text>
+          )}
+        </View>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} variant="primary">
         <Tabs.List>
           <Tabs.Indicator />
@@ -410,9 +446,14 @@ function MatchDetailContent({
         <Tabs.Content value="overview" style={{ marginTop: 16 }}>
           <Card style={{ padding: 18, borderRadius: 12 }}>
             <Text className="text-xl font-semibold text-foreground">{match.name}</Text>
-            <Text className="mt-5 font-semibold text-foreground">{t("Possible dates")}</Text>
+            <Text className="mt-5 font-semibold text-foreground">
+              {match.status === "CREATED" ? t("Confirmed date") : t("Possible dates")}
+            </Text>
             <View style={{ gap: 8, marginTop: 8 }}>
-              {match.dates.map((date) => {
+              {(match.status === "CREATED" && match.selectedDate
+                ? [match.selectedDate]
+                : match.dates
+              ).map((date) => {
                 const choice = data.choices?.dates?.[String(Date.parse(date))] ?? "UNKNOWN";
                 return (
                   <View
@@ -527,58 +568,60 @@ function MatchDetailContent({
               <Text className="text-sm text-muted">{t("No selected games")}</Text>
             ) : (
               <View style={{ gap: 14 }}>
-                {games.map((game) => (
-                  <View
-                    key={game.id}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-                  >
+                {games
+                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
+                  .map((game) => (
                     <View
-                      className="bg-muted/20"
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 8,
-                        overflow: "hidden",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
+                      key={game.id}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
                     >
-                      {game.thumbnail ? (
-                        <Image
-                          source={{ uri: game.thumbnail }}
-                          accessible={false}
-                          style={{ width: 40, height: 40 }}
-                        />
-                      ) : (
-                        <Gamepad2 size={18} color="#6b7280" />
+                      <View
+                        className="bg-muted/20"
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {game.thumbnail ? (
+                          <Image
+                            source={{ uri: game.thumbnail }}
+                            accessible={false}
+                            style={{ width: 40, height: 40 }}
+                          />
+                        ) : (
+                          <Gamepad2 size={18} color="#6b7280" />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text className="font-medium text-foreground">{game.name}</Text>
+                        {game.yearPublished ? (
+                          <Text className="text-xs text-muted">{game.yearPublished}</Text>
+                        ) : null}
+                      </View>
+                      {canChoose && (
+                        <Button
+                          variant="outline"
+                          isIconOnly
+                          size="sm"
+                          isDisabled={choicePending}
+                          testID="choose-game"
+                          accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
+                          onPress={() =>
+                            openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
+                          }
+                        >
+                          <ChoiceIcon
+                            choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                            color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
+                          />
+                        </Button>
                       )}
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text className="font-medium text-foreground">{game.name}</Text>
-                      {game.yearPublished ? (
-                        <Text className="text-xs text-muted">{game.yearPublished}</Text>
-                      ) : null}
-                    </View>
-                    {canChoose && (
-                      <Button
-                        variant="outline"
-                        isIconOnly
-                        size="sm"
-                        isDisabled={choicePending}
-                        testID="choose-game"
-                        accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
-                        onPress={() =>
-                          openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
-                        }
-                      >
-                        <ChoiceIcon
-                          choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                          color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
-                        />
-                      </Button>
-                    )}
-                  </View>
-                ))}
+                  ))}
               </View>
             )}
           </Card>

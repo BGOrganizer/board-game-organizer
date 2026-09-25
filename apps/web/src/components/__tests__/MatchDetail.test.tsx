@@ -15,6 +15,7 @@ const mutate = vi.fn();
 const deleteMutate = vi.fn();
 const leaveMutate = vi.fn();
 const setChoiceMutate = vi.fn();
+const setStatusMutate = vi.fn();
 
 beforeAll(() => {
   Object.defineProperty(Element.prototype, "getAnimations", {
@@ -104,6 +105,7 @@ function result(data: typeof detail | undefined = detail) {
     deleteMatch: { mutate: deleteMutate, isPending: false, isError: false },
     leaveMatch: { mutate: leaveMutate, isPending: false, isError: false },
     setChoice: { mutate: setChoiceMutate, isPending: false },
+    setStatus: { mutate: setStatusMutate, isPending: false },
   };
 }
 
@@ -244,6 +246,36 @@ describe("MatchDetail", () => {
     const gameAction = screen.getByRole("button", { name: /Choose game/ });
     expect(gameAction.className).toContain("button--outline");
     expect(gameAction.querySelector("svg.lucide-circle-question-mark")).toBeTruthy();
+  });
+
+  it("allows only the admin to confirm and reopen a match and hides choices after confirmation", () => {
+    authMock.userId = "user_admin";
+    const view = renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm match" }));
+    expect(setStatusMutate).toHaveBeenCalledWith("CREATED");
+    view.unmount();
+
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: {
+          ...detail.match,
+          status: "CREATED",
+          selectedDate: detail.match.dates[0],
+          selectedGameId: 1,
+          invitedUserIds: [],
+          invitations: [],
+        },
+        invitedPlayers: [],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    expect(screen.getByText("Confirmed date")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Choose date/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(screen.queryByRole("button", { name: /Choose game/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back to planning" }));
+    expect(setStatusMutate).toHaveBeenCalledWith("PLANNING");
   });
 
   it("changes date and game icons with the selected choice", () => {

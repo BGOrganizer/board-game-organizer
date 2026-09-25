@@ -220,7 +220,8 @@ Current route surface:
 | `/api/invites/claim` | POST | Claim invite and connect users |
 | `/api/matches` | GET, POST | List accessible matches and create planning matches |
 | `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, atomically update planning fields/invitations, or delete match as admin |
-| `/api/matches/[matchId]/choices` | PATCH | Save caller's choice for a match date or game as admin or accepted invitee |
+| `/api/matches/[matchId]/choices` | PATCH | Save caller's choice for a match date or game as admin or accepted invitee while planning |
+| `/api/matches/[matchId]/status` | PATCH | Admin confirms a shared date/game or reopens planning |
 | `/api/matches/[matchId]/invitations` | GET, POST | List and create match invitations as admin |
 | `/api/matches/[matchId]/invitations/[invitationId]` | DELETE | Remove an invitation or accepted player as admin |
 | `/api/match-invitations/[invitationId]` | PATCH, DELETE | Accept or decline an invitation; leave a planning match |
@@ -317,8 +318,13 @@ drop below `minPlayers` or occupied invitation positions.
 Pending invitees can accept or decline while match is planning. Accepted invitees can leave while
 planning; leaving deletes invitation so admin can invite them again. Admin can remove pending,
 declined, or accepted invitations while planning. Admin alone can delete a match; match and every
-invitation are deleted in one transaction. No invitation response or departure is allowed after
-status becomes `CREATED`.
+invitation are deleted in one transaction. No invitation response, departure, or choice change is allowed after
+status becomes `CREATED`. Admin alone may confirm a match once the accepted players plus admin meet
+`minPlayers` and every participant has voted `YES` or `IF_NEEDED` for at least one date and game.
+Choose the shared option with most `YES` votes; ties prefer an admin `YES`, then original option order.
+Confirmation stores selected date/game and hides pending invitees from the created match. Admin may
+reopen planning, restoring pending invitees' access and clearing the selected options without erasing
+existing choices. Notify accepted invitees only on both transitions.
 
 Match deletion and leaving are destructive actions. Show each action only when current role and
 invitation status permit it, require an explicit confirmation dialog, disable repeated submission while

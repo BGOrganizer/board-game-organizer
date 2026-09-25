@@ -98,6 +98,10 @@ msgstr "Torna alla partita"
 msgid "Back to matches"
 msgstr "Torna alle partite"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Back to planning"
+msgstr "Torna alla pianificazione"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
 msgstr "Blocca"
@@ -152,8 +156,8 @@ msgid "Choose game"
 msgstr "Scegli il gioco"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Choose preference"
-msgstr "Scegli la preferenza"
+#~ msgid "Choose preference"
+#~ msgstr "Scegli la preferenza"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
@@ -183,6 +187,22 @@ msgstr "Completa il tuo profilo"
 #: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
 #~ msgid "Configure match"
 #~ msgstr "Configura partita"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirm after enough players accept and everyone chooses a shared date and game."
+msgstr "Conferma quando ci sono abbastanza giocatori e tutti hanno scelto una data e un gioco condivisi."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirm match"
+msgstr "Conferma partita"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Confirmed"
+msgstr "Confermata"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirmed date"
+msgstr "Data confermata"
 
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
@@ -231,6 +251,10 @@ msgstr "Impossibile annullare la richiesta di amicizia"
 #: apps/web/src/components/Contacts.tsx
 msgid "Could not complete the action. Try again."
 msgstr "Impossibile completare l'azione. Riprova."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not confirm match"
+msgstr "Impossibile confermare la partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not create invite link"
@@ -305,6 +329,10 @@ msgstr "Impossibile rifiutare la richiesta di amicizia"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not remove friend"
 msgstr "Impossibile rimuovere l'amico"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not reopen match"
+msgstr "Impossibile riaprire la partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not save choice"
@@ -563,6 +591,14 @@ msgid "Mark all as read"
 msgstr "Segna tutte come lette"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match back in planning"
+msgstr "Partita di nuovo in pianificazione"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match confirmed"
+msgstr "Partita confermata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Match created"
 msgstr "Partita creata"
 
@@ -761,6 +797,10 @@ msgstr "In attesa"
 #: apps/web/src/components/Profile.tsx
 msgid "Plan:"
 msgstr "Piano:"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Planning"
+msgstr "In pianificazione"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Played"

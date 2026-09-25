@@ -19,7 +19,9 @@ export type NotificationEvent =
         | "match_invitation"
         | "match_invitation_accepted"
         | "match_invitation_declined"
-        | "match_updated";
+        | "match_updated"
+        | "match_created"
+        | "match_replanning";
       recipientUserId: string;
       actorUserId: string;
       matchName: string;
@@ -63,6 +65,18 @@ export function notificationCopy(
           description: `${actorName} ha rifiutato l'invito alla partita “${matchName}”.`,
           href: "/matches",
         };
+      case "match_created":
+        return {
+          title: "Partita confermata",
+          description: `La partita “${matchName}” è stata confermata.`,
+          href: "/matches",
+        };
+      case "match_replanning":
+        return {
+          title: "Partita di nuovo in pianificazione",
+          description: `La partita “${matchName}” è tornata in pianificazione.`,
+          href: "/matches",
+        };
       case "match_updated":
         return {
           title: "Partita aggiornata",
@@ -101,6 +115,18 @@ export function notificationCopy(
       return {
         title: "Match invitation declined",
         description: `${actorName} declined the invitation to “${matchName}”.`,
+        href: "/matches",
+      };
+    case "match_created":
+      return {
+        title: "Match confirmed",
+        description: `“${matchName}” was confirmed.`,
+        href: "/matches",
+      };
+    case "match_replanning":
+      return {
+        title: "Match back in planning",
+        description: `“${matchName}” is back in planning.`,
         href: "/matches",
       };
     case "match_updated":

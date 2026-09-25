@@ -5,6 +5,7 @@ import type {
   MatchDetailResponse,
   MatchInvitationResponse,
   MatchResponse,
+  MatchStatus,
   SetMatchChoiceInput,
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
@@ -88,6 +89,24 @@ async function setMatchChoiceRequest(
     { method: "PATCH", headers: apiHeaders(token), body: JSON.stringify(input) },
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+async function setMatchStatusRequest(
+  apiUrl: string,
+  token: string,
+  matchId: string,
+  status: MatchStatus,
+  protectionBypass?: string | null,
+): Promise<{ match: MatchResponse }> {
+  const res = await fetch(
+    withProtectionBypass(
+      `${apiUrl}/api/matches/${encodeURIComponent(matchId)}/status`,
+      protectionBypass,
+    ),
+    { method: "PATCH", headers: apiHeaders(token), body: JSON.stringify({ status }) },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
 
 async function createMatch(
@@ -540,6 +559,67 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
         refetchType: error ? "active" : "none",
       }),
   });
+  const setStatus = useMutation({
+    mutationFn: async (status: MatchStatus) =>
+      setMatchStatusRequest(
+        apiUrl,
+        await resolveToken(token, getToken),
+        matchId,
+        status,
+        protectionBypass,
+      ),
+    onMutate: async (status) => {
+      await queryClient.cancelQueries({ queryKey: ["matches"] });
+      const snapshots = queryClient.getQueriesData({ queryKey: ["matches"] });
+      const patch = (match: MatchResponse) =>
+        match.id === matchId
+          ? {
+              ...match,
+              status,
+              ...(status === "PLANNING"
+                ? { selectedDate: undefined, selectedGameId: undefined }
+                : {}),
+              ...(status === "CREATED"
+                ? {
+                    invitations: match.invitations.filter(
+                      (invitation) => invitation.status === "ACCEPTED",
+                    ),
+                    invitedUserIds: match.invitations
+                      .filter((invitation) => invitation.status === "ACCEPTED")
+                      .map((invitation) => invitation.inviteeUserId),
+                  }
+                : {}),
+            }
+          : match;
+      for (const [queryKey, data] of snapshots) {
+        if (Array.isArray(data)) queryClient.setQueryData(queryKey, data.map(patch));
+        else if (data && typeof data === "object" && "match" in data) {
+          const detail = data as MatchDetailResponse;
+          queryClient.setQueryData(queryKey, {
+            ...detail,
+            match: patch(detail.match),
+            invitedPlayers:
+              status === "CREATED"
+                ? detail.invitedPlayers.filter((player) => player.invitation.status === "ACCEPTED")
+                : detail.invitedPlayers,
+          });
+        }
+      }
+      feedback?.onOptimisticUpdate?.(status === "CREATED" ? "create_match_status" : "replan_match");
+      return snapshots;
+    },
+    onSuccess: ({ match }) => {
+      for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["matches"] })) {
+        queryClient.setQueryData(queryKey, replaceMatchCache(data, match));
+      }
+    },
+    onError: (error: Error, status, snapshots) => {
+      for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
+      feedback?.onError?.(error, status === "CREATED" ? "create_match_status" : "replan_match");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches"] }),
+  });
+
   const deleteMatch = useMutation({
     mutationFn: async (id: string) =>
       deleteMatchRequest(apiUrl, await resolveToken(token, getToken), id, protectionBypass),
@@ -605,7 +685,7 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
   });
 
   return useMemo(
-    () => ({ detail, respondInvitation, setChoice, deleteMatch, leaveMatch }),
-    [detail, respondInvitation, setChoice, deleteMatch, leaveMatch],
+    () => ({ detail, respondInvitation, setChoice, setStatus, deleteMatch, leaveMatch }),
+    [detail, respondInvitation, setChoice, setStatus, deleteMatch, leaveMatch],
   );
 }

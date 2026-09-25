@@ -108,6 +108,9 @@ appId: com.bgo.mobile
     visible: "Overview"
     timeout: 30000
 - assertVisible: "Possible dates"
+- tapOn: "Confirm match"
+- assertVisible: "Could not confirm match"
+- assertVisible: "Confirm match"
 - tapOn:
     id: "choose-date"
 - assertVisible: "Choose date"

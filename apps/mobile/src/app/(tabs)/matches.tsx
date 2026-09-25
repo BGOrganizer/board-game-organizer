@@ -106,6 +106,9 @@ export default function MatchesScreen() {
                     )}
                   </View>
                   <Text style={{ fontSize: 15, fontWeight: "600" }}>{match.name}</Text>
+                  <Text className="text-xs text-muted">
+                    {match.status === "CREATED" ? t("Confirmed") : t("Planning")}
+                  </Text>
                   <View
                     style={{
                       flexDirection: "row",
@@ -116,7 +119,10 @@ export default function MatchesScreen() {
                     }}
                   >
                     <CalendarClock size={14} color="#6b7280" />
-                    {match.dates.map((date) => (
+                    {(match.status === "CREATED" && match.selectedDate
+                      ? [match.selectedDate]
+                      : match.dates
+                    ).map((date) => (
                       <Text key={date} style={{ fontSize: 12, color: "#6b7280" }}>
                         {new Date(date).toLocaleString()}
                       </Text>
@@ -124,7 +130,9 @@ export default function MatchesScreen() {
                   </View>
                   <Text style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
                     {t("Players")}: {match.minPlayers}–{match.maxPlayers}
-                    {match.gameIds.length > 0 ? ` · ${match.gameIds.length} ${t("games")}` : ""}
+                    {match.status === "PLANNING" && match.gameIds.length > 0
+                      ? ` · ${match.gameIds.length} ${t("games")}`
+                      : ""}
                   </Text>
                 </Pressable>
 

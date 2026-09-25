@@ -45,6 +45,18 @@ const cases: Array<{
     itTitle: "Partita aggiornata",
     href: "/matches",
   },
+  {
+    kind: "match_created",
+    enTitle: "Match confirmed",
+    itTitle: "Partita confermata",
+    href: "/matches",
+  },
+  {
+    kind: "match_replanning",
+    enTitle: "Match back in planning",
+    itTitle: "Partita di nuovo in pianificazione",
+    href: "/matches",
+  },
 ];
 
 describe("notificationCopy", () => {

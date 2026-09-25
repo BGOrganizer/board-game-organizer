@@ -98,6 +98,10 @@ msgstr "Back to match"
 msgid "Back to matches"
 msgstr "Back to matches"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Back to planning"
+msgstr "Back to planning"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
 msgstr "Block"
@@ -152,8 +156,8 @@ msgid "Choose game"
 msgstr "Choose game"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Choose preference"
-msgstr "Choose preference"
+#~ msgid "Choose preference"
+#~ msgstr "Choose preference"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
@@ -183,6 +187,22 @@ msgstr "Complete your profile"
 #: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
 #~ msgid "Configure match"
 #~ msgstr "Configure match"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirm after enough players accept and everyone chooses a shared date and game."
+msgstr "Confirm after enough players accept and everyone chooses a shared date and game."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirm match"
+msgstr "Confirm match"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Confirmed"
+msgstr "Confirmed"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirmed date"
+msgstr "Confirmed date"
 
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
@@ -231,6 +251,10 @@ msgstr "Could not cancel friend request"
 #: apps/web/src/components/Contacts.tsx
 msgid "Could not complete the action. Try again."
 msgstr "Could not complete the action. Try again."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not confirm match"
+msgstr "Could not confirm match"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not create invite link"
@@ -305,6 +329,10 @@ msgstr "Could not reject friend request"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not remove friend"
 msgstr "Could not remove friend"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not reopen match"
+msgstr "Could not reopen match"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not save choice"
@@ -563,6 +591,14 @@ msgid "Mark all as read"
 msgstr "Mark all as read"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match back in planning"
+msgstr "Match back in planning"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match confirmed"
+msgstr "Match confirmed"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Match created"
 msgstr "Match created"
 
@@ -761,6 +797,10 @@ msgstr "Pending"
 #: apps/web/src/components/Profile.tsx
 msgid "Plan:"
 msgstr "Plan:"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Planning"
+msgstr "Planning"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Played"
