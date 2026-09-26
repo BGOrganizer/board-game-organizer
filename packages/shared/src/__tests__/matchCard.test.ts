@@ -42,7 +42,7 @@ describe("matchCardData", () => {
       PLANNING: "warning",
       CREATED: "success",
       IN_PROGRESS: "accent",
-      FINISHED: "default",
+      TERMINATED: "default",
       CANCELLED: "danger",
     });
   });

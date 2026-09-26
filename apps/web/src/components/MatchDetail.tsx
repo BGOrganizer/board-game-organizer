@@ -19,11 +19,13 @@ import {
   CircleX,
   Clock3,
   Crown,
+  Ellipsis,
   Gamepad2,
   LogOut,
   Pencil,
   RotateCcw,
   Trash2,
+  Trophy,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +33,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { MatchResultsEditor } from "@/components/MatchResultsEditor";
 import { MatchWizard } from "@/components/MatchWizard";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -124,6 +127,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   >(null);
   const [showBlockedReason, setShowBlockedReason] = useState(false);
   const [editingMatch, setEditingMatch] = useState<MatchDetailResponse | null>(null);
+  const [registeringMatch, setRegisteringMatch] = useState<MatchDetailResponse | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -146,7 +150,23 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     matchId,
   });
 
-  // Keep the draft mounted when a background refetch or token rotation changes query state.
+  // Keep drafts mounted when a background refetch or token rotation changes query state.
+  if (
+    registeringMatch?.match.id === matchId &&
+    isSignedIn &&
+    registeringMatch.match.adminUserId === userId
+  ) {
+    return (
+      <MatchResultsEditor
+        data={registeringMatch}
+        busy={matches.registerResults.isPending}
+        onBack={() => setRegisteringMatch(null)}
+        onSubmit={(input) =>
+          matches.registerResults.mutate(input, { onSuccess: () => setRegisteringMatch(null) })
+        }
+      />
+    );
+  }
   if (
     editingMatch?.match.id === matchId &&
     isSignedIn &&
@@ -202,7 +222,10 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     })),
   ];
   const actionBusy =
-    matches.deleteMatch.isPending || matches.leaveMatch.isPending || matches.setStatus.isPending;
+    matches.deleteMatch.isPending ||
+    matches.leaveMatch.isPending ||
+    matches.setStatus.isPending ||
+    matches.registerResults.isPending;
   const summary = matchData.voteSummary;
   const reasons = summary?.reasons.map((reason) =>
     reason === "NOT_ENOUGH_PLAYERS"
@@ -232,7 +255,16 @@ export function MatchDetail({ matchId }: { matchId: string }) {
       <div className="flex flex-row-reverse items-center justify-between gap-3">
         {isAdmin ? (
           <div className="flex flex-wrap gap-2">
-            {match.status === "PLANNING" && !canConfirm ? (
+            {match.status === "CREATED" ? (
+              <Button
+                size="sm"
+                isDisabled={actionBusy}
+                onPress={() => setRegisteringMatch(matchData)}
+              >
+                <Trophy className="h-4 w-4" />
+                {t`Register results`}
+              </Button>
+            ) : match.status === "PLANNING" && !canConfirm ? (
               <Tooltip delay={0} isOpen={showBlockedReason}>
                 <Tooltip.Trigger
                   onFocus={() => setShowBlockedReason(true)}
@@ -248,30 +280,41 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 </Tooltip.Trigger>
                 <Tooltip.Content>{reasons.join(" · ")}</Tooltip.Content>
               </Tooltip>
-            ) : (
+            ) : match.status === "PLANNING" ? (
               <Button
                 size="sm"
                 variant="outline"
                 isDisabled={actionBusy || matches.setChoice.isPending}
-                onPress={() => setConfirmAction(match.status === "PLANNING" ? "confirm" : "replan")}
+                onPress={() => setConfirmAction("confirm")}
               >
-                {match.status === "PLANNING" ? (
-                  <CalendarCheck2 className="h-4 w-4" />
-                ) : (
-                  <RotateCcw className="h-4 w-4" />
-                )}
-                {match.status === "PLANNING" ? t`Confirm match` : t`Back to planning`}
+                <CalendarCheck2 className="h-4 w-4" />
+                {t`Confirm match`}
               </Button>
+            ) : null}
+            {match.status !== "TERMINATED" && (
+              <Dropdown>
+                <Dropdown.Trigger
+                  aria-label={t`More match actions`}
+                  className="button button--icon-only button--sm button--outline"
+                >
+                  <Ellipsis className="h-4 w-4" />
+                </Dropdown.Trigger>
+                <Dropdown.Popover placement="bottom end">
+                  <Dropdown.Menu aria-label={t`More match actions`}>
+                    {match.status === "CREATED" && (
+                      <Dropdown.Item id="replan" onAction={() => setConfirmAction("replan")}>
+                        <RotateCcw className="h-4 w-4" />
+                        {t`Back to planning`}
+                      </Dropdown.Item>
+                    )}
+                    <Dropdown.Item id="delete" onAction={() => setConfirmAction("delete")}>
+                      <Trash2 className="h-4 w-4" />
+                      {t`Delete match`}
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
             )}
-            <Button
-              size="sm"
-              variant="danger"
-              aria-label={t`Delete match`}
-              onPress={() => setConfirmAction("delete")}
-            >
-              <Trash2 className="h-4 w-4" />
-              {t`Delete match`}
-            </Button>
           </div>
         ) : canLeave ? (
           <Button
@@ -344,6 +387,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               {t`Games`}
               <Tabs.Indicator />
             </Tabs.Tab>
+            {match.status === "TERMINATED" && (
+              <Tabs.Tab id="standings">
+                {t`Standings`}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            )}
           </Tabs.List>
         </Tabs.ListContainer>
 
@@ -353,12 +402,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             <div>
               <div className="mb-2 flex items-center gap-1">
                 <h2 className="text-sm font-semibold">
-                  {match.status === "CREATED" ? t`Confirmed date` : t`Date selection`}
+                  {match.status !== "PLANNING" ? t`Confirmed date` : t`Date selection`}
                 </h2>
                 {match.status === "PLANNING" && summary && <VoteLegend />}
               </div>
               <GroupedList className="text-sm text-default-600">
-                {(match.status === "CREATED" && match.selectedDate
+                {(match.status !== "PLANNING" && match.selectedDate
                   ? [match.selectedDate]
                   : match.dates
                 ).map((date) => (
@@ -450,7 +499,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           <div className="space-y-2">
             <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold">
-                {match.status === "CREATED" ? t`Confirmed game` : t`Game selection`}
+                {match.status !== "PLANNING" ? t`Confirmed game` : t`Game selection`}
               </h2>
               {match.status === "PLANNING" && summary && <VoteLegend />}
             </div>
@@ -459,7 +508,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             ) : (
               <GroupedList>
                 {games
-                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
+                  .filter((game) => match.status === "PLANNING" || game.id === match.selectedGameId)
                   .map((game) => (
                     <GroupedRow key={game.id} className="flex-wrap">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
@@ -493,6 +542,31 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             )}
           </div>
         </Tabs.Panel>
+        {match.status === "TERMINATED" && match.results && (
+          <Tabs.Panel id="standings">
+            <div className="space-y-3">
+              <p className="text-sm text-default-500">
+                {match.results.lowerWins ? t`Lowest score wins` : t`Highest score wins`}
+              </p>
+              <GroupedList>
+                {match.results.entries.map((entry) => {
+                  const player = participants.find((item) => item.id === entry.userId);
+                  return (
+                    <GroupedRow key={entry.userId}>
+                      <span className="w-8 text-sm text-default-500">
+                        {entry.rank ? `${entry.rank}.` : "—"}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {player?.name ?? entry.userId}
+                      </span>
+                      <span className="font-medium">{entry.score ?? "ND"}</span>
+                    </GroupedRow>
+                  );
+                })}
+              </GroupedList>
+            </div>
+          </Tabs.Panel>
+        )}
       </Tabs>
 
       {isAdmin && match.status === "PLANNING" ? (

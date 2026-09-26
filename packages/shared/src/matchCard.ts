@@ -1,6 +1,6 @@
 import type { MatchResponse } from "@board-game-organizer/schemas";
 
-export type MatchCardStatus = MatchResponse["status"] | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
+export type MatchCardStatus = MatchResponse["status"] | "IN_PROGRESS" | "CANCELLED";
 
 export const matchCardStatusColor: Record<
   MatchCardStatus,
@@ -9,7 +9,7 @@ export const matchCardStatusColor: Record<
   PLANNING: "warning",
   CREATED: "success",
   IN_PROGRESS: "accent",
-  FINISHED: "default",
+  TERMINATED: "default",
   CANCELLED: "danger",
 };
 

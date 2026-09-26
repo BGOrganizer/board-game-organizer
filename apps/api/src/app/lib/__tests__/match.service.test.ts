@@ -58,6 +58,13 @@ function setup(withNotifications = false) {
           ...(selected ? { selectedDate: selected.date, selectedGameId: selected.gameId } : {}),
         }) as Match | null,
     ),
+    registerResults: vi.fn(
+      async (_id: string, _admin: string, results: Match["results"]): Promise<Match | null> => ({
+        ...match,
+        status: "TERMINATED" as const,
+        results,
+      }),
+    ),
     setChoice: vi.fn(async () => ({ matchedCount: 1 })),
     clearChoices: vi.fn(async () => ({ modifiedCount: 1 })),
     clearRemovedOptionChoices: vi.fn(async () => ({ modifiedCount: 1 })),
@@ -125,6 +132,136 @@ function setup(withNotifications = false) {
 async function expectMatchError(promise: Promise<unknown>, status: number, message: string) {
   await expect(promise).rejects.toEqual(expect.objectContaining({ status, message }));
 }
+
+describe("result registration", () => {
+  const created = { ...match, status: "CREATED" as const };
+  const accepted = { ...invitation, status: "ACCEPTED" as const };
+  const result = {
+    lowerWins: true,
+    entries: [
+      { userId: "user_admin", score: "-2.5" },
+      { userId: "user_guest", score: null },
+    ],
+    tieBreaks: [],
+  };
+
+  it("returns 404 before reading results for a missing match", async () => {
+    const { service, matches } = setup();
+    matches.serializeInvitationChange.mockResolvedValueOnce({ matchedCount: 0, modifiedCount: 0 });
+    await expect(service.registerResults("user_admin", match.id, result)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("records a completed match with ND even below the planned minimum", async () => {
+    const { service, matches, invitations } = setup();
+    matches.findById.mockResolvedValue(created);
+    invitations.listByMatch.mockResolvedValue([accepted]);
+    const response = await service.registerResults("user_admin", match.id, result);
+    expect(response.status).toBe("TERMINATED");
+    expect(response.results?.entries).toEqual([
+      { userId: "user_admin", score: "-2.5", rank: 1 },
+      { userId: "user_guest", score: null, rank: null },
+    ]);
+    expect(matches.registerResults).toHaveBeenCalledWith(
+      match.id,
+      "user_admin",
+      expect.objectContaining({ lowerWins: true }),
+    );
+  });
+
+  it("requires admin, created state, every accepted user, at least one score, and canonical scores", async () => {
+    const { service, matches, invitations } = setup();
+    matches.findById.mockResolvedValue(created);
+    invitations.listByMatch.mockResolvedValue([accepted]);
+    await expect(service.registerResults("user_guest", match.id, result)).rejects.toMatchObject({
+      status: 403,
+    });
+    await expect(
+      service.registerResults("user_admin", match.id, { ...result, entries: [] }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.registerResults("user_admin", match.id, {
+        ...result,
+        entries: [result.entries[0], result.entries[0]],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.registerResults("user_admin", match.id, {
+        ...result,
+        entries: result.entries.map((entry) => ({ ...entry, score: null })),
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.registerResults("user_admin", match.id, {
+        ...result,
+        entries: [{ userId: "user_admin", score: "-2,5" }, result.entries[1]],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    matches.findById.mockResolvedValue({ ...match, status: "PLANNING" });
+    await expect(service.registerResults("user_admin", match.id, result)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("accepts complete three-person tie-breaks but rejects stale and duplicate orders", async () => {
+    const { service, matches, invitations } = setup();
+    matches.findById.mockResolvedValue(created);
+    invitations.listByMatch.mockResolvedValue([
+      accepted,
+      { ...accepted, id: "other", inviteeUserId: "user_third" },
+    ]);
+    const entries = ["user_admin", "user_guest", "user_third"].map((userId) => ({
+      userId,
+      score: "1.5",
+    }));
+    const input = {
+      lowerWins: false,
+      entries,
+      tieBreaks: [{ score: "1.5", orderedUserIds: ["user_third", "user_admin", "user_guest"] }],
+    };
+    expect(
+      (await service.registerResults("user_admin", match.id, input)).results?.entries.map(
+        (entry) => [entry.userId, entry.rank],
+      ),
+    ).toEqual([
+      ["user_third", 1],
+      ["user_admin", 2],
+      ["user_guest", 3],
+    ]);
+    await expect(
+      service.registerResults("user_admin", match.id, {
+        ...input,
+        tieBreaks: [{ score: "1.5", orderedUserIds: ["user_admin", "user_admin", "user_guest"] }],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.registerResults("user_admin", match.id, {
+        ...input,
+        tieBreaks: [{ score: "2", orderedUserIds: ["user_admin", "user_guest", "user_third"] }],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    matches.registerResults.mockResolvedValue(null);
+    await expect(service.registerResults("user_admin", match.id, input)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("does not reopen or delete a terminated match", async () => {
+    const { service, matches } = setup();
+    matches.findById.mockResolvedValue({ ...created, status: "TERMINATED" });
+    await expect(service.setStatus("user_admin", match.id, "PLANNING")).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(service.deleteMatch("user_admin", match.id)).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(service.registerResults("user_admin", match.id, result)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect(matches.deleteById).not.toHaveBeenCalled();
+  });
+});
 
 describe("shared match choices", () => {
   it("requires every participant to accept an option and ranks YES, admin YES, then admin option order", () => {

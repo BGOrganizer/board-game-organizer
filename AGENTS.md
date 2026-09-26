@@ -34,7 +34,7 @@ Implemented product areas:
   suggestions.
 - Shareable invites with seven-day expiry and authenticated claim flow.
 - Match creation, listing, detail, and invitation lifecycle, including date slots, player limits,
-  friend invitations, and board-game selection.
+  friend invitations, board-game selection, and immutable result registration with standings.
 - Durable notification inboxes, unread state, and optional FCM/APNs push delivery.
 - BoardGameGeek catalog import and MongoDB-backed game search.
 - English and Italian localization.
@@ -223,6 +223,7 @@ Current route surface:
 | `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, atomically update planning fields/invitations, or delete match as admin |
 | `/api/matches/[matchId]/choices` | PATCH | Save caller's choice for a match date or game as admin or accepted invitee while planning |
 | `/api/matches/[matchId]/status` | PATCH | Admin confirms a shared date/game or reopens planning |
+| `/api/matches/[matchId]/results` | POST | Admin atomically records results and terminates a created match |
 | `/api/matches/[matchId]/invitations` | GET, POST | List and create match invitations as admin |
 | `/api/matches/[matchId]/invitations/[invitationId]` | DELETE | Remove an invitation or accepted player as admin |
 | `/api/match-invitations/[invitationId]` | PATCH, DELETE | Accept or decline an invitation; leave a planning match |
@@ -331,6 +332,14 @@ Match deletion and leaving are destructive actions. Show each action only when c
 invitation status permit it, require an explicit confirmation dialog, disable repeated submission while
 pending, and apply the standard optimistic-cache plus action-specific toast lifecycle. Non-admin match
 details expose accepted players only; keep viewer's own pending invitation solely for response actions.
+
+An admin alone registers results while a match is `CREATED`. Every accepted invitee plus admin must
+be included once; scores are exact signed decimals, or null for `ND` (did not participate). At least
+one player must have played even if the actual count falls below `minPlayers`. Highest score wins by
+default; admin may choose lowest wins and explicitly rank any group of equal scores. Unresolved ties
+share a position; all `ND` participants appear last. Persist final ranks and scores in one atomic
+`CREATED` → `TERMINATED` operation. Terminated matches cannot be edited, reopened or deleted. Web
+and mobile expose a read-only Standings tab only in that status.
 
 ### Board-game catalog
 

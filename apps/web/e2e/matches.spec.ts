@@ -22,18 +22,42 @@ async function signInAsActor(page: import("@playwright/test").Page) {
   await completeMobileNumberIfNeeded(page);
 }
 
-test("admin confirms a shared match and reopens planning", async ({ page }) => {
+test("admin confirms, reopens, and registers immutable results", async ({ page }) => {
   if (!E2E_EMAIL) throw new Error("E2E_EMAIL required for match E2E");
   await signInAsActor(page);
   await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.user?.id));
   const adminUserId = await page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
   const matchId = "e1a9a989-5d0f-4f4c-9cf9-c08c4ae17102";
   const date = "2026-10-01T20:00:00.000Z";
-  let status: "PLANNING" | "CREATED" = "PLANNING";
+  let status: "PLANNING" | "CREATED" | "TERMINATED" = "PLANNING";
+  let results:
+    | {
+        lowerWins: boolean;
+        entries: { userId: string; score: string | null; rank: number | null }[];
+        tieBreaks: unknown[];
+        finalizedAt: string;
+      }
+    | undefined;
   await page.route(`**/api/matches/${matchId}*`, async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/status")) {
       status = (route.request().postDataJSON() as { status: typeof status }).status;
+    }
+    if (path.endsWith("/results")) {
+      const input = route.request().postDataJSON() as {
+        lowerWins: boolean;
+        entries: { userId: string; score: string | null }[];
+        tieBreaks: unknown[];
+      };
+      results = {
+        ...input,
+        entries: input.entries.map((entry, index) => ({
+          ...entry,
+          rank: entry.score === null ? null : index + 1,
+        })),
+        finalizedAt: new Date().toISOString(),
+      };
+      status = "TERMINATED";
     }
     const match = {
       id: matchId,
@@ -44,7 +68,8 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
       maxPlayers: 3,
       gameIds: [342942],
       status,
-      ...(status === "CREATED" ? { selectedDate: date, selectedGameId: 342942 } : {}),
+      ...(status !== "PLANNING" ? { selectedDate: date, selectedGameId: 342942 } : {}),
+      ...(results ? { results } : {}),
       createdAt: date,
       updatedAt: date,
       invitedUserIds: ["user_accepted"],
@@ -61,30 +86,31 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
       ],
     };
     await route.fulfill({
-      json: path.endsWith("/status")
-        ? { match }
-        : {
-            match,
-            administrator: { id: adminUserId, name: "Admin", email: null, avatarUrl: null },
-            invitedPlayers: [
-              {
-                id: "user_accepted",
-                name: "Guest",
-                email: null,
-                avatarUrl: null,
-                invitation: match.invitations[0],
+      json:
+        path.endsWith("/status") || path.endsWith("/results")
+          ? { match }
+          : {
+              match,
+              administrator: { id: adminUserId, name: "Admin", email: null, avatarUrl: null },
+              invitedPlayers: [
+                {
+                  id: "user_accepted",
+                  name: "Guest",
+                  email: null,
+                  avatarUrl: null,
+                  invitation: match.invitations[0],
+                },
+              ],
+              games: [{ id: 342942, name: "Ark Nova", yearPublished: 2021, thumbnail: null }],
+              choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
+              voteSummary: {
+                dates: { [String(Date.parse(date))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
+                games: { "342942": { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
+                reasons: [],
+                selectedDate: date,
+                selectedGameId: 342942,
               },
-            ],
-            games: [{ id: 342942, name: "Ark Nova", yearPublished: 2021, thumbnail: null }],
-            choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
-            voteSummary: {
-              dates: { [String(Date.parse(date))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
-              games: { "342942": { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
-              reasons: [],
-              selectedDate: date,
-              selectedGameId: 342942,
             },
-          },
     });
   });
   await page.goto(`/matches/${matchId}`);
@@ -112,7 +138,8 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
   await expect(page.getByRole("img", { name: /Yes: 1, No: 0/ })).toHaveCount(0);
   await expect(page.getByText("Ark Nova")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Back to planning" }).click();
+  await page.getByRole("button", { name: "More match actions" }).click();
+  await page.getByRole("menuitem", { name: "Back to planning" }).click();
   await page
     .getByRole("dialog", { name: "Back to planning?" })
     .getByRole("button", { name: "Back to planning" })
@@ -120,6 +147,29 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Choose date: Yes" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm match" }).click();
+  await page
+    .getByRole("dialog", { name: "Confirm match?" })
+    .getByRole("button", { name: "Confirm match" })
+    .click();
+  await page.getByRole("button", { name: "Register results" }).click();
+  await page.getByRole("textbox", { name: "Score: Admin" }).fill("-1,5");
+  await page.getByRole("textbox", { name: "Score: Guest" }).fill("-1,5");
+  await expect(page.getByRole("button", { name: "Resolve tie" })).toBeVisible();
+  await page.getByRole("button", { name: "Resolve tie" }).click();
+  await page.getByRole("button", { name: "Move up: Guest" }).click();
+  await page.getByRole("switch", { name: "Did not participate: Guest" }).click();
+  await expect(page.getByRole("button", { name: "Resolve tie" })).toHaveCount(0);
+  await page.getByRole("switch", { name: "Lowest score wins" }).click();
+  await page.getByRole("button", { name: "Register match" }).click();
+  const registerDialog = page.getByRole("dialog", { name: "Register match?" });
+  await expect(registerDialog.getByText(/cannot be edited/)).toBeVisible();
+  await expect(registerDialog.getByText("Guest")).toHaveCount(0);
+  await registerDialog.getByRole("button", { name: "Register match" }).click();
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await expect(page.getByText("ND")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Register results" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "More match actions" })).toHaveCount(0);
 });
 
 test("match wizard: name → players → game → create", async ({ page }) => {

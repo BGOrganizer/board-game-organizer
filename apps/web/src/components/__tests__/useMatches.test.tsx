@@ -219,6 +219,71 @@ describe("useMatchDetail", () => {
     expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "replan_match");
   });
 
+  it("optimistically registers results, rolls back failures and refreshes from server", async () => {
+    const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const created = { ...detail.match, status: "CREATED" as const };
+    let serverDetail: unknown = { ...detail, match: created };
+    let finishPost = (_response: Response) => {};
+    const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) =>
+      init?.method === "POST"
+        ? new Promise<Response>((resolve) => {
+            finishPost = resolve;
+          })
+        : Promise.resolve(new Response(JSON.stringify(serverDetail), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(
+      () =>
+        useMatchDetail({
+          apiUrl: "https://api.example.com",
+          token: "initial",
+          getToken: async () => "fresh-token",
+          feedback,
+          matchId: invitation.matchId,
+        }),
+      { wrapper: wrapper(client) },
+    );
+    await waitFor(() => expect(result.current.detail.data?.match.status).toBe("CREATED"));
+    const input = {
+      lowerWins: true,
+      entries: [{ userId: "user_admin", score: "-1.5" }],
+      tieBreaks: [],
+    };
+    act(() => result.current.registerResults.mutate(input));
+    await waitFor(() => expect(result.current.detail.data?.match.status).toBe("TERMINATED"));
+    expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("register_match_results");
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://api.example.com/api/matches/${invitation.matchId}/results`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(input),
+        headers: expect.objectContaining({ Authorization: "Bearer fresh-token" }),
+      }),
+    );
+    finishPost(new Response("error", { status: 409 }));
+    await waitFor(() => expect(result.current.registerResults.isError).toBe(true));
+    expect(result.current.detail.data?.match.status).toBe("CREATED");
+    expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "register_match_results");
+    const registered = {
+      ...created,
+      status: "TERMINATED" as const,
+      results: {
+        ...input,
+        entries: [{ ...input.entries[0], rank: 1 }],
+        finalizedAt: new Date().toISOString(),
+      },
+    };
+    serverDetail = { ...detail, match: registered };
+    act(() => result.current.registerResults.mutate(input));
+    await waitFor(() => expect(result.current.detail.data?.match.status).toBe("TERMINATED"));
+    finishPost(new Response(JSON.stringify({ match: registered }), { status: 200 }));
+    await waitFor(() => expect(result.current.registerResults.isSuccess).toBe(true));
+    expect(result.current.detail.data?.match.results).toEqual(registered.results);
+  });
+
   it("loads accessible details and responds to invitations with a fresh token", async () => {
     const getToken = vi.fn().mockResolvedValue("fresh-token");
     const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };

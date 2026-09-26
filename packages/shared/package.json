@@ -11,6 +11,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./matchResults": {
+      "types": "./src/matchResults.ts",
+      "default": "./src/matchResults.ts"
     }
   },
   "dependencies": {

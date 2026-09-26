@@ -218,10 +218,35 @@ describe("MatchesRepository", () => {
     ).resolves.toBeNull();
   });
 
+  it("atomically records results only for a CREATED match and returns finalized data", async () => {
+    const results = {
+      lowerWins: true,
+      entries: [{ userId: "user_1", score: "-1.5", rank: 1 }],
+      tieBreaks: [],
+      finalizedAt: "2026-09-02T12:00:00.000Z",
+    };
+    const { db, collection } = setup([], { ...stored, status: "TERMINATED", results });
+    const repo = new MatchesRepository(db as never);
+    await expect(repo.registerResults(stored.id, "user_1", results)).resolves.toMatchObject({
+      status: "TERMINATED",
+      results,
+    });
+    expect(collection.findOneAndUpdate).toHaveBeenCalledWith(
+      { id: stored.id, clerkId: "user_1", status: "CREATED", results: { $exists: false } },
+      { $set: { status: "TERMINATED", results, updatedAt: results.finalizedAt } },
+      { returnDocument: "after", projection: { _id: 0 } },
+    );
+    collection.findOneAndUpdate.mockResolvedValueOnce(null);
+    await expect(repo.registerResults(stored.id, "user_1", results)).resolves.toBeNull();
+  });
+
   it("deletes only a match owned by admin", async () => {
     const { db, collection } = setup();
     await new MatchesRepository(db as never).deleteById(stored.id, "user_1");
-    expect(collection.deleteOne).toHaveBeenCalledWith({ id: stored.id, clerkId: "user_1" }, {});
+    expect(collection.deleteOne).toHaveBeenCalledWith(
+      { id: stored.id, clerkId: "user_1", status: { $ne: "TERMINATED" } },
+      {},
+    );
   });
 
   it("clears confirmed options on replan and reports a concurrent status change", async () => {

@@ -113,6 +113,8 @@ appId: com.bgo.mobile
 - assertVisible: "Date selection"
 - assertVisible:
     id: "confirm-match-unavailable"
+- assertNotVisible:
+    id: "open-match-results"
 - tapOn:
     id: "confirm-match-unavailable"
 - assertVisible: "Cannot confirm match"
@@ -193,7 +195,9 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Updated game night"
     timeout: 30000
-# Admin deletion is destructive and requires native confirmation.
+# Secondary actions live in the header popover. Deletion still requires confirmation.
+- tapOn:
+    id: "more-match-actions"
 - tapOn: "Delete match"
 - assertVisible: "Delete match?"
 - tapOn: "Delete match"

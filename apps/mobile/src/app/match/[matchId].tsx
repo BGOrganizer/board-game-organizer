@@ -21,11 +21,13 @@ import {
   CircleX,
   Clock3,
   Crown,
+  Ellipsis,
   Gamepad2,
   LogOut,
   Pencil,
   RotateCcw,
   Trash2,
+  Trophy,
   X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
@@ -82,15 +84,19 @@ type ActiveChoice =
   | { kind: "games"; itemId: number; title: string };
 
 export default function MatchDetailScreen() {
-  const { matchId: matchIdParam } = useLocalSearchParams<{ matchId: string | string[] }>();
+  const { matchId: matchIdParam, tab } = useLocalSearchParams<{
+    matchId: string | string[];
+    tab?: string;
+  }>();
   const matchId = Array.isArray(matchIdParam) ? matchIdParam[0] : matchIdParam;
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const router = useRouter();
   const t = useT();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(tab === "standings" ? "standings" : "overview");
   const [activeChoice, setActiveChoice] = useState<ActiveChoice | null>(null);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -116,7 +122,7 @@ export default function MatchDetailScreen() {
     (invitation) => invitation.inviteeUserId === userId,
   );
   const matchAction =
-    match?.adminUserId === userId
+    match?.adminUserId === userId && match?.status !== "TERMINATED"
       ? "delete"
       : match?.status === "PLANNING" && ownInvitation?.status === "ACCEPTED"
         ? "leave"
@@ -207,7 +213,22 @@ export default function MatchDetailScreen() {
             ? () => (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   {match?.adminUserId === userId &&
-                    (statusUnavailable ? (
+                    match?.status !== "TERMINATED" &&
+                    (match?.status === "CREATED" ? (
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="outline"
+                        accessibilityLabel={t("Register results")}
+                        testID="open-match-results"
+                        style={{ minHeight: 44, minWidth: 44 }}
+                        onPress={() =>
+                          router.push({ pathname: "/match/results", params: { matchId } })
+                        }
+                      >
+                        <Trophy size={18} color="#17c964" />
+                      </Button>
+                    ) : statusUnavailable ? (
                       <Popover>
                         <Popover.Trigger asChild>
                           <Button
@@ -243,37 +264,74 @@ export default function MatchDetailScreen() {
                         size="sm"
                         variant="outline"
                         isDisabled={matches.setStatus.isPending || matches.setChoice.isPending}
-                        accessibilityLabel={
-                          match?.status === "PLANNING" ? t("Confirm match") : t("Back to planning")
-                        }
+                        accessibilityLabel={t("Confirm match")}
                         style={{ minHeight: 44, minWidth: 44 }}
                         testID="change-match-status"
                         onPress={confirmStatusAction}
                       >
-                        {match?.status === "PLANNING" ? (
-                          <CalendarCheck2 size={18} color="#17c964" />
-                        ) : (
-                          <RotateCcw size={18} color="#737373" />
-                        )}
+                        <CalendarCheck2 size={18} color="#17c964" />
                       </Button>
                     ))}
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="danger-soft"
-                    isDisabled={matchActionPending}
-                    accessibilityLabel={
-                      matchAction === "delete" ? t("Delete match") : t("Leave match")
-                    }
-                    onPress={confirmMatchAction}
-                    style={{ minHeight: 44, minWidth: 44 }}
-                  >
-                    {matchAction === "delete" ? (
-                      <Trash2 size={17} color="#f31260" />
-                    ) : (
+                  {matchAction === "delete" ? (
+                    <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
+                      <Popover.Trigger asChild>
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="outline"
+                          accessibilityLabel={t("More match actions")}
+                          testID="more-match-actions"
+                          style={{ minHeight: 44, minWidth: 44 }}
+                        >
+                          <Ellipsis size={18} color="#737373" />
+                        </Button>
+                      </Popover.Trigger>
+                      <Popover.Portal>
+                        <Popover.Overlay />
+                        <Popover.Content
+                          presentation="popover"
+                          placement="bottom"
+                          align="end"
+                          width={230}
+                        >
+                          {match?.status === "CREATED" && (
+                            <Button
+                              variant="ghost"
+                              onPress={() => {
+                                setMoreActionsOpen(false);
+                                confirmStatusAction();
+                              }}
+                            >
+                              <RotateCcw size={17} color="#737373" />
+                              {t("Back to planning")}
+                            </Button>
+                          )}
+                          <Button
+                            variant="danger-soft"
+                            onPress={() => {
+                              setMoreActionsOpen(false);
+                              confirmMatchAction();
+                            }}
+                          >
+                            <Trash2 size={17} color="#f31260" />
+                            {t("Delete match")}
+                          </Button>
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover>
+                  ) : (
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="danger-soft"
+                      isDisabled={matchActionPending}
+                      accessibilityLabel={t("Leave match")}
+                      onPress={confirmMatchAction}
+                      style={{ minHeight: 44, minWidth: 44 }}
+                    >
                       <LogOut size={17} color="#f31260" />
-                    )}
-                  </Button>
+                    </Button>
+                  )}
                 </View>
               )
             : undefined,
@@ -514,6 +572,11 @@ function MatchDetailContent({
           <Tabs.Trigger value="games" style={{ flex: 1 }}>
             <Tabs.Label>{t("Games")}</Tabs.Label>
           </Tabs.Trigger>
+          {match.status === "TERMINATED" && (
+            <Tabs.Trigger value="standings" style={{ flex: 1 }} testID="standings-tab">
+              <Tabs.Label>{t("Standings")}</Tabs.Label>
+            </Tabs.Trigger>
+          )}
         </Tabs.List>
 
         <Tabs.Content value="overview" style={{ marginTop: 16 }}>
@@ -521,12 +584,12 @@ function MatchDetailContent({
             <Typography className="text-xl font-semibold text-foreground">{match.name}</Typography>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <Typography className="font-semibold text-foreground">
-                {match.status === "CREATED" ? t("Confirmed date") : t("Date selection")}
+                {match.status !== "PLANNING" ? t("Confirmed date") : t("Date selection")}
               </Typography>
               {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
             </View>
             <GroupedList>
-              {(match.status === "CREATED" && match.selectedDate
+              {(match.status !== "PLANNING" && match.selectedDate
                 ? [match.selectedDate]
                 : match.dates
               ).map((date) => {
@@ -637,7 +700,7 @@ function MatchDetailContent({
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <Typography className="font-semibold text-foreground">
-                {match.status === "CREATED" ? t("Confirmed game") : t("Game selection")}
+                {match.status !== "PLANNING" ? t("Confirmed game") : t("Game selection")}
               </Typography>
               {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
             </View>
@@ -646,7 +709,7 @@ function MatchDetailContent({
             ) : (
               <GroupedList>
                 {games
-                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
+                  .filter((game) => match.status === "PLANNING" || game.id === match.selectedGameId)
                   .map((game) => (
                     <GroupedRow key={game.id}>
                       <View
@@ -710,6 +773,33 @@ function MatchDetailContent({
             )}
           </View>
         </Tabs.Content>
+        {match.status === "TERMINATED" && match.results && (
+          <Tabs.Content value="standings" style={{ marginTop: 16 }}>
+            <View style={{ gap: 12 }}>
+              <Typography className="text-sm text-muted">
+                {match.results.lowerWins ? t("Lowest score wins") : t("Highest score wins")}
+              </Typography>
+              <GroupedList>
+                {match.results.entries.map((entry) => {
+                  const player = participants.find((item) => item.id === entry.userId);
+                  return (
+                    <GroupedRow key={entry.userId}>
+                      <Typography className="w-8 text-sm text-muted">
+                        {entry.rank ? `${entry.rank}.` : "—"}
+                      </Typography>
+                      <Typography className="flex-1 text-foreground">
+                        {player?.name ?? entry.userId}
+                      </Typography>
+                      <Typography className="font-semibold text-foreground">
+                        {entry.score ?? "ND"}
+                      </Typography>
+                    </GroupedRow>
+                  );
+                })}
+              </GroupedList>
+            </View>
+          </Tabs.Content>
+        )}
       </Tabs>
     </View>
   );

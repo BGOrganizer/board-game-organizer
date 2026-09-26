@@ -96,6 +96,7 @@ msgid "Back"
 msgstr "Indietro"
 
 #: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Back to match"
 msgstr "Torna alla partita"
 
@@ -153,8 +154,8 @@ msgid "Cancelled"
 msgstr "Annullato"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Cannot confirm match"
-msgstr "Impossibile confermare la partita"
+#~ msgid "Cannot confirm match"
+#~ msgstr "Impossibile confermare la partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
@@ -214,8 +215,8 @@ msgid "Confirm match"
 msgstr "Conferma partita"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Confirm match with"
-msgstr "Confermare la partita con"
+#~ msgid "Confirm match with"
+#~ msgstr "Confermare la partita con"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match?"
@@ -352,6 +353,10 @@ msgid "Could not load notifications"
 msgstr "Impossibile caricare le notifiche"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not register match"
+msgstr "Impossibile registrare la partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not reject friend request"
 msgstr "Impossibile rifiutare la richiesta di amicizia"
 
@@ -459,6 +464,10 @@ msgstr "Elimina partita"
 msgid "Delete match?"
 msgstr "Eliminare la partita?"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Did not participate"
+msgstr "Non ha partecipato"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "es. Partite del venerdì sera"
@@ -472,6 +481,14 @@ msgstr "Modifica partita"
 msgid "Enable push notifications"
 msgstr "Attiva notifiche push"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Enter a score for each participant or mark them as not participating. At least one must participate."
+msgstr "Inserisci un punteggio per ogni giocatore o indica che non ha partecipato. Almeno un giocatore deve aver partecipato."
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Enter a valid score"
+msgstr "Inserisci un punteggio valido"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Errore durante il caricamento del profilo:"
@@ -481,8 +498,8 @@ msgstr "Errore durante il caricamento del profilo:"
 #~ msgstr "scade"
 
 #: apps/web/src/components/Matches.tsx
-msgid "Finished"
-msgstr "Terminato"
+#~ msgid "Finished"
+#~ msgstr "Terminato"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
@@ -555,6 +572,10 @@ msgid "Groups"
 msgstr "Gruppi"
 
 #: apps/web/src/components/MatchDetail.tsx
+msgid "Highest score wins"
+msgstr "Vince il punteggio più alto"
+
+#: apps/web/src/components/MatchDetail.tsx
 msgid "If I have to"
 msgstr "Se proprio devo"
 
@@ -620,6 +641,10 @@ msgstr "Esci dalla partita"
 msgid "Leave match?"
 msgstr "Uscire dalla partita?"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Live standings"
+msgstr "Classifica provvisoria"
+
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Load more"
 msgstr "Carica altro"
@@ -641,6 +666,11 @@ msgstr "Caricamento profilo"
 #: apps/web/src/components/Profile.tsx
 msgid "Logout"
 msgstr "Esci"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Lowest score wins"
+msgstr "Vince il punteggio più basso"
 
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
@@ -684,6 +714,10 @@ msgid "Match readiness unavailable"
 msgstr "Stato della partita non disponibile"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match registered"
+msgstr "Partita registrata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Match updated"
 msgstr "Partita aggiornata"
 
@@ -715,6 +749,18 @@ msgstr "Giocatori minimi"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Mobile number"
 msgstr "Numero di cellulare"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "More match actions"
+msgstr "Altre azioni partita"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Move down"
+msgstr "Sposta giù"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Move up"
+msgstr "Sposta su"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "New invite"
@@ -888,6 +934,10 @@ msgstr "Giocate"
 msgid "Player"
 msgstr "Giocatore"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Player scores"
+msgstr "Punteggi giocatori"
+
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
 #: apps/web/src/components/MatchWizard.tsx
@@ -909,6 +959,19 @@ msgstr "Profilo"
 #: apps/web/src/components/Contacts.tsx
 msgid "Received"
 msgstr "Ricevute"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register match"
+msgstr "Registra partita"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register match?"
+msgstr "Registrare la partita?"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register results"
+msgstr "Registra risultati"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
@@ -932,6 +995,10 @@ msgstr "Rimuovi invito"
 msgid "Remove slot"
 msgstr "Rimuovi data"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Remove tie-break"
+msgstr "Rimuovi spareggio"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Reopen planning? Pending invitees will regain access and accepted players will be notified."
 msgstr "Riaprire la pianificazione? Gli invitati in attesa riavranno accesso e i giocatori che hanno accettato riceveranno una notifica."
@@ -940,9 +1007,20 @@ msgstr "Riaprire la pianificazione? Gli invitati in attesa riavranno accesso e i
 #~ msgid "Reset"
 #~ msgstr "Azzera"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Resolve tie"
+msgstr "Risolvi parità"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Respond to friend request"
 msgstr "Rispondi alla richiesta di amicizia"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Results and standings will become final and cannot be edited."
+msgstr "Risultati e classifica saranno definitivi e non potranno più essere modificati."
+
+#~ msgid "Results can only be registered by the match administrator before termination."
+#~ msgstr "Solo l'amministratore può registrare i risultati prima che la partita sia terminata."
 
 #: apps/web/src/components/Profile.tsx
 msgid "Retry"
@@ -955,6 +1033,10 @@ msgstr "Salva modifiche"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Saving…"
 msgstr "Salvataggio…"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Score"
+msgstr "Punteggio"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Search"
@@ -1052,6 +1134,10 @@ msgstr "Registrati"
 #~ msgid "Sign-in unavailable"
 #~ msgstr "Accesso non disponibile"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Standings"
+msgstr "Classifica"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Suggestions"
 msgstr "Suggerimenti"
@@ -1059,6 +1145,10 @@ msgstr "Suggerimenti"
 #: apps/web/src/components/Contacts.tsx
 msgid "Sync your address book from the mobile app to see friend suggestions here."
 msgstr "Sincronizza la rubrica dall'app mobile per vedere suggerimenti di amici qui."
+
+#: apps/web/src/components/Matches.tsx
+msgid "Terminated"
+msgstr "Terminata"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "The friend request will be declined."
@@ -1084,6 +1174,14 @@ msgstr "Questo contatto non sarà più bloccato."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This deletes the match and all invitations. This action cannot be undone."
 msgstr "Questa operazione elimina la partita e tutti gli inviti. Non può essere annullata."
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Tie-break applied"
+msgstr "Spareggio applicato"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Tied score"
+msgstr "Punteggio pari"
 
 #: apps/web/src/components/Header.tsx
 msgid "Toggle menu"

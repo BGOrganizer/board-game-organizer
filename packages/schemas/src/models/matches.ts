@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { targetUserIdSchema } from "../dto/common";
 
-export const matchStatusSchema = z.enum(["PLANNING", "CREATED"]);
+export const matchStatusSchema = z.enum(["PLANNING", "CREATED", "TERMINATED"]);
 export type MatchStatus = z.infer<typeof matchStatusSchema>;
 
 export const matchInvitationStatusSchema = z.enum(["PENDING", "ACCEPTED", "DECLINED"]);
@@ -14,6 +14,33 @@ export const matchChoicesSchema = z.object({
   dates: z.record(z.string(), matchChoiceSchema).optional(),
   games: z.record(z.string(), matchChoiceSchema).optional(),
 });
+
+export const matchScoreSchema = z
+  .string()
+  .regex(/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/)
+  .max(48);
+export const matchResultEntrySchema = z
+  .object({
+    userId: targetUserIdSchema,
+    score: matchScoreSchema.nullable(),
+    rank: z.number().int().positive().nullable(),
+  })
+  .strict();
+export const matchTieBreakSchema = z
+  .object({
+    score: matchScoreSchema,
+    orderedUserIds: z.array(targetUserIdSchema).min(2),
+  })
+  .strict();
+export const matchResultsSchema = z
+  .object({
+    lowerWins: z.boolean(),
+    entries: z.array(matchResultEntrySchema).min(1),
+    tieBreaks: z.array(matchTieBreakSchema),
+    finalizedAt: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+export type MatchResults = z.infer<typeof matchResultsSchema>;
 
 /** Match persisted independently from invitation lifecycle. */
 export const matchModel = z.object({
@@ -29,6 +56,7 @@ export const matchModel = z.object({
   status: matchStatusSchema,
   selectedDate: z.iso.datetime({ offset: true }).optional(),
   selectedGameId: z.number().int().positive().optional(),
+  results: matchResultsSchema.optional(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });

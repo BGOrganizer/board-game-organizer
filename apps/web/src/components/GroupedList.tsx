@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from "react";
+import { Children, type CSSProperties, type ReactNode } from "react";
 
 export function GroupedList({
   children,
@@ -20,9 +20,15 @@ export function GroupedList({
 export function GroupedRow({
   children,
   className = "",
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }) {
-  return <li className={`flex min-w-0 items-center gap-2 p-3 pl-4 ${className}`}>{children}</li>;
+  return (
+    <li style={style} className={`flex min-w-0 items-center gap-2 p-3 pl-4 ${className}`}>
+      {children}
+    </li>
+  );
 }

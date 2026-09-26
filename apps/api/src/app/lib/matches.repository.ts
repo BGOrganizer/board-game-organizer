@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { Match, MatchStatus, SetMatchChoiceInput } from "@board-game-organizer/schemas";
+import type {
+  Match,
+  MatchResults,
+  MatchStatus,
+  SetMatchChoiceInput,
+} from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
@@ -40,6 +45,7 @@ export class MatchesRepository {
       status: match.status ?? "PLANNING",
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
       ...(match.selectedGameId ? { selectedGameId: match.selectedGameId } : {}),
+      ...(match.results ? { results: match.results } : {}),
       createdAt: match.createdAt,
       updatedAt: match.updatedAt ?? match.createdAt,
     };
@@ -136,7 +142,16 @@ export class MatchesRepository {
   }
 
   deleteById(id: string, clerkId: string) {
-    return this.col.deleteOne({ id, clerkId }, this.opts);
+    return this.col.deleteOne({ id, clerkId, status: { $ne: "TERMINATED" } }, this.opts);
+  }
+
+  async registerResults(id: string, clerkId: string, results: MatchResults): Promise<Match | null> {
+    const updated = await this.col.findOneAndUpdate(
+      { id, clerkId, status: "CREATED", results: { $exists: false } },
+      { $set: { status: "TERMINATED", results, updatedAt: results.finalizedAt } },
+      { returnDocument: "after", projection: { _id: 0 }, ...this.opts },
+    );
+    return updated ? this.normalize(updated) : null;
   }
 
   async setStatus(

@@ -10,10 +10,37 @@ import {
   matchModel,
   matchResponseSchema,
   matchVoteSummarySchema,
+  registerMatchResultsSchema,
   respondMatchInvitationSchema,
   setMatchChoiceSchema,
+  setMatchStatusSchema,
   updateMatchSchema,
 } from "../index";
+
+it("accepts signed decimals and ND but never allows TERMINATED through the status route", () => {
+  const input = {
+    lowerWins: true,
+    entries: [
+      { userId: "user_admin", score: "-1.25" },
+      { userId: "user_guest", score: null },
+    ],
+    tieBreaks: [],
+  };
+  expect(registerMatchResultsSchema.safeParse(input).success).toBe(true);
+  expect(
+    registerMatchResultsSchema.safeParse({
+      ...input,
+      entries: [{ userId: "user_admin", score: 1.5 }],
+    }).success,
+  ).toBe(false);
+  expect(
+    registerMatchResultsSchema.safeParse({
+      ...input,
+      entries: [{ userId: "user_admin", score: "NaN" }],
+    }).success,
+  ).toBe(false);
+  expect(setMatchStatusSchema.safeParse({ status: "TERMINATED" }).success).toBe(false);
+});
 
 const valid = {
   name: "Friday games",

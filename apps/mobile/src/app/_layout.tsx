@@ -106,6 +106,7 @@ function RootNavigator() {
           <Stack.Screen name="notifications" options={{ title: t("Notifications") }} />
           <Stack.Screen name="profile" options={{ title: t("Profile") }} />
           <Stack.Screen name="match/wizard" options={{ title: t("Configure match") }} />
+          <Stack.Screen name="match/results" options={{ title: t("Register results") }} />
           <Stack.Screen name="match/search-user" options={{ title: t("Invite friends") }} />
           <Stack.Screen name="match/search-game" options={{ title: t("Select a board game") }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

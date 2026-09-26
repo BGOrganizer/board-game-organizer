@@ -342,6 +342,59 @@ describe("BGG covers on MongoDB replica set", () => {
 });
 
 describe("match repositories on MongoDB replica set", () => {
+  it("registers exact results once and makes a terminated match immutable and visible to accepted players", async () => {
+    await seedMatchDependencies();
+    const created = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, invitedUserIds: [TARGET] }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(TARGET, created.invitations[0].id, "accept"),
+    );
+    await withMatchTransaction(({ matches }) =>
+      matches.setStatus(created.id, ACTOR, "PLANNING", "CREATED", {
+        date: created.dates[0],
+        gameId: created.gameIds[0],
+      }),
+    );
+    const input = {
+      lowerWins: true,
+      entries: [
+        { userId: ACTOR, score: "-2.5" },
+        { userId: TARGET, score: null },
+      ],
+      tieBreaks: [],
+    };
+    const registered = await withMatchTransaction(({ service }) =>
+      service.registerResults(ACTOR, created.id, input),
+    );
+    expect(registered).toMatchObject({
+      status: "TERMINATED",
+      results: {
+        lowerWins: true,
+        entries: [
+          { userId: ACTOR, score: "-2.5", rank: 1 },
+          { userId: TARGET, score: null, rank: null },
+        ],
+      },
+    });
+    await expect(
+      withMatchTransaction(({ service }) => service.detail(TARGET, created.id)),
+    ).resolves.toMatchObject({
+      match: { status: "TERMINATED", results: registered.results },
+    });
+    await expect(
+      withMatchTransaction(({ service }) => service.registerResults(ACTOR, created.id, input)),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      withMatchTransaction(({ service }) => service.setStatus(ACTOR, created.id, "PLANNING")),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      withMatchTransaction(({ service }) => service.deleteMatch(ACTOR, created.id)),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(new MatchesRepository(db).findById(created.id)).resolves.toMatchObject({
+      status: "TERMINATED",
+    });
+  });
   it("creates a zero-invite match, accepts, leaves, and allows re-invitation", async () => {
     await seedMatchDependencies();
     const created = await withMatchTransaction(({ service }) => service.create(ACTOR, matchInput));

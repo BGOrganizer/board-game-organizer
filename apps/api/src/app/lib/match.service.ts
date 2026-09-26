@@ -6,9 +6,11 @@ import type {
   MatchResponse,
   MatchVoteCounts,
   MatchVoteSummary,
+  RegisterMatchResultsInput,
   SetMatchChoiceInput,
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
+import { normalizeMatchScore, rankMatchResults } from "@board-game-organizer/shared/matchResults";
 import { MongoServerError } from "mongodb";
 import { gameThumbnail } from "@/app/lib/bgg";
 import type { BoardGamesRepository } from "@/app/lib/boardGames.repository";
@@ -150,7 +152,7 @@ export class MatchService {
     userId: string,
     invitations: MatchInvitation[],
   ): MatchInvitation[] {
-    if (match.status === "CREATED") {
+    if (match.status !== "PLANNING") {
       return invitations.filter((invitation) => invitation.status === "ACCEPTED");
     }
     if (match.clerkId === userId) return invitations;
@@ -172,6 +174,7 @@ export class MatchService {
       status: match.status,
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
       ...(match.selectedGameId ? { selectedGameId: match.selectedGameId } : {}),
+      ...(match.results ? { results: match.results } : {}),
       createdAt: match.createdAt,
       updatedAt: match.updatedAt,
       invitations,
@@ -222,7 +225,7 @@ export class MatchService {
     const visible = matches.flatMap((match) => {
       const matchInvitations = invitations.filter((invitation) => invitation.matchId === match.id);
       if (
-        match.status === "CREATED" &&
+        match.status !== "PLANNING" &&
         match.clerkId !== userId &&
         !matchInvitations.some(
           (invitation) => invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
@@ -234,7 +237,7 @@ export class MatchService {
     const selectedIds = [
       ...new Set(
         visible.flatMap((match) =>
-          match.status === "CREATED" && match.selectedGameId ? [match.selectedGameId] : [],
+          match.status !== "PLANNING" && match.selectedGameId ? [match.selectedGameId] : [],
         ),
       ),
     ];
@@ -354,6 +357,7 @@ export class MatchService {
     }
     const match = await this.requireMatch(matchId);
     this.requireAdmin(match, userId);
+    if (match.status === "TERMINATED") throw new MatchError(409, "Match is terminated");
     if (match.status === status) throw new MatchError(409, "Match already has this status");
     const invitations = await this.invitations.listByMatch(matchId);
     const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
@@ -569,9 +573,69 @@ export class MatchService {
     return this.toResponse(updated, invitations);
   }
 
+  async registerResults(userId: string, matchId: string, input: RegisterMatchResultsInput) {
+    if ((await this.matches.serializeInvitationChange(matchId)).matchedCount === 0) {
+      throw new MatchError(404, "Match not found");
+    }
+    const match = await this.requireMatch(matchId);
+    this.requireAdmin(match, userId);
+    if (match.status !== "CREATED") throw new MatchError(409, "Match is not ready for results");
+    const invitations = await this.invitations.listByMatch(matchId);
+    const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
+    const participantIds = new Set([
+      userId,
+      ...accepted.map((invitation) => invitation.inviteeUserId),
+    ]);
+    if (
+      input.entries.length !== participantIds.size ||
+      new Set(input.entries.map((entry) => entry.userId)).size !== participantIds.size ||
+      input.entries.some(
+        (entry) =>
+          !participantIds.has(entry.userId) ||
+          (entry.score !== null && normalizeMatchScore(entry.score) !== entry.score),
+      )
+    ) {
+      throw new MatchError(400, "Results must include every accepted player exactly once");
+    }
+    if (input.entries.every((entry) => entry.score === null)) {
+      throw new MatchError(400, "At least one player must have participated");
+    }
+    const groups = new Map<string, string[]>();
+    for (const entry of input.entries) {
+      if (entry.score === null) continue;
+      const group = groups.get(entry.score) ?? [];
+      group.push(entry.userId);
+      groups.set(entry.score, group);
+    }
+    const seen = new Set<string>();
+    for (const tie of input.tieBreaks) {
+      const group = groups.get(tie.score);
+      if (
+        seen.has(tie.score) ||
+        !group ||
+        group.length < 2 ||
+        tie.orderedUserIds.length !== group.length ||
+        new Set(tie.orderedUserIds).size !== group.length ||
+        tie.orderedUserIds.some((id) => !group.includes(id))
+      ) {
+        throw new MatchError(400, "Invalid tie-break order");
+      }
+      seen.add(tie.score);
+    }
+    const results = {
+      ...input,
+      entries: rankMatchResults(input),
+      finalizedAt: new Date().toISOString(),
+    };
+    const updated = await this.matches.registerResults(matchId, userId, results);
+    if (!updated) throw new MatchError(409, "Match changed concurrently");
+    return this.toResponse(updated, this.visibleInvitations(updated, userId, invitations));
+  }
+
   async deleteMatch(userId: string, matchId: string) {
     const match = await this.requireMatch(matchId);
     this.requireAdmin(match, userId);
+    if (match.status === "TERMINATED") throw new MatchError(409, "Match is terminated");
     await this.matches.serializeInvitationChange(match.id);
     await this.invitations.deleteAllByMatch(match.id);
     const result = await this.matches.deleteById(match.id, userId);

@@ -106,7 +106,7 @@ export function Matches() {
             PLANNING: t`Planning`,
             CREATED: t`Confirmed`,
             IN_PROGRESS: t`In progress`,
-            FINISHED: t`Finished`,
+            TERMINATED: t`Terminated`,
             CANCELLED: t`Cancelled`,
           };
           const gameLabel =

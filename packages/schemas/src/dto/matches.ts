@@ -3,7 +3,10 @@ import {
   matchChoiceSchema,
   matchChoicesSchema,
   matchInvitationStatusSchema,
+  matchResultsSchema,
+  matchScoreSchema,
   matchStatusSchema,
+  matchTieBreakSchema,
 } from "../models/matches";
 import { targetUserIdSchema } from "./common";
 
@@ -33,6 +36,7 @@ export const matchResponseSchema = z.object({
   selectedGameId: z.number().optional(),
   /** Included by match listings when the selected catalog game is available. */
   selectedGameName: z.string().optional(),
+  results: matchResultsSchema.optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   invitations: z.array(matchInvitationResponseSchema),
@@ -105,7 +109,24 @@ export const setMatchChoiceSchema = z.discriminatedUnion("kind", [
 ]);
 export type SetMatchChoiceInput = z.infer<typeof setMatchChoiceSchema>;
 
-export const setMatchStatusSchema = z.object({ status: matchStatusSchema }).strict();
+export const setMatchStatusSchema = z.object({ status: z.enum(["PLANNING", "CREATED"]) }).strict();
+export const registerMatchResultsSchema = z
+  .object({
+    lowerWins: z.boolean(),
+    entries: z
+      .array(
+        z
+          .object({
+            userId: targetUserIdSchema,
+            score: matchScoreSchema.nullable(),
+          })
+          .strict(),
+      )
+      .min(1),
+    tieBreaks: z.array(matchTieBreakSchema),
+  })
+  .strict();
+export type RegisterMatchResultsInput = z.infer<typeof registerMatchResultsSchema>;
 export type SetMatchStatusInput = z.infer<typeof setMatchStatusSchema>;
 
 export const inviteMatchUserSchema = z.object({ inviteeUserId: targetUserIdSchema }).strict();

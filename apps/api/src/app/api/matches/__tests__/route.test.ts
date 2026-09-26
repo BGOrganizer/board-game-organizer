@@ -6,6 +6,7 @@ import * as invitationRoute from "../../match-invitations/[invitationId]/route";
 import * as choiceRoute from "../[matchId]/choices/route";
 import * as adminInvitationRoute from "../[matchId]/invitations/[invitationId]/route";
 import * as invitationsRoute from "../[matchId]/invitations/route";
+import * as resultsRoute from "../[matchId]/results/route";
 import * as detailRoute from "../[matchId]/route";
 import * as statusRoute from "../[matchId]/status/route";
 import * as matchesRoute from "../route";
@@ -76,6 +77,7 @@ describe("match API routes", () => {
       games: [],
     } as never);
     vi.spyOn(MatchService.prototype, "listInvitations").mockResolvedValue([invitation] as never);
+    vi.spyOn(MatchService.prototype, "registerResults").mockResolvedValue(match as never);
     vi.spyOn(MatchService.prototype, "invite").mockResolvedValue(invitation as never);
     vi.spyOn(MatchService.prototype, "respond").mockResolvedValue(invitation as never);
     vi.spyOn(MatchService.prototype, "leave").mockResolvedValue();
@@ -157,6 +159,54 @@ describe("match API routes", () => {
     );
     expect(response.status).toBe(400);
     expect(MatchService.prototype.create).not.toHaveBeenCalled();
+  });
+
+  it("validates result registration and only accepts explicit planning/confirmed status changes", async () => {
+    const path = `/api/matches/${matchId}/results`;
+    const body = {
+      lowerWins: true,
+      entries: [{ userId: "user_admin", score: "-1.5" }],
+      tieBreaks: [],
+    };
+    expect(
+      (await resultsRoute.POST(request(path, "POST", JSON.stringify(body)), matchContext("bad")))
+        .status,
+    ).toBe(400);
+    expect(
+      (await resultsRoute.POST(request(path, "POST", "{invalid"), matchContext())).status,
+    ).toBe(400);
+    expect(
+      (
+        await resultsRoute.POST(
+          request(path, "POST", JSON.stringify({ ...body, entries: [] })),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await resultsRoute.POST(request(path, "POST", JSON.stringify(body)), matchContext())).status,
+    ).toBe(200);
+    expect(MatchService.prototype.registerResults).toHaveBeenCalledWith(
+      "user_admin",
+      matchId,
+      body,
+    );
+    expect(
+      (
+        await statusRoute.PATCH(
+          request(
+            `/api/matches/${matchId}/status`,
+            "PATCH",
+            JSON.stringify({ status: "TERMINATED" }),
+          ),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(400);
+    vi.mocked(auth).mockResolvedValueOnce({ userId: null } as never);
+    expect(
+      (await resultsRoute.POST(request(path, "POST", JSON.stringify(body)), matchContext())).status,
+    ).toBe(401);
   });
 
   it("requires authentication and synchronized user", async () => {

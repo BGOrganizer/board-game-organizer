@@ -106,6 +106,7 @@ function result(data: typeof detail | undefined = detail) {
     leaveMatch: { mutate: leaveMutate, isPending: false, isError: false },
     setChoice: { mutate: setChoiceMutate, isPending: false },
     setStatus: { mutate: setStatusMutate, isPending: false },
+    registerResults: { mutate: vi.fn(), isPending: false },
   };
 }
 
@@ -114,6 +115,41 @@ describe("MatchDetail", () => {
     vi.clearAllMocks();
     authMock.userId = "user_guest";
     useMatchDetailMock.mockReturnValue(result());
+  });
+
+  it("shows immutable standings to accepted invitees and no admin actions after termination", () => {
+    authMock.userId = "user_admin";
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: {
+          ...detail.match,
+          status: "TERMINATED",
+          selectedDate: detail.match.dates[0],
+          selectedGameId: 1,
+          results: {
+            lowerWins: true,
+            finalizedAt: detail.match.updatedAt,
+            entries: [
+              { userId: "user_admin", score: "-2.5", rank: 1 },
+              { userId: "user_guest", score: null, rank: null },
+            ],
+            tieBreaks: [],
+          },
+        },
+        invitedPlayers: [
+          { ...detail.invitedPlayers[0], invitation: { ...invitation, status: "ACCEPTED" } },
+        ],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    expect(screen.queryByRole("button", { name: "Register results" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "More match actions" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit match" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Standings" }));
+    expect(screen.getByText("-2.5")).toBeTruthy();
+    expect(screen.getByText("ND")).toBeTruthy();
+    expect(screen.getByText("Guest Player")).toBeTruthy();
   });
 
   it("shows participant profiles and invitation status icons", () => {
@@ -301,7 +337,8 @@ describe("MatchDetail", () => {
     expect(screen.queryByRole("button", { name: "Vote count legend" })).toBeNull();
     expect(screen.queryByRole("img", { name: /Yes: 1, No: 0/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Choose game/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Back to planning" }));
+    fireEvent.click(screen.getByRole("button", { name: "More match actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Back to planning" }));
     expect(screen.getByRole("dialog", { name: "Back to planning?" })).toBeTruthy();
     expect(setStatusMutate).not.toHaveBeenCalledWith("PLANNING", expect.anything());
     fireEvent.click(
@@ -407,7 +444,8 @@ describe("MatchDetail", () => {
     authMock.userId = "user_admin";
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete match" }));
+    fireEvent.click(screen.getByRole("button", { name: "More match actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete match" }));
     const dialog = screen.getByRole("dialog", { name: "Delete match?" });
     expect(
       within(dialog).getByText(

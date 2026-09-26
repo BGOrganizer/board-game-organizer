@@ -96,6 +96,7 @@ msgid "Back"
 msgstr "Back"
 
 #: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Back to match"
 msgstr "Back to match"
 
@@ -153,8 +154,8 @@ msgid "Cancelled"
 msgstr "Cancelled"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Cannot confirm match"
-msgstr "Cannot confirm match"
+#~ msgid "Cannot confirm match"
+#~ msgstr "Cannot confirm match"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
@@ -214,8 +215,8 @@ msgid "Confirm match"
 msgstr "Confirm match"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Confirm match with"
-msgstr "Confirm match with"
+#~ msgid "Confirm match with"
+#~ msgstr "Confirm match with"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match?"
@@ -352,6 +353,10 @@ msgid "Could not load notifications"
 msgstr "Could not load notifications"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not register match"
+msgstr "Could not register match"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not reject friend request"
 msgstr "Could not reject friend request"
 
@@ -459,6 +464,10 @@ msgstr "Delete match"
 msgid "Delete match?"
 msgstr "Delete match?"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Did not participate"
+msgstr "Did not participate"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "e.g. Friday night games"
@@ -472,6 +481,14 @@ msgstr "Edit match"
 msgid "Enable push notifications"
 msgstr "Enable push notifications"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Enter a score for each participant or mark them as not participating. At least one must participate."
+msgstr "Enter a score for each participant or mark them as not participating. At least one must participate."
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Enter a valid score"
+msgstr "Enter a valid score"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Error while loading the profile:"
@@ -481,8 +498,8 @@ msgstr "Error while loading the profile:"
 #~ msgstr "expires"
 
 #: apps/web/src/components/Matches.tsx
-msgid "Finished"
-msgstr "Finished"
+#~ msgid "Finished"
+#~ msgstr "Finished"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
@@ -555,6 +572,10 @@ msgid "Groups"
 msgstr "Groups"
 
 #: apps/web/src/components/MatchDetail.tsx
+msgid "Highest score wins"
+msgstr "Highest score wins"
+
+#: apps/web/src/components/MatchDetail.tsx
 msgid "If I have to"
 msgstr "If I have to"
 
@@ -620,6 +641,10 @@ msgstr "Leave match"
 msgid "Leave match?"
 msgstr "Leave match?"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Live standings"
+msgstr "Live standings"
+
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Load more"
 msgstr "Load more"
@@ -641,6 +666,11 @@ msgstr "Loading profile"
 #: apps/web/src/components/Profile.tsx
 msgid "Logout"
 msgstr "Logout"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Lowest score wins"
+msgstr "Lowest score wins"
 
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
@@ -684,6 +714,10 @@ msgid "Match readiness unavailable"
 msgstr "Match readiness unavailable"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match registered"
+msgstr "Match registered"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Match updated"
 msgstr "Match updated"
 
@@ -715,6 +749,18 @@ msgstr "Minimum players"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Mobile number"
 msgstr "Mobile number"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "More match actions"
+msgstr "More match actions"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Move down"
+msgstr "Move down"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Move up"
+msgstr "Move up"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "New invite"
@@ -888,6 +934,10 @@ msgstr "Played"
 msgid "Player"
 msgstr "Player"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Player scores"
+msgstr "Player scores"
+
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
 #: apps/web/src/components/MatchWizard.tsx
@@ -909,6 +959,19 @@ msgstr "Profile"
 #: apps/web/src/components/Contacts.tsx
 msgid "Received"
 msgstr "Received"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register match"
+msgstr "Register match"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register match?"
+msgstr "Register match?"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register results"
+msgstr "Register results"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
@@ -932,6 +995,10 @@ msgstr "Remove invite"
 msgid "Remove slot"
 msgstr "Remove slot"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Remove tie-break"
+msgstr "Remove tie-break"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Reopen planning? Pending invitees will regain access and accepted players will be notified."
 msgstr "Reopen planning? Pending invitees will regain access and accepted players will be notified."
@@ -940,9 +1007,20 @@ msgstr "Reopen planning? Pending invitees will regain access and accepted player
 #~ msgid "Reset"
 #~ msgstr "Reset"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Resolve tie"
+msgstr "Resolve tie"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Respond to friend request"
 msgstr "Respond to friend request"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Results and standings will become final and cannot be edited."
+msgstr "Results and standings will become final and cannot be edited."
+
+#~ msgid "Results can only be registered by the match administrator before termination."
+#~ msgstr "Results can only be registered by the match administrator before termination."
 
 #: apps/web/src/components/Profile.tsx
 msgid "Retry"
@@ -955,6 +1033,10 @@ msgstr "Save changes"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Saving…"
 msgstr "Saving…"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Score"
+msgstr "Score"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Search"
@@ -1052,6 +1134,10 @@ msgstr "Sign Up"
 #~ msgid "Sign-in unavailable"
 #~ msgstr "Sign-in unavailable"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Standings"
+msgstr "Standings"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Suggestions"
 msgstr "Suggestions"
@@ -1059,6 +1145,10 @@ msgstr "Suggestions"
 #: apps/web/src/components/Contacts.tsx
 msgid "Sync your address book from the mobile app to see friend suggestions here."
 msgstr "Sync your address book from the mobile app to see friend suggestions here."
+
+#: apps/web/src/components/Matches.tsx
+msgid "Terminated"
+msgstr "Terminated"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "The friend request will be declined."
@@ -1084,6 +1174,14 @@ msgstr "This contact will no longer be blocked."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This deletes the match and all invitations. This action cannot be undone."
 msgstr "This deletes the match and all invitations. This action cannot be undone."
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Tie-break applied"
+msgstr "Tie-break applied"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Tied score"
+msgstr "Tied score"
 
 #: apps/web/src/components/Header.tsx
 msgid "Toggle menu"

@@ -5,13 +5,14 @@ import type {
   MatchDetailResponse,
   MatchInvitationResponse,
   MatchResponse,
-  MatchStatus,
+  RegisterMatchResultsInput,
   SetMatchChoiceInput,
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { rankMatchResults } from "../matchResults";
 import type { MutationFeedback } from "../mutationFeedback";
 
 /**
@@ -95,7 +96,7 @@ async function setMatchStatusRequest(
   apiUrl: string,
   token: string,
   matchId: string,
-  status: MatchStatus,
+  status: "PLANNING" | "CREATED",
   protectionBypass?: string | null,
 ): Promise<{ match: MatchResponse }> {
   const res = await fetch(
@@ -104,6 +105,24 @@ async function setMatchStatusRequest(
       protectionBypass,
     ),
     { method: "PATCH", headers: apiHeaders(token), body: JSON.stringify({ status }) },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function registerMatchResultsRequest(
+  apiUrl: string,
+  token: string,
+  matchId: string,
+  input: RegisterMatchResultsInput,
+  protectionBypass?: string | null,
+): Promise<{ match: MatchResponse }> {
+  const res = await fetch(
+    withProtectionBypass(
+      `${apiUrl}/api/matches/${encodeURIComponent(matchId)}/results`,
+      protectionBypass,
+    ),
+    { method: "POST", headers: apiHeaders(token), body: JSON.stringify(input) },
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -556,7 +575,7 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches", "detail", matchId] }),
   });
   const setStatus = useMutation({
-    mutationFn: async (status: MatchStatus) =>
+    mutationFn: async (status: "PLANNING" | "CREATED") =>
       setMatchStatusRequest(
         apiUrl,
         await resolveToken(token, getToken),
@@ -616,6 +635,46 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches"] }),
   });
 
+  const registerResults = useMutation({
+    mutationFn: async (input: RegisterMatchResultsInput) =>
+      registerMatchResultsRequest(
+        apiUrl,
+        await resolveToken(token, getToken),
+        matchId,
+        input,
+        protectionBypass,
+      ),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: ["matches"] });
+      const snapshots = queryClient.getQueriesData({ queryKey: ["matches"] });
+      const results = {
+        ...input,
+        entries: rankMatchResults(input),
+        finalizedAt: new Date().toISOString(),
+      };
+      const patch = (match: MatchResponse) =>
+        match.id === matchId ? { ...match, status: "TERMINATED" as const, results } : match;
+      for (const [queryKey, data] of snapshots) {
+        if (Array.isArray(data)) queryClient.setQueryData(queryKey, data.map(patch));
+        else if (data && typeof data === "object" && "match" in data) {
+          const detail = data as MatchDetailResponse;
+          queryClient.setQueryData(queryKey, { ...detail, match: patch(detail.match) });
+        }
+      }
+      feedback?.onOptimisticUpdate?.("register_match_results");
+      return snapshots;
+    },
+    onSuccess: ({ match }) => {
+      for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["matches"] })) {
+        queryClient.setQueryData(queryKey, replaceMatchCache(data, match));
+      }
+    },
+    onError: (error: Error, _input, snapshots) => {
+      for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
+      feedback?.onError?.(error, "register_match_results");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches"] }),
+  });
   const deleteMatch = useMutation({
     mutationFn: async (id: string) =>
       deleteMatchRequest(apiUrl, await resolveToken(token, getToken), id, protectionBypass),
@@ -681,7 +740,15 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
   });
 
   return useMemo(
-    () => ({ detail, respondInvitation, setChoice, setStatus, deleteMatch, leaveMatch }),
-    [detail, respondInvitation, setChoice, setStatus, deleteMatch, leaveMatch],
+    () => ({
+      detail,
+      respondInvitation,
+      setChoice,
+      setStatus,
+      registerResults,
+      deleteMatch,
+      leaveMatch,
+    }),
+    [detail, respondInvitation, setChoice, setStatus, registerResults, deleteMatch, leaveMatch],
   );
 }
