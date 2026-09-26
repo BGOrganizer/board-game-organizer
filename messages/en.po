@@ -134,6 +134,7 @@ msgid "Board games"
 msgstr "Board games"
 
 #: apps/web/src/components/ContactConfirmDialog.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -198,6 +199,10 @@ msgstr "Choose game"
 msgid "Clear search"
 msgstr "Clear search"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Close"
+msgstr "Close"
+
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Complete your profile"
 msgstr "Complete your profile"
@@ -221,6 +226,10 @@ msgstr "Confirm match"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match?"
 msgstr "Confirm match?"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Confirm tie-break"
+msgstr "Confirm tie-break"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Confirmed"
@@ -476,6 +485,14 @@ msgstr "e.g. Friday night games"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Edit match"
 msgstr "Edit match"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Edit tie-break"
+msgstr "Edit tie-break"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Email unavailable"
+msgstr "Email unavailable"
 
 #: apps/web/src/components/NotificationBell.tsx
 msgid "Enable push notifications"

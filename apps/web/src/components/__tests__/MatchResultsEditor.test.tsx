@@ -20,8 +20,8 @@ const match = {
 };
 const players = ["user_one", "user_two"].map((id) => ({
   id,
-  name: id === "user_one" ? "Anna" : "Luca",
-  email: null,
+  name: id === "user_one" ? "Anna Rossi" : "Luca Bianchi",
+  email: `${id}@example.com`,
   avatarUrl: null,
   invitation: {
     id: "22222222-2222-4222-8222-222222222222",
@@ -35,55 +35,116 @@ const players = ["user_one", "user_two"].map((id) => ({
 }));
 const data = {
   match,
-  administrator: { id: "user_admin", name: "Marco", email: null, avatarUrl: null },
+  administrator: {
+    id: "user_admin",
+    name: "Marco Verdi",
+    email: "admin@example.com",
+    avatarUrl: null,
+  },
   invitedPlayers: players,
   games: [],
 } as MatchDetailResponse;
 
-it("keeps inputs fixed, resolves a three-way tie only in the preview and confirms with a short dialog", () => {
+function openScore(name: string) {
+  fireEvent.click(screen.getByRole("button", { name: `Score: ${name}` }));
+}
+
+it("shows everyone at zero, opens score popovers, and confirms a staged three-way tie-break", () => {
   const submit = vi.fn();
   renderWithI18n(
     <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={submit} />,
   );
-  const inputs = screen.getAllByRole("textbox", { name: /Score:/ });
+  const standings = screen.getByRole("region", { name: "Live standings" });
+  const scores = screen.getByRole("region", { name: "Player scores" });
+  expect(standings.compareDocumentPosition(scores) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(standings).getAllByText("0")).toHaveLength(3);
+  expect(screen.getAllByRole("button", { name: /Score:/ })).toHaveLength(3);
+  expect(within(scores).getByText("admin@example.com")).toBeTruthy();
+  expect(within(scores).getByText("Anna Rossi")).toBeTruthy();
+  expect(within(scores).getAllByText(/@example.com/)).toHaveLength(3);
+  expect(screen.queryByRole("textbox", { name: /Score:/ })).toBeNull();
   expect(
     (screen.getByRole("button", { name: "Register match" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
-  for (const input of inputs) fireEvent.change(input, { target: { value: "-1,5" } });
-  expect(screen.getByRole("button", { name: "Resolve tie" })).toBeTruthy();
+  ).toBe(false);
+
+  for (const name of ["Marco Verdi", "Anna Rossi", "Luca Bianchi"]) {
+    openScore(name);
+    fireEvent.change(screen.getByRole("textbox", { name: `Score: ${name}` }), {
+      target: { value: "-1,5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  }
   fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
-  fireEvent.click(screen.getByRole("button", { name: "Move up: Luca" }));
-  fireEvent.click(screen.getByRole("button", { name: "Move up: Luca" }));
-  expect(screen.getAllByRole("textbox", { name: /Score:/ })).toEqual(inputs);
-  fireEvent.click(screen.getByRole("switch", { name: /Lowest score wins/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
+  fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(within(standings).getAllByText("1.")).toHaveLength(3);
+  fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
+  fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
+  fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm tie-break" }));
+  expect(screen.getByRole("button", { name: "Edit tie-break" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("switch", { name: "Lowest score wins" }));
   fireEvent.click(screen.getByRole("button", { name: "Register match" }));
   const dialog = screen.getByRole("dialog", { name: "Register match?" });
-  expect(within(dialog).queryByText("Marco")).toBeNull();
+  expect(within(dialog).queryByText("Marco Verdi")).toBeNull();
   fireEvent.click(within(dialog).getByRole("button", { name: "Register match" }));
   expect(submit).toHaveBeenCalledWith({
     lowerWins: true,
-    entries: ["user_admin", "user_one", "user_two"].map((userId) => ({ userId, score: "-1.5" })),
+    entries: ["user_admin", "user_one", "user_two"].map((userId) => ({
+      userId,
+      score: "-1.5",
+    })),
     tieBreaks: [{ score: "-1.5", orderedUserIds: ["user_two", "user_admin", "user_one"] }],
   });
 });
 
-it("puts nonparticipants last with ND and requires at least one played score", () => {
+it("can edit or remove an applied tie-break without changing scores", () => {
   renderWithI18n(
     <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={vi.fn()} />,
   );
-  const switches = screen.getAllByRole("switch", { name: /Did not participate:/ });
-  for (const toggle of switches) fireEvent.click(toggle);
+  const standings = screen.getByRole("region", { name: "Live standings" });
+  fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
+  fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm tie-break" }));
+  expect(within(standings).getAllByText("1.")).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Edit tie-break" }));
+  fireEvent.click(screen.getByRole("button", { name: "Move down: Luca Bianchi" }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm tie-break" }));
+  fireEvent.click(screen.getByRole("button", { name: "Remove tie-break" }));
+  expect(within(standings).getAllByText("1.")).toHaveLength(3);
+  expect(screen.getByRole("button", { name: "Resolve tie" })).toBeTruthy();
+});
+
+it("keeps at least one participant and validates scores inside the popover", () => {
+  const missingEmailData = {
+    ...data,
+    administrator: { ...data.administrator, email: null },
+  } as MatchDetailResponse;
+  renderWithI18n(
+    <MatchResultsEditor data={missingEmailData} busy={false} onBack={vi.fn()} onSubmit={vi.fn()} />,
+  );
+  expect(
+    within(screen.getByRole("region", { name: "Player scores" })).getByText("Email unavailable"),
+  ).toBeTruthy();
+  for (const name of ["Marco Verdi", "Anna Rossi", "Luca Bianchi"]) {
+    openScore(name);
+    fireEvent.click(screen.getByRole("switch", { name: `Did not participate: ${name}` }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  }
   expect(
     (screen.getByRole("button", { name: "Register match" }) as HTMLButtonElement).disabled,
   ).toBe(true);
-  fireEvent.click(switches[0]);
-  fireEvent.change(screen.getByRole("textbox", { name: "Score: Marco" }), {
-    target: { value: "-" },
+  openScore("Marco Verdi");
+  fireEvent.click(screen.getByRole("switch", { name: "Did not participate: Marco Verdi" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Score: Marco Verdi" }), {
+    target: { value: "abc" },
   });
   expect(screen.getByRole("alert").textContent).toBe("Enter a valid score");
-  fireEvent.change(screen.getByRole("textbox", { name: "Score: Marco" }), {
+  fireEvent.change(screen.getByRole("textbox", { name: "Score: Marco Verdi" }), {
     target: { value: "0" },
   });
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(
     (screen.getByRole("button", { name: "Register match" }) as HTMLButtonElement).disabled,
   ).toBe(false);

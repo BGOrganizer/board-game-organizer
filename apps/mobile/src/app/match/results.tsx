@@ -9,12 +9,15 @@ import {
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Avatar } from "heroui-native/avatar";
+import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
+import { useBottomSheetAwareHandlers, useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { ArrowDown, ArrowUp } from "lucide-react-native";
+import { ArrowDown, ArrowUp, ListOrdered, Trophy, X } from "lucide-react-native";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -24,6 +27,7 @@ import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 const rowTransition = LinearTransition.duration(220).reduceMotion(ReduceMotion.System);
+type Player = MatchDetailResponse["administrator"];
 
 export default function MatchResultsScreen() {
   const t = useT();
@@ -111,6 +115,66 @@ export default function MatchResultsScreen() {
   );
 }
 
+function PlayerInfo({ player }: { player: Player }) {
+  const t = useT();
+  return (
+    <>
+      <Avatar size="md">
+        {player.avatarUrl && <Avatar.Image source={{ uri: player.avatarUrl }} />}
+        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+      </Avatar>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Typography className="font-medium text-foreground" numberOfLines={1}>
+          {player.name}
+        </Typography>
+        <Typography className="text-xs text-muted" numberOfLines={1}>
+          {player.email ?? t("Email unavailable")}
+        </Typography>
+      </View>
+    </>
+  );
+}
+
+function ScoreSheetInput({
+  player,
+  row,
+  busy,
+  onChange,
+}: {
+  player: Player;
+  row: ScoreDraftRow;
+  busy: boolean;
+  onChange: (value: string) => void;
+}) {
+  const t = useT();
+  const { onFocus, onBlur } = useBottomSheetAwareHandlers();
+  return (
+    <View style={{ gap: 6, marginTop: 12 }}>
+      <Typography className="text-foreground">{t("Score")}</Typography>
+      <Input
+        value={row.rawScore}
+        onChangeText={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        accessibilityLabel={`${t("Score")}: ${player.name}`}
+        placeholder={t("Score")}
+        keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
+        editable={!row.notParticipated && !busy}
+        className="text-foreground"
+        aria-invalid={
+          !row.notParticipated && row.rawScore !== "" && normalizeMatchScore(row.rawScore) === null
+        }
+        testID={`score-${player.id}`}
+      />
+      {!row.notParticipated &&
+        row.rawScore !== "" &&
+        normalizeMatchScore(row.rawScore) === null && (
+          <Typography className="text-xs text-danger">{t("Enter a valid score")}</Typography>
+        )}
+    </View>
+  );
+}
+
 function ResultsForm({
   data,
   busy,
@@ -122,41 +186,51 @@ function ResultsForm({
 }) {
   const t = useT();
   const insets = useSafeAreaInsets();
+  const accentForeground = useThemeColor("accent-foreground");
   const players = [
     data.administrator,
     ...data.invitedPlayers.filter((player) => player.invitation.status === "ACCEPTED"),
   ];
-  const names = new Map(players.map((player) => [player.id, player.name]));
+  const playerById = new Map(players.map((player) => [player.id, player]));
   const [rows, setRows] = useState<ScoreDraftRow[]>(() =>
-    players.map((player) => ({ userId: player.id, rawScore: "", notParticipated: false })),
+    players.map((player) => ({ userId: player.id, rawScore: "0", notParticipated: false })),
   );
+  const [scorePlayerId, setScorePlayerId] = useState<string | null>(null);
   const [lowerWins, setLowerWins] = useState(false);
   const [tieBreaks, setTieBreaks] = useState<RegisterMatchResultsInput["tieBreaks"]>([]);
+  const [editingTie, setEditingTie] = useState<
+    RegisterMatchResultsInput["tieBreaks"][number] | null
+  >(null);
   const preview = useMemo(
-    () => previewMatchResults(rows, lowerWins, tieBreaks),
-    [rows, lowerWins, tieBreaks],
+    () =>
+      previewMatchResults(
+        rows,
+        lowerWins,
+        editingTie
+          ? [...tieBreaks.filter((tie) => tie.score !== editingTie.score), editingTie]
+          : tieBreaks,
+      ),
+    [rows, lowerWins, tieBreaks, editingTie],
   );
-  useEffect(() => {
-    if (tieBreaks.length !== preview.tieBreaks.length) setTieBreaks(preview.tieBreaks);
-  }, [tieBreaks, preview.tieBreaks]);
   const groups = [
     ...new Set(
       preview.ranked.filter((row) => row.score !== null).map((row) => row.score as string),
     ),
   ];
-  const update = (id: string, change: Partial<ScoreDraftRow>) =>
+  const update = (id: string, change: Partial<ScoreDraftRow>) => {
+    setEditingTie(null);
     setRows((old) => old.map((row) => (row.userId === id ? { ...row, ...change } : row)));
-  const move = (score: string, index: number, direction: -1 | 1) => {
-    const current = preview.tieBreaks.find((tie) => tie.score === score);
-    if (!current) return;
-    const order = [...current.orderedUserIds];
+  };
+  const activePlayer = players.find((player) => player.id === scorePlayerId);
+  const activeRow = rows.find((row) => row.userId === scorePlayerId);
+  const move = (index: number, direction: -1 | 1) => {
+    if (!editingTie) return;
+    const order = [...editingTie.orderedUserIds];
     [order[index], order[index + direction]] = [order[index + direction], order[index]];
-    setTieBreaks((old) =>
-      old.map((tie) => (tie.score === score ? { ...tie, orderedUserIds: order } : tie)),
-    );
+    setEditingTie({ ...editingTie, orderedUserIds: order });
   };
   const confirm = () => {
-    if (!preview.valid || busy) return;
+    if (!preview.valid || busy || editingTie) return;
     Alert.alert(
       t("Register match?"),
       t("Results and standings will become final and cannot be edited."),
@@ -177,56 +251,183 @@ function ResultsForm({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 20, paddingBottom: 36, gap: 16 }}
       >
-        <Typography className="font-semibold text-foreground">{t("Player scores")}</Typography>
-        <GroupedList>
-          {players.map((player) => {
-            const row = rows.find((item) => item.userId === player.id);
-            if (!row) return null;
+        <Typography className="font-semibold text-foreground">{t("Live standings")}</Typography>
+        <ScrollView
+          nestedScrollEnabled
+          style={{ height: Math.min(360, players.length * 72 + 72) }}
+          contentContainerStyle={{ gap: 6 }}
+          className="rounded-xl bg-surface"
+        >
+          {groups.map((score) => {
+            const tied = preview.ranked.filter((entry) => entry.score === score);
+            const editing = editingTie?.score === score;
+            const active = tieBreaks.some((tie) => tie.score === score);
             return (
-              <GroupedRow key={player.id}>
-                <View style={{ flex: 1, gap: 8 }}>
-                  <Typography className="font-medium text-foreground">{player.name}</Typography>
-                  <Input
-                    value={row.rawScore}
-                    onChangeText={(value) => update(player.id, { rawScore: value })}
-                    accessibilityLabel={`${t("Score")}: ${player.name}`}
-                    placeholder={t("Score")}
-                    keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
-                    editable={!row.notParticipated && !busy}
-                    className="text-foreground"
-                    aria-invalid={
-                      !row.notParticipated &&
-                      row.rawScore !== "" &&
-                      normalizeMatchScore(row.rawScore) === null
-                    }
-                    testID={`score-${player.id}`}
-                  />
-                  {!row.notParticipated &&
-                    row.rawScore !== "" &&
-                    normalizeMatchScore(row.rawScore) === null && (
-                      <Typography className="text-xs text-danger">
-                        {t("Enter a valid score")}
-                      </Typography>
-                    )}
-                </View>
-                <View style={{ alignItems: "center", gap: 4 }}>
-                  <Switch
-                    isSelected={row.notParticipated}
-                    onSelectedChange={(value) => update(player.id, { notParticipated: value })}
-                    isDisabled={busy}
-                    accessibilityLabel={`${t("Did not participate")}: ${player.name}`}
-                    testID={`not-participated-${player.id}`}
+              <Fragment key={score}>
+                {tied.length > 1 && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      marginHorizontal: 16,
+                    }}
                   >
-                    <Switch.Thumb />
-                  </Switch>
-                  <Typography className="text-xs text-foreground">
-                    {t("Did not participate")}
-                  </Typography>
-                </View>
-              </GroupedRow>
+                    <Typography className="flex-1 text-sm text-foreground">
+                      {active ? t("Tie-break applied") : t("Tied score")}: {score}
+                    </Typography>
+                    {editing ? (
+                      <>
+                        <Button size="sm" variant="ghost" onPress={() => setEditingTie(null)}>
+                          {t("Cancel")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          isDisabled={busy}
+                          onPress={() => {
+                            setTieBreaks((old) => [
+                              ...old.filter((tie) => tie.score !== score),
+                              editingTie,
+                            ]);
+                            setEditingTie(null);
+                          }}
+                        >
+                          {t("Confirm tie-break")}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {active && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="ghost"
+                            accessibilityLabel={t("Remove tie-break")}
+                            isDisabled={busy}
+                            onPress={() =>
+                              setTieBreaks((old) => old.filter((tie) => tie.score !== score))
+                            }
+                          >
+                            <X size={18} color="#737373" />
+                          </Button>
+                        )}
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="primary"
+                          accessibilityLabel={active ? t("Edit tie-break") : t("Resolve tie")}
+                          testID={`resolve-tie-${score}`}
+                          isDisabled={busy}
+                          onPress={() =>
+                            setEditingTie({
+                              score,
+                              orderedUserIds:
+                                preview.tieBreaks.find((tie) => tie.score === score)
+                                  ?.orderedUserIds ?? tied.map((entry) => entry.userId),
+                            })
+                          }
+                        >
+                          <ListOrdered size={18} color={accentForeground} />
+                        </Button>
+                      </>
+                    )}
+                  </View>
+                )}
+                {tied.map((entry, index) => {
+                  const player = playerById.get(entry.userId);
+                  return (
+                    <Animated.View
+                      key={entry.userId}
+                      layout={rowTransition}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        minHeight: 56,
+                        padding: 10,
+                      }}
+                    >
+                      <Typography className="text-sm text-muted">{entry.rank}.</Typography>
+                      {player && <PlayerInfo player={player} />}
+                      <Typography className="font-semibold text-foreground">
+                        {entry.score}
+                      </Typography>
+                      {editing && (
+                        <View style={{ flexDirection: "row" }}>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="ghost"
+                            isDisabled={busy || index === 0}
+                            style={{ minHeight: 44, minWidth: 44 }}
+                            accessibilityLabel={`${t("Move up")}: ${player?.name}`}
+                            onPress={() => move(index, -1)}
+                          >
+                            <ArrowUp size={18} color="#737373" />
+                          </Button>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="ghost"
+                            isDisabled={busy || index === tied.length - 1}
+                            style={{ minHeight: 44, minWidth: 44 }}
+                            accessibilityLabel={`${t("Move down")}: ${player?.name}`}
+                            onPress={() => move(index, 1)}
+                          >
+                            <ArrowDown size={18} color="#737373" />
+                          </Button>
+                        </View>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+              </Fragment>
             );
           })}
+          {preview.ranked
+            .filter((entry) => entry.score === null)
+            .map((entry) => {
+              const player = playerById.get(entry.userId);
+              return (
+                <Animated.View
+                  key={entry.userId}
+                  layout={rowTransition}
+                  style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 8 }}
+                >
+                  <Typography className="text-sm text-muted">—</Typography>
+                  {player && <PlayerInfo player={player} />}
+                  <Typography className="text-foreground">ND</Typography>
+                </Animated.View>
+              );
+            })}
+        </ScrollView>
+        <Typography className="font-semibold text-foreground">{t("Player scores")}</Typography>
+        <GroupedList>
+          {players.map((player) => (
+            <GroupedRow key={player.id}>
+              <PlayerInfo player={player} />
+              <Button
+                isIconOnly
+                size="sm"
+                variant="primary"
+                isDisabled={busy}
+                accessibilityLabel={`${t("Score")}: ${player.name}`}
+                testID={`edit-score-${player.id}`}
+                style={{ minHeight: 44, minWidth: 44 }}
+                onPress={() => setScorePlayerId(player.id)}
+              >
+                <Trophy size={18} color={accentForeground} />
+              </Button>
+            </GroupedRow>
+          ))}
         </GroupedList>
+        {!preview.valid && (
+          <Typography className="text-sm text-muted">
+            {t(
+              "Enter a score for each participant or mark them as not participating. At least one must participate.",
+            )}
+          </Typography>
+        )}
         <View
           style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 12 }}
           className="rounded-xl bg-surface"
@@ -242,114 +443,58 @@ function ResultsForm({
             <Switch.Thumb />
           </Switch>
         </View>
-        <Typography className="font-semibold text-foreground">{t("Live standings")}</Typography>
-        <View style={{ gap: 6 }} className="overflow-hidden rounded-xl bg-surface">
-          {groups.map((score) => {
-            const tied = preview.ranked.filter((entry) => entry.score === score);
-            const active = preview.tieBreaks.some((tie) => tie.score === score);
-            return (
-              <Fragment key={score}>
-                {tied.length > 1 && (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Typography className="flex-1 text-sm text-foreground">
-                      {active ? t("Tie-break applied") : t("Tied score")}: {score}
-                    </Typography>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      testID={`resolve-tie-${score}`}
-                      isDisabled={busy}
-                      onPress={() =>
-                        setTieBreaks((old) =>
-                          active
-                            ? old.filter((tie) => tie.score !== score)
-                            : [
-                                ...preview.tieBreaks,
-                                { score, orderedUserIds: tied.map((entry) => entry.userId) },
-                              ],
-                        )
-                      }
-                    >
-                      {active ? t("Remove tie-break") : t("Resolve tie")}
-                    </Button>
-                  </View>
-                )}
-                {tied.map((entry, index) => (
-                  <Animated.View
-                    key={entry.userId}
-                    layout={rowTransition}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                      minHeight: 48,
-                      padding: 10,
-                    }}
-                  >
-                    <Typography className="text-sm text-muted">{entry.rank}.</Typography>
-                    <Typography className="flex-1 text-foreground" numberOfLines={1}>
-                      {names.get(entry.userId)}
-                    </Typography>
-                    <Typography className="font-semibold text-foreground">{entry.score}</Typography>
-                    {active && (
-                      <View style={{ flexDirection: "row" }}>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="ghost"
-                          isDisabled={busy || index === 0}
-                          style={{ minHeight: 44, minWidth: 44 }}
-                          accessibilityLabel={`${t("Move up")}: ${names.get(entry.userId)}`}
-                          onPress={() => move(score, index, -1)}
-                        >
-                          <ArrowUp size={18} color="#737373" />
-                        </Button>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="ghost"
-                          isDisabled={busy || index === tied.length - 1}
-                          style={{ minHeight: 44, minWidth: 44 }}
-                          accessibilityLabel={`${t("Move down")}: ${names.get(entry.userId)}`}
-                          onPress={() => move(score, index, 1)}
-                        >
-                          <ArrowDown size={18} color="#737373" />
-                        </Button>
-                      </View>
-                    )}
-                  </Animated.View>
-                ))}
-              </Fragment>
-            );
-          })}
-          {preview.ranked
-            .filter((entry) => entry.score === null)
-            .map((entry) => (
-              <Animated.View
-                key={entry.userId}
-                layout={rowTransition}
-                style={{ flexDirection: "row", padding: 12, gap: 8 }}
-              >
-                <Typography className="flex-1 text-foreground">
-                  {names.get(entry.userId)}
-                </Typography>
-                <Typography className="text-foreground">ND</Typography>
-              </Animated.View>
-            ))}
-        </View>
-        {!preview.valid && (
-          <Typography className="text-sm text-muted">
-            {t(
-              "Enter a score for each participant or mark them as not participating. At least one must participate.",
-            )}
-          </Typography>
-        )}
       </ScrollView>
+      <BottomSheet
+        isOpen={scorePlayerId !== null}
+        onOpenChange={(open) => {
+          if (!open) setScorePlayerId(null);
+        }}
+      >
+        <BottomSheet.Portal>
+          <BottomSheet.Overlay />
+          <BottomSheet.Content keyboardBehavior="extend">
+            <BottomSheet.Close />
+            <BottomSheet.Title>{activePlayer?.name ?? t("Score")}</BottomSheet.Title>
+            {activePlayer && activeRow && (
+              <>
+                <ScoreSheetInput
+                  player={activePlayer}
+                  row={activeRow}
+                  busy={busy}
+                  onChange={(value) => update(activePlayer.id, { rawScore: value })}
+                />
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 }}
+                >
+                  <Typography className="flex-1 text-foreground">
+                    {t("Did not participate")}
+                  </Typography>
+                  <Switch
+                    isSelected={activeRow.notParticipated}
+                    onSelectedChange={(value) =>
+                      update(activePlayer.id, { notParticipated: value })
+                    }
+                    isDisabled={busy}
+                    accessibilityLabel={`${t("Did not participate")}: ${activePlayer.name}`}
+                    testID={`not-participated-${activePlayer.id}`}
+                  >
+                    <Switch.Thumb />
+                  </Switch>
+                </View>
+              </>
+            )}
+          </BottomSheet.Content>
+        </BottomSheet.Portal>
+      </BottomSheet>
       <View
         style={{ padding: 16, paddingBottom: Math.max(16, insets.bottom) }}
         className="border-t border-muted/20 bg-background"
       >
-        <Button isDisabled={!preview.valid || busy} onPress={confirm} testID="register-match">
+        <Button
+          isDisabled={!preview.valid || busy || Boolean(editingTie)}
+          onPress={confirm}
+          testID="register-match"
+        >
           {t("Register match")}
         </Button>
       </View>
