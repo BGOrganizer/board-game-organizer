@@ -348,7 +348,8 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 8,
-                      padding: 12,
+                      minHeight: 44,
+                      paddingVertical: 4,
                     }}
                   >
                     <CalendarClock color="#6b7280" size={18} />
@@ -424,7 +425,8 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 8,
-                      padding: 12,
+                      minHeight: 44,
+                      paddingVertical: 4,
                     }}
                   >
                     {slot.user ? (
@@ -502,7 +504,8 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 8,
-                      padding: 12,
+                      minHeight: 44,
+                      paddingVertical: 4,
                     }}
                   >
                     <View

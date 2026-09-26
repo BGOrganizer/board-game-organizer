@@ -6,6 +6,7 @@ import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 
 interface Props {
   apiUrl: string;
@@ -128,7 +129,7 @@ export function SearchUserPage({
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t`Search users (at least 4 characters)`}
         aria-label={t`Search users by name or email`}
-        className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
+        className="w-full rounded-lg border border-default-200 bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
       />
 
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
@@ -141,12 +142,9 @@ export function SearchUserPage({
       {!loading && shown.length === 0 && query.trim().length >= 4 && (
         <p className="mt-3 text-sm text-default-500">{t`No users found`}</p>
       )}
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <GroupedList className="mt-3">
         {shown.map((u) => (
-          <div
-            key={u.id}
-            className="flex min-w-0 items-center gap-3 rounded-xl border border-default-200 p-3"
-          >
+          <GroupedRow key={u.id}>
             <Avatar size="md" color="accent">
               <Avatar.Image src={u.avatarUrl ?? undefined} alt={u.name} />
               <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
@@ -167,9 +165,9 @@ export function SearchUserPage({
             >
               <UserPlus className="h-4 w-4" />
             </Button>
-          </div>
+          </GroupedRow>
         ))}
-      </div>
+      </GroupedList>
     </div>
   );
 }

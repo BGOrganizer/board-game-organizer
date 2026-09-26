@@ -11,6 +11,7 @@ import { Typography } from "heroui-native/text";
 import { Gamepad2, Plus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 
 function apiUrl(): string {
@@ -135,57 +136,48 @@ export default function SearchGameScreen() {
           {t("No games found")}
         </Typography>
       )}
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-        {items.map((item) => (
-          <View
-            key={item.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              padding: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 8,
-                backgroundColor: "#e5e7eb",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {item.imageUrl ? (
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  accessible={false}
-                  style={{ width: 40, height: 40, borderRadius: 8 }}
-                />
-              ) : (
-                <Gamepad2 size={18} color="#6b7280" />
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Typography style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Typography>
-              {item.year ? (
-                <Typography className="text-xs text-muted">{item.year}</Typography>
-              ) : null}
-            </View>
-            <Button
-              isIconOnly
-              size="sm"
-              accessibilityLabel={`${t("Select")}: ${item.name}`}
-              isDisabled={picking === item.id}
-              onPress={() => void select(item)}
-            >
-              <Plus size={16} color="#fff" />
-            </Button>
-          </View>
-        ))}
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <GroupedList>
+          {items.map((item) => (
+            <GroupedRow key={item.id}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  backgroundColor: "#e5e7eb",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {item.imageUrl ? (
+                  <Image
+                    source={{ uri: item.imageUrl }}
+                    accessible={false}
+                    style={{ width: 40, height: 40, borderRadius: 8 }}
+                  />
+                ) : (
+                  <Gamepad2 size={18} color="#6b7280" />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Typography style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Typography>
+                {item.year ? (
+                  <Typography className="text-xs text-muted">{item.year}</Typography>
+                ) : null}
+              </View>
+              <Button
+                isIconOnly
+                size="sm"
+                accessibilityLabel={`${t("Select")}: ${item.name}`}
+                isDisabled={picking === item.id}
+                onPress={() => void select(item)}
+              >
+                <Plus size={16} color="#fff" />
+              </Button>
+            </GroupedRow>
+          ))}
+        </GroupedList>
       </ScrollView>
     </View>
   );

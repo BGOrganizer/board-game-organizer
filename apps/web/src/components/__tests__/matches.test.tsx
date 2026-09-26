@@ -111,7 +111,7 @@ describe("Matches", () => {
 
     expect(screen.queryByRole("button", { name: "Remove slot" })).toBeNull();
     const input = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
-    expect(input.closest("li")?.className).toContain("bg-surface");
+    expect(input.closest("ul")?.className).toContain("rounded-xl bg-surface");
     const next = screen.getByRole("button", { name: "Next step" }) as HTMLButtonElement;
     fireEvent.change(screen.getByPlaceholderText(/Friday night games/i), {
       target: { value: "Friday night games" },
@@ -160,7 +160,7 @@ describe("Matches", () => {
     expect(await screen.findByText("Players")).toBeTruthy();
     for (const friend of screen.getAllByRole("button", { name: "Select a friend" })) {
       expect(friend.className).toContain("button--ghost");
-      expect(friend.closest("li")?.className).toContain("bg-surface");
+      expect(friend.closest("ul")?.className).toContain("rounded-xl bg-surface");
     }
 
     const min = screen.getByText("Min").parentElement;
@@ -173,7 +173,7 @@ describe("Matches", () => {
     expect(await screen.findByText("Board games")).toBeTruthy();
     const game = screen.getByRole("button", { name: "Select a board game" });
     expect(game.className).toContain("button--ghost");
-    expect(game.closest("li")?.className).toContain("bg-surface");
+    expect(game.closest("ul")?.className).toContain("rounded-xl bg-surface");
 
     fireEvent.click(screen.getByRole("button", { name: "Add another game" }));
     expect(screen.getAllByRole("button", { name: "Select a board game" })).toHaveLength(2);

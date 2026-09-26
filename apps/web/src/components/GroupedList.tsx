@@ -8,7 +8,13 @@ export function GroupedList({
   className?: string;
 }) {
   if (Children.toArray(children).length === 0) return null;
-  return <ul className={`divide-y divide-default-200 ${className}`}>{children}</ul>;
+  return (
+    <ul
+      className={`overflow-hidden rounded-xl bg-surface divide-y divide-default-200 ${className}`}
+    >
+      {children}
+    </ul>
+  );
 }
 
 export function GroupedRow({
@@ -18,7 +24,5 @@ export function GroupedRow({
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <li className={`flex min-w-0 items-center gap-3 bg-surface p-3 ${className}`}>{children}</li>
-  );
+  return <li className={`flex min-w-0 items-center gap-2 p-2 ${className}`}>{children}</li>;
 }

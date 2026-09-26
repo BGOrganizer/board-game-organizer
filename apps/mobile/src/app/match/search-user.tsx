@@ -12,6 +12,7 @@ import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 
 function apiUrl(): string {
@@ -160,38 +161,29 @@ export default function SearchUserScreen() {
           {t("No users found")}
         </Typography>
       )}
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-        {shown.map((u) => (
-          <View
-            key={u.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              padding: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-            }}
-          >
-            <Avatar size="md">
-              {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
-              <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
-            </Avatar>
-            <View style={{ flex: 1 }}>
-              <Typography style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Typography>
-              <Typography style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Typography>
-            </View>
-            <Button
-              isIconOnly
-              size="sm"
-              accessibilityLabel={`${t("Add")}: ${u.name}`}
-              onPress={() => select(u)}
-            >
-              <UserPlus size={16} color="#fff" />
-            </Button>
-          </View>
-        ))}
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <GroupedList>
+          {shown.map((u) => (
+            <GroupedRow key={u.id}>
+              <Avatar size="md">
+                {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
+                <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
+              </Avatar>
+              <View style={{ flex: 1 }}>
+                <Typography style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Typography>
+                <Typography style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Typography>
+              </View>
+              <Button
+                isIconOnly
+                size="sm"
+                accessibilityLabel={`${t("Add")}: ${u.name}`}
+                onPress={() => select(u)}
+              >
+                <UserPlus size={16} color="#fff" />
+              </Button>
+            </GroupedRow>
+          ))}
+        </GroupedList>
       </ScrollView>
     </View>
   );

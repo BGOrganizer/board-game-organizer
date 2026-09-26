@@ -51,6 +51,9 @@ it("renders friends returned by the relationships API", async () => {
   expect(screen.getByText("E")).toBeTruthy();
   expect(screen.queryByText("Already invited")).toBeNull();
   const add = screen.getByRole("button", { name: "Add: E2E Target" });
+  expect(add.closest("li")?.className).toContain("p-2");
+  expect(add.closest("ul")?.className).toContain("rounded-xl bg-surface");
+  expect(screen.getByPlaceholderText(/Search users/i).className).toContain("bg-surface");
   expect(screen.queryByText("Add")).toBeNull();
   fireEvent.click(add);
   expect(onSelect).toHaveBeenCalledWith(

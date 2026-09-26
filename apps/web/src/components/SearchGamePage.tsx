@@ -6,6 +6,7 @@ import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Gamepad2, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 
 interface Props {
   apiUrl: string;
@@ -121,7 +122,7 @@ export function SearchGamePage({
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t`Search board games (at least 4 characters)`}
         aria-label={t`Search board games`}
-        className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
+        className="w-full rounded-lg border border-default-200 bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
       />
 
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
@@ -134,12 +135,9 @@ export function SearchGamePage({
       {!loading && items.length === 0 && query.trim().length >= 4 && (
         <p className="mt-3 text-sm text-default-500">{t`No games found`}</p>
       )}
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <GroupedList className="mt-3">
         {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex min-w-0 items-center gap-3 rounded-xl border border-default-200 p-3"
-          >
+          <GroupedRow key={item.id}>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
               {item.imageUrl ? (
                 // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
@@ -163,9 +161,9 @@ export function SearchGamePage({
             >
               <Plus className="h-4 w-4" />
             </Button>
-          </div>
+          </GroupedRow>
         ))}
-      </div>
+      </GroupedList>
     </div>
   );
 }
