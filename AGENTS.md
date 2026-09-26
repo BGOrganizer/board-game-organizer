@@ -14,6 +14,7 @@ Core rules:
 - Internationalize every user-facing string and update both English and Italian catalogs.
 - Fix root causes in shared code instead of patching each caller.
 - Do not add speculative abstractions, dependencies, or scaffolding.
+- Within each app, reuse components when screens share a real layout or interaction pattern. Prefer small composable pieces that remove duplication; do not force different users, games, and dates into one component with many conditional branches. Keep web and mobile UI components platform-specific.
 - Never weaken validation, authentication, authorization, accessibility, or data-safety checks.
 - Never commit credentials or `.env*` files.
 - Use **Biome**, not ESLint or Prettier.

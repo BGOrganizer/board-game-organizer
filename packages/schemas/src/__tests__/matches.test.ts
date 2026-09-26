@@ -9,6 +9,7 @@ import {
   matchInvitationResponseSchema,
   matchModel,
   matchResponseSchema,
+  matchVoteSummarySchema,
   respondMatchInvitationSchema,
   setMatchChoiceSchema,
   updateMatchSchema,
@@ -80,6 +81,20 @@ describe("createMatchSchema", () => {
 });
 
 describe("match models and DTOs", () => {
+  it("validates aggregate vote counts and readiness reasons", () => {
+    const summary = {
+      dates: { "1790875200000": { yes: 1, no: 0, ifNeeded: 1, notChosen: 0 } },
+      games: { "1": { yes: 1, no: 0, ifNeeded: 1, notChosen: 0 } },
+      reasons: ["NO_SHARED_GAME"],
+    };
+    expect(matchVoteSummarySchema.parse(summary)).toEqual(summary);
+    expect(
+      matchVoteSummarySchema.safeParse({
+        ...summary,
+        dates: { "1": { ...summary.dates["1790875200000"], no: -1 } },
+      }).success,
+    ).toBe(false);
+  });
   it("validates choices and rejects forged items", () => {
     expect(
       setMatchChoiceSchema.parse({

@@ -113,6 +113,53 @@ describe("useMatchDetail", () => {
     expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "set_match_choice");
   });
 
+  it("refreshes vote counts and confirmation readiness after a saved choice", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const key = String(Date.parse(detail.match.dates[0]));
+    const counts = { yes: 1, no: 0, ifNeeded: 0, notChosen: 0 };
+    let summary = { dates: { [key]: counts }, games: { "1": counts }, reasons: ["NO_SHARED_DATE"] };
+    let reads = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === "PATCH") {
+          summary = { ...summary, reasons: [] };
+          return Promise.resolve(
+            new Response(JSON.stringify({ match: detail.match }), { status: 200 }),
+          );
+        }
+        reads++;
+        return Promise.resolve(
+          new Response(JSON.stringify({ ...detail, voteSummary: summary }), { status: 200 }),
+        );
+      }),
+    );
+    const { result } = renderHook(
+      () =>
+        useMatchDetail({
+          apiUrl: "https://api.example.com",
+          token: "token",
+          getToken: async () => "token",
+          matchId: invitation.matchId,
+        }),
+      { wrapper: wrapper(client) },
+    );
+    await waitFor(() =>
+      expect(result.current.detail.data?.voteSummary?.reasons).toEqual(["NO_SHARED_DATE"]),
+    );
+    act(() =>
+      result.current.setChoice.mutate({
+        kind: "dates",
+        itemId: detail.match.dates[0],
+        choice: "YES",
+      }),
+    );
+    await waitFor(() => expect(result.current.detail.data?.voteSummary?.reasons).toEqual([]));
+    expect(reads).toBeGreaterThan(1);
+  });
+
   it("optimistically transitions status, confirms server selection, and rolls back a failed reopen", async () => {
     const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };
     const client = new QueryClient({

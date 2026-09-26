@@ -12,6 +12,7 @@ import { useLingui } from "@lingui/react/macro";
 import { UserMinus, UserPlus, UserRoundCheck, UserRoundX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -51,7 +52,7 @@ function ContactCard({
   menu?: React.ReactNode;
 }) {
   return (
-    <Card className="flex min-w-0 flex-col gap-3 p-3 sm:flex-row sm:items-center">
+    <GroupedRow className="flex-col sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative shrink-0">
           <Avatar size="md" color="accent">
@@ -76,7 +77,7 @@ function ContactCard({
           {menu}
         </div>
       ) : null}
-    </Card>
+    </GroupedRow>
   );
 }
 
@@ -386,7 +387,7 @@ export function Contacts() {
           {query.trim().length >= 4 && !contacts.search.isLoading && searchResults.length === 0 && (
             <p className="text-sm text-default-500">{t`No users found`}</p>
           )}
-          <div className="space-y-2">
+          <GroupedList>
             {searchResults.map((u) => (
               <ContactCard
                 key={u.id}
@@ -405,7 +406,7 @@ export function Contacts() {
                 }
               />
             ))}
-          </div>
+          </GroupedList>
         </div>
       )}
 
@@ -446,40 +447,42 @@ export function Contacts() {
               {!section.isLoading && !section.isError && section.rows.length === 0 && (
                 <p className="text-sm text-default-500">{section.empty}</p>
               )}
-              {section.rows.map((row) => {
-                const profile = row.profile;
-                if (!profile) return null;
-                return (
-                  <ContactCard
-                    key={profile.id}
-                    name={profile.name}
-                    email={profile.email}
-                    avatarUrl={profile.avatarUrl}
-                    online={profile.presence.online}
-                    action={
-                      section.key === "received" ? (
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          isDisabled={isBusy}
-                          aria-label={`${t`Respond to friend request`}: ${profile.name}`}
-                          onPress={() => setRequestDecision(profile)}
-                        >
-                          <UserRoundCheck className="h-4 w-4" />
-                        </Button>
-                      ) : undefined
-                    }
-                    menu={
-                      <UserMenu
-                        user={profile}
-                        busy={isBusy}
-                        friendRequest={section.key === "received" ? "incoming" : "outgoing"}
-                        onAction={handleUserAction(profile)}
-                      />
-                    }
-                  />
-                );
-              })}
+              <GroupedList>
+                {section.rows.map((row) => {
+                  const profile = row.profile;
+                  if (!profile) return null;
+                  return (
+                    <ContactCard
+                      key={profile.id}
+                      name={profile.name}
+                      email={profile.email}
+                      avatarUrl={profile.avatarUrl}
+                      online={profile.presence.online}
+                      action={
+                        section.key === "received" ? (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            isDisabled={isBusy}
+                            aria-label={`${t`Respond to friend request`}: ${profile.name}`}
+                            onPress={() => setRequestDecision(profile)}
+                          >
+                            <UserRoundCheck className="h-4 w-4" />
+                          </Button>
+                        ) : undefined
+                      }
+                      menu={
+                        <UserMenu
+                          user={profile}
+                          busy={isBusy}
+                          friendRequest={section.key === "received" ? "incoming" : "outgoing"}
+                          onAction={handleUserAction(profile)}
+                        />
+                      }
+                    />
+                  );
+                })}
+              </GroupedList>
             </section>
           ))}
         </div>
@@ -495,24 +498,26 @@ export function Contacts() {
                 : t`Sync your address book from the mobile app to see friend suggestions here.`}
             </p>
           )}
-          {suggestions.map((u) => (
-            <ContactCard
-              key={u.id}
-              name={u.name}
-              email={u.email}
-              avatarUrl={u.avatarUrl}
-              online={u.presence.online}
-              action={relationshipActions(u)}
-              menu={
-                <UserMenu
-                  user={u}
-                  busy={isBusy}
-                  canSendFriendRequest={canSendFriendRequest(u)}
-                  onAction={handleUserAction(u)}
-                />
-              }
-            />
-          ))}
+          <GroupedList>
+            {suggestions.map((u) => (
+              <ContactCard
+                key={u.id}
+                name={u.name}
+                email={u.email}
+                avatarUrl={u.avatarUrl}
+                online={u.presence.online}
+                action={relationshipActions(u)}
+                menu={
+                  <UserMenu
+                    user={u}
+                    busy={isBusy}
+                    canSendFriendRequest={canSendFriendRequest(u)}
+                    onAction={handleUserAction(u)}
+                  />
+                }
+              />
+            ))}
+          </GroupedList>
         </div>
       )}
 
@@ -532,34 +537,38 @@ export function Contacts() {
               {listTab.rows.length === 0 && !listTab.isLoading && !listTab.isError && (
                 <p className="text-sm text-default-500">{listTab.empty}</p>
               )}
-              {listTab.rows.map((row) => {
-                const profile = row.profile;
-                if (!profile) return null;
-                const actionUser =
-                  listTab.key === "following"
-                    ? { ...profile, isFollowing: true }
-                    : listTab.key === "followers"
-                      ? { ...profile, isFollowing: followingIds.has(profile.id) }
-                      : profile;
-                return (
-                  <ContactCard
-                    key={profile.id}
-                    name={profile.name}
-                    email={profile.email}
-                    avatarUrl={profile.avatarUrl}
-                    online={profile.presence.online}
-                    action={listTab.key === "blocked" ? undefined : relationshipActions(actionUser)}
-                    menu={
-                      <UserMenu
-                        user={actionUser}
-                        busy={isBusy}
-                        canSendFriendRequest={canSendFriendRequest(actionUser)}
-                        onAction={handleUserAction(actionUser)}
-                      />
-                    }
-                  />
-                );
-              })}
+              <GroupedList>
+                {listTab.rows.map((row) => {
+                  const profile = row.profile;
+                  if (!profile) return null;
+                  const actionUser =
+                    listTab.key === "following"
+                      ? { ...profile, isFollowing: true }
+                      : listTab.key === "followers"
+                        ? { ...profile, isFollowing: followingIds.has(profile.id) }
+                        : profile;
+                  return (
+                    <ContactCard
+                      key={profile.id}
+                      name={profile.name}
+                      email={profile.email}
+                      avatarUrl={profile.avatarUrl}
+                      online={profile.presence.online}
+                      action={
+                        listTab.key === "blocked" ? undefined : relationshipActions(actionUser)
+                      }
+                      menu={
+                        <UserMenu
+                          user={actionUser}
+                          busy={isBusy}
+                          canSendFriendRequest={canSendFriendRequest(actionUser)}
+                          onAction={handleUserAction(actionUser)}
+                        />
+                      }
+                    />
+                  );
+                })}
+              </GroupedList>
             </div>
           ))}
 

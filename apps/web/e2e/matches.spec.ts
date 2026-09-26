@@ -77,18 +77,32 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
             ],
             games: [{ id: 342942, name: "Ark Nova", yearPublished: 2021, thumbnail: null }],
             choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
+            voteSummary: {
+              dates: { [String(Date.parse(date))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
+              games: { "342942": { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
+              reasons: [],
+              selectedDate: date,
+              selectedGameId: 342942,
+            },
           },
     });
   });
   await page.goto(`/matches/${matchId}`);
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm match" }).click();
+  const confirmDialog = page.getByRole("dialog", { name: "Confirm match?" });
+  await expect(confirmDialog.getByText(/Ark Nova/)).toBeVisible();
+  await confirmDialog.getByRole("button", { name: "Confirm match" }).click();
   await expect(page.getByText("Confirmed date")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose date/ })).toHaveCount(0);
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.getByText("Ark Nova")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Back to planning" }).click();
+  await page
+    .getByRole("dialog", { name: "Back to planning?" })
+    .getByRole("button", { name: "Back to planning" })
+    .click();
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Choose date: Yes" })).toBeVisible();
@@ -256,13 +270,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await page.getByRole("link", { name: "Open match: Friday night games" }).click();
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Friday night games" })).toBeVisible();
-  const confirmResponse = page.waitForResponse(
-    (response) => response.request().method() === "PATCH" && response.url().includes("/status"),
-  );
-  await page.getByRole("button", { name: "Confirm match" }).click();
-  expect((await confirmResponse).status()).toBe(409);
-  await expect(page.getByText("Could not confirm match")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
+  const confirmButton = page.getByRole("button", { name: "Confirm match" });
+  await expect(confirmButton).toHaveAttribute("aria-disabled", "true");
+  await confirmButton.focus();
+  await expect(page.getByText("Not enough accepted players")).toBeVisible();
   const dateChoiceResponse = page.waitForResponse(
     (response) => response.request().method() === "PATCH" && response.url().includes("/choices"),
   );

@@ -4,6 +4,8 @@ import type {
   MatchDetailResponse,
   MatchInvitation,
   MatchResponse,
+  MatchVoteCounts,
+  MatchVoteSummary,
   SetMatchChoiceInput,
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
@@ -44,6 +46,54 @@ export function pickSharedOption<T extends string | number>(
     }
   }
   return winner?.option;
+}
+
+export function summarizeMatchVotes(
+  match: Match,
+  invitations: MatchInvitation[],
+): MatchVoteSummary {
+  const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
+  const participants = [match.clerkId, ...accepted.map((invitation) => invitation.inviteeUserId)];
+  const tally = (kind: "dates" | "games", options: (string | number)[]) =>
+    Object.fromEntries(
+      options.map((option) => {
+        const key = kind === "dates" ? String(Date.parse(String(option))) : String(option);
+        const counts: MatchVoteCounts = { yes: 0, no: 0, ifNeeded: 0, notChosen: 0 };
+        for (const userId of participants) {
+          const vote = match.choices?.[userId]?.[kind]?.[key];
+          if (vote === "YES") counts.yes++;
+          else if (vote === "NO") counts.no++;
+          else if (vote === "IF_NEEDED") counts.ifNeeded++;
+          else counts.notChosen++;
+        }
+        return [key, counts];
+      }),
+    );
+  const selectedDate = pickSharedOption(
+    match.dates,
+    "dates",
+    match.choices,
+    participants,
+    match.clerkId,
+  );
+  const selectedGameId = pickSharedOption(
+    match.gameIds,
+    "games",
+    match.choices,
+    participants,
+    match.clerkId,
+  );
+  const reasons: MatchVoteSummary["reasons"] = [];
+  if (participants.length < match.minPlayers) reasons.push("NOT_ENOUGH_PLAYERS");
+  if (!selectedDate) reasons.push("NO_SHARED_DATE");
+  if (!selectedGameId) reasons.push("NO_SHARED_GAME");
+  return {
+    dates: tally("dates", match.dates),
+    games: tally("games", match.gameIds),
+    reasons,
+    ...(selectedDate ? { selectedDate } : {}),
+    ...(selectedGameId ? { selectedGameId } : {}),
+  };
 }
 
 export class MatchService {
@@ -220,6 +270,12 @@ export class MatchService {
         dates: match.choices?.[userId]?.dates ?? {},
         games: match.choices?.[userId]?.games ?? {},
       },
+      ...(match.clerkId === userId ||
+      invitations.some(
+        (invitation) => invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+      )
+        ? { voteSummary: summarizeMatchVotes(match, invitations) }
+        : {}),
       administrator: {
         id: match.clerkId,
         name: administrator?.name ?? match.clerkId,
@@ -289,14 +345,14 @@ export class MatchService {
     const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
     let selected: { date: string; gameId: number } | undefined;
     if (status === "CREATED") {
-      if (accepted.length + 1 < match.minPlayers) {
+      const summary = summarizeMatchVotes(match, invitations);
+      if (summary.reasons.includes("NOT_ENOUGH_PLAYERS")) {
         throw new MatchError(409, "Not enough accepted players");
       }
-      const participants = [userId, ...accepted.map((invitation) => invitation.inviteeUserId)];
-      const date = pickSharedOption(match.dates, "dates", match.choices, participants, userId);
-      const gameId = pickSharedOption(match.gameIds, "games", match.choices, participants, userId);
-      if (!date || !gameId) throw new MatchError(409, "No shared date and game choices");
-      selected = { date, gameId };
+      if (!summary.selectedDate || !summary.selectedGameId) {
+        throw new MatchError(409, "No shared date and game choices");
+      }
+      selected = { date: summary.selectedDate, gameId: summary.selectedGameId };
     }
     const updated = await this.matches.setStatus(matchId, userId, match.status, status, selected);
     if (!updated) throw new MatchError(409, "Match status changed concurrently");

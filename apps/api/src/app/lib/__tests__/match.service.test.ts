@@ -1,7 +1,12 @@
 import type { Match, MatchChoice, MatchInvitation } from "@board-game-organizer/schemas";
 import { MongoServerError } from "mongodb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MatchError, MatchService, pickSharedOption } from "@/app/lib/match.service";
+import {
+  MatchError,
+  MatchService,
+  pickSharedOption,
+  summarizeMatchVotes,
+} from "@/app/lib/match.service";
 
 const match: Match = {
   id: "69409f64-7414-4e47-815c-36b01c1bff95",
@@ -163,6 +168,33 @@ describe("shared match choices", () => {
 });
 
 describe("MatchService", () => {
+  it("counts eligible votes per option without exposing pending invitees or identities", () => {
+    const key = String(Date.parse(match.dates[0]));
+    const summary = summarizeMatchVotes(
+      {
+        ...match,
+        choices: {
+          user_admin: { dates: { [key]: "YES" }, games: { "1": "YES" } },
+          user_guest: { dates: { [key]: "NO" }, games: { "1": "IF_NEEDED" } },
+          user_pending: { dates: { [key]: "YES" }, games: { "1": "YES" } },
+        },
+      },
+      [
+        { ...invitation, status: "ACCEPTED" },
+        { ...invitation, inviteeUserId: "user_pending" },
+      ],
+    );
+    expect(summary).toEqual({
+      dates: { [key]: { yes: 1, no: 1, ifNeeded: 0, notChosen: 0 } },
+      games: { "1": { yes: 1, no: 0, ifNeeded: 1, notChosen: 0 } },
+      reasons: ["NO_SHARED_DATE"],
+      selectedGameId: 1,
+    });
+    expect(summarizeMatchVotes(match, [invitation])).toMatchObject({
+      dates: { [key]: { notChosen: 1 } },
+      reasons: ["NOT_ENOUGH_PLAYERS", "NO_SHARED_DATE", "NO_SHARED_GAME"],
+    });
+  });
   it("confirms only with enough accepted participants and shared votes, then reopens and notifies only accepted invitees", async () => {
     const { service, matches, invitations, notifications } = setup(true);
     const accepted = { ...invitation, status: "ACCEPTED" as const };
@@ -549,6 +581,33 @@ describe("MatchService", () => {
     expect(invitations.listByMatchIds).toHaveBeenCalledWith([match.id, second.id]);
     expect(result[0].invitations).toEqual([invitation, accepted]);
     expect(result[1].invitations).toEqual([]);
+  });
+
+  it("shows aggregate votes only to admin and accepted invitees", async () => {
+    const { service, matches, invitations } = setup();
+    const key = String(Date.parse(match.dates[0]));
+    matches.findById.mockResolvedValue({
+      ...match,
+      choices: { user_admin: { dates: { [key]: "YES" }, games: { "1": "YES" } } },
+    });
+    expect((await service.detail("user_admin", match.id)).voteSummary?.dates[key]).toEqual({
+      yes: 1,
+      no: 0,
+      ifNeeded: 0,
+      notChosen: 0,
+    });
+    expect((await service.detail("user_guest", match.id)).voteSummary).toBeUndefined();
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    expect((await service.detail("user_guest", match.id)).voteSummary?.dates[key]).toEqual({
+      yes: 1,
+      no: 0,
+      ifNeeded: 0,
+      notChosen: 1,
+    });
+    expect((await service.detail("user_guest", match.id)).choices).toEqual({
+      dates: {},
+      games: {},
+    });
   });
 
   it("returns enriched detail to admin and invitee but hides it from others", async () => {

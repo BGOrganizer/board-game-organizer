@@ -62,12 +62,30 @@ export const matchGameResponseSchema = z.object({
 });
 export type MatchGameResponse = z.infer<typeof matchGameResponseSchema>;
 
+export const matchVoteCountsSchema = z.object({
+  yes: z.number().int().nonnegative(),
+  no: z.number().int().nonnegative(),
+  ifNeeded: z.number().int().nonnegative(),
+  notChosen: z.number().int().nonnegative(),
+});
+export type MatchVoteCounts = z.infer<typeof matchVoteCountsSchema>;
+
+export const matchVoteSummarySchema = z.object({
+  dates: z.record(z.string(), matchVoteCountsSchema),
+  games: z.record(z.string(), matchVoteCountsSchema),
+  reasons: z.array(z.enum(["NOT_ENOUGH_PLAYERS", "NO_SHARED_DATE", "NO_SHARED_GAME"])),
+  selectedDate: z.string().optional(),
+  selectedGameId: z.number().optional(),
+});
+export type MatchVoteSummary = z.infer<typeof matchVoteSummarySchema>;
+
 export const matchDetailResponseSchema = z.object({
   match: matchResponseSchema,
   administrator: matchPlayerSchema,
   invitedPlayers: z.array(matchInvitedPlayerSchema),
   games: z.array(matchGameResponseSchema),
   choices: matchChoicesSchema.optional(),
+  voteSummary: matchVoteSummarySchema.optional(),
 });
 export type MatchDetailResponse = z.infer<typeof matchDetailResponseSchema>;
 

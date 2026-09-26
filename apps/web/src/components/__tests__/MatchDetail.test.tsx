@@ -250,9 +250,27 @@ describe("MatchDetail", () => {
 
   it("allows only the admin to confirm and reopen a match and hides choices after confirmation", () => {
     authMock.userId = "user_admin";
+    const ready = {
+      dates: {
+        [String(Date.parse(detail.match.dates[0]))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 },
+      },
+      games: { "1": { yes: 1, no: 0, ifNeeded: 1, notChosen: 0 } },
+      reasons: [],
+      selectedDate: detail.match.dates[0],
+      selectedGameId: 1,
+    };
+    useMatchDetailMock.mockReturnValue(result({ ...detail, voteSummary: ready }));
     const view = renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    expect(screen.getByRole("img", { name: /Yes: 2, No: 0/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Confirm match" }));
-    expect(setStatusMutate).toHaveBeenCalledWith("CREATED");
+    expect(setStatusMutate).not.toHaveBeenCalled();
+    const confirmDialog = screen.getByRole("dialog", { name: "Confirm match?" });
+    expect(within(confirmDialog).getByText(/Azul/)).toBeTruthy();
+    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Confirm match" }));
+    expect(setStatusMutate).toHaveBeenCalledWith(
+      "CREATED",
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
     view.unmount();
 
     useMatchDetailMock.mockReturnValue(
@@ -275,7 +293,41 @@ describe("MatchDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(screen.queryByRole("button", { name: /Choose game/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back to planning" }));
-    expect(setStatusMutate).toHaveBeenCalledWith("PLANNING");
+    expect(screen.getByRole("dialog", { name: "Back to planning?" })).toBeTruthy();
+    expect(setStatusMutate).not.toHaveBeenCalledWith("PLANNING", expect.anything());
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Back to planning?" })).getByRole("button", {
+        name: "Back to planning",
+      }),
+    );
+    expect(setStatusMutate).toHaveBeenCalledWith(
+      "PLANNING",
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("keeps confirmation unavailable while votes are missing and shows the reason on focus", async () => {
+    authMock.userId = "user_admin";
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        voteSummary: {
+          dates: {},
+          games: {},
+          reasons: ["NOT_ENOUGH_PLAYERS", "NO_SHARED_DATE", "NO_SHARED_GAME"],
+        },
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    const button = screen.getByRole("button", { name: "Confirm match" });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.focus(button);
+    expect(
+      await screen.findByText(/Not enough accepted players · No shared date · No shared game/),
+    ).toBeTruthy();
+    fireEvent.click(button);
+    expect(setStatusMutate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Confirm match?" })).toBeNull();
   });
 
   it("changes date and game icons with the selected choice", () => {

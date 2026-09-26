@@ -13,6 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. js-lingui-explicit-id
+#: apps/web/src/components/MatchDetail.tsx
+msgid "match.confirm.summary"
+msgstr "Confirm {date} and {game}?"
+
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
@@ -102,6 +107,10 @@ msgstr "Back to matches"
 msgid "Back to planning"
 msgstr "Back to planning"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Back to planning?"
+msgstr "Back to planning?"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
 msgstr "Block"
@@ -189,12 +198,22 @@ msgstr "Complete your profile"
 #~ msgstr "Configure match"
 
 #: apps/web/src/components/MatchDetail.tsx
-msgid "Confirm after enough players accept and everyone chooses a shared date and game."
-msgstr "Confirm after enough players accept and everyone chooses a shared date and game."
+#~ msgid "Confirm after enough players accept and everyone chooses a shared date and game."
+#~ msgstr "Confirm after enough players accept and everyone chooses a shared date and game."
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match"
 msgstr "Confirm match"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirm match?"
+msgstr "Confirm match?"
+
+msgid "Cannot confirm match"
+msgstr "Cannot confirm match"
+
+msgid "Confirm match with"
+msgstr "Confirm match with"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Confirmed"
@@ -509,6 +528,10 @@ msgstr "Groups"
 msgid "If I have to"
 msgstr "If I have to"
 
+#: apps/web/src/components/VoteCounts.tsx
+msgid "If needed"
+msgstr "If needed"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase max players"
 msgstr "Increase max players"
@@ -622,6 +645,10 @@ msgstr "Match invitation declined"
 msgid "Match name"
 msgstr "Match name"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Match readiness unavailable"
+msgstr "Match readiness unavailable"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Match updated"
 msgstr "Match updated"
@@ -668,6 +695,7 @@ msgid "Next step"
 msgstr "Next step"
 
 #: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/VoteCounts.tsx
 msgid "No"
 msgstr "No"
 
@@ -724,6 +752,14 @@ msgstr "No selected games"
 msgid "No sent friend requests"
 msgstr "No sent friend requests"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No shared date"
+msgstr "No shared date"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No shared game"
+msgstr "No shared game"
+
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No suggestions right now"
 #~ msgstr "No suggestions right now"
@@ -736,6 +772,14 @@ msgstr "No sent friend requests"
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "No users found"
 msgstr "No users found"
+
+#: apps/web/src/components/VoteCounts.tsx
+msgid "Not chosen"
+msgstr "Not chosen"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Not enough accepted players"
+msgstr "Not enough accepted players"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Not known"
@@ -853,6 +897,10 @@ msgstr "Remove invite"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove slot"
 msgstr "Remove slot"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Reopen planning? Pending invitees will regain access and accepted players will be notified."
+msgstr "Reopen planning? Pending invitees will regain access and accepted players will be notified."
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Reset"
@@ -1061,6 +1109,7 @@ msgid "When could you play?"
 msgstr "When could you play?"
 
 #: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/VoteCounts.tsx
 msgid "Yes"
 msgstr "Yes"
 
@@ -1083,6 +1132,10 @@ msgstr "You will become friends and follow each other."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "You will leave this match. The administrator can invite you again."
 msgstr "You will leave this match. The administrator can invite you again."
+
+#: apps/web/src/components/MatchDetail.tsx
+#~ msgid "You will leave this match. The administrator can invite you again."
+#~ msgstr "You will leave this match. The administrator can invite you again."
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."

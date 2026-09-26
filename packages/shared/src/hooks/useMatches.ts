@@ -553,11 +553,7 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       if (context?.previous) queryClient.setQueryData(context.key, context.previous);
       feedback?.onError?.(error, "set_match_choice");
     },
-    onSettled: (_data, error) =>
-      queryClient.invalidateQueries({
-        queryKey: ["matches", "detail", matchId],
-        refetchType: error ? "active" : "none",
-      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches", "detail", matchId] }),
   });
   const setStatus = useMutation({
     mutationFn: async (status: MatchStatus) =>

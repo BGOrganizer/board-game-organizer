@@ -8,6 +8,7 @@ import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
 import { useThemeColor } from "heroui-native/hooks";
+import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Text } from "heroui-native/text";
@@ -29,6 +30,8 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -119,8 +122,52 @@ export default function MatchDetailScreen() {
         ? "leave"
         : null;
   const matchActionPending = matches.deleteMatch.isPending || matches.leaveMatch.isPending;
+  const summary = matches.detail.data?.voteSummary;
+  const statusUnavailable =
+    match?.status === "PLANNING" &&
+    (summary?.reasons.length !== 0 || !summary.selectedDate || !summary.selectedGameId);
+  const statusReason =
+    summary?.reasons
+      .map((reason) =>
+        reason === "NOT_ENOUGH_PLAYERS"
+          ? t("Not enough accepted players")
+          : reason === "NO_SHARED_DATE"
+            ? t("No shared date")
+            : t("No shared game"),
+      )
+      .join(" · ") || t("Match readiness unavailable");
   const editableMatch =
     match?.adminUserId === userId && match?.status === "PLANNING" ? match : null;
+  const confirmStatusAction = () => {
+    if (
+      !match ||
+      match.adminUserId !== userId ||
+      statusUnavailable ||
+      matches.setStatus.isPending ||
+      matches.setChoice.isPending
+    )
+      return;
+    const creating = match.status === "PLANNING";
+    const date = summary?.selectedDate ? new Date(summary.selectedDate).toLocaleString() : "";
+    const game =
+      matches.detail.data?.games.find((item) => item.id === summary?.selectedGameId)?.name ??
+      String(summary?.selectedGameId ?? "");
+    Alert.alert(
+      creating ? t("Confirm match?") : t("Back to planning?"),
+      creating
+        ? `${t("Confirm match with")} ${date} · ${game}?`
+        : t(
+            "Reopen planning? Pending invitees will regain access and accepted players will be notified.",
+          ),
+      [
+        { text: t("Cancel"), style: "cancel" },
+        {
+          text: creating ? t("Confirm match") : t("Back to planning"),
+          onPress: () => matches.setStatus.mutate(creating ? "CREATED" : "PLANNING"),
+        },
+      ],
+    );
+  };
   const confirmMatchAction = () => {
     if (!matchAction) return;
     const deleting = matchAction === "delete";
@@ -158,22 +205,76 @@ export default function MatchDetailScreen() {
           title: t("Match details"),
           headerRight: matchAction
             ? () => (
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  isDisabled={matchActionPending}
-                  accessibilityLabel={
-                    matchAction === "delete" ? t("Delete match") : t("Leave match")
-                  }
-                  onPress={confirmMatchAction}
-                >
-                  {matchAction === "delete" ? (
-                    <Trash2 size={17} color="#f31260" />
-                  ) : (
-                    <LogOut size={17} color="#f31260" />
-                  )}
-                </Button>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  {match?.adminUserId === userId &&
+                    (statusUnavailable ? (
+                      <Popover>
+                        <Popover.Trigger asChild>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="outline"
+                            className="opacity-50"
+                            accessibilityLabel={t("Confirm match")}
+                            accessibilityHint={statusReason}
+                            accessibilityState={{ disabled: true }}
+                            style={{ minHeight: 44, minWidth: 44 }}
+                            testID="confirm-match-unavailable"
+                          >
+                            <CalendarCheck2 size={18} color="#737373" />
+                          </Button>
+                        </Popover.Trigger>
+                        <Popover.Portal>
+                          <Popover.Overlay />
+                          <Popover.Content
+                            presentation="popover"
+                            placement="bottom"
+                            align="end"
+                            width={260}
+                          >
+                            <Popover.Title>{t("Cannot confirm match")}</Popover.Title>
+                            <Popover.Description>{statusReason}</Popover.Description>
+                          </Popover.Content>
+                        </Popover.Portal>
+                      </Popover>
+                    ) : (
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="outline"
+                        isDisabled={matches.setStatus.isPending || matches.setChoice.isPending}
+                        accessibilityLabel={
+                          match?.status === "PLANNING" ? t("Confirm match") : t("Back to planning")
+                        }
+                        style={{ minHeight: 44, minWidth: 44 }}
+                        testID="change-match-status"
+                        onPress={confirmStatusAction}
+                      >
+                        {match?.status === "PLANNING" ? (
+                          <CalendarCheck2 size={18} color="#17c964" />
+                        ) : (
+                          <RotateCcw size={18} color="#737373" />
+                        )}
+                      </Button>
+                    ))}
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="danger-soft"
+                    isDisabled={matchActionPending}
+                    accessibilityLabel={
+                      matchAction === "delete" ? t("Delete match") : t("Leave match")
+                    }
+                    onPress={confirmMatchAction}
+                    style={{ minHeight: 44, minWidth: 44 }}
+                  >
+                    {matchAction === "delete" ? (
+                      <Trash2 size={17} color="#f31260" />
+                    ) : (
+                      <LogOut size={17} color="#f31260" />
+                    )}
+                  </Button>
+                </View>
               )
             : undefined,
         }}
@@ -207,8 +308,6 @@ export default function MatchDetailScreen() {
             isResponding={matches.respondInvitation.isPending}
             responseError={matches.respondInvitation.isError}
             choicePending={matches.setChoice.isPending}
-            statusPending={matches.setStatus.isPending}
-            changeStatus={(status) => matches.setStatus.mutate(status)}
             openChoice={setActiveChoice}
             respond={(invitationId, decision) =>
               matches.respondInvitation.mutate(
@@ -324,8 +423,6 @@ function MatchDetailContent({
   isResponding,
   responseError,
   choicePending,
-  statusPending,
-  changeStatus,
   openChoice,
   respond,
 }: {
@@ -336,8 +433,6 @@ function MatchDetailContent({
   isResponding: boolean;
   responseError: boolean;
   choicePending: boolean;
-  statusPending: boolean;
-  changeStatus: (status: "CREATED" | "PLANNING") => void;
   openChoice: (choice: ActiveChoice) => void;
   respond: (invitationId: string, decision: "accept" | "decline") => void;
 }) {
@@ -403,32 +498,6 @@ function MatchDetailContent({
         <Text className="text-sm text-danger">{t("Could not update the invitation")}</Text>
       )}
 
-      {match.adminUserId === userId && (
-        <View style={{ gap: 8 }}>
-          <Button
-            variant="outline"
-            isDisabled={statusPending || choicePending}
-            onPress={() => changeStatus(match.status === "PLANNING" ? "CREATED" : "PLANNING")}
-          >
-            {match.status === "PLANNING" ? (
-              <CalendarCheck2 size={18} color={success} />
-            ) : (
-              <RotateCcw size={18} color={muted} />
-            )}
-            <Button.Label>
-              {match.status === "PLANNING" ? t("Confirm match") : t("Back to planning")}
-            </Button.Label>
-          </Button>
-          {match.status === "PLANNING" && (
-            <Text className="text-sm text-muted">
-              {t(
-                "Confirm after enough players accept and everyone chooses a shared date and game.",
-              )}
-            </Text>
-          )}
-        </View>
-      )}
-
       <Tabs value={activeTab} onValueChange={setActiveTab} variant="primary">
         <Tabs.List>
           <Tabs.Indicator />
@@ -449,25 +518,23 @@ function MatchDetailContent({
             <Text className="mt-5 font-semibold text-foreground">
               {match.status === "CREATED" ? t("Confirmed date") : t("Possible dates")}
             </Text>
-            <View style={{ gap: 8, marginTop: 8 }}>
+            {data.voteSummary && <VoteLegend />}
+            <GroupedList>
               {(match.status === "CREATED" && match.selectedDate
                 ? [match.selectedDate]
                 : match.dates
               ).map((date) => {
                 const choice = data.choices?.dates?.[String(Date.parse(date))] ?? "UNKNOWN";
                 return (
-                  <View
-                    key={date}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 8,
-                    }}
-                  >
-                    <Text className="text-sm text-muted" style={{ flex: 1 }}>
-                      {new Date(date).toLocaleString()}
-                    </Text>
+                  <GroupedRow key={date}>
+                    <View style={{ flex: 1, gap: 3 }}>
+                      <Text className="text-sm text-foreground">
+                        {new Date(date).toLocaleString()}
+                      </Text>
+                      {data.voteSummary?.dates[String(Date.parse(date))] && (
+                        <VoteCounts counts={data.voteSummary.dates[String(Date.parse(date))]} />
+                      )}
+                    </View>
                     {canChoose && (
                       <Button
                         variant="outline"
@@ -483,10 +550,10 @@ function MatchDetailContent({
                         <ChoiceIcon choice={choice} color={iconColors[choice]} />
                       </Button>
                     )}
-                  </View>
+                  </GroupedRow>
                 );
               })}
-            </View>
+            </GroupedList>
           </Card>
         </Tabs.Content>
 
@@ -504,7 +571,7 @@ function MatchDetailContent({
             </View>
 
             <Text className="mt-5 font-semibold text-foreground">{t("Participants")}</Text>
-            <View style={{ gap: 8, marginTop: 10 }}>
+            <GroupedList>
               {participants.map((player) => {
                 const statusLabel =
                   player.status === "PENDING"
@@ -513,16 +580,7 @@ function MatchDetailContent({
                       ? t("Accepted")
                       : t("Declined");
                 return (
-                  <Card
-                    key={player.id}
-                    style={{
-                      width: "100%",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: 12,
-                    }}
-                  >
+                  <GroupedRow key={player.id}>
                     <Avatar size="md">
                       {player.avatarUrl ? (
                         <Avatar.Image source={{ uri: player.avatarUrl }} />
@@ -555,10 +613,10 @@ function MatchDetailContent({
                         <CircleX size={20} color="#f31260" />
                       )}
                     </View>
-                  </Card>
+                  </GroupedRow>
                 );
               })}
-            </View>
+            </GroupedList>
           </Card>
         </Tabs.Content>
 
@@ -567,61 +625,72 @@ function MatchDetailContent({
             {games.length === 0 ? (
               <Text className="text-sm text-muted">{t("No selected games")}</Text>
             ) : (
-              <View style={{ gap: 14 }}>
-                {games
-                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
-                  .map((game) => (
-                    <View
-                      key={game.id}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-                    >
-                      <View
-                        className="bg-muted/20"
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          overflow: "hidden",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {game.thumbnail ? (
-                          <Image
-                            source={{ uri: game.thumbnail }}
-                            accessible={false}
-                            style={{ width: 40, height: 40 }}
-                          />
-                        ) : (
-                          <Gamepad2 size={18} color="#6b7280" />
-                        )}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text className="font-medium text-foreground">{game.name}</Text>
-                        {game.yearPublished ? (
-                          <Text className="text-xs text-muted">{game.yearPublished}</Text>
-                        ) : null}
-                      </View>
-                      {canChoose && (
-                        <Button
-                          variant="outline"
-                          isIconOnly
-                          size="sm"
-                          isDisabled={choicePending}
-                          testID="choose-game"
-                          accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
-                          onPress={() =>
-                            openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
-                          }
+              <View style={{ gap: 8 }}>
+                {data.voteSummary && <VoteLegend />}
+                <GroupedList>
+                  {games
+                    .filter(
+                      (game) => match.status !== "CREATED" || game.id === match.selectedGameId,
+                    )
+                    .map((game) => (
+                      <GroupedRow key={game.id}>
+                        <View
+                          className="bg-muted/20"
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 8,
+                            overflow: "hidden",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
                         >
-                          <ChoiceIcon
-                            choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                            color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
-                          />
-                        </Button>
-                      )}
-                    </View>
-                  ))}
+                          {game.thumbnail ? (
+                            <Image
+                              source={{ uri: game.thumbnail }}
+                              accessible={false}
+                              style={{ width: 40, height: 40 }}
+                            />
+                          ) : (
+                            <Gamepad2 size={18} color="#6b7280" />
+                          )}
+                        </View>
+                        <View style={{ flex: 1, gap: 3 }}>
+                          <Text className="font-medium text-foreground">{game.name}</Text>
+                          {game.yearPublished ? (
+                            <Text className="text-xs text-muted">{game.yearPublished}</Text>
+                          ) : null}
+                          {data.voteSummary?.games[String(game.id)] && (
+                            <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
+                          )}
+                        </View>
+                        {canChoose && (
+                          <Button
+                            variant="outline"
+                            isIconOnly
+                            size="sm"
+                            isDisabled={choicePending}
+                            testID="choose-game"
+                            accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
+                            onPress={() =>
+                              openChoice({
+                                kind: "games",
+                                itemId: game.id,
+                                title: t("Choose game"),
+                              })
+                            }
+                          >
+                            <ChoiceIcon
+                              choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                              color={
+                                iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]
+                              }
+                            />
+                          </Button>
+                        )}
+                      </GroupedRow>
+                    ))}
+                </GroupedList>
               </View>
             )}
           </Card>

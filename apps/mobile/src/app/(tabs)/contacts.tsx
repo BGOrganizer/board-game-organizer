@@ -12,7 +12,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { Card } from "heroui-native/card";
 import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
@@ -28,6 +27,7 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { InviteCard } from "@/components/InviteCard";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
 import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts";
@@ -584,47 +584,40 @@ export default function ContactsScreen() {
               searchResults.length === 0 && (
                 <Text style={{ fontSize: 13, color: "#8e8e93" }}>{t("No users found")}</Text>
               )}
-            {searchResults.map((u) => (
-              <Card
-                key={u.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: 12,
-                  width: "100%",
-                }}
-              >
-                <AvatarWithPresence
-                  name={u.name}
-                  avatarUrl={u.avatarUrl}
-                  online={u.presence.online}
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text className="font-medium">{u.name}</Text>
+            <GroupedList>
+              {searchResults.map((u) => (
+                <GroupedRow key={u.id}>
+                  <AvatarWithPresence
+                    name={u.name}
+                    avatarUrl={u.avatarUrl}
+                    online={u.presence.online}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text className="font-medium">{u.name}</Text>
+                    </View>
+                    {u.email ? (
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={{ fontSize: 13, color: "#8e8e93" }}
+                      >
+                        {u.email}
+                      </Text>
+                    ) : null}
                   </View>
-                  {u.email ? (
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 13, color: "#8e8e93" }}
-                    >
-                      {u.email}
-                    </Text>
-                  ) : null}
-                </View>
-                {relationshipActions(u)}
-                <Pressable
-                  onPress={() => setMenuUser(u)}
-                  hitSlop={8}
-                  accessibilityLabel={t("Actions")}
-                  style={{ padding: 6 }}
-                >
-                  <MoreVertical size={18} color="#333" />
-                </Pressable>
-              </Card>
-            ))}
+                  {relationshipActions(u)}
+                  <Pressable
+                    onPress={() => setMenuUser(u)}
+                    hitSlop={8}
+                    accessibilityLabel={t("Actions")}
+                    style={{ padding: 6 }}
+                  >
+                    <MoreVertical size={18} color="#333" />
+                  </Pressable>
+                </GroupedRow>
+              ))}
+            </GroupedList>
           </View>
         )}
 
@@ -659,63 +652,56 @@ export default function ContactsScreen() {
                 {!section.isLoading && !section.isError && section.rows.length === 0 && (
                   <Text className="text-sm text-muted">{section.empty}</Text>
                 )}
-                {section.rows.map((row) => {
-                  const profile = row.profile;
-                  if (!profile) return null;
-                  return (
-                    <Card
-                      key={profile.id}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: 12,
-                        width: "100%",
-                      }}
-                    >
-                      <AvatarWithPresence
-                        name={profile.name}
-                        avatarUrl={profile.avatarUrl}
-                        online={profile.presence.online}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text className="font-medium text-foreground">{profile.name}</Text>
-                        {profile.email ? (
-                          <Text className="text-sm text-muted" numberOfLines={1}>
-                            {profile.email}
-                          </Text>
+                <GroupedList>
+                  {section.rows.map((row) => {
+                    const profile = row.profile;
+                    if (!profile) return null;
+                    return (
+                      <GroupedRow key={profile.id}>
+                        <AvatarWithPresence
+                          name={profile.name}
+                          avatarUrl={profile.avatarUrl}
+                          online={profile.presence.online}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text className="font-medium text-foreground">{profile.name}</Text>
+                          {profile.email ? (
+                            <Text className="text-sm text-muted" numberOfLines={1}>
+                              {profile.email}
+                            </Text>
+                          ) : null}
+                        </View>
+                        {section.key === "received" ? (
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            isDisabled={isBusy}
+                            accessibilityLabel={`${t("Respond to friend request")}: ${profile.name}`}
+                            testID="respond-friend-request-btn"
+                            onPress={() =>
+                              openUserActions(profile, "incoming", "respond_friend_request")
+                            }
+                          >
+                            <UserRoundCheck size={16} color="#fff" />
+                          </Button>
                         ) : null}
-                      </View>
-                      {section.key === "received" ? (
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          isDisabled={isBusy}
-                          accessibilityLabel={`${t("Respond to friend request")}: ${profile.name}`}
-                          testID="respond-friend-request-btn"
+                        <Pressable
                           onPress={() =>
-                            openUserActions(profile, "incoming", "respond_friend_request")
+                            openUserActions(
+                              profile,
+                              section.key === "received" ? "incoming" : "outgoing",
+                            )
                           }
+                          hitSlop={8}
+                          accessibilityLabel={t("Actions")}
+                          style={{ padding: 6 }}
                         >
-                          <UserRoundCheck size={16} color="#fff" />
-                        </Button>
-                      ) : null}
-                      <Pressable
-                        onPress={() =>
-                          openUserActions(
-                            profile,
-                            section.key === "received" ? "incoming" : "outgoing",
-                          )
-                        }
-                        hitSlop={8}
-                        accessibilityLabel={t("Actions")}
-                        style={{ padding: 6 }}
-                      >
-                        <MoreVertical size={18} color="#333" />
-                      </Pressable>
-                    </Card>
-                  );
-                })}
+                          <MoreVertical size={18} color="#333" />
+                        </Pressable>
+                      </GroupedRow>
+                    );
+                  })}
+                </GroupedList>
               </View>
             ))}
           </View>
@@ -757,47 +743,40 @@ export default function ContactsScreen() {
                     : t("No contacts found in your address book.")}
                 </Text>
               )}
-            {visibleSuggestions.map((u) => (
-              <Card
-                key={u.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: 12,
-                  width: "100%",
-                }}
-              >
-                <AvatarWithPresence
-                  name={u.name}
-                  avatarUrl={u.avatarUrl}
-                  online={u.presence.online}
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text className="font-medium">{u.name}</Text>
+            <GroupedList>
+              {visibleSuggestions.map((u) => (
+                <GroupedRow key={u.id}>
+                  <AvatarWithPresence
+                    name={u.name}
+                    avatarUrl={u.avatarUrl}
+                    online={u.presence.online}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text className="font-medium">{u.name}</Text>
+                    </View>
+                    {u.email ? (
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={{ fontSize: 13, color: "#8e8e93" }}
+                      >
+                        {u.email}
+                      </Text>
+                    ) : null}
                   </View>
-                  {u.email ? (
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 13, color: "#8e8e93" }}
-                    >
-                      {u.email}
-                    </Text>
-                  ) : null}
-                </View>
-                {relationshipActions(u)}
-                <Pressable
-                  onPress={() => setMenuUser(u)}
-                  hitSlop={8}
-                  accessibilityLabel={t("Actions")}
-                  style={{ padding: 6 }}
-                >
-                  <MoreVertical size={18} color="#333" />
-                </Pressable>
-              </Card>
-            ))}
+                  {relationshipActions(u)}
+                  <Pressable
+                    onPress={() => setMenuUser(u)}
+                    hitSlop={8}
+                    accessibilityLabel={t("Actions")}
+                    style={{ padding: 6 }}
+                  >
+                    <MoreVertical size={18} color="#333" />
+                  </Pressable>
+                </GroupedRow>
+              ))}
+            </GroupedList>
           </View>
         )}
 
@@ -814,57 +793,50 @@ export default function ContactsScreen() {
                 {listEmpty}
               </Text>
             )}
-            {listRows.map((row) => {
-              const profile = row.profile;
-              if (!profile) return null;
-              const actionUser =
-                listTab === "following"
-                  ? { ...profile, isFollowing: true }
-                  : listTab === "followers"
-                    ? { ...profile, isFollowing: followingIds.has(profile.id) }
-                    : profile;
-              return (
-                <Card
-                  key={profile.id}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: 12,
-                    width: "100%",
-                  }}
-                >
-                  <AvatarWithPresence
-                    name={profile.name}
-                    avatarUrl={profile.avatarUrl}
-                    online={profile.presence.online}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text className="font-medium">{profile.name}</Text>
+            <GroupedList>
+              {listRows.map((row) => {
+                const profile = row.profile;
+                if (!profile) return null;
+                const actionUser =
+                  listTab === "following"
+                    ? { ...profile, isFollowing: true }
+                    : listTab === "followers"
+                      ? { ...profile, isFollowing: followingIds.has(profile.id) }
+                      : profile;
+                return (
+                  <GroupedRow key={profile.id}>
+                    <AvatarWithPresence
+                      name={profile.name}
+                      avatarUrl={profile.avatarUrl}
+                      online={profile.presence.online}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Text className="font-medium">{profile.name}</Text>
+                      </View>
+                      {profile.email ? (
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={{ fontSize: 13, color: "#8e8e93" }}
+                        >
+                          {profile.email}
+                        </Text>
+                      ) : null}
                     </View>
-                    {profile.email ? (
-                      <Text
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={{ fontSize: 13, color: "#8e8e93" }}
-                      >
-                        {profile.email}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {listTab === "blocked" ? null : relationshipActions(actionUser)}
-                  <Pressable
-                    onPress={() => setMenuUser(actionUser)}
-                    hitSlop={8}
-                    accessibilityLabel={t("Actions")}
-                    style={{ padding: 6 }}
-                  >
-                    <MoreVertical size={18} color="#333" />
-                  </Pressable>
-                </Card>
-              );
-            })}
+                    {listTab === "blocked" ? null : relationshipActions(actionUser)}
+                    <Pressable
+                      onPress={() => setMenuUser(actionUser)}
+                      hitSlop={8}
+                      accessibilityLabel={t("Actions")}
+                      style={{ padding: 6 }}
+                    >
+                      <MoreVertical size={18} color="#333" />
+                    </Pressable>
+                  </GroupedRow>
+                );
+              })}
+            </GroupedList>
           </View>
         )}
       </ScrollView>

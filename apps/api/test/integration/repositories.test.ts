@@ -438,6 +438,23 @@ describe("match repositories on MongoDB replica set", () => {
         }),
       );
     }
+    const dateKey = String(Date.parse(matchInput.dates[0]));
+    const adminDetail = await withMatchTransaction(({ service }) =>
+      service.detail(ACTOR, created.id),
+    );
+    expect(adminDetail.voteSummary).toMatchObject({
+      dates: { [dateKey]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
+      games: { [String(matchInput.gameIds[0])]: { yes: 0, no: 0, ifNeeded: 2, notChosen: 0 } },
+      reasons: [],
+      selectedDate: matchInput.dates[0],
+      selectedGameId: matchInput.gameIds[0],
+    });
+    expect(
+      (await withMatchTransaction(({ service }) => service.detail(TARGET, created.id))).voteSummary,
+    ).toEqual(adminDetail.voteSummary);
+    expect(
+      (await withMatchTransaction(({ service }) => service.detail(THIRD, created.id))).voteSummary,
+    ).toBeUndefined();
     const confirmed = await withMatchTransaction(
       ({ service }) => service.setStatus(ACTOR, created.id, "CREATED"),
       true,

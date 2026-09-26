@@ -7,7 +7,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Card, Dropdown, Skeleton, Tabs } from "@heroui/react";
+import { Avatar, Button, Card, Dropdown, Skeleton, Tabs, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
@@ -30,7 +30,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchWizard } from "@/components/MatchWizard";
+import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
@@ -113,11 +115,14 @@ function ChoiceDropdown({
 
 export function MatchDetail({ matchId }: { matchId: string }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const router = useRouter();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
-  const [confirmAction, setConfirmAction] = useState<"delete" | "leave" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    "delete" | "leave" | "confirm" | "replan" | null
+  >(null);
+  const [showBlockedReason, setShowBlockedReason] = useState(false);
   const [editingMatch, setEditingMatch] = useState<MatchDetailResponse | null>(null);
 
   useEffect(() => {
@@ -196,7 +201,25 @@ export function MatchDetail({ matchId }: { matchId: string }) {
       isAdministrator: false,
     })),
   ];
-  const actionBusy = matches.deleteMatch.isPending || matches.leaveMatch.isPending;
+  const actionBusy =
+    matches.deleteMatch.isPending || matches.leaveMatch.isPending || matches.setStatus.isPending;
+  const summary = matchData.voteSummary;
+  const reasons = summary?.reasons.map((reason) =>
+    reason === "NOT_ENOUGH_PLAYERS"
+      ? t`Not enough accepted players`
+      : reason === "NO_SHARED_DATE"
+        ? t`No shared date`
+        : t`No shared game`,
+  ) ?? [t`Match readiness unavailable`];
+  const canConfirm =
+    match.status === "PLANNING" &&
+    summary?.reasons.length === 0 &&
+    Boolean(summary.selectedDate) &&
+    Boolean(summary.selectedGameId);
+  const chosenGame =
+    games.find((game) => game.id === summary?.selectedGameId)?.name ??
+    String(summary?.selectedGameId ?? "");
+  const chosenDate = summary?.selectedDate ? new Date(summary.selectedDate).toLocaleString() : "";
 
   const finishAction = () => {
     setConfirmAction(null);
@@ -209,21 +232,37 @@ export function MatchDetail({ matchId }: { matchId: string }) {
       <div className="flex flex-row-reverse items-center justify-between gap-3">
         {isAdmin ? (
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              isDisabled={matches.setStatus.isPending || matches.setChoice.isPending}
-              onPress={() =>
-                matches.setStatus.mutate(match.status === "PLANNING" ? "CREATED" : "PLANNING")
-              }
-            >
-              {match.status === "PLANNING" ? (
-                <CalendarCheck2 className="h-4 w-4" />
-              ) : (
-                <RotateCcw className="h-4 w-4" />
-              )}
-              {match.status === "PLANNING" ? t`Confirm match` : t`Back to planning`}
-            </Button>
+            {match.status === "PLANNING" && !canConfirm ? (
+              <Tooltip delay={0} isOpen={showBlockedReason}>
+                <Tooltip.Trigger
+                  onFocus={() => setShowBlockedReason(true)}
+                  onBlur={() => setShowBlockedReason(false)}
+                  onMouseEnter={() => setShowBlockedReason(true)}
+                  onMouseLeave={() => setShowBlockedReason(false)}
+                  aria-disabled="true"
+                  aria-description={reasons.join(" · ")}
+                  className="button button--sm button--outline cursor-not-allowed opacity-50"
+                >
+                  <CalendarCheck2 className="h-4 w-4" />
+                  {t`Confirm match`}
+                </Tooltip.Trigger>
+                <Tooltip.Content>{reasons.join(" · ")}</Tooltip.Content>
+              </Tooltip>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                isDisabled={actionBusy || matches.setChoice.isPending}
+                onPress={() => setConfirmAction(match.status === "PLANNING" ? "confirm" : "replan")}
+              >
+                {match.status === "PLANNING" ? (
+                  <CalendarCheck2 className="h-4 w-4" />
+                ) : (
+                  <RotateCcw className="h-4 w-4" />
+                )}
+                {match.status === "PLANNING" ? t`Confirm match` : t`Back to planning`}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="danger"
@@ -311,20 +350,20 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         <Tabs.Panel id="overview">
           <Card className="space-y-4 rounded-xl p-5">
             <h1 className="text-xl font-semibold">{match.name}</h1>
-            {isAdmin && match.status === "PLANNING" && (
-              <p className="text-sm text-default-500">{t`Confirm after enough players accept and everyone chooses a shared date and game.`}</p>
-            )}
             <div>
               <h2 className="mb-2 text-sm font-semibold">
                 {match.status === "CREATED" ? t`Confirmed date` : t`Possible dates`}
               </h2>
-              <ul className="space-y-2 text-sm text-default-600">
+              {summary && <VoteLegend />}
+              <GroupedList className="border-0 text-sm text-default-600">
                 {(match.status === "CREATED" && match.selectedDate
                   ? [match.selectedDate]
                   : match.dates
                 ).map((date) => (
-                  <li key={date} className="flex items-center justify-between gap-2">
-                    <time dateTime={date}>{new Date(date).toLocaleString()}</time>
+                  <GroupedRow key={date} className="flex-wrap">
+                    <time className="min-w-0 flex-1" dateTime={date}>
+                      {new Date(date).toLocaleString()}
+                    </time>
                     {canChoose && (
                       <ChoiceDropdown
                         label={t`Choose date`}
@@ -333,9 +372,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                         onChoose={(choice) => choose({ kind: "dates", itemId: date, choice })}
                       />
                     )}
-                  </li>
+                    {summary?.dates[String(Date.parse(date))] && (
+                      <VoteCounts counts={summary.dates[String(Date.parse(date))]} />
+                    )}
+                  </GroupedRow>
                 ))}
-              </ul>
+              </GroupedList>
             </div>
           </Card>
         </Tabs.Panel>
@@ -354,50 +396,48 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             </div>
             <div>
               <h2 className="mb-2 text-sm font-semibold">{t`Participants`}</h2>
-              <ul className="space-y-1">
+              <GroupedList>
                 {participants.map((player) => (
-                  <li key={player.id} className="py-1">
-                    <Card className="flex min-w-0 flex-row items-center gap-3 p-3">
-                      <Avatar size="md" color="accent">
-                        <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
-                        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate font-medium">{player.name}</p>
-                          {player.isAdministrator ? (
-                            <Crown
-                              className="h-4 w-4 shrink-0 text-warning"
-                              aria-label={t`Administrator`}
-                            />
-                          ) : null}
-                        </div>
-                        {player.email ? (
-                          <p className="truncate text-sm text-default-500">{player.email}</p>
+                  <GroupedRow key={player.id}>
+                    <Avatar size="md" color="accent">
+                      <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
+                      <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate font-medium">{player.name}</p>
+                        {player.isAdministrator ? (
+                          <Crown
+                            className="h-4 w-4 shrink-0 text-warning"
+                            aria-label={t`Administrator`}
+                          />
                         ) : null}
                       </div>
-                      <span
-                        role="img"
-                        aria-label={
-                          player.status === "PENDING"
-                            ? t`Pending`
-                            : player.status === "ACCEPTED"
-                              ? t`Accepted`
-                              : t`Declined`
-                        }
-                      >
-                        {player.status === "PENDING" ? (
-                          <Clock3 className="h-5 w-5 text-warning" />
-                        ) : player.status === "ACCEPTED" ? (
-                          <CircleCheck className="h-5 w-5 text-success" />
-                        ) : (
-                          <CircleX className="h-5 w-5 text-danger" />
-                        )}
-                      </span>
-                    </Card>
-                  </li>
+                      {player.email ? (
+                        <p className="truncate text-sm text-default-500">{player.email}</p>
+                      ) : null}
+                    </div>
+                    <span
+                      role="img"
+                      aria-label={
+                        player.status === "PENDING"
+                          ? t`Pending`
+                          : player.status === "ACCEPTED"
+                            ? t`Accepted`
+                            : t`Declined`
+                      }
+                    >
+                      {player.status === "PENDING" ? (
+                        <Clock3 className="h-5 w-5 text-warning" />
+                      ) : player.status === "ACCEPTED" ? (
+                        <CircleCheck className="h-5 w-5 text-success" />
+                      ) : (
+                        <CircleX className="h-5 w-5 text-danger" />
+                      )}
+                    </span>
+                  </GroupedRow>
                 ))}
-              </ul>
+              </GroupedList>
             </div>
           </Card>
         </Tabs.Panel>
@@ -407,36 +447,50 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             {games.length === 0 ? (
               <p className="text-sm text-default-500">{t`No selected games`}</p>
             ) : (
-              <ul className="divide-y divide-default-200">
-                {games
-                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
-                  .map((game) => (
-                    <li key={game.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
-                        {game.thumbnail ? (
-                          // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-                          <img src={game.thumbnail} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <Gamepad2 className="h-5 w-5 text-default-400" />
+              <>
+                {summary && <VoteLegend />}
+                <GroupedList className="border-0">
+                  {games
+                    .filter(
+                      (game) => match.status !== "CREATED" || game.id === match.selectedGameId,
+                    )
+                    .map((game) => (
+                      <GroupedRow key={game.id} className="flex-wrap">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+                          {game.thumbnail ? (
+                            // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                            <img
+                              src={game.thumbnail}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <Gamepad2 className="h-5 w-5 text-default-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{game.name}</p>
+                          {game.yearPublished ? (
+                            <p className="text-xs text-default-500">{game.yearPublished}</p>
+                          ) : null}
+                        </div>
+                        {canChoose && (
+                          <ChoiceDropdown
+                            label={t`Choose game`}
+                            choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                            pending={matches.setChoice.isPending}
+                            onChoose={(choice) =>
+                              choose({ kind: "games", itemId: game.id, choice })
+                            }
+                          />
                         )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{game.name}</p>
-                        {game.yearPublished ? (
-                          <p className="text-xs text-default-500">{game.yearPublished}</p>
-                        ) : null}
-                      </div>
-                      {canChoose && (
-                        <ChoiceDropdown
-                          label={t`Choose game`}
-                          choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                          pending={matches.setChoice.isPending}
-                          onChoose={(choice) => choose({ kind: "games", itemId: game.id, choice })}
-                        />
-                      )}
-                    </li>
-                  ))}
-              </ul>
+                        {summary?.games[String(game.id)] && (
+                          <VoteCounts counts={summary.games[String(game.id)]} />
+                        )}
+                      </GroupedRow>
+                    ))}
+                </GroupedList>
+              </>
             )}
           </Card>
         </Tabs.Panel>
@@ -455,19 +509,43 @@ export function MatchDetail({ matchId }: { matchId: string }) {
 
       {confirmAction && (
         <ContactConfirmDialog
-          title={confirmAction === "delete" ? t`Delete match?` : t`Leave match?`}
+          title={
+            confirmAction === "confirm"
+              ? t`Confirm match?`
+              : confirmAction === "replan"
+                ? t`Back to planning?`
+                : confirmAction === "delete"
+                  ? t`Delete match?`
+                  : t`Leave match?`
+          }
           description={
-            confirmAction === "delete"
-              ? t`This deletes the match and all invitations. This action cannot be undone.`
-              : t`You will leave this match. The administrator can invite you again.`
+            confirmAction === "confirm"
+              ? i18n._("match.confirm.summary", { date: chosenDate, game: chosenGame })
+              : confirmAction === "replan"
+                ? t`Reopen planning? Pending invitees will regain access and accepted players will be notified.`
+                : confirmAction === "delete"
+                  ? t`This deletes the match and all invitations. This action cannot be undone.`
+                  : t`You will leave this match. The administrator can invite you again.`
           }
           busy={actionBusy}
           actions={[
             {
-              label: confirmAction === "delete" ? t`Delete match` : t`Leave match`,
-              variant: "danger",
+              label:
+                confirmAction === "confirm"
+                  ? t`Confirm match`
+                  : confirmAction === "replan"
+                    ? t`Back to planning`
+                    : confirmAction === "delete"
+                      ? t`Delete match`
+                      : t`Leave match`,
+              variant:
+                confirmAction === "delete" || confirmAction === "leave" ? "danger" : "primary",
               onPress: () => {
-                if (confirmAction === "delete") {
+                if (confirmAction === "confirm" && canConfirm) {
+                  matches.setStatus.mutate("CREATED", { onSuccess: () => setConfirmAction(null) });
+                } else if (confirmAction === "replan") {
+                  matches.setStatus.mutate("PLANNING", { onSuccess: () => setConfirmAction(null) });
+                } else if (confirmAction === "delete") {
                   matches.deleteMatch.mutate(match.id, { onSuccess: finishAction });
                 } else if (ownInvitation) {
                   matches.leaveMatch.mutate(ownInvitation.id, { onSuccess: finishAction });
