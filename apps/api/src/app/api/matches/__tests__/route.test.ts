@@ -306,6 +306,7 @@ describe("match API routes", () => {
         )
       ).status,
     ).toBe(400);
+    expect((await statusRoute.PATCH(request(path, "PATCH", "{"), matchContext())).status).toBe(400);
     vi.mocked(auth).mockResolvedValue({ userId: null } as never);
     expect(
       (
@@ -345,6 +346,14 @@ describe("match API routes", () => {
         await choiceRoute.PATCH(
           request(`/api/matches/not-an-id/choices`, "PATCH", JSON.stringify(dateChoice)),
           matchContext("not-an-id"),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await choiceRoute.PATCH(
+          request(`/api/matches/${matchId}/choices`, "PATCH", "{"),
+          matchContext(),
         )
       ).status,
     ).toBe(400);

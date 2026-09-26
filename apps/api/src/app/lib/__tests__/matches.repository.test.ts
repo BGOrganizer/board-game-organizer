@@ -80,6 +80,19 @@ describe("MatchesRepository", () => {
     expect(collection.findOne).toHaveBeenCalledWith({ id: stored.id }, { projection: { _id: 0 } });
   });
 
+  it("normalizes stored votes and confirmed options", async () => {
+    const selected = {
+      ...stored,
+      selectedDate: stored.dates[0],
+      selectedGameId: stored.gameIds[0],
+      choices: { user_1: { dates: { [String(Date.parse(stored.dates[0]))]: "YES" } } },
+    };
+    const { db } = setup([], selected);
+    await expect(new MatchesRepository(db as never).findById(stored.id)).resolves.toMatchObject(
+      selected,
+    );
+  });
+
   it("returns null when the match does not exist", async () => {
     await expect(
       new MatchesRepository(setup().db as never).findById("missing"),
@@ -159,6 +172,24 @@ describe("MatchesRepository", () => {
     );
   });
 
+  it("rejects unsafe vote keys and skips clearing absent options", () => {
+    const { db, collection } = setup();
+    const repo = new MatchesRepository(db as never);
+    expect(() => repo.clearChoices(stored.id, "user.bad")).toThrow("Invalid user id");
+    expect(() =>
+      repo.clearRemovedOptionChoices(
+        { ...stored, choices: { "user.bad": {} } } as never,
+        input.dates,
+        [],
+      ),
+    ).toThrow("Invalid user id");
+    expect(repo.clearRemovedOptionChoices(stored as never, input.dates, [342942])).toBeUndefined();
+    expect(
+      repo.clearRemovedOptionChoices({ ...stored, choices: { user_1: {} } } as never, [], []),
+    ).toBeUndefined();
+    expect(collection.updateOne).not.toHaveBeenCalled();
+  });
+
   it("updates planning match fields and normalizes result", async () => {
     const changes = {
       name: "Updated games",
@@ -191,6 +222,24 @@ describe("MatchesRepository", () => {
     const { db, collection } = setup();
     await new MatchesRepository(db as never).deleteById(stored.id, "user_1");
     expect(collection.deleteOne).toHaveBeenCalledWith({ id: stored.id, clerkId: "user_1" }, {});
+  });
+
+  it("clears confirmed options on replan and reports a concurrent status change", async () => {
+    const { db, collection } = setup([], { ...stored, status: "PLANNING" });
+    const repo = new MatchesRepository(db as never);
+    await expect(repo.setStatus(stored.id, "user_1", "CREATED", "PLANNING")).resolves.toMatchObject(
+      { status: "PLANNING" },
+    );
+    expect(collection.findOneAndUpdate).toHaveBeenCalledWith(
+      { id: stored.id, clerkId: "user_1", status: "CREATED" },
+      {
+        $set: { status: "PLANNING", updatedAt: expect.any(String) },
+        $unset: { selectedDate: "", selectedGameId: "" },
+      },
+      { returnDocument: "after", projection: { _id: 0 } },
+    );
+    collection.findOneAndUpdate.mockResolvedValueOnce(null);
+    await expect(repo.setStatus(stored.id, "user_1", "CREATED", "PLANNING")).resolves.toBeNull();
   });
 
   it("updates match status and timestamp", async () => {

@@ -257,6 +257,41 @@ describe("MatchService", () => {
     expect((await service.detail("user_guest", match.id)).match.invitations).toHaveLength(1);
   });
 
+  it("rejects missing, redundant, and concurrently changed status transitions", async () => {
+    const missing = setup();
+    missing.matches.serializeInvitationChange.mockResolvedValue({
+      modifiedCount: 0,
+      matchedCount: 0,
+    });
+    await expectMatchError(
+      missing.service.setStatus("user_admin", match.id, "CREATED"),
+      404,
+      "Match not found",
+    );
+    await expectMatchError(
+      setup().service.setStatus("user_admin", match.id, "PLANNING"),
+      409,
+      "Match already has this status",
+    );
+
+    const changed = setup();
+    const key = String(Date.parse(match.dates[0]));
+    changed.invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    changed.matches.findById.mockResolvedValue({
+      ...match,
+      choices: {
+        user_admin: { dates: { [key]: "YES" }, games: { "1": "YES" } },
+        user_guest: { dates: { [key]: "YES" }, games: { "1": "YES" } },
+      },
+    });
+    changed.matches.setStatus.mockResolvedValue(null);
+    await expectMatchError(
+      changed.service.setStatus("user_admin", match.id, "CREATED"),
+      409,
+      "Match status changed concurrently",
+    );
+  });
+
   it("rejects confirmation below minimum or when a participant has not agreed", async () => {
     const { service, matches, invitations } = setup();
     matches.findById.mockResolvedValue({ ...match, minPlayers: 3 });
@@ -284,6 +319,52 @@ describe("MatchService", () => {
       expect.objectContaining({ id: match.id }),
       match.dates,
       [],
+    );
+  });
+
+  it("retains votes for title changes and removes votes for deleted games", async () => {
+    const { service, matches, games } = setup();
+    matches.findById.mockResolvedValue({
+      ...match,
+      choices: { user_admin: { games: { "1": "YES" } } },
+    });
+    await service.update("user_admin", match.id, { name: "Updated match" });
+    expect(matches.clearRemovedOptionChoices).not.toHaveBeenCalled();
+    games.findExistingIds.mockResolvedValue([2]);
+    await service.update("user_admin", match.id, { gameIds: [2] });
+    expect(matches.clearRemovedOptionChoices).toHaveBeenCalledWith(
+      expect.objectContaining({ id: match.id }),
+      [],
+      [1],
+    );
+  });
+
+  it("preserves partial personal choices in detail and rejects unsafe chooser ids", async () => {
+    const { service, matches, invitations } = setup();
+    const key = String(Date.parse(match.dates[0]));
+    matches.findById.mockResolvedValue({
+      ...match,
+      choices: { user_guest: { dates: { [key]: "YES" } } },
+    });
+    expect((await service.detail("user_guest", match.id)).choices).toEqual({
+      dates: { [key]: "YES" },
+      games: {},
+    });
+    matches.findById.mockResolvedValue({
+      ...match,
+      choices: { user_guest: { games: { "1": "YES" } } },
+    });
+    expect((await service.detail("user_guest", match.id)).choices).toEqual({
+      dates: {},
+      games: { "1": "YES" },
+    });
+    invitations.listByMatch.mockResolvedValue([
+      { ...invitation, inviteeUserId: "user.bad", status: "ACCEPTED" },
+    ]);
+    await expectMatchError(
+      service.setChoice("user.bad", match.id, { kind: "games", itemId: 1, choice: "YES" }),
+      403,
+      "Invalid user id",
     );
   });
 
