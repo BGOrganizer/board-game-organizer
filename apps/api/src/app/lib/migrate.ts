@@ -3,14 +3,20 @@ import {
   FOLLOW_INDEXES,
   FRIEND_REQUEST_INDEXES,
   INVITE_INDEXES,
+  MATCH_INDEXES,
+  MATCH_INVITATION_INDEXES,
+  NOTIFICATION_INDEXES,
+  normalizePhoneNumberForMatching,
+  PUSH_SUBSCRIPTION_INDEXES,
   USER_INDEXES,
+  type User,
 } from "@board-game-organizer/schemas";
 import type { Db, IndexSpecification } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /**
- * Phase 1 migration: creates the social collections with their indexes
- * (shared from `packages/schemas`) and drops the legacy `relationships`
+ * Creates application collections with shared indexes and drops the legacy
+ * `relationships`
  * collection, whose data model was replaced by `follows` + `friendRequests`
  * + `blocks`.
  *
@@ -29,6 +35,10 @@ export async function migrate(db: Db) {
     [COLLECTIONS.FRIEND_REQUESTS, FRIEND_REQUEST_INDEXES],
     [COLLECTIONS.BLOCKS, BLOCK_INDEXES],
     [COLLECTIONS.INVITES, INVITE_INDEXES],
+    [COLLECTIONS.MATCHES, MATCH_INDEXES],
+    [COLLECTIONS.MATCH_INVITATIONS, MATCH_INVITATION_INDEXES],
+    [COLLECTIONS.NOTIFICATIONS, NOTIFICATION_INDEXES],
+    [COLLECTIONS.PUSH_SUBSCRIPTIONS, PUSH_SUBSCRIPTION_INDEXES],
   ];
 
   const created: string[] = [];
@@ -47,6 +57,26 @@ export async function migrate(db: Db) {
 
   // The legacy single `relationships` collection is no longer written by
   // the repository (Phase 1 restructure) — drop it unconditionally.
+  const users = db.collection<User>(COLLECTIONS.USERS);
+  const usersWithPhones = await users
+    .find({ mobileNumber: { $type: "string" } }, { projection: { mobileNumber: 1 } })
+    .toArray();
+  if (usersWithPhones.length) {
+    await users.bulkWrite(
+      usersWithPhones.map((user) => {
+        const normalized = normalizePhoneNumberForMatching(user.mobileNumber);
+        return {
+          updateOne: {
+            filter: { _id: user._id },
+            update: normalized
+              ? { $set: { mobileNumberNormalized: normalized } }
+              : { $unset: { mobileNumberNormalized: "" } },
+          },
+        };
+      }),
+    );
+  }
+
   const dropped = await db
     .collection(COLLECTIONS.RELATIONSHIPS)
     .drop()

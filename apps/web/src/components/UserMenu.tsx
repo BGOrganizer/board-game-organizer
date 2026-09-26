@@ -1,34 +1,53 @@
 "use client";
 
 import type { ContactUser } from "@board-game-organizer/shared";
-import { Button, Dropdown } from "@heroui/react";
+import { Dropdown } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Ban, Eye, MoreVertical, UserMinus, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import {
+  Ban,
+  Check,
+  Eye,
+  MoreVertical,
+  UserMinus,
+  UserPlus,
+  UserRoundPlus,
+  UserRoundX,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 
-export type UserActionKey = "block" | "unblock" | "follow" | "unfollow" | "profile";
+export type UserActionKey =
+  | "block"
+  | "unblock"
+  | "follow"
+  | "unfollow"
+  | "unfriend"
+  | "friend_request"
+  | "accept_friend_request"
+  | "reject_friend_request"
+  | "cancel_friend_request"
+  | "profile";
 
-/**
- * Kebab (⋯) menu on a contact row: block/unblock, follow/unfollow and
- * view-profile (disabled for now). Block requires confirmation.
- *
- * The confirmation uses a plain portal dialog (NOT the HeroUI v3 Modal,
- * whose composite DialogTrigger/Overlay wiring kept showing a backdrop
- * without the dialog, needing a second click and never closing cleanly).
- * A controlled div overlay is deterministic and works everywhere.
- */
+export type FriendRequestContext = "incoming" | "outgoing";
+
+type ConfirmAction = Exclude<UserActionKey, "follow" | "unfollow" | "profile">;
+
 export function UserMenu({
   user,
   busy,
+  canSendFriendRequest = false,
+  friendRequest,
   onAction,
 }: {
   user: ContactUser;
   busy?: boolean;
+  canSendFriendRequest?: boolean;
+  friendRequest?: FriendRequestContext;
   onAction: (key: UserActionKey) => void;
 }) {
   const { t } = useLingui();
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
 
   const items: Array<{
     key: UserActionKey;
@@ -37,32 +56,18 @@ export function UserMenu({
     danger?: boolean;
     disabled?: boolean;
   }> = user.blockedByMe
-    ? [
-        {
-          key: "unblock",
-          label: t`Unblock`,
-          icon: <Ban className="h-4 w-4" />,
-        },
-        {
-          key: "profile",
-          label: t`View profile`,
-          icon: <Eye className="h-4 w-4" />,
-          disabled: true,
-        },
-      ]
-    : user.isFollowing
+    ? [{ key: "unblock", label: t`Unblock`, icon: <Ban className="h-4 w-4" /> }]
+    : user.blockedMe
       ? [
-          {
-            key: "unfollow",
-            label: t`Unfollow`,
-            icon: <UserMinus className="h-4 w-4" />,
-          },
-          {
-            key: "block",
-            label: t`Block`,
-            icon: <Ban className="h-4 w-4" />,
-            danger: true,
-          },
+          ...(user.isFollowing
+            ? [
+                {
+                  key: "unfollow" as const,
+                  label: t`Unfollow`,
+                  icon: <UserMinus className="h-4 w-4" />,
+                },
+              ]
+            : []),
           {
             key: "profile",
             label: t`View profile`,
@@ -70,42 +75,168 @@ export function UserMenu({
             disabled: true,
           },
         ]
-      : [
-          { key: "follow", label: t`Follow`, icon: <UserPlus className="h-4 w-4" /> },
-          {
-            key: "block",
-            label: t`Block`,
-            icon: <Ban className="h-4 w-4" />,
-            danger: true,
-          },
-          {
-            key: "profile",
-            label: t`View profile`,
-            icon: <Eye className="h-4 w-4" />,
-            disabled: true,
-          },
-        ];
+      : user.isFriend
+        ? [
+            {
+              key: "unfriend",
+              label: t`Remove friend`,
+              icon: <UserRoundX className="h-4 w-4" />,
+              danger: true,
+            },
+            {
+              key: "block",
+              label: t`Block`,
+              icon: <Ban className="h-4 w-4" />,
+              danger: true,
+            },
+            {
+              key: "profile",
+              label: t`View profile`,
+              icon: <Eye className="h-4 w-4" />,
+              disabled: true,
+            },
+          ]
+        : [
+            {
+              key: user.isFollowing ? "unfollow" : "follow",
+              label: user.isFollowing ? t`Unfollow` : t`Follow`,
+              icon: user.isFollowing ? (
+                <UserMinus className="h-4 w-4" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              ),
+            },
+            ...(friendRequest === "incoming"
+              ? [
+                  {
+                    key: "accept_friend_request" as const,
+                    label: t`Accept friend request`,
+                    icon: <Check className="h-4 w-4" />,
+                  },
+                  {
+                    key: "reject_friend_request" as const,
+                    label: t`Decline friend request`,
+                    icon: <X className="h-4 w-4" />,
+                    danger: true,
+                  },
+                ]
+              : friendRequest === "outgoing"
+                ? [
+                    {
+                      key: "cancel_friend_request" as const,
+                      label: t`Cancel friend request`,
+                      icon: <X className="h-4 w-4" />,
+                      danger: true,
+                    },
+                  ]
+                : canSendFriendRequest
+                  ? [
+                      {
+                        key: "friend_request" as const,
+                        label: t`Send friend request`,
+                        icon: <UserRoundPlus className="h-4 w-4" />,
+                      },
+                    ]
+                  : []),
+            {
+              key: "block",
+              label: t`Block`,
+              icon: <Ban className="h-4 w-4" />,
+              danger: true,
+            },
+            {
+              key: "profile",
+              label: t`View profile`,
+              icon: <Eye className="h-4 w-4" />,
+              disabled: true,
+            },
+          ];
 
   const handle = (key: UserActionKey) => {
-    if (key === "block") {
-      setConfirm(true);
+    if (
+      key === "block" ||
+      key === "unblock" ||
+      key === "unfriend" ||
+      key === "friend_request" ||
+      key === "accept_friend_request" ||
+      key === "reject_friend_request" ||
+      key === "cancel_friend_request"
+    ) {
+      setConfirm(key);
       return;
     }
     onAction(key);
   };
 
+  const confirmation = (() => {
+    switch (confirm) {
+      case "block":
+        return {
+          title: t`Block contact`,
+          description: t`You will no longer see each other or find each other. Follow and friendships will be removed.`,
+          label: t`Block`,
+          danger: true,
+        };
+      case "unblock":
+        return {
+          title: t`Unblock contact?`,
+          description: t`This contact will no longer be blocked.`,
+          label: t`Unblock`,
+          danger: false,
+        };
+      case "unfriend":
+        return {
+          title: t`Remove friend?`,
+          description: t`The friendship and your follow will be removed.`,
+          label: t`Remove friend`,
+          danger: true,
+        };
+      case "friend_request":
+        return {
+          title: t`Send friend request?`,
+          description: t`They can accept or decline your request.`,
+          label: t`Send request`,
+          danger: false,
+        };
+      case "accept_friend_request":
+        return {
+          title: t`Accept friend request?`,
+          description: t`You will become friends and follow each other.`,
+          label: t`Accept`,
+          danger: false,
+        };
+      case "reject_friend_request":
+        return {
+          title: t`Decline friend request?`,
+          description: t`The friend request will be declined.`,
+          label: t`Decline`,
+          danger: true,
+        };
+      case "cancel_friend_request":
+        return {
+          title: t`Cancel friend request?`,
+          description: t`The sent friend request will be removed.`,
+          label: t`Cancel request`,
+          danger: true,
+        };
+      default:
+        return null;
+    }
+  })();
+
   return (
     <>
       <Dropdown>
-        <Dropdown.Trigger>
-          {/* Dropdown.Trigger IS a react-aria Button: it needs an interactive
-              child (a Button), an icon alone is not clickable. */}
-          <Button isIconOnly size="sm" variant="ghost" aria-label={t`Actions`}>
-            <MoreVertical className="h-4 w-4" />
-          </Button>
+        <Dropdown.Trigger
+          aria-label={t`Actions`}
+          className="button button--icon-only button--sm button--ghost"
+        >
+          <MoreVertical className="h-4 w-4" />
         </Dropdown.Trigger>
         <Dropdown.Popover placement="bottom end">
-          <Dropdown.Menu disabledKeys={items.filter((i) => i.disabled).map((i) => i.key)}>
+          <Dropdown.Menu
+            disabledKeys={items.filter((item) => busy || item.disabled).map((item) => item.key)}
+          >
             {items.map((item) => (
               <Dropdown.Item
                 key={item.key}
@@ -123,74 +254,25 @@ export function UserMenu({
         </Dropdown.Popover>
       </Dropdown>
 
-      {confirm && (
-        <BlockConfirmDialog
-          name={user.name}
+      {confirm && confirmation && (
+        <ContactConfirmDialog
+          title={confirmation.title}
+          description={confirmation.description}
           busy={busy}
-          onCancel={() => setConfirm(false)}
-          onConfirm={() => {
-            setConfirm(false);
-            onAction("block");
-          }}
+          onCancel={() => setConfirm(null)}
+          actions={[
+            {
+              label: confirmation.label,
+              variant: confirmation.danger ? "danger" : "primary",
+              onPress: () => {
+                const action = confirm;
+                setConfirm(null);
+                onAction(action);
+              },
+            },
+          ]}
         />
       )}
     </>
-  );
-}
-
-function BlockConfirmDialog({
-  name,
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  name: string;
-  busy?: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const { t } = useLingui();
-
-  // Close on Escape.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-
-  // Must render after mount (createPortal needs the client document).
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop: click closes, dim never lingers because it unmounts with the dialog. */}
-      <div className="absolute inset-0 bg-black/50" onClick={onCancel} aria-hidden="true" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="relative z-10 w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl"
-      >
-        <h2 className="text-lg font-semibold text-gray-900">
-          {/* Static title (no interpolation): "Block contact". */}
-          {t`Block contact`}
-        </h2>
-        <p className="mt-2 text-sm text-gray-500">
-          {t`You will no longer see each other or find each other. Follow and friendships will be removed.`}
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onPress={onCancel}>
-            {t`Cancel`}
-          </Button>
-          <Button variant="danger" isDisabled={busy} onPress={onConfirm}>
-            {t`Block`}
-          </Button>
-        </div>
-      </div>
-    </div>,
-    document.body,
   );
 }

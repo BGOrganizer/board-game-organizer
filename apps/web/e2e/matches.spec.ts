@@ -1,5 +1,6 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 /**
  * Match wizard E2E (Playwright, web).
@@ -18,16 +19,115 @@ async function signInAsActor(page: import("@playwright/test").Page) {
   await page.goto("/");
   await clerk.signIn({ page, emailAddress: E2E_EMAIL });
   await page.goto("/");
-  await page.waitForURL("**/matches", { timeout: 60_000 });
-  await expect(page.getByText("Matches")).toBeVisible({ timeout: 60_000 });
+  await completeMobileNumberIfNeeded(page);
 }
+
+test("admin confirms a shared match and reopens planning", async ({ page }) => {
+  if (!E2E_EMAIL) throw new Error("E2E_EMAIL required for match E2E");
+  await signInAsActor(page);
+  await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.user?.id));
+  const adminUserId = await page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
+  const matchId = "e1a9a989-5d0f-4f4c-9cf9-c08c4ae17102";
+  const date = "2026-10-01T20:00:00.000Z";
+  let status: "PLANNING" | "CREATED" = "PLANNING";
+  await page.route(`**/api/matches/${matchId}*`, async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/status")) {
+      status = (route.request().postDataJSON() as { status: typeof status }).status;
+    }
+    const match = {
+      id: matchId,
+      adminUserId,
+      name: "Shared game night",
+      dates: [date],
+      minPlayers: 2,
+      maxPlayers: 3,
+      gameIds: [342942],
+      status,
+      ...(status === "CREATED" ? { selectedDate: date, selectedGameId: 342942 } : {}),
+      createdAt: date,
+      updatedAt: date,
+      invitedUserIds: ["user_accepted"],
+      invitations: [
+        {
+          id: "2e6d06a2-734b-47ad-a8a2-08c4ea17f491",
+          matchId,
+          inviterUserId: adminUserId,
+          inviteeUserId: "user_accepted",
+          status: "ACCEPTED",
+          createdAt: date,
+          updatedAt: date,
+        },
+      ],
+    };
+    await route.fulfill({
+      json: path.endsWith("/status")
+        ? { match }
+        : {
+            match,
+            administrator: { id: adminUserId, name: "Admin", email: null, avatarUrl: null },
+            invitedPlayers: [
+              {
+                id: "user_accepted",
+                name: "Guest",
+                email: null,
+                avatarUrl: null,
+                invitation: match.invitations[0],
+              },
+            ],
+            games: [{ id: 342942, name: "Ark Nova", yearPublished: 2021, thumbnail: null }],
+            choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
+            voteSummary: {
+              dates: { [String(Date.parse(date))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
+              games: { "342942": { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
+              reasons: [],
+              selectedDate: date,
+              selectedGameId: 342942,
+            },
+          },
+    });
+  });
+  await page.goto(`/matches/${matchId}`);
+  await expect(page.getByRole("heading", { name: "Date selection" })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Vote count legend" }).hover();
+  await expect(page.getByText("? Not chosen")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm match" }).click();
+  const confirmDialog = page.getByRole("dialog", { name: "Confirm match?" });
+  await expect(confirmDialog.getByText(/Ark Nova/)).toBeVisible();
+  await confirmDialog.getByRole("button", { name: "Confirm match" }).click();
+  await expect(page.getByText("Confirmed date")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /Yes: 2, No: 0/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Choose date/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Players" }).click();
+  await expect(page.getByText("Minimum players")).toHaveCount(0);
+  await expect(page.getByText("Maximum players")).toHaveCount(0);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByRole("heading", { name: "Confirmed game" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /Yes: 1, No: 0/ })).toHaveCount(0);
+  await expect(page.getByText("Ark Nova")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to planning" }).click();
+  await page
+    .getByRole("dialog", { name: "Back to planning?" })
+    .getByRole("button", { name: "Back to planning" })
+    .click();
+  await page.getByRole("tab", { name: "Overview" }).click();
+  await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Choose date: Yes" })).toBeVisible();
+});
 
 test("match wizard: name → players → game → create", async ({ page }) => {
   test.setTimeout(240_000);
-  test.skip(!E2E_EMAIL, "E2E_EMAIL not set (CI provisions the user)");
+  if (!E2E_EMAIL) throw new Error("E2E_EMAIL is required for match E2E");
 
   await signInAsActor(page);
-  await page.waitForFunction(() => Boolean((window as any).Clerk?.session), null, {
+  await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.session), null, {
     timeout: 60_000,
   });
 
@@ -43,19 +143,40 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   // Fill a valid name + one date slot (native datetime-local input).
   await nameInput.fill("Friday night games");
   const dateInput = page.locator('input[type="datetime-local"]').first();
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
   await dateInput.fill("2026-09-05T20:00");
   await expect(dateInput).toHaveValue("2026-09-05T20:00");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
+  await dateInput.fill("");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
+  await dateInput.fill("2026-09-05T20:00");
 
-  // Adding a second date slot appends another empty input; removing the
-  // only remaining slot is blocked (one stays). Every added slot must be
-  // filled before the wizard lets you advance.
+  // Added empty dates block progress; deleting the last remaining date clears
+  // its input instead of removing the slot.
   await page.getByRole("button", { name: "Add another date" }).click();
   const dateInputs = page.locator('input[type="datetime-local"]');
   await expect(dateInputs).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(2);
   const nextFab = page.locator('button[aria-label="Next step"]');
   await expect(nextFab).toBeDisabled(); // second date still empty
   await dateInputs.nth(1).fill("2026-09-06T21:00");
   await expect(dateInputs.nth(1)).toHaveValue("2026-09-06T21:00");
+  const removeDate = page.getByRole("button", { name: "Remove slot" }).last();
+  await expect(removeDate).toHaveClass(/button--danger-soft/);
+  await expect(removeDate.locator("..").locator('input[type="datetime-local"]')).toBeVisible();
+  await removeDate.click();
+  await expect(dateInputs).toHaveCount(1);
+  const clearLastDate = page.getByRole("button", { name: "Remove slot" });
+  await expect(clearLastDate).toBeEnabled();
+  await clearLastDate.click();
+  await expect(dateInputs).toHaveCount(1);
+  await expect(dateInputs.first()).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
+  await expect(nextFab).toBeDisabled();
+  await dateInputs.first().fill("2026-09-05T20:00");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Add another date" }).click();
+  await dateInputs.nth(1).fill("2026-09-06T21:00");
 
   // Advance: the next FAB is the bottom-right fixed button. Wait until it
   // becomes enabled (validation re-renders after the name+date fill).
@@ -77,35 +198,50 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     .click();
   await expect(page.getByPlaceholder(/Search users/)).toBeVisible();
 
-  // The creator counts as one player: min=2 needs at least one invite. The
-  // E2E target is a friend only when the test users follow each other — try
-  // to pick one; if the picker is empty (no friends), lower min to 1 so the
-  // step becomes valid without invites.
-  const addBtn = page.getByRole("button", { name: "Add" }).first();
+  // Invite a friend when available. Planning matches may start without
+  // invitations; minPlayers still stays at the API minimum of two.
+  const addBtn = page.getByRole("button", { name: /^Add:/ }).first();
   let friendPicked = false;
+  let pickedFriendLabel: string | null = null;
   try {
     await addBtn.waitFor({ state: "visible", timeout: 10_000 });
+    pickedFriendLabel = await addBtn.getAttribute("aria-label");
     await addBtn.click();
     friendPicked = true;
   } catch {
     // No friends available — the picker is empty.
   }
-  await page.getByLabel("Back").click();
+  if (!friendPicked) await page.getByLabel("Back").click();
   await expect(page.getByText("Players")).toBeVisible();
 
-  if (!friendPicked) {
-    // min=1 means a solo match is allowed — no invites required.
-    await page.getByLabel("Decrease min players").click();
+  if (pickedFriendLabel) {
+    const friendsLoaded = page.waitForResponse(
+      (response) => response.url().includes("/api/relationships?type=friends") && response.ok(),
+    );
+    await page
+      .getByRole("button", { name: /Select a friend/ })
+      .first()
+      .click();
+    await friendsLoaded;
+    await expect(page.getByRole("button", { name: pickedFriendLabel })).toHaveCount(0);
+    await page.getByLabel("Back").click();
   }
 
-  // Advance to step 3 (range valid, invites filled or min=1).
+  // Advance to step 3; invitations are optional while planning.
   await nextFab.click();
   await expect(page.getByText("Board games")).toBeVisible();
 
-  // Step 3: game picker — search fires at >= 4 chars; BGG may be
-  // unavailable in CI, so selecting is best-effort: if the search returns
-  // results, pick the first game; otherwise assert the empty state blocks
-  // the next FAB.
+  await page.getByRole("button", { name: "Add another game" }).click();
+  await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(2);
+  const removeEmptyGame = page.getByRole("button", { name: "Remove game" }).last();
+  await expect(removeEmptyGame).toHaveClass(/button--danger-soft/);
+  await expect(
+    removeEmptyGame.locator("..").getByRole("button", { name: /Select a board game/ }),
+  ).toBeVisible();
+  await removeEmptyGame.click();
+  await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(1);
+
+  // Cascadia is seeded in the isolated CI database.
   await page
     .getByRole("button", { name: /Select a board game/ })
     .first()
@@ -114,32 +250,133 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   const gameSearch = page.getByPlaceholder(/Search board games/);
   await gameSearch.fill("Cascadia");
 
-  const firstGame = page.locator("text=/^[A-Za-z].*Cascadia/i").first();
-  const gameRow = page.getByRole("button", { name: "Select" }).first();
-  try {
-    await gameRow.waitFor({ state: "visible", timeout: 30_000 });
-    await gameRow.click();
-  } catch {
-    // No games in the local collection yet (preview DB not imported) or BGG
-    // unreachable — the empty state must block. Target the search-results
-    // empty message only (not the "at least 4 characters" hint).
-    const emptyState = page.getByText("No games found");
-    if (await emptyState.isVisible().catch(() => false)) {
-      await page.getByLabel("Back").click();
-      await expect(page.getByLabel("Next step")).toBeDisabled();
-      return;
-    }
-    // Otherwise the search errored (BGG down) — still expect the block.
-    await page.getByLabel("Back").click();
-    await expect(page.getByLabel("Next step")).toBeDisabled();
-    return;
-  }
+  const gameRow = page.getByRole("button", { name: /^Select:/ }).first();
+  await gameRow.waitFor({ state: "visible", timeout: 30_000 });
+  await expect(gameRow.locator("..").getByText(/\d{4}/)).toBeVisible();
+  await gameRow.click();
+  // Removing a selected game clears its slot without opening the picker.
+  await expect(page.getByText("Cascadia").first()).toBeVisible();
+  const removeSelectedGame = page.getByRole("button", { name: "Remove game" });
+  await expect(removeSelectedGame).toHaveClass(/button--danger-soft/);
+  await removeSelectedGame.click();
+  await expect(page.getByRole("button", { name: /Select a board game/ })).toBeVisible();
+  await page.getByRole("button", { name: /Select a board game/ }).click();
+  await page.getByPlaceholder(/Search board games/).fill("Cascadia");
+  await page
+    .getByRole("button", { name: /^Select:/ })
+    .first()
+    .click();
 
   // Back on the wizard with the game selected.
   await expect(page.getByText("Board games")).toBeVisible();
   await expect(page.getByText("Cascadia").first()).toBeVisible();
 
   // Submit: create the match, back on the list.
+  const createResponse = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/api/matches"),
+  );
   await nextFab.click();
-  await expect(page.getByText(/Friday night games/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Match created")).toBeVisible();
+  expect((await createResponse).ok()).toBe(true);
+  const card = page.getByRole("link", { name: /^Open match: Friday night games/ });
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  await expect(card.locator('img[src^="data:image/svg+xml,"]')).toBeVisible();
+  await expect(card.locator('[data-slot="chip"]')).toHaveText("Planning");
+  await expect(card.getByText(/^\d+\/\d+$/)).toBeVisible();
+  await expect(card.locator("time")).toHaveCount(2);
+  await expect(card.locator("time").first()).not.toContainText(":");
+
+  // Open detail and exercise all three HeroUI tabs.
+  await card.click();
+  await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Friday night games" })).toBeVisible();
+  const confirmButton = page.getByRole("button", { name: "Confirm match" });
+  await expect(confirmButton).toHaveAttribute("aria-disabled", "true");
+  await confirmButton.focus();
+  await expect(page.getByText("Not enough accepted players")).toBeVisible();
+  const dateChoiceResponse = page.waitForResponse(
+    (response) => response.request().method() === "PATCH" && response.url().includes("/choices"),
+  );
+  await page.getByRole("button", { name: "Choose date: Not known" }).first().click();
+  await page.getByRole("menuitemradio", { name: "Yes" }).click();
+  expect((await dateChoiceResponse).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Choose date: Yes" }).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Choose date: Yes" }).first()).toBeVisible();
+
+  await page.getByRole("tab", { name: "Players" }).click();
+  await expect(page.getByText("Minimum players")).toBeVisible();
+  await expect(page.getByText("Maximum players")).toBeVisible();
+  await expect(page.getByText("Participants")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Administrator" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Accepted" })).toBeVisible();
+  if (pickedFriendLabel) {
+    await expect(page.getByText(pickedFriendLabel.replace(/^Add:\s*/, ""))).toBeVisible();
+  }
+
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByRole("heading", { name: "Game selection" })).toBeVisible();
+  await expect(page.getByText("Cascadia").first()).toBeVisible();
+  await expect(page.getByText("2021").first()).toBeVisible();
+  const gameChoiceResponse = page.waitForResponse(
+    (response) => response.request().method() === "PATCH" && response.url().includes("/choices"),
+  );
+  await page.getByRole("button", { name: "Choose game: Not known" }).first().click();
+  await page.getByRole("menuitemradio", { name: "If I have to" }).click();
+  expect((await gameChoiceResponse).ok()).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "Choose game: If I have to" }).first(),
+  ).toBeVisible();
+
+  // Admin edits reuse the creation wizard and persist only on the final step.
+  await page.getByRole("button", { name: "Edit match" }).click();
+  await expect(page.getByRole("heading", { name: "Edit match" })).toBeVisible();
+  await page.getByRole("textbox", { name: "Match name" }).fill("Updated game night");
+  const editDates = page.locator('input[type="datetime-local"]');
+  await expect(editDates).toHaveCount(2);
+  await page.getByRole("button", { name: "Remove slot" }).last().click();
+  await expect(editDates).toHaveCount(1);
+  await page.getByRole("button", { name: "Remove slot" }).click();
+  await expect(editDates).toHaveCount(1);
+  await expect(editDates.first()).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Next step" })).toBeDisabled();
+  await editDates.first().fill("2026-09-05T20:00");
+  await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Next step" }).click();
+  await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
+  if (pickedFriendLabel) {
+    const removeInvite = page.getByRole("button", { name: "Remove invite" });
+    await expect(removeInvite).toHaveClass(/button--danger-soft/);
+    await expect(removeInvite.locator("..").locator("button")).toHaveCount(2);
+    await removeInvite.click();
+    await expect(page.getByRole("button", { name: "Remove invite" })).toHaveCount(0);
+  }
+  await page.getByRole("button", { name: "Next step" }).click();
+  await expect(page.getByRole("heading", { name: "Board games" })).toBeVisible();
+  const updateResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().includes("/api/matches/") &&
+      !response.url().includes("/invitations"),
+  );
+  await page.getByRole("button", { name: "Save changes" }).click();
+  expect((await updateResponse).ok()).toBe(true);
+  await expect(page.getByText("Match updated")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Updated game night" })).toBeVisible();
+
+  // Destructive admin action requires confirmation and removes the match.
+  await page.getByRole("button", { name: "Delete match" }).click();
+  const deleteDialog = page.getByRole("dialog", { name: "Delete match?" });
+  await expect(deleteDialog).toBeVisible();
+  const deleteResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      response.url().includes("/api/matches/") &&
+      !response.url().includes("/invitations"),
+  );
+  await deleteDialog.getByRole("button", { name: "Delete match" }).click();
+  expect((await deleteResponse).ok()).toBe(true);
+  await expect(page).toHaveURL(/\/matches$/);
+  await expect(page.getByText("Updated game night")).toHaveCount(0);
 });

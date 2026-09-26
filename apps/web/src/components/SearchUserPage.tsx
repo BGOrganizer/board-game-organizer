@@ -2,16 +2,18 @@
 
 import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
 import { withProtectionBypass } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 
 interface Props {
   apiUrl: string;
   token: string | null;
   getToken?: () => Promise<string | null>;
   protectionBypass?: string | null;
+  excludeIds?: string[];
   onSelect: (user: {
     id: string;
     name: string;
@@ -31,6 +33,7 @@ export function SearchUserPage({
   token,
   getToken,
   protectionBypass,
+  excludeIds = [],
   onSelect,
   onClose,
 }: Props) {
@@ -40,6 +43,11 @@ export function SearchUserPage({
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
+  const friendIds = useMemo(
+    () => new Set(friends.flatMap((friend) => (friend.profile ? [friend.profile.id] : []))),
+    [friends],
+  );
 
   // Load the full friends list once (invite picker) — reused as the empty
   // query state and as the source the search narrows.
@@ -54,8 +62,8 @@ export function SearchUserPage({
           { headers: { Authorization: `Bearer ${t}` } },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { relationships: RelationshipRow[] };
-        if (active) setFriends(data.relationships);
+        const data = (await res.json()) as RelationshipRow[];
+        if (active) setFriends(data);
       } catch {
         if (active) setError(t`Could not load friends`);
       }
@@ -88,7 +96,7 @@ export function SearchUserPage({
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users);
+        if (active) setResults(data.users.filter((user) => friendIds.has(user.id)));
       } catch {
         if (active) setError(t`Search failed`);
       } finally {
@@ -99,15 +107,16 @@ export function SearchUserPage({
       active = false;
       clearTimeout(timer);
     };
-  }, [query, apiUrl, token, getToken, protectionBypass, t]);
+  }, [query, apiUrl, token, getToken, protectionBypass, friendIds, t]);
 
-  const shown =
+  const shown = (
     query.trim().length >= 4
       ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
+      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+  ).filter((user) => !excludeSet.has(user.id));
 
   return (
-    <div className="mx-auto w-full max-w-md pb-8">
+    <div className="mx-auto w-full max-w-5xl pb-8">
       <div className="mb-4 flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
@@ -120,7 +129,7 @@ export function SearchUserPage({
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t`Search users (at least 4 characters)`}
         aria-label={t`Search users by name or email`}
-        className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
+        className="w-full rounded-lg border border-default-200 bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
       />
 
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
@@ -133,36 +142,32 @@ export function SearchUserPage({
       {!loading && shown.length === 0 && query.trim().length >= 4 && (
         <p className="mt-3 text-sm text-default-500">{t`No users found`}</p>
       )}
-      <div className="mt-3 space-y-2">
+      <GroupedList className="mt-3">
         {shown.map((u) => (
-          <div
-            key={u.id}
-            className="flex items-center gap-3 rounded-xl border border-default-200 p-3"
-          >
-            {u.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={u.avatarUrl} alt="" className="h-10 w-10 rounded-full" />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-default-100 text-sm font-semibold">
-                {u.name?.charAt(0) ?? "?"}
-              </div>
-            )}
+          <GroupedRow key={u.id}>
+            <Avatar size="md" color="accent">
+              <Avatar.Image src={u.avatarUrl ?? undefined} alt={u.name} />
+              <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
+            </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{u.name}</p>
               <p className="truncate text-xs text-default-400">{u.email}</p>
             </div>
             <Button
+              isIconOnly
+              className="shrink-0"
               size="sm"
               variant="primary"
+              aria-label={`${t`Add`}: ${u.name}`}
               onPress={() =>
                 onSelect({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl })
               }
             >
-              {t`Add`}
+              <UserPlus className="h-4 w-4" />
             </Button>
-          </div>
+          </GroupedRow>
         ))}
-      </div>
+      </GroupedList>
     </div>
   );
 }

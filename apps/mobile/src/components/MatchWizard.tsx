@@ -1,13 +1,14 @@
-import type { CreateMatchInput } from "@board-game-organizer/schemas";
+import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
+import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,12 +16,14 @@ import {
   Gamepad2,
   Minus,
   Plus,
+  Trash2,
   Users,
-  X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, ScrollView, View } from "react-native";
+import { Image, Platform, Pressable, ScrollView, View } from "react-native";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -40,19 +43,41 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function MatchWizard() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse }) {
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
+  const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [name, setName] = useState("");
-  const [dateSlots, setDateSlots] = useState<DateSlot[]>([{ id: uid(), value: null }]);
-  const [minPlayers, setMinPlayers] = useState(2);
-  const [maxPlayers, setMaxPlayers] = useState(4);
-  const [userSlots, setUserSlots] = useState<UserSlot[]>([{ id: uid(), user: null }]);
-  const [gameSlots, setGameSlots] = useState<GameSlot[]>([{ id: uid(), game: null }]);
+  const [name, setName] = useState(initialData?.match.name ?? "");
+  const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
+    initialData
+      ? initialData.match.dates.map((value) => ({ id: uid(), value }))
+      : [{ id: uid(), value: null }],
+  );
+  const [minPlayers, setMinPlayers] = useState(initialData?.match.minPlayers ?? 2);
+  const [maxPlayers, setMaxPlayers] = useState(initialData?.match.maxPlayers ?? 4);
+  const [userSlots, setUserSlots] = useState<UserSlot[]>(() => {
+    const users = initialData?.invitedPlayers
+      .filter((player) => player.invitation.status !== "DECLINED")
+      .map((user) => ({ id: uid(), user })) ?? [{ id: uid(), user: null }];
+    return users.length > 0 ? users : [{ id: uid(), user: null }];
+  });
+  const [gameSlots, setGameSlots] = useState<GameSlot[]>(() => {
+    const games =
+      initialData?.games.map((game) => ({
+        id: uid(),
+        game: {
+          id: game.id,
+          name: game.name,
+          imageUrl: game.thumbnail,
+          year: game.yearPublished,
+        },
+      })) ?? [];
+    return games.length > 0 ? games : [{ id: uid(), game: null }];
+  });
 
   // Which slot is currently picking a date (native picker).
   const [pickingDate, setPickingDate] = useState<string | null>(null);
@@ -73,6 +98,8 @@ export function MatchWizard() {
     apiUrl: apiUrl(),
     token,
     getToken,
+    userId,
+    feedback: mutationFeedback,
   });
 
   // Consume selections written by the search pages (user/game pickers).
@@ -82,7 +109,9 @@ export function MatchWizard() {
   useEffect(() => {
     if (pendingUser) {
       setUserSlots((p) =>
-        p.map((s) => (s.id === pendingUser.slotId ? { ...s, user: pendingUser.user } : s)),
+        p.some((s) => s.id !== pendingUser.slotId && s.user?.id === pendingUser.user.id)
+          ? p
+          : p.map((s) => (s.id === pendingUser.slotId ? { ...s, user: pendingUser.user } : s)),
       );
       clearPending();
     }
@@ -103,14 +132,8 @@ export function MatchWizard() {
     [name, dateSlots],
   );
   const step2Valid = useMemo(
-    // All required slots must be filled: the creator counts as one player,
-    // so with minPlayers=N there must be at least N-1 invited users. The
-    // range itself must be coherent too.
-    () =>
-      minPlayers >= 1 &&
-      maxPlayers >= minPlayers &&
-      userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
-    [minPlayers, maxPlayers, userSlots],
+    () => minPlayers >= 2 && maxPlayers >= minPlayers,
+    [minPlayers, maxPlayers],
   );
   const step3Valid = useMemo(
     // Every added game slot must hold a game (same rule as the dates).
@@ -120,7 +143,11 @@ export function MatchWizard() {
 
   const addDateSlot = () => setDateSlots((p) => [...p, { id: uid(), value: null }]);
   const removeDateSlot = (id: string) =>
-    setDateSlots((p) => (p.length <= 1 ? p : p.filter((s) => s.id !== id)));
+    setDateSlots((p) =>
+      p.length > 1
+        ? p.filter((slot) => slot.id !== id)
+        : p.map((slot) => (slot.id === id ? { ...slot, value: null } : slot)),
+    );
   const setDateSlot = (id: string, iso: string) =>
     setDateSlots((p) => p.map((s) => (s.id === id ? { ...s, value: iso } : s)));
 
@@ -155,14 +182,18 @@ export function MatchWizard() {
     });
   }, [slotCount]);
 
-  const bumpMin = (d: number) => setMinPlayers((v) => Math.max(1, Math.min(maxPlayers, v + d)));
+  const bumpMin = (d: number) => setMinPlayers((v) => Math.max(2, Math.min(maxPlayers, v + d)));
   const bumpMax = (d: number) => setMaxPlayers((v) => Math.max(minPlayers, v + d));
 
   const addGameSlot = () => setGameSlots((p) => [...p, { id: uid(), game: null }]);
   const removeGameSlot = (id: string) =>
-    setGameSlots((p) => (p.length <= 1 ? p : p.filter((s) => s.id !== id)));
+    setGameSlots((p) =>
+      p.length > 1
+        ? p.filter((s) => s.id !== id)
+        : p.map((s) => (s.id === id ? { ...s, game: null } : s)),
+    );
 
-  const create = useCallback(async () => {
+  const save = useCallback(async () => {
     if (!step3Valid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
@@ -173,24 +204,46 @@ export function MatchWizard() {
       gameIds: gameSlots.flatMap((s) => (s.game ? [s.game.id] : [])),
     };
     try {
-      await matches.create.mutateAsync(input);
-      router.back();
+      if (initialData) {
+        await matches.update.mutateAsync({ matchId: initialData.match.id, input });
+        router.back();
+      } else {
+        await matches.create.mutateAsync(input);
+        router.back();
+      }
     } catch {
-      // surface error
+      // Mutation feedback surfaces the error.
     }
-  }, [step3Valid, name, dateSlots, minPlayers, maxPlayers, userSlots, gameSlots, matches, router]);
+  }, [
+    initialData,
+    step3Valid,
+    name,
+    dateSlots,
+    minPlayers,
+    maxPlayers,
+    userSlots,
+    gameSlots,
+    matches,
+    router,
+  ]);
 
   const next = () => {
     if (step === 1 && step1Valid) setStep(2);
     else if (step === 2 && step2Valid) setStep(3);
-    else if (step === 3 && step3Valid) void create();
+    else if (step === 3 && step3Valid) void save();
   };
   const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s));
 
   const fabNext = (
     <Pressable
       onPress={next}
-      disabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
+      accessibilityRole="button"
+      accessibilityLabel={step === 3 && initialData ? t("Save changes") : t("Next step")}
+      disabled={
+        matches.create.isPending ||
+        matches.update.isPending ||
+        (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+      }
       style={{
         position: "absolute",
         right: 20,
@@ -198,9 +251,12 @@ export function MatchWizard() {
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
-          ? "#9ca3af"
-          : "#006fee",
+        backgroundColor:
+          matches.create.isPending ||
+          matches.update.isPending ||
+          (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+            ? "#9ca3af"
+            : "#006fee",
         alignItems: "center",
         justifyContent: "center",
         shadowColor: "#000",
@@ -253,66 +309,80 @@ export function MatchWizard() {
                 backgroundColor: step === s ? "#006fee" : "#e5e7eb",
               }}
             >
-              <Text style={{ color: step === s ? "#fff" : "#6b7280", fontSize: 13 }}>{s}</Text>
+              <Typography style={{ color: step === s ? "#fff" : "#6b7280", fontSize: 13 }}>
+                {s}
+              </Typography>
             </View>
           ))}
         </View>
 
         {step === 1 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("New match")}</Text>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>
+              {initialData ? t("Edit match") : t("New match")}
+            </Typography>
             <Input value={name} onChangeText={setName} placeholder={t("e.g. Friday night games")} />
             {name.trim().length > 0 && name.trim().length < 5 && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>{t("At least 5 characters")}</Text>
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
+                {t("At least 5 characters")}
+              </Typography>
             )}
-            <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("When could you play?")}</Text>
-            {dateSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Pressable
-                  onPress={() => {
-                    const base = slot.value ? new Date(slot.value) : new Date();
-                    if (Platform.OS === "android") {
-                      pickDateTimeOnAndroid(slot.id, base);
-                      return;
-                    }
-                    setPickingDate(slot.id);
-                    setDateValue(base);
-                  }}
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
-                  }}
-                >
-                  <CalendarClock color="#6b7280" size={18} />
-                  <Text style={{ color: slot.value ? "#111" : "#9ca3af" }}>
-                    {slot.value ? new Date(slot.value).toLocaleString() : t("Pick date and time")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => removeDateSlot(slot.id)}
-                  disabled={dateSlots.length <= 1}
-                  style={{ padding: 8 }}
-                >
-                  <X color={dateSlots.length <= 1 ? "#d1d5db" : "#6b7280"} size={18} />
-                </Pressable>
-              </View>
-            ))}
+            <Typography style={{ color: "#6b7280", fontSize: 14 }}>
+              {t("When could you play?")}
+            </Typography>
+            <GroupedList>
+              {dateSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
+                  <Pressable
+                    onPress={() => {
+                      const base = slot.value ? new Date(slot.value) : new Date();
+                      if (Platform.OS === "android") {
+                        pickDateTimeOnAndroid(slot.id, base);
+                        return;
+                      }
+                      setPickingDate(slot.id);
+                      setDateValue(base);
+                    }}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      minHeight: 44,
+                      paddingVertical: 4,
+                    }}
+                  >
+                    <CalendarClock color="#6b7280" size={18} />
+                    <Typography className={slot.value ? "text-foreground" : "text-muted"}>
+                      {slot.value ? new Date(slot.value).toLocaleString() : t("Pick date and time")}
+                    </Typography>
+                  </Pressable>
+                  {(dateSlots.length > 1 || slot.value !== null) && (
+                    <Button
+                      variant="danger-soft"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                      accessibilityLabel={t("Remove slot")}
+                      testID="remove-date-slot"
+                      onPress={() => removeDateSlot(slot.id)}
+                    >
+                      <Trash2 color="#dc2626" size={16} />
+                    </Button>
+                  )}
+                </GroupedRow>
+              ))}
+            </GroupedList>
             <Button onPress={addDateSlot}>
               <Plus size={16} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add another date")}</Text>
+              <Typography style={{ color: "#fff" }}>{t("Add another date")}</Typography>
             </Button>
           </View>
         )}
 
         {step === 2 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Players")}</Text>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Players")}</Typography>
             <View style={{ flexDirection: "row", gap: 24 }}>
               <Stepper
                 label={t("Min")}
@@ -328,125 +398,187 @@ export function MatchWizard() {
               />
             </View>
             {maxPlayers < minPlayers && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
                 {t("Max must be at least min")}
-              </Text>
+              </Typography>
             )}
-            <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("Invite friends")}</Text>
-            {userSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Pressable
-                  onPress={() =>
-                    router.push({ pathname: "/match/search-user", params: { slotId: slot.id } })
-                  }
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
-                  }}
-                >
-                  <Users color="#6b7280" size={18} />
-                  <View style={{ flex: 1 }}>
-                    {slot.user ? (
-                      <>
-                        <Text style={{ fontSize: 14, fontWeight: "500" }}>{slot.user.name}</Text>
-                        <Text style={{ fontSize: 12, color: "#9ca3af" }}>{slot.user.email}</Text>
-                      </>
-                    ) : (
-                      <Text style={{ color: "#9ca3af" }}>{t("Select a friend")}</Text>
-                    )}
-                  </View>
-                </Pressable>
-                {slot.user && (
+            <Typography style={{ color: "#6b7280", fontSize: 14 }}>
+              {t("Invite friends")}
+            </Typography>
+            <GroupedList>
+              {userSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
                   <Pressable
                     onPress={() =>
-                      setUserSlots((p) =>
-                        p.map((s) => (s.id === slot.id ? { ...s, user: null } : s)),
-                      )
+                      router.push({
+                        pathname: "/match/search-user",
+                        params: {
+                          slotId: slot.id,
+                          exclude: userSlots
+                            .flatMap((s) => (s.id !== slot.id && s.user ? [s.user.id] : []))
+                            .join(","),
+                        },
+                      })
                     }
-                    style={{ padding: 8 }}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      minHeight: 44,
+                      paddingVertical: 4,
+                    }}
                   >
-                    <X color="#6b7280" size={18} />
+                    {slot.user ? (
+                      <Avatar size="md">
+                        {slot.user.avatarUrl ? (
+                          <Avatar.Image source={{ uri: slot.user.avatarUrl }} />
+                        ) : null}
+                        <Avatar.Fallback>{slot.user.name.charAt(0) || "?"}</Avatar.Fallback>
+                      </Avatar>
+                    ) : (
+                      <Users color="#6b7280" size={18} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      {slot.user ? (
+                        <>
+                          <Typography style={{ fontSize: 14, fontWeight: "500" }}>
+                            {slot.user.name}
+                          </Typography>
+                          <Typography style={{ fontSize: 12, color: "#9ca3af" }}>
+                            {slot.user.email}
+                          </Typography>
+                        </>
+                      ) : (
+                        <Typography style={{ color: "#9ca3af" }}>{t("Select a friend")}</Typography>
+                      )}
+                    </View>
                   </Pressable>
-                )}
-              </View>
-            ))}
+                  {slot.user && (
+                    <Button
+                      variant="danger-soft"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                      accessibilityLabel={t("Remove invite")}
+                      testID="remove-invite-slot"
+                      onPress={() =>
+                        setUserSlots((p) =>
+                          p.map((s) => (s.id === slot.id ? { ...s, user: null } : s)),
+                        )
+                      }
+                    >
+                      <Trash2 color="#dc2626" size={16} />
+                    </Button>
+                  )}
+                </GroupedRow>
+              ))}
+            </GroupedList>
           </View>
         )}
 
         {step === 3 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Text>
-            {gameSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/match/search-game",
-                      params: {
-                        slotId: slot.id,
-                        exclude: gameSlots
-                          .filter(
-                            (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
-                              s.id !== slot.id && s.game !== null,
-                          )
-                          .map((s) => s.game.id)
-                          .join(","),
-                      },
-                    })
-                  }
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
-                  }}
-                >
-                  <Gamepad2 color="#6b7280" size={18} />
-                  <View style={{ flex: 1 }}>
-                    {slot.game ? (
-                      <>
-                        <Text style={{ fontSize: 14, fontWeight: "500" }}>{slot.game.name}</Text>
-                        {slot.game.year ? (
-                          <Text style={{ fontSize: 12, color: "#9ca3af" }}>{slot.game.year}</Text>
-                        ) : null}
-                      </>
-                    ) : (
-                      <Text style={{ color: "#9ca3af" }}>{t("Select a board game")}</Text>
-                    )}
-                  </View>
-                </Pressable>
-                {slot.game && (
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Typography>
+            <GroupedList>
+              {gameSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
                   <Pressable
                     onPress={() =>
-                      setGameSlots((p) =>
-                        p.map((s) => (s.id === slot.id ? { ...s, game: null } : s)),
-                      )
+                      router.push({
+                        pathname: "/match/search-game",
+                        params: {
+                          slotId: slot.id,
+                          exclude: gameSlots
+                            .filter(
+                              (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
+                                s.id !== slot.id && s.game !== null,
+                            )
+                            .map((s) => s.game.id)
+                            .join(","),
+                        },
+                      })
                     }
-                    style={{ padding: 8 }}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      minHeight: 44,
+                      paddingVertical: 4,
+                    }}
                   >
-                    <X color="#6b7280" size={18} />
+                    <View
+                      className="bg-muted/20"
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {slot.game?.imageUrl ? (
+                        <Image
+                          source={{ uri: slot.game.imageUrl }}
+                          accessible={false}
+                          style={{ width: 40, height: 40 }}
+                        />
+                      ) : (
+                        <Gamepad2 color="#6b7280" size={18} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {slot.game ? (
+                        <>
+                          <Typography style={{ fontSize: 14, fontWeight: "500" }}>
+                            {slot.game.name}
+                          </Typography>
+                          {slot.game.year ? (
+                            <Typography style={{ fontSize: 12, color: "#9ca3af" }}>
+                              {slot.game.year}
+                            </Typography>
+                          ) : null}
+                        </>
+                      ) : (
+                        <Typography style={{ color: "#9ca3af" }}>
+                          {t("Select a board game")}
+                        </Typography>
+                      )}
+                    </View>
                   </Pressable>
-                )}
-              </View>
-            ))}
-            <Button onPress={addGameSlot}>
-              <Plus size={16} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add another game")}</Text>
+                  {(slot.game || gameSlots.length > 1) && (
+                    <Button
+                      variant="danger-soft"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                      accessibilityLabel={t("Remove game")}
+                      testID="remove-game-slot"
+                      onPress={() => removeGameSlot(slot.id)}
+                    >
+                      <Trash2 color="#dc2626" size={16} />
+                    </Button>
+                  )}
+                </GroupedRow>
+              ))}
+            </GroupedList>
+            <Button
+              size="sm"
+              variant="outline"
+              onPress={addGameSlot}
+              style={{ alignSelf: "flex-start" }}
+            >
+              <Plus size={14} color="#6b7280" />
+              <Typography className="text-foreground" style={{ fontSize: 13 }}>
+                {t("Add another game")}
+              </Typography>
             </Button>
-            {matches.create.isError && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>
-                {t("Could not create the match")}
-              </Text>
+            {(matches.create.isError || matches.update.isError) && (
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
+                {initialData ? t("Could not update the match") : t("Could not create the match")}
+              </Typography>
             )}
           </View>
         )}
@@ -485,12 +617,12 @@ function Stepper({
 }) {
   return (
     <View style={{ alignItems: "center", gap: 4 }}>
-      <Text style={{ fontSize: 12, color: "#6b7280" }}>{label}</Text>
+      <Typography style={{ fontSize: 12, color: "#6b7280" }}>{label}</Typography>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Pressable onPress={onDec} style={{ padding: 8 }}>
           <Minus color="#111" size={18} />
         </Pressable>
-        <Text style={{ fontSize: 20, fontWeight: "700" }}>{value}</Text>
+        <Typography style={{ fontSize: 20, fontWeight: "700" }}>{value}</Typography>
         <Pressable onPress={onInc} style={{ padding: 8 }}>
           <Plus color="#111" size={18} />
         </Pressable>

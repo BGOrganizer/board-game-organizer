@@ -23,6 +23,16 @@ appId: com.bgo.mobile
 - tapOn: "Match name"
 - eraseText: 3
 - inputText: "Friday night games"
+- assertNotVisible:
+    id: "remove-date-slot"
+# Remove one date from inside its row, then fill the remaining slot.
+- tapOn: "Add another date"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
 # Date slot: open the native picker and confirm it exists (the wizard
 # requires a filled date to advance — tapping Confirm on the native
 # date dialog sets today).
@@ -31,6 +41,21 @@ appId: com.bgo.mobile
     visible: "OK|Done|Confirm|Set"
     timeout: 30000
 - tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
+# The final date's trash appears only while a date is selected.
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
+- assertVisible: "Pick date and time"
+- tapOn: "Pick date and time"
+- extendedWaitUntil:
+    visible: "OK|Done|Confirm|Set"
+    timeout: 30000
+- tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
 # Advance to step 2 via the next FAB (bottom right).
 - tapOn:
     point: "90%,92%"
@@ -52,4 +77,127 @@ appId: com.bgo.mobile
 # Step 3: at least one game is required — empty state blocks the FAB.
 - assertVisible: "Select a board game"
 - tapOn: "Add another game"
+- assertVisible:
+    id: "remove-game-slot"
+- tapOn:
+    id: "remove-game-slot"
+- assertNotVisible:
+    id: "remove-game-slot"
 - assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- tapOn: "Search board games (at least 4 characters)"
+- inputText: "Cascadia"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- assertVisible: "2021"
+- tapOn: "Select: Cascadia.*"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+- assertVisible: "Cascadia"
+# Submit, open the match and exercise all three HeroUI tabs.
+- tapOn:
+    point: "90%,92%"
+- assertVisible: "Match created"
+- extendedWaitUntil:
+    visible: "Friday night games"
+    timeout: 60000
+- assertVisible: "Planning"
+- assertVisible: "2/4"
+- assertVisible: "1 game"
+- tapOn: "Friday night games"
+- extendedWaitUntil:
+    visible: "Overview"
+    timeout: 30000
+- assertVisible: "Date selection"
+- assertVisible:
+    id: "confirm-match-unavailable"
+- tapOn:
+    id: "confirm-match-unavailable"
+- assertVisible: "Cannot confirm match"
+- assertVisible: "Not enough accepted players"
+- tapOn: "Date selection"
+- tapOn:
+    id: "choose-date"
+- assertVisible: "Choose date"
+- tapOn: "Yes"
+- assertVisible: "Choice saved"
+- assertVisible: "Choose date: Yes"
+- extendedWaitUntil:
+    visible: "Yes: 1, No: 0, If needed: 0, Not chosen: 0"
+    timeout: 30000
+- tapOn: "Vote count legend"
+- assertVisible: "Not chosen"
+- tapOn: "Date selection"
+- tapOn: "Players"
+- assertVisible: "Minimum players"
+- assertVisible: "Maximum players"
+- assertVisible: "Participants"
+- assertVisible: "Administrator"
+- assertVisible: "Accepted"
+- tapOn: "Games"
+- assertVisible: "Game selection"
+- assertVisible: "Cascadia"
+- assertVisible: "2021"
+- tapOn:
+    id: "choose-game"
+- assertVisible: "Choose game"
+- tapOn: "If I have to"
+- assertVisible: "Choice saved"
+- assertVisible: "Choose game: If I have to"
+# Admin editing reuses the same wizard and sends changes only on final save.
+- tapOn: "Edit match"
+- extendedWaitUntil:
+    visible: "Edit match"
+    timeout: 30000
+- tapOn: "Match name"
+- eraseText: 18
+- inputText: "Updated game night"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
+- assertVisible: "Pick date and time"
+- tapOn: "Pick date and time"
+- extendedWaitUntil:
+    visible: "OK|Done|Confirm|Set"
+    timeout: 30000
+- tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 30000
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+# Editing reuses the same wizard; remove its selected game, then restore it.
+- tapOn:
+    id: "remove-game-slot"
+- assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- tapOn: "Search board games (at least 4 characters)"
+- inputText: "Cascadia"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- tapOn: "Select: Cascadia.*"
+- assertVisible: "Cascadia"
+- tapOn: "Save changes"
+- assertVisible: "Match updated"
+- extendedWaitUntil:
+    visible: "Updated game night"
+    timeout: 30000
+# Admin deletion is destructive and requires native confirmation.
+- tapOn: "Delete match"
+- assertVisible: "Delete match?"
+- tapOn: "Delete match"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 30000
+- assertNotVisible: "Updated game night"

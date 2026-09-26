@@ -6,14 +6,22 @@ module.exports = {
     orientation: "portrait",
     scheme: "bgo",
     userInterfaceStyle: "automatic",
+    icon: "./assets/icon.png",
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.bgo.mobile",
     },
     android: {
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : {}),
+      icon: "./assets/icon.png",
       adaptiveIcon: {
-        backgroundColor: "#ffffff",
+        foregroundImage: "./assets/adaptive-icon-foreground.png",
+        backgroundImage: "./assets/adaptive-icon-background.png",
+        monochromeImage: "./assets/adaptive-icon-monochrome.png",
+        backgroundColor: "#4c2482",
       },
       package: "com.bgo.mobile",
     },
@@ -29,6 +37,8 @@ module.exports = {
       "@sentry/react-native",
       "expo-font",
       "expo-contacts",
+      "expo-notifications",
+      "@react-native-community/datetimepicker",
     ],
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL,

@@ -1,8 +1,9 @@
 appId: com.bgo.mobile
 ---
-# 3. Profile tab shows the API data (name) and logout returns to welcome.
+# 3. Header profile button opens API-backed profile and logout returns to welcome.
 #    Clerk sign-out on a slow emulator can take a while — generous timeout.
-- tapOn: "Profile"
+- tapOn:
+    id: "profile-button"
 - extendedWaitUntil:
     visible: "Logout"
     timeout: 120000

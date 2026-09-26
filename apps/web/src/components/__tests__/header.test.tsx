@@ -17,6 +17,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/matches",
 }));
 
+vi.mock("@/components/NotificationBell", () => ({
+  NotificationBell: () => <button type="button" aria-label="Notifications" />,
+}));
+
 vi.mock("@clerk/nextjs", () => ({
   Show: ({
     when,

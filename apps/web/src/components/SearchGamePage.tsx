@@ -4,8 +4,9 @@ import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/sche
 import { withProtectionBypass } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Gamepad2 } from "lucide-react";
+import { ArrowLeft, Gamepad2, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 
 interface Props {
   apiUrl: string;
@@ -25,9 +26,8 @@ interface Props {
 
 /**
  * Board-game picker page (wizard step 3). Searches the BGG API through our
- * backend (/api/bgg/search). Results are id + name only (fast, rate-limit
- * friendly); image + year are fetched lazily via /api/bgg/thing when a game
- * is selected.
+ * backend (/api/bgg/search). Cached covers and years accompany results;
+ * selection resolves the full image via /api/bgg/thing.
  */
 export function SearchGamePage({
   apiUrl,
@@ -109,7 +109,7 @@ export function SearchGamePage({
   };
 
   return (
-    <div className="mx-auto w-full max-w-md pb-8">
+    <div className="mx-auto w-full max-w-5xl pb-8">
       <div className="mb-4 flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
@@ -122,7 +122,7 @@ export function SearchGamePage({
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t`Search board games (at least 4 characters)`}
         aria-label={t`Search board games`}
-        className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
+        className="w-full rounded-lg border border-default-200 bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
       />
 
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
@@ -135,29 +135,35 @@ export function SearchGamePage({
       {!loading && items.length === 0 && query.trim().length >= 4 && (
         <p className="mt-3 text-sm text-default-500">{t`No games found`}</p>
       )}
-      <div className="mt-3 space-y-2">
+      <GroupedList className="mt-3">
         {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-3 rounded-xl border border-default-200 p-3"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-default-100">
-              <Gamepad2 className="h-5 w-5 text-default-400" />
+          <GroupedRow key={item.id}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+              {item.imageUrl ? (
+                // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Gamepad2 className="h-5 w-5 text-default-400" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{item.name}</p>
+              {item.year ? <p className="text-xs text-default-500">{item.year}</p> : null}
             </div>
             <Button
+              isIconOnly
+              className="shrink-0"
               size="sm"
               variant="primary"
+              aria-label={`${t`Select`}: ${item.name}`}
               isDisabled={picking === item.id}
               onPress={() => void select(item)}
             >
-              {t`Select`}
+              <Plus className="h-4 w-4" />
             </Button>
-          </div>
+          </GroupedRow>
         ))}
-      </div>
+      </GroupedList>
     </div>
   );
 }

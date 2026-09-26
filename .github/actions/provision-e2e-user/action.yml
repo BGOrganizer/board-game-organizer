@@ -29,6 +29,9 @@ outputs:
   email_2:
     description: Generated target email (e2e_target.<ts>@gmail.com)
     value: ${{ steps.provision.outputs.email_2 }}
+  phone_2:
+    description: Generated target mobile number for contact matching
+    value: ${{ steps.provision.outputs.phone_2 }}
   password_2:
     description: Target password
     value: ${{ steps.provision.outputs.password_2 }}
@@ -45,42 +48,68 @@ runs:
       env:
         CLERK_SECRET_KEY: ${{ inputs.clerk-secret-key }}
       run: |
-        TS=$(date +%s)
+        set -euo pipefail
+        RUN_ID="${GITHUB_RUN_ID:-$(date +%s)}"
+        RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
+        SUFFIX=$(openssl rand -hex 3)
+        KEY="${RUN_ID}_${RUN_ATTEMPT}_${SUFFIX}"
+        USER_ID=""
+        USER_ID_2=""
+
+        rollback_partial_provision() {
+          status=$?
+          trap - EXIT
+          if [ "$status" -ne 0 ]; then
+            for id in "$USER_ID" "$USER_ID_2"; do
+              [ -z "$id" ] || curl -sS --retry 3 -o /dev/null -X DELETE \
+                "https://api.clerk.com/v1/users/$id" \
+                -H "Authorization: Bearer $CLERK_SECRET_KEY" || true
+            done
+          fi
+          exit "$status"
+        }
+        trap rollback_partial_provision EXIT
 
         # User A — the signed-in actor
-        USERNAME="e2e_$TS"
-        EMAIL="e2e.$TS@gmail.com"
+        USERNAME="e2e_$KEY"
+        EMAIL="e2e.${RUN_ID}.${RUN_ATTEMPT}.${SUFFIX}@gmail.com"
         PASSWORD="E2eTestPass!2026"
-        STATUS=$(curl -s -o /tmp/clerk-user.json -w "%{http_code}" \
+        STATUS=$(curl -sS -o /tmp/clerk-user.json -w "%{http_code}" \
           -X POST "https://api.clerk.com/v1/users" \
           -H "Authorization: Bearer $CLERK_SECRET_KEY" \
           -H "Content-Type: application/json" \
           -d "{\"username\":\"$USERNAME\",\"email_address\":[\"$EMAIL\"],\"password\":\"$PASSWORD\",\"first_name\":\"E2E Test\",\"public_metadata\":{\"e2e\":true}}")
         echo "Clerk create actor → HTTP $STATUS"
-        if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "409" ]; then
-          cat /tmp/clerk-user.json; exit 1
+        if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then
+          cat /tmp/clerk-user.json
+          exit 1
         fi
-        echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
-        echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
-        echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
-        echo "user_id=$(jq -r .id /tmp/clerk-user.json)" >> "$GITHUB_OUTPUT"
+        USER_ID=$(jq -er '.id | select(type == "string" and startswith("user_"))' /tmp/clerk-user.json)
 
         # User B — the social target (found via search, followed, blocked).
-        # The Clerk webhook (user.created → API production) mirrors it into the
-        # shared users collection before the E2E suites run.
-        USERNAME_2="e2e_target_$TS"
-        EMAIL_2="e2e_target.$TS@gmail.com"
+        USERNAME_2="e2e_target_$KEY"
+        EMAIL_2="e2e_target.${RUN_ID}.${RUN_ATTEMPT}.${SUFFIX}@gmail.com"
+        PHONE_2="+1555$(printf '%07d' "$((16#$SUFFIX % 10000000))")"
         PASSWORD_2="E2eTargetPass!2026"
-        STATUS_2=$(curl -s -o /tmp/clerk-user-2.json -w "%{http_code}" \
+        STATUS_2=$(curl -sS -o /tmp/clerk-user-2.json -w "%{http_code}" \
           -X POST "https://api.clerk.com/v1/users" \
           -H "Authorization: Bearer $CLERK_SECRET_KEY" \
           -H "Content-Type: application/json" \
-          -d "{\"username\":\"$USERNAME_2\",\"email_address\":[\"$EMAIL_2\"],\"password\":\"$PASSWORD_2\",\"first_name\":\"E2E Target\",\"public_metadata\":{\"e2e\":true}}")
+          -d "{\"username\":\"$USERNAME_2\",\"email_address\":[\"$EMAIL_2\"],\"password\":\"$PASSWORD_2\",\"first_name\":\"E2E Target\",\"public_metadata\":{\"e2e\":true},\"unsafe_metadata\":{\"mobileNumber\":\"$PHONE_2\"}}")
         echo "Clerk create target → HTTP $STATUS_2"
-        if [ "$STATUS_2" != "200" ] && [ "$STATUS_2" != "201" ] && [ "$STATUS_2" != "409" ]; then
-          cat /tmp/clerk-user-2.json; exit 1
+        if [ "$STATUS_2" != "200" ] && [ "$STATUS_2" != "201" ]; then
+          cat /tmp/clerk-user-2.json
+          exit 1
         fi
+        USER_ID_2=$(jq -er '.id | select(type == "string" and startswith("user_"))' /tmp/clerk-user-2.json)
+
+        echo "username=$USERNAME" >> "$GITHUB_OUTPUT"
+        echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+        echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+        echo "user_id=$USER_ID" >> "$GITHUB_OUTPUT"
         echo "username_2=$USERNAME_2" >> "$GITHUB_OUTPUT"
         echo "email_2=$EMAIL_2" >> "$GITHUB_OUTPUT"
+        echo "phone_2=$PHONE_2" >> "$GITHUB_OUTPUT"
         echo "password_2=$PASSWORD_2" >> "$GITHUB_OUTPUT"
-        echo "user_id_2=$(jq -r .id /tmp/clerk-user-2.json)" >> "$GITHUB_OUTPUT"
+        echo "user_id_2=$USER_ID_2" >> "$GITHUB_OUTPUT"
+        trap - EXIT

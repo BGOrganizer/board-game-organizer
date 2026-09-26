@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------- commitlint
@@ -49,9 +49,13 @@ jobs:
       - name: 🧹 Biome check
         run: pnpm lint
 
+      - name: 🔒 Check Main CI E2E isolation
+        run: node --test .github/scripts/main-ci-isolation.test.mjs
+
   # ----------------------------------------------------------------- typecheck
   typecheck:
     name: 🧪 TypeScript typecheck
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -68,11 +72,12 @@ jobs:
   # --------------------------------------------------------------- unit tests
   unit-tests:
     name: 🧪 Unit tests (${{ matrix.app }}) + coverage
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        app: [mobile, web, api, schemas]
+        app: [mobile, web, api, schemas, shared]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -89,7 +94,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/${{ matrix.app }}/coverage/lcov.info
+          files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
           flags: unit,${{ matrix.app }}
           fail_ci_if_error: false
 
@@ -98,12 +103,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.app }}
-          path: apps/${{ matrix.app }}/coverage/**
+          path: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/**', matrix.app) || format('apps/{0}/coverage/**', matrix.app) }}
           if-no-files-found: warn
 
   # ------------------------------------------------------- integration tests
   integration-tests:
     name: 🐳 API integration tests (testcontainers)
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -136,6 +142,7 @@ jobs:
   # ------------------------------------------------- build api & web (next)
   build-api-web:
     name: 🏗️ Build API + Web (next build)
+    needs: [commitlint, lint, typecheck, unit-tests, integration-tests]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -153,8 +160,8 @@ jobs:
         run: pnpm --filter web build
 
   # --------------------------------------- mobile change detection
-  # If no mobile-affecting file changed vs the base branch, skip the ~25min
-  # EAS APK build and reuse the last successful APK artifact instead.
+  # Compare against the last successful PR run; ignore unrelated web/API edits.
+  # Reuse APK only when the artifact's own mobile inputs also match HEAD.
   detect-mobile-changes:
     name: 🔍 Detect mobile changes
     runs-on: ubuntu-latest
@@ -166,6 +173,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🧪 Check APK change detection
+        run: node --test .github/scripts/mobile-build-changed.test.mjs
+
       - name: 🔍 Diff mobile-affecting paths
         id: check
         env:
@@ -176,48 +189,35 @@ jobs:
           # this branch (not against the PR base — the base diff always
           # contains every historical mobile commit, so changed would be true
           # forever and the APK would rebuild on every run).
-          LAST_GREEN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&conclusion=success&per_page=20" --jq '.workflow_runs[] | select(.head_sha != "'"$HEAD_SHA"'") | .head_sha' | head -1 || true)
-          if [ -z "$LAST_GREEN_SHA" ]; then
-            echo "No previous green run → changed=true"
+          RUNS_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&per_page=100" 2>/dev/null) || RUNS_JSON='{}'
+          LAST_GREEN_SHA=$(echo "$RUNS_JSON" | jq -r --argjson pr "${{ github.event.pull_request.number }}" \
+            '[.workflow_runs[]? | select(.path == ".github/workflows/pr-ci.yml" and .conclusion == "success" and any(.pull_requests[]?; .number == $pr)) | .head_sha][0] // empty') || LAST_GREEN_SHA=''
+          if [ -z "$LAST_GREEN_SHA" ] || ! git cat-file -e "$LAST_GREEN_SHA^{commit}" 2>/dev/null; then
+            echo "No diffable previous green run → changed=true"
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Code that rebuilds the APK: mobile source, the packages the app
-          # imports, and lockfiles, PLUS the CI files that bake env into the
-          # APK (mobile-build action, pr-ci job wiring). Maestro flows and
-          # unit tests are EXCLUDED: new flows or tests without app-code
-          # changes must NOT rebuild.
-          CHANGED=$(
-            git diff --name-only "$LAST_GREEN_SHA"...HEAD -- \
-              apps/mobile \
-              apps/web \
-              packages/shared packages/query packages/store packages/schemas \
-              pnpm-lock.yaml pnpm-workspace.yaml \
-              .github/actions/mobile-build .github/workflows/pr-ci.yml |
-              grep -v '^apps/mobile/\.maestro/' |
-              grep -v '^apps/mobile/src/.*\.(test|spec)\.' |
-              grep -v '__tests__' |
-              wc -l
-          )
-          echo "diff vs $LAST_GREEN_SHA → $CHANGED changed file(s)"
-          if [ "$CHANGED" -gt 0 ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; else echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+          # Fail closed: any comparison error triggers a fresh APK.
+          if CHANGED=$(node .github/scripts/mobile-build-changed.mjs "$LAST_GREEN_SHA" "$HEAD_SHA"); then
+            echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
   # -------------------------------------------------- mobile internal build
   build-mobile-internal:
     name: 📱 Mobile APK (internal) — build or reuse
     needs: [detect-mobile-changes, deploy-preview-api]
-    # Build even if the API preview deploy failed: fall back to the repo
-    # variable (EXPO_PUBLIC_API_URL) in that case.
-    if: ${{ !cancelled() && needs.detect-mobile-changes.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     outputs:
-      reused: ${{ steps.reuse.outputs.reused }}
+      reused: ${{ steps.verify-apk.outputs.reused || steps.reuse.outputs.reused }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # Reuse compares prior run SHAs; shallow tips have no diffable ancestry.
+          fetch-depth: 0
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -234,21 +234,21 @@ jobs:
           # NOTE: the API ignores conclusion=success as a query filter, so we
           # must select it in jq — otherwise failed runs (which can still have
           # an APK artifact when only e.g. lint failed) get picked up.
-          RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&branch=$GITHUB_HEAD_REF&per_page=10" --jq '.workflow_runs[] | select(.conclusion == "success" and .head_sha != "'"$HEAD_SHA"'") | .id')
+          RUNS_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&per_page=100" 2>/dev/null) || RUNS_JSON='{}'
+          RUNS=$(echo "$RUNS_JSON" | jq -r --argjson pr "${{ github.event.pull_request.number }}" \
+            '.workflow_runs[]? | select(.path == ".github/workflows/pr-ci.yml" and .conclusion == "success" and any(.pull_requests[]?; .number == $pr)) | .id') || RUNS=''
           # ONLY reuse an APK whose SHA has ZERO mobile-relevant diff vs HEAD.
           # A success run with an APK can be OLDER than the last green SHA the
           # detect step diffed against (interleaved cancelled/failed runs never
           # produce an APK), and reusing it would ship stale code silently.
-          MOBILE_PATHS="apps/mobile apps/web packages/shared packages/query packages/store packages/schemas pnpm-lock.yaml pnpm-workspace.yaml .github/actions/mobile-build .github/workflows/pr-ci.yml"
           for id in $RUNS; do
-            RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha')
-            # The checkout is fetch-depth:1, so bring the candidate SHA in.
+            RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha' 2>/dev/null) || continue
             # A rewritten/rebased SHA may no longer exist → skip the candidate
             # instead of crashing the whole job.
-            git fetch --depth 1 origin "$RUN_SHA" >/dev/null 2>&1 || continue
-            CHANGED=$(git diff --name-only "$RUN_SHA".."$HEAD_SHA" -- $MOBILE_PATHS | grep -v '^apps/mobile/\.maestro/' | grep -v '^apps/mobile/src/.*\.\(test\|spec\)\.' | grep -v '__tests__' | wc -l) || continue
-            if [ "$CHANGED" -gt 0 ]; then
-              echo "APK run $id ($RUN_SHA) stale vs HEAD ($CHANGED mobile change(s)) — skipping"
+            git cat-file -e "$RUN_SHA^{commit}" 2>/dev/null || continue
+            CHANGED=$(node .github/scripts/mobile-build-changed.mjs "$RUN_SHA" "$HEAD_SHA") || continue
+            if [ "$CHANGED" = 'true' ]; then
+              echo "APK run $id ($RUN_SHA) has stale mobile inputs — skipping"
               continue
             fi
             ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal") | .id' 2>/dev/null || true)
@@ -267,31 +267,50 @@ jobs:
           run-id: ${{ steps.reuse.outputs.run-id }}
           github-token: ${{ github.token }}
 
+      - name: 🔎 Verify reused APK targets this PR branch
+        id: verify-apk
+        if: steps.reuse.outputs.run-id != ''
+        env:
+          EXPECTED_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+        run: |
+          if [ -n "$EXPECTED_API_URL" ] && [ "$(cat apps/mobile/build-output/api-url.txt 2>/dev/null)" = "$EXPECTED_API_URL" ]; then
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "reused=false" >> "$GITHUB_OUTPUT"
+            rm -rf apps/mobile/build-output
+            echo "APK provenance missing or stale; rebuilding"
+          fi
+
       - name: 🏗️ Build APK (eas build --local, internal profile)
         id: build
-        if: steps.reuse.outputs.run-id == ''
+        if: steps.reuse.outputs.run-id == '' || steps.verify-apk.outputs.reused != 'true'
         uses: ./.github/actions/mobile-build
         with:
           profile: internal
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          # Option B: point the APK at THIS PR's preview API deployment so
-          # the app talks to the exact code under test. Falls back to the
-          # repo variable when the preview deploy produced no URL.
-          api-url: ${{ needs.deploy-preview-api.outputs.url || vars.EXPO_PUBLIC_API_URL }}
+          api-url: ${{ needs.deploy-preview-api.outputs.branch-url }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: 🏷️ Record API URL embedded in new APK
+        if: steps.build.outcome == 'success'
+        env:
+          API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+        run: printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
 
       - name: 📤 Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-internal
-          path: ${{ steps.reuse.outputs.run-id != '' && 'apps/mobile/build-output' || steps.build.outputs.artifact-path }}
+          path: apps/mobile/build-output/
           retention-days: 7
 
   # ------------------------------------------------ provision E2E test user
   provision:
     name: 👤 Provision E2E test users (Clerk API)
+    needs: [deploy-preview-api]
     runs-on: ubuntu-latest
     outputs:
       username: ${{ steps.provision.outputs.username }}
@@ -300,6 +319,7 @@ jobs:
       user_id: ${{ steps.provision.outputs.user_id }}
       username_2: ${{ steps.provision.outputs.username_2 }}
       email_2: ${{ steps.provision.outputs.email_2 }}
+      phone_2: ${{ steps.provision.outputs.phone_2 }}
       password_2: ${{ steps.provision.outputs.password_2 }}
       user_id_2: ${{ steps.provision.outputs.user_id_2 }}
     steps:
@@ -325,11 +345,15 @@ jobs:
     environment: development
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
+      branch-url: ${{ steps.branch-alias.outputs.url }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: 🔗 Restore PR branch metadata for Vercel alias
+        run: git switch -C "$GITHUB_HEAD_REF"
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
@@ -346,18 +370,89 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          ci-db-name: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
           # The /invite/<token> claim page is a client component: it needs the
           # Clerk publishable key baked at build time.
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            MONGODB_DB_NAME=bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+
+      - name: 🔒 Attest API runtime database before any E2E writes
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          EXPECTED_DB: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" |
+            jq -e --arg expected "$EXPECTED_DB" '.databaseName == $expected and .webhookDbReady == true' > /dev/null
+
+      - name: 🌱 Seed isolated CI database
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg name "$DB_NAME" '{action:"seed",databaseName:$name}')" |
+            jq -e '.ok == true' > /dev/null
+
+      - name: 🔗 Assign and verify moving PR API alias
+        id: branch-alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          EXPECTED_BRANCH: ${{ github.head_ref }}
+          CI_ALIAS: api-pr-${{ github.event.pull_request.number }}-board-game-organizers-projects.vercel.app
+        run: |
+          set -euo pipefail
+          [[ "$CI_ALIAS" =~ ^api-pr-[1-9][0-9]*-board-game-organizers-projects[.]vercel[.]app$ ]] || exit 1
+          info=$(vercel inspect "$DEPLOYMENT_URL" --json --token="$VERCEL_TOKEN")
+          deployment_id=$(jq -er '.id' <<< "$info")
+          vercel api "/v13/deployments/$deployment_id" --raw --token="$VERCEL_TOKEN" |
+            jq -e --arg expected "$EXPECTED_BRANCH" '.meta.githubCommitRef == $expected' > /dev/null || {
+              echo "Vercel deployment has wrong Git branch metadata" >&2
+              exit 1
+            }
+          vercel alias set "$DEPLOYMENT_URL" "$CI_ALIAS" --token="$VERCEL_TOKEN"
+          for attempt in {1..20}; do
+            target=$(vercel inspect "https://$CI_ALIAS" --json --token="$VERCEL_TOKEN" 2>/dev/null) || target='{}'
+            if jq -e --arg id "$deployment_id" '.id == $id and .readyState == "READY"' <<< "$target" > /dev/null; then
+              echo "url=https://$CI_ALIAS" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "PR alias did not resolve to the ready API deployment" >&2
+          exit 1
+
+      - name: 🔗 Point Clerk webhook alias to preview
+        env:
+          GIT_BRANCH: ${{ github.head_ref }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          WEBHOOK_ALIAS: clerk-preview-api.board-game-organizer.com
+        run: |
+          # Keep this domain preview-bound so production deploys cannot reclaim it.
+          vercel api "/v9/projects/$VERCEL_PROJECT_ID/domains/$WEBHOOK_ALIAS?teamId=$VERCEL_ORG_ID" \
+            --method=PATCH \
+            --raw-field="gitBranch=$GIT_BRANCH" \
+            --token="$VERCEL_TOKEN" \
+            --silent
+          vercel alias set "$PREVIEW_URL" "$WEBHOOK_ALIAS" --token="$VERCEL_TOKEN"
 
   # ---------------------------------------------------- Vercel preview web
   deploy-preview-web:
     name: 🌐 Vercel preview (Web)
     needs: [build-api-web, deploy-preview-api]
-    # Build even if the API preview deploy failed: fall back to the project
-    # env var (NEXT_PUBLIC_API_URL) in that case.
-    if: ${{ !cancelled() && needs.build-api-web.result == 'success' }}
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -407,9 +502,8 @@ jobs:
           BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |
-          # Deterministic mirroring: the Clerk webhook only reaches the
-          # production deployment (which may be on main, without this route),
-          # so CI seeds the preview DB directly via the sync-user endpoint
+          # The signed webhook skips E2E users; sync them only into this run's
+          # isolated database via the authenticated admin endpoint.
           # (Bearer == CLERK_SECRET_KEY).
           AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
           Q="x-vercel-protection-bypass=$BYPASS"
@@ -419,7 +513,7 @@ jobs:
             && echo "actor synced"
           curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
             -H "$AUTH" -H "Content-Type: application/json" \
-            -d '{"clerkId":"${{ needs.provision.outputs.user_id_2 }}","email":"${{ needs.provision.outputs.email_2 }}","name":"E2E Target"}' \
+            -d '{"clerkId":"${{ needs.provision.outputs.user_id_2 }}","email":"${{ needs.provision.outputs.email_2 }}","name":"E2E Target","mobileNumber":"${{ needs.provision.outputs.phone_2 }}"}' \
             && echo "target synced"
 
   # ------------------------------------------------------------- Maestro E2E
@@ -472,6 +566,8 @@ jobs:
           password: ${{ needs.provision.outputs.password }}
           target-email: ${{ needs.provision.outputs.email_2 }}
           target-username: ${{ needs.provision.outputs.username_2 }}
+          target-password: ${{ needs.provision.outputs.password_2 }}
+          target-phone: ${{ needs.provision.outputs.phone_2 }}
 
       - name: 📥 Collect Maestro reports (workspace)
         if: always()
@@ -481,7 +577,7 @@ jobs:
           # persist step did not (e.g. script exited early on failure).
           mkdir -p maestro-reports maestro-debug
           ls maestro-reports/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="4" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="5" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
           echo "---- maestro-reports ----"; ls -la maestro-reports || true
           echo "---- maestro-debug ----"; ls -la maestro-debug || true
 
@@ -524,6 +620,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
           E2E_EMAIL: ${{ needs.provision.outputs.email }}
           E2E_EMAIL_2: ${{ needs.provision.outputs.email_2 }}
+          E2E_PHONE_2: ${{ needs.provision.outputs.phone_2 }}
           E2E_USERNAME_2: ${{ needs.provision.outputs.username_2 }}
           # Clerk testing token (global setup) + ticket sign-in helper:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
@@ -543,9 +640,7 @@ jobs:
     name: 🗑️ Cleanup E2E test user
     needs: [provision, e2e-maestro, e2e-playwright]
     if: always()
-    # Cleanup must never block the PR result: a failure here only means the
-    # next run's orphan sweep (>24h) will take care of it.
-    continue-on-error: true
+    # Cleanup failure must stay visible; otherwise leaked Clerk users accumulate silently.
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -558,6 +653,27 @@ jobs:
           USER_ID_2: ${{ needs.provision.outputs.user_id_2 }}
         run: |
           bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"
+
+  # -------------------------------------------------- isolated DB cleanup
+  cleanup-e2e-db:
+    name: 🗑️ Drop isolated PR E2E database
+    needs: [deploy-preview-api, cleanup-e2e-user]
+    if: always() && needs.deploy-preview-api.outputs.url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🗑️ Clear only this run's database collections
+        env:
+          API_URL: ${{ needs.deploy-preview-api.outputs.url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
+            jq -e '.ok == true' > /dev/null
 
   # ----------------------------------------------------------- draft release
   draft-release:
@@ -574,7 +690,8 @@ jobs:
       - deploy-preview-web
       - e2e-maestro
       - e2e-playwright
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+      - cleanup-e2e-user
+      - cleanup-e2e-db
     runs-on: ubuntu-latest
     permissions:
       contents: write # create/update the draft release + attach the APK

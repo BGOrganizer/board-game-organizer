@@ -1,5 +1,6 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 /**
  * Web E2E (Playwright) against the Vercel preview deployment.
@@ -17,10 +18,18 @@ import { expect, test } from "@playwright/test";
 
 const E2E_EMAIL = process.env.E2E_EMAIL ?? "";
 
+async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+}
+
 test("welcome screen shows for signed-out visitors", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/");
   await expect(page.getByText("Welcome to Board Game Organizer")).toBeVisible();
   await expect(page.getByRole("button", { name: /sign in/i }).first()).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 });
 
 test("sign-in page renders the Clerk form", async ({ page }) => {
@@ -31,7 +40,7 @@ test("sign-in page renders the Clerk form", async ({ page }) => {
 });
 
 test("sign-in (testing token + ticket), profile and logout", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   test.skip(!E2E_EMAIL, "E2E_EMAIL not set (CI provisions the user)");
 
   // Bypass bot detection for this test's browser context.
@@ -44,10 +53,7 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
   // signIn() completes in-page (no navigation): reload so the server component
   // sees the session and redirects to /matches.
   await page.goto("/");
-  await page.waitForURL("**/matches", { timeout: 60_000 });
-  await expect(page.getByText("Matches")).toBeVisible({
-    timeout: 60_000,
-  });
+  await completeMobileNumberIfNeeded(page);
 
   // Profile page shows the API data (name of the provisioned user). The
   // header also shows the first name, so target the page heading.
@@ -56,6 +62,20 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
     timeout: 30_000,
   });
 
+  // Every authenticated page stays fluid at phone, tablet and desktop widths.
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 768, height: 1024 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const path of ["/matches", "/contacts", "/profile", "/groups", "/organizations"]) {
+      await page.goto(path);
+      await expectNoHorizontalOverflow(page);
+    }
+  }
+
+  await page.goto("/profile");
   // UI logout (full-screen spinner placeholder) → back to the welcome screen.
   await page.getByRole("button", { name: /logout/i }).click();
   await expect(page.getByText("Welcome to Board Game Organizer")).toBeVisible({

@@ -1,5 +1,6 @@
 "use client";
 
+import { Toast } from "@heroui/react/toast";
 import { type Messages, setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { useEffect, useState } from "react";
@@ -54,5 +55,10 @@ export function LinguiClientProvider({
     }
   }, [i18n]);
 
-  return <I18nProvider i18n={i18n}>{children}</I18nProvider>;
+  return (
+    <I18nProvider i18n={i18n}>
+      {children}
+      <Toast.Provider placement="top end" />
+    </I18nProvider>
+  );
 }

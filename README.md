@@ -13,7 +13,7 @@ web, API, and mobile, all in one TypeScript monorepo.
 | Monorepo | pnpm workspaces + Turborepo |
 | Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
 | API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
-| Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
+| Mobile | Expo SDK 57 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
 | Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) · `@board-game-organizer/schemas` (DB models + zod DTOs) |
 | i18n | **LinguiJS** (it + en catalogs, web + mobile) — see AGENTS.md |
 | Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage ≥ 50% per app) · commitlint · Maestro · Playwright |
@@ -52,7 +52,7 @@ cleanup job.
 ## Prerequisites
 
 - **Node.js ≥ 22** (CI uses 26)
-- **pnpm ≥ 11.6** (`corepack enable && corepack prepare pnpm@11.6.0 --activate`, or `npm i -g pnpm`)
+- **pnpm 11.25** (`corepack enable && corepack prepare pnpm@11.25.0 --activate`, or `npm i -g pnpm@11.25.0`)
 - **MongoDB** running (transactions require a replica set: `mongod --replSet rs0` + `rs.initiate()`)
 - Accounts/keys: [Clerk](https://clerk.com) (publishable + secret keys); Sentry DSN only for mobile
 
@@ -74,6 +74,28 @@ pnpm dev              # run all apps
 - Mobile: `pnpm --filter mobile dev` (Expo dev client / emulator)
 
 Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile dev`.
+
+### Local MongoDB and BGG catalog
+
+Download and extract the authenticated BGG `bg_ranks` dump to
+`data/boardgames_ranks.csv`, then start the replica set:
+
+```bash
+docker compose up -d --wait --wait-timeout 600
+docker compose logs -f mongodb
+```
+
+Every MongoDB container start stages and validates the CSV, then replaces the `boardGames`
+collection. MongoDB becomes healthy only after replica-set initialization and import complete.
+Configure the API with:
+
+```env
+MONGODB_URI=mongodb://localhost:27017/?replicaSet=rs0&directConnection=true
+MONGODB_DB_NAME=board-game-organizer
+```
+
+Use `BGG_CSV_PATH=/absolute/path/file.csv docker compose up -d` to load a CSV stored elsewhere.
+Remove containers with `docker compose down`; add `-v` only when the local database may be deleted.
 
 ## Quality
 

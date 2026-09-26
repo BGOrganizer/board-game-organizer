@@ -4,13 +4,15 @@ import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
-import { ArrowLeft, UserPlus } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Typography } from "heroui-native/text";
+import { UserPlus } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ScrollView, View } from "react-native";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 
 function apiUrl(): string {
@@ -23,11 +25,22 @@ export default function SearchUserScreen() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const t = useT();
   const router = useRouter();
-  const { slotId } = useLocalSearchParams<{ slotId: string }>();
+  const { slotId, exclude } = useLocalSearchParams<{
+    slotId: string;
+    exclude?: string | string[];
+  }>();
+  const excludedIds = useMemo(() => {
+    const value = Array.isArray(exclude) ? exclude[0] : exclude;
+    return new Set((value ?? "").split(",").filter(Boolean));
+  }, [exclude]);
   const setPendingUser = useAppStore((s) => s.setPendingUser);
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [friends, setFriends] = useState<RelationshipRow[]>([]);
+  const friendIds = useMemo(
+    () => new Set(friends.flatMap((friend) => (friend.profile ? [friend.profile.id] : []))),
+    [friends],
+  );
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +100,7 @@ export default function SearchUserScreen() {
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users);
+        if (active) setResults(data.users.filter((user) => friendIds.has(user.id)));
       } catch {
         if (active) setError(t("Search failed"));
       } finally {
@@ -98,12 +111,13 @@ export default function SearchUserScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, token, t]);
+  }, [query, token, friendIds, t]);
 
-  const shown =
+  const shown = (
     query.trim().length >= 4
       ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
+      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+  ).filter((user) => !excludedIds.has(user.id));
 
   const select = (u: ContactUser) => {
     if (!slotId) {
@@ -124,13 +138,7 @@ export default function SearchUserScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 16 }}>
-        <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
-          <ArrowLeft color="#111" size={22} />
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Invite friends")}</Text>
-      </View>
-      <View style={{ paddingHorizontal: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
         <Input
           value={query}
           onChangeText={setQuery}
@@ -138,9 +146,9 @@ export default function SearchUserScreen() {
         />
       </View>
       {error && (
-        <Text style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
+        <Typography style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
           {error}
-        </Text>
+        </Typography>
       )}
       {loading && (
         <View style={{ padding: 16, gap: 12 }}>
@@ -149,44 +157,33 @@ export default function SearchUserScreen() {
         </View>
       )}
       {!loading && shown.length === 0 && query.trim().length >= 4 && (
-        <Text style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>{t("No users found")}</Text>
+        <Typography style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>
+          {t("No users found")}
+        </Typography>
       )}
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-        {shown.map((u) => (
-          <View
-            key={u.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              padding: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: "#e5e7eb",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ fontWeight: "600" }}>{u.name?.charAt(0) ?? "?"}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Text>
-              <Text style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Text>
-            </View>
-            <Button size="sm" onPress={() => select(u)}>
-              <UserPlus size={14} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add")}</Text>
-            </Button>
-          </View>
-        ))}
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <GroupedList>
+          {shown.map((u) => (
+            <GroupedRow key={u.id}>
+              <Avatar size="md">
+                {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
+                <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
+              </Avatar>
+              <View style={{ flex: 1 }}>
+                <Typography style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Typography>
+                <Typography style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Typography>
+              </View>
+              <Button
+                isIconOnly
+                size="sm"
+                accessibilityLabel={`${t("Add")}: ${u.name}`}
+                onPress={() => select(u)}
+              >
+                <UserPlus size={16} color="#fff" />
+              </Button>
+            </GroupedRow>
+          ))}
+        </GroupedList>
       </ScrollView>
     </View>
   );

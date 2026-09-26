@@ -3,9 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Contacts from "@/app/(tabs)/contacts/page";
 import Groups from "@/app/(tabs)/groups/page";
 import Matches from "@/app/(tabs)/matches/page";
+import Notifications from "@/app/(tabs)/notifications/page";
 import Organizations from "@/app/(tabs)/organizations/page";
 import ProfilePage from "@/app/(tabs)/profile/page";
 import { renderWithI18n } from "@/test-utils";
+
+vi.mock("@/components/NotificationsPage", () => ({
+  NotificationsPage: () => <p>notification inbox</p>,
+}));
 
 vi.mock("next/headers", () => ({
   headers: () => ({ get: () => null }),
@@ -15,6 +20,7 @@ vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
     isLoaded: true,
     isSignedIn: true,
+    userId: "user_1",
     getToken: vi.fn().mockResolvedValue("token"),
   }),
   useClerk: () => ({ signOut: vi.fn() }),
@@ -25,8 +31,10 @@ vi.mock("@board-game-organizer/shared", () => ({
   useMatches: () => ({
     list: { isPending: false, isError: false, data: [] },
     create: { isError: false, mutateAsync: vi.fn(), isPending: false },
+    update: { isError: false, mutateAsync: vi.fn(), isPending: false },
     search: { isPending: false, isError: false, mutate: vi.fn(), data: null },
     thing: { isPending: false, isError: false, mutate: vi.fn(), data: null },
+    respondInvitation: { isPending: false, isError: false, mutate: vi.fn() },
   }),
   useProfileQuery: () => ({
     data: {
@@ -47,14 +55,21 @@ vi.mock("@board-game-organizer/shared", () => ({
     following: { data: [], isLoading: false },
     followers: { data: [], isLoading: false },
     friends: { data: [], isLoading: false },
+    pending: { data: [], isLoading: false, isSuccess: true },
+    sent: { data: [], isLoading: false, isSuccess: true },
     blocked: { data: [], isLoading: false },
     suggestions: { data: { users: [], hasContacts: false }, isLoading: false },
     follow: { mutate: vi.fn(), isPending: false },
     unfollow: { mutate: vi.fn(), isPending: false },
+    unfriend: { mutate: vi.fn(), isPending: false, isError: false },
+    friendRequest: { mutate: vi.fn(), isPending: false, isError: false },
+    cancelFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
+    acceptFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
+    rejectFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
     block: { mutate: vi.fn(), isPending: false },
     unblock: { mutate: vi.fn(), isPending: false },
     syncContacts: { mutateAsync: vi.fn(), mutate: vi.fn(), isPending: false },
-    search: { mutate: vi.fn(), data: undefined, isPending: false },
+    search: { mutate: vi.fn(), data: undefined, isLoading: false },
     runSearch: vi.fn(),
     refreshContacts: vi.fn(),
   }),
@@ -89,6 +104,11 @@ describe("tab pages", () => {
   it("renders the matches page with the create button", async () => {
     const { getByLabelText } = renderWithI18n(await Matches());
     expect(getByLabelText(/create a match/i)).toBeTruthy();
+  });
+
+  it("renders the notification inbox page", () => {
+    renderWithI18n(<Notifications />);
+    expect(screen.getByText("notification inbox")).toBeTruthy();
   });
 
   it("renders the profile page with the profile card", async () => {

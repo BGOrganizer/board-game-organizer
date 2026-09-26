@@ -23,9 +23,8 @@ const SEARCH_WINDOW_MS = 60_000;
  * cheaper and more predictable than a text index for autocomplete-style
  * queries. Block policy stays asymmetric:
  * - users `viewer` blocked  → excluded
- * - users who blocked `viewer` → findable EXCEPT when they are excluded by
- *   the query results themselves (they stay visible so the blocker
- *   perceives nothing).
+ * - users who blocked `viewer` → excluded, so blocked users cannot discover
+ *   or contact the blocker.
  */
 /** CORS preflight. */
 export function OPTIONS(request: Request) {
@@ -46,10 +45,15 @@ export async function GET(request: Request) {
     );
   }
 
-  const parsed = searchContactsParamsSchema.safeParse(
-    Object.fromEntries(new URL(request.url).searchParams),
-  );
-  if (!parsed.success) return corsJson({ error: "Invalid query" }, { status: 400 }, request);
+  const params = new URL(request.url).searchParams;
+  const allowedParams = new Set(["query", "cursor", "limit", "x-vercel-protection-bypass"]);
+  const hasInvalidParams =
+    [...params.keys()].some((key) => !allowedParams.has(key)) ||
+    [...allowedParams].some((key) => params.getAll(key).length > 1);
+  const parsed = searchContactsParamsSchema.safeParse(Object.fromEntries(params));
+  if (hasInvalidParams || !parsed.success || parsed.data.query.length < 4) {
+    return corsJson({ error: "Invalid query" }, { status: 400 }, request);
+  }
 
   const { query } = parsed.data;
   const db = await getDb();
@@ -66,11 +70,13 @@ export async function GET(request: Request) {
   // contacts sections (search shows Unfollow when already followed).
   const followingSet = new Set(following.map((f) => f.toUserId));
   const followerSet = new Set(followers.map((f) => f.fromUserId));
-  const friendSet = new Set(
-    friendPairs
-      .filter((f) => f.fromUserId === userId || f.toUserId === userId)
-      .map((f) => (f.fromUserId === userId ? f.toUserId : f.fromUserId)),
-  );
+  const friendDirections = new Map<string, number>();
+  for (const friend of friendPairs) {
+    if (friend.fromUserId !== userId && friend.toUserId !== userId) continue;
+    const otherId = friend.fromUserId === userId ? friend.toUserId : friend.fromUserId;
+    const direction = friend.fromUserId === userId ? 1 : 2;
+    friendDirections.set(otherId, (friendDirections.get(otherId) ?? 0) | direction);
+  }
 
   const users = await db
     .collection<User>(COLLECTIONS.USERS)
@@ -87,20 +93,21 @@ export async function GET(request: Request) {
     .toArray();
 
   const result = users
-    .filter((u) => u.clerkId !== userId && !blockedByMeSet.has(u.clerkId))
+    .filter(
+      (u) => u.clerkId !== userId && !blockedByMeSet.has(u.clerkId) && !blockedMeSet.has(u.clerkId),
+    )
     .map((u) => ({
       id: u.clerkId,
       name: u.name,
       email: u.email,
       avatarUrl: u.avatarUrl ?? null,
       presence: u.presence,
-      // The blocker stays invisible to the blocked user (soft-filter flag).
-      blockedByMe: blockedByMeSet.has(u.clerkId),
-      blockedMe: blockedMeSet.has(u.clerkId),
+      blockedByMe: false,
+      blockedMe: false,
       // Coherent follow state across sections (search/suggestions/etc).
       isFollowing: followingSet.has(u.clerkId),
       isFollower: followerSet.has(u.clerkId),
-      isFriend: friendSet.has(u.clerkId),
+      isFriend: friendDirections.get(u.clerkId) === 3,
     }));
 
   return corsJson(

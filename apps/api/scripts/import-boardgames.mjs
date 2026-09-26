@@ -3,13 +3,13 @@
  * Import the BGG `bg_ranks` CSV dump into the `boardGames` collection.
  *
  * Usage:
- *   BGG_CSV=/path/to/boardgame_ranks.csv \
+ *   BGG_CSV=/path/to/boardgames_ranks.csv \
  *   BGG_IMPORT_URL=https://api.board-game-organizer.com/api/admin/import-games \
  *   BGG_IMPORT_TOKEN=sk_live_... node apps/api/scripts/import-boardgames.mjs
  *
  * The CSV columns (bg_ranks dump): ID,Name,Year Published,Rank,Bayes
- * average,Average,Users rated,URL,Thumbnail. We keep id, name, year and
- * thumbnail only, and POST chunks to the admin import endpoint (the server
+ * average,Average,Users rated,URL. We keep id, name and year
+ * only, and POST chunks to the admin import endpoint (the server
  * writes to Mongo — no DB credentials needed locally).
  */
 import { readFileSync } from "node:fs";
@@ -98,9 +98,7 @@ const col = (name) => {
 const iId = col("id");
 const iName = col("name");
 const iYear = col("yearpublished");
-// The bg_ranks dump has NO thumbnail column; the cover URL follows the
-// standard BGG pattern https://cf.geekdo-static.com/covers/{id}.jpg.
-const thumbFor = (id) => `https://cf.geekdo-static.com/covers/${id}.jpg`;
+// bg_ranks has no images. The API fetches real covers from BGG on demand.
 
 const games = [];
 for (const r of rows.slice(1)) {
@@ -113,7 +111,6 @@ for (const r of rows.slice(1)) {
     id,
     name,
     yearPublished: Number.isFinite(year) && year > 0 ? year : null,
-    thumbnail: thumbFor(id),
   });
 }
 

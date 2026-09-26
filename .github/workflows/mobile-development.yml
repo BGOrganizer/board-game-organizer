@@ -26,6 +26,7 @@ jobs:
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: 📦 Attach development APK to latest release
         env:

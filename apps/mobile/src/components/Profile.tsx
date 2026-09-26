@@ -6,7 +6,7 @@ import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Surface } from "heroui-native/surface";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 
@@ -61,6 +61,8 @@ export function Profile() {
       // The (tabs) guard also redirects when the session state flips;
       // this replace makes the transition immediate.
       router.replace("/");
+    } catch {
+      // Clerk keeps the current session active when sign-out fails.
     } finally {
       setIsSigningOut(false);
     }
@@ -69,7 +71,7 @@ export function Profile() {
   if (!token) {
     return (
       <View className="mt-6 items-center">
-        <Text className="text-sm text-muted">{t("Sign-in unavailable")}</Text>
+        <Typography className="text-sm text-muted">{t("Sign-in unavailable")}</Typography>
       </View>
     );
   }
@@ -99,10 +101,10 @@ export function Profile() {
   if (isError) {
     return (
       <Surface className="mt-4 rounded-lg p-4">
-        <Text className="text-danger">
+        <Typography className="text-danger">
           {t("Error while loading the profile:")}{" "}
           {error instanceof Error ? error.message : String(error)}
-        </Text>
+        </Typography>
         <Button className="mt-3" variant="outline" onPress={() => refetch()}>
           {t("Retry")}
         </Button>
@@ -120,29 +122,29 @@ export function Profile() {
           <Avatar.Fallback>{profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
         </Avatar>
         <View>
-          <Text className="text-lg font-semibold">{profile.name}</Text>
-          <Text className="text-sm text-muted">{profile.email}</Text>
+          <Typography className="text-lg font-semibold">{profile.name}</Typography>
+          <Typography className="text-sm text-muted">{profile.email}</Typography>
         </View>
       </View>
 
       <View className="mt-4 flex-row gap-6">
         <View>
-          <Text className="text-xl font-bold">{profile.stats.gamesOwned}</Text>
-          <Text className="text-xs text-muted">{t("Owned")}</Text>
+          <Typography className="text-xl font-bold">{profile.stats.gamesOwned}</Typography>
+          <Typography className="text-xs text-muted">{t("Owned")}</Typography>
         </View>
         <View>
-          <Text className="text-xl font-bold">{profile.stats.gamesPlayed}</Text>
-          <Text className="text-xs text-muted">{t("Played")}</Text>
+          <Typography className="text-xl font-bold">{profile.stats.gamesPlayed}</Typography>
+          <Typography className="text-xs text-muted">{t("Played")}</Typography>
         </View>
         <View>
-          <Text className="text-xl font-bold">{profile.stats.friends}</Text>
-          <Text className="text-xs text-muted">{t("Friends")}</Text>
+          <Typography className="text-xl font-bold">{profile.stats.friends}</Typography>
+          <Typography className="text-xs text-muted">{t("Friends")}</Typography>
         </View>
       </View>
 
-      <Text className="mt-3 text-xs text-muted">
+      <Typography className="mt-3 text-xs text-muted">
         {t("Plan:")} {profile.plan} · {t("Language:")} {profile.preferredLanguage}
-      </Text>
+      </Typography>
 
       <Button className="mt-6" variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
         {t("Logout")}

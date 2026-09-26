@@ -1,5 +1,6 @@
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 import { useMutation } from "@tanstack/react-query";
+import type { MutationFeedback } from "../mutationFeedback";
 
 /** A shareable invite returned by the API. */
 export interface InviteRow {
@@ -22,6 +23,7 @@ export interface UseInvitesOptions {
   getToken?: () => Promise<string | null>;
   /** Vercel preview protection-bypass token (web passes it explicitly). */
   protectionBypass?: string | null;
+  feedback?: MutationFeedback;
 }
 
 async function resolveToken(
@@ -78,9 +80,17 @@ export async function claimInvite(
  * Create-invite mutation, shared web/mobile. The generated link is returned
  * and shared/copied by the UI (no email form — a single button in a card).
  */
-export function useInvites({ apiUrl, token, getToken, protectionBypass }: UseInvitesOptions) {
+export function useInvites({
+  apiUrl,
+  token,
+  getToken,
+  protectionBypass,
+  feedback,
+}: UseInvitesOptions) {
   return useMutation({
     mutationFn: async () =>
       createInvite(apiUrl, await resolveToken(token, getToken), protectionBypass),
+    onMutate: () => feedback?.onOptimisticUpdate?.("create_invite"),
+    onError: (error: Error) => feedback?.onError?.(error, "create_invite"),
   });
 }
