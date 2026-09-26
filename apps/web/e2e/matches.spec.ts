@@ -125,6 +125,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   const confirmDialog = page.getByRole("dialog", { name: "Confirm match?" });
   await expect(confirmDialog.getByText(/Ark Nova/)).toBeVisible();
   await confirmDialog.getByRole("button", { name: "Confirm match" }).click();
+  await expect(confirmDialog).toHaveCount(0);
   await expect(page.getByText("Confirmed date")).toBeVisible();
   await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(0);
   await expect(page.getByRole("img", { name: /Yes: 2, No: 0/ })).toHaveCount(0);
@@ -140,18 +141,15 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
   await page.getByRole("button", { name: "More match actions" }).click();
   await page.getByRole("menuitem", { name: "Back to planning" }).click();
-  await page
-    .getByRole("dialog", { name: "Back to planning?" })
-    .getByRole("button", { name: "Back to planning" })
-    .click();
+  const replanDialog = page.getByRole("dialog", { name: "Back to planning?" });
+  await replanDialog.getByRole("button", { name: "Back to planning" }).click();
+  await expect(replanDialog).toHaveCount(0);
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Choose date: Yes" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm match" }).click();
-  await page
-    .getByRole("dialog", { name: "Confirm match?" })
-    .getByRole("button", { name: "Confirm match" })
-    .click();
+  await confirmDialog.getByRole("button", { name: "Confirm match" }).click();
+  await expect(confirmDialog).toHaveCount(0);
   await page.getByRole("button", { name: "Register results" }).click();
   await page.getByRole("textbox", { name: "Score: Admin" }).fill("-1,5");
   await page.getByRole("textbox", { name: "Score: Guest" }).fill("-1,5");
@@ -166,6 +164,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(registerDialog.getByText(/cannot be edited/)).toBeVisible();
   await expect(registerDialog.getByText("Guest")).toHaveCount(0);
   await registerDialog.getByRole("button", { name: "Register match" }).click();
+  await expect(registerDialog).toHaveCount(0);
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.getByText("ND")).toBeVisible();
   await expect(page.getByRole("button", { name: "Register results" })).toHaveCount(0);
@@ -416,7 +415,8 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Updated game night" })).toBeVisible();
 
   // Destructive admin action requires confirmation and removes the match.
-  await page.getByRole("button", { name: "Delete match" }).click();
+  await page.getByRole("button", { name: "More match actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete match" }).click();
   const deleteDialog = page.getByRole("dialog", { name: "Delete match?" });
   await expect(deleteDialog).toBeVisible();
   const deleteResponse = page.waitForResponse(
