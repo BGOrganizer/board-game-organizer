@@ -107,20 +107,26 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Overview"
     timeout: 30000
-- assertVisible: "Possible dates"
+- assertVisible: "Date selection"
 - assertVisible:
     id: "confirm-match-unavailable"
 - tapOn:
     id: "confirm-match-unavailable"
 - assertVisible: "Cannot confirm match"
 - assertVisible: "Not enough accepted players"
-- tapOn: "Possible dates"
+- tapOn: "Date selection"
 - tapOn:
     id: "choose-date"
 - assertVisible: "Choose date"
 - tapOn: "Yes"
 - assertVisible: "Choice saved"
 - assertVisible: "Choose date: Yes"
+- extendedWaitUntil:
+    visible: "Yes: 1, No: 0, If needed: 0, Not chosen: 0"
+    timeout: 30000
+- tapOn: "Vote count legend"
+- assertVisible: "Not chosen"
+- tapOn: "Date selection"
 - tapOn: "Players"
 - assertVisible: "Minimum players"
 - assertVisible: "Maximum players"
@@ -128,6 +134,7 @@ appId: com.bgo.mobile
 - assertVisible: "Administrator"
 - assertVisible: "Accepted"
 - tapOn: "Games"
+- assertVisible: "Game selection"
 - assertVisible: "Cascadia"
 - assertVisible: "2021"
 - tapOn:

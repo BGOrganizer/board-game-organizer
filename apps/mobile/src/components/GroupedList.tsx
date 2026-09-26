@@ -3,7 +3,7 @@ import { Children, type ReactNode } from "react";
 
 export function GroupedList({ children }: { children: ReactNode }) {
   if (Children.toArray(children).length === 0) return null;
-  return <ListGroup>{children}</ListGroup>;
+  return <ListGroup variant="transparent">{children}</ListGroup>;
 }
 
 export function GroupedRow({ children }: { children: ReactNode }) {

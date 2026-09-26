@@ -148,6 +148,9 @@ msgstr "Annullare la richiesta di amicizia?"
 msgid "Cancel request"
 msgstr "Annulla richiesta"
 
+#~ msgid "Cannot confirm match"
+#~ msgstr "Impossibile confermare la partita"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
 #~ msgstr "Modifiche applicate"
@@ -205,6 +208,9 @@ msgstr "Completa il tuo profilo"
 msgid "Confirm match"
 msgstr "Conferma partita"
 
+#~ msgid "Confirm match with"
+#~ msgstr "Confermare la partita con"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match?"
 msgstr "Confermare la partita?"
@@ -222,6 +228,10 @@ msgstr "Confermata"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirmed date"
 msgstr "Data confermata"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirmed game"
+msgstr "Gioco confermato"
 
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
@@ -410,6 +420,10 @@ msgstr "Crea invito"
 msgid "Creating invite"
 msgstr "Creazione dell'invito"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Date selection"
+msgstr "Selezione date"
+
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
@@ -507,6 +521,10 @@ msgstr "Richieste di amicizia"
 #: apps/web/src/components/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Game selection"
+msgstr "Selezione giochi"
 
 #: apps/web/src/components/Matches.tsx
 msgid "games"
@@ -861,8 +879,8 @@ msgid "Players"
 msgstr "Giocatori"
 
 #: apps/web/src/components/MatchDetail.tsx
-msgid "Possible dates"
-msgstr "Date possibili"
+#~ msgid "Possible dates"
+#~ msgstr "Date possibili"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Previous step"
@@ -1100,6 +1118,10 @@ msgstr "Vedi tutte le notifiche"
 msgid "View profile"
 msgstr "Visualizza profilo"
 
+#: apps/web/src/components/VoteCounts.tsx
+msgid "Vote count legend"
+msgstr "Legenda dei voti"
+
 #: apps/web/src/components/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"
 msgstr "Benvenuto in Board Game Organizer"
@@ -1131,11 +1153,7 @@ msgstr "Diventerete amici e vi seguirete a vicenda."
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "You will leave this match. The administrator can invite you again."
-msgstr "Abbandonerai la partita. L'amministratore potrà invitarti di nuovo."
-
-#: apps/web/src/components/MatchDetail.tsx
-#~ msgid "You will leave this match. The administrator can invite you again."
-#~ msgstr "Uscirai da questa partita. L'amministratore potrà invitarti di nuovo."
+msgstr "Uscirai da questa partita. L'amministratore potrà invitarti di nuovo."
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."

@@ -11,7 +11,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import {
   CalendarCheck2,
   Check,
@@ -296,7 +296,9 @@ export default function MatchDetailScreen() {
         )}
 
         {matches.detail.isError && (
-          <Text className="text-sm text-danger">{t("Could not load match details")}</Text>
+          <Typography className="text-sm text-danger">
+            {t("Could not load match details")}
+          </Typography>
         )}
 
         {matches.detail.data && (
@@ -377,7 +379,7 @@ export default function MatchDetailScreen() {
                       <View className={`h-2.5 w-2.5 rounded-full ${choiceBackgrounds[choice]}`} />
                     )}
                   </View>
-                  <Text className={`text-base ${choiceColors[choice]}`}>{label}</Text>
+                  <Typography className={`text-base ${choiceColors[choice]}`}>{label}</Typography>
                 </Pressable>
               );
             })}
@@ -467,9 +469,9 @@ function MatchDetailContent({
     <View style={{ gap: 16 }}>
       {ownInvitation?.status === "PENDING" && (
         <Card style={{ padding: 16, borderRadius: 12 }}>
-          <Text className="font-medium text-foreground">
+          <Typography className="font-medium text-foreground">
             {t("Your invitation is waiting for a response.")}
-          </Text>
+          </Typography>
           <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 6, marginTop: 10 }}>
             <Button
               isIconOnly
@@ -495,7 +497,9 @@ function MatchDetailContent({
       )}
 
       {responseError && (
-        <Text className="text-sm text-danger">{t("Could not update the invitation")}</Text>
+        <Typography className="text-sm text-danger">
+          {t("Could not update the invitation")}
+        </Typography>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} variant="primary">
@@ -513,12 +517,14 @@ function MatchDetailContent({
         </Tabs.List>
 
         <Tabs.Content value="overview" style={{ marginTop: 16 }}>
-          <Card style={{ padding: 18, borderRadius: 12 }}>
-            <Text className="text-xl font-semibold text-foreground">{match.name}</Text>
-            <Text className="mt-5 font-semibold text-foreground">
-              {match.status === "CREATED" ? t("Confirmed date") : t("Possible dates")}
-            </Text>
-            {data.voteSummary && <VoteLegend />}
+          <View style={{ gap: 12 }}>
+            <Typography className="text-xl font-semibold text-foreground">{match.name}</Typography>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Typography className="font-semibold text-foreground">
+                {match.status === "CREATED" ? t("Confirmed date") : t("Date selection")}
+              </Typography>
+              {data.voteSummary && <VoteLegend />}
+            </View>
             <GroupedList>
               {(match.status === "CREATED" && match.selectedDate
                 ? [match.selectedDate]
@@ -528,9 +534,9 @@ function MatchDetailContent({
                 return (
                   <GroupedRow key={date}>
                     <View style={{ flex: 1, gap: 3 }}>
-                      <Text className="text-sm text-foreground">
+                      <Typography className="text-sm text-foreground">
                         {new Date(date).toLocaleString()}
-                      </Text>
+                      </Typography>
                       {data.voteSummary?.dates[String(Date.parse(date))] && (
                         <VoteCounts counts={data.voteSummary.dates[String(Date.parse(date))]} />
                       )}
@@ -554,23 +560,29 @@ function MatchDetailContent({
                 );
               })}
             </GroupedList>
-          </Card>
+          </View>
         </Tabs.Content>
 
         <Tabs.Content value="players" style={{ marginTop: 16 }}>
-          <Card style={{ padding: 18, borderRadius: 12 }}>
-            <View style={{ flexDirection: "row", gap: 28 }}>
-              <View>
-                <Text className="text-sm text-muted">{t("Minimum players")}</Text>
-                <Text className="font-semibold text-foreground">{match.minPlayers}</Text>
+          <View style={{ gap: 12 }}>
+            {match.status === "PLANNING" && (
+              <View style={{ flexDirection: "row", gap: 28 }}>
+                <View>
+                  <Typography className="text-sm text-muted">{t("Minimum players")}</Typography>
+                  <Typography className="font-semibold text-foreground">
+                    {match.minPlayers}
+                  </Typography>
+                </View>
+                <View>
+                  <Typography className="text-sm text-muted">{t("Maximum players")}</Typography>
+                  <Typography className="font-semibold text-foreground">
+                    {match.maxPlayers}
+                  </Typography>
+                </View>
               </View>
-              <View>
-                <Text className="text-sm text-muted">{t("Maximum players")}</Text>
-                <Text className="font-semibold text-foreground">{match.maxPlayers}</Text>
-              </View>
-            </View>
+            )}
 
-            <Text className="mt-5 font-semibold text-foreground">{t("Participants")}</Text>
+            <Typography className="font-semibold text-foreground">{t("Participants")}</Typography>
             <GroupedList>
               {participants.map((player) => {
                 const statusLabel =
@@ -589,9 +601,9 @@ function MatchDetailContent({
                     </Avatar>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <Text className="font-medium text-foreground" numberOfLines={1}>
+                        <Typography className="font-medium text-foreground" numberOfLines={1}>
                           {player.name}
-                        </Text>
+                        </Typography>
                         {player.isAdministrator ? (
                           <View accessible accessibilityLabel={t("Administrator")}>
                             <Crown size={16} color="#f5a524" />
@@ -599,9 +611,9 @@ function MatchDetailContent({
                         ) : null}
                       </View>
                       {player.email ? (
-                        <Text className="text-sm text-muted" numberOfLines={1}>
+                        <Typography className="text-sm text-muted" numberOfLines={1}>
                           {player.email}
-                        </Text>
+                        </Typography>
                       ) : null}
                     </View>
                     <View accessible accessibilityRole="image" accessibilityLabel={statusLabel}>
@@ -617,83 +629,84 @@ function MatchDetailContent({
                 );
               })}
             </GroupedList>
-          </Card>
+          </View>
         </Tabs.Content>
 
         <Tabs.Content value="games" style={{ marginTop: 16 }}>
-          <Card style={{ padding: 18, borderRadius: 12 }}>
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Typography className="font-semibold text-foreground">
+                {match.status === "CREATED" ? t("Confirmed game") : t("Game selection")}
+              </Typography>
+              {data.voteSummary && <VoteLegend />}
+            </View>
             {games.length === 0 ? (
-              <Text className="text-sm text-muted">{t("No selected games")}</Text>
+              <Typography className="text-sm text-muted">{t("No selected games")}</Typography>
             ) : (
-              <View style={{ gap: 8 }}>
-                {data.voteSummary && <VoteLegend />}
-                <GroupedList>
-                  {games
-                    .filter(
-                      (game) => match.status !== "CREATED" || game.id === match.selectedGameId,
-                    )
-                    .map((game) => (
-                      <GroupedRow key={game.id}>
-                        <View
-                          className="bg-muted/20"
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 8,
-                            overflow: "hidden",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {game.thumbnail ? (
-                            <Image
-                              source={{ uri: game.thumbnail }}
-                              accessible={false}
-                              style={{ width: 40, height: 40 }}
-                            />
-                          ) : (
-                            <Gamepad2 size={18} color="#6b7280" />
-                          )}
-                        </View>
-                        <View style={{ flex: 1, gap: 3 }}>
-                          <Text className="font-medium text-foreground">{game.name}</Text>
-                          {game.yearPublished ? (
-                            <Text className="text-xs text-muted">{game.yearPublished}</Text>
-                          ) : null}
-                          {data.voteSummary?.games[String(game.id)] && (
-                            <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
-                          )}
-                        </View>
-                        {canChoose && (
-                          <Button
-                            variant="outline"
-                            isIconOnly
-                            size="sm"
-                            isDisabled={choicePending}
-                            testID="choose-game"
-                            accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
-                            onPress={() =>
-                              openChoice({
-                                kind: "games",
-                                itemId: game.id,
-                                title: t("Choose game"),
-                              })
-                            }
-                          >
-                            <ChoiceIcon
-                              choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                              color={
-                                iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]
-                              }
-                            />
-                          </Button>
+              <GroupedList>
+                {games
+                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
+                  .map((game) => (
+                    <GroupedRow key={game.id}>
+                      <View
+                        className="bg-muted/20"
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {game.thumbnail ? (
+                          <Image
+                            source={{ uri: game.thumbnail }}
+                            accessible={false}
+                            style={{ width: 40, height: 40 }}
+                          />
+                        ) : (
+                          <Gamepad2 size={18} color="#6b7280" />
                         )}
-                      </GroupedRow>
-                    ))}
-                </GroupedList>
-              </View>
+                      </View>
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <Typography className="font-medium text-foreground">{game.name}</Typography>
+                        {game.yearPublished ? (
+                          <Typography className="text-xs text-muted">
+                            {game.yearPublished}
+                          </Typography>
+                        ) : null}
+                        {data.voteSummary?.games[String(game.id)] && (
+                          <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
+                        )}
+                      </View>
+                      {canChoose && (
+                        <Button
+                          variant="outline"
+                          isIconOnly
+                          size="sm"
+                          isDisabled={choicePending}
+                          testID="choose-game"
+                          accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
+                          onPress={() =>
+                            openChoice({
+                              kind: "games",
+                              itemId: game.id,
+                              title: t("Choose game"),
+                            })
+                          }
+                        >
+                          <ChoiceIcon
+                            choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                            color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
+                          />
+                        </Button>
+                      )}
+                    </GroupedRow>
+                  ))}
+              </GroupedList>
             )}
-          </Card>
+          </View>
         </Tabs.Content>
       </Tabs>
     </View>

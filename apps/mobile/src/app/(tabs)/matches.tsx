@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { CalendarClock, Check, Crown, Plus, UserRound, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -45,7 +45,9 @@ export default function MatchesScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-        <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>{t("Matches")}</Text>
+        <Typography style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+          {t("Matches")}
+        </Typography>
 
         {matches.list.isPending && (
           <View style={{ gap: 12, width: "100%" }}>
@@ -67,12 +69,14 @@ export default function MatchesScreen() {
           </View>
         )}
         {matches.list.isError && (
-          <Text style={{ color: "#f31260", fontSize: 14 }}>{t("Could not load matches")}</Text>
+          <Typography style={{ color: "#f31260", fontSize: 14 }}>
+            {t("Could not load matches")}
+          </Typography>
         )}
         {matches.list.data && matches.list.data.length === 0 && (
-          <Text style={{ color: "#6b7280", fontSize: 14 }}>
+          <Typography style={{ color: "#6b7280", fontSize: 14 }}>
             {t("No matches yet — create your first one!")}
-          </Text>
+          </Typography>
         )}
 
         <View style={{ gap: 12 }}>
@@ -105,10 +109,10 @@ export default function MatchesScreen() {
                       <UserRound size={16} color="#6b7280" />
                     )}
                   </View>
-                  <Text style={{ fontSize: 15, fontWeight: "600" }}>{match.name}</Text>
-                  <Text className="text-xs text-muted">
+                  <Typography style={{ fontSize: 15, fontWeight: "600" }}>{match.name}</Typography>
+                  <Typography className="text-xs text-muted">
                     {match.status === "CREATED" ? t("Confirmed") : t("Planning")}
-                  </Text>
+                  </Typography>
                   <View
                     style={{
                       flexDirection: "row",
@@ -123,17 +127,17 @@ export default function MatchesScreen() {
                       ? [match.selectedDate]
                       : match.dates
                     ).map((date) => (
-                      <Text key={date} style={{ fontSize: 12, color: "#6b7280" }}>
+                      <Typography key={date} style={{ fontSize: 12, color: "#6b7280" }}>
                         {new Date(date).toLocaleString()}
-                      </Text>
+                      </Typography>
                     ))}
                   </View>
-                  <Text style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
+                  <Typography style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
                     {t("Players")}: {match.minPlayers}–{match.maxPlayers}
                     {match.status === "PLANNING" && match.gameIds.length > 0
                       ? ` · ${match.gameIds.length} ${t("games")}`
                       : ""}
-                  </Text>
+                  </Typography>
                 </Pressable>
 
                 {invitation?.status === "PENDING" && (
@@ -183,9 +187,9 @@ export default function MatchesScreen() {
         </View>
 
         {matches.respondInvitation.isError && (
-          <Text style={{ color: "#f31260", fontSize: 14, marginTop: 12 }}>
+          <Typography style={{ color: "#f31260", fontSize: 14, marginTop: 12 }}>
             {t("Could not update the invitation")}
-          </Text>
+          </Typography>
         )}
       </ScrollView>
 

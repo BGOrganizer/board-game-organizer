@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { Gamepad2, Plus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
@@ -120,9 +120,9 @@ export default function SearchGameScreen() {
         />
       </View>
       {error && (
-        <Text style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
+        <Typography style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
           {error}
-        </Text>
+        </Typography>
       )}
       {loading && (
         <View style={{ padding: 16, gap: 12 }}>
@@ -131,7 +131,9 @@ export default function SearchGameScreen() {
         </View>
       )}
       {!loading && items.length === 0 && query.trim().length >= 4 && (
-        <Text style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>{t("No games found")}</Text>
+        <Typography style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>
+          {t("No games found")}
+        </Typography>
       )}
       <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
         {items.map((item) => (
@@ -168,8 +170,10 @@ export default function SearchGameScreen() {
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Text>
-              {item.year ? <Text className="text-xs text-muted">{item.year}</Text> : null}
+              <Typography style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Typography>
+              {item.year ? (
+                <Typography className="text-xs text-muted">{item.year}</Typography>
+              ) : null}
             </View>
             <Button
               isIconOnly

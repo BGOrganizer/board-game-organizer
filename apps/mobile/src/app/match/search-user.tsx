@@ -8,7 +8,7 @@ import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -145,9 +145,9 @@ export default function SearchUserScreen() {
         />
       </View>
       {error && (
-        <Text style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
+        <Typography style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
           {error}
-        </Text>
+        </Typography>
       )}
       {loading && (
         <View style={{ padding: 16, gap: 12 }}>
@@ -156,7 +156,9 @@ export default function SearchUserScreen() {
         </View>
       )}
       {!loading && shown.length === 0 && query.trim().length >= 4 && (
-        <Text style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>{t("No users found")}</Text>
+        <Typography style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>
+          {t("No users found")}
+        </Typography>
       )}
       <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
         {shown.map((u) => (
@@ -177,8 +179,8 @@ export default function SearchUserScreen() {
               <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
             </Avatar>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Text>
-              <Text style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Text>
+              <Typography style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Typography>
+              <Typography style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Typography>
             </View>
             <Button
               isIconOnly

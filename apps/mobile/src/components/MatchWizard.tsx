@@ -8,7 +8,7 @@ import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import {
   ArrowLeft,
   ArrowRight,
@@ -308,21 +308,27 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                 backgroundColor: step === s ? "#006fee" : "#e5e7eb",
               }}
             >
-              <Text style={{ color: step === s ? "#fff" : "#6b7280", fontSize: 13 }}>{s}</Text>
+              <Typography style={{ color: step === s ? "#fff" : "#6b7280", fontSize: 13 }}>
+                {s}
+              </Typography>
             </View>
           ))}
         </View>
 
         {step === 1 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>
               {initialData ? t("Edit match") : t("New match")}
-            </Text>
+            </Typography>
             <Input value={name} onChangeText={setName} placeholder={t("e.g. Friday night games")} />
             {name.trim().length > 0 && name.trim().length < 5 && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>{t("At least 5 characters")}</Text>
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
+                {t("At least 5 characters")}
+              </Typography>
             )}
-            <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("When could you play?")}</Text>
+            <Typography style={{ color: "#6b7280", fontSize: 14 }}>
+              {t("When could you play?")}
+            </Typography>
             {dateSlots.map((slot) => (
               <View
                 key={slot.id}
@@ -353,9 +359,9 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                   }}
                 >
                   <CalendarClock color="#6b7280" size={18} />
-                  <Text style={{ color: slot.value ? "#111" : "#9ca3af" }}>
+                  <Typography style={{ color: slot.value ? "#111" : "#9ca3af" }}>
                     {slot.value ? new Date(slot.value).toLocaleString() : t("Pick date and time")}
-                  </Text>
+                  </Typography>
                 </Pressable>
                 {(dateSlots.length > 1 || slot.value !== null) && (
                   <Button
@@ -374,14 +380,14 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             ))}
             <Button onPress={addDateSlot}>
               <Plus size={16} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add another date")}</Text>
+              <Typography style={{ color: "#fff" }}>{t("Add another date")}</Typography>
             </Button>
           </View>
         )}
 
         {step === 2 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Players")}</Text>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Players")}</Typography>
             <View style={{ flexDirection: "row", gap: 24 }}>
               <Stepper
                 label={t("Min")}
@@ -397,11 +403,13 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
               />
             </View>
             {maxPlayers < minPlayers && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
                 {t("Max must be at least min")}
-              </Text>
+              </Typography>
             )}
-            <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("Invite friends")}</Text>
+            <Typography style={{ color: "#6b7280", fontSize: 14 }}>
+              {t("Invite friends")}
+            </Typography>
             {userSlots.map((slot) => (
               <View
                 key={slot.id}
@@ -446,11 +454,15 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                   <View style={{ flex: 1 }}>
                     {slot.user ? (
                       <>
-                        <Text style={{ fontSize: 14, fontWeight: "500" }}>{slot.user.name}</Text>
-                        <Text style={{ fontSize: 12, color: "#9ca3af" }}>{slot.user.email}</Text>
+                        <Typography style={{ fontSize: 14, fontWeight: "500" }}>
+                          {slot.user.name}
+                        </Typography>
+                        <Typography style={{ fontSize: 12, color: "#9ca3af" }}>
+                          {slot.user.email}
+                        </Typography>
                       </>
                     ) : (
-                      <Text style={{ color: "#9ca3af" }}>{t("Select a friend")}</Text>
+                      <Typography style={{ color: "#9ca3af" }}>{t("Select a friend")}</Typography>
                     )}
                   </View>
                 </Pressable>
@@ -478,7 +490,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
 
         {step === 3 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Text>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Typography>
             {gameSlots.map((slot) => (
               <View
                 key={slot.id}
@@ -538,13 +550,19 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                   <View style={{ flex: 1 }}>
                     {slot.game ? (
                       <>
-                        <Text style={{ fontSize: 14, fontWeight: "500" }}>{slot.game.name}</Text>
+                        <Typography style={{ fontSize: 14, fontWeight: "500" }}>
+                          {slot.game.name}
+                        </Typography>
                         {slot.game.year ? (
-                          <Text style={{ fontSize: 12, color: "#9ca3af" }}>{slot.game.year}</Text>
+                          <Typography style={{ fontSize: 12, color: "#9ca3af" }}>
+                            {slot.game.year}
+                          </Typography>
                         ) : null}
                       </>
                     ) : (
-                      <Text style={{ color: "#9ca3af" }}>{t("Select a board game")}</Text>
+                      <Typography style={{ color: "#9ca3af" }}>
+                        {t("Select a board game")}
+                      </Typography>
                     )}
                   </View>
                 </Pressable>
@@ -570,14 +588,14 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
               style={{ alignSelf: "flex-start" }}
             >
               <Plus size={14} color="#6b7280" />
-              <Text className="text-foreground" style={{ fontSize: 13 }}>
+              <Typography className="text-foreground" style={{ fontSize: 13 }}>
                 {t("Add another game")}
-              </Text>
+              </Typography>
             </Button>
             {(matches.create.isError || matches.update.isError) && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
                 {initialData ? t("Could not update the match") : t("Could not create the match")}
-              </Text>
+              </Typography>
             )}
           </View>
         )}
@@ -616,12 +634,12 @@ function Stepper({
 }) {
   return (
     <View style={{ alignItems: "center", gap: 4 }}>
-      <Text style={{ fontSize: 12, color: "#6b7280" }}>{label}</Text>
+      <Typography style={{ fontSize: 12, color: "#6b7280" }}>{label}</Typography>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Pressable onPress={onDec} style={{ padding: 8 }}>
           <Minus color="#111" size={18} />
         </Pressable>
-        <Text style={{ fontSize: 20, fontWeight: "700" }}>{value}</Text>
+        <Typography style={{ fontSize: 20, fontWeight: "700" }}>{value}</Typography>
         <Pressable onPress={onInc} style={{ padding: 8 }}>
           <Plus color="#111" size={18} />
         </Pressable>

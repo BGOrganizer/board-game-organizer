@@ -148,6 +148,9 @@ msgstr "Cancel friend request?"
 msgid "Cancel request"
 msgstr "Cancel request"
 
+#~ msgid "Cannot confirm match"
+#~ msgstr "Cannot confirm match"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
 #~ msgstr "Changes applied"
@@ -205,6 +208,9 @@ msgstr "Complete your profile"
 msgid "Confirm match"
 msgstr "Confirm match"
 
+#~ msgid "Confirm match with"
+#~ msgstr "Confirm match with"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match?"
 msgstr "Confirm match?"
@@ -222,6 +228,10 @@ msgstr "Confirmed"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirmed date"
 msgstr "Confirmed date"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirmed game"
+msgstr "Confirmed game"
 
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
@@ -410,6 +420,10 @@ msgstr "Create invite"
 msgid "Creating invite"
 msgstr "Creating invite"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Date selection"
+msgstr "Date selection"
+
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
@@ -507,6 +521,10 @@ msgstr "Friend requests"
 #: apps/web/src/components/Profile.tsx
 msgid "Friends"
 msgstr "Friends"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Game selection"
+msgstr "Game selection"
 
 #: apps/web/src/components/Matches.tsx
 msgid "games"
@@ -861,8 +879,8 @@ msgid "Players"
 msgstr "Players"
 
 #: apps/web/src/components/MatchDetail.tsx
-msgid "Possible dates"
-msgstr "Possible dates"
+#~ msgid "Possible dates"
+#~ msgstr "Possible dates"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Previous step"
@@ -1100,6 +1118,10 @@ msgstr "View all notifications"
 msgid "View profile"
 msgstr "View profile"
 
+#: apps/web/src/components/VoteCounts.tsx
+msgid "Vote count legend"
+msgstr "Vote count legend"
+
 #: apps/web/src/components/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"
 msgstr "Welcome to Board Game Organizer"
@@ -1132,10 +1154,6 @@ msgstr "You will become friends and follow each other."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "You will leave this match. The administrator can invite you again."
 msgstr "You will leave this match. The administrator can invite you again."
-
-#: apps/web/src/components/MatchDetail.tsx
-#~ msgid "You will leave this match. The administrator can invite you again."
-#~ msgstr "You will leave this match. The administrator can invite you again."
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."

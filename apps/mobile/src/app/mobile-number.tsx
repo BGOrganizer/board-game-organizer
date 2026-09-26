@@ -4,7 +4,7 @@ import { Redirect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { useState } from "react";
 import { View } from "react-native";
 
@@ -59,10 +59,14 @@ export default function MobileNumberScreen() {
 
   return (
     <View className="flex-1 bg-background p-6" style={{ justifyContent: "center", gap: 16 }}>
-      <Text style={{ fontSize: 28, fontWeight: "700" }}>{t("Complete your profile")}</Text>
-      <Text className="text-foreground/60">{t("Add your mobile number to continue.")}</Text>
+      <Typography style={{ fontSize: 28, fontWeight: "700" }}>
+        {t("Complete your profile")}
+      </Typography>
+      <Typography className="text-foreground/60">
+        {t("Add your mobile number to continue.")}
+      </Typography>
       <View style={{ gap: 8 }}>
-        <Text style={{ fontWeight: "600" }}>{t("Mobile number")}</Text>
+        <Typography style={{ fontWeight: "600" }}>{t("Mobile number")}</Typography>
         <Input
           accessibilityLabel={t("Mobile number")}
           autoComplete="tel"
@@ -73,16 +77,18 @@ export default function MobileNumberScreen() {
         />
       </View>
       {error ? (
-        <Text accessibilityRole="alert" className="text-danger">
+        <Typography accessibilityRole="alert" className="text-danger">
           {error}
-        </Text>
+        </Typography>
       ) : null}
       <Button
         variant="primary"
         isDisabled={isSaving || !mobileNumber.trim()}
         onPress={() => void saveMobileNumber()}
       >
-        <Text className="text-primary-foreground">{isSaving ? t("Saving…") : t("Continue")}</Text>
+        <Typography className="text-primary-foreground">
+          {isSaving ? t("Saving…") : t("Continue")}
+        </Typography>
       </Button>
     </View>
   );

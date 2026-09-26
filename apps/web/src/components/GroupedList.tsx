@@ -8,13 +8,7 @@ export function GroupedList({
   className?: string;
 }) {
   if (Children.toArray(children).length === 0) return null;
-  return (
-    <ul
-      className={`divide-y divide-default-200 overflow-hidden rounded-xl border border-default-200 ${className}`}
-    >
-      {children}
-    </ul>
-  );
+  return <ul className={`divide-y divide-default-200 ${className}`}>{children}</ul>;
 }
 
 export function GroupedRow({

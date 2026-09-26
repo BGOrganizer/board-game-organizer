@@ -1,7 +1,7 @@
 import { Show, useUser } from "@clerk/expo";
 import { UserButton } from "@clerk/expo/native";
 
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { View } from "react-native";
 
 export function Header() {
@@ -9,12 +9,12 @@ export function Header() {
 
   return (
     <View className="mb-6 flex-row items-center justify-between">
-      <Text className="text-xl font-bold">Board Game Organizer</Text>
+      <Typography className="text-xl font-bold">Board Game Organizer</Typography>
       <Show when="signed-in">
         <View className="flex-row items-center gap-2">
-          <Text className="text-sm text-muted">
+          <Typography className="text-sm text-muted">
             {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
-          </Text>
+          </Typography>
           <UserButton />
         </View>
       </Show>

@@ -15,7 +15,7 @@ import { Button } from "heroui-native/button";
 import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import {
   BookUser,
   MoreVertical,
@@ -539,7 +539,9 @@ export default function ContactsScreen() {
               size="md"
               onPress={() => router.setParams({ tab: key })}
             >
-              <Text className={tab === key ? "text-accent-foreground" : "text-muted"}>{label}</Text>
+              <Typography className={tab === key ? "text-accent-foreground" : "text-muted"}>
+                {label}
+              </Typography>
             </Chip>
           ))}
         </View>
@@ -574,15 +576,17 @@ export default function ContactsScreen() {
               )}
             </View>
             {query.trim().length > 0 && query.trim().length < 4 && (
-              <Text style={{ fontSize: 13, color: "#8e8e93" }}>
+              <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
                 {t("Type at least 4 characters to search")}
-              </Text>
+              </Typography>
             )}
             {contacts.search.isLoading && <ContactListSkeleton count={2} />}
             {query.trim().length >= 4 &&
               !contacts.search.isLoading &&
               searchResults.length === 0 && (
-                <Text style={{ fontSize: 13, color: "#8e8e93" }}>{t("No users found")}</Text>
+                <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
+                  {t("No users found")}
+                </Typography>
               )}
             <GroupedList>
               {searchResults.map((u) => (
@@ -594,16 +598,16 @@ export default function ContactsScreen() {
                   />
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text className="font-medium">{u.name}</Text>
+                      <Typography className="font-medium">{u.name}</Typography>
                     </View>
                     {u.email ? (
-                      <Text
+                      <Typography
                         numberOfLines={1}
                         ellipsizeMode="tail"
                         style={{ fontSize: 13, color: "#8e8e93" }}
                       >
                         {u.email}
-                      </Text>
+                      </Typography>
                     ) : null}
                   </View>
                   {relationshipActions(u)}
@@ -642,15 +646,15 @@ export default function ContactsScreen() {
               },
             ].map((section) => (
               <View key={section.key} style={{ gap: 8 }}>
-                <Text className="font-semibold text-foreground">{section.label}</Text>
+                <Typography className="font-semibold text-foreground">{section.label}</Typography>
                 {section.isLoading && <ContactListSkeleton count={2} />}
                 {section.isError && (
-                  <Text accessibilityRole="alert" className="text-sm text-danger">
+                  <Typography accessibilityRole="alert" className="text-sm text-danger">
                     {t("Could not load friend requests")}
-                  </Text>
+                  </Typography>
                 )}
                 {!section.isLoading && !section.isError && section.rows.length === 0 && (
-                  <Text className="text-sm text-muted">{section.empty}</Text>
+                  <Typography className="text-sm text-muted">{section.empty}</Typography>
                 )}
                 <GroupedList>
                   {section.rows.map((row) => {
@@ -664,11 +668,13 @@ export default function ContactsScreen() {
                           online={profile.presence.online}
                         />
                         <View style={{ flex: 1 }}>
-                          <Text className="font-medium text-foreground">{profile.name}</Text>
+                          <Typography className="font-medium text-foreground">
+                            {profile.name}
+                          </Typography>
                           {profile.email ? (
-                            <Text className="text-sm text-muted" numberOfLines={1}>
+                            <Typography className="text-sm text-muted" numberOfLines={1}>
                               {profile.email}
-                            </Text>
+                            </Typography>
                           ) : null}
                         </View>
                         {section.key === "received" ? (
@@ -717,11 +723,11 @@ export default function ContactsScreen() {
               contactsPermission !== "checking" &&
               contactsPermission !== "granted" && (
                 <View style={{ gap: 8 }}>
-                  <Text className="text-sm text-muted">
+                  <Typography className="text-sm text-muted">
                     {contactsPermission === "denied"
                       ? t("Allow address book access to find your friends here.")
                       : t("No suggestions yet — sync your address book to find friends.")}
-                  </Text>
+                  </Typography>
                   <Button
                     variant="outline"
                     size="sm"
@@ -729,7 +735,7 @@ export default function ContactsScreen() {
                     onPress={confirmAndRequestContacts}
                   >
                     <BookUser size={16} color="#111" />
-                    <Text>{t("Add contacts")}</Text>
+                    <Typography>{t("Add contacts")}</Typography>
                   </Button>
                 </View>
               )}
@@ -737,11 +743,11 @@ export default function ContactsScreen() {
               !syncingContacts &&
               contactsPermission === "granted" &&
               suggestions.length === 0 && (
-                <Text className="text-sm text-muted">
+                <Typography className="text-sm text-muted">
                   {hasContacts
                     ? t("No friends from your contacts are on Board Game Organizer yet.")
                     : t("No contacts found in your address book.")}
-                </Text>
+                </Typography>
               )}
             <GroupedList>
               {visibleSuggestions.map((u) => (
@@ -753,16 +759,16 @@ export default function ContactsScreen() {
                   />
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text className="font-medium">{u.name}</Text>
+                      <Typography className="font-medium">{u.name}</Typography>
                     </View>
                     {u.email ? (
-                      <Text
+                      <Typography
                         numberOfLines={1}
                         ellipsizeMode="tail"
                         style={{ fontSize: 13, color: "#8e8e93" }}
                       >
                         {u.email}
-                      </Text>
+                      </Typography>
                     ) : null}
                   </View>
                   {relationshipActions(u)}
@@ -784,14 +790,14 @@ export default function ContactsScreen() {
           <View style={{ gap: 8 }}>
             {listLoading && <ContactListSkeleton count={4} />}
             {listError && (
-              <Text accessibilityRole="alert" className="text-sm text-danger">
+              <Typography accessibilityRole="alert" className="text-sm text-danger">
                 {listTab === "friends" ? t("Could not load friends") : t("Could not load contacts")}
-              </Text>
+              </Typography>
             )}
             {listRows.length === 0 && !listLoading && !listError && (
-              <Text className="text-sm text-muted" style={{ textAlign: "left" }}>
+              <Typography className="text-sm text-muted" style={{ textAlign: "left" }}>
                 {listEmpty}
-              </Text>
+              </Typography>
             )}
             <GroupedList>
               {listRows.map((row) => {
@@ -812,16 +818,16 @@ export default function ContactsScreen() {
                     />
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <Text className="font-medium">{profile.name}</Text>
+                        <Typography className="font-medium">{profile.name}</Typography>
                       </View>
                       {profile.email ? (
-                        <Text
+                        <Typography
                           numberOfLines={1}
                           ellipsizeMode="tail"
                           style={{ fontSize: 13, color: "#8e8e93" }}
                         >
                           {profile.email}
-                        </Text>
+                        </Typography>
                       ) : null}
                     </View>
                     {listTab === "blocked" ? null : relationshipActions(actionUser)}

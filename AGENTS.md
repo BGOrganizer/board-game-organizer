@@ -384,7 +384,7 @@ Keep `index.tsx` authentication navigation declarative with `<Redirect>`; an eff
 Use heroui-native components and Uniwind classes. Use explicit React Native style objects for
 structural layout (`flex`, row direction, gaps, dimensions) because generated utility availability is
 not reliable at runtime. Use classes for theme-aware visual styling. Every text element needs a
-visible theme-aware color or heroui-native's Text default.
+visible theme-aware color or heroui-native's Typography default.
 
 `global.css` must retain `@source "./src"`; otherwise app utility classes are not generated.
 

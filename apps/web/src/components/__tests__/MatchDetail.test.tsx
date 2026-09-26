@@ -290,7 +290,11 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     expect(screen.getByText("Confirmed date")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Choose date/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    expect(screen.queryByText("Minimum players")).toBeNull();
+    expect(screen.queryByText("Maximum players")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(screen.getByRole("heading", { name: "Confirmed game" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Choose game/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back to planning" }));
     expect(screen.getByRole("dialog", { name: "Back to planning?" })).toBeTruthy();
@@ -304,6 +308,39 @@ describe("MatchDetail", () => {
       "PLANNING",
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it("shows colored choice counts and a compact legend tooltip beside option headings", async () => {
+    authMock.userId = "user_admin";
+    const key = String(Date.parse(detail.match.dates[0]));
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        voteSummary: {
+          dates: { [key]: { yes: 1, no: 1, ifNeeded: 0, notChosen: 0 } },
+          games: { "1": { yes: 0, no: 1, ifNeeded: 1, notChosen: 0 } },
+          reasons: ["NO_SHARED_DATE", "NO_SHARED_GAME"],
+        },
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    expect(
+      screen.getByRole("heading", { name: "Date selection" }).closest('[data-slot="card"]'),
+    ).toBeNull();
+    const votes = screen.getByRole("img", { name: "Yes: 1, No: 1, If needed: 0, Not chosen: 0" });
+    expect(within(votes).getByText("✓ 1").className).toContain("text-success");
+    expect(within(votes).getByText("× 1").className).toContain("text-danger");
+    expect(within(votes).getByText("~ 0").className).toContain("text-warning");
+    expect(within(votes).getByText("? 0").className).toContain("text-default-500");
+    fireEvent.focus(screen.getByRole("button", { name: "Vote count legend" }));
+    expect(await screen.findByText("? Not chosen")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(
+      screen.getByRole("heading", { name: "Game selection" }).closest('[data-slot="card"]'),
+    ).toBeNull();
+    expect(
+      screen.getByRole("img", { name: "Yes: 0, No: 1, If needed: 1, Not chosen: 0" }),
+    ).toBeTruthy();
   });
 
   it("keeps confirmation unavailable while votes are missing and shows the reason on focus", async () => {

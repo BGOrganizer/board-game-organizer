@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 import { Redirect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { CheckCheck } from "lucide-react-native";
 import { Pressable, ScrollView, View } from "react-native";
 import { defaultI18n, useT } from "@/lib/i18n";
@@ -56,7 +56,7 @@ export default function NotificationsScreen() {
 
       {notifications.list.isError && (
         <View className="rounded-xl border border-danger bg-danger/10 p-4" style={{ gap: 12 }}>
-          <Text className="text-danger">{t("Could not load notifications")}</Text>
+          <Typography className="text-danger">{t("Could not load notifications")}</Typography>
           <Button size="sm" variant="outline" onPress={() => void notifications.list.refetch()}>
             {t("Try again")}
           </Button>
@@ -66,9 +66,9 @@ export default function NotificationsScreen() {
       {!notifications.list.isPending &&
         !notifications.list.isError &&
         notifications.notifications.length === 0 && (
-          <Text className="rounded-xl border border-border p-8 text-center text-muted">
+          <Typography className="rounded-xl border border-border p-8 text-center text-muted">
             {t("No notifications yet")}
-          </Text>
+          </Typography>
         )}
 
       {notifications.notifications.map((notification) => (
@@ -87,14 +87,14 @@ export default function NotificationsScreen() {
         >
           {!notification.readAt && <View className="mt-2 h-2 w-2 rounded-full bg-accent" />}
           <View style={{ flex: 1, gap: 4 }}>
-            <Text className="font-medium">{notification.title}</Text>
-            <Text className="text-sm text-muted">{notification.description}</Text>
-            <Text className="text-xs text-muted">
+            <Typography className="font-medium">{notification.title}</Typography>
+            <Typography className="text-sm text-muted">{notification.description}</Typography>
+            <Typography className="text-xs text-muted">
               {new Intl.DateTimeFormat(defaultI18n.locale, {
                 dateStyle: "medium",
                 timeStyle: "short",
               }).format(new Date(notification.createdAt))}
-            </Text>
+            </Typography>
           </View>
         </Pressable>
       ))}

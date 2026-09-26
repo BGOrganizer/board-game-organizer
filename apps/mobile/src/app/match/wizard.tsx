@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { MatchWizard } from "@/components/MatchWizard";
@@ -95,7 +95,7 @@ export default function MatchWizardScreen() {
     return (
       <View style={{ flex: 1, padding: 20 }}>
         <Stack.Screen options={{ title: t("Edit match") }} />
-        <Text className="text-sm text-danger">{t("Could not load match details")}</Text>
+        <Typography className="text-sm text-danger">{t("Could not load match details")}</Typography>
       </View>
     );
   }

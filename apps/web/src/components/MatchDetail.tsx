@@ -348,14 +348,16 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         </Tabs.ListContainer>
 
         <Tabs.Panel id="overview">
-          <Card className="space-y-4 rounded-xl p-5">
+          <div className="space-y-4">
             <h1 className="text-xl font-semibold">{match.name}</h1>
             <div>
-              <h2 className="mb-2 text-sm font-semibold">
-                {match.status === "CREATED" ? t`Confirmed date` : t`Possible dates`}
-              </h2>
-              {summary && <VoteLegend />}
-              <GroupedList className="border-0 text-sm text-default-600">
+              <div className="mb-2 flex items-center gap-1">
+                <h2 className="text-sm font-semibold">
+                  {match.status === "CREATED" ? t`Confirmed date` : t`Date selection`}
+                </h2>
+                {summary && <VoteLegend />}
+              </div>
+              <GroupedList className="text-sm text-default-600">
                 {(match.status === "CREATED" && match.selectedDate
                   ? [match.selectedDate]
                   : match.dates
@@ -379,21 +381,23 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 ))}
               </GroupedList>
             </div>
-          </Card>
+          </div>
         </Tabs.Panel>
 
         <Tabs.Panel id="players">
-          <Card className="space-y-5 rounded-xl p-5">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-default-500">{t`Minimum players`}</p>
-                <p className="font-semibold">{match.minPlayers}</p>
+          <div className="space-y-5">
+            {match.status === "PLANNING" && (
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-default-500">{t`Minimum players`}</p>
+                  <p className="font-semibold">{match.minPlayers}</p>
+                </div>
+                <div>
+                  <p className="text-default-500">{t`Maximum players`}</p>
+                  <p className="font-semibold">{match.maxPlayers}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-default-500">{t`Maximum players`}</p>
-                <p className="font-semibold">{match.maxPlayers}</p>
-              </div>
-            </div>
+            )}
             <div>
               <h2 className="mb-2 text-sm font-semibold">{t`Participants`}</h2>
               <GroupedList>
@@ -439,60 +443,55 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 ))}
               </GroupedList>
             </div>
-          </Card>
+          </div>
         </Tabs.Panel>
 
         <Tabs.Panel id="games">
-          <Card className="rounded-xl p-5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <h2 className="text-sm font-semibold">
+                {match.status === "CREATED" ? t`Confirmed game` : t`Game selection`}
+              </h2>
+              {summary && <VoteLegend />}
+            </div>
             {games.length === 0 ? (
               <p className="text-sm text-default-500">{t`No selected games`}</p>
             ) : (
-              <>
-                {summary && <VoteLegend />}
-                <GroupedList className="border-0">
-                  {games
-                    .filter(
-                      (game) => match.status !== "CREATED" || game.id === match.selectedGameId,
-                    )
-                    .map((game) => (
-                      <GroupedRow key={game.id} className="flex-wrap">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
-                          {game.thumbnail ? (
-                            // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-                            <img
-                              src={game.thumbnail}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <Gamepad2 className="h-5 w-5 text-default-400" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{game.name}</p>
-                          {game.yearPublished ? (
-                            <p className="text-xs text-default-500">{game.yearPublished}</p>
-                          ) : null}
-                        </div>
-                        {canChoose && (
-                          <ChoiceDropdown
-                            label={t`Choose game`}
-                            choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                            pending={matches.setChoice.isPending}
-                            onChoose={(choice) =>
-                              choose({ kind: "games", itemId: game.id, choice })
-                            }
-                          />
+              <GroupedList>
+                {games
+                  .filter((game) => match.status !== "CREATED" || game.id === match.selectedGameId)
+                  .map((game) => (
+                    <GroupedRow key={game.id} className="flex-wrap">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+                        {game.thumbnail ? (
+                          // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                          <img src={game.thumbnail} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Gamepad2 className="h-5 w-5 text-default-400" />
                         )}
-                        {summary?.games[String(game.id)] && (
-                          <VoteCounts counts={summary.games[String(game.id)]} />
-                        )}
-                      </GroupedRow>
-                    ))}
-                </GroupedList>
-              </>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{game.name}</p>
+                        {game.yearPublished ? (
+                          <p className="text-xs text-default-500">{game.yearPublished}</p>
+                        ) : null}
+                      </div>
+                      {canChoose && (
+                        <ChoiceDropdown
+                          label={t`Choose game`}
+                          choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                          pending={matches.setChoice.isPending}
+                          onChoose={(choice) => choose({ kind: "games", itemId: game.id, choice })}
+                        />
+                      )}
+                      {summary?.games[String(game.id)] && (
+                        <VoteCounts counts={summary.games[String(game.id)]} />
+                      )}
+                    </GroupedRow>
+                  ))}
+              </GroupedList>
             )}
-          </Card>
+          </div>
         </Tabs.Panel>
       </Tabs>
 

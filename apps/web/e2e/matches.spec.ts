@@ -88,6 +88,12 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
     });
   });
   await page.goto(`/matches/${matchId}`);
+  await expect(page.getByRole("heading", { name: "Date selection" })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Vote count legend" }).hover();
+  await expect(page.getByText("? Not chosen")).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm match" }).click();
   const confirmDialog = page.getByRole("dialog", { name: "Confirm match?" });
@@ -95,7 +101,11 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
   await confirmDialog.getByRole("button", { name: "Confirm match" }).click();
   await expect(page.getByText("Confirmed date")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose date/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Players" }).click();
+  await expect(page.getByText("Minimum players")).toHaveCount(0);
+  await expect(page.getByText("Maximum players")).toHaveCount(0);
   await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByRole("heading", { name: "Confirmed game" })).toBeVisible();
   await expect(page.getByText("Ark Nova")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Back to planning" }).click();
@@ -295,6 +305,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   }
 
   await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByRole("heading", { name: "Game selection" })).toBeVisible();
   await expect(page.getByText("Cascadia").first()).toBeVisible();
   await expect(page.getByText("2021").first()).toBeVisible();
   const gameChoiceResponse = page.waitForResponse(

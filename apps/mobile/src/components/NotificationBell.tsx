@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
+import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, View } from "react-native";
@@ -170,9 +170,9 @@ export function NotificationBell() {
               zIndex: 1,
             }}
           >
-            <Text style={{ color: "white", fontSize: 9, fontWeight: "700", lineHeight: 11 }}>
+            <Typography style={{ color: "white", fontSize: 9, fontWeight: "700", lineHeight: 11 }}>
               {countLabel}
-            </Text>
+            </Typography>
           </View>
         )}
       </View>
@@ -215,12 +215,16 @@ export function NotificationBell() {
               </View>
             )}
             {notifications.list.isError && (
-              <Text className="text-sm text-danger">{t("Could not load notifications")}</Text>
+              <Typography className="text-sm text-danger">
+                {t("Could not load notifications")}
+              </Typography>
             )}
             {!notifications.list.isPending &&
               !notifications.list.isError &&
               notifications.notifications.length === 0 && (
-                <Text className="py-3 text-sm text-muted">{t("No notifications yet")}</Text>
+                <Typography className="py-3 text-sm text-muted">
+                  {t("No notifications yet")}
+                </Typography>
               )}
             {notifications.notifications.map((notification) => (
               <Pressable
@@ -237,16 +241,16 @@ export function NotificationBell() {
                   <View className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
                 )}
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text className="text-sm font-medium">{notification.title}</Text>
-                  <Text className="text-xs text-muted" numberOfLines={2}>
+                  <Typography className="text-sm font-medium">{notification.title}</Typography>
+                  <Typography className="text-xs text-muted" numberOfLines={2}>
                     {notification.description}
-                  </Text>
-                  <Text className="text-[10px] text-muted">
+                  </Typography>
+                  <Typography className="text-[10px] text-muted">
                     {new Intl.DateTimeFormat(defaultI18n.locale, {
                       dateStyle: "short",
                       timeStyle: "short",
                     }).format(new Date(notification.createdAt))}
-                  </Text>
+                  </Typography>
                 </View>
               </Pressable>
             ))}
@@ -257,9 +261,9 @@ export function NotificationBell() {
               </Button>
             )}
             {pushError && (
-              <Text className="text-xs text-danger">
+              <Typography className="text-xs text-danger">
                 {t("Could not enable push notifications")}
-              </Text>
+              </Typography>
             )}
             {permission.status === "granted" && (
               <Button
