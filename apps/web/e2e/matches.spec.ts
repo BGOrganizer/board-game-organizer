@@ -100,12 +100,16 @@ test("admin confirms a shared match and reopens planning", async ({ page }) => {
   await expect(confirmDialog.getByText(/Ark Nova/)).toBeVisible();
   await confirmDialog.getByRole("button", { name: "Confirm match" }).click();
   await expect(page.getByText("Confirmed date")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /Yes: 2, No: 0/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Choose date/ })).toHaveCount(0);
   await page.getByRole("tab", { name: "Players" }).click();
   await expect(page.getByText("Minimum players")).toHaveCount(0);
   await expect(page.getByText("Maximum players")).toHaveCount(0);
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.getByRole("heading", { name: "Confirmed game" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(0);
+  await expect(page.getByRole("img", { name: /Yes: 1, No: 0/ })).toHaveCount(0);
   await expect(page.getByText("Ark Nova")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Back to planning" }).click();

@@ -7,6 +7,7 @@ import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { SearchGamePage } from "./SearchGamePage";
 import { SearchUserPage } from "./SearchUserPage";
@@ -307,11 +308,11 @@ export function MatchWizard({
             <p className="text-sm text-danger">{t`At least 5 characters`}</p>
           )}{" "}
           <p className="text-sm text-default-500">{t`When could you play?`}</p>
-          <div className="space-y-2">
+          <GroupedList>
             {dateSlots.map((slot) => (
-              <div
+              <GroupedRow
                 key={slot.id}
-                className="flex w-full items-center gap-2 rounded-lg border border-default-200 pr-2 focus-within:border-primary"
+                className="gap-2 focus-within:ring-2 focus-within:ring-primary"
               >
                 {/* Native datetime-local: the accessible best practice for
                     date+time picking on the web (no extra deps, keyboard
@@ -337,9 +338,9 @@ export function MatchWizard({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-              </div>
+              </GroupedRow>
             ))}
-          </div>
+          </GroupedList>
           <Button variant="secondary" onPress={addDateSlot}>
             {t`Add another date`}
           </Button>
@@ -400,11 +401,11 @@ export function MatchWizard({
           )}
 
           <p className="text-sm text-default-500">{t`Invite friends`}</p>
-          <div className="space-y-2">
+          <GroupedList>
             {userSlots.map((slot) => (
-              <div key={slot.id} className="relative w-full">
+              <GroupedRow key={slot.id} className="relative">
                 <Button
-                  variant="secondary"
+                  variant="ghost"
                   className="w-full min-w-0 justify-start pr-12"
                   onPress={() => setSearchTarget({ slotId: slot.id })}
                 >
@@ -444,20 +445,20 @@ export function MatchWizard({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-              </div>
+              </GroupedRow>
             ))}
-          </div>
+          </GroupedList>
         </div>
       )}
 
       {step === 3 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">{t`Board games`}</h2>
-          <div className="space-y-2">
+          <GroupedList>
             {gameSlots.map((slot) => (
-              <div key={slot.id} className="relative w-full">
+              <GroupedRow key={slot.id} className="relative">
                 <Button
-                  variant="secondary"
+                  variant="ghost"
                   className="w-full min-w-0 justify-start pr-12"
                   onPress={() =>
                     setGameTarget({
@@ -511,9 +512,9 @@ export function MatchWizard({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-              </div>
+              </GroupedRow>
             ))}
-          </div>
+          </GroupedList>
           <Button
             size="sm"
             variant="secondary"

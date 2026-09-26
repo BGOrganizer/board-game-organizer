@@ -355,7 +355,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 <h2 className="text-sm font-semibold">
                   {match.status === "CREATED" ? t`Confirmed date` : t`Date selection`}
                 </h2>
-                {summary && <VoteLegend />}
+                {match.status === "PLANNING" && summary && <VoteLegend />}
               </div>
               <GroupedList className="text-sm text-default-600">
                 {(match.status === "CREATED" && match.selectedDate
@@ -374,7 +374,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                         onChoose={(choice) => choose({ kind: "dates", itemId: date, choice })}
                       />
                     )}
-                    {summary?.dates[String(Date.parse(date))] && (
+                    {match.status === "PLANNING" && summary?.dates[String(Date.parse(date))] && (
                       <VoteCounts counts={summary.dates[String(Date.parse(date))]} />
                     )}
                   </GroupedRow>
@@ -452,7 +452,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               <h2 className="text-sm font-semibold">
                 {match.status === "CREATED" ? t`Confirmed game` : t`Game selection`}
               </h2>
-              {summary && <VoteLegend />}
+              {match.status === "PLANNING" && summary && <VoteLegend />}
             </div>
             {games.length === 0 ? (
               <p className="text-sm text-default-500">{t`No selected games`}</p>
@@ -484,7 +484,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                           onChoose={(choice) => choose({ kind: "games", itemId: game.id, choice })}
                         />
                       )}
-                      {summary?.games[String(game.id)] && (
+                      {match.status === "PLANNING" && summary?.games[String(game.id)] && (
                         <VoteCounts counts={summary.games[String(game.id)]} />
                       )}
                     </GroupedRow>

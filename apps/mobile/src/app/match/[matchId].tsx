@@ -523,7 +523,7 @@ function MatchDetailContent({
               <Typography className="font-semibold text-foreground">
                 {match.status === "CREATED" ? t("Confirmed date") : t("Date selection")}
               </Typography>
-              {data.voteSummary && <VoteLegend />}
+              {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
             </View>
             <GroupedList>
               {(match.status === "CREATED" && match.selectedDate
@@ -537,9 +537,10 @@ function MatchDetailContent({
                       <Typography className="text-sm text-foreground">
                         {new Date(date).toLocaleString()}
                       </Typography>
-                      {data.voteSummary?.dates[String(Date.parse(date))] && (
-                        <VoteCounts counts={data.voteSummary.dates[String(Date.parse(date))]} />
-                      )}
+                      {match.status === "PLANNING" &&
+                        data.voteSummary?.dates[String(Date.parse(date))] && (
+                          <VoteCounts counts={data.voteSummary.dates[String(Date.parse(date))]} />
+                        )}
                     </View>
                     {canChoose && (
                       <Button
@@ -638,7 +639,7 @@ function MatchDetailContent({
               <Typography className="font-semibold text-foreground">
                 {match.status === "CREATED" ? t("Confirmed game") : t("Game selection")}
               </Typography>
-              {data.voteSummary && <VoteLegend />}
+              {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
             </View>
             {games.length === 0 ? (
               <Typography className="text-sm text-muted">{t("No selected games")}</Typography>
@@ -676,9 +677,10 @@ function MatchDetailContent({
                             {game.yearPublished}
                           </Typography>
                         ) : null}
-                        {data.voteSummary?.games[String(game.id)] && (
-                          <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
-                        )}
+                        {match.status === "PLANNING" &&
+                          data.voteSummary?.games[String(game.id)] && (
+                            <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
+                          )}
                       </View>
                       {canChoose && (
                         <Button

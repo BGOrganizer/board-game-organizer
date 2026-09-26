@@ -285,16 +285,21 @@ describe("MatchDetail", () => {
           invitations: [],
         },
         invitedPlayers: [],
+        voteSummary: ready,
       }),
     );
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     expect(screen.getByText("Confirmed date")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Vote count legend" })).toBeNull();
+    expect(screen.queryByRole("img", { name: /Yes: 2, No: 0/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Choose date/ })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Players" }));
     expect(screen.queryByText("Minimum players")).toBeNull();
     expect(screen.queryByText("Maximum players")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(screen.getByRole("heading", { name: "Confirmed game" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Vote count legend" })).toBeNull();
+    expect(screen.queryByRole("img", { name: /Yes: 1, No: 0/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Choose game/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Back to planning" }));
     expect(screen.getByRole("dialog", { name: "Back to planning?" })).toBeTruthy();
