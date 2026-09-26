@@ -303,7 +303,7 @@ export default function MatchDetailScreen() {
                               }}
                             >
                               <RotateCcw size={17} color="#737373" />
-                              {t("Back to planning")}
+                              <Button.Label>{t("Back to planning")}</Button.Label>
                             </Button>
                           )}
                           <Button
@@ -314,7 +314,7 @@ export default function MatchDetailScreen() {
                             }}
                           >
                             <Trash2 size={17} color="#f31260" />
-                            {t("Delete match")}
+                            <Button.Label>{t("Delete match")}</Button.Label>
                           </Button>
                         </Popover.Content>
                       </Popover.Portal>
