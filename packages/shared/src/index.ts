@@ -5,5 +5,6 @@ export * from "./hooks/useInvites";
 export * from "./hooks/useMatches";
 export * from "./hooks/useNotifications";
 export * from "./hooks/useProfile";
+export * from "./matchCard";
 export * from "./mutationFeedback";
 export * from "./types";

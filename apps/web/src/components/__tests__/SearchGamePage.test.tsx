@@ -44,7 +44,7 @@ it("hides selected games and uses an icon-only selection action", async () => {
   });
 
   const select = await screen.findByRole("button", { name: "Select: Cascadia" });
-  expect(select.closest("li")?.className).toContain("p-2");
+  expect(select.closest("li")?.className).toContain("p-3 pl-4");
   expect(select.closest("ul")?.className).toContain("rounded-xl bg-surface");
   expect(screen.getByPlaceholderText(/Search board games/i).className).toContain("bg-surface");
   expect(screen.queryByText("Already selected")).toBeNull();

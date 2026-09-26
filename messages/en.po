@@ -148,8 +148,13 @@ msgstr "Cancel friend request?"
 msgid "Cancel request"
 msgstr "Cancel request"
 
-#~ msgid "Cannot confirm match"
-#~ msgstr "Cannot confirm match"
+#: apps/web/src/components/Matches.tsx
+msgid "Cancelled"
+msgstr "Cancelled"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+msgid "Cannot confirm match"
+msgstr "Cannot confirm match"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
@@ -208,18 +213,13 @@ msgstr "Complete your profile"
 msgid "Confirm match"
 msgstr "Confirm match"
 
-#~ msgid "Confirm match with"
-#~ msgstr "Confirm match with"
+#: apps/mobile/src/app/match/[matchId].tsx
+msgid "Confirm match with"
+msgstr "Confirm match with"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match?"
 msgstr "Confirm match?"
-
-msgid "Cannot confirm match"
-msgstr "Cannot confirm match"
-
-msgid "Confirm match with"
-msgstr "Confirm match with"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Confirmed"
@@ -480,6 +480,10 @@ msgstr "Error while loading the profile:"
 #~ msgid "expires"
 #~ msgstr "expires"
 
+#: apps/web/src/components/Matches.tsx
+msgid "Finished"
+msgstr "Finished"
+
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
 msgid "Follow"
@@ -522,9 +526,17 @@ msgstr "Friend requests"
 msgid "Friends"
 msgstr "Friends"
 
+#: apps/web/src/components/Matches.tsx
+msgid "game"
+msgstr "game"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Game selection"
 msgstr "Game selection"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Game unavailable"
+msgstr "Game unavailable"
 
 #: apps/web/src/components/Matches.tsx
 msgid "games"
@@ -549,6 +561,10 @@ msgstr "If I have to"
 #: apps/web/src/components/VoteCounts.tsx
 msgid "If needed"
 msgstr "If needed"
+
+#: apps/web/src/components/Matches.tsx
+msgid "In progress"
+msgstr "In progress"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase max players"

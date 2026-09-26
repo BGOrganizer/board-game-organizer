@@ -289,6 +289,31 @@ describe("MatchService", () => {
     expect((await service.detail("user_guest", match.id)).match.invitations).toHaveLength(1);
   });
 
+  it("enriches confirmed match listings with selected game names in one catalog read", async () => {
+    const { service, matches, games } = setup();
+    const confirmed = {
+      ...match,
+      status: "CREATED" as const,
+      selectedDate: match.dates[0],
+      selectedGameId: 1,
+    };
+    matches.listAccessible.mockResolvedValue([
+      confirmed,
+      { ...confirmed, id: "fe875a63-0083-4e26-a13c-3564fa90dbed" },
+    ]);
+    const listed = await service.list("user_admin");
+    expect(listed.map((item) => item.selectedGameName)).toEqual(["Azul", "Azul"]);
+    expect(games.findByIds).toHaveBeenCalledTimes(1);
+    expect(games.findByIds).toHaveBeenCalledWith([1]);
+
+    games.findByIds.mockResolvedValueOnce([]);
+    expect((await service.list("user_admin"))[0]).not.toHaveProperty("selectedGameName");
+    matches.listAccessible.mockResolvedValueOnce([match]);
+    games.findByIds.mockClear();
+    expect((await service.list("user_admin"))[0]).not.toHaveProperty("selectedGameName");
+    expect(games.findByIds).not.toHaveBeenCalled();
+  });
+
   it("rejects missing, redundant, and concurrently changed status transitions", async () => {
     const missing = setup();
     missing.matches.serializeInvitationChange.mockResolvedValue({

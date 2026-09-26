@@ -103,6 +103,9 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Friday night games"
     timeout: 60000
+- assertVisible: "Planning"
+- assertVisible: "2/4"
+- assertVisible: "1 game"
 - tapOn: "Friday night games"
 - extendedWaitUntil:
     visible: "Overview"

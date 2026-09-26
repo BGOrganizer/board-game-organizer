@@ -31,6 +31,8 @@ export const matchResponseSchema = z.object({
   status: matchStatusSchema,
   selectedDate: z.string().optional(),
   selectedGameId: z.number().optional(),
+  /** Included by match listings when the selected catalog game is available. */
+  selectedGameName: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   invitations: z.array(matchInvitationResponseSchema),

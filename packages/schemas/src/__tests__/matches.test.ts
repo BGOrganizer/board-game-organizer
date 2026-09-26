@@ -145,6 +145,10 @@ describe("match models and DTOs", () => {
       invitations: [invitation],
     };
     expect(matchResponseSchema.parse(response)).toEqual(response);
+    expect(
+      matchResponseSchema.parse({ ...response, status: "CREATED", selectedGameName: "Azul" })
+        .selectedGameName,
+    ).toBe("Azul");
     const detail = {
       match: response,
       administrator: {

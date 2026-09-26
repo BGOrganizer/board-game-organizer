@@ -15,7 +15,8 @@ vi.mock("@clerk/nextjs", () => ({
   }),
 }));
 
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useMatches: (opts: unknown) => useMatchesMock(opts),
 }));
@@ -57,7 +58,15 @@ describe("Matches", () => {
   it("lists the matches with name, dates and player range", () => {
     renderWithI18n(<Matches />);
     expect(screen.getByText("Friday night games")).toBeTruthy();
-    expect(screen.getByText(/3–5/)).toBeTruthy();
+    expect(screen.getByText("3/5")).toBeTruthy();
+    expect(screen.getByText("1 game")).toBeTruthy();
+    expect(screen.getByText("Planning").closest('[data-slot="chip"]')?.className).toContain(
+      "chip--warning",
+    );
+    expect(document.querySelector('img[src^="data:image/svg+xml,"]')).toBeTruthy();
+    expect(
+      screen.getByText(new Date(baseMock.list.data[0].dates[0]).toLocaleDateString()),
+    ).toBeTruthy();
     expect(screen.getByLabelText("Player")).toBeTruthy();
     expect(screen.getByText("Matches")).toBeTruthy();
   });
@@ -77,14 +86,20 @@ describe("Matches", () => {
             dates: [...listedMatch.dates, selectedDate],
             selectedDate,
             selectedGameId: 342942,
+            selectedGameName: "Cascadia",
           },
         ],
       },
     });
     renderWithI18n(<Matches />);
-    expect(screen.getByText("Confirmed")).toBeTruthy();
-    expect(screen.getByText(new Date(selectedDate).toLocaleString())).toBeTruthy();
-    expect(screen.queryByText(new Date(listedMatch.dates[0]).toLocaleString())).toBeNull();
+    expect(screen.getByText("Confirmed").closest('[data-slot="chip"]')?.className).toContain(
+      "chip--success",
+    );
+    expect(screen.getByText(new Date(selectedDate).toLocaleDateString())).toBeTruthy();
+    expect(screen.queryByText(new Date(listedMatch.dates[0]).toLocaleDateString())).toBeNull();
+    expect(screen.getByText("1/5")).toBeTruthy();
+    expect(screen.getByText("Cascadia")).toBeTruthy();
+    expect(screen.queryByText("1 game")).toBeNull();
   });
 
   it("identifies matches administered by the current user", () => {
@@ -271,7 +286,7 @@ describe("Matches", () => {
     renderWithI18n(<Matches />);
 
     expect(
-      screen.getByRole("link", { name: "Open match: Friday night games" }).getAttribute("href"),
+      screen.getByRole("link", { name: /^Open match: Friday night games/ }).getAttribute("href"),
     ).toBe("/matches/m1");
   });
 

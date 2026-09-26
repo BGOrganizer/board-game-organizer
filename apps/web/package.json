@@ -19,6 +19,8 @@
     "@board-game-organizer/shared": "workspace:*",
     "@board-game-organizer/store": "workspace:*",
     "@clerk/nextjs": "^7.9.1",
+    "@dicebear/core": "^10.7.0",
+    "@dicebear/styles": "^10.6.0",
     "@heroui/react": "^3.2.4",
     "@heroui/styles": "^3.2.4",
     "@internationalized/date": "^3.12.4",

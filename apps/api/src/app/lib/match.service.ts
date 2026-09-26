@@ -219,7 +219,7 @@ export class MatchService {
         .map((invitation) => invitation.matchId),
     );
     const invitations = await this.invitations.listByMatchIds(matches.map((match) => match.id));
-    return matches.flatMap((match) => {
+    const visible = matches.flatMap((match) => {
       const matchInvitations = invitations.filter((invitation) => invitation.matchId === match.id);
       if (
         match.status === "CREATED" &&
@@ -230,6 +230,20 @@ export class MatchService {
       )
         return [];
       return [this.toResponse(match, this.visibleInvitations(match, userId, matchInvitations))];
+    });
+    const selectedIds = [
+      ...new Set(
+        visible.flatMap((match) =>
+          match.status === "CREATED" && match.selectedGameId ? [match.selectedGameId] : [],
+        ),
+      ),
+    ];
+    if (selectedIds.length === 0) return visible;
+    const games = await this.games.findByIds(selectedIds);
+    const names = new Map(games.map((game) => [game.id, game.name]));
+    return visible.map((match) => {
+      const name = match.selectedGameId && names.get(match.selectedGameId);
+      return name ? { ...match, selectedGameName: name } : match;
     });
   }
 

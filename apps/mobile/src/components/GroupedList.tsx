@@ -11,7 +11,7 @@ export function GroupedRow({ children }: { children: ReactNode }) {
     <ListGroup.Item
       accessible={false}
       className="border-b border-muted/20 last:border-b-0"
-      style={{ padding: 8, gap: 8 }}
+      style={{ padding: 12, paddingLeft: 16, gap: 8 }}
     >
       {children}
     </ListGroup.Item>

@@ -465,6 +465,9 @@ describe("match repositories on MongoDB replica set", () => {
       selectedGameId: matchInput.gameIds[0],
     });
     expect(confirmed.invitations).toHaveLength(1);
+    expect(await withMatchTransaction(({ service }) => service.list(ACTOR))).toEqual([
+      expect.objectContaining({ status: "CREATED", selectedGameName: "Ark Nova" }),
+    ]);
     expect(await withMatchTransaction(({ service }) => service.list(THIRD))).toEqual([]);
     await expect(
       withMatchTransaction(({ service }) => service.detail(THIRD, created.id)),

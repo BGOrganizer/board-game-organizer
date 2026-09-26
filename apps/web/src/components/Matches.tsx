@@ -1,14 +1,41 @@
 "use client";
 
-import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
+import type { MatchCardStatus } from "@board-game-organizer/shared";
+import {
+  matchCardData,
+  matchCardStatusColor,
+  resolveApiUrl,
+  useMatches,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Button, Card, Skeleton } from "@heroui/react";
+import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
+import bottts from "@dicebear/styles/bottts.json" with { type: "json" };
+import { Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarClock, Check, Crown, Plus, UserRound, X } from "lucide-react";
+import { Check, Crown, Dices, Plus, UserRound, UsersRound, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MatchWizard } from "@/components/MatchWizard";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+
+const botttsStyle = new Style(bottts);
+
+function MatchMascot({ name }: { name: string }) {
+  const src = useMemo(
+    () =>
+      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(botttsStyle, { seed: name, size: 64 }).toString())}`,
+    [name],
+  );
+  return (
+    <span
+      className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-accent/10"
+      aria-hidden="true"
+    >
+      {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG. */}
+      <img src={src} alt="" className="size-16" />
+    </span>
+  );
+}
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -74,43 +101,73 @@ export function Matches() {
           const invitation = match.invitations.find(
             (candidate) => candidate.inviteeUserId === userId,
           );
+          const card = matchCardData(match);
+          const statusLabels: Record<MatchCardStatus, string> = {
+            PLANNING: t`Planning`,
+            CREATED: t`Confirmed`,
+            IN_PROGRESS: t`In progress`,
+            FINISHED: t`Finished`,
+            CANCELLED: t`Cancelled`,
+          };
+          const gameLabel =
+            card.gameCount === undefined
+              ? (card.selectedGameName ?? t`Game unavailable`)
+              : `${card.gameCount} ${card.gameCount === 1 ? t`game` : t`games`}`;
           return (
             <Card key={match.id} className="rounded-xl p-0">
               <Link
                 href={match.optimistic ? "/matches" : `/matches/${match.id}`}
-                aria-label={`${t`Open match`}: ${match.name}`}
+                aria-label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${card.dates.map((date) => new Date(date).toLocaleDateString()).join(", ")}, ${t`Players`}: ${card.players}/${card.maxPlayers}, ${gameLabel}`}
                 aria-disabled={match.optimistic}
                 onClick={(event) => {
                   if (match.optimistic) event.preventDefault();
                 }}
-                className="w-full cursor-pointer p-4 text-left"
+                className="flex w-full cursor-pointer items-start gap-3 p-3 text-left"
               >
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold">{match.name}</p>
-                  <span className="text-xs text-default-500">
-                    {match.status === "CREATED" ? t`Confirmed` : t`Planning`}
-                  </span>
-                  {match.adminUserId === userId ? (
-                    <Crown aria-label={t`Administrator`} className="h-4 w-4 text-warning" />
-                  ) : (
-                    <UserRound aria-label={t`Player`} className="h-4 w-4 text-default-500" />
-                  )}
+                <MatchMascot name={match.name} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1">
+                      <p className="min-w-0 font-semibold">{match.name}</p>
+                      {match.adminUserId === userId ? (
+                        <Crown
+                          aria-label={t`Administrator`}
+                          className="h-4 w-4 shrink-0 text-warning"
+                        />
+                      ) : (
+                        <UserRound
+                          aria-label={t`Player`}
+                          className="h-4 w-4 shrink-0 text-default-500"
+                        />
+                      )}
+                    </div>
+                    <Chip
+                      size="sm"
+                      variant="soft"
+                      color={matchCardStatusColor[match.status]}
+                      className="shrink-0"
+                    >
+                      {statusLabels[match.status]}
+                    </Chip>
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm text-default-600">
+                    {card.dates.map((date) => (
+                      <time key={date} dateTime={date} className="block">
+                        {new Date(date).toLocaleDateString()}
+                      </time>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-default-500">
+                    <span className="inline-flex items-center gap-1">
+                      <UsersRound className="h-4 w-4" aria-hidden="true" />
+                      {card.players}/{card.maxPlayers}
+                    </span>
+                    <span className="inline-flex min-w-0 items-center gap-1">
+                      <Dices className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {gameLabel}
+                    </span>
+                  </div>
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-default-500">
-                  <CalendarClock className="h-3.5 w-3.5" />
-                  {(match.status === "CREATED" && match.selectedDate
-                    ? [match.selectedDate]
-                    : match.dates
-                  ).map((date) => (
-                    <span key={date}>{new Date(date).toLocaleString()}</span>
-                  ))}
-                </div>
-                <p className="mt-1 text-xs text-default-400">
-                  {t`Players`}: {match.minPlayers}–{match.maxPlayers}
-                  {match.status === "PLANNING" &&
-                    match.gameIds.length > 0 &&
-                    ` · ${match.gameIds.length} ${t`games`}`}
-                </p>
               </Link>
 
               {invitation?.status === "PENDING" && (

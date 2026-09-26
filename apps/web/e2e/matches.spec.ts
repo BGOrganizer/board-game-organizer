@@ -278,10 +278,16 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await nextFab.click();
   await expect(page.getByText("Match created")).toBeVisible();
   expect((await createResponse).ok()).toBe(true);
-  await expect(page.getByText(/Friday night games/)).toBeVisible({ timeout: 30_000 });
+  const card = page.getByRole("link", { name: /^Open match: Friday night games/ });
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  await expect(card.locator('img[src^="data:image/svg+xml,"]')).toBeVisible();
+  await expect(card.locator('[data-slot="chip"]')).toHaveText("Planning");
+  await expect(card.getByText(/^\d+\/\d+$/)).toBeVisible();
+  await expect(card.locator("time")).toHaveCount(2);
+  await expect(card.locator("time").first()).not.toContainText(":");
 
   // Open detail and exercise all three HeroUI tabs.
-  await page.getByRole("link", { name: "Open match: Friday night games" }).click();
+  await card.click();
   await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Friday night games" })).toBeVisible();
   const confirmButton = page.getByRole("button", { name: "Confirm match" });

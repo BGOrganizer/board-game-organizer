@@ -148,8 +148,13 @@ msgstr "Annullare la richiesta di amicizia?"
 msgid "Cancel request"
 msgstr "Annulla richiesta"
 
-#~ msgid "Cannot confirm match"
-#~ msgstr "Impossibile confermare la partita"
+#: apps/web/src/components/Matches.tsx
+msgid "Cancelled"
+msgstr "Annullato"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+msgid "Cannot confirm match"
+msgstr "Impossibile confermare la partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
@@ -208,18 +213,13 @@ msgstr "Completa il tuo profilo"
 msgid "Confirm match"
 msgstr "Conferma partita"
 
-#~ msgid "Confirm match with"
-#~ msgstr "Confermare la partita con"
+#: apps/mobile/src/app/match/[matchId].tsx
+msgid "Confirm match with"
+msgstr "Confermare la partita con"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match?"
 msgstr "Confermare la partita?"
-
-msgid "Cannot confirm match"
-msgstr "Impossibile confermare la partita"
-
-msgid "Confirm match with"
-msgstr "Confermare la partita con"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Confirmed"
@@ -480,6 +480,10 @@ msgstr "Errore durante il caricamento del profilo:"
 #~ msgid "expires"
 #~ msgstr "scade"
 
+#: apps/web/src/components/Matches.tsx
+msgid "Finished"
+msgstr "Terminato"
+
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/UserMenu.tsx
 msgid "Follow"
@@ -522,9 +526,17 @@ msgstr "Richieste di amicizia"
 msgid "Friends"
 msgstr "Amici"
 
+#: apps/web/src/components/Matches.tsx
+msgid "game"
+msgstr "gioco"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Game selection"
 msgstr "Selezione giochi"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Game unavailable"
+msgstr "Gioco non disponibile"
 
 #: apps/web/src/components/Matches.tsx
 msgid "games"
@@ -549,6 +561,10 @@ msgstr "Se proprio devo"
 #: apps/web/src/components/VoteCounts.tsx
 msgid "If needed"
 msgstr "Se necessario"
+
+#: apps/web/src/components/Matches.tsx
+msgid "In progress"
+msgstr "In corso"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase max players"

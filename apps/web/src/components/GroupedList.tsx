@@ -24,5 +24,5 @@ export function GroupedRow({
   children: ReactNode;
   className?: string;
 }) {
-  return <li className={`flex min-w-0 items-center gap-2 p-2 ${className}`}>{children}</li>;
+  return <li className={`flex min-w-0 items-center gap-2 p-3 pl-4 ${className}`}>{children}</li>;
 }
