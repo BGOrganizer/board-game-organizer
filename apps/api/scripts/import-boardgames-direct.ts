@@ -35,11 +35,7 @@ export function validateDirectImportTarget(env: Record<string, string | undefine
   if (url.pathname.length > 1 && decodeURIComponent(url.pathname.slice(1)) !== databaseName) {
     throw new Error("MongoDB connection string database does not match BGG_DATABASE_NAME");
   }
-  const target = `${url.host}/${databaseName}`;
-  if (env.BGG_CONFIRM_TARGET !== target) {
-    throw new Error(`Verify the Preview cluster, then set BGG_CONFIRM_TARGET=${target}`);
-  }
-  return { uri, databaseName, csvPath, target };
+  return { uri, databaseName, csvPath, target: `${url.host}/${databaseName}` };
 }
 
 export async function importDirectCsv(env: Record<string, string | undefined>) {

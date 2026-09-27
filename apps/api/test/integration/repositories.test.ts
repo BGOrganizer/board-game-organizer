@@ -339,7 +339,6 @@ describe("direct Preview catalog import on MongoDB replica set", () => {
       const env = {
         BGG_MONGODB_URI: `mongodb://${host}/?directConnection=true&replicaSet=rs0`,
         BGG_DATABASE_NAME: "board-game-organizer",
-        BGG_CONFIRM_TARGET: `${host}/board-game-organizer`,
         BGG_CSV: csvPath,
       };
       await importDirectCsv(env);

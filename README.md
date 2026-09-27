@@ -115,13 +115,12 @@ fields; validated BGG covers are cached in `image`. Deploy the updated API befor
 the CSV: search requires the imported `isExpansion` field.
 
 For a direct **Preview development MongoDB** import (no API/bypass), verify the URI belongs to
-the Preview cluster before running. The script refuses CI/other database names, requires an
-explicit host/database confirmation, and upserts without deleting games absent from the CSV:
+the Preview cluster before running. The script restricts the database name and upserts without
+deleting games absent from the CSV:
 
 ```bash
 export BGG_MONGODB_URI='<PREVIEW_MONGODB_URI>'
 export BGG_DATABASE_NAME=board-game-organizer
-export BGG_CONFIRM_TARGET='<VERIFIED_PREVIEW_MONGO_HOST>/board-game-organizer'
 export BGG_CSV="$PWD/boardgames_ranks.csv"
 pnpm --filter api exec tsx scripts/import-boardgames-direct.ts
 ```
