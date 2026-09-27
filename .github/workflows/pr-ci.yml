@@ -675,6 +675,98 @@ jobs:
             -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
             jq -e '.ok == true' > /dev/null
 
+  # ----------------------------------- development APK after isolated E2E
+  deploy-development-api:
+    name: 🔌 Development API Preview (post-E2E)
+    needs:
+      - commitlint
+      - lint
+      - typecheck
+      - unit-tests
+      - integration-tests
+      - build-api-web
+      - build-mobile-internal
+      - deploy-preview-api
+      - deploy-preview-web
+      - e2e-maestro
+      - e2e-playwright
+      - cleanup-e2e-user
+      - cleanup-e2e-db
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🔗 Restore PR branch metadata
+        run: git switch -C "$GITHUB_HEAD_REF"
+
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+
+      - name: 🚀 Deploy API Preview with development database
+        id: deploy
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: API
+          app-path: apps/api
+          vercel-environment: preview
+          production: 'false'
+          status-context: vercel/api/development-preview
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          extra-env: |
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
+      - name: 🔒 Attest non-CI development database
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" | \
+            jq -e '.webhookDbReady == true and (.databaseName | type) == "string" and (.databaseName | length) > 0 and (.databaseName | startswith("bgo_ci_") | not)' > /dev/null
+
+  build-mobile-development:
+    name: 📱 Build PR APK for development (post-E2E)
+    needs: [deploy-development-api]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Build internal APK against development Preview
+        uses: ./.github/actions/mobile-build
+        with:
+          profile: internal
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          api-url: ${{ needs.deploy-development-api.outputs.url }}
+          sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+
+      - name: 🏷️ Record development API URL in APK artifact
+        env:
+          API_URL: ${{ needs.deploy-development-api.outputs.url }}
+        run: printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
+
+      - name: 📤 Upload development APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-development
+          path: apps/mobile/build-output/
+          retention-days: 7
+
   # ----------------------------------------------------------- draft release
   draft-release:
     name: 📦 Draft prerelease (APK + changelog) → Telegram
@@ -692,6 +784,8 @@ jobs:
       - e2e-playwright
       - cleanup-e2e-user
       - cleanup-e2e-db
+      - deploy-development-api
+      - build-mobile-development
     runs-on: ubuntu-latest
     permissions:
       contents: write # create/update the draft release + attach the APK
@@ -704,11 +798,16 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
-      - name: 📥 Download internal APK
+      - name: 📥 Download development APK
         uses: actions/download-artifact@v4
         with:
-          name: apk-internal
+          name: apk-development
           path: apk
+
+      - name: 🔒 Verify APK development API URL
+        env:
+          EXPECTED_API_URL: ${{ needs.deploy-development-api.outputs.url }}
+        run: test -n "$EXPECTED_API_URL" && test "$(cat apk/api-url.txt)" = "$EXPECTED_API_URL"
 
       - name: 🔎 Resolve version & APK
         id: meta
@@ -731,14 +830,14 @@ jobs:
           apk-path: ${{ steps.meta.outputs.apk-path }}
           apk-name: ${{ steps.meta.outputs.apk-name }}
           web-preview-url: ${{ needs.deploy-preview-web.outputs.url }}
-          api-preview-url: ${{ needs.deploy-preview-api.outputs.url }}
+          api-preview-url: ${{ needs.deploy-development-api.outputs.url }}
 
       - name: 🔗 Compose Telegram links
         run: |
           cat > /tmp/telegram-links.html <<EOF
           📱 <a href="${{ steps.draft.outputs.apk_url }}">APK (PR)</a>
           🌐 <a href="${{ needs.deploy-preview-web.outputs.url }}">Web (preview)</a>
-          🔌 <a href="${{ needs.deploy-preview-api.outputs.url }}">API (preview)</a>
+          🔌 <a href="${{ needs.deploy-development-api.outputs.url }}">API (development preview)</a>
           EOF
 
       - name: 📤 Send Telegram notification

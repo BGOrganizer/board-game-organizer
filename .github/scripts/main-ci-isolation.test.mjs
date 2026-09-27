@@ -111,3 +111,35 @@ test("published APK still targets production, not isolated Preview", () => {
   );
   assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
 });
+
+test("PR release APK targets development only after isolated E2E and cleanup", () => {
+  const prStep = (job, name) => prJobs[job].steps.find((item) => item.name === name);
+  assert.equal(
+    prStep("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
+      "api-url"
+    ],
+    `\${{ needs.deploy-preview-api.outputs.branch-url }}`,
+  );
+  assert.ok(prJobs["deploy-development-api"].needs.includes("cleanup-e2e-db"));
+  assert.ok(prJobs["deploy-development-api"].needs.includes("e2e-maestro"));
+  assert.ok(prJobs["deploy-development-api"].needs.includes("e2e-playwright"));
+  const preview = prStep(
+    "deploy-development-api",
+    "🚀 Deploy API Preview with development database",
+  );
+  assert.equal(preview.with.production, "false");
+  assert.equal(preview.with["ci-db-name"], undefined);
+  assert.match(
+    prStep("deploy-development-api", "🔒 Attest non-CI development database").run,
+    /webhookDbReady.*bgo_ci_/,
+  );
+  assert.equal(
+    prStep("build-mobile-development", "🏗️ Build internal APK against development Preview").with[
+      "api-url"
+    ],
+    `\${{ needs.deploy-development-api.outputs.url }}`,
+  );
+  assert.ok(prJobs["draft-release"].needs.includes("build-mobile-development"));
+  assert.equal(prStep("draft-release", "📥 Download development APK").with.name, "apk-development");
+  assert.match(prStep("draft-release", "🔒 Verify APK development API URL").run, /api-url\.txt/);
+});

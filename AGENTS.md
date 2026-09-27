@@ -524,15 +524,18 @@ Runs full pull-request gates:
 7. seed per-run `bgo_ci_<run_id>_<attempt>` database and synchronize two users
 8. Maestro and Playwright E2E; mobile uses a verified moving per-PR API alias
 9. unconditional test-user and isolated-database cleanup
-10. draft prerelease and Telegram notification after all gates pass
+10. after all gates pass, deploy the same API SHA to the non-CI development Preview database, attest it,
+    and build a second internal APK using the existing Gradle cache; attach only this APK to the draft
+    prerelease and Telegram notification
 
 Mobile change detection compares against the last successful PR workflow run on the branch, not the
 PR base. Mobile code, related workspace packages, compiled localization, and changes to the mobile
 lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit-test-only, and unrelated
 lockfile changes do not. Compare each reusable artifact's own commit with the PR head before reuse.
 
-Preview web uses the immutable API deployment URL; PR APKs use the per-PR alias. Protected previews receive
-`VERCEL_PROTECTION_BYPASS` and clients append it to request URLs.
+Preview web uses the immutable isolated API deployment URL; E2E PR APKs use the per-PR alias. The
+published PR APK embeds the immutable development API Preview URL. Never point E2E at the development
+API. Protected previews receive `VERCEL_PROTECTION_BYPASS` and clients append it to request URLs.
 
 ### `main-ci.yml`
 
