@@ -1,6 +1,10 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { importDirectCsv } from "../../scripts/import-boardgames-direct";
 import { gameDetails, searchGames } from "../../src/app/lib/bgg";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
@@ -302,6 +306,65 @@ const matchInput = {
   invitedUserIds: [] as string[],
   gameIds: [342942],
 };
+
+describe("direct Preview catalog import on MongoDB replica set", () => {
+  it("upserts the complete CSV, preserves older games and images, and safely repeats", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "bgo-direct-import-"));
+    const csvPath = join(directory, "ranks.csv");
+    const header =
+      "id,name,yearpublished,rank,bayesaverage,average,usersrated,is_expansion,abstracts_rank,cgs_rank,childrensgames_rank,familygames_rank,partygames_rank,strategygames_rank,thematic_rank,wargames_rank";
+    const row = (values: string[]) => [...values, ...Array(8).fill("")].join(",");
+    writeFileSync(
+      csvPath,
+      [
+        header,
+        row(["13", "Catan", "1995", "627", "6.90146", "7.09", "144562", "0"]),
+        row(["2", "Azul expansion", "2017", "0", "0", "7.5", "5", "1"]),
+        "",
+      ].join("\n"),
+    );
+    const host = `${container.getHost()}:${container.getMappedPort(27017)}`;
+    const preview = client.db("board-game-organizer");
+    const catalog = preview.collection(COLLECTIONS.BOARD_GAMES);
+    try {
+      await catalog.insertMany([
+        {
+          id: 13,
+          name: "Old Catan",
+          image: "https://cf.geekdo-images.com/catan/full.jpg",
+          thumbnail: "legacy",
+        },
+        { id: 999, name: "Historical", thumbnail: "legacy" },
+      ]);
+      const env = {
+        BGG_MONGODB_URI: `mongodb://${host}/?directConnection=true&replicaSet=rs0`,
+        BGG_DATABASE_NAME: "board-game-organizer",
+        BGG_CONFIRM_TARGET: `${host}/board-game-organizer`,
+        BGG_CSV: csvPath,
+      };
+      await importDirectCsv(env);
+      await importDirectCsv(env);
+      expect(await catalog.countDocuments()).toBe(3);
+      expect(await catalog.indexes()).toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: "id_1", unique: true })]),
+      );
+      expect(await catalog.findOne({ id: 13 })).toMatchObject({
+        name: "Catan",
+        bayesAverage: 6.90146,
+        isExpansion: false,
+        image: "https://cf.geekdo-images.com/catan/full.jpg",
+      });
+      expect(await catalog.findOne({ id: 2 })).toMatchObject({ isExpansion: true });
+      expect(await catalog.findOne({ id: 999 })).toMatchObject({ name: "Historical" });
+      expect(await catalog.countDocuments({ thumbnail: { $exists: true } })).toBe(0);
+      expect(await searchGames(preview, "Catan")).toHaveLength(1);
+      expect(await searchGames(preview, "Azul")).toEqual([]);
+    } finally {
+      await preview.dropDatabase();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("BGG covers on MongoDB replica set", () => {
   it("claims one global request for concurrent searches and persists the real thumbnail", async () => {
