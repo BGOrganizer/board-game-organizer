@@ -814,7 +814,8 @@ jobs:
         run: |
           echo "version=$(node -p "require('./apps/mobile/app.config.js').expo.version")" >> "$GITHUB_OUTPUT"
           APK=$(find apk -name '*.apk' | head -1)
-          echo "apk-name=$(basename "$APK")" >> "$GITHUB_OUTPUT"
+          # Build uses internal Gradle profile; release asset must identify its development API target.
+          echo "apk-name=$(basename "$APK" -internal.apk)-development.apk" >> "$GITHUB_OUTPUT"
           echo "apk-path=$APK" >> "$GITHUB_OUTPUT"
 
       - name: 📦 Publish/update draft prerelease

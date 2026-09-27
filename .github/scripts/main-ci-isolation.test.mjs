@@ -141,5 +141,6 @@ test("PR release APK targets development only after isolated E2E and cleanup", (
   );
   assert.ok(prJobs["draft-release"].needs.includes("build-mobile-development"));
   assert.equal(prStep("draft-release", "📥 Download development APK").with.name, "apk-development");
+  assert.match(prStep("draft-release", "🔎 Resolve version & APK").run, /-development\.apk/);
   assert.match(prStep("draft-release", "🔒 Verify APK development API URL").run, /api-url\.txt/);
 });

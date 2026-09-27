@@ -130,7 +130,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await page.goto(`/matches/${matchId}`);
   await expect(page.getByRole("heading", { name: "Date selection" })).toBeVisible();
   await page.getByRole("tab", { name: "Players" }).click();
-  await expect(page.getByRole("button", { name: "Actions" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Actions", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Remove player: Guest" }).click();
   const removeDialog = page.getByRole("dialog", { name: "Remove player?" });
   await expect(removeDialog).toBeVisible();
