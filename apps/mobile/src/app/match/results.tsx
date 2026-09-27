@@ -135,29 +135,33 @@ function PlayerInfo({ player }: { player: Player }) {
   );
 }
 
+// BottomSheet portal renders outside I18nProvider; translate labels in ResultsForm.
 function ScoreSheetInput({
   player,
   row,
   busy,
   onChange,
+  scoreLabel,
+  invalidScoreLabel,
 }: {
   player: Player;
   row: ScoreDraftRow;
   busy: boolean;
   onChange: (value: string) => void;
+  scoreLabel: string;
+  invalidScoreLabel: string;
 }) {
-  const t = useT();
   const { onFocus, onBlur } = useBottomSheetAwareHandlers();
   return (
     <View style={{ gap: 6, marginTop: 12 }}>
-      <Typography className="text-foreground">{t("Score")}</Typography>
+      <Typography className="text-foreground">{scoreLabel}</Typography>
       <Input
         value={row.rawScore}
         onChangeText={onChange}
         onFocus={onFocus}
         onBlur={onBlur}
-        accessibilityLabel={`${t("Score")}: ${player.name}`}
-        placeholder={t("Score")}
+        accessibilityLabel={`${scoreLabel}: ${player.name}`}
+        placeholder={scoreLabel}
         keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
         editable={!row.notParticipated && !busy}
         className="text-foreground"
@@ -169,7 +173,7 @@ function ScoreSheetInput({
       {!row.notParticipated &&
         row.rawScore !== "" &&
         normalizeMatchScore(row.rawScore) === null && (
-          <Typography className="text-xs text-danger">{t("Enter a valid score")}</Typography>
+          <Typography className="text-xs text-danger">{invalidScoreLabel}</Typography>
         )}
     </View>
   );
@@ -462,6 +466,8 @@ function ResultsForm({
                   row={activeRow}
                   busy={busy}
                   onChange={(value) => update(activePlayer.id, { rawScore: value })}
+                  scoreLabel={t("Score")}
+                  invalidScoreLabel={t("Enter a valid score")}
                 />
                 <View
                   style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 }}
