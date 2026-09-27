@@ -88,7 +88,7 @@ export function MatchResultsEditor({
           <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
         </Avatar>
         {rank != null && (
-          <span className="absolute -right-1 -bottom-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-bold text-accent-foreground ring-2 ring-surface">
+          <span className="absolute -right-0.5 -bottom-0.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-0.5 text-[10px] font-bold text-accent-foreground ring-1 ring-surface">
             {rank}
           </span>
         )}
@@ -126,7 +126,7 @@ export function MatchResultsEditor({
                   <span>
                     {active ? t`Tie-break applied` : t`Tied score`}: {score}
                   </span>
-                  <span className="flex shrink-0 items-center gap-2">
+                  <span className="flex w-20 shrink-0 items-center justify-end gap-2">
                     {editing ? (
                       <>
                         <Button

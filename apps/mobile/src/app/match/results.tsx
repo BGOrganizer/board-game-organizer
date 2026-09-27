@@ -128,18 +128,18 @@ function PlayerInfo({ player, rank }: { player: Player; rank?: number | null }) 
           <View
             style={{
               position: "absolute",
-              right: -3,
-              bottom: -3,
-              minWidth: 22,
-              height: 22,
-              paddingHorizontal: 4,
-              borderRadius: 11,
+              right: -2,
+              bottom: -2,
+              minWidth: 18,
+              height: 18,
+              paddingHorizontal: 2,
+              borderRadius: 9,
               alignItems: "center",
               justifyContent: "center",
             }}
             className="bg-accent"
           >
-            <Typography className="text-xs font-bold text-accent-foreground">{rank}</Typography>
+            <Typography className="text-[10px] font-bold text-accent-foreground">{rank}</Typography>
           </View>
         )}
       </View>
@@ -303,73 +303,83 @@ function ResultsForm({
                     <Typography className="flex-1 text-sm text-foreground">
                       {active ? t("Tie-break applied") : t("Tied score")}: {score}
                     </Typography>
-                    {editing ? (
-                      <>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="outline"
-                          accessibilityLabel={t("Cancel")}
-                          style={{ minHeight: 44, minWidth: 44 }}
-                          onPress={() => setEditingTie(null)}
-                        >
-                          <Undo2 size={18} color={foreground} />
-                        </Button>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="primary"
-                          accessibilityLabel={t("Confirm tie-break")}
-                          style={{ minHeight: 44, minWidth: 44 }}
-                          isDisabled={busy}
-                          onPress={() => {
-                            setTieBreaks((old) => [
-                              ...old.filter((tie) => tie.score !== score),
-                              editingTie,
-                            ]);
-                            setEditingTie(null);
-                          }}
-                        >
-                          <Check size={18} color={accentForeground} />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        {active && (
+                    <View
+                      style={{
+                        width: 96,
+                        flexDirection: "row",
+                        justifyContent: "flex-end",
+                        gap: 8,
+                      }}
+                    >
+                      {editing ? (
+                        <>
                           <Button
                             isIconOnly
                             size="sm"
-                            variant="danger-soft"
-                            accessibilityLabel={t("Remove tie-break")}
+                            variant="outline"
+                            accessibilityLabel={t("Cancel")}
+                            style={{ height: 44, width: 44 }}
+                            onPress={() => setEditingTie(null)}
+                          >
+                            <Undo2 size={18} color={foreground} />
+                          </Button>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="primary"
+                            accessibilityLabel={t("Confirm tie-break")}
+                            style={{ height: 44, width: 44 }}
                             isDisabled={busy}
-                            style={{ minHeight: 44, minWidth: 44 }}
+                            onPress={() => {
+                              setTieBreaks((old) => [
+                                ...old.filter((tie) => tie.score !== score),
+                                editingTie,
+                              ]);
+                              setEditingTie(null);
+                            }}
+                          >
+                            <Check size={18} color={accentForeground} />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          {active && (
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="danger-soft"
+                              accessibilityLabel={t("Remove tie-break")}
+                              isDisabled={busy}
+                              style={{ height: 44, width: 44 }}
+                              onPress={() =>
+                                setTieBreaks((old) => old.filter((tie) => tie.score !== score))
+                              }
+                            >
+                              <X size={18} color={danger} />
+                            </Button>
+                          )}
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="primary"
+                            accessibilityLabel={active ? t("Edit tie-break") : t("Resolve tie")}
+                            testID={`resolve-tie-${score}`}
+                            style={{ height: 44, width: 44 }}
+                            isDisabled={busy}
                             onPress={() =>
-                              setTieBreaks((old) => old.filter((tie) => tie.score !== score))
+                              setEditingTie({
+                                score,
+                                orderedUserIds:
+                                  preview.tieBreaks.find((tie) => tie.score === score)
+                                    ?.orderedUserIds ?? tied.map((entry) => entry.userId),
+                              })
                             }
                           >
-                            <X size={18} color={danger} />
+                            <ListOrdered size={18} color={accentForeground} />
                           </Button>
-                        )}
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="primary"
-                          accessibilityLabel={active ? t("Edit tie-break") : t("Resolve tie")}
-                          testID={`resolve-tie-${score}`}
-                          isDisabled={busy}
-                          onPress={() =>
-                            setEditingTie({
-                              score,
-                              orderedUserIds:
-                                preview.tieBreaks.find((tie) => tie.score === score)
-                                  ?.orderedUserIds ?? tied.map((entry) => entry.userId),
-                            })
-                          }
-                        >
-                          <ListOrdered size={18} color={accentForeground} />
-                        </Button>
-                      </>
-                    )}
+                        </>
+                      )}
+                    </View>
                   </View>
                 )}
                 {tied.map((entry, index) => {

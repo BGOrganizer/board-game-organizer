@@ -74,10 +74,19 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
     });
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
   }
-  fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
+  const resolveTie = screen.getByRole("button", { name: "Resolve tie" });
+  const actionSlot = resolveTie.parentElement;
+  expect(actionSlot?.className).toContain("w-20");
+  fireEvent.click(resolveTie);
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
   const cancelTie = screen.getByRole("button", { name: "Cancel" });
+  expect(cancelTie.parentElement).toBe(actionSlot);
+  expect(cancelTie.className).toContain("button--sm");
+  expect(resolveTie.className).toContain("button--sm");
+  expect(screen.getByRole("button", { name: "Confirm tie-break" }).className).toContain(
+    "button--sm",
+  );
   expect(cancelTie.className).toContain("button--icon-only");
   expect(cancelTie.className).toContain("button--outline");
   expect(cancelTie.textContent).toBe("");
@@ -88,6 +97,8 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
   const rank = within(standings).getAllByText("1", { exact: true });
   expect(rank).toHaveLength(3);
   expect(rank[0]?.className).toContain("font-bold");
+  expect(rank[0]?.className).toContain("h-4");
+  expect(rank[0]?.className).toContain("px-0.5");
   expect(rank[0]?.parentElement?.querySelector(".avatar")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
