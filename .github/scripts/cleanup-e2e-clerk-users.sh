@@ -18,6 +18,12 @@ CLERK_SECRET_KEY="${CLERK_SECRET_KEY:?CLERK_SECRET_KEY is required}"
 API="https://api.clerk.com/v1"
 AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
 MAX_AGE_SECONDS="${E2E_USER_MAX_AGE_SECONDS:-86400}"
+# The cancellation cleanup supplies an exact run/attempt; never sweep another live run.
+RUN_KEY="${E2E_RUN_KEY:-}"
+if [ -n "$RUN_KEY" ] && [[ ! "$RUN_KEY" =~ ^[1-9][0-9]*_[1-9][0-9]*$ ]]; then
+  echo "Invalid E2E_RUN_KEY" >&2
+  exit 1
+fi
 CUTOFF=$(( $(date +%s) - MAX_AGE_SECONDS ))
 
 delete_user() {
@@ -56,13 +62,13 @@ PAGE="$(mktemp)"
 trap 'rm -f "$TMP" "$PAGE"' EXIT
 for offset in $(seq 0 100 9900); do
   curl -fsS "$API/users?limit=100&offset=$offset" -H "$AUTH" -o "$PAGE"
-  jq -r '.[] | select(.public_metadata.e2e == true) | [.id, .created_at] | @tsv' "$PAGE" \
+  jq -r '.[] | select(.public_metadata.e2e == true) | [.id, .created_at, (.username // "")] | @tsv' "$PAGE" \
     >> "$TMP"
   [ "$(jq 'length' "$PAGE")" -lt 100 ] && break
 done
 
 swept=0
-while IFS=$'\t' read -r id created_at; do
+while IFS=$'\t' read -r id created_at username; do
   [ -z "${id:-}" ] && continue
   created_at=${created_at%$'\r'}
   if [[ "$created_at" =~ ^[0-9]+$ ]]; then
@@ -70,7 +76,8 @@ while IFS=$'\t' read -r id created_at; do
   else
     created_epoch=$(date -d "$created_at" +%s 2>/dev/null || echo 0)
   fi
-  if [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -lt "$CUTOFF" ]; then
+  if { [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -lt "$CUTOFF" ]; } ||
+    { [ -n "$RUN_KEY" ] && [[ "$username" == "e2e_${RUN_KEY}_"* || "$username" == "e2e_target_${RUN_KEY}_"* ]]; }; then
     if delete_user "$id"; then
       swept=$((swept + 1))
     else

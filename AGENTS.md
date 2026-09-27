@@ -521,18 +521,14 @@ No builds, deployments, or E2E.
 
 Runs full pull-request gates:
 
-1. commitlint, Biome, and typecheck
-2. unit coverage and Codecov upload
-3. API integration tests
-4. API and web builds
-5. mobile-change detection and internal APK build or reuse
-6. API and web Vercel preview deployments
-7. seed per-run `bgo_ci_<run_id>_<attempt>` database and synchronize two users
-8. Maestro and Playwright E2E; mobile uses a verified moving per-PR API alias
-9. unconditional test-user and isolated-database cleanup
-10. after all gates pass, deploy the same API SHA to the non-CI development Preview database, attest it,
-    and build a second internal APK using the existing Gradle cache; attach only this APK to the draft
-    prerelease and Telegram notification
+1. commitlint, Biome, typecheck, unit coverage/Codecov, API integration tests, API/web builds, and mobile-change detection start in parallel;
+2. only after quality gates pass, deploy isolated CI API and non-CI development API Previews in parallel; the development Preview remains deployed even if later E2E fails;
+3. build both mobile APKs on separate runners as soon as their respective URLs are available; only the CI APK (or verified reuse) targets the moving per-PR API alias;
+4. deploy Preview web against the immutable CI API URL, seed `bgo_ci_<run_id>_<attempt>`, and synchronize two test users;
+5. run Maestro and Playwright E2E, then clean up CI users and database even on failure;
+6. publish only the development-API APK to the draft prerelease and Telegram after every gate and cleanup passes.
+
+A new PR commit cancels the previous run. A trusted `workflow_run` watchdog polls for job failures and cancels the entire PR run; GitHub marks the run `cancelled`, while the failing job retains its failure. A separate trusted `workflow_run` cleanup removes exact-run CI users and the isolated database after cancellation/failure; ordinary in-run cleanup and the periodic Clerk sweep provide fallback.
 
 Mobile change detection compares against the last successful PR workflow run on the branch, not the
 PR base. Mobile code, related workspace packages, compiled localization, and changes to the mobile

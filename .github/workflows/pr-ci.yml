@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   # ---------------------------------------------------------------- commitlint
@@ -55,7 +55,6 @@ jobs:
   # ----------------------------------------------------------------- typecheck
   typecheck:
     name: 🧪 TypeScript typecheck
-    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -72,7 +71,6 @@ jobs:
   # --------------------------------------------------------------- unit tests
   unit-tests:
     name: 🧪 Unit tests (${{ matrix.app }}) + coverage
-    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -96,10 +94,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ (matrix.app == 'schemas' || matrix.app == 'shared') && format('packages/{0}/coverage/lcov.info', matrix.app) || format('apps/{0}/coverage/lcov.info', matrix.app) }}
           flags: unit,${{ matrix.app }}
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
       - name: 📤 Upload coverage report
-        if: always()
+        if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.app }}
@@ -109,7 +107,6 @@ jobs:
   # ------------------------------------------------------- integration tests
   integration-tests:
     name: 🐳 API integration tests (testcontainers)
-    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -129,34 +126,41 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/api/coverage/lcov.info
           flags: integration
-          fail_ci_if_error: false
+          fail_ci_if_error: true
 
       - name: 📤 Upload integration report
-        if: always()
+        if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-api-integration
           path: apps/api/coverage/**
           if-no-files-found: warn
 
-  # ------------------------------------------------- build api & web (next)
-  build-api-web:
-    name: 🏗️ Build API + Web (next build)
-    needs: [commitlint, lint, typecheck, unit-tests, integration-tests]
+  # Build in parallel with quality checks; deployments wait for every gate.
+  build-api:
+    name: 🏗️ Build API
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
-
-      - name: 🏗️ Build api
+      - name: 🏗️ Build API
         run: pnpm --filter api build
 
-      - name: 🏗️ Build web
+  build-web:
+    name: 🏗️ Build Web
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: 🧰 Setup workspace
+        uses: ./.github/actions/setup-pnpm
+      - name: 🏗️ Build Web
         run: pnpm --filter web build
 
   # --------------------------------------- mobile change detection
@@ -340,7 +344,7 @@ jobs:
   # ---------------------------------------------------- Vercel preview API
   deploy-preview-api:
     name: 🔌 Vercel preview (API)
-    needs: [build-api-web]
+    needs: [commitlint, lint, typecheck, unit-tests, integration-tests, build-api]
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -376,6 +380,21 @@ jobs:
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
             MONGODB_DB_NAME=bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+
+      # Persist immutable URL before any CI DB write; cancellation cleanup needs it.
+      - name: 📋 Record isolated API deployment URL
+        env:
+          API_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          test -n "$API_URL"
+          printf '%s\n' "$API_URL" > ci-api-url.txt
+
+      - name: 📤 Preserve URL for cancellation cleanup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-api-url-${{ github.run_attempt }}
+          path: ci-api-url.txt
+          retention-days: 7
 
       - name: 🔒 Attest API runtime database before any E2E writes
         env:
@@ -452,7 +471,7 @@ jobs:
   # ---------------------------------------------------- Vercel preview web
   deploy-preview-web:
     name: 🌐 Vercel preview (Web)
-    needs: [build-api-web, deploy-preview-api]
+    needs: [build-web, deploy-preview-api]
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -519,7 +538,7 @@ jobs:
   # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:
     name: 🎬 Maestro E2E (mobile)
-    needs: [build-mobile-internal, sync-e2e-users, provision]
+    needs: [build-mobile-internal, sync-e2e-users, provision, deploy-development-api]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -570,7 +589,7 @@ jobs:
           target-phone: ${{ needs.provision.outputs.phone_2 }}
 
       - name: 📥 Collect Maestro reports (workspace)
-        if: always()
+        if: always() && !cancelled()
         run: |
           # The maestro-e2e action persists reports into the workspace;
           # this step only guarantees a summary exists if the action's own
@@ -582,7 +601,7 @@ jobs:
           echo "---- maestro-debug ----"; ls -la maestro-debug || true
 
       - name: 📤 Upload Maestro reports
-        if: always()
+        if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-reports
@@ -598,7 +617,7 @@ jobs:
   # ---------------------------------------------------------- Playwright E2E
   e2e-playwright:
     name: 🎭 Playwright E2E (web)
-    needs: [deploy-preview-web, sync-e2e-users, provision]
+    needs: [deploy-preview-web, sync-e2e-users, provision, deploy-development-api]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -628,7 +647,7 @@ jobs:
         run: pnpm test:e2e
 
       - name: 📤 Upload Playwright report
-        if: always()
+        if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
@@ -675,23 +694,11 @@ jobs:
             -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
             jq -e '.ok == true' > /dev/null
 
-  # ----------------------------------- development APK after isolated E2E
+  # Non-CI Preview runs after quality gates, in parallel with isolated CI Preview.
+  # Only APK publication waits for E2E and CI cleanup.
   deploy-development-api:
-    name: 🔌 Development API Preview (post-E2E)
-    needs:
-      - commitlint
-      - lint
-      - typecheck
-      - unit-tests
-      - integration-tests
-      - build-api-web
-      - build-mobile-internal
-      - deploy-preview-api
-      - deploy-preview-web
-      - e2e-maestro
-      - e2e-playwright
-      - cleanup-e2e-user
-      - cleanup-e2e-db
+    name: 🔌 Development API Preview
+    needs: [commitlint, lint, typecheck, unit-tests, integration-tests, build-api]
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -736,7 +743,7 @@ jobs:
             jq -e '.webhookDbReady == true and (.databaseName | type) == "string" and (.databaseName | length) > 0 and (.databaseName | startswith("bgo_ci_") | not)' > /dev/null
 
   build-mobile-development:
-    name: 📱 Build PR APK for development (post-E2E)
+    name: 📱 Build PR APK for development (parallel build)
     needs: [deploy-development-api]
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -776,7 +783,8 @@ jobs:
       - typecheck
       - unit-tests
       - integration-tests
-      - build-api-web
+      - build-api
+      - build-web
       - build-mobile-internal
       - deploy-preview-api
       - deploy-preview-web

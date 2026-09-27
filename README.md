@@ -150,10 +150,13 @@ pnpm release                        # semantic-release (version bump + changelog
 - **Branch pushes run `branch-ci.yml`** (fast subset: commitlint, Biome, typecheck, unit +
   integration tests) — quick feedback while implementing; **the PR is opened only when the
   whole feature is done** (on request) and runs the full `pr-ci.yml` below.
-- **PRs run `pr-ci.yml`**: commitlint → Biome → typecheck → unit tests with coverage → API
-  integration tests (testcontainers) → mobile APK build (internal) → api/web builds → Vercel
-  **preview** deploys → E2E **Maestro** (mobile) + **Playwright** (web).
-- If every gate passes, a **draft prerelease** (`v<version>-pr.<PR>`) is created/updated with
+- **PRs run `pr-ci.yml`**: quality checks and API/web builds run in parallel; only after
+  unit and API integration tests pass do isolated CI and development API **Previews** deploy.
+  Both mobile APK builds then overlap on separate runners with distinct API URLs. **Maestro**
+  tests only the isolated CI APK; **Playwright** tests Preview web against the isolated CI API.
+  A failed job cancels the entire run, with independent cleanup for CI users/database. A new PR
+  commit cancels the previous run; the development API Preview stays deployed on E2E failure.
+- If every gate and CI cleanup passes, a **draft prerelease** (`v<version>-pr.<PR>`) is created/updated with
   the PR **changelog** (from conventional commits), the internal APK and the preview links,
   and a **Telegram notification** is sent (changelog + preview links + PR APK).
 - Merging to main runs `main-ci.yml`: **semantic-release** bumps the **semver** version from

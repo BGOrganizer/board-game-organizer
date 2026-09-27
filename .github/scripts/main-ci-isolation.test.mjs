@@ -112,7 +112,7 @@ test("published APK still targets production, not isolated Preview", () => {
   assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
 });
 
-test("PR release APK targets development only after isolated E2E and cleanup", () => {
+test("PR builds isolated and development APKs concurrently, publishing only after E2E cleanup", () => {
   const prStep = (job, name) => prJobs[job].steps.find((item) => item.name === name);
   assert.equal(
     prStep("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
@@ -120,9 +120,12 @@ test("PR release APK targets development only after isolated E2E and cleanup", (
     ],
     `\${{ needs.deploy-preview-api.outputs.branch-url }}`,
   );
-  assert.ok(prJobs["deploy-development-api"].needs.includes("cleanup-e2e-db"));
-  assert.ok(prJobs["deploy-development-api"].needs.includes("e2e-maestro"));
-  assert.ok(prJobs["deploy-development-api"].needs.includes("e2e-playwright"));
+  assert.ok(prJobs["deploy-development-api"].needs.includes("unit-tests"));
+  assert.ok(prJobs["deploy-development-api"].needs.includes("integration-tests"));
+  assert.ok(!prJobs["deploy-development-api"].needs.includes("cleanup-e2e-db"));
+  for (const gate of ["e2e-maestro", "e2e-playwright", "cleanup-e2e-db"]) {
+    assert.ok(prJobs["draft-release"].needs.includes(gate));
+  }
   const preview = prStep(
     "deploy-development-api",
     "🚀 Deploy API Preview with development database",
