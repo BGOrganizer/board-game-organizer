@@ -1,5 +1,5 @@
 import type { MatchDetailResponse } from "@board-game-organizer/schemas";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { MatchResultsEditor } from "../MatchResultsEditor";
@@ -149,4 +149,37 @@ it("keeps at least one participant and validates scores inside the popover", () 
     (screen.getByRole("button", { name: "Register match" }) as HTMLButtonElement).disabled,
   ).toBe(false);
   expect(screen.queryByRole("button", { name: "Resolve tie" })).toBeNull();
+});
+
+it("keeps the selected win condition through an asynchronous view transition", () => {
+  const pending: Array<() => void> = [];
+  const original = Object.getOwnPropertyDescriptor(document, "startViewTransition");
+  Object.defineProperty(document, "startViewTransition", {
+    configurable: true,
+    value: (update: () => void) => {
+      pending.push(update);
+      return {};
+    },
+  });
+  try {
+    const submit = vi.fn();
+    renderWithI18n(
+      <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={submit} />,
+    );
+    const toggle = screen.getByRole("switch", { name: "Lowest score wins" });
+    fireEvent.click(toggle);
+    expect(pending).toHaveLength(1);
+    act(() => pending.shift()?.());
+    expect((toggle as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Register match" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Register match?" })).getByRole("button", {
+        name: "Register match",
+      }),
+    );
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ lowerWins: true }));
+  } finally {
+    if (original) Object.defineProperty(document, "startViewTransition", original);
+    else Reflect.deleteProperty(document, "startViewTransition");
+  }
 });

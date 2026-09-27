@@ -334,7 +334,10 @@ export function MatchResultsEditor({
             aria-checked={lowerWins}
             checked={lowerWins}
             disabled={busy}
-            onChange={(event) => animate(() => setLowerWins(event.target.checked))}
+            onChange={(event) => {
+              const checked = event.currentTarget.checked;
+              animate(() => setLowerWins(checked));
+            }}
             className="h-5 w-5 accent-primary"
           />
           {t`Lowest score wins`}

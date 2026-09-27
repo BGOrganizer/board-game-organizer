@@ -171,6 +171,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await page.getByRole("dialog", { name: "Guest" }).getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("button", { name: "Resolve tie" })).toHaveCount(0);
   await page.getByRole("switch", { name: "Lowest score wins" }).click();
+  await expect(page.getByRole("switch", { name: "Lowest score wins" })).toBeChecked();
   await page.getByRole("button", { name: "Register match" }).click();
   const registerDialog = page.getByRole("dialog", { name: "Register match?" });
   await expect(registerDialog.getByText(/cannot be edited/)).toBeVisible();
@@ -178,7 +179,9 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await registerDialog.getByRole("button", { name: "Register match" }).click();
   await expect(registerDialog).toHaveCount(0);
   await page.getByRole("tab", { name: "Standings" }).click();
-  await expect(page.getByText("ND")).toBeVisible();
+  const standings = page.getByRole("tabpanel", { name: "Standings" });
+  await expect(standings.getByText("ND", { exact: true })).toBeVisible();
+  await expect(standings.getByText("Lowest score wins", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Register results" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "More match actions" })).toHaveCount(0);
 });
