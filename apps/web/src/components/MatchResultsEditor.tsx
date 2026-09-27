@@ -6,20 +6,19 @@ import {
   previewMatchResults,
   type ScoreDraftRow,
 } from "@board-game-organizer/shared";
-import { Avatar, Button, Popover } from "@heroui/react";
+import { Button, Popover } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowLeft, ArrowUp, Check, ListOrdered, Trophy, Undo2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { ContactConfirmDialog } from "./ContactConfirmDialog";
 import { GroupedList, GroupedRow } from "./GroupedList";
+import { MatchStandingIdentity } from "./MatchStandingIdentity";
 
 function animate(update: () => void) {
   if (document.startViewTransition) document.startViewTransition(() => flushSync(update));
   else update();
 }
-
-type Player = MatchDetailResponse["administrator"];
 
 export function MatchResultsEditor({
   data,
@@ -80,28 +79,6 @@ export function MatchResultsEditor({
     if (!preview.valid || busy || editingTie) return;
     onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks });
   };
-  const identity = (player: Player, rank?: number | null) => (
-    <>
-      <span className="relative shrink-0">
-        <Avatar size="sm" color="accent">
-          <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
-          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-        </Avatar>
-        {rank != null && (
-          <span className="absolute -right-0.5 -bottom-0.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-0.5 text-[10px] font-bold text-accent-foreground ring-1 ring-surface">
-            {rank}
-          </span>
-        )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{player.name}</span>
-        <span className="block truncate text-xs text-default-500">
-          {player.email ?? t`Email unavailable`}
-        </span>
-      </span>
-    </>
-  );
-
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 pb-28">
       <Button variant="ghost" onPress={onBack}>
@@ -204,7 +181,7 @@ export function MatchResultsEditor({
                       className="gap-2"
                       style={{ viewTransitionName: `standing-${entry.userId}` }}
                     >
-                      {player && identity(player, entry.rank)}
+                      {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
                       <span className="font-medium">{entry.score}</span>
                       {editing && (
                         <span className="flex gap-1">
@@ -245,7 +222,7 @@ export function MatchResultsEditor({
                 const player = playerById.get(entry.userId);
                 return (
                   <GroupedRow key={entry.userId} className="gap-2">
-                    {player && identity(player)}
+                    {player && <MatchStandingIdentity player={player} />}
                     <span>ND</span>
                   </GroupedRow>
                 );
@@ -264,7 +241,7 @@ export function MatchResultsEditor({
             if (!row) return null;
             return (
               <GroupedRow key={player.id} className="gap-2">
-                {identity(player)}
+                <MatchStandingIdentity player={player} />
                 <Popover
                   isOpen={scoreEditor === player.id}
                   onOpenChange={(open) => setScoreEditor(open ? player.id : null)}

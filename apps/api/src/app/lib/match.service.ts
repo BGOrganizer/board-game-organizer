@@ -241,12 +241,34 @@ export class MatchService {
         ),
       ),
     ];
-    if (selectedIds.length === 0) return visible;
-    const games = await this.games.findByIds(selectedIds);
+    const winnerIds = [
+      ...new Set(
+        visible.flatMap((match) =>
+          match.status === "TERMINATED"
+            ? (match.results?.entries
+                .filter((entry) => entry.rank === 1)
+                .map((entry) => entry.userId) ?? [])
+            : [],
+        ),
+      ),
+    ];
+    const games = selectedIds.length ? await this.games.findByIds(selectedIds) : [];
+    const users = winnerIds.length ? await this.users.findByIds(winnerIds) : [];
     const names = new Map(games.map((game) => [game.id, game.name]));
+    const playerNames = new Map(users.map((user) => [user.clerkId, user.name]));
     return visible.map((match) => {
       const name = match.selectedGameId && names.get(match.selectedGameId);
-      return name ? { ...match, selectedGameName: name } : match;
+      return {
+        ...match,
+        ...(name ? { selectedGameName: name } : {}),
+        ...(match.status === "TERMINATED" && match.results
+          ? {
+              winnerNames: match.results.entries
+                .filter((entry) => entry.rank === 1)
+                .map((entry) => playerNames.get(entry.userId) ?? entry.userId),
+            }
+          : {}),
+      };
     });
   }
 

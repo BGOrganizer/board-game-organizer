@@ -22,6 +22,7 @@ import {
   Ellipsis,
   Gamepad2,
   LogOut,
+  Medal,
   Pencil,
   RotateCcw,
   Trash2,
@@ -34,6 +35,7 @@ import { useEffect, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
+import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { MatchWizard } from "@/components/MatchWizard";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -243,6 +245,10 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     games.find((game) => game.id === summary?.selectedGameId)?.name ??
     String(summary?.selectedGameId ?? "");
   const chosenDate = summary?.selectedDate ? new Date(summary.selectedDate).toLocaleString() : "";
+  const winnerNames = match.results?.entries
+    .filter((entry) => entry.rank === 1)
+    .map((entry) => participants.find((player) => player.id === entry.userId)?.name ?? entry.userId)
+    .join(", ");
 
   const finishAction = () => {
     setConfirmAction(null);
@@ -379,20 +385,14 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               {t`Overview`}
               <Tabs.Indicator />
             </Tabs.Tab>
-            <Tabs.Tab id="players">
-              {t`Players`}
+            <Tabs.Tab id={match.status === "TERMINATED" ? "standings" : "players"}>
+              {match.status === "TERMINATED" ? t`Standings` : t`Players`}
               <Tabs.Indicator />
             </Tabs.Tab>
             <Tabs.Tab id="games">
               {t`Games`}
               <Tabs.Indicator />
             </Tabs.Tab>
-            {match.status === "TERMINATED" && (
-              <Tabs.Tab id="standings">
-                {t`Standings`}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            )}
           </Tabs.List>
         </Tabs.ListContainer>
 
@@ -433,67 +433,69 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           </div>
         </Tabs.Panel>
 
-        <Tabs.Panel id="players">
-          <div className="space-y-5">
-            {match.status === "PLANNING" && (
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-default-500">{t`Minimum players`}</p>
-                  <p className="font-semibold">{match.minPlayers}</p>
+        {match.status !== "TERMINATED" && (
+          <Tabs.Panel id="players">
+            <div className="space-y-5">
+              {match.status === "PLANNING" && (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-default-500">{t`Minimum players`}</p>
+                    <p className="font-semibold">{match.minPlayers}</p>
+                  </div>
+                  <div>
+                    <p className="text-default-500">{t`Maximum players`}</p>
+                    <p className="font-semibold">{match.maxPlayers}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-default-500">{t`Maximum players`}</p>
-                  <p className="font-semibold">{match.maxPlayers}</p>
-                </div>
-              </div>
-            )}
-            <div>
-              <h2 className="mb-2 text-sm font-semibold">{t`Participants`}</h2>
-              <GroupedList>
-                {participants.map((player) => (
-                  <GroupedRow key={player.id}>
-                    <Avatar size="md" color="accent">
-                      <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
-                      <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate font-medium">{player.name}</p>
-                        {player.isAdministrator ? (
-                          <Crown
-                            className="h-4 w-4 shrink-0 text-warning"
-                            aria-label={t`Administrator`}
-                          />
+              )}
+              <div>
+                <h2 className="mb-2 text-sm font-semibold">{t`Participants`}</h2>
+                <GroupedList>
+                  {participants.map((player) => (
+                    <GroupedRow key={player.id}>
+                      <Avatar size="md" color="accent">
+                        <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
+                        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate font-medium">{player.name}</p>
+                          {player.isAdministrator ? (
+                            <Crown
+                              className="h-4 w-4 shrink-0 text-warning"
+                              aria-label={t`Administrator`}
+                            />
+                          ) : null}
+                        </div>
+                        {player.email ? (
+                          <p className="truncate text-sm text-default-500">{player.email}</p>
                         ) : null}
                       </div>
-                      {player.email ? (
-                        <p className="truncate text-sm text-default-500">{player.email}</p>
-                      ) : null}
-                    </div>
-                    <span
-                      role="img"
-                      aria-label={
-                        player.status === "PENDING"
-                          ? t`Pending`
-                          : player.status === "ACCEPTED"
-                            ? t`Accepted`
-                            : t`Declined`
-                      }
-                    >
-                      {player.status === "PENDING" ? (
-                        <Clock3 className="h-5 w-5 text-warning" />
-                      ) : player.status === "ACCEPTED" ? (
-                        <CircleCheck className="h-5 w-5 text-success" />
-                      ) : (
-                        <CircleX className="h-5 w-5 text-danger" />
-                      )}
-                    </span>
-                  </GroupedRow>
-                ))}
-              </GroupedList>
+                      <span
+                        role="img"
+                        aria-label={
+                          player.status === "PENDING"
+                            ? t`Pending`
+                            : player.status === "ACCEPTED"
+                              ? t`Accepted`
+                              : t`Declined`
+                        }
+                      >
+                        {player.status === "PENDING" ? (
+                          <Clock3 className="h-5 w-5 text-warning" />
+                        ) : player.status === "ACCEPTED" ? (
+                          <CircleCheck className="h-5 w-5 text-success" />
+                        ) : (
+                          <CircleX className="h-5 w-5 text-danger" />
+                        )}
+                      </span>
+                    </GroupedRow>
+                  ))}
+                </GroupedList>
+              </div>
             </div>
-          </div>
-        </Tabs.Panel>
+          </Tabs.Panel>
+        )}
 
         <Tabs.Panel id="games">
           <div className="space-y-2">
@@ -525,6 +527,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                           <p className="text-xs text-default-500">{game.yearPublished}</p>
                         ) : null}
                       </div>
+                      {match.status === "TERMINATED" && winnerNames && (
+                        <span className="inline-flex min-w-0 items-center gap-1 text-sm">
+                          <Medal className="h-4 w-4 shrink-0 text-warning" aria-label={t`Winner`} />
+                          <strong className="truncate">{winnerNames}</strong>
+                        </span>
+                      )}
                       {canChoose && (
                         <ChoiceDropdown
                           label={t`Choose game`}
@@ -553,13 +561,8 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                   const player = participants.find((item) => item.id === entry.userId);
                   return (
                     <GroupedRow key={entry.userId}>
-                      <span className="w-8 text-sm text-default-500">
-                        {entry.rank ? `${entry.rank}.` : "—"}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">
-                        {player?.name ?? entry.userId}
-                      </span>
-                      <span className="font-medium">{entry.score ?? "ND"}</span>
+                      {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
+                      <span className="shrink-0 font-semibold">{entry.score ?? "ND"}</span>
                     </GroupedRow>
                   );
                 })}

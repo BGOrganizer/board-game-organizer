@@ -97,8 +97,8 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
   const rank = within(standings).getAllByText("1", { exact: true });
   expect(rank).toHaveLength(3);
   expect(rank[0]?.className).toContain("font-bold");
-  expect(rank[0]?.className).toContain("h-4");
-  expect(rank[0]?.className).toContain("px-0.5");
+  expect(rank[0]?.className).toContain("h-[18px]");
+  expect(rank[0]?.className).toContain("leading-none");
   expect(rank[0]?.parentElement?.querySelector(".avatar")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));

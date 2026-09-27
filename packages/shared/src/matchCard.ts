@@ -13,15 +13,22 @@ export const matchCardStatusColor: Record<
   CANCELLED: "danger",
 };
 
-export function matchCardData(match: MatchResponse) {
+export function matchCardData(match: MatchResponse, now = Date.now()) {
   const planning = match.status === "PLANNING";
+  const dates = planning || !match.selectedDate ? match.dates : [match.selectedDate];
+  const future = dates.filter((date) => Date.parse(date) >= now);
+  const date = (future.length ? future : dates)
+    .slice()
+    .sort((a, b) => (future.length ? 1 : -1) * (Date.parse(a) - Date.parse(b)))[0];
   return {
-    dates: planning || !match.selectedDate ? match.dates : [match.selectedDate],
+    date,
+    additionalDates: Math.max(0, dates.length - 1),
     players: planning
       ? match.minPlayers
       : 1 + match.invitations.filter((invitation) => invitation.status === "ACCEPTED").length,
     maxPlayers: match.maxPlayers,
     gameCount: planning ? match.gameIds.length : undefined,
     selectedGameName: planning ? undefined : match.selectedGameName,
+    winnerNames: match.status === "TERMINATED" ? match.winnerNames : undefined,
   };
 }

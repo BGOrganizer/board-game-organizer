@@ -451,6 +451,29 @@ describe("MatchService", () => {
     expect(games.findByIds).not.toHaveBeenCalled();
   });
 
+  it("enriches all first-place finishers for terminated match cards", async () => {
+    const { service, matches, users, invitations } = setup();
+    invitations.listByMatchIds.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    matches.listAccessible.mockResolvedValue([
+      {
+        ...match,
+        status: "TERMINATED",
+        results: {
+          lowerWins: false,
+          finalizedAt: "2026-09-01T10:00:00.000Z",
+          tieBreaks: [],
+          entries: [
+            { userId: "user_admin", score: "5", rank: 1 },
+            { userId: "user_guest", score: "5", rank: 1 },
+          ],
+        },
+      },
+    ]);
+    const [listed] = await service.list("user_admin");
+    expect(listed?.winnerNames).toEqual(["Admin Player", "Guest Player"]);
+    expect(users.findByIds).toHaveBeenCalledWith(["user_admin", "user_guest"]);
+  });
+
   it("rejects missing, redundant, and concurrently changed status transitions", async () => {
     const missing = setup();
     missing.matches.serializeInvitationChange.mockResolvedValue({

@@ -434,9 +434,17 @@ msgstr "Create invite"
 msgid "Creating invite"
 msgstr "Creating invite"
 
+#: apps/web/src/components/Matches.tsx
+msgid "date"
+msgstr "date"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Date selection"
 msgstr "Date selection"
+
+#: apps/web/src/components/Matches.tsx
+msgid "dates"
+msgstr "dates"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/MatchDetail.tsx
@@ -490,7 +498,7 @@ msgstr "Edit match"
 msgid "Edit tie-break"
 msgstr "Edit tie-break"
 
-#: apps/web/src/components/MatchResultsEditor.tsx
+#: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Email unavailable"
 msgstr "Email unavailable"
 
@@ -948,8 +956,8 @@ msgid "Played"
 msgstr "Played"
 
 #: apps/web/src/components/Matches.tsx
-msgid "Player"
-msgstr "Player"
+#~ msgid "Player"
+#~ msgstr "Player"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Player scores"
@@ -1260,6 +1268,11 @@ msgstr "Welcome to Board Game Organizer"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "When could you play?"
 msgstr "When could you play?"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/Matches.tsx
+msgid "Winner"
+msgstr "Winner"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/VoteCounts.tsx

@@ -63,11 +63,16 @@ describe("Matches", () => {
     expect(screen.getByText("Planning").closest('[data-slot="chip"]')?.className).toContain(
       "chip--warning",
     );
-    expect(document.querySelector('img[src^="data:image/svg+xml,"]')).toBeTruthy();
+    expect(document.querySelector('img.match-waves[src^="data:image/svg+xml,"]')).toBeTruthy();
     expect(
-      screen.getByText(new Date(baseMock.list.data[0].dates[0]).toLocaleDateString()),
+      screen.getByText(
+        new Date(baseMock.list.data[0].dates[0]).toLocaleDateString("en", {
+          day: "numeric",
+          month: "long",
+        }),
+      ),
     ).toBeTruthy();
-    expect(screen.getByLabelText("Player")).toBeTruthy();
+    expect(screen.queryByLabelText("Player")).toBeNull();
     expect(screen.getByText("Matches")).toBeTruthy();
   });
 
@@ -95,8 +100,16 @@ describe("Matches", () => {
     expect(screen.getByText("Confirmed").closest('[data-slot="chip"]')?.className).toContain(
       "chip--success",
     );
-    expect(screen.getByText(new Date(selectedDate).toLocaleDateString())).toBeTruthy();
-    expect(screen.queryByText(new Date(listedMatch.dates[0]).toLocaleDateString())).toBeNull();
+    expect(
+      screen.getByText(
+        new Date(selectedDate).toLocaleDateString("en", { day: "numeric", month: "long" }),
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        new Date(listedMatch.dates[0]).toLocaleDateString("en", { day: "numeric", month: "long" }),
+      ),
+    ).toBeNull();
     expect(screen.getByText("1/5")).toBeTruthy();
     expect(screen.getByText("Cascadia")).toBeTruthy();
     expect(screen.queryByText("1 game")).toBeNull();
@@ -112,7 +125,70 @@ describe("Matches", () => {
 
     renderWithI18n(<Matches />);
 
-    expect(screen.getByLabelText("Administrator")).toBeTruthy();
+    const crown = screen.getByLabelText("Administrator");
+    expect(crown.parentElement?.querySelector("img.match-waves")).toBeTruthy();
+  });
+
+  it("shows the next date and number of remaining dates", () => {
+    const listedMatch = baseMock.list.data[0];
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: {
+        ...baseMock.list,
+        data: [{ ...listedMatch, dates: ["2099-10-12T20:00:00Z", "2099-10-10T20:00:00Z"] }],
+      },
+    });
+    renderWithI18n(<Matches />);
+    expect(
+      screen.getByText(
+        new Date("2099-10-10T20:00:00Z").toLocaleDateString("en", {
+          day: "numeric",
+          month: "long",
+        }),
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText("+1 date")).toBeTruthy();
+  });
+
+  it("pluralizes remaining match dates", () => {
+    const listedMatch = baseMock.list.data[0];
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: {
+        ...baseMock.list,
+        data: [
+          {
+            ...listedMatch,
+            dates: ["2099-10-12T20:00:00Z", "2099-10-10T20:00:00Z", "2099-10-11T20:00:00Z"],
+          },
+        ],
+      },
+    });
+    renderWithI18n(<Matches />);
+    expect(screen.getByText("+2 dates")).toBeTruthy();
+  });
+
+  it("identifies every tied first-place player after termination", () => {
+    const listedMatch = baseMock.list.data[0];
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: {
+        ...baseMock.list,
+        data: [
+          {
+            ...listedMatch,
+            status: "TERMINATED",
+            selectedDate: listedMatch.dates[0],
+            selectedGameName: "Cascadia",
+            winnerNames: ["Anna Rossi", "Marco Verdi"],
+          },
+        ],
+      },
+    });
+    renderWithI18n(<Matches />);
+    const winners = screen.getByText("Anna Rossi, Marco Verdi");
+    expect(winners.tagName).toBe("STRONG");
+    expect(screen.getByLabelText("Winner").getAttribute("class")).toContain("lucide-medal");
   });
 
   it("opens the wizard when the create FAB is pressed", () => {

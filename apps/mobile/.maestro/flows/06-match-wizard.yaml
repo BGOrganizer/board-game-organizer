@@ -106,6 +106,10 @@ appId: com.bgo.mobile
 - assertVisible: "Planning"
 - assertVisible: "2/4"
 - assertVisible: "1 game"
+- assertVisible:
+    id: "match-waves-image"
+- assertVisible:
+    id: "admin-match-badge"
 - tapOn: "Friday night games"
 - extendedWaitUntil:
     visible: "Overview"

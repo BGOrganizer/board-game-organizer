@@ -178,9 +178,14 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(registerDialog.getByText("Guest")).toHaveCount(0);
   await registerDialog.getByRole("button", { name: "Register match" }).click();
   await expect(registerDialog).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Players" })).toHaveCount(0);
   await page.getByRole("tab", { name: "Standings" }).click();
   const standings = page.getByRole("tabpanel", { name: "Standings" });
   await expect(standings.getByText("ND", { exact: true })).toBeVisible();
+  await expect(standings.getByText("admin@example.com")).toBeVisible();
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByRole("img", { name: "Winner" })).toBeVisible();
+  await page.getByRole("tab", { name: "Standings" }).click();
   await expect(standings.getByText("Lowest score wins", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Register results" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "More match actions" })).toHaveCount(0);
@@ -347,8 +352,11 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(card.locator('img[src^="data:image/svg+xml,"]')).toBeVisible();
   await expect(card.locator('[data-slot="chip"]')).toHaveText("Planning");
   await expect(card.getByText(/^\d+\/\d+$/)).toBeVisible();
-  await expect(card.locator("time")).toHaveCount(2);
-  await expect(card.locator("time").first()).not.toContainText(":");
+  await expect(card.locator("time")).toHaveCount(1);
+  await expect(card.getByText("+1 date")).toBeVisible();
+  await expect(card.locator("time")).not.toContainText(/\d{4}|:/);
+  await expect(card.locator("img.match-waves")).toBeVisible();
+  await expect(card.getByRole("img", { name: "Administrator" })).toBeVisible();
 
   // Open detail and exercise all three HeroUI tabs.
   await card.click();

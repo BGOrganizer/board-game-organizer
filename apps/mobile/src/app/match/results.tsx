@@ -9,7 +9,6 @@ import {
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Avatar } from "heroui-native/avatar";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { useBottomSheetAwareHandlers, useThemeColor } from "heroui-native/hooks";
@@ -23,6 +22,7 @@ import { Alert, Platform, ScrollView, View } from "react-native";
 import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -112,46 +112,6 @@ export default function MatchResultsScreen() {
         })
       }
     />
-  );
-}
-
-function PlayerInfo({ player, rank }: { player: Player; rank?: number | null }) {
-  const t = useT();
-  return (
-    <>
-      <View style={{ width: 48, height: 48 }}>
-        <Avatar size="md">
-          {player.avatarUrl && <Avatar.Image source={{ uri: player.avatarUrl }} />}
-          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-        </Avatar>
-        {rank != null && (
-          <View
-            style={{
-              position: "absolute",
-              right: -2,
-              bottom: -2,
-              minWidth: 18,
-              height: 18,
-              paddingHorizontal: 2,
-              borderRadius: 9,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            className="bg-accent"
-          >
-            <Typography className="text-[10px] font-bold text-accent-foreground">{rank}</Typography>
-          </View>
-        )}
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Typography className="font-medium text-foreground" numberOfLines={1}>
-          {player.name}
-        </Typography>
-        <Typography className="text-xs text-muted" numberOfLines={1}>
-          {player.email ?? t("Email unavailable")}
-        </Typography>
-      </View>
-    </>
   );
 }
 
@@ -396,7 +356,7 @@ function ResultsForm({
                         padding: 10,
                       }}
                     >
-                      {player && <PlayerInfo player={player} rank={entry.rank} />}
+                      {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
                       <Typography className="font-semibold text-foreground">
                         {entry.score}
                       </Typography>
@@ -442,7 +402,7 @@ function ResultsForm({
                   layout={rowTransition}
                   style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 8 }}
                 >
-                  {player && <PlayerInfo player={player} />}
+                  {player && <MatchStandingIdentity player={player} />}
                   <Typography className="text-foreground">ND</Typography>
                 </Animated.View>
               );
@@ -452,7 +412,7 @@ function ResultsForm({
         <GroupedList>
           {players.map((player) => (
             <GroupedRow key={player.id}>
-              <PlayerInfo player={player} />
+              <MatchStandingIdentity player={player} />
               <Button
                 isIconOnly
                 size="sm"

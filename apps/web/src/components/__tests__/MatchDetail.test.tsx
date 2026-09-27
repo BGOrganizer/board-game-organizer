@@ -146,10 +146,18 @@ describe("MatchDetail", () => {
     expect(screen.queryByRole("button", { name: "Register results" })).toBeNull();
     expect(screen.queryByRole("button", { name: "More match actions" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Edit match" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Players" })).toBeNull();
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
     fireEvent.click(screen.getByRole("tab", { name: "Standings" }));
     expect(screen.getByText("-2.5")).toBeTruthy();
     expect(screen.getByText("ND")).toBeTruthy();
     expect(screen.getByText("Guest Player")).toBeTruthy();
+    expect(screen.getByText("guest@example.com")).toBeTruthy();
+    expect(screen.getByText("admin@example.com")).toBeTruthy();
+    expect(screen.getByText("1").className).toContain("leading-none");
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(screen.getByLabelText("Winner")).toBeTruthy();
+    expect(screen.getByText("Admin Player").tagName).toBe("STRONG");
   });
 
   it("shows participant profiles and invitation status icons", () => {

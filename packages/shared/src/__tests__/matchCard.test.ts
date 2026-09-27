@@ -48,11 +48,13 @@ describe("matchCardData", () => {
   });
   it("shows min/max, all dates, and game count while planning", () => {
     expect(matchCardData(match)).toEqual({
-      dates: match.dates,
+      date: match.dates[0],
+      additionalDates: 1,
       players: 2,
       maxPlayers: 5,
       gameCount: 2,
       selectedGameName: undefined,
+      winnerNames: undefined,
     });
   });
 
@@ -66,15 +68,35 @@ describe("matchCardData", () => {
         selectedGameName: "Cascadia",
       }),
     ).toEqual({
-      dates: [match.dates[1]],
+      date: match.dates[1],
+      additionalDates: 0,
       players: 2,
       maxPlayers: 5,
       gameCount: undefined,
       selectedGameName: "Cascadia",
+      winnerNames: undefined,
     });
   });
 
-  it("keeps dates when selected date is missing", () => {
-    expect(matchCardData({ ...match, status: "CREATED" }).dates).toEqual(match.dates);
+  it("picks the next upcoming date, or the most recent when all have passed", () => {
+    const dates = [match.dates[1], match.dates[0]];
+    expect(matchCardData({ ...match, dates }, Date.parse("2026-10-01T21:00:00Z")).date).toBe(
+      match.dates[1],
+    );
+    expect(matchCardData({ ...match, dates }, Date.parse("2026-10-03T00:00:00Z")).date).toBe(
+      match.dates[1],
+    );
+    expect(dates).toEqual([match.dates[1], match.dates[0]]);
+    expect(
+      matchCardData({ ...match, status: "CREATED" }, Date.parse("2026-09-01T00:00:00Z"))
+        .additionalDates,
+    ).toBe(1);
+  });
+
+  it("exposes only terminated winners", () => {
+    expect(matchCardData({ ...match, winnerNames: ["Guest Player"] }).winnerNames).toBeUndefined();
+    expect(
+      matchCardData({ ...match, status: "TERMINATED", winnerNames: ["Guest Player"] }).winnerNames,
+    ).toEqual(["Guest Player"]);
   });
 });

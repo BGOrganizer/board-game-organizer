@@ -434,9 +434,17 @@ msgstr "Crea invito"
 msgid "Creating invite"
 msgstr "Creazione dell'invito"
 
+#: apps/web/src/components/Matches.tsx
+msgid "date"
+msgstr "data"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Date selection"
 msgstr "Selezione date"
+
+#: apps/web/src/components/Matches.tsx
+msgid "dates"
+msgstr "date"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/MatchDetail.tsx
@@ -490,7 +498,7 @@ msgstr "Modifica partita"
 msgid "Edit tie-break"
 msgstr "Modifica spareggio"
 
-#: apps/web/src/components/MatchResultsEditor.tsx
+#: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Email unavailable"
 msgstr "Email non disponibile"
 
@@ -948,8 +956,8 @@ msgid "Played"
 msgstr "Giocate"
 
 #: apps/web/src/components/Matches.tsx
-msgid "Player"
-msgstr "Giocatore"
+#~ msgid "Player"
+#~ msgstr "Giocatore"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Player scores"
@@ -1260,6 +1268,11 @@ msgstr "Benvenuto in Board Game Organizer"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "When could you play?"
 msgstr "Quando potresti giocare?"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/Matches.tsx
+msgid "Winner"
+msgstr "Vincitore"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/VoteCounts.tsx

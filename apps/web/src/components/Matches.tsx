@@ -9,30 +9,38 @@ import {
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import bottts from "@dicebear/styles/bottts.json" with { type: "json" };
+import waves from "@dicebear/styles/waves.json" with { type: "json" };
 import { Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Crown, Dices, Plus, UserRound, UsersRound, X } from "lucide-react";
+import { Check, Crown, Dices, Medal, Plus, UsersRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MatchWizard } from "@/components/MatchWizard";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
-const botttsStyle = new Style(bottts);
+const wavesStyle = new Style(waves);
 
-function MatchMascot({ name }: { name: string }) {
+function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string }) {
   const src = useMemo(
     () =>
-      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(botttsStyle, { seed: name, size: 64 }).toString())}`,
+      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(wavesStyle, { seed: name, size: 72 }).toString())}`,
     [name],
   );
   return (
-    <span
-      className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-accent/10"
-      aria-hidden="true"
-    >
-      {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG. */}
-      <img src={src} alt="" className="size-16" />
+    <span className="relative size-16 shrink-0">
+      <span className="block size-16 overflow-hidden rounded-xl bg-accent/10" aria-hidden="true">
+        {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG. */}
+        <img src={src} alt="" className="match-waves relative -top-1 -left-1 size-[72px]" />
+      </span>
+      {adminLabel && (
+        <span
+          className="absolute top-0 left-0 rounded-br-lg bg-surface p-1 shadow-sm"
+          role="img"
+          aria-label={adminLabel}
+        >
+          <Crown className="h-4 w-4 text-warning" aria-hidden="true" />
+        </span>
+      )}
     </span>
   );
 }
@@ -47,7 +55,7 @@ function protectionBypass(): string | undefined {
 
 export function Matches() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -113,34 +121,30 @@ export function Matches() {
             card.gameCount === undefined
               ? (card.selectedGameName ?? t`Game unavailable`)
               : `${card.gameCount} ${card.gameCount === 1 ? t`game` : t`games`}`;
+          const dateLabel = card.date
+            ? new Date(card.date).toLocaleDateString(i18n.locale, { day: "numeric", month: "long" })
+            : "";
+          const extraDates = card.additionalDates
+            ? `+${card.additionalDates} ${card.additionalDates === 1 ? t`date` : t`dates`}`
+            : "";
           return (
             <Card key={match.id} className="rounded-xl p-0">
               <Link
                 href={match.optimistic ? "/matches" : `/matches/${match.id}`}
-                aria-label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${card.dates.map((date) => new Date(date).toLocaleDateString()).join(", ")}, ${t`Players`}: ${card.players}/${card.maxPlayers}, ${gameLabel}`}
+                aria-label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel} ${extraDates}, ${t`Players`}: ${card.players}/${card.maxPlayers}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${t`Winner`}: ${card.winnerNames.join(", ")}` : ""}`}
                 aria-disabled={match.optimistic}
                 onClick={(event) => {
                   if (match.optimistic) event.preventDefault();
                 }}
                 className="flex w-full cursor-pointer items-start gap-3 p-3 text-left"
               >
-                <MatchMascot name={match.name} />
+                <MatchArtwork
+                  name={match.name}
+                  adminLabel={match.adminUserId === userId ? t`Administrator` : undefined}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1">
-                      <p className="min-w-0 font-semibold">{match.name}</p>
-                      {match.adminUserId === userId ? (
-                        <Crown
-                          aria-label={t`Administrator`}
-                          className="h-4 w-4 shrink-0 text-warning"
-                        />
-                      ) : (
-                        <UserRound
-                          aria-label={t`Player`}
-                          className="h-4 w-4 shrink-0 text-default-500"
-                        />
-                      )}
-                    </div>
+                    <p className="min-w-0 font-semibold">{match.name}</p>
                     <Chip
                       size="sm"
                       variant="soft"
@@ -150,13 +154,12 @@ export function Matches() {
                       {statusLabels[match.status]}
                     </Chip>
                   </div>
-                  <div className="mt-2 space-y-1 text-sm text-default-600">
-                    {card.dates.map((date) => (
-                      <time key={date} dateTime={date} className="block">
-                        {new Date(date).toLocaleDateString()}
-                      </time>
-                    ))}
-                  </div>
+                  {card.date && (
+                    <div className="mt-2 text-sm text-default-600">
+                      <time dateTime={card.date}>{dateLabel}</time>
+                      {extraDates && <span className="ml-1">{extraDates}</span>}
+                    </div>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-default-500">
                     <span className="inline-flex items-center gap-1">
                       <UsersRound className="h-4 w-4" aria-hidden="true" />
@@ -166,6 +169,14 @@ export function Matches() {
                       <Dices className="h-4 w-4 shrink-0" aria-hidden="true" />
                       {gameLabel}
                     </span>
+                    {card.winnerNames && card.winnerNames.length > 0 && (
+                      <span className="inline-flex min-w-0 items-center gap-1">
+                        <Medal className="h-4 w-4 shrink-0 text-warning" aria-label={t`Winner`} />
+                        <strong className="truncate text-default-foreground">
+                          {card.winnerNames.join(", ")}
+                        </strong>
+                      </span>
+                    )}
                   </div>
                 </div>
               </Link>

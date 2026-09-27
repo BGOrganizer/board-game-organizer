@@ -24,6 +24,7 @@ import {
   Ellipsis,
   Gamepad2,
   LogOut,
+  Medal,
   Pencil,
   RotateCcw,
   Trash2,
@@ -33,6 +34,7 @@ import {
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -522,6 +524,10 @@ function MatchDetailContent({
       isAdministrator: false,
     })),
   ];
+  const winnerNames = match.results?.entries
+    .filter((entry) => entry.rank === 1)
+    .map((entry) => participants.find((player) => player.id === entry.userId)?.name ?? entry.userId)
+    .join(", ");
 
   return (
     <View style={{ gap: 16 }}>
@@ -566,17 +572,16 @@ function MatchDetailContent({
           <Tabs.Trigger value="overview" style={{ flex: 1 }}>
             <Tabs.Label>{t("Overview")}</Tabs.Label>
           </Tabs.Trigger>
-          <Tabs.Trigger value="players" style={{ flex: 1 }}>
-            <Tabs.Label>{t("Players")}</Tabs.Label>
+          <Tabs.Trigger
+            value={match.status === "TERMINATED" ? "standings" : "players"}
+            style={{ flex: 1 }}
+            testID={match.status === "TERMINATED" ? "standings-tab" : undefined}
+          >
+            <Tabs.Label>{match.status === "TERMINATED" ? t("Standings") : t("Players")}</Tabs.Label>
           </Tabs.Trigger>
           <Tabs.Trigger value="games" style={{ flex: 1 }}>
             <Tabs.Label>{t("Games")}</Tabs.Label>
           </Tabs.Trigger>
-          {match.status === "TERMINATED" && (
-            <Tabs.Trigger value="standings" style={{ flex: 1 }} testID="standings-tab">
-              <Tabs.Label>{t("Standings")}</Tabs.Label>
-            </Tabs.Trigger>
-          )}
         </Tabs.List>
 
         <Tabs.Content value="overview" style={{ marginTop: 16 }}>
@@ -627,74 +632,76 @@ function MatchDetailContent({
           </View>
         </Tabs.Content>
 
-        <Tabs.Content value="players" style={{ marginTop: 16 }}>
-          <View style={{ gap: 12 }}>
-            {match.status === "PLANNING" && (
-              <View style={{ flexDirection: "row", gap: 28 }}>
-                <View>
-                  <Typography className="text-sm text-muted">{t("Minimum players")}</Typography>
-                  <Typography className="font-semibold text-foreground">
-                    {match.minPlayers}
-                  </Typography>
+        {match.status !== "TERMINATED" && (
+          <Tabs.Content value="players" style={{ marginTop: 16 }}>
+            <View style={{ gap: 12 }}>
+              {match.status === "PLANNING" && (
+                <View style={{ flexDirection: "row", gap: 28 }}>
+                  <View>
+                    <Typography className="text-sm text-muted">{t("Minimum players")}</Typography>
+                    <Typography className="font-semibold text-foreground">
+                      {match.minPlayers}
+                    </Typography>
+                  </View>
+                  <View>
+                    <Typography className="text-sm text-muted">{t("Maximum players")}</Typography>
+                    <Typography className="font-semibold text-foreground">
+                      {match.maxPlayers}
+                    </Typography>
+                  </View>
                 </View>
-                <View>
-                  <Typography className="text-sm text-muted">{t("Maximum players")}</Typography>
-                  <Typography className="font-semibold text-foreground">
-                    {match.maxPlayers}
-                  </Typography>
-                </View>
-              </View>
-            )}
+              )}
 
-            <Typography className="font-semibold text-foreground">{t("Participants")}</Typography>
-            <GroupedList>
-              {participants.map((player) => {
-                const statusLabel =
-                  player.status === "PENDING"
-                    ? t("Pending")
-                    : player.status === "ACCEPTED"
-                      ? t("Accepted")
-                      : t("Declined");
-                return (
-                  <GroupedRow key={player.id}>
-                    <Avatar size="md">
-                      {player.avatarUrl ? (
-                        <Avatar.Image source={{ uri: player.avatarUrl }} />
-                      ) : null}
-                      <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                    </Avatar>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <Typography className="font-medium text-foreground" numberOfLines={1}>
-                          {player.name}
-                        </Typography>
-                        {player.isAdministrator ? (
-                          <View accessible accessibilityLabel={t("Administrator")}>
-                            <Crown size={16} color="#f5a524" />
-                          </View>
+              <Typography className="font-semibold text-foreground">{t("Participants")}</Typography>
+              <GroupedList>
+                {participants.map((player) => {
+                  const statusLabel =
+                    player.status === "PENDING"
+                      ? t("Pending")
+                      : player.status === "ACCEPTED"
+                        ? t("Accepted")
+                        : t("Declined");
+                  return (
+                    <GroupedRow key={player.id}>
+                      <Avatar size="md">
+                        {player.avatarUrl ? (
+                          <Avatar.Image source={{ uri: player.avatarUrl }} />
+                        ) : null}
+                        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+                      </Avatar>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Typography className="font-medium text-foreground" numberOfLines={1}>
+                            {player.name}
+                          </Typography>
+                          {player.isAdministrator ? (
+                            <View accessible accessibilityLabel={t("Administrator")}>
+                              <Crown size={16} color="#f5a524" />
+                            </View>
+                          ) : null}
+                        </View>
+                        {player.email ? (
+                          <Typography className="text-sm text-muted" numberOfLines={1}>
+                            {player.email}
+                          </Typography>
                         ) : null}
                       </View>
-                      {player.email ? (
-                        <Typography className="text-sm text-muted" numberOfLines={1}>
-                          {player.email}
-                        </Typography>
-                      ) : null}
-                    </View>
-                    <View accessible accessibilityRole="image" accessibilityLabel={statusLabel}>
-                      {player.status === "PENDING" ? (
-                        <Clock3 size={20} color="#f5a524" />
-                      ) : player.status === "ACCEPTED" ? (
-                        <CircleCheck size={20} color="#17c964" />
-                      ) : (
-                        <CircleX size={20} color="#f31260" />
-                      )}
-                    </View>
-                  </GroupedRow>
-                );
-              })}
-            </GroupedList>
-          </View>
-        </Tabs.Content>
+                      <View accessible accessibilityRole="image" accessibilityLabel={statusLabel}>
+                        {player.status === "PENDING" ? (
+                          <Clock3 size={20} color="#f5a524" />
+                        ) : player.status === "ACCEPTED" ? (
+                          <CircleCheck size={20} color="#17c964" />
+                        ) : (
+                          <CircleX size={20} color="#f31260" />
+                        )}
+                      </View>
+                    </GroupedRow>
+                  );
+                })}
+              </GroupedList>
+            </View>
+          </Tabs.Content>
+        )}
 
         <Tabs.Content value="games" style={{ marginTop: 16 }}>
           <View style={{ gap: 12 }}>
@@ -745,6 +752,27 @@ function MatchDetailContent({
                             <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
                           )}
                       </View>
+                      {match.status === "TERMINATED" && winnerNames && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 4,
+                            flexShrink: 1,
+                          }}
+                        >
+                          <View
+                            accessible
+                            accessibilityRole="image"
+                            accessibilityLabel={t("Winner")}
+                          >
+                            <Medal size={16} color="#f59e0b" />
+                          </View>
+                          <Typography className="font-bold text-foreground" numberOfLines={1}>
+                            {winnerNames}
+                          </Typography>
+                        </View>
+                      )}
                       {canChoose && (
                         <Button
                           variant="outline"
@@ -784,12 +812,7 @@ function MatchDetailContent({
                   const player = participants.find((item) => item.id === entry.userId);
                   return (
                     <GroupedRow key={entry.userId}>
-                      <Typography className="w-8 text-sm text-muted">
-                        {entry.rank ? `${entry.rank}.` : "—"}
-                      </Typography>
-                      <Typography className="flex-1 text-foreground">
-                        {player?.name ?? entry.userId}
-                      </Typography>
+                      {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
                       <Typography className="font-semibold text-foreground">
                         {entry.score ?? "ND"}
                       </Typography>

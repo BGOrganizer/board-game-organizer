@@ -58,6 +58,9 @@ describe("translate (runtime)", () => {
     expect(translate(it, "Sign in")).toBe("Accedi");
     expect(translate(it, "Logout")).toBe("Esci");
     expect(translate(it, "Profile")).toBe("Profilo");
+    expect(translate(it, "date")).toBe("data");
+    expect(translate(it, "dates")).toBe("date");
+    expect(translate(it, "Winner")).toBe("Vincitore");
   });
 
   it("falls back to the English source when the catalog has no entry", () => {
