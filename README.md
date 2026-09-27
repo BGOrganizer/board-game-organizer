@@ -85,8 +85,9 @@ docker compose up -d --wait --wait-timeout 600
 docker compose logs -f mongodb
 ```
 
-Every MongoDB container start stages and validates the CSV, then replaces the `boardGames`
-collection. MongoDB becomes healthy only after replica-set initialization and import complete.
+Every MongoDB container start stages and validates the CSV, then upserts `boardGames`
+without deleting absent games. MongoDB becomes healthy only after replica-set initialization
+and import complete.
 Configure the API with:
 
 ```env
@@ -94,8 +95,24 @@ MONGODB_URI=mongodb://localhost:27017/?replicaSet=rs0&directConnection=true
 MONGODB_DB_NAME=board-game-organizer
 ```
 
-Use `BGG_CSV_PATH=/absolute/path/file.csv docker compose up -d` to load a CSV stored elsewhere.
+To refresh the local catalog from a CSV elsewhere, recreate the container (plain `up`
+may leave it running without re-importing):
+
+```bash
+BGG_CSV_PATH=/absolute/path/boardgames_ranks.csv docker compose up -d --force-recreate --wait
+```
+
 Remove containers with `docker compose down`; add `-v` only when the local database may be deleted.
+
+To refresh a deployed Preview or production catalog, use the manual
+`Import BoardGames (manual)` workflow with matching target, API URL, and downloadable
+CSV URL. Alternatively run `apps/api/scripts/import-boardgames.mjs` locally with
+`BGG_CSV`, `BGG_IMPORT_URL` (the complete import endpoint, including the Preview
+protection bypass query parameter), and `BGG_IMPORT_TOKEN` (the target API's
+`CLERK_SECRET_KEY`). Remote imports upsert by BGG ID; games missing from a newer CSV
+remain available to existing matches. Full imports also remove legacy database `thumbnail`
+fields; validated BGG covers are cached in `image`. Deploy the updated API before importing
+the CSV: search requires the imported `isExpansion` field.
 
 ## Quality
 

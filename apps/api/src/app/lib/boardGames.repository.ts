@@ -17,35 +17,38 @@ export class BoardGamesRepository {
   }
 
   private get col() {
-    return this.db.collection<BoardGame>(COLLECTIONS.BOARD_GAMES);
+    return this.db.collection<BoardGame & { thumbnail?: string | null }>(COLLECTIONS.BOARD_GAMES);
   }
 
   /** Bulk upsert by BGG id (idempotent — re-importing a dump just refreshes). */
   async bulkUpsert(
-    games: Array<{
-      id: number;
-      name: string;
-      yearPublished?: number | null;
-      thumbnail?: string | null;
-    }>,
+    games: Array<Pick<BoardGame, "id" | "name"> & Partial<Omit<BoardGame, "id" | "name">>>,
   ): Promise<number> {
     if (games.length === 0) return 0;
-    const ops = games.map((g) => ({
+    const ops = games.map(({ id, ...catalog }) => ({
       updateOne: {
-        filter: { id: g.id },
+        filter: { id },
         update: {
           $set: {
-            name: g.name,
-            ...(g.yearPublished != null ? { yearPublished: g.yearPublished } : {}),
-            ...(g.thumbnail ? { thumbnail: g.thumbnail } : {}),
+            ...catalog,
             updatedAt: new Date().toISOString(),
           },
+          $unset: { thumbnail: "" as const },
         },
         upsert: true,
       },
     }));
     const res = await this.col.bulkWrite(ops, { ordered: false, ...this.opts });
     return res.upsertedCount + res.modifiedCount;
+  }
+
+  async removeLegacyThumbnails(): Promise<number> {
+    const result = await this.col.updateMany(
+      { thumbnail: { $exists: true } },
+      { $unset: { thumbnail: "" } },
+      this.opts,
+    );
+    return result.modifiedCount;
   }
 
   async count(): Promise<number> {

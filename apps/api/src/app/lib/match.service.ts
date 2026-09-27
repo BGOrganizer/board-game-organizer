@@ -339,8 +339,7 @@ export class MatchService {
                 id: game.id,
                 name: game.name,
                 yearPublished: game.yearPublished ?? null,
-                thumbnail:
-                  gameThumbnail(game.thumbnail ?? null) ?? gameThumbnail(game.image ?? null),
+                thumbnail: gameThumbnail(game.image ?? null),
               },
             ]
           : [];

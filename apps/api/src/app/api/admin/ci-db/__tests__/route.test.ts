@@ -71,7 +71,7 @@ describe("POST /api/admin/ci-db", () => {
       expect.objectContaining({ listCollections: mocks.listCollections }),
     );
     expect(mocks.bulkUpsert).toHaveBeenCalledWith([
-      { id: 295947, name: "Cascadia", yearPublished: 2021 },
+      { id: 295947, name: "Cascadia", yearPublished: 2021, isExpansion: false },
     ]);
   });
 

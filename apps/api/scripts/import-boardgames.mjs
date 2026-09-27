@@ -1,83 +1,46 @@
 #!/usr/bin/env node
-/**
- * Import the BGG `bg_ranks` CSV dump into the `boardGames` collection.
- *
- * Usage:
- *   BGG_CSV=/path/to/boardgames_ranks.csv \
- *   BGG_IMPORT_URL=https://api.board-game-organizer.com/api/admin/import-games \
- *   BGG_IMPORT_TOKEN=sk_live_... node apps/api/scripts/import-boardgames.mjs
- *
- * The CSV columns (bg_ranks dump): ID,Name,Year Published,Rank,Bayes
- * average,Average,Users rated,URL. We keep id, name and year
- * only, and POST chunks to the admin import endpoint (the server
- * writes to Mongo — no DB credentials needed locally).
+/** Import the full BGG rankings CSV through the protected API in resumable chunks.
+ * BGG_CSV=./boardgames_ranks.csv BGG_IMPORT_URL=https://.../api/admin/import-games \
+ * BGG_IMPORT_TOKEN=... node apps/api/scripts/import-boardgames.mjs
  */
 import { readFileSync } from "node:fs";
+import { parseBoardGamesCsv } from "../src/app/lib/boardGames.csv.ts";
 
 const CSV_PATH = process.env.BGG_CSV;
-const URL = process.env.BGG_IMPORT_URL;
+const IMPORT_URL = process.env.BGG_IMPORT_URL;
 const TOKEN = process.env.BGG_IMPORT_TOKEN;
 const CHUNK = Number(process.env.BGG_CHUNK ?? 500);
-// Resume support: skip the first N chunks (a serverless timeout on the first
-// run stops mid-way; restarting from 0 only re-upserts the imported ranks).
 const SKIP_CHUNKS = Number(process.env.BGG_SKIP_CHUNKS ?? 0);
-// Stop after this many chunks from the start (parallel fan-out support;
-// undefined = run to the end).
 const END_CHUNKS = process.env.BGG_END_CHUNKS ? Number(process.env.BGG_END_CHUNKS) : Infinity;
 
-if (!CSV_PATH || !URL || !TOKEN) {
+if (!CSV_PATH || !IMPORT_URL || !TOKEN) {
   console.error("Missing BGG_CSV / BGG_IMPORT_URL / BGG_IMPORT_TOKEN");
   process.exit(1);
 }
-
-/** Minimal CSV row splitter that honours quoted fields (names contain commas). */
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let field = "";
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += c;
-      }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ",") {
-      row.push(field);
-      field = "";
-    } else if (c === "\n" || c === "\r") {
-      if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
-      field = "";
-      if (row.some((f) => f.trim() !== "")) rows.push(row);
-      row = [];
-    } else {
-      field += c;
-    }
-  }
-  if (field !== "" || row.length) {
-    row.push(field);
-    if (row.some((f) => f.trim() !== "")) rows.push(row);
-  }
-  return rows;
+const endpoint = new URL(IMPORT_URL);
+if (
+  endpoint.protocol !== "https:" &&
+  !(endpoint.protocol === "http:" && ["localhost", "127.0.0.1"].includes(endpoint.hostname))
+) {
+  throw new Error("BGG_IMPORT_URL must use HTTPS (or local HTTP)");
+}
+if (
+  !Number.isSafeInteger(CHUNK) ||
+  CHUNK < 1 ||
+  CHUNK > 500 ||
+  !Number.isSafeInteger(SKIP_CHUNKS) ||
+  SKIP_CHUNKS < 0 ||
+  (END_CHUNKS !== Infinity && (!Number.isSafeInteger(END_CHUNKS) || END_CHUNKS < SKIP_CHUNKS))
+) {
+  throw new Error("Invalid BGG_CHUNK / BGG_SKIP_CHUNKS / BGG_END_CHUNKS");
 }
 
 async function postChunk(games) {
-  const res = await fetch(URL, {
+  const res = await fetch(IMPORT_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ games }),
-    // Serverless cold starts + Atlas writes can take a while; a hung
-    // request must not stall the whole import forever.
+    redirect: "error",
     signal: AbortSignal.timeout(120_000),
   });
   if (!res.ok) {
@@ -87,34 +50,22 @@ async function postChunk(games) {
   return res.json();
 }
 
-const text = readFileSync(CSV_PATH, "utf8");
-const rows = parseCsv(text);
-const header = rows[0].map((h) => h.trim().toLowerCase());
-const col = (name) => {
-  const i = header.indexOf(name);
-  if (i < 0) throw new Error(`Column "${name}" not found in CSV header: ${header.join(", ")}`);
-  return i;
-};
-const iId = col("id");
-const iName = col("name");
-const iYear = col("yearpublished");
-// bg_ranks has no images. The API fetches real covers from BGG on demand.
-
-const games = [];
-for (const r of rows.slice(1)) {
-  const id = Number(r[iId]);
-  if (!Number.isFinite(id)) continue;
-  const name = (r[iName] ?? "").trim();
-  if (!name) continue;
-  const year = Number(r[iYear]);
-  games.push({
-    id,
-    name,
-    yearPublished: Number.isFinite(year) && year > 0 ? year : null,
-  });
+const games = parseBoardGamesCsv(readFileSync(CSV_PATH, "utf8"));
+const preflight = await fetch(IMPORT_URL, {
+  headers: { Authorization: `Bearer ${TOKEN}` },
+  redirect: "error",
+  signal: AbortSignal.timeout(30_000),
+});
+if (!preflight.ok) throw new Error(`Import preflight HTTP ${preflight.status}; no games written`);
+const target = await preflight.json();
+if (
+  target.schemaVersion !== 2 ||
+  !target.databaseName ||
+  target.databaseName.startsWith("bgo_ci_")
+) {
+  throw new Error("Import target has wrong schema or an isolated CI database; no games written");
 }
-
-console.log(`Parsed ${games.length} games from ${rows.length - 1} rows`);
+console.log(`Parsed ${games.length} games; target database: ${target.databaseName}`);
 const start = SKIP_CHUNKS * CHUNK;
 const end = Math.min(games.length, END_CHUNKS * CHUNK);
 let total = 0;
@@ -125,5 +76,15 @@ for (let i = start; i < end; i += CHUNK) {
   console.log(
     `chunk ${i / CHUNK + 1}: +${res.written ?? chunk.length} (collection: ${res.total ?? "?"})`,
   );
+}
+if (end === games.length) {
+  const cleanup = await fetch(IMPORT_URL, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${TOKEN}` },
+    redirect: "error",
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!cleanup.ok) throw new Error(`Legacy thumbnail cleanup HTTP ${cleanup.status}`);
+  console.log(`Removed legacy thumbnail field from ${(await cleanup.json()).removed} games.`);
 }
 console.log(`Done (chunks ${start / CHUNK}-${end / CHUNK}). Wrote ${total} games.`);

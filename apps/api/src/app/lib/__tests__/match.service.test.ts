@@ -111,7 +111,7 @@ function setup(withNotifications = false) {
   const games = {
     findExistingIds: vi.fn(async () => [1]),
     findByIds: vi.fn(async () => [
-      { id: 1, name: "Azul", yearPublished: 2017, thumbnail: "https://example.com/azul.png" },
+      { id: 1, name: "Azul", yearPublished: 2017, image: "https://example.com/azul.png" },
     ]),
   };
   const notifications = {
@@ -472,6 +472,21 @@ describe("MatchService", () => {
     const [listed] = await service.list("user_admin");
     expect(listed?.winnerNames).toEqual(["Admin Player", "Guest Player"]);
     expect(users.findByIds).toHaveBeenCalledWith(["user_admin", "user_guest"]);
+
+    users.findByIds.mockResolvedValueOnce([
+      {
+        clerkId: "user_admin",
+        name: "Admin Player",
+        email: "admin@example.com",
+        avatarUrl: "https://example.com/admin.png",
+      },
+    ]);
+    expect((await service.list("user_admin"))[0]?.winnerNames).toEqual([
+      "Admin Player",
+      "user_guest",
+    ]);
+    matches.listAccessible.mockResolvedValueOnce([{ ...match, status: "TERMINATED" }]);
+    expect((await service.list("user_admin"))[0]).not.toHaveProperty("winnerNames");
   });
 
   it("rejects missing, redundant, and concurrently changed status transitions", async () => {

@@ -10,7 +10,6 @@ const sample = {
   id: 1,
   name: "Azul",
   yearPublished: 2017,
-  thumbnail: "https://cf.geekdo-static.com/covers/1.jpg",
 };
 
 beforeEach(() => {
@@ -26,7 +25,7 @@ afterEach(() => {
 });
 
 describe("BGG covers", () => {
-  it("replaces invented URLs with real batched thumbnail and image, then reuses cache", async () => {
+  it("fetches real batched images and reuses the cache", async () => {
     const rows = [{ ...sample }, { id: 2, name: "Catan", yearPublished: 1995 }];
     games.find.mockReturnValue({ limit: () => ({ toArray: async () => rows }) });
     games.findOne.mockImplementation(async () => rows[0]);
@@ -41,8 +40,8 @@ describe("BGG covers", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     expect(await searchGames(db, "azul")).toEqual([
-      { id: 1, name: "Azul", year: 2017, imageUrl: "https://cf.geekdo-images.com/a/thumb.jpg" },
-      { id: 2, name: "Catan", year: 1995, imageUrl: "https://cf.geekdo-images.com/b/thumb.jpg" },
+      { id: 1, name: "Azul", year: 2017, imageUrl: "https://cf.geekdo-images.com/a/full.jpg" },
+      { id: 2, name: "Catan", year: 1995, imageUrl: "https://cf.geekdo-images.com/b/full.jpg" },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://boardgamegeek.com/xmlapi2/thing?id=1,2",
@@ -79,7 +78,7 @@ describe("BGG covers", () => {
       { _id: "covers" },
       expect.objectContaining({ $set: expect.any(Object) }),
     );
-    expect(row.thumbnail).toBe(sample.thumbnail);
+    expect(row).not.toHaveProperty("image");
   });
 
   it("negative-caches missing BGG images without inventing a cover", async () => {
@@ -113,7 +112,7 @@ describe("BGG covers", () => {
     expect(await gameDetails(db, 1)).toMatchObject({ imageUrl: null });
     expect(games.bulkWrite).toHaveBeenCalledOnce();
     expect("imageCheckedAt" in row && row.imageCheckedAt).toBeTruthy();
-    expect(row.thumbnail).toBeNull();
+    expect(row).toHaveProperty("image", null);
   });
 
   it.each([202, 429, 401])(
@@ -160,7 +159,7 @@ describe("BGG covers", () => {
     );
     await hydrateGames(db, [row]);
     expect(games.bulkWrite).not.toHaveBeenCalled();
-    expect(row.thumbnail).toBe(sample.thumbnail);
+    expect(row).not.toHaveProperty("image");
   });
 
   it("accepts only requested IDs and HTTPS BGG covers, falling back to full images", async () => {
@@ -178,8 +177,26 @@ describe("BGG covers", () => {
     expect(await gameDetails(db, 1)).toMatchObject({
       imageUrl: "https://cf.geekdo-images.com/azul.jpg",
     });
-    expect(row.thumbnail).toBe("https://cf.geekdo-images.com/azul.jpg");
+    expect(row).toHaveProperty("image", "https://cf.geekdo-images.com/azul.jpg");
     expect(games.bulkWrite.mock.calls[0][0]).toHaveLength(1);
+  });
+
+  it("caches a validated BGG thumbnail in image when no full image exists", async () => {
+    const row = { ...sample };
+    games.findOne.mockResolvedValue(row);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        text: async () =>
+          '<items><item id="1"><thumbnail>https://cf.geekdo-images.com/azul/thumb.jpg</thumbnail></item></items>',
+      }),
+    );
+    expect(await gameDetails(db, 1)).toMatchObject({
+      imageUrl: "https://cf.geekdo-images.com/azul/thumb.jpg",
+    });
+    expect(row).toHaveProperty("image", "https://cf.geekdo-images.com/azul/thumb.jpg");
   });
 
   it("handles missing XML image tags and caches a null cover", async () => {
@@ -194,7 +211,7 @@ describe("BGG covers", () => {
       }),
     );
     expect(await gameDetails(db, 1)).toMatchObject({ imageUrl: null });
-    expect(row.thumbnail).toBeNull();
+    expect(row).toHaveProperty("image", null);
   });
 
   it("reports unknown quota and network errors without failing the catalog", async () => {
@@ -208,9 +225,9 @@ describe("BGG covers", () => {
     expect(warning).toHaveBeenCalledWith("BGG cover lookup failed", "unknown error");
   });
 
-  it("uses cached thumbnail in details and cached full image in searches", async () => {
-    const imageUrl = "https://cf.geekdo-images.com/a/thumb.jpg";
-    games.findOne.mockResolvedValue({ id: 1, name: "Azul", thumbnail: imageUrl });
+  it("uses the cached image in details and searches", async () => {
+    const imageUrl = "https://cf.geekdo-images.com/a/full.jpg";
+    games.findOne.mockResolvedValue({ id: 1, name: "Azul", image: imageUrl });
     expect(await gameDetails(db, 1)).toEqual({ id: 1, name: "Azul", imageUrl, year: null });
 
     const row = { id: 1, name: "Azul", image: "https://cf.geekdo-images.com/a/full.jpg" };

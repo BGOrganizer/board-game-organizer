@@ -235,7 +235,7 @@ Current route surface:
 | `/api/webhooks/clerk` | POST | Mirror Clerk user events |
 | `/api/admin/sync-user` | GET, POST | Authenticated CI database attestation and administrative user mirror |
 | `/api/admin/ci-db` | POST | Authenticated, name-guarded PR E2E database seed/cleanup |
-| `/api/admin/import-games` | POST | Chunked catalog import |
+| `/api/admin/import-games` | GET, POST | Authenticated import preflight and chunked catalog import |
 
 Most routes expose `OPTIONS` through CORS helpers. Keep CORS handling centralized in
 `lib/cors.ts`.
@@ -345,9 +345,13 @@ players, including unresolved shared first place.
 
 ### Board-game catalog
 
-Runtime search reads MongoDB `boardGames`; it does not call BoardGameGeek. Import the authenticated
-BGG rankings CSV through `apps/api/scripts/import-boardgames.mjs`, `/api/admin/import-games`, or the
-manual `import-boardgames.yml` workflow. Imports use chunked idempotent upserts keyed by BGG ID.
+Runtime search reads MongoDB `boardGames`; it does not call BoardGameGeek and excludes entries with
+`isExpansion: true`. Import all BGG rankings CSV columns through
+`apps/api/scripts/import-boardgames.mjs`, `/api/admin/import-games`, or the manual
+`import-boardgames.yml` workflow. Imports use idempotent upserts keyed by BGG ID;
+missing games remain for existing matches. Store one validated BGG cover URL in `image`, not a
+`thumbnail` database field; full remote imports remove any legacy `thumbnail` fields. Re-import a
+complete CSV before enabling the search filter on an older catalog without `isExpansion`.
 
 ## 8. Web architecture and UI
 
@@ -655,3 +659,10 @@ refinement, task worktrees, cumulative PRs, CI watchdog behavior, and Telegram n
 `/board-agent init-project` creates configured project fields and views. Tokens need repository Issues,
 Pull requests, Contents, Actions, and Metadata permissions plus organization Projects read/write.
 Never store this token in the repository.
+
+
+## Ranking domain
+
+Player rankings use Glicko-2 and are a core domain feature. Ratings are tracked independently per `userId + gameId + scope`, where scope is either `GLOBAL` or `GROUP(groupId)`. A match played in a group updates both the global rating for that game and the rating for that specific group; a match without a group updates only global. Multiplayer results must be processed as one Glicko-2 rating period using pairwise outcomes derived from final positions (`win=1`, `draw=0.5`, `loss=0`), always using pre-match snapshots for every participant—never sequentially update pairwise results.
+
+Default new rating state is `1500 / RD 350 / volatility 0.06`, with `tau=0.5`. Group ratings are created lazily on the first match in that game/group. If a global rating already exists, initialize the group rating from the pre-match global state using `rating = global.rating`, `RD = min(350, max(200, global.RD * 1.5))`, and the same volatility. After initialization, global and group ratings evolve independently. Ranking updates must be atomic, idempotent, auditable through immutable rating history/events, and safe against concurrent match processing. Keep Glicko-2 calculation isolated from persistence and cover it with deterministic unit tests.

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     // Run IDs are unique; creating indexes is enough to initialize a fresh database.
     await migrate(db);
     await new BoardGamesRepository(db).bulkUpsert([
-      { id: 295947, name: "Cascadia", yearPublished: 2021 },
+      { id: 295947, name: "Cascadia", yearPublished: 2021, isExpansion: false },
     ]);
   } else {
     // Atlas readWrite can drop collections but not databases. Once the last

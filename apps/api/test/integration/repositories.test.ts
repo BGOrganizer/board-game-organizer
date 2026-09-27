@@ -1,8 +1,9 @@
 import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { searchGames } from "../../src/app/lib/bgg";
+import { gameDetails, searchGames } from "../../src/app/lib/bgg";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
+import { COLLECTIONS } from "../../src/app/lib/db";
 import { type MatchError, MatchService } from "../../src/app/lib/match.service";
 import { MatchInvitationsRepository } from "../../src/app/lib/match-invitations.repository";
 import { MatchesRepository } from "../../src/app/lib/matches.repository";
@@ -289,7 +290,7 @@ async function withMatchTransaction<T>(
 async function seedMatchDependencies() {
   await relationships.becomeFriends(ACTOR, TARGET);
   await new BoardGamesRepository(db).bulkUpsert([
-    { id: 342942, name: "Ark Nova", yearPublished: 2021, thumbnail: null },
+    { id: 342942, name: "Ark Nova", yearPublished: 2021, isExpansion: false },
   ]);
 }
 
@@ -321,8 +322,9 @@ describe("BGG covers on MongoDB replica set", () => {
           id: 1,
           name: "Azul",
           yearPublished: 2017,
-          thumbnail: "https://cf.geekdo-static.com/covers/1.jpg",
+          isExpansion: false,
         },
+        { id: 2, name: "Azul expansion", yearPublished: 2020, isExpansion: true },
       ]);
       await Promise.all([searchGames(db, "Azul"), searchGames(db, "Azul")]);
       expect(fetchMock).toHaveBeenCalledOnce();
@@ -331,9 +333,17 @@ describe("BGG covers on MongoDB replica set", () => {
           id: 1,
           name: "Azul",
           year: 2017,
-          imageUrl: "https://cf.geekdo-images.com/azul/thumb.jpg",
+          imageUrl: "https://cf.geekdo-images.com/azul/full.jpg",
         },
       ]);
+      expect(await gameDetails(db, 2)).toMatchObject({ id: 2, name: "Azul expansion" });
+      await db
+        .collection(COLLECTIONS.BOARD_GAMES)
+        .updateOne({ id: 2 }, { $set: { thumbnail: "https://cf.geekdo-images.com/old.jpg" } });
+      expect(await new BoardGamesRepository(db).removeLegacyThumbnails()).toBe(1);
+      expect(await db.collection(COLLECTIONS.BOARD_GAMES).findOne({ id: 2 })).not.toHaveProperty(
+        "thumbnail",
+      );
     } finally {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
@@ -708,7 +718,7 @@ describe("match repositories on MongoDB replica set", () => {
   it("updates title, dates, player range, and games while planning", async () => {
     await seedMatchDependencies();
     await new BoardGamesRepository(db).bulkUpsert([
-      { id: 266192, name: "Wingspan", yearPublished: 2019, thumbnail: null },
+      { id: 266192, name: "Wingspan", yearPublished: 2019, isExpansion: false },
     ]);
     const created = await withMatchTransaction(({ service }) => service.create(ACTOR, matchInput));
     const updates = {
