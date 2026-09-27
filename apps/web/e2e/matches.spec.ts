@@ -92,7 +92,12 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
           ? { match }
           : {
               match,
-              administrator: { id: adminUserId, name: "Admin", email: null, avatarUrl: null },
+              administrator: {
+                id: adminUserId,
+                name: "Admin",
+                email: "admin@example.com",
+                avatarUrl: null,
+              },
               invitedPlayers: [
                 {
                   id: "user_accepted",
