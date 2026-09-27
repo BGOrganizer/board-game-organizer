@@ -155,10 +155,10 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(page.getByRole("region", { name: "Live standings" })).toBeVisible();
   await page.getByRole("button", { name: "Score: Admin" }).click();
   await page.getByRole("textbox", { name: "Score: Admin" }).fill("-1,5");
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("dialog", { name: "Admin" }).getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Score: Guest" }).click();
   await page.getByRole("textbox", { name: "Score: Guest" }).fill("-1,5");
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("dialog", { name: "Guest" }).getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("button", { name: "Resolve tie" })).toBeVisible();
   await page.getByRole("button", { name: "Resolve tie" }).click();
   await page.getByRole("button", { name: "Move up: Guest" }).click();
@@ -168,7 +168,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await page.getByRole("button", { name: "Confirm tie-break" }).click();
   await page.getByRole("button", { name: "Score: Guest" }).click();
   await page.getByRole("switch", { name: "Did not participate: Guest" }).click();
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("dialog", { name: "Guest" }).getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("button", { name: "Resolve tie" })).toHaveCount(0);
   await page.getByRole("switch", { name: "Lowest score wins" }).click();
   await page.getByRole("button", { name: "Register match" }).click();
