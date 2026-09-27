@@ -8,7 +8,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Avatar, Button, Popover } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowDown, ArrowLeft, ArrowUp, ListOrdered, Trophy, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ListOrdered, Trophy, Undo2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { ContactConfirmDialog } from "./ContactConfirmDialog";
@@ -80,12 +80,19 @@ export function MatchResultsEditor({
     if (!preview.valid || busy || editingTie) return;
     onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks });
   };
-  const identity = (player: Player) => (
+  const identity = (player: Player, rank?: number | null) => (
     <>
-      <Avatar size="sm" color="accent">
-        <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
-        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-      </Avatar>
+      <span className="relative shrink-0">
+        <Avatar size="sm" color="accent">
+          <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
+          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+        </Avatar>
+        {rank != null && (
+          <span className="absolute -right-1 -bottom-1 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-bold text-accent-foreground ring-2 ring-surface">
+            {rank}
+          </span>
+        )}
+      </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{player.name}</span>
         <span className="block truncate text-xs text-default-500">
@@ -115,18 +122,27 @@ export function MatchResultsEditor({
           return (
             <div key={score} className="space-y-1">
               {tied.length > 1 && (
-                <div className="mx-4 flex items-center justify-between gap-3 text-sm">
+                <div className="mx-4 mt-4 flex items-center justify-between gap-3 text-sm">
                   <span>
                     {active ? t`Tie-break applied` : t`Tied score`}: {score}
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     {editing ? (
                       <>
-                        <Button size="sm" variant="ghost" onPress={() => setEditingTie(null)}>
-                          {t`Cancel`}
+                        <Button
+                          size="sm"
+                          isIconOnly
+                          variant="outline"
+                          aria-label={t`Cancel`}
+                          onPress={() => setEditingTie(null)}
+                        >
+                          <Undo2 className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
+                          isIconOnly
+                          variant="primary"
+                          aria-label={t`Confirm tie-break`}
                           isDisabled={busy}
                           onPress={() => {
                             setTieBreaks((old) => [
@@ -136,7 +152,7 @@ export function MatchResultsEditor({
                             setEditingTie(null);
                           }}
                         >
-                          {t`Confirm tie-break`}
+                          <Check className="h-4 w-4" />
                         </Button>
                       </>
                     ) : (
@@ -145,7 +161,7 @@ export function MatchResultsEditor({
                           <Button
                             size="sm"
                             isIconOnly
-                            variant="ghost"
+                            variant="danger-soft"
                             isDisabled={busy}
                             aria-label={t`Remove tie-break`}
                             onPress={() =>
@@ -188,8 +204,7 @@ export function MatchResultsEditor({
                       className="gap-2"
                       style={{ viewTransitionName: `standing-${entry.userId}` }}
                     >
-                      <span className="w-7 text-sm text-default-500">{entry.rank}.</span>
-                      {player && identity(player)}
+                      {player && identity(player, entry.rank)}
                       <span className="font-medium">{entry.score}</span>
                       {editing && (
                         <span className="flex gap-1">
@@ -230,7 +245,6 @@ export function MatchResultsEditor({
                 const player = playerById.get(entry.userId);
                 return (
                   <GroupedRow key={entry.userId} className="gap-2">
-                    <span className="w-7 text-sm text-default-500">—</span>
                     {player && identity(player)}
                     <span>ND</span>
                   </GroupedRow>

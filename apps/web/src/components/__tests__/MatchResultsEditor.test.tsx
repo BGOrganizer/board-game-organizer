@@ -77,8 +77,18 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
   fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(within(standings).getAllByText("1.")).toHaveLength(3);
+  const cancelTie = screen.getByRole("button", { name: "Cancel" });
+  expect(cancelTie.className).toContain("button--icon-only");
+  expect(cancelTie.className).toContain("button--outline");
+  expect(cancelTie.textContent).toBe("");
+  expect(screen.getByRole("button", { name: "Confirm tie-break" }).className).toContain(
+    "button--primary",
+  );
+  fireEvent.click(cancelTie);
+  const rank = within(standings).getAllByText("1", { exact: true });
+  expect(rank).toHaveLength(3);
+  expect(rank[0]?.className).toContain("font-bold");
+  expect(rank[0]?.parentElement?.querySelector(".avatar")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
@@ -107,12 +117,14 @@ it("can edit or remove an applied tie-break without changing scores", () => {
   fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
   fireEvent.click(screen.getByRole("button", { name: "Confirm tie-break" }));
-  expect(within(standings).getAllByText("1.")).toHaveLength(1);
+  expect(within(standings).getAllByText("1", { exact: true })).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Edit tie-break" }));
   fireEvent.click(screen.getByRole("button", { name: "Move down: Luca Bianchi" }));
   fireEvent.click(screen.getByRole("button", { name: "Confirm tie-break" }));
-  fireEvent.click(screen.getByRole("button", { name: "Remove tie-break" }));
-  expect(within(standings).getAllByText("1.")).toHaveLength(3);
+  const removeTie = screen.getByRole("button", { name: "Remove tie-break" });
+  expect(removeTie.className).toContain("button--danger-soft");
+  fireEvent.click(removeTie);
+  expect(within(standings).getAllByText("1", { exact: true })).toHaveLength(3);
   expect(screen.getByRole("button", { name: "Resolve tie" })).toBeTruthy();
 });
 

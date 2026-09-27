@@ -17,7 +17,7 @@ import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { ArrowDown, ArrowUp, ListOrdered, Trophy, X } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Check, ListOrdered, Trophy, Undo2, X } from "lucide-react-native";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
@@ -115,14 +115,34 @@ export default function MatchResultsScreen() {
   );
 }
 
-function PlayerInfo({ player }: { player: Player }) {
+function PlayerInfo({ player, rank }: { player: Player; rank?: number | null }) {
   const t = useT();
   return (
     <>
-      <Avatar size="md">
-        {player.avatarUrl && <Avatar.Image source={{ uri: player.avatarUrl }} />}
-        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-      </Avatar>
+      <View style={{ width: 48, height: 48 }}>
+        <Avatar size="md">
+          {player.avatarUrl && <Avatar.Image source={{ uri: player.avatarUrl }} />}
+          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+        </Avatar>
+        {rank != null && (
+          <View
+            style={{
+              position: "absolute",
+              right: -3,
+              bottom: -3,
+              minWidth: 22,
+              height: 22,
+              paddingHorizontal: 4,
+              borderRadius: 11,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            className="bg-accent"
+          >
+            <Typography className="text-xs font-bold text-accent-foreground">{rank}</Typography>
+          </View>
+        )}
+      </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Typography className="font-medium text-foreground" numberOfLines={1}>
           {player.name}
@@ -153,7 +173,7 @@ function ScoreSheetInput({
 }) {
   const { onFocus, onBlur } = useBottomSheetAwareHandlers();
   return (
-    <View style={{ gap: 6, marginTop: 12 }}>
+    <View style={{ flex: 1, gap: 6 }}>
       <Typography className="text-foreground">{scoreLabel}</Typography>
       <Input
         value={row.rawScore}
@@ -191,6 +211,8 @@ function ResultsForm({
   const t = useT();
   const insets = useSafeAreaInsets();
   const accentForeground = useThemeColor("accent-foreground");
+  const foreground = useThemeColor("foreground");
+  const danger = useThemeColor("danger");
   const players = [
     data.administrator,
     ...data.invitedPlayers.filter((player) => player.invitation.status === "ACCEPTED"),
@@ -275,6 +297,7 @@ function ResultsForm({
                       alignItems: "center",
                       gap: 8,
                       marginHorizontal: 16,
+                      marginTop: 16,
                     }}
                   >
                     <Typography className="flex-1 text-sm text-foreground">
@@ -282,11 +305,22 @@ function ResultsForm({
                     </Typography>
                     {editing ? (
                       <>
-                        <Button size="sm" variant="ghost" onPress={() => setEditingTie(null)}>
-                          {t("Cancel")}
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="outline"
+                          accessibilityLabel={t("Cancel")}
+                          style={{ minHeight: 44, minWidth: 44 }}
+                          onPress={() => setEditingTie(null)}
+                        >
+                          <Undo2 size={18} color={foreground} />
                         </Button>
                         <Button
+                          isIconOnly
                           size="sm"
+                          variant="primary"
+                          accessibilityLabel={t("Confirm tie-break")}
+                          style={{ minHeight: 44, minWidth: 44 }}
                           isDisabled={busy}
                           onPress={() => {
                             setTieBreaks((old) => [
@@ -296,7 +330,7 @@ function ResultsForm({
                             setEditingTie(null);
                           }}
                         >
-                          {t("Confirm tie-break")}
+                          <Check size={18} color={accentForeground} />
                         </Button>
                       </>
                     ) : (
@@ -305,14 +339,15 @@ function ResultsForm({
                           <Button
                             isIconOnly
                             size="sm"
-                            variant="ghost"
+                            variant="danger-soft"
                             accessibilityLabel={t("Remove tie-break")}
                             isDisabled={busy}
+                            style={{ minHeight: 44, minWidth: 44 }}
                             onPress={() =>
                               setTieBreaks((old) => old.filter((tie) => tie.score !== score))
                             }
                           >
-                            <X size={18} color="#737373" />
+                            <X size={18} color={danger} />
                           </Button>
                         )}
                         <Button
@@ -351,8 +386,7 @@ function ResultsForm({
                         padding: 10,
                       }}
                     >
-                      <Typography className="text-sm text-muted">{entry.rank}.</Typography>
-                      {player && <PlayerInfo player={player} />}
+                      {player && <PlayerInfo player={player} rank={entry.rank} />}
                       <Typography className="font-semibold text-foreground">
                         {entry.score}
                       </Typography>
@@ -398,7 +432,6 @@ function ResultsForm({
                   layout={rowTransition}
                   style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 8 }}
                 >
-                  <Typography className="text-sm text-muted">—</Typography>
                   {player && <PlayerInfo player={player} />}
                   <Typography className="text-foreground">ND</Typography>
                 </Animated.View>
@@ -457,36 +490,44 @@ function ResultsForm({
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content keyboardBehavior="extend">
-            <BottomSheet.Close />
             <BottomSheet.Title>{activePlayer?.name ?? t("Score")}</BottomSheet.Title>
             {activePlayer && activeRow && (
               <>
-                <ScoreSheetInput
-                  player={activePlayer}
-                  row={activeRow}
-                  busy={busy}
-                  onChange={(value) => update(activePlayer.id, { rawScore: value })}
-                  scoreLabel={t("Score")}
-                  invalidScoreLabel={t("Enter a valid score")}
-                />
                 <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 }}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16 }}
                 >
-                  <Typography className="flex-1 text-foreground">
-                    {t("Did not participate")}
-                  </Typography>
-                  <Switch
-                    isSelected={activeRow.notParticipated}
-                    onSelectedChange={(value) =>
-                      update(activePlayer.id, { notParticipated: value })
-                    }
-                    isDisabled={busy}
-                    accessibilityLabel={`${t("Did not participate")}: ${activePlayer.name}`}
-                    testID={`not-participated-${activePlayer.id}`}
-                  >
-                    <Switch.Thumb />
-                  </Switch>
+                  <ScoreSheetInput
+                    player={activePlayer}
+                    row={activeRow}
+                    busy={busy}
+                    onChange={(value) => update(activePlayer.id, { rawScore: value })}
+                    scoreLabel={t("Score")}
+                    invalidScoreLabel={t("Enter a valid score")}
+                  />
+                  <View style={{ width: 116, alignItems: "center", gap: 8 }}>
+                    <Typography className="text-center text-xs text-muted" numberOfLines={2}>
+                      {t("Did not participate")}
+                    </Typography>
+                    <Switch
+                      isSelected={activeRow.notParticipated}
+                      onSelectedChange={(value) =>
+                        update(activePlayer.id, { notParticipated: value })
+                      }
+                      isDisabled={busy}
+                      accessibilityLabel={`${t("Did not participate")}: ${activePlayer.name}`}
+                      testID={`not-participated-${activePlayer.id}`}
+                    >
+                      <Switch.Thumb />
+                    </Switch>
+                  </View>
                 </View>
+                <Button
+                  variant="secondary"
+                  style={{ marginTop: 24 }}
+                  onPress={() => setScorePlayerId(null)}
+                >
+                  {t("Cancel")}
+                </Button>
               </>
             )}
           </BottomSheet.Content>

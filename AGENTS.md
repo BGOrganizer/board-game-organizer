@@ -442,6 +442,10 @@ literal that produces a hashed fallback.
 - Keep logout available even when profile loading fails.
 - Do not convert network failures into empty-list success states; preserve an observable error path.
 - Keep buttons, dialogs, dropdowns, and form inputs accessible by role and label.
+- Give actions semantic colors matching their intent: primary for confirmation, danger for destructive
+  actions, and neutral for cancellation. Do not rely on color alone to convey meaning. Prefer icon-only
+  actions in tight spaces when the icon is self-explanatory; otherwise show text. Every icon-only action
+  needs an accessible label.
 - On native mobile and mobile-width web layouts, repeated list-row action buttons are icon-only and
   must retain an accessible label. Section-level creation actions may keep a compact text label.
 - Search runs automatically after 300 ms, requires at least four characters, and has a clear button;
