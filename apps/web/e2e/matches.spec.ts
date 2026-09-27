@@ -38,7 +38,8 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
         finalizedAt: string;
       }
     | undefined;
-  await page.route(`**/api/matches/${matchId}*`, async (route) => {
+  // Final ** must also intercept /status and /results; * stops at a slash.
+  await page.route(`**/api/matches/${matchId}**`, async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/status")) {
       status = (route.request().postDataJSON() as { status: typeof status }).status;
