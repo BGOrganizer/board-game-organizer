@@ -114,7 +114,7 @@ export function NotificationBell() {
           )}
         </Badge.Anchor>
       </Dropdown.Trigger>
-      <Dropdown.Popover placement="bottom end" className="w-80 sm:w-96">
+      <Dropdown.Popover placement="bottom end" className="w-80 bg-surface sm:w-96">
         <Dropdown.Menu aria-label={t`Notifications`} disabledKeys={disabledKeys}>
           <Dropdown.Item id="heading" textValue={t`Notifications`}>
             <span className="font-semibold">{t`Notifications`}</span>

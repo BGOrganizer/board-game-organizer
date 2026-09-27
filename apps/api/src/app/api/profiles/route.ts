@@ -1,6 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { enrichSingleUser } from "@/app/lib/clerk";
+import { getDb } from "@/app/lib/db";
+import { MatchesRepository } from "@/app/lib/matches.repository";
+import { RelationshipRepository } from "@/app/lib/relationship.repository";
+import { RelationshipService } from "@/app/lib/relationship.service";
 
 function getCorsHeaders(request: NextRequest) {
   const origin = request.headers.get("origin") ?? "";
@@ -43,6 +47,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const db = await getDb();
+  const relationships = new RelationshipService(new RelationshipRepository(db));
+  const [friends, followers, following, playedMatches] = await Promise.all([
+    relationships.list(userId, "friends"),
+    relationships.list(userId, "followers"),
+    relationships.list(userId, "following"),
+    new MatchesRepository(db).countPlayedByUser(userId),
+  ]);
+
   const profile = {
     id: clerkProfile.id,
     name: clerkProfile.fullName ?? clerkProfile.emailAddress ?? "Unknown",
@@ -51,9 +64,10 @@ export async function GET(request: NextRequest) {
     preferredLanguage: "it",
     plan: "free",
     stats: {
-      gamesOwned: 0,
-      gamesPlayed: 0,
-      friends: 0,
+      friends: friends.length,
+      followers: followers.length,
+      following: following.length,
+      playedMatches,
     },
   };
 

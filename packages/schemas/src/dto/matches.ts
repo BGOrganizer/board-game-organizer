@@ -67,6 +67,8 @@ export const matchGameResponseSchema = z.object({
   name: z.string(),
   yearPublished: z.number().nullable(),
   bayesAverage: z.number().nullable().optional(),
+  average: z.number().nullable().optional(),
+  rank: z.number().nullable().optional(),
   thumbnail: z.string().nullable(),
 });
 export type MatchGameResponse = z.infer<typeof matchGameResponseSchema>;
@@ -186,6 +188,8 @@ export const bggSearchItemSchema = z.object({
   name: z.string(),
   year: z.number().nullable(),
   bayesAverage: z.number().nullable().optional(),
+  average: z.number().nullable().optional(),
+  rank: z.number().nullable().optional(),
   imageUrl: z.string().nullable(),
 });
 export const bggSearchResponseSchema = z.object({ items: z.array(bggSearchItemSchema) });
@@ -199,6 +203,8 @@ export const bggThingResponseSchema = z.object({
   imageUrl: z.string().nullable(),
   year: z.number().nullable(),
   bayesAverage: z.number().nullable().optional(),
+  average: z.number().nullable().optional(),
+  rank: z.number().nullable().optional(),
 });
 export type BggThingResponse = z.infer<typeof bggThingResponseSchema>;
 

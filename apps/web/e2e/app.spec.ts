@@ -61,6 +61,21 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "E2E Test" })).toBeVisible({
     timeout: 30_000,
   });
+  for (const label of ["Friends", "Followers", "Following", "Matches played"]) {
+    await expect(
+      page.getByText(label, { exact: true }).locator("..").getByText(/^\d+$/),
+    ).toBeVisible();
+  }
+  await expect(page.getByRole("button", { name: "Logout" })).toHaveClass(/button--danger/);
+  const cardBackground = await page
+    .locator('[data-slot="card"]')
+    .first()
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  await page.getByRole("button", { name: "Notifications" }).click();
+  await expect(page.locator('[data-slot="dropdown-popover"]')).toHaveCSS(
+    "background-color",
+    cardBackground,
+  );
 
   // Every authenticated page stays fluid at phone, tablet and desktop widths.
   for (const viewport of [

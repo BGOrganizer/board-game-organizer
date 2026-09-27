@@ -2,6 +2,7 @@
 
 import type { MatchCardStatus } from "@board-game-organizer/shared";
 import {
+  formatMatchDateTime,
   matchCardData,
   matchCardStatusColor,
   resolveApiUrl,
@@ -12,7 +13,17 @@ import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
 import waves from "@dicebear/styles/waves.json" with { type: "json" };
 import { Button, Card, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Crown, Dices, Medal, Plus, UsersRound, X } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  Clock3,
+  Crown,
+  Dices,
+  Medal,
+  Plus,
+  UsersRound,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { MatchWizard } from "@/components/MatchWizard";
@@ -121,9 +132,11 @@ export function Matches() {
             card.gameCount === undefined
               ? (card.selectedGameName ?? t`Game unavailable`)
               : `${card.gameCount} ${card.gameCount === 1 ? t`game` : t`games`}`;
-          const dateLabel = card.date
-            ? new Date(card.date).toLocaleDateString(i18n.locale, { day: "numeric", month: "long" })
-            : "";
+          const dateLabel = card.date ? formatMatchDateTime(card.date, i18n.locale) : null;
+          const playersLabel =
+            match.status === "PLANNING"
+              ? `${card.players}/${card.maxPlayers}`
+              : String(card.players);
           const extraDates = card.additionalDates
             ? `+${card.additionalDates} ${card.additionalDates === 1 ? t`date` : t`dates`}`
             : "";
@@ -131,7 +144,7 @@ export function Matches() {
             <Card key={match.id} className="relative rounded-xl p-0">
               <Link
                 href={match.optimistic ? "/matches" : `/matches/${match.id}`}
-                aria-label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel} ${extraDates}, ${t`Players`}: ${card.players}/${card.maxPlayers}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${t`Winner`}: ${card.winnerNames.join(", ")}` : ""}`}
+                aria-label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
                 aria-disabled={match.optimistic}
                 onClick={(event) => {
                   if (match.optimistic) event.preventDefault();
@@ -154,10 +167,13 @@ export function Matches() {
                       {statusLabels[match.status]}
                     </Chip>
                   </div>
-                  {card.date && (
-                    <div className="mt-2 text-sm text-default-600">
-                      <time dateTime={card.date}>{dateLabel}</time>
-                      {extraDates && <span className="ml-1">{extraDates}</span>}
+                  {card.date && dateLabel && (
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-default-600">
+                      <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                      <time dateTime={card.date}>{dateLabel.date}</time>
+                      <Clock3 className="h-4 w-4" aria-hidden="true" />
+                      <time dateTime={card.date}>{dateLabel.time}</time>
+                      {extraDates && <span>{extraDates}</span>}
                     </div>
                   )}
                   <div
@@ -165,7 +181,7 @@ export function Matches() {
                   >
                     <span className="inline-flex items-center gap-1">
                       <UsersRound className="h-4 w-4" aria-hidden="true" />
-                      {card.players}/{card.maxPlayers}
+                      {playersLabel}
                     </span>
                     <span className="inline-flex min-w-0 items-center gap-1">
                       <Dices className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -173,20 +189,25 @@ export function Matches() {
                         {gameLabel}
                       </span>
                     </span>
-                    {card.winnerNames && card.winnerNames.length > 0 && (
-                      <span className="inline-flex min-w-0 items-center gap-1">
-                        <Medal className="h-4 w-4 shrink-0 text-warning" aria-label={t`Winner`} />
-                        <strong className="truncate text-default-foreground">
-                          {card.winnerNames.join(", ")}
+                  </div>
+                  {card.winnerNames && card.winnerNames.length > 0 && (
+                    <div className="mt-2 flex min-w-0 items-start gap-1 text-xs">
+                      <Medal
+                        className="h-4 w-4 shrink-0 text-warning"
+                        aria-label={card.winnerNames.length === 1 ? t`Winner` : t`Winners`}
+                      />
+                      <span className="min-w-0">
+                        <strong className="block whitespace-pre-line text-default-foreground">
+                          {card.winnerNames.join("\n")}
                         </strong>
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </Link>
 
               {invitation?.status === "PENDING" && (
-                <div className="absolute bottom-2 right-2 z-10 flex gap-1 rounded-lg bg-background/90 p-0.5 shadow-sm">
+                <div className="absolute bottom-2 right-2 z-10 flex gap-1 rounded-lg bg-surface p-0.5">
                   <Button
                     isIconOnly
                     size="sm"
@@ -206,7 +227,8 @@ export function Matches() {
                   <Button
                     isIconOnly
                     size="sm"
-                    className="h-8 min-h-8 w-8 min-w-8"
+                    variant="outline"
+                    className="h-8 min-h-8 w-8 min-w-8 bg-surface text-success"
                     aria-label={t`Accept`}
                     isDisabled={matches.respondInvitation.isPending}
                     onPress={() =>

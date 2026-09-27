@@ -61,7 +61,16 @@ describe("translate (runtime)", () => {
     expect(translate(it, "date")).toBe("data");
     expect(translate(it, "dates")).toBe("date");
     expect(translate(it, "Winner")).toBe("Vincitore");
-    expect(translate(it, "Bayesian average")).toBe("Media bayesiana");
+    expect(translate(it, "Average")).toBe("Media");
+    expect(translate(it, "Rank")).toBe("Posizione");
+    expect(translate(it, "Unranked")).toBe("Non classificato");
+    expect(translate(it, "Winners")).toBe("Vincitori");
+    expect(translate(it, "Dismiss notification")).toBe("Chiudi notifica");
+    expect(translate(it, "Add date")).toBe("Aggiungi data");
+    expect(translate(it, "Add game")).toBe("Aggiungi gioco");
+    expect(translate(it, "Create match")).toBe("Crea partita");
+    expect(translate(it, "Matches played")).toBe("Partite giocate");
+    expect(translate(it, "Following")).toBe("Following");
     expect(translate(it, "Remove player")).toBe("Rimuovi giocatore");
     expect(translate(it, "Could not load social actions. Retry")).toBe(
       "Impossibile caricare le azioni social. Riprova",

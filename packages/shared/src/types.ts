@@ -1,7 +1,8 @@
 export interface UserStats {
-  gamesOwned: number;
-  gamesPlayed: number;
   friends: number;
+  followers: number;
+  following: number;
+  playedMatches: number;
 }
 
 /**

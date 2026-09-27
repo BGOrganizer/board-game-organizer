@@ -13,6 +13,7 @@ function setup(
   };
   const collection = {
     insertOne: vi.fn(async () => ({ insertedId: "id" })),
+    countDocuments: vi.fn(async () => 3),
     findOne: vi.fn(async () => found),
     findOneAndUpdate: vi.fn(async () => found),
     find: vi.fn(() => cursor),
@@ -69,6 +70,18 @@ describe("MatchesRepository", () => {
     expect(matches[0]).toMatchObject({ status: "CREATED", updatedAt: stored.updatedAt });
     expect(matches[1]).toMatchObject({ status: "PLANNING", updatedAt: stored.createdAt });
     expect(matches[1]).not.toHaveProperty("invitedUserIds");
+  });
+
+  it("counts only terminated matches in which the player recorded a score", async () => {
+    const { db, collection } = setup();
+    await expect(new MatchesRepository(db as never).countPlayedByUser("user_1")).resolves.toBe(3);
+    expect(collection.countDocuments).toHaveBeenCalledWith(
+      {
+        status: "TERMINATED",
+        "results.entries": { $elemMatch: { userId: "user_1", score: { $type: "string" } } },
+      },
+      {},
+    );
   });
 
   it("finds and normalizes a match by id", async () => {

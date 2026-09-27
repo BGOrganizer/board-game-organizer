@@ -88,6 +88,16 @@ export class MatchesRepository {
     return rows.map((match) => this.normalize(match));
   }
 
+  countPlayedByUser(userId: string): Promise<number> {
+    return this.col.countDocuments(
+      {
+        status: "TERMINATED",
+        "results.entries": { $elemMatch: { userId, score: { $type: "string" } } },
+      },
+      this.opts,
+    );
+  }
+
   async findById(id: string): Promise<Match | null> {
     const match = await this.col.findOne({ id }, { projection: { _id: 0 }, ...this.opts });
     return match ? this.normalize(match) : null;

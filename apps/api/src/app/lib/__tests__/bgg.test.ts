@@ -11,6 +11,8 @@ const sample = {
   name: "Azul",
   yearPublished: 2017,
   bayesAverage: 7.23456,
+  average: 7.5,
+  rank: 123,
 };
 
 beforeEach(() => {
@@ -46,6 +48,8 @@ describe("BGG covers", () => {
         name: "Azul",
         year: 2017,
         bayesAverage: 7.23456,
+        average: 7.5,
+        rank: 123,
         imageUrl: "https://cf.geekdo-images.com/a/full.jpg",
       },
       {
@@ -53,6 +57,8 @@ describe("BGG covers", () => {
         name: "Catan",
         year: 1995,
         bayesAverage: null,
+        average: null,
+        rank: null,
         imageUrl: "https://cf.geekdo-images.com/b/full.jpg",
       },
     ]);
@@ -77,6 +83,8 @@ describe("BGG covers", () => {
       imageUrl: null,
       year: 2017,
       bayesAverage: 7.23456,
+      average: 7.5,
+      rank: 123,
     });
     await expect(gameDetails(db, 3)).rejects.toThrow("Game 3 not found");
     expect(quota.updateOne).not.toHaveBeenCalled();
@@ -253,6 +261,8 @@ describe("BGG covers", () => {
       imageUrl,
       year: null,
       bayesAverage: null,
+      average: null,
+      rank: null,
     });
 
     const row = { id: 1, name: "Azul", image: "https://cf.geekdo-images.com/a/full.jpg" };
@@ -260,7 +270,15 @@ describe("BGG covers", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     expect(await searchGames(db, "Azul")).toEqual([
-      { id: 1, name: "Azul", year: null, bayesAverage: null, imageUrl: row.image },
+      {
+        id: 1,
+        name: "Azul",
+        year: null,
+        bayesAverage: null,
+        average: null,
+        rank: null,
+        imageUrl: row.image,
+      },
     ]);
     expect(fetchMock).not.toHaveBeenCalled();
   });

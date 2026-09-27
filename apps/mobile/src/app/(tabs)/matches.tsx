@@ -1,5 +1,6 @@
 import type { MatchCardStatus } from "@board-game-organizer/shared";
 import {
+  formatMatchDateTime,
   matchCardData,
   matchCardStatusColor,
   resolveApiUrl,
@@ -14,9 +15,20 @@ import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
 import { Chip } from "heroui-native/chip";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Check, Crown, Dices, Medal, Plus, UsersRound, X } from "lucide-react-native";
+import {
+  CalendarDays,
+  Check,
+  Clock3,
+  Crown,
+  Dices,
+  Medal,
+  Plus,
+  UsersRound,
+  X,
+} from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import Animated, {
@@ -90,6 +102,7 @@ export default function MatchesScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
   const { i18n } = useLingui();
+  const success = useThemeColor("success");
   const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -167,12 +180,11 @@ export default function MatchesScreen() {
               card.gameCount === undefined
                 ? (card.selectedGameName ?? t("Game unavailable"))
                 : `${card.gameCount} ${card.gameCount === 1 ? t("game") : t("games")}`;
-            const dateLabel = card.date
-              ? new Date(card.date).toLocaleDateString(i18n.locale, {
-                  day: "numeric",
-                  month: "long",
-                })
-              : "";
+            const dateLabel = card.date ? formatMatchDateTime(card.date, i18n.locale) : null;
+            const playersLabel =
+              match.status === "PLANNING"
+                ? `${card.players}/${card.maxPlayers}`
+                : String(card.players);
             const extraDates = card.additionalDates
               ? `+${card.additionalDates} ${card.additionalDates === 1 ? t("date") : t("dates")}`
               : "";
@@ -180,7 +192,7 @@ export default function MatchesScreen() {
               <Card key={match.id} style={{ borderRadius: 12, position: "relative" }}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`${t("Open match")}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel} ${extraDates}, ${t("Players")}: ${card.players}/${card.maxPlayers}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${t("Winner")}: ${card.winnerNames.join(", ")}` : ""}`}
+                  accessibilityLabel={`${t("Open match")}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t("Players")}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t("Winner") : t("Winners")}: ${card.winnerNames.join(", ")}` : ""}`}
                   accessibilityState={{ disabled: match.optimistic }}
                   disabled={match.optimistic}
                   onPress={() =>
@@ -204,9 +216,19 @@ export default function MatchesScreen() {
                         {statusLabels[match.status]}
                       </Chip>
                     </View>
-                    {card.date && (
-                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-                        <Typography className="text-sm text-muted">{dateLabel}</Typography>
+                    {card.date && dateLabel && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 6,
+                        }}
+                      >
+                        <CalendarDays size={14} color="#6b7280" />
+                        <Typography className="text-sm text-muted">{dateLabel.date}</Typography>
+                        <Clock3 size={14} color="#6b7280" />
+                        <Typography className="text-sm text-muted">{dateLabel.time}</Typography>
                         {extraDates && (
                           <Typography className="text-sm text-muted">{extraDates}</Typography>
                         )}
@@ -222,9 +244,7 @@ export default function MatchesScreen() {
                     >
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                         <UsersRound size={14} color="#6b7280" />
-                        <Typography className="text-xs text-muted">
-                          {card.players}/{card.maxPlayers}
-                        </Typography>
+                        <Typography className="text-xs text-muted">{playersLabel}</Typography>
                       </View>
                       <View
                         style={{
@@ -244,37 +264,31 @@ export default function MatchesScreen() {
                           {gameLabel}
                         </Typography>
                       </View>
-                      {card.winnerNames && card.winnerNames.length > 0 && (
+                    </View>
+                    {card.winnerNames && card.winnerNames.length > 0 && (
+                      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
                         <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 4,
-                            flexShrink: 1,
-                          }}
+                          accessible
+                          accessibilityRole="image"
+                          accessibilityLabel={
+                            card.winnerNames.length === 1 ? t("Winner") : t("Winners")
+                          }
                         >
-                          <View
-                            accessible
-                            accessibilityRole="image"
-                            accessibilityLabel={t("Winner")}
-                          >
-                            <Medal size={14} color="#f59e0b" />
-                          </View>
-                          <Typography
-                            className="text-xs font-bold text-foreground"
-                            numberOfLines={1}
-                          >
-                            {card.winnerNames.join(", ")}
+                          <Medal size={14} color="#f59e0b" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Typography className="text-xs font-bold text-foreground">
+                            {card.winnerNames.join("\n")}
                           </Typography>
                         </View>
-                      )}
-                    </View>
+                      </View>
+                    )}
                   </View>
                 </Pressable>
 
                 {invitation?.status === "PENDING" && (
                   <View
-                    className="bg-background"
+                    className="bg-surface"
                     style={{
                       position: "absolute",
                       right: 6,
@@ -306,6 +320,8 @@ export default function MatchesScreen() {
                     <Button
                       isIconOnly
                       size="sm"
+                      variant="outline"
+                      className="bg-surface"
                       accessibilityLabel={`${t("Accept")}: ${match.name}`}
                       style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
                       hitSlop={4}
@@ -317,7 +333,7 @@ export default function MatchesScreen() {
                         })
                       }
                     >
-                      <Check size={14} color="#fff" />
+                      <Check size={14} color={success} />
                     </Button>
                   </View>
                 )}

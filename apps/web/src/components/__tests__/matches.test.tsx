@@ -69,6 +69,7 @@ describe("Matches", () => {
         new Date(baseMock.list.data[0].dates[0]).toLocaleDateString("en", {
           day: "numeric",
           month: "long",
+          year: "numeric",
         }),
       ),
     ).toBeTruthy();
@@ -102,15 +103,23 @@ describe("Matches", () => {
     );
     expect(
       screen.getByText(
-        new Date(selectedDate).toLocaleDateString("en", { day: "numeric", month: "long" }),
+        new Date(selectedDate).toLocaleDateString("en", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
       ),
     ).toBeTruthy();
     expect(
       screen.queryByText(
-        new Date(listedMatch.dates[0]).toLocaleDateString("en", { day: "numeric", month: "long" }),
+        new Date(listedMatch.dates[0]).toLocaleDateString("en", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
       ),
     ).toBeNull();
-    expect(screen.getByText("1/5")).toBeTruthy();
+    expect(screen.getByText("1")).toBeTruthy();
     expect(screen.getByText("Cascadia")).toBeTruthy();
     expect(screen.queryByText("1 game")).toBeNull();
   });
@@ -144,6 +153,7 @@ describe("Matches", () => {
         new Date("2099-10-10T20:00:00Z").toLocaleDateString("en", {
           day: "numeric",
           month: "long",
+          year: "numeric",
         }),
       ),
     ).toBeTruthy();
@@ -186,9 +196,11 @@ describe("Matches", () => {
       },
     });
     renderWithI18n(<Matches />);
-    const winners = screen.getByText("Anna Rossi, Marco Verdi");
+    const winners = screen.getByText(/Anna Rossi Marco Verdi/);
     expect(winners.tagName).toBe("STRONG");
-    expect(screen.getByLabelText("Winner").getAttribute("class")).toContain("lucide-medal");
+    expect(winners.textContent).toBe("Anna Rossi\nMarco Verdi");
+    expect(winners.className).toContain("whitespace-pre-line");
+    expect(screen.getByLabelText("Winners").getAttribute("class")).toContain("lucide-medal");
   });
 
   it("opens the wizard when the create FAB is pressed", () => {
@@ -221,7 +233,10 @@ describe("Matches", () => {
     expect(screen.queryByRole("button", { name: "Remove slot" })).toBeNull();
     expect(next.disabled).toBe(true);
     fireEvent.change(input, { target: { value: "2099-09-05T20:00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add another date" }));
+    const addDate = screen.getByRole("button", { name: "Add date" });
+    expect(addDate.className).toContain("button--primary");
+    expect(addDate.className).toContain("button--sm");
+    fireEvent.click(addDate);
 
     const removeButtons = screen.getAllByRole("button", { name: "Remove slot" });
     expect(removeButtons).toHaveLength(2);
@@ -262,11 +277,17 @@ describe("Matches", () => {
 
     fireEvent.click(next);
     expect(await screen.findByText("Board games")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Create match" }).querySelector("svg.lucide-save"),
+    ).toBeTruthy();
     const game = screen.getByRole("button", { name: "Select a board game" });
     expect(game.className).toContain("button--ghost");
     expect(game.closest("ul")?.className).toContain("rounded-xl bg-surface");
 
-    fireEvent.click(screen.getByRole("button", { name: "Add another game" }));
+    const addGame = screen.getByRole("button", { name: "Add game" });
+    expect(addGame.className).toContain("button--primary");
+    expect(addGame.className).toContain("button--sm");
+    fireEvent.click(addGame);
     expect(screen.getAllByRole("button", { name: "Select a board game" })).toHaveLength(2);
     const removeGame = screen.getAllByRole("button", { name: "Remove game" }).at(-1);
     expect(removeGame?.className).toContain("button--danger-soft");
@@ -341,6 +362,7 @@ describe("Matches", () => {
     expect(update.mutateAsync).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Next step"));
     expect(screen.getByText("Cascadia")).toBeTruthy();
+    expect(screen.getByLabelText("Save changes").querySelector("svg.lucide-save")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Save changes"));
 
     await waitFor(() =>
@@ -398,7 +420,8 @@ describe("Matches", () => {
 
     const acceptButton = screen.getByRole("button", { name: "Accept" });
     expect(acceptButton.textContent).toBe("");
-    expect(acceptButton.parentElement?.className).toContain("absolute");
+    expect(acceptButton.parentElement?.className).toContain("bg-surface");
+    expect(acceptButton.className).toContain("bg-surface text-success");
     fireEvent.click(acceptButton);
     fireEvent.click(screen.getByRole("button", { name: "Decline" }));
     expect(mutate).toHaveBeenNthCalledWith(1, {

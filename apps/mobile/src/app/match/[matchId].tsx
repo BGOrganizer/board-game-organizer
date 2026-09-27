@@ -1,5 +1,6 @@
 import type { MatchChoice, MatchDetailResponse } from "@board-game-organizer/schemas";
 import {
+  formatMatchDateTime,
   matchContactState,
   resolveApiUrl,
   useContacts,
@@ -20,6 +21,7 @@ import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
 import {
   CalendarCheck2,
+  CalendarDays,
   Check,
   CircleAlert,
   CircleCheck,
@@ -33,7 +35,6 @@ import {
   Medal,
   Pencil,
   RotateCcw,
-  Star,
   Trash2,
   Trophy,
   UserRoundX,
@@ -41,6 +42,7 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
+import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
@@ -104,6 +106,7 @@ export default function MatchDetailScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const router = useRouter();
   const t = useT();
+  const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(tab === "standings" ? "standings" : "overview");
@@ -168,7 +171,9 @@ export default function MatchDetailScreen() {
     )
       return;
     const creating = match.status === "PLANNING";
-    const date = summary?.selectedDate ? new Date(summary.selectedDate).toLocaleString() : "";
+    const date = summary?.selectedDate
+      ? Object.values(formatMatchDateTime(summary.selectedDate, i18n.locale)).join(" · ")
+      : "";
     const game =
       matches.detail.data?.games.find((item) => item.id === summary?.selectedGameId)?.name ??
       String(summary?.selectedGameId ?? "");
@@ -331,6 +336,7 @@ export default function MatchDetailScreen() {
                           placement="bottom"
                           align="end"
                           width={230}
+                          style={{ gap: 12, padding: 8 }}
                         >
                           {match?.status === "CREATED" && (
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -643,9 +649,10 @@ function MatchDetailContent({
         targetUser: selectedContact.user,
       });
   };
-  const socialMenu = (player: typeof administrator) =>
-    player.id === userId ? null : (
+  const socialMenu = (player: typeof administrator, showDisabledForSelf = false) =>
+    player.id === userId && !showDisabledForSelf ? null : (
       <Button
+        isDisabled={player.id === userId}
         isIconOnly
         size="sm"
         variant="ghost"
@@ -743,9 +750,23 @@ function MatchDetailContent({
                 return (
                   <GroupedRow key={date}>
                     <View style={{ flex: 1, gap: 3 }}>
-                      <Typography className="text-sm text-foreground">
-                        {new Date(date).toLocaleString()}
-                      </Typography>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 8,
+                        }}
+                      >
+                        <CalendarDays size={16} color={muted} />
+                        <Typography className="text-sm text-foreground">
+                          {formatMatchDateTime(date, i18n.locale).date}
+                        </Typography>
+                        <Clock3 size={16} color={muted} />
+                        <Typography className="text-sm text-foreground">
+                          {formatMatchDateTime(date, i18n.locale).time}
+                        </Typography>
+                      </View>
                       {match.status === "PLANNING" &&
                         data.voteSummary?.dates[String(Date.parse(date))] && (
                           <VoteCounts counts={data.voteSummary.dates[String(Date.parse(date))]} />
@@ -920,31 +941,11 @@ function MatchDetailContent({
                         >
                           {game.name}
                         </Typography>
-                        {(game.yearPublished || game.bayesAverage != null) && (
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                            {game.yearPublished ? (
-                              <Typography className="text-xs text-muted">
-                                {game.yearPublished}
-                              </Typography>
-                            ) : null}
-                            {game.bayesAverage != null && (
-                              <View
-                                accessible
-                                accessibilityRole="text"
-                                accessibilityLabel={`${t("Bayesian average")}: ${game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
-                              >
-                                <Star size={12} color={warning} />
-                                <Typography className="text-xs text-muted">
-                                  {game.bayesAverage.toLocaleString(i18n.locale, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </Typography>
-                              </View>
-                            )}
-                          </View>
-                        )}
+                        <GameCatalogMetadata
+                          year={game.yearPublished}
+                          average={game.average}
+                          rank={game.rank}
+                        />
                         {match.status === "PLANNING" &&
                           data.voteSummary?.games[String(game.id)] && (
                             <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
@@ -1014,7 +1015,7 @@ function MatchDetailContent({
                       <Typography className="font-semibold text-foreground">
                         {entry.score ?? "ND"}
                       </Typography>
-                      {player && socialMenu(player)}
+                      {player && socialMenu(player, true)}
                     </GroupedRow>
                   );
                 })}

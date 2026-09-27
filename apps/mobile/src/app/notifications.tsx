@@ -44,7 +44,7 @@ export default function NotificationsScreen() {
           {[0, 1, 2].map((index) => (
             <View
               key={index}
-              className="rounded-xl border border-border p-4"
+              className="rounded-xl border border-border bg-surface p-4"
               style={{ gap: 8, width: "100%" }}
             >
               <Skeleton style={{ height: 18, width: 180, borderRadius: 6 }} />
@@ -66,7 +66,7 @@ export default function NotificationsScreen() {
       {!notifications.list.isPending &&
         !notifications.list.isError &&
         notifications.notifications.length === 0 && (
-          <Typography className="rounded-xl border border-border p-8 text-center text-muted">
+          <Typography className="rounded-xl border border-border bg-surface p-8 text-center text-muted">
             {t("No notifications yet")}
           </Typography>
         )}
@@ -76,8 +76,8 @@ export default function NotificationsScreen() {
           key={notification.id}
           accessibilityRole="button"
           accessibilityLabel={`${notification.title}. ${notification.description}`}
-          className={`rounded-xl border p-4 active:bg-muted/20 ${
-            notification.readAt ? "border-border" : "border-accent bg-accent/5"
+          className={`rounded-xl border bg-surface p-4 active:bg-muted/20 ${
+            notification.readAt ? "border-border" : "border-accent"
           }`}
           style={{ flexDirection: "row", gap: 10, width: "100%" }}
           onPress={() => {

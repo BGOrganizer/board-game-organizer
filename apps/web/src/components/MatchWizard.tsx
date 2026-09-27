@@ -5,8 +5,9 @@ import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Star, Trash2, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Save, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { SearchGamePage } from "./SearchGamePage";
@@ -33,7 +34,8 @@ type GameSlot = {
     name: string;
     imageUrl: string | null;
     year: number | null;
-    bayesAverage?: number | null;
+    average?: number | null;
+    rank?: number | null;
   } | null;
 };
 
@@ -49,7 +51,7 @@ export function MatchWizard({
   onCreated?: () => void;
 }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
 
@@ -83,7 +85,8 @@ export function MatchWizard({
           name: game.name,
           imageUrl: game.thumbnail,
           year: game.yearPublished,
-          bayesAverage: game.bayesAverage,
+          average: game.average,
+          rank: game.rank,
         },
       })) ?? [];
     return games.length > 0 ? games : [{ id: uid(), game: null }];
@@ -219,7 +222,7 @@ export function MatchWizard({
       isIconOnly
       variant="primary"
       className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
-      aria-label={step === 3 && initialData ? t`Save changes` : t`Next step`}
+      aria-label={step === 3 ? (initialData ? t`Save changes` : t`Create match`) : t`Next step`}
       isDisabled={
         matches.create.isPending ||
         matches.update.isPending ||
@@ -227,7 +230,7 @@ export function MatchWizard({
       }
       onPress={next}
     >
-      <ArrowRight className="h-6 w-6" />
+      {step === 3 ? <Save className="h-6 w-6" /> : <ArrowRight className="h-6 w-6" />}
     </Button>
   );
   const fabBack = step > 1 && (
@@ -348,8 +351,9 @@ export function MatchWizard({
               </GroupedRow>
             ))}
           </GroupedList>
-          <Button variant="secondary" onPress={addDateSlot}>
-            {t`Add another date`}
+          <Button size="sm" variant="primary" className="w-fit" onPress={addDateSlot}>
+            <Plus className="h-4 w-4" />
+            {t`Add date`}
           </Button>
         </div>
       )}
@@ -500,24 +504,11 @@ export function MatchWizard({
                         >
                           {slot.game.name}
                         </span>
-                        {(slot.game.year || slot.game.bayesAverage != null) && (
-                          <span className="flex items-center gap-2 text-xs text-default-400">
-                            {slot.game.year || null}
-                            {slot.game.bayesAverage != null && (
-                              <span
-                                className="inline-flex items-center gap-1"
-                                role="img"
-                                aria-label={`${t`Bayesian average`}: ${slot.game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                              >
-                                <Star className="h-3 w-3 text-warning" aria-hidden="true" />
-                                {slot.game.bayesAverage.toLocaleString(i18n.locale, {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })}
-                              </span>
-                            )}
-                          </span>
-                        )}
+                        <GameCatalogMetadata
+                          year={slot.game.year}
+                          average={slot.game.average}
+                          rank={slot.game.rank}
+                        />
                       </span>
                     </span>
                   ) : (
@@ -544,12 +535,12 @@ export function MatchWizard({
           </GroupedList>
           <Button
             size="sm"
-            variant="secondary"
+            variant="primary"
             className="w-fit self-start text-sm"
             onPress={addGameSlot}
           >
             <Plus className="h-4 w-4" />
-            {t`Add another game`}
+            {t`Add game`}
           </Button>
           {(matches.create.isError || matches.update.isError) && (
             <p className="text-sm text-danger">

@@ -58,16 +58,24 @@ msgid "Add"
 msgstr "Aggiungi"
 
 #: apps/web/src/components/MatchWizard.tsx
-msgid "Add another date"
-msgstr "Aggiungi un'altra data"
+#~ msgid "Add another date"
+#~ msgstr "Aggiungi un'altra data"
 
 #: apps/web/src/components/MatchWizard.tsx
-msgid "Add another game"
-msgstr "Aggiungi un altro gioco"
+#~ msgid "Add another game"
+#~ msgstr "Aggiungi un altro gioco"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Add contacts"
 #~ msgstr "Aggiungi contatti"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Add date"
+msgstr "Aggiungi data"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Add game"
+msgstr "Aggiungi gioco"
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Add your mobile number to continue."
@@ -89,6 +97,10 @@ msgstr "Amministratore"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "At least 5 characters"
 msgstr "Almeno 5 caratteri"
+
+#: apps/web/src/components/GameCatalogMetadata.tsx
+msgid "Average"
+msgstr "Media"
 
 #: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
@@ -114,8 +126,8 @@ msgstr "Tornare alla pianificazione?"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/SearchGamePage.tsx
-msgid "Bayesian average"
-msgstr "Media bayesiana"
+#~ msgid "Bayesian average"
+#~ msgstr "Media bayesiana"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
@@ -370,11 +382,9 @@ msgstr "Impossibile caricare le notifiche"
 msgid "Could not load social actions"
 msgstr "Impossibile caricare le azioni social"
 
+#: apps/mobile/src/app/match/[matchId].tsx
 msgid "Could not load social actions. Retry"
 msgstr "Impossibile caricare le azioni social. Riprova"
-
-#~ msgid "Could not load social actions. Retry"
-#~ msgstr "Impossibile caricare le azioni social. Riprova"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not register match"
@@ -449,6 +459,10 @@ msgstr "Crea una partita"
 msgid "Create invite"
 msgstr "Crea invito"
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Create match"
+msgstr "Crea partita"
+
 #: apps/web/src/components/InviteCard.tsx
 msgid "Creating invite"
 msgstr "Creazione dell'invito"
@@ -504,6 +518,10 @@ msgstr "Eliminare la partita?"
 msgid "Did not participate"
 msgstr "Non ha partecipato"
 
+#: apps/web/src/components/LinguiClientProvider.tsx
+msgid "Dismiss notification"
+msgstr "Chiudi notifica"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "es. Partite del venerdì sera"
@@ -551,12 +569,14 @@ msgid "Follow"
 msgstr "Segui"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Profile.tsx
 msgid "Followers"
 msgstr "Follower"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Profile.tsx
 msgid "Following"
-msgstr "Seguiti"
+msgstr "Following"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Friend removed"
@@ -770,6 +790,10 @@ msgstr "Partita aggiornata"
 msgid "Matches"
 msgstr "Partite"
 
+#: apps/web/src/components/Profile.tsx
+msgid "Matches played"
+msgstr "Partite giocate"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Max"
 msgstr "Massimo"
@@ -943,8 +967,8 @@ msgid "Overview"
 msgstr "Riepilogo"
 
 #: apps/web/src/components/Profile.tsx
-msgid "Owned"
-msgstr "Posseduti"
+#~ msgid "Owned"
+#~ msgstr "Posseduti"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Participants"
@@ -971,8 +995,8 @@ msgid "Planning"
 msgstr "In pianificazione"
 
 #: apps/web/src/components/Profile.tsx
-msgid "Played"
-msgstr "Giocate"
+#~ msgid "Played"
+#~ msgstr "Giocate"
 
 #: apps/web/src/components/Matches.tsx
 #~ msgid "Player"
@@ -1007,6 +1031,10 @@ msgstr "Passaggio precedente"
 #: apps/web/src/components/Header.tsx
 msgid "Profile"
 msgstr "Profilo"
+
+#: apps/web/src/components/GameCatalogMetadata.tsx
+msgid "Rank"
+msgstr "Posizione"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Received"
@@ -1273,6 +1301,10 @@ msgstr "Sbloccare il contatto?"
 msgid "Unfollow"
 msgstr "Non seguire più"
 
+#: apps/web/src/components/GameCatalogMetadata.tsx
+msgid "Unranked"
+msgstr "Non classificato"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "User blocked"
 msgstr "Utente bloccato"
@@ -1313,6 +1345,10 @@ msgstr "Quando potresti giocare?"
 #: apps/web/src/components/Matches.tsx
 msgid "Winner"
 msgstr "Vincitore"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Winners"
+msgstr "Vincitori"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/VoteCounts.tsx

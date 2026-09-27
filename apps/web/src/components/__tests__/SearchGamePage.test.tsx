@@ -1,9 +1,16 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { SearchGamePage } from "@/components/SearchGamePage";
 import { renderWithI18n } from "@/test-utils";
 
 afterEach(() => vi.unstubAllGlobals());
+
+it("shows unranked games and zero arithmetic average without a Bayesian fallback", () => {
+  renderWithI18n(<GameCatalogMetadata average={0} rank={0} />);
+  expect(screen.getByRole("img", { name: "Average: 0.00" })).toBeTruthy();
+  expect(screen.getByRole("img", { name: "Rank: Unranked" })).toBeTruthy();
+});
 
 it("hides selected games and uses an icon-only selection action", async () => {
   const fetchMock = vi
@@ -16,6 +23,8 @@ it("hides selected games and uses an icon-only selection action", async () => {
             id: 1,
             name: "Cascadia",
             year: 2021,
+            average: 7.83,
+            rank: 42,
             imageUrl: "https://cf.geekdo-images.com/a/thumb.jpg",
           },
           { id: 2, name: "Already selected", year: null, imageUrl: null },
@@ -24,7 +33,14 @@ it("hides selected games and uses an icon-only selection action", async () => {
     })
     .mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ id: 1, name: "Cascadia", imageUrl: null, year: 2021 }),
+      json: async () => ({
+        id: 1,
+        name: "Cascadia",
+        imageUrl: null,
+        year: 2021,
+        average: 7.83,
+        rank: 42,
+      }),
     });
   vi.stubGlobal("fetch", fetchMock);
   const onSelect = vi.fn();
@@ -50,6 +66,10 @@ it("hides selected games and uses an icon-only selection action", async () => {
   expect(screen.queryByText("Already selected")).toBeNull();
   expect(screen.queryByText("Select")).toBeNull();
   expect(screen.getByText("2021")).toBeTruthy();
+  expect(
+    screen.getByRole("img", { name: "Average: 7.83" }).querySelector("svg")?.getAttribute("class"),
+  ).toContain("fill-warning");
+  expect(screen.getByRole("img", { name: "Rank: 42" })).toBeTruthy();
   expect(document.querySelector("img")?.getAttribute("src")).toBe(
     "https://cf.geekdo-images.com/a/thumb.jpg",
   );
@@ -61,6 +81,8 @@ it("hides selected games and uses an icon-only selection action", async () => {
       name: "Cascadia",
       imageUrl: null,
       year: 2021,
+      average: 7.83,
+      rank: 42,
     }),
   );
 });

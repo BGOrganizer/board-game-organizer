@@ -1,6 +1,6 @@
 import type { MutationFeedback, MutationFeedbackAction } from "@board-game-organizer/shared";
-import { useToast } from "heroui-native/toast";
-import { CircleCheck, CircleX } from "lucide-react-native";
+import { Toast, useToast } from "heroui-native/toast";
+import { CircleAlert, CircleCheck } from "lucide-react-native";
 import { createElement, useMemo } from "react";
 import { useT } from "@/lib/i18n";
 
@@ -64,18 +64,26 @@ export function useMutationFeedback(): MutationFeedback {
       },
     };
 
+    const show = (message: string, variant: "success" | "danger") =>
+      toast.show({
+        component: (props) =>
+          createElement(
+            Toast,
+            { ...props, variant, className: "flex-row items-center gap-3" },
+            createElement(variant === "success" ? CircleCheck : CircleAlert, {
+              size: 18,
+              color: variant === "success" ? "#17c964" : "#f31260",
+            }),
+            createElement(Toast.Title, { className: "flex-1" }, message),
+            createElement(Toast.Close, {
+              accessibilityLabel: t("Dismiss notification"),
+              testID: "dismiss-notification",
+            }),
+          ),
+      });
     return {
-      onOptimisticUpdate: (action) =>
-        toast.show({
-          label: messages[action].success,
-          icon: createElement(CircleCheck, { size: 18, color: "#17c964" }),
-        }),
-      onError: (_error, action) =>
-        toast.show({
-          label: messages[action].error,
-          variant: "danger",
-          icon: createElement(CircleX, { size: 18, color: "#f31260" }),
-        }),
+      onOptimisticUpdate: (action) => show(messages[action].success, "success"),
+      onError: (_error, action) => show(messages[action].error, "danger"),
     };
   }, [t, toast]);
 }

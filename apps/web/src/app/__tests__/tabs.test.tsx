@@ -44,7 +44,7 @@ vi.mock("@board-game-organizer/shared", () => ({
       avatarUrl: "",
       preferredLanguage: "en",
       plan: "free",
-      stats: { gamesOwned: 1, gamesPlayed: 2, friends: 3 },
+      stats: { friends: 3, followers: 4, following: 2, playedMatches: 1 },
     },
     isLoading: false,
     isError: false,

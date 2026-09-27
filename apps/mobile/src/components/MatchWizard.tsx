@@ -1,5 +1,5 @@
 import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
+import { formatMatchDateTime, resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
@@ -8,22 +8,24 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Typography } from "heroui-native/text";
 import {
   ArrowLeft,
   ArrowRight,
   CalendarClock,
+  CalendarDays,
+  Clock3,
   Gamepad2,
   Minus,
   Plus,
-  Star,
+  Save,
   Trash2,
   Users,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Platform, Pressable, ScrollView, View } from "react-native";
+import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -44,7 +46,8 @@ type GameSlot = {
     name: string;
     imageUrl: string | null;
     year: number | null;
-    bayesAverage?: number | null;
+    average?: number | null;
+    rank?: number | null;
   } | null;
 };
 
@@ -56,7 +59,6 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
   const { i18n } = useLingui();
-  const warning = useThemeColor("warning");
   const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -85,7 +87,8 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
           name: game.name,
           imageUrl: game.thumbnail,
           year: game.yearPublished,
-          bayesAverage: game.bayesAverage,
+          average: game.average,
+          rank: game.rank,
         },
       })) ?? [];
     return games.length > 0 ? games : [{ id: uid(), game: null }];
@@ -250,7 +253,10 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
     <Pressable
       onPress={next}
       accessibilityRole="button"
-      accessibilityLabel={step === 3 && initialData ? t("Save changes") : t("Next step")}
+      accessibilityLabel={
+        step === 3 ? (initialData ? t("Save changes") : t("Create match")) : t("Next step")
+      }
+      testID={step === 3 ? "save-match-fab" : "next-step-fab"}
       disabled={
         matches.create.isPending ||
         matches.update.isPending ||
@@ -278,7 +284,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
         elevation: 6,
       }}
     >
-      <ArrowRight color="#fff" size={26} />
+      {step === 3 ? <Save color="#fff" size={26} /> : <ArrowRight color="#fff" size={26} />}
     </Pressable>
   );
   const fabBack =
@@ -364,10 +370,30 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                       paddingVertical: 4,
                     }}
                   >
-                    <CalendarClock color="#6b7280" size={18} />
-                    <Typography className={slot.value ? "text-foreground" : "text-muted"}>
-                      {slot.value ? new Date(slot.value).toLocaleString() : t("Pick date and time")}
-                    </Typography>
+                    {slot.value ? (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 8,
+                        }}
+                      >
+                        <CalendarDays color="#6b7280" size={18} />
+                        <Typography className="text-foreground">
+                          {formatMatchDateTime(slot.value, i18n.locale).date}
+                        </Typography>
+                        <Clock3 color="#6b7280" size={18} />
+                        <Typography className="text-foreground">
+                          {formatMatchDateTime(slot.value, i18n.locale).time}
+                        </Typography>
+                      </View>
+                    ) : (
+                      <>
+                        <CalendarClock color="#6b7280" size={18} />
+                        <Typography className="text-muted">{t("Pick date and time")}</Typography>
+                      </>
+                    )}
                   </Pressable>
                   {(dateSlots.length > 1 || slot.value !== null) && (
                     <Button
@@ -385,9 +411,14 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                 </GroupedRow>
               ))}
             </GroupedList>
-            <Button onPress={addDateSlot}>
+            <Button
+              size="sm"
+              variant="primary"
+              style={{ alignSelf: "flex-start" }}
+              onPress={addDateSlot}
+            >
               <Plus size={16} color="#fff" />
-              <Typography style={{ color: "#fff" }}>{t("Add another date")}</Typography>
+              <Typography style={{ color: "#fff" }}>{t("Add date")}</Typography>
             </Button>
           </View>
         )}
@@ -551,31 +582,11 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                           >
                             {slot.game.name}
                           </Typography>
-                          {(slot.game.year || slot.game.bayesAverage != null) && (
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                              {slot.game.year ? (
-                                <Typography className="text-xs text-muted">
-                                  {slot.game.year}
-                                </Typography>
-                              ) : null}
-                              {slot.game.bayesAverage != null && (
-                                <View
-                                  accessible
-                                  accessibilityRole="text"
-                                  accessibilityLabel={`${t("Bayesian average")}: ${slot.game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                  style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
-                                >
-                                  <Star size={12} color={warning} />
-                                  <Typography className="text-xs text-muted">
-                                    {slot.game.bayesAverage.toLocaleString(i18n.locale, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })}
-                                  </Typography>
-                                </View>
-                              )}
-                            </View>
-                          )}
+                          <GameCatalogMetadata
+                            year={slot.game.year}
+                            average={slot.game.average}
+                            rank={slot.game.rank}
+                          />
                         </>
                       ) : (
                         <Typography style={{ color: "#9ca3af" }}>
@@ -602,14 +613,12 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             </GroupedList>
             <Button
               size="sm"
-              variant="outline"
+              variant="primary"
               onPress={addGameSlot}
               style={{ alignSelf: "flex-start" }}
             >
-              <Plus size={14} color="#6b7280" />
-              <Typography className="text-foreground" style={{ fontSize: 13 }}>
-                {t("Add another game")}
-              </Typography>
+              <Plus size={14} color="#fff" />
+              <Typography style={{ color: "#fff", fontSize: 13 }}>{t("Add game")}</Typography>
             </Button>
             {(matches.create.isError || matches.update.isError) && (
               <Typography style={{ color: "#f31260", fontSize: 13 }}>

@@ -13,6 +13,14 @@ export const matchCardStatusColor: Record<
   CANCELLED: "danger",
 };
 
+export function formatMatchDateTime(iso: string, locale: string) {
+  const date = new Date(iso);
+  return {
+    date: date.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }),
+    time: date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
 export function matchCardData(match: MatchResponse, now = Date.now()) {
   const planning = match.status === "PLANNING";
   const dates = planning || !match.selectedDate ? match.dates : [match.selectedDate];

@@ -4,7 +4,7 @@ import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth, useClerk } from "@clerk/nextjs";
 import { Avatar, Button, Card, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -17,33 +17,10 @@ function protectionBypass(): string | undefined {
 }
 
 export function Profile() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { signOut } = useClerk();
   const { t } = useLingui();
-  const [token, setToken] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
-
-  // NOTE: getToken from @clerk/nextjs has a NEW identity on every render, so it
-  // must NOT be an effect dependency (it caused a "Maximum update depth"
-  // render loop during sign-out). We key the effect on the stable auth state.
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) {
-      setToken(null);
-      return;
-    }
-    let active = true;
-    getToken()
-      .then((t) => {
-        if (active) setToken(t ?? null);
-      })
-      .catch(() => {
-        if (active) setToken(null);
-      });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn]);
 
   // Server data lives in TanStack Query — Zustand never stores it.
   const {
@@ -52,7 +29,13 @@ export function Profile() {
     isError,
     error,
     refetch,
-  } = useProfileQuery({ apiUrl: apiUrl(), token, protectionBypass: protectionBypass() });
+  } = useProfileQuery({
+    apiUrl: apiUrl(),
+    getToken,
+    userId,
+    enabled: isLoaded && Boolean(isSignedIn),
+    protectionBypass: protectionBypass(),
+  });
 
   const handleLogout = useCallback(async () => {
     try {
@@ -85,8 +68,8 @@ export function Profile() {
             <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-6">
-          {[0, 1, 2].map((n) => (
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-6">
+          {[0, 1, 2, 3].map((n) => (
             <Skeleton key={`stat-${n}`} animationType="pulse" className="h-8 w-12 rounded" />
           ))}
         </div>
@@ -108,7 +91,7 @@ export function Profile() {
           {/* Logout must stay reachable even when the profile fails to load
               (e.g. API 401): it is a global action, not part of the
               profile data. E2E relies on it after a failed profile load. */}
-          <Button variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
+          <Button variant="danger" isDisabled={isSigningOut} onPress={handleLogout}>
             {t`Logout`}
           </Button>
         </div>
@@ -131,18 +114,22 @@ export function Profile() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-6">
-        <div>
-          <p className="text-xl font-bold">{profile.stats.gamesOwned}</p>
-          <p className="text-xs text-default-400">{t`Owned`}</p>
-        </div>
-        <div>
-          <p className="text-xl font-bold">{profile.stats.gamesPlayed}</p>
-          <p className="text-xs text-default-400">{t`Played`}</p>
-        </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-6">
         <div>
           <p className="text-xl font-bold">{profile.stats.friends}</p>
           <p className="text-xs text-default-400">{t`Friends`}</p>
+        </div>
+        <div>
+          <p className="text-xl font-bold">{profile.stats.followers}</p>
+          <p className="text-xs text-default-400">{t`Followers`}</p>
+        </div>
+        <div>
+          <p className="text-xl font-bold">{profile.stats.following}</p>
+          <p className="text-xs text-default-400">{t`Following`}</p>
+        </div>
+        <div>
+          <p className="text-xl font-bold">{profile.stats.playedMatches}</p>
+          <p className="text-xs text-default-400">{t`Matches played`}</p>
         </div>
       </div>
 
@@ -152,7 +139,7 @@ export function Profile() {
 
       <Button
         className="mt-6 w-full sm:w-auto"
-        variant="outline"
+        variant="danger"
         isDisabled={isSigningOut}
         onPress={handleLogout}
       >

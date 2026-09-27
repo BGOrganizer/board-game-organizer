@@ -384,6 +384,8 @@ describe("BGG covers on MongoDB replica set", () => {
           id: 1,
           name: "Azul",
           yearPublished: 2017,
+          average: 7.81,
+          rank: 83,
           isExpansion: false,
         },
         { id: 2, name: "Azul expansion", yearPublished: 2020, isExpansion: true },
@@ -396,6 +398,8 @@ describe("BGG covers on MongoDB replica set", () => {
           name: "Azul",
           year: 2017,
           bayesAverage: null,
+          average: 7.81,
+          rank: 83,
           imageUrl: "https://cf.geekdo-images.com/azul/full.jpg",
         },
       ]);
@@ -437,6 +441,7 @@ describe("match repositories on MongoDB replica set", () => {
       ],
       tieBreaks: [],
     };
+    expect(await new MatchesRepository(db).countPlayedByUser(ACTOR)).toBe(0);
     const registered = await withMatchTransaction(({ service }) =>
       service.registerResults(ACTOR, created.id, input),
     );
@@ -450,6 +455,8 @@ describe("match repositories on MongoDB replica set", () => {
         ],
       },
     });
+    expect(await new MatchesRepository(db).countPlayedByUser(ACTOR)).toBe(1);
+    expect(await new MatchesRepository(db).countPlayedByUser(TARGET)).toBe(0);
     await expect(
       withMatchTransaction(({ service }) => service.detail(TARGET, created.id)),
     ).resolves.toMatchObject({

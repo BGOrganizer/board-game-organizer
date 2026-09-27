@@ -1,6 +1,6 @@
 import type { MatchResponse } from "@board-game-organizer/schemas";
 import { describe, expect, it } from "vitest";
-import { matchCardData, matchCardStatusColor } from "../matchCard";
+import { formatMatchDateTime, matchCardData, matchCardStatusColor } from "../matchCard";
 
 const match: MatchResponse = {
   id: "bf5946bb-8845-439e-ae46-d54e059c0e6a",
@@ -37,6 +37,12 @@ const match: MatchResponse = {
 };
 
 describe("matchCardData", () => {
+  it("formats a full, human-readable date and separate local time", () => {
+    const value = "2026-10-01T12:00:00.000Z";
+    const formatted = formatMatchDateTime(value, "it");
+    expect(formatted.date).toMatch(/ottobre 2026/);
+    expect(formatted.time).toMatch(/^\d{2}:\d{2}$/);
+  });
   it("keeps semantic colors ready for future match states", () => {
     expect(matchCardStatusColor).toEqual({
       PLANNING: "warning",

@@ -1,10 +1,9 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import { useAuth, useUser } from "@clerk/expo";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Redirect, Tabs, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
-import { UserRound } from "lucide-react-native";
+import { Building2, ContactRound, Dices, UserRound, UsersRound } from "lucide-react-native";
 import { Platform, View } from "react-native";
 
 import { NotificationBell } from "@/components/NotificationBell";
@@ -63,28 +62,28 @@ export default function TabLayout() {
         name="matches"
         options={{
           title: t("Matches"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="home" color={color} />,
+          tabBarIcon: ({ color }) => <Dices size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name="groups"
         options={{
           title: t("Groups"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="users" color={color} />,
+          tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name="organizations"
         options={{
           title: t("Organizations"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="cog" color={color} />,
+          tabBarIcon: ({ color }) => <Building2 size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name="contacts"
         options={{
           title: t("Contacts"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="address-book" color={color} />,
+          tabBarIcon: ({ color }) => <ContactRound size={26} color={color} />,
         }}
       />
     </Tabs>

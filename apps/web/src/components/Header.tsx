@@ -3,6 +3,8 @@
 import { Show, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { Button, cn, Link as HeroUILink } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import type { LucideIcon } from "lucide-react";
+import { Building2, ContactRound, Dices, UserRound, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -11,11 +13,12 @@ import { NotificationBell } from "@/components/NotificationBell";
 type NavLinkProps = {
   href: string;
   label: string;
+  icon: LucideIcon;
   exact?: boolean;
   onClick?: () => void;
 };
 
-function NavLink({ href, label, exact = false, onClick }: NavLinkProps) {
+function NavLink({ href, label, icon: Icon, exact = false, onClick }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
 
@@ -29,6 +32,7 @@ function NavLink({ href, label, exact = false, onClick }: NavLinkProps) {
           isActive ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-600 hover:bg-gray-100",
         )}
       >
+        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
         {label}
       </Link>
     </HeroUILink>
@@ -41,11 +45,11 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: "/matches", label: t`Matches` },
-    { href: "/groups", label: t`Groups` },
-    { href: "/organizations", label: t`Organizations` },
-    { href: "/contacts", label: t`Contacts` },
-    { href: "/profile", label: t`Profile` },
+    { href: "/matches", label: t`Matches`, icon: Dices },
+    { href: "/groups", label: t`Groups`, icon: UsersRound },
+    { href: "/organizations", label: t`Organizations`, icon: Building2 },
+    { href: "/contacts", label: t`Contacts`, icon: ContactRound },
+    { href: "/profile", label: t`Profile`, icon: UserRound },
   ];
 
   return (
@@ -102,7 +106,7 @@ export function Header() {
           <ul className="hidden items-center gap-2 xl:gap-4 lg:flex">
             {navLinks.map((link) => (
               <li key={link.href}>
-                <NavLink href={link.href} label={link.label} />
+                <NavLink href={link.href} label={link.label} icon={link.icon} />
               </li>
             ))}
           </ul>
@@ -137,6 +141,7 @@ export function Header() {
                   <NavLink
                     href={link.href}
                     label={link.label}
+                    icon={link.icon}
                     onClick={() => setIsMenuOpen(false)}
                   />
                 </li>

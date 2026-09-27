@@ -53,7 +53,8 @@ vi.mock("@clerk/nextjs", () => ({
     getToken: vi.fn().mockResolvedValue("token"),
   }),
 }));
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: () => "http://localhost:4000",
   useMatchDetail: (options: unknown) => useMatchDetailMock(options),
   useContacts: () => useContactsMock(),
@@ -182,6 +183,15 @@ describe("MatchDetail", () => {
     expect(screen.getByText("Guest Player")).toBeTruthy();
     expect(screen.getByText("guest@example.com")).toBeTruthy();
     expect(screen.getByText("admin@example.com")).toBeTruthy();
+    const ownRow = screen.getByText("admin@example.com").closest("li");
+    const guestRow = screen.getByText("guest@example.com").closest("li");
+    expect(
+      ownRow && within(ownRow).getByRole("button", { name: "Actions" }).hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      guestRow &&
+        within(guestRow).getByRole("button", { name: "Actions" }).hasAttribute("disabled"),
+    ).toBe(false);
     expect(screen.getByText("1").className).toContain("leading-none");
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(screen.getByLabelText("Winner")).toBeTruthy();
@@ -214,6 +224,8 @@ describe("MatchDetail", () => {
             name: "Azul",
             yearPublished: 2017,
             bayesAverage: 7.23456,
+            average: 7.5,
+            rank: 123,
             thumbnail: "https://cf.geekdo-images.com/a/thumb.jpg",
           },
         ],
@@ -222,7 +234,8 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(screen.getByText("2017")).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Bayesian average: 7.23" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Average: 7.50" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Rank: 123" })).toBeTruthy();
     expect(
       document.querySelector('img[src="https://cf.geekdo-images.com/a/thumb.jpg"]'),
     ).toBeTruthy();
@@ -434,6 +447,10 @@ describe("MatchDetail", () => {
     expect(screen.queryByRole("img", { name: /Yes: 1, No: 0/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Choose game/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "More match actions" }));
+    expect(
+      screen.getByRole("button", { name: "Back to planning" }).parentElement?.parentElement
+        ?.className,
+    ).toContain("gap-3");
     fireEvent.click(screen.getByRole("button", { name: "Back to planning" }));
     expect(screen.getByRole("dialog", { name: "Back to planning?" })).toBeTruthy();
     expect(setStatusMutate).not.toHaveBeenCalledWith("PLANNING", expect.anything());

@@ -20,7 +20,7 @@ const profile: UserProfile = {
   avatarUrl: "https://example.com/a.png",
   preferredLanguage: "it",
   plan: "free",
-  stats: { gamesOwned: 3, gamesPlayed: 12, friends: 4 },
+  stats: { friends: 4, followers: 6, following: 2, playedMatches: 12 },
 };
 
 const { useProfileQueryMock } = vi.hoisted(() => ({
@@ -58,6 +58,7 @@ describe("Profile", () => {
     expect(screen.getByText(/Error while loading the profile:/)).toBeTruthy();
     expect(screen.getByText(/HTTP 500/)).toBeTruthy();
     expect(screen.getByText("Retry")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Logout" }).className).toContain("button--danger");
   });
 
   it("renders the profile data when loaded", () => {
@@ -71,8 +72,10 @@ describe("Profile", () => {
     renderWithI18n(<Profile />);
     expect(screen.getByText("Alessandro")).toBeTruthy();
     expect(screen.getByText("a@b.it")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText("12")).toBeTruthy();
-    expect(screen.getByText("Logout")).toBeTruthy();
+    expect(screen.getByText("4").nextElementSibling?.textContent).toBe("Friends");
+    expect(screen.getByText("6").nextElementSibling?.textContent).toBe("Followers");
+    expect(screen.getByText("2").nextElementSibling?.textContent).toBe("Following");
+    expect(screen.getByText("12").nextElementSibling?.textContent).toBe("Matches played");
+    expect(screen.getByRole("button", { name: "Logout" }).className).toContain("button--danger");
   });
 });

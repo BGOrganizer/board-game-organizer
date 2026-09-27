@@ -6,6 +6,7 @@ import type {
   SetMatchChoiceInput,
 } from "@board-game-organizer/schemas";
 import {
+  formatMatchDateTime,
   matchContactState,
   resolveApiUrl,
   useContacts,
@@ -17,6 +18,7 @@ import { useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
   CalendarCheck2,
+  CalendarDays,
   Check,
   CircleAlert,
   CircleCheck,
@@ -28,9 +30,9 @@ import {
   Gamepad2,
   LogOut,
   Medal,
+  MoreVertical,
   Pencil,
   RotateCcw,
-  Star,
   Trash2,
   Trophy,
   UserRoundX,
@@ -40,6 +42,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
+import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
@@ -292,8 +295,13 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     }[key];
     mutation?.mutate({ targetUserId: player.id, targetUser });
   };
-  const socialMenu = (player: typeof administrator) => {
-    if (player.id === userId) return null;
+  const socialMenu = (player: typeof administrator, showDisabledForSelf = false) => {
+    if (player.id === userId)
+      return showDisabledForSelf ? (
+        <Button isIconOnly size="sm" variant="ghost" isDisabled aria-label={t`Actions`}>
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      ) : null;
     const state = matchContactState(player, socialLists);
     return (
       <UserMenu
@@ -322,7 +330,9 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   const chosenGame =
     games.find((game) => game.id === summary?.selectedGameId)?.name ??
     String(summary?.selectedGameId ?? "");
-  const chosenDate = summary?.selectedDate ? new Date(summary.selectedDate).toLocaleString() : "";
+  const chosenDate = summary?.selectedDate
+    ? Object.values(formatMatchDateTime(summary.selectedDate, i18n.locale)).join(" · ")
+    : "";
   const winnerNames = match.results?.entries
     .filter((entry) => entry.rank === 1)
     .map((entry) => participants.find((player) => player.id === entry.userId)?.name ?? entry.userId)
@@ -384,7 +394,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                   <Ellipsis className="h-4 w-4" />
                 </Popover.Trigger>
                 <Popover.Content placement="bottom end" className="w-56">
-                  <Popover.Dialog className="space-y-1 p-2">
+                  <Popover.Dialog className="flex flex-col gap-3 p-2">
                     {match.status === "CREATED" && (
                       <div className="flex items-center gap-2">
                         <Button
@@ -526,9 +536,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                   : match.dates
                 ).map((date) => (
                   <GroupedRow key={date} className="flex-wrap">
-                    <time className="min-w-0 flex-1" dateTime={date}>
-                      {new Date(date).toLocaleString()}
-                    </time>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                      <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).date}</time>
+                      <Clock3 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).time}</time>
+                    </div>
                     {canChoose && (
                       <ChoiceDropdown
                         label={t`Choose date`}
@@ -655,24 +668,11 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                         <p className="max-w-[40ch] truncate text-sm font-medium" title={game.name}>
                           {game.name}
                         </p>
-                        {(game.yearPublished || game.bayesAverage != null) && (
-                          <p className="flex items-center gap-2 text-xs text-default-500">
-                            {game.yearPublished || null}
-                            {game.bayesAverage != null && (
-                              <span
-                                className="inline-flex items-center gap-1"
-                                role="img"
-                                aria-label={`${t`Bayesian average`}: ${game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                              >
-                                <Star className="h-3 w-3 text-warning" aria-hidden="true" />
-                                {game.bayesAverage.toLocaleString(i18n.locale, {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })}
-                              </span>
-                            )}
-                          </p>
-                        )}
+                        <GameCatalogMetadata
+                          year={game.yearPublished}
+                          average={game.average}
+                          rank={game.rank}
+                        />
                       </div>
                       {match.status === "TERMINATED" && winnerNames && (
                         <span className="inline-flex min-w-0 items-center gap-1 text-sm">
@@ -710,7 +710,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                     <GroupedRow key={entry.userId}>
                       {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
                       <span className="shrink-0 font-semibold">{entry.score ?? "ND"}</span>
-                      {player && socialMenu(player)}
+                      {player && socialMenu(player, true)}
                     </GroupedRow>
                   );
                 })}

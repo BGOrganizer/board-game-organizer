@@ -36,7 +36,7 @@ export function NotificationsPage() {
       {notifications.list.isPending && (
         <div className="flex flex-col gap-3" role="status" aria-label={t`Loading notifications`}>
           {[0, 1, 2].map((index) => (
-            <div key={index} className="rounded-xl border border-default-200 p-4">
+            <div key={index} className="rounded-xl border border-default-200 bg-surface p-4">
               <Skeleton className="mb-2 h-5 w-48 rounded" />
               <Skeleton className="h-4 w-full rounded" />
             </div>
@@ -56,7 +56,7 @@ export function NotificationsPage() {
       {!notifications.list.isPending &&
         !notifications.list.isError &&
         notifications.notifications.length === 0 && (
-          <p className="rounded-xl border border-default-200 p-8 text-center text-default-500">
+          <p className="rounded-xl border border-default-200 bg-surface p-8 text-center text-default-500">
             {t`No notifications yet`}
           </p>
         )}
@@ -67,8 +67,8 @@ export function NotificationsPage() {
             key={notification.id}
             href={notification.href}
             onClick={() => notifications.markRead.mutate(notification.id)}
-            className={`rounded-xl border p-4 transition-colors hover:bg-default-100 ${
-              notification.readAt ? "border-default-200" : "border-accent/50 bg-accent/5"
+            className={`rounded-xl border bg-surface p-4 transition-colors hover:bg-default-100 ${
+              notification.readAt ? "border-default-200" : "border-accent/50"
             }`}
           >
             <span className="flex items-start gap-3">

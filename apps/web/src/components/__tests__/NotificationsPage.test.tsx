@@ -61,6 +61,9 @@ describe("NotificationsPage", () => {
   it("renders inbox and marks notifications read", () => {
     renderWithI18n(<NotificationsPage />);
     expect(screen.getByRole("heading", { name: "Notifications" })).toBeTruthy();
+    expect(screen.getByText("New match invitation").closest("a")?.className).toContain(
+      "bg-surface",
+    );
     fireEvent.click(screen.getByText("Mark all as read"));
     expect(mocks.markAllRead).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByText("New match invitation"));
@@ -85,7 +88,7 @@ describe("NotificationsPage", () => {
 
     setState({ list: { isPending: false, isError: false }, notifications: [], unreadCount: 0 });
     renderWithI18n(<NotificationsPage />);
-    expect(screen.getByText("No notifications yet")).toBeTruthy();
+    expect(screen.getByText("No notifications yet").className).toContain("bg-surface");
   });
 
   it("loads another page without a spinner", () => {

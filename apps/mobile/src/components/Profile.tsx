@@ -7,7 +7,7 @@ import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Surface } from "heroui-native/surface";
 import { Typography } from "heroui-native/text";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { View } from "react-native";
 
 import { useT } from "@/lib/i18n";
@@ -17,33 +17,10 @@ function apiUrl(): string {
 }
 
 export function Profile() {
-  const { getToken, signOut, isLoaded, isSignedIn } = useAuth();
+  const { getToken, signOut, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
-
-  // NOTE: getToken from @clerk/expo has a NEW identity on every render, so it
-  // must NOT be an effect dependency (it caused a "Maximum update depth"
-  // render loop during sign-out). We key the effect on the stable auth state.
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) {
-      setToken(null);
-      return;
-    }
-    let active = true;
-    getToken()
-      .then((t) => {
-        if (active) setToken(t ?? null);
-      })
-      .catch(() => {
-        if (active) setToken(null);
-      });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn]);
 
   // Server data lives in TanStack Query — Zustand never stores it.
   const {
@@ -52,7 +29,12 @@ export function Profile() {
     isError,
     error,
     refetch,
-  } = useProfileQuery({ apiUrl: apiUrl(), token });
+  } = useProfileQuery({
+    apiUrl: apiUrl(),
+    getToken,
+    userId,
+    enabled: isLoaded && Boolean(isSignedIn),
+  });
 
   const handleLogout = useCallback(async () => {
     try {
@@ -67,14 +49,6 @@ export function Profile() {
       setIsSigningOut(false);
     }
   }, [signOut, router]);
-
-  if (!token) {
-    return (
-      <View className="mt-6 items-center">
-        <Typography className="text-sm text-muted">{t("Sign-in unavailable")}</Typography>
-      </View>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -108,6 +82,9 @@ export function Profile() {
         <Button className="mt-3" variant="outline" onPress={() => refetch()}>
           {t("Retry")}
         </Button>
+        <Button className="mt-3" variant="danger" isDisabled={isSigningOut} onPress={handleLogout}>
+          {t("Logout")}
+        </Button>
       </Surface>
     );
   }
@@ -127,18 +104,22 @@ export function Profile() {
         </View>
       </View>
 
-      <View className="mt-4 flex-row gap-6">
-        <View>
-          <Typography className="text-xl font-bold">{profile.stats.gamesOwned}</Typography>
-          <Typography className="text-xs text-muted">{t("Owned")}</Typography>
-        </View>
-        <View>
-          <Typography className="text-xl font-bold">{profile.stats.gamesPlayed}</Typography>
-          <Typography className="text-xs text-muted">{t("Played")}</Typography>
-        </View>
-        <View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
+        <View style={{ width: "46%" }}>
           <Typography className="text-xl font-bold">{profile.stats.friends}</Typography>
           <Typography className="text-xs text-muted">{t("Friends")}</Typography>
+        </View>
+        <View style={{ width: "46%" }}>
+          <Typography className="text-xl font-bold">{profile.stats.followers}</Typography>
+          <Typography className="text-xs text-muted">{t("Followers")}</Typography>
+        </View>
+        <View style={{ width: "46%" }}>
+          <Typography className="text-xl font-bold">{profile.stats.following}</Typography>
+          <Typography className="text-xs text-muted">{t("Following")}</Typography>
+        </View>
+        <View style={{ width: "46%" }}>
+          <Typography className="text-xl font-bold">{profile.stats.playedMatches}</Typography>
+          <Typography className="text-xs text-muted">{t("Matches played")}</Typography>
         </View>
       </View>
 
@@ -146,7 +127,7 @@ export function Profile() {
         {t("Plan:")} {profile.plan} · {t("Language:")} {profile.preferredLanguage}
       </Typography>
 
-      <Button className="mt-6" variant="outline" isDisabled={isSigningOut} onPress={handleLogout}>
+      <Button className="mt-6" variant="danger" isDisabled={isSigningOut} onPress={handleLogout}>
         {t("Logout")}
       </Button>
     </Surface>

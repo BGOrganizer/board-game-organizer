@@ -34,6 +34,8 @@ export async function POST(request: Request) {
         name: "Cascadia",
         yearPublished: 2021,
         bayesAverage: 7.65789,
+        average: 7.83,
+        rank: 42,
         isExpansion: false,
       },
     ]);

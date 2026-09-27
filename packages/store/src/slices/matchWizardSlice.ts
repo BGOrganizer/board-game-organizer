@@ -20,7 +20,8 @@ export interface SelectedGame {
   name: string;
   imageUrl: string | null;
   year: number | null;
-  bayesAverage?: number | null;
+  average?: number | null;
+  rank?: number | null;
 }
 
 export interface MatchWizardSlice {

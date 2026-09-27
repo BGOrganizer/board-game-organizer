@@ -3,6 +3,7 @@
 import { Toast } from "@heroui/react/toast";
 import { type Messages, setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import { useLingui } from "@lingui/react/macro";
 import { useEffect, useState } from "react";
 import { type AppLocale, normalizeLocale } from "@/lib/i18n-locale";
 import { messages as messagesEn } from "../../../../messages/en.js";
@@ -27,6 +28,25 @@ const catalogs: Record<AppLocale, Messages> = {
  * dynamic import would pull Vite's dynamic-import helper (breaking coverage
  * reporting on its virtual module).
  */
+function LocalizedToastProvider() {
+  const { t } = useLingui();
+  return (
+    <Toast.Provider placement="top end">
+      {({ toast: item }) => (
+        <Toast toast={item} variant={item.content?.variant}>
+          <Toast.Indicator variant={item.content?.variant}>
+            {item.content?.indicator}
+          </Toast.Indicator>
+          <Toast.Content>
+            <Toast.Title>{item.content?.title}</Toast.Title>
+          </Toast.Content>
+          <Toast.CloseButton aria-label={t`Dismiss notification`} />
+        </Toast>
+      )}
+    </Toast.Provider>
+  );
+}
+
 export function LinguiClientProvider({
   children,
   initialLocale,
@@ -58,7 +78,7 @@ export function LinguiClientProvider({
   return (
     <I18nProvider i18n={i18n}>
       {children}
-      <Toast.Provider placement="top end" />
+      <LocalizedToastProvider />
     </I18nProvider>
   );
 }

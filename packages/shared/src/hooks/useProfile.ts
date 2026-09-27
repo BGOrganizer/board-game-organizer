@@ -5,8 +5,9 @@ import type { UserProfile } from "../types";
 export interface UseProfileOptions {
   /** API base URL (injected by the calling app). */
   apiUrl: string;
-  /** Clerk session token; the query stays disabled until it's available. */
-  token: string | null | undefined;
+  /** Resolve the current Clerk session JWT before every request. */
+  getToken: () => Promise<string | null>;
+  userId: string | null | undefined;
   /** Extra gate for the query (e.g. only when the user is signed in). */
   enabled?: boolean;
   /** Vercel preview protection-bypass token (passed by the web app). */
@@ -20,15 +21,21 @@ export interface UseProfileOptions {
  */
 export function useProfileQuery({
   apiUrl,
-  token,
+  getToken,
+  userId,
   enabled = true,
   protectionBypass,
 }: UseProfileOptions) {
   return useQuery<UserProfile>({
-    queryKey: ["profile", apiUrl, token],
-    queryFn: () => fetchProfile(apiUrl, token as string, protectionBypass),
-    enabled: enabled && Boolean(token) && Boolean(apiUrl),
+    queryKey: ["profile", apiUrl, userId],
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token) throw new Error("Missing session token");
+      return fetchProfile(apiUrl, token, protectionBypass);
+    },
+    enabled: enabled && Boolean(userId) && Boolean(apiUrl),
     staleTime: 60_000,
+    refetchOnMount: "always",
     retry: 1,
   });
 }

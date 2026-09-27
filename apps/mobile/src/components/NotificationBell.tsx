@@ -4,6 +4,7 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -25,6 +26,7 @@ export function NotificationBell() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const router = useRouter();
   const t = useT();
+  const surface = useThemeColor("surface");
   const registeredRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
   const [permission, setPermission] = useState<{
@@ -178,7 +180,14 @@ export function NotificationBell() {
       </View>
       <Popover.Portal>
         <Popover.Overlay />
-        <Popover.Content presentation="popover" placement="bottom" align="end" width={320}>
+        <Popover.Content
+          presentation="popover"
+          placement="bottom"
+          align="end"
+          width={320}
+          className="bg-surface"
+          background={<Popover.ContentBackground className="bg-surface" />}
+        >
           <View style={{ width: "100%", gap: 8 }} className="p-3">
             <View
               style={{
@@ -278,7 +287,7 @@ export function NotificationBell() {
               </Button>
             )}
           </View>
-          <Popover.Arrow />
+          <Popover.Arrow fill={surface} />
         </Popover.Content>
       </Popover.Portal>
     </Popover>

@@ -113,6 +113,8 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
                   name: "Ark Nova",
                   yearPublished: 2021,
                   bayesAverage: 7.23456,
+                  average: 7.91,
+                  rank: 11,
                   thumbnail: null,
                 },
               ],
@@ -136,7 +138,8 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(removeDialog).toBeVisible();
   await removeDialog.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("tab", { name: "Games" }).click();
-  await expect(page.getByRole("img", { name: "Bayesian average: 7.23" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Average: 7.91" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Rank: 11" })).toBeVisible();
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(
     page.getByRole("img", { name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0" }),
@@ -163,6 +166,8 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(page.getByText("Ark Nova")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
   await page.getByRole("button", { name: "More match actions" }).click();
+  const actions = page.getByRole("button", { name: "Back to planning" }).locator("../..");
+  await expect(actions).toHaveCSS("row-gap", "12px");
   await page.getByRole("button", { name: "Back to planning" }).click();
   const replanDialog = page.getByRole("dialog", { name: "Back to planning?" });
   await replanDialog.getByRole("button", { name: "Back to planning" }).click();
@@ -205,6 +210,18 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   const standings = page.getByRole("tabpanel", { name: "Standings" });
   await expect(standings.getByText("ND", { exact: true })).toBeVisible();
   await expect(standings.getByText("admin@example.com")).toBeVisible();
+  await expect(
+    standings
+      .getByText("admin@example.com")
+      .locator("xpath=ancestor::li")
+      .getByRole("button", { name: "Actions" }),
+  ).toBeDisabled();
+  await expect(
+    standings
+      .getByText("Guest", { exact: true })
+      .locator("xpath=ancestor::li")
+      .getByRole("button", { name: "Actions" }),
+  ).toBeEnabled();
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.getByRole("img", { name: "Winner" })).toBeVisible();
   await page.getByRole("tab", { name: "Standings" }).click();
@@ -271,6 +288,8 @@ test("admin removes a pending player without blocking them", async ({ page }) =>
               name: "Cascadia",
               yearPublished: 2021,
               bayesAverage: 7.65789,
+              average: 7.83,
+              rank: 42,
               thumbnail: null,
             },
           ],
@@ -323,7 +342,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
 
   // Added empty dates block progress; deleting the last remaining date clears
   // its input instead of removing the slot.
-  await page.getByRole("button", { name: "Add another date" }).click();
+  const addDate = page.getByRole("button", { name: "Add date" });
+  await expect(addDate).toHaveClass(/button--primary/);
+  await expect(addDate).toHaveClass(/button--sm/);
+  await addDate.click();
   const dateInputs = page.locator('input[type="datetime-local"]');
   await expect(dateInputs).toHaveCount(2);
   await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(2);
@@ -345,7 +367,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(nextFab).toBeDisabled();
   await dateInputs.first().fill("2026-09-05T20:00");
   await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
-  await page.getByRole("button", { name: "Add another date" }).click();
+  await page.getByRole("button", { name: "Add date" }).click();
   await dateInputs.nth(1).fill("2026-09-06T21:00");
 
   // Advance: the next FAB is the bottom-right fixed button. Wait until it
@@ -401,7 +423,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await nextFab.click();
   await expect(page.getByText("Board games")).toBeVisible();
 
-  await page.getByRole("button", { name: "Add another game" }).click();
+  const addGame = page.getByRole("button", { name: "Add game" });
+  await expect(addGame).toHaveClass(/button--primary/);
+  await expect(addGame).toHaveClass(/button--sm/);
+  await addGame.click();
   await expect(page.getByRole("button", { name: /Select a board game/ })).toHaveCount(2);
   const removeEmptyGame = page.getByRole("button", { name: "Remove game" }).last();
   await expect(removeEmptyGame).toHaveClass(/button--danger-soft/);
@@ -419,13 +444,15 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByPlaceholder(/Search board games/)).toBeVisible();
   const gameSearch = page.getByPlaceholder(/Search board games/);
   await gameSearch.fill("Cascadia");
-  await expect(page.getByRole("img", { name: "Bayesian average: 7.66" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Average: 7.83" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Rank: 42" })).toBeVisible();
 
   const gameRow = page.getByRole("button", { name: /^Select:/ }).first();
   await gameRow.waitFor({ state: "visible", timeout: 30_000 });
   await expect(gameRow.locator("..").getByText(/\d{4}/)).toBeVisible();
   await gameRow.click();
-  await expect(page.getByRole("img", { name: "Bayesian average: 7.66" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Average: 7.83" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Rank: 42" })).toBeVisible();
   // Removing a selected game clears its slot without opening the picker.
   await expect(page.getByText("Cascadia").first()).toBeVisible();
   const removeSelectedGame = page.getByRole("button", { name: "Remove game" });
@@ -447,8 +474,12 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   const createResponse = page.waitForResponse(
     (response) => response.request().method() === "POST" && response.url().includes("/api/matches"),
   );
-  await nextFab.click();
+  const saveFab = page.getByRole("button", { name: "Create match" });
+  await expect(saveFab.locator("svg.lucide-save")).toBeVisible();
+  await saveFab.click();
   await expect(page.getByText("Match created")).toBeVisible();
+  await page.getByRole("button", { name: "Dismiss notification" }).click();
+  await expect(page.getByText("Match created")).toBeHidden();
   expect((await createResponse).ok()).toBe(true);
   const card = page.getByRole("link", { name: /^Open match: Friday night games/ });
   await expect(card).toBeVisible({ timeout: 30_000 });
@@ -535,7 +566,9 @@ test("match wizard: name → players → game → create", async ({ page }) => {
       response.url().includes("/api/matches/") &&
       !response.url().includes("/invitations"),
   );
-  await page.getByRole("button", { name: "Save changes" }).click();
+  const editSave = page.getByRole("button", { name: "Save changes" });
+  await expect(editSave.locator("svg.lucide-save")).toBeVisible();
+  await editSave.click();
   expect((await updateResponse).ok()).toBe(true);
   await expect(page.getByText("Match updated")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Updated game night" })).toBeVisible();

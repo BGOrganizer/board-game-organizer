@@ -111,7 +111,14 @@ function setup(withNotifications = false) {
   const games = {
     findExistingIds: vi.fn(async () => [1]),
     findByIds: vi.fn(async () => [
-      { id: 1, name: "Azul", yearPublished: 2017, image: "https://example.com/azul.png" },
+      {
+        id: 1,
+        name: "Azul",
+        yearPublished: 2017,
+        average: 7.5,
+        rank: 123,
+        image: "https://example.com/azul.png",
+      },
     ]),
   };
   const notifications = {
@@ -473,6 +480,23 @@ describe("MatchService", () => {
     expect(listed?.winnerNames).toEqual(["Admin Player", "Guest Player"]);
     expect(users.findByIds).toHaveBeenCalledWith(["user_admin", "user_guest"]);
 
+    matches.listAccessible.mockResolvedValueOnce([
+      {
+        ...match,
+        status: "TERMINATED",
+        results: {
+          lowerWins: false,
+          finalizedAt: "2026-09-01T10:00:00.000Z",
+          tieBreaks: [{ score: "5", orderedUserIds: ["user_admin", "user_guest"] }],
+          entries: [
+            { userId: "user_admin", score: "5", rank: 1 },
+            { userId: "user_guest", score: "5", rank: 2 },
+          ],
+        },
+      },
+    ]);
+    expect((await service.list("user_admin"))[0]?.winnerNames).toEqual(["Admin Player"]);
+
     users.findByIds.mockResolvedValueOnce([
       {
         clerkId: "user_admin",
@@ -833,6 +857,8 @@ describe("MatchService", () => {
           id: 1,
           name: "Azul",
           yearPublished: 2017,
+          average: 7.5,
+          rank: 123,
           thumbnail: "https://example.com/azul.png",
         },
       ],

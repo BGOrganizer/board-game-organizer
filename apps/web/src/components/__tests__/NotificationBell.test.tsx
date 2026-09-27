@@ -74,6 +74,9 @@ describe("NotificationBell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
 
     expect(await screen.findByText("New friend request")).toBeTruthy();
+    expect(document.querySelector('[data-slot="dropdown-popover"]')?.className).toContain(
+      "bg-surface",
+    );
     expect(screen.getByText("3")).toBeTruthy();
     fireEvent.click(screen.getByText("Mark all as read"));
     expect(mocks.markAllRead).toHaveBeenCalledOnce();
