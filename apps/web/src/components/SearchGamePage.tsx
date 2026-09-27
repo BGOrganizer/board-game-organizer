@@ -4,7 +4,7 @@ import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/sche
 import { withProtectionBypass } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Gamepad2, Plus } from "lucide-react";
+import { ArrowLeft, Gamepad2, Plus, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 
@@ -38,7 +38,7 @@ export function SearchGamePage({
   onSelect,
   onClose,
 }: Props) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<BggSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,8 +147,27 @@ export function SearchGamePage({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{item.name}</p>
-              {item.year ? <p className="text-xs text-default-500">{item.year}</p> : null}
+              <p className="max-w-[40ch] truncate text-sm font-medium" title={item.name}>
+                {item.name}
+              </p>
+              {(item.year || item.bayesAverage != null) && (
+                <p className="flex items-center gap-2 text-xs text-default-500">
+                  {item.year || null}
+                  {item.bayesAverage != null && (
+                    <span
+                      className="inline-flex items-center gap-1"
+                      role="img"
+                      aria-label={`${t`Bayesian average`}:  ${item.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    >
+                      <Star className="h-3 w-3 text-warning" aria-hidden="true" />
+                      {item.bayesAverage.toLocaleString(i18n.locale, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <Button
               isIconOnly

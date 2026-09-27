@@ -339,6 +339,7 @@ export class MatchService {
                 id: game.id,
                 name: game.name,
                 yearPublished: game.yearPublished ?? null,
+                bayesAverage: game.bayesAverage ?? null,
                 thumbnail: gameThumbnail(game.image ?? null),
               },
             ]

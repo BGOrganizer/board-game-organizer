@@ -396,7 +396,10 @@ describe("Matches", () => {
     });
     renderWithI18n(<Matches />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    const acceptButton = screen.getByRole("button", { name: "Accept" });
+    expect(acceptButton.textContent).toBe("");
+    expect(acceptButton.parentElement?.className).toContain("absolute");
+    fireEvent.click(acceptButton);
     fireEvent.click(screen.getByRole("button", { name: "Decline" }));
     expect(mutate).toHaveBeenNthCalledWith(1, {
       invitationId: "invitation-1",

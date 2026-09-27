@@ -38,12 +38,14 @@ export function UserMenu({
   busy,
   canSendFriendRequest = false,
   friendRequest,
+  matchContext = false,
   onAction,
 }: {
   user: ContactUser;
   busy?: boolean;
   canSendFriendRequest?: boolean;
   friendRequest?: FriendRequestContext;
+  matchContext?: boolean;
   onAction: (key: UserActionKey) => void;
 }) {
   const { t } = useLingui();
@@ -257,7 +259,11 @@ export function UserMenu({
       {confirm && confirmation && (
         <ContactConfirmDialog
           title={confirmation.title}
-          description={confirmation.description}
+          description={
+            confirm === "block" && matchContext
+              ? `${confirmation.description} ${t`Players remain in this match until they leave or are removed.`}`
+              : confirmation.description
+          }
           busy={busy}
           onCancel={() => setConfirm(null)}
           actions={[

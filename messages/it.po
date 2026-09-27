@@ -112,6 +112,11 @@ msgstr "Torna alla pianificazione"
 msgid "Back to planning?"
 msgstr "Tornare alla pianificazione?"
 
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/SearchGamePage.tsx
+msgid "Bayesian average"
+msgstr "Media bayesiana"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
 msgstr "Blocca"
@@ -361,6 +366,16 @@ msgstr "Impossibile caricare le partite"
 msgid "Could not load notifications"
 msgstr "Impossibile caricare le notifiche"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Could not load social actions"
+msgstr "Impossibile caricare le azioni social"
+
+msgid "Could not load social actions. Retry"
+msgstr "Impossibile caricare le azioni social. Riprova"
+
+#~ msgid "Could not load social actions. Retry"
+#~ msgstr "Impossibile caricare le azioni social. Riprova"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not register match"
 msgstr "Impossibile registrare la partita"
@@ -372,6 +387,10 @@ msgstr "Impossibile rifiutare la richiesta di amicizia"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not remove friend"
 msgstr "Impossibile rimuovere l'amico"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove player from match"
+msgstr "Impossibile rimuovere il giocatore dalla partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not reopen match"
@@ -959,6 +978,10 @@ msgstr "Giocate"
 #~ msgid "Player"
 #~ msgstr "Giocatore"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Player removed from match"
+msgstr "Giocatore rimosso dalla partita"
+
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Player scores"
 msgstr "Punteggi giocatori"
@@ -968,6 +991,10 @@ msgstr "Punteggi giocatori"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Players"
 msgstr "Giocatori"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Players remain in this match until they leave or are removed."
+msgstr "I giocatori restano in questa partita finché non escono o vengono rimossi."
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "Possible dates"
@@ -1016,6 +1043,14 @@ msgstr "Rimuovi gioco"
 msgid "Remove invite"
 msgstr "Rimuovi invito"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Remove player"
+msgstr "Rimuovi giocatore"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Remove player?"
+msgstr "Rimuovere il giocatore?"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove slot"
 msgstr "Rimuovi data"
@@ -1047,6 +1082,7 @@ msgstr "Risultati e classifica saranno definitivi e non potranno più essere mod
 #~ msgid "Results can only be registered by the match administrator before termination."
 #~ msgstr "Solo l'amministratore può registrare i risultati prima che la partita sia terminata."
 
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Retry"
 msgstr "Riprova"
@@ -1199,6 +1235,10 @@ msgstr "Questo contatto non sarà più bloccato."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This deletes the match and all invitations. This action cannot be undone."
 msgstr "Questa operazione elimina la partita e tutti gli inviti. Non può essere annullata."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."
+msgstr "Questo rimuove l'invito e il giocatore dalla partita. Bloccare o rimuovere un amico non lo rimuove dalla partita."
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Tie-break applied"

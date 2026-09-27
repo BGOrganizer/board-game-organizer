@@ -1,6 +1,12 @@
 import type { MatchChoice, MatchDetailResponse } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
+import {
+  matchContactState,
+  resolveApiUrl,
+  useContacts,
+  useMatchDetail,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
@@ -27,17 +33,21 @@ import {
   Medal,
   Pencil,
   RotateCcw,
+  Star,
   Trash2,
   Trophy,
+  UserRoundX,
   X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
+import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import type { UserActionKey } from "@/lib/user-actions";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -119,6 +129,7 @@ export default function MatchDetailScreen() {
     feedback: mutationFeedback,
     matchId: matchId ?? "",
   });
+  const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback);
   const match = matches.detail.data?.match;
   const ownInvitation = match?.invitations.find(
     (invitation) => invitation.inviteeUserId === userId,
@@ -129,7 +140,8 @@ export default function MatchDetailScreen() {
       : match?.status === "PLANNING" && ownInvitation?.status === "ACCEPTED"
         ? "leave"
         : null;
-  const matchActionPending = matches.deleteMatch.isPending || matches.leaveMatch.isPending;
+  const matchActionPending =
+    matches.deleteMatch.isPending || matches.leaveMatch.isPending || matches.removePlayer.isPending;
   const summary = matches.detail.data?.voteSummary;
   const statusUnavailable =
     match?.status === "PLANNING" &&
@@ -201,6 +213,30 @@ export default function MatchDetailScreen() {
               });
             }
           },
+        },
+      ],
+    );
+  };
+
+  const confirmRemovePlayer = (invitationId: string) => {
+    if (
+      !match ||
+      match.adminUserId !== userId ||
+      match.status !== "PLANNING" ||
+      matches.removePlayer.isPending
+    )
+      return;
+    Alert.alert(
+      t("Remove player?"),
+      t(
+        "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them.",
+      ),
+      [
+        { text: t("Cancel"), style: "cancel" },
+        {
+          text: t("Remove player"),
+          style: "destructive",
+          onPress: () => matches.removePlayer.mutate(invitationId),
         },
       ],
     );
@@ -297,27 +333,45 @@ export default function MatchDetailScreen() {
                           width={230}
                         >
                           {match?.status === "CREATED" && (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="outline"
+                                accessibilityLabel={t("Back to planning")}
+                                testID="replan-match-action"
+                                style={{ minWidth: 44, minHeight: 44 }}
+                                onPress={() => {
+                                  setMoreActionsOpen(false);
+                                  confirmStatusAction();
+                                }}
+                              >
+                                <RotateCcw size={17} color="#737373" />
+                              </Button>
+                              <Typography className="text-sm text-foreground">
+                                {t("Back to planning")}
+                              </Typography>
+                            </View>
+                          )}
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                             <Button
-                              variant="ghost"
+                              isIconOnly
+                              size="sm"
+                              variant="danger-soft"
+                              accessibilityLabel={t("Delete match")}
+                              testID="delete-match-action"
+                              style={{ minWidth: 44, minHeight: 44 }}
                               onPress={() => {
                                 setMoreActionsOpen(false);
-                                confirmStatusAction();
+                                confirmMatchAction();
                               }}
                             >
-                              <RotateCcw size={17} color="#737373" />
-                              <Button.Label>{t("Back to planning")}</Button.Label>
+                              <Trash2 size={17} color="#f31260" />
                             </Button>
-                          )}
-                          <Button
-                            variant="danger-soft"
-                            onPress={() => {
-                              setMoreActionsOpen(false);
-                              confirmMatchAction();
-                            }}
-                          >
-                            <Trash2 size={17} color="#f31260" />
-                            <Button.Label>{t("Delete match")}</Button.Label>
-                          </Button>
+                            <Typography className="text-sm text-danger">
+                              {t("Delete match")}
+                            </Typography>
+                          </View>
                         </Popover.Content>
                       </Popover.Portal>
                     </Popover>
@@ -365,6 +419,9 @@ export default function MatchDetailScreen() {
           <MatchDetailContent
             data={matches.detail.data}
             userId={userId}
+            contacts={contacts}
+            removePlayer={confirmRemovePlayer}
+            isRemoving={matches.removePlayer.isPending}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             isResponding={matches.respondInvitation.isPending}
@@ -480,6 +537,9 @@ export default function MatchDetailScreen() {
 function MatchDetailContent({
   data,
   userId,
+  contacts,
+  removePlayer,
+  isRemoving,
   activeTab,
   setActiveTab,
   isResponding,
@@ -490,6 +550,9 @@ function MatchDetailContent({
 }: {
   data: MatchDetailResponse;
   userId: string | null | undefined;
+  contacts: ReturnType<typeof useContacts>;
+  removePlayer: (invitationId: string) => void;
+  isRemoving: boolean;
   activeTab: string;
   setActiveTab: (value: string) => void;
   isResponding: boolean;
@@ -499,6 +562,8 @@ function MatchDetailContent({
   respond: (invitationId: string, decision: "accept" | "decline") => void;
 }) {
   const t = useT();
+  const { i18n } = useLingui();
+  const [menuUserId, setMenuUserId] = useState<string | null>(null);
   const [muted, success, danger, warning] = useThemeColor([
     "muted",
     "success",
@@ -517,31 +582,105 @@ function MatchDetailContent({
     match.status === "PLANNING" &&
     (match.adminUserId === userId || ownInvitation?.status === "ACCEPTED");
   const participants = [
-    { ...administrator, status: "ACCEPTED" as const, isAdministrator: true },
+    { ...administrator, status: "ACCEPTED" as const, isAdministrator: true as const },
     ...invitedPlayers.map((player) => ({
       ...player,
       status: player.invitation.status,
-      isAdministrator: false,
+      isAdministrator: false as const,
     })),
   ];
   const winnerNames = match.results?.entries
     .filter((entry) => entry.rank === 1)
     .map((entry) => participants.find((player) => player.id === entry.userId)?.name ?? entry.userId)
     .join(", ");
+  const socialQueries = [
+    contacts.following,
+    contacts.followers,
+    contacts.friends,
+    contacts.pending,
+    contacts.sent,
+    contacts.blocked,
+  ];
+  const socialBusy =
+    !socialQueries.every((query) => query.isSuccess) ||
+    [
+      contacts.follow,
+      contacts.unfollow,
+      contacts.unfriend,
+      contacts.friendRequest,
+      contacts.cancelFriendRequest,
+      contacts.acceptFriendRequest,
+      contacts.rejectFriendRequest,
+      contacts.block,
+      contacts.unblock,
+    ].some((mutation) => mutation.isPending);
+  const socialLists = {
+    following: contacts.following.data,
+    followers: contacts.followers.data,
+    friends: contacts.friends.data,
+    pending: contacts.pending.data,
+    sent: contacts.sent.data,
+    blocked: contacts.blocked.data,
+  };
+  const selectedPlayer = participants.find((player) => player.id === menuUserId);
+  const selectedContact = selectedPlayer ? matchContactState(selectedPlayer, socialLists) : null;
+  const socialAction = async (key: UserActionKey) => {
+    if (!selectedContact || key === "profile") return;
+    const mutation = {
+      follow: contacts.follow,
+      unfollow: contacts.unfollow,
+      unfriend: contacts.unfriend,
+      friend_request: contacts.friendRequest,
+      cancel_friend_request: contacts.cancelFriendRequest,
+      accept_friend_request: contacts.acceptFriendRequest,
+      reject_friend_request: contacts.rejectFriendRequest,
+      block: contacts.block,
+      unblock: contacts.unblock,
+    }[key];
+    if (mutation)
+      await mutation.mutateAsync({
+        targetUserId: selectedContact.user.id,
+        targetUser: selectedContact.user,
+      });
+  };
+  const socialMenu = (player: typeof administrator) =>
+    player.id === userId ? null : (
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        accessibilityLabel={`${t("Actions")}: ${player.name}`}
+        testID={`match-player-actions-${player.id}`}
+        style={{ minHeight: 44, minWidth: 44 }}
+        onPress={() => setMenuUserId(player.id)}
+      >
+        <Ellipsis size={18} color={muted} />
+      </Button>
+    );
 
   return (
     <View style={{ gap: 16 }}>
       {ownInvitation?.status === "PENDING" && (
-        <Card style={{ padding: 16, borderRadius: 12 }}>
+        <Card
+          style={{
+            padding: 12,
+            paddingRight: 100,
+            minHeight: 56,
+            borderRadius: 12,
+            position: "relative",
+          }}
+        >
           <Typography className="font-medium text-foreground">
             {t("Your invitation is waiting for a response.")}
           </Typography>
-          <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 6, marginTop: 10 }}>
+          <View style={{ position: "absolute", right: 8, bottom: 8, flexDirection: "row", gap: 8 }}>
             <Button
               isIconOnly
               size="sm"
               variant="outline"
               accessibilityLabel={t("Decline")}
+              style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+              hitSlop={4}
               isDisabled={isResponding}
               onPress={() => respond(ownInvitation.id, "decline")}
             >
@@ -551,6 +690,8 @@ function MatchDetailContent({
               isIconOnly
               size="sm"
               accessibilityLabel={t("Accept")}
+              style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+              hitSlop={4}
               isDisabled={isResponding}
               onPress={() => respond(ownInvitation.id, "accept")}
             >
@@ -663,12 +804,35 @@ function MatchDetailContent({
                         : t("Declined");
                   return (
                     <GroupedRow key={player.id}>
-                      <Avatar size="md">
-                        {player.avatarUrl ? (
-                          <Avatar.Image source={{ uri: player.avatarUrl }} />
-                        ) : null}
-                        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                      </Avatar>
+                      <View style={{ position: "relative" }}>
+                        <Avatar size="md">
+                          {player.avatarUrl ? (
+                            <Avatar.Image source={{ uri: player.avatarUrl }} />
+                          ) : null}
+                          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+                        </Avatar>
+                        <View
+                          accessible
+                          accessibilityRole="image"
+                          accessibilityLabel={statusLabel}
+                          className="bg-background"
+                          style={{
+                            position: "absolute",
+                            right: -4,
+                            bottom: -4,
+                            borderRadius: 12,
+                            padding: 2,
+                          }}
+                        >
+                          {player.status === "PENDING" ? (
+                            <Clock3 size={15} color="#f5a524" />
+                          ) : player.status === "ACCEPTED" ? (
+                            <CircleCheck size={15} color="#17c964" />
+                          ) : (
+                            <CircleX size={15} color="#f31260" />
+                          )}
+                        </View>
+                      </View>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                           <Typography className="font-medium text-foreground" numberOfLines={1}>
@@ -686,15 +850,23 @@ function MatchDetailContent({
                           </Typography>
                         ) : null}
                       </View>
-                      <View accessible accessibilityRole="image" accessibilityLabel={statusLabel}>
-                        {player.status === "PENDING" ? (
-                          <Clock3 size={20} color="#f5a524" />
-                        ) : player.status === "ACCEPTED" ? (
-                          <CircleCheck size={20} color="#17c964" />
-                        ) : (
-                          <CircleX size={20} color="#f31260" />
+                      {match.adminUserId === userId &&
+                        match.status === "PLANNING" &&
+                        !player.isAdministrator && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="danger-soft"
+                            isDisabled={isRemoving}
+                            accessibilityLabel={`${t("Remove player")}: ${player.name}`}
+                            testID={`remove-match-player-${player.id}`}
+                            style={{ minHeight: 44, minWidth: 44 }}
+                            onPress={() => removePlayer(player.invitation.id)}
+                          >
+                            <UserRoundX size={18} color={danger} />
+                          </Button>
                         )}
-                      </View>
+                      {socialMenu(player)}
                     </GroupedRow>
                   );
                 })}
@@ -741,12 +913,38 @@ function MatchDetailContent({
                         )}
                       </View>
                       <View style={{ flex: 1, gap: 3 }}>
-                        <Typography className="font-medium text-foreground">{game.name}</Typography>
-                        {game.yearPublished ? (
-                          <Typography className="text-xs text-muted">
-                            {game.yearPublished}
-                          </Typography>
-                        ) : null}
+                        <Typography
+                          className="font-medium text-foreground"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {game.name}
+                        </Typography>
+                        {(game.yearPublished || game.bayesAverage != null) && (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            {game.yearPublished ? (
+                              <Typography className="text-xs text-muted">
+                                {game.yearPublished}
+                              </Typography>
+                            ) : null}
+                            {game.bayesAverage != null && (
+                              <View
+                                accessible
+                                accessibilityRole="text"
+                                accessibilityLabel={`${t("Bayesian average")}: ${game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+                              >
+                                <Star size={12} color={warning} />
+                                <Typography className="text-xs text-muted">
+                                  {game.bayesAverage.toLocaleString(i18n.locale, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </Typography>
+                              </View>
+                            )}
+                          </View>
+                        )}
                         {match.status === "PLANNING" &&
                           data.voteSummary?.games[String(game.id)] && (
                             <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
@@ -816,6 +1014,7 @@ function MatchDetailContent({
                       <Typography className="font-semibold text-foreground">
                         {entry.score ?? "ND"}
                       </Typography>
+                      {player && socialMenu(player)}
                     </GroupedRow>
                   );
                 })}
@@ -824,6 +1023,25 @@ function MatchDetailContent({
           </Tabs.Content>
         )}
       </Tabs>
+      {socialQueries.some((query) => query.isError) && (
+        <Button
+          variant="ghost"
+          onPress={() => void contacts.refreshContacts()}
+          accessibilityLabel={t("Could not load social actions. Retry")}
+        >
+          <Button.Label>{t("Could not load social actions. Retry")}</Button.Label>
+        </Button>
+      )}
+      <UserActionsSheet
+        visible={selectedContact !== null}
+        user={selectedContact?.user ?? null}
+        busy={socialBusy}
+        canSendFriendRequest={selectedContact?.canSendFriendRequest}
+        friendRequest={selectedContact?.friendRequest}
+        matchContext
+        onClose={() => setMenuUserId(null)}
+        onAction={socialAction}
+      />
     </View>
   );
 }

@@ -10,6 +10,7 @@ const sample = {
   id: 1,
   name: "Azul",
   yearPublished: 2017,
+  bayesAverage: 7.23456,
 };
 
 beforeEach(() => {
@@ -40,8 +41,20 @@ describe("BGG covers", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     expect(await searchGames(db, "azul")).toEqual([
-      { id: 1, name: "Azul", year: 2017, imageUrl: "https://cf.geekdo-images.com/a/full.jpg" },
-      { id: 2, name: "Catan", year: 1995, imageUrl: "https://cf.geekdo-images.com/b/full.jpg" },
+      {
+        id: 1,
+        name: "Azul",
+        year: 2017,
+        bayesAverage: 7.23456,
+        imageUrl: "https://cf.geekdo-images.com/a/full.jpg",
+      },
+      {
+        id: 2,
+        name: "Catan",
+        year: 1995,
+        bayesAverage: null,
+        imageUrl: "https://cf.geekdo-images.com/b/full.jpg",
+      },
     ]);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://boardgamegeek.com/xmlapi2/thing?id=1,2",
@@ -58,7 +71,13 @@ describe("BGG covers", () => {
   it("keeps the catalog usable without BGG credentials and rejects unknown games", async () => {
     vi.stubEnv("BGG_TOKEN", "");
     games.findOne.mockResolvedValueOnce({ ...sample }).mockResolvedValueOnce(null);
-    expect(await gameDetails(db, 1)).toEqual({ id: 1, name: "Azul", imageUrl: null, year: 2017 });
+    expect(await gameDetails(db, 1)).toEqual({
+      id: 1,
+      name: "Azul",
+      imageUrl: null,
+      year: 2017,
+      bayesAverage: 7.23456,
+    });
     await expect(gameDetails(db, 3)).rejects.toThrow("Game 3 not found");
     expect(quota.updateOne).not.toHaveBeenCalled();
   });
@@ -228,14 +247,20 @@ describe("BGG covers", () => {
   it("uses the cached image in details and searches", async () => {
     const imageUrl = "https://cf.geekdo-images.com/a/full.jpg";
     games.findOne.mockResolvedValue({ id: 1, name: "Azul", image: imageUrl });
-    expect(await gameDetails(db, 1)).toEqual({ id: 1, name: "Azul", imageUrl, year: null });
+    expect(await gameDetails(db, 1)).toEqual({
+      id: 1,
+      name: "Azul",
+      imageUrl,
+      year: null,
+      bayesAverage: null,
+    });
 
     const row = { id: 1, name: "Azul", image: "https://cf.geekdo-images.com/a/full.jpg" };
     games.find.mockReturnValue({ limit: () => ({ toArray: async () => [row] }) });
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     expect(await searchGames(db, "Azul")).toEqual([
-      { id: 1, name: "Azul", year: null, imageUrl: row.image },
+      { id: 1, name: "Azul", year: null, bayesAverage: null, imageUrl: row.image },
     ]);
     expect(fetchMock).not.toHaveBeenCalled();
   });

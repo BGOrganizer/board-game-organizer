@@ -5,7 +5,7 @@ import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Trash2, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Star, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -28,7 +28,13 @@ type UserSlot = {
 };
 type GameSlot = {
   id: string;
-  game: { id: number; name: string; imageUrl: string | null; year: number | null } | null;
+  game: {
+    id: number;
+    name: string;
+    imageUrl: string | null;
+    year: number | null;
+    bayesAverage?: number | null;
+  } | null;
 };
 
 function uid() {
@@ -43,7 +49,7 @@ export function MatchWizard({
   onCreated?: () => void;
 }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
 
@@ -77,6 +83,7 @@ export function MatchWizard({
           name: game.name,
           imageUrl: game.thumbnail,
           year: game.yearPublished,
+          bayesAverage: game.bayesAverage,
         },
       })) ?? [];
     return games.length > 0 ? games : [{ id: uid(), game: null }];
@@ -486,11 +493,31 @@ export function MatchWizard({
                           <Gamepad2 className="h-5 w-5 text-default-400" />
                         )}
                       </span>
-                      <span className="min-w-0 text-left">
-                        <span className="block truncate text-sm font-medium">{slot.game.name}</span>
-                        {slot.game.year ? (
-                          <span className="block text-xs text-default-400">{slot.game.year}</span>
-                        ) : null}
+                      <span className="min-w-0 flex-1 text-left">
+                        <span
+                          className="block max-w-[40ch] truncate text-sm font-medium"
+                          title={slot.game.name}
+                        >
+                          {slot.game.name}
+                        </span>
+                        {(slot.game.year || slot.game.bayesAverage != null) && (
+                          <span className="flex items-center gap-2 text-xs text-default-400">
+                            {slot.game.year || null}
+                            {slot.game.bayesAverage != null && (
+                              <span
+                                className="inline-flex items-center gap-1"
+                                role="img"
+                                aria-label={`${t`Bayesian average`}: ${slot.game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                              >
+                                <Star className="h-3 w-3 text-warning" aria-hidden="true" />
+                                {slot.game.bayesAverage.toLocaleString(i18n.locale, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </span>
                     </span>
                   ) : (

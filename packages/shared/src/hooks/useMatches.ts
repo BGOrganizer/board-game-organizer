@@ -219,6 +219,23 @@ async function leaveMatchRequest(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+async function removeMatchPlayerRequest(
+  apiUrl: string,
+  token: string,
+  matchId: string,
+  invitationId: string,
+  protectionBypass?: string | null,
+): Promise<void> {
+  const res = await fetch(
+    withProtectionBypass(
+      `${apiUrl}/api/matches/${encodeURIComponent(matchId)}/invitations/${encodeURIComponent(invitationId)}`,
+      protectionBypass,
+    ),
+    { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 async function searchBgg(
   apiUrl: string,
   token: string,
@@ -739,6 +756,56 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       }),
   });
 
+  const removePlayer = useMutation({
+    mutationFn: async (invitationId: string) =>
+      removeMatchPlayerRequest(
+        apiUrl,
+        await resolveToken(token, getToken),
+        matchId,
+        invitationId,
+        protectionBypass,
+      ),
+    onMutate: async (invitationId) => {
+      await queryClient.cancelQueries({ queryKey: ["matches"] });
+      const snapshots = queryClient.getQueriesData({ queryKey: ["matches"] });
+      const withoutPlayer = (match: MatchResponse) => {
+        const removed = match.invitations.find((entry) => entry.id === invitationId);
+        return {
+          ...match,
+          invitedUserIds: match.invitedUserIds.filter((id) => id !== removed?.inviteeUserId),
+          invitations: match.invitations.filter((entry) => entry.id !== invitationId),
+        };
+      };
+      for (const [queryKey, data] of snapshots) {
+        if (Array.isArray(data)) {
+          queryClient.setQueryData(
+            queryKey,
+            data.map((match: MatchSummary) =>
+              match.id === matchId ? withoutPlayer(match) : match,
+            ),
+          );
+        } else if (data && typeof data === "object" && "match" in data) {
+          const detail = data as MatchDetailResponse;
+          if (detail.match.id === matchId)
+            queryClient.setQueryData(queryKey, {
+              ...detail,
+              match: withoutPlayer(detail.match),
+              invitedPlayers: detail.invitedPlayers.filter(
+                (player) => player.invitation.id !== invitationId,
+              ),
+            });
+        }
+      }
+      feedback?.onOptimisticUpdate?.("remove_match_player");
+      return snapshots;
+    },
+    onError: (error: Error, _invitationId, snapshots) => {
+      for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
+      feedback?.onError?.(error, "remove_match_player");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches"] }),
+  });
+
   return useMemo(
     () => ({
       detail,
@@ -748,7 +815,17 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       registerResults,
       deleteMatch,
       leaveMatch,
+      removePlayer,
     }),
-    [detail, respondInvitation, setChoice, setStatus, registerResults, deleteMatch, leaveMatch],
+    [
+      detail,
+      respondInvitation,
+      setChoice,
+      setStatus,
+      registerResults,
+      deleteMatch,
+      leaveMatch,
+      removePlayer,
+    ],
   );
 }

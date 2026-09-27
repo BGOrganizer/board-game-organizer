@@ -71,7 +71,13 @@ describe("POST /api/admin/ci-db", () => {
       expect.objectContaining({ listCollections: mocks.listCollections }),
     );
     expect(mocks.bulkUpsert).toHaveBeenCalledWith([
-      { id: 295947, name: "Cascadia", yearPublished: 2021, isExpansion: false },
+      {
+        id: 295947,
+        name: "Cascadia",
+        yearPublished: 2021,
+        bayesAverage: 7.65789,
+        isExpansion: false,
+      },
     ]);
   });
 

@@ -9,11 +9,32 @@ import { renderWithI18n } from "@/test-utils";
 import { messages } from "../../../../../messages/en.js";
 
 const useMatchDetailMock = vi.fn();
+const contactMutation = () => ({ mutate: vi.fn(), isPending: false });
+const contactQuery = () => ({ data: [], isSuccess: true, isError: false });
+const useContactsMock = vi.fn(() => ({
+  following: contactQuery(),
+  followers: contactQuery(),
+  friends: contactQuery(),
+  pending: contactQuery(),
+  sent: contactQuery(),
+  blocked: contactQuery(),
+  follow: contactMutation(),
+  unfollow: contactMutation(),
+  unfriend: contactMutation(),
+  friendRequest: contactMutation(),
+  cancelFriendRequest: contactMutation(),
+  acceptFriendRequest: contactMutation(),
+  rejectFriendRequest: contactMutation(),
+  block: contactMutation(),
+  unblock: contactMutation(),
+  refreshContacts: vi.fn(),
+}));
 const authMock = vi.hoisted(() => ({ userId: "user_guest" }));
 const routerMock = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }));
 const mutate = vi.fn();
 const deleteMutate = vi.fn();
 const leaveMutate = vi.fn();
+const removeMutate = vi.fn();
 const setChoiceMutate = vi.fn();
 const setStatusMutate = vi.fn();
 
@@ -35,6 +56,12 @@ vi.mock("@clerk/nextjs", () => ({
 vi.mock("@board-game-organizer/shared", () => ({
   resolveApiUrl: () => "http://localhost:4000",
   useMatchDetail: (options: unknown) => useMatchDetailMock(options),
+  useContacts: () => useContactsMock(),
+  matchContactState: (player: typeof detail.administrator) => ({
+    user: { ...player, presence: { online: false, lastActiveAt: "" } },
+    friendRequest: undefined,
+    canSendFriendRequest: true,
+  }),
 }));
 vi.mock("@/components/MatchWizard", () => ({
   MatchWizard: ({ initialData }: { initialData: MatchDetailResponse }) => (
@@ -104,6 +131,7 @@ function result(data: typeof detail | undefined = detail) {
     respondInvitation: { mutate, isPending: false, isError: false },
     deleteMatch: { mutate: deleteMutate, isPending: false, isError: false },
     leaveMatch: { mutate: leaveMutate, isPending: false, isError: false },
+    removePlayer: { mutate: removeMutate, isPending: false, isError: false },
     setChoice: { mutate: setChoiceMutate, isPending: false },
     setStatus: { mutate: setStatusMutate, isPending: false },
     registerResults: { mutate: vi.fn(), isPending: false },
@@ -171,6 +199,7 @@ describe("MatchDetail", () => {
     expect(screen.getByText("guest@example.com")).toBeTruthy();
     expect(screen.getByLabelText("Administrator")).toBeTruthy();
     expect(screen.getByLabelText("Pending")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Remove player:/ })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(screen.getByText("Azul")).toBeTruthy();
   });
@@ -184,6 +213,7 @@ describe("MatchDetail", () => {
             id: 1,
             name: "Azul",
             yearPublished: 2017,
+            bayesAverage: 7.23456,
             thumbnail: "https://cf.geekdo-images.com/a/thumb.jpg",
           },
         ],
@@ -192,9 +222,67 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(screen.getByText("2017")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Bayesian average: 7.23" })).toBeTruthy();
     expect(
       document.querySelector('img[src="https://cf.geekdo-images.com/a/thumb.jpg"]'),
     ).toBeTruthy();
+  });
+
+  it("lets an admin remove a pending player only after confirmation while planning", () => {
+    authMock.userId = "user_admin";
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    expect(screen.getByLabelText("Pending").parentElement?.className).toContain("relative");
+    fireEvent.click(screen.getByRole("button", { name: "Remove player: Guest Player" }));
+    expect(screen.getByRole("dialog", { name: "Remove player?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(removeMutate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Remove player: Guest Player" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove player" }));
+    expect(removeMutate).toHaveBeenCalledWith(
+      invitation.id,
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("allows removing accepted players while planning, never after confirmation", () => {
+    authMock.userId = "user_admin";
+    const accepted = { ...invitation, status: "ACCEPTED" as const };
+    const data = {
+      ...detail,
+      match: { ...detail.match, invitations: [accepted] },
+      invitedPlayers: [{ ...detail.invitedPlayers[0], invitation: accepted }],
+    };
+    useMatchDetailMock.mockReturnValue(result(data));
+    const { rerender } = renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    expect(screen.getByRole("button", { name: "Remove player: Guest Player" })).toBeTruthy();
+    useMatchDetailMock.mockReturnValue(
+      result({ ...data, match: { ...data.match, status: "CREATED" as const } }),
+    );
+    rerender(
+      <I18nProvider i18n={setupI18n({ locale: "en", messages: { en: messages } })}>
+        <MatchDetail matchId={invitation.matchId} />
+      </I18nProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Remove player: Guest Player" })).toBeNull();
+  });
+
+  it("keeps match participant visible after a social block and explains its scope", () => {
+    authMock.userId = "user_admin";
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Block" }));
+    const dialog = screen.getByRole("dialog", { name: "Block contact" });
+    expect(
+      within(dialog).getByText(/Players remain in this match until they leave or are removed/),
+    ).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Block" }));
+    expect(useContactsMock.mock.results[0]?.value.block.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ targetUserId: "user_guest" }),
+    );
+    expect(screen.getByText("Guest Player")).toBeTruthy();
   });
 
   it("keeps pending invitation actions above the tabs", () => {
@@ -346,7 +434,7 @@ describe("MatchDetail", () => {
     expect(screen.queryByRole("img", { name: /Yes: 1, No: 0/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Choose game/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "More match actions" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Back to planning" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to planning" }));
     expect(screen.getByRole("dialog", { name: "Back to planning?" })).toBeTruthy();
     expect(setStatusMutate).not.toHaveBeenCalledWith("PLANNING", expect.anything());
     fireEvent.click(
@@ -453,7 +541,10 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
 
     fireEvent.click(screen.getByRole("button", { name: "More match actions" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Delete match" }));
+    const menuAction = screen.getByRole("button", { name: "Delete match" });
+    expect(menuAction.textContent).toBe("");
+    expect(menuAction.nextElementSibling?.textContent).toBe("Delete match");
+    fireEvent.click(menuAction);
     const dialog = screen.getByRole("dialog", { name: "Delete match?" });
     expect(
       within(dialog).getByText(

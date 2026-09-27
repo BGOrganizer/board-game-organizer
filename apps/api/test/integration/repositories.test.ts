@@ -333,6 +333,7 @@ describe("BGG covers on MongoDB replica set", () => {
           id: 1,
           name: "Azul",
           year: 2017,
+          bayesAverage: null,
           imageUrl: "https://cf.geekdo-images.com/azul/full.jpg",
         },
       ]);
@@ -912,6 +913,41 @@ describe("match repositories on MongoDB replica set", () => {
     ).rejects.toThrow("rollback notification");
     await session.endSession();
     expect((await new NotificationsRepository(db).list(TARGET, 5)).notifications).toEqual([]);
+  });
+
+  it("keeps existing match access and invitations after a block until the player leaves", async () => {
+    await seedMatchDependencies();
+    const created = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, invitedUserIds: [TARGET] }),
+    );
+    await new RelationshipService(relationships).block(ACTOR, TARGET);
+    await expect(
+      withMatchTransaction(({ service }) => service.detail(TARGET, created.id)),
+    ).resolves.toMatchObject({
+      match: {
+        invitations: [expect.objectContaining({ inviteeUserId: TARGET, status: "PENDING" })],
+      },
+    });
+    await withMatchTransaction(({ service }) =>
+      service.respond(TARGET, created.invitations[0].id, "accept"),
+    );
+    await expect(
+      withMatchTransaction(({ service }) => service.detail(ACTOR, created.id)),
+    ).resolves.toMatchObject({
+      invitedPlayers: [
+        expect.objectContaining({
+          id: TARGET,
+          invitation: expect.objectContaining({ status: "ACCEPTED" }),
+        }),
+      ],
+    });
+    await withMatchTransaction(({ service }) => service.leave(TARGET, created.invitations[0].id));
+    await expect(
+      withMatchTransaction(({ service }) => service.detail(TARGET, created.id)),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      withMatchTransaction(({ service }) => service.invite(ACTOR, created.id, TARGET)),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it("rejects invitations when either user blocked the other", async () => {

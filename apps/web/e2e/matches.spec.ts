@@ -107,7 +107,15 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
                   invitation: match.invitations[0],
                 },
               ],
-              games: [{ id: 342942, name: "Ark Nova", yearPublished: 2021, thumbnail: null }],
+              games: [
+                {
+                  id: 342942,
+                  name: "Ark Nova",
+                  yearPublished: 2021,
+                  bayesAverage: 7.23456,
+                  thumbnail: null,
+                },
+              ],
               choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
               voteSummary: {
                 dates: { [String(Date.parse(date))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
@@ -121,6 +129,15 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   });
   await page.goto(`/matches/${matchId}`);
   await expect(page.getByRole("heading", { name: "Date selection" })).toBeVisible();
+  await page.getByRole("tab", { name: "Players" }).click();
+  await expect(page.getByRole("button", { name: "Actions" })).toBeVisible();
+  await page.getByRole("button", { name: "Remove player: Guest" }).click();
+  const removeDialog = page.getByRole("dialog", { name: "Remove player?" });
+  await expect(removeDialog).toBeVisible();
+  await removeDialog.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.getByRole("img", { name: "Bayesian average: 7.23" })).toBeVisible();
+  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(
     page.getByRole("img", { name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0" }),
   ).toBeVisible();
@@ -146,7 +163,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(page.getByText("Ark Nova")).toBeVisible();
   await expect(page.getByRole("button", { name: /Choose game/ })).toHaveCount(0);
   await page.getByRole("button", { name: "More match actions" }).click();
-  await page.getByRole("menuitem", { name: "Back to planning" }).click();
+  await page.getByRole("button", { name: "Back to planning" }).click();
   const replanDialog = page.getByRole("dialog", { name: "Back to planning?" });
   await replanDialog.getByRole("button", { name: "Back to planning" }).click();
   await expect(replanDialog).toHaveCount(0);
@@ -194,6 +211,85 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(standings.getByText("Lowest score wins", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Register results" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "More match actions" })).toHaveCount(0);
+});
+
+test("admin removes a pending player without blocking them", async ({ page }) => {
+  if (!E2E_EMAIL) throw new Error("E2E_EMAIL is required for match E2E");
+  await signInAsActor(page);
+  await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.user?.id));
+  const adminUserId = await page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
+  const matchId = "f1a9a989-5d0f-4f4c-9cf9-c08c4ae17103";
+  const invitationId = "f1a9a989-5d0f-4f4c-9cf9-c08c4ae17104";
+  let removed = false;
+  await page.route("**/api/matches/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (
+      path === `/api/matches/${matchId}/invitations/${invitationId}` &&
+      route.request().method() === "DELETE"
+    ) {
+      removed = true;
+      await route.fulfill({ status: 200, json: { success: true } });
+    } else if (path === `/api/matches/${matchId}` && route.request().method() === "GET") {
+      const invitation = {
+        id: invitationId,
+        matchId,
+        inviterUserId: adminUserId,
+        inviteeUserId: "user_guest",
+        status: "PENDING",
+        createdAt: "2026-09-01T00:00:00.000Z",
+        updatedAt: "2026-09-01T00:00:00.000Z",
+      };
+      await route.fulfill({
+        status: 200,
+        json: {
+          match: {
+            id: matchId,
+            adminUserId,
+            name: "Friday games",
+            dates: ["2026-10-01T20:00:00.000Z"],
+            minPlayers: 2,
+            maxPlayers: 4,
+            gameIds: [295947],
+            invitedUserIds: removed ? [] : ["user_guest"],
+            invitations: removed ? [] : [invitation],
+            status: "PLANNING",
+            createdAt: invitation.createdAt,
+            updatedAt: invitation.updatedAt,
+          },
+          administrator: {
+            id: adminUserId,
+            name: "Admin",
+            email: "admin@example.com",
+            avatarUrl: null,
+          },
+          invitedPlayers: removed
+            ? []
+            : [{ id: "user_guest", name: "Guest", email: null, avatarUrl: null, invitation }],
+          games: [
+            {
+              id: 295947,
+              name: "Cascadia",
+              yearPublished: 2021,
+              bayesAverage: 7.65789,
+              thumbnail: null,
+            },
+          ],
+        },
+      });
+    } else await route.continue();
+  });
+  await page.goto(`/matches/${matchId}`);
+  await page.getByRole("tab", { name: "Players" }).click();
+  await expect(page.getByText("Guest")).toBeVisible();
+  await page.getByRole("button", { name: "Remove player: Guest" }).click();
+  const dialog = page.getByRole("dialog", { name: "Remove player?" });
+  await expect(
+    dialog.getByText(/Blocking or removing a friend alone does not remove them/),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "Remove player" }).click();
+  await expect(page.getByText("Guest")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Remove player: Guest" })).toHaveCount(0);
+  expect(removed).toBe(true);
 });
 
 test("match wizard: name → players → game → create", async ({ page }) => {
@@ -323,11 +419,13 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByPlaceholder(/Search board games/)).toBeVisible();
   const gameSearch = page.getByPlaceholder(/Search board games/);
   await gameSearch.fill("Cascadia");
+  await expect(page.getByRole("img", { name: "Bayesian average: 7.66" })).toBeVisible();
 
   const gameRow = page.getByRole("button", { name: /^Select:/ }).first();
   await gameRow.waitFor({ state: "visible", timeout: 30_000 });
   await expect(gameRow.locator("..").getByText(/\d{4}/)).toBeVisible();
   await gameRow.click();
+  await expect(page.getByRole("img", { name: "Bayesian average: 7.66" })).toBeVisible();
   // Removing a selected game clears its slot without opening the picker.
   await expect(page.getByText("Cascadia").first()).toBeVisible();
   const removeSelectedGame = page.getByRole("button", { name: "Remove game" });
@@ -444,7 +542,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
 
   // Destructive admin action requires confirmation and removes the match.
   await page.getByRole("button", { name: "More match actions" }).click();
-  await page.getByRole("menuitem", { name: "Delete match" }).click();
+  await page.getByRole("button", { name: "Delete match" }).click();
   const deleteDialog = page.getByRole("dialog", { name: "Delete match?" });
   await expect(deleteDialog).toBeVisible();
   const deleteResponse = page.waitForResponse(

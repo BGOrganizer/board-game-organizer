@@ -42,6 +42,10 @@ export function useMutationFeedback(): MutationFeedback {
       register_match_results: { success: t`Match registered`, error: t`Could not register match` },
       delete_match: { success: t`Match deleted`, error: t`Could not delete match` },
       leave_match: { success: t`You left the match`, error: t`Could not leave match` },
+      remove_match_player: {
+        success: t`Player removed from match`,
+        error: t`Could not remove player from match`,
+      },
       accept_match_invitation: {
         success: t`Match invitation accepted`,
         error: t`Could not accept match invitation`,

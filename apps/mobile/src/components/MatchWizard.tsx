@@ -2,11 +2,13 @@ import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organize
 import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Typography } from "heroui-native/text";
 import {
@@ -16,6 +18,7 @@ import {
   Gamepad2,
   Minus,
   Plus,
+  Star,
   Trash2,
   Users,
 } from "lucide-react-native";
@@ -36,7 +39,13 @@ type UserSlot = {
 };
 type GameSlot = {
   id: string;
-  game: { id: number; name: string; imageUrl: string | null; year: number | null } | null;
+  game: {
+    id: number;
+    name: string;
+    imageUrl: string | null;
+    year: number | null;
+    bayesAverage?: number | null;
+  } | null;
 };
 
 function uid() {
@@ -46,6 +55,8 @@ function uid() {
 export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
+  const { i18n } = useLingui();
+  const warning = useThemeColor("warning");
   const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -74,6 +85,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
           name: game.name,
           imageUrl: game.thumbnail,
           year: game.yearPublished,
+          bayesAverage: game.bayesAverage,
         },
       })) ?? [];
     return games.length > 0 ? games : [{ id: uid(), game: null }];
@@ -532,14 +544,38 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                     <View style={{ flex: 1 }}>
                       {slot.game ? (
                         <>
-                          <Typography style={{ fontSize: 14, fontWeight: "500" }}>
+                          <Typography
+                            style={{ fontSize: 14, fontWeight: "500" }}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
                             {slot.game.name}
                           </Typography>
-                          {slot.game.year ? (
-                            <Typography style={{ fontSize: 12, color: "#9ca3af" }}>
-                              {slot.game.year}
-                            </Typography>
-                          ) : null}
+                          {(slot.game.year || slot.game.bayesAverage != null) && (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                              {slot.game.year ? (
+                                <Typography className="text-xs text-muted">
+                                  {slot.game.year}
+                                </Typography>
+                              ) : null}
+                              {slot.game.bayesAverage != null && (
+                                <View
+                                  accessible
+                                  accessibilityRole="text"
+                                  accessibilityLabel={`${t("Bayesian average")}: ${slot.game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                  style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+                                >
+                                  <Star size={12} color={warning} />
+                                  <Typography className="text-xs text-muted">
+                                    {slot.game.bayesAverage.toLocaleString(i18n.locale, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}
+                                  </Typography>
+                                </View>
+                              )}
+                            </View>
+                          )}
                         </>
                       ) : (
                         <Typography style={{ color: "#9ca3af" }}>

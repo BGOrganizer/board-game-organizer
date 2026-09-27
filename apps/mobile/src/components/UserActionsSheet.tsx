@@ -45,6 +45,7 @@ export function UserActionsSheet({
   busy,
   canSendFriendRequest = false,
   friendRequest,
+  matchContext = false,
   initialConfirmAction,
   onClose,
   onAction,
@@ -54,6 +55,7 @@ export function UserActionsSheet({
   busy?: boolean;
   canSendFriendRequest?: boolean;
   friendRequest?: FriendRequestContext;
+  matchContext?: boolean;
   initialConfirmAction?: UserActionConfirmation;
   onClose: () => void;
   onAction: (key: UserActionItem["key"]) => Promise<void>;
@@ -217,7 +219,12 @@ export function UserActionsSheet({
           {confirmAction && confirmation ? (
             <View>
               <Text style={styles.confirmTitle}>{confirmation.title}</Text>
-              <Text style={styles.confirmText}>{confirmation.text}</Text>
+              <Text style={styles.confirmText}>
+                {confirmation.text}
+                {confirmAction === "block" && matchContext
+                  ? ` ${t("Players remain in this match until they leave or are removed.")}`
+                  : ""}
+              </Text>
               <View style={styles.confirmRow}>
                 {confirmAction === "respond_friend_request" ? (
                   <>

@@ -61,6 +61,14 @@ describe("translate (runtime)", () => {
     expect(translate(it, "date")).toBe("data");
     expect(translate(it, "dates")).toBe("date");
     expect(translate(it, "Winner")).toBe("Vincitore");
+    expect(translate(it, "Bayesian average")).toBe("Media bayesiana");
+    expect(translate(it, "Remove player")).toBe("Rimuovi giocatore");
+    expect(translate(it, "Could not load social actions. Retry")).toBe(
+      "Impossibile caricare le azioni social. Riprova",
+    );
+    expect(translate(it, "Players remain in this match until they leave or are removed.")).toBe(
+      "I giocatori restano in questa partita finché non escono o vengono rimossi.",
+    );
   });
 
   it("falls back to the English source when the catalog has no entry", () => {

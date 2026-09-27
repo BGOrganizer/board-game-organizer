@@ -2,13 +2,15 @@ import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/sche
 import { withProtectionBypass } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, Plus } from "lucide-react-native";
+import { Gamepad2, Plus, Star } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
@@ -23,6 +25,8 @@ function apiUrl(): string {
 export default function SearchGameScreen() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const t = useT();
+  const { i18n } = useLingui();
+  const warning = useThemeColor("warning");
   const router = useRouter();
   const { slotId, exclude } = useLocalSearchParams<{ slotId: string; exclude?: string }>();
   const setPendingGame = useAppStore((s) => s.setPendingGame);
@@ -161,10 +165,36 @@ export default function SearchGameScreen() {
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                <Typography style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Typography>
-                {item.year ? (
-                  <Typography className="text-xs text-muted">{item.year}</Typography>
-                ) : null}
+                <Typography
+                  style={{ fontSize: 14, fontWeight: "500" }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.name}
+                </Typography>
+                {(item.year || item.bayesAverage != null) && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    {item.year ? (
+                      <Typography className="text-xs text-muted">{item.year}</Typography>
+                    ) : null}
+                    {item.bayesAverage != null && (
+                      <View
+                        accessible
+                        accessibilityRole="text"
+                        accessibilityLabel={`${t("Bayesian average")}: ${item.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                        style={{ flexDirection: "row", alignItems: "center", gap: 3 }}
+                      >
+                        <Star size={12} color={warning} />
+                        <Typography className="text-xs text-muted">
+                          {item.bayesAverage.toLocaleString(i18n.locale, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </Typography>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
               <Button
                 isIconOnly

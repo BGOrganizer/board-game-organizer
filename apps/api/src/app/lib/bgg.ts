@@ -7,6 +7,7 @@ type GameRow = {
   id: number;
   name: string;
   yearPublished?: number | null;
+  bayesAverage?: number | null;
   image?: string | null;
   imageCheckedAt?: string;
 };
@@ -123,6 +124,7 @@ export async function searchGames(db: Db, query: string): Promise<BggSearchItem[
           id: 1,
           name: 1,
           yearPublished: 1,
+          bayesAverage: 1,
           image: 1,
           imageCheckedAt: 1,
         },
@@ -135,6 +137,7 @@ export async function searchGames(db: Db, query: string): Promise<BggSearchItem[
     id: row.id,
     name: row.name,
     year: row.yearPublished ?? null,
+    bayesAverage: row.bayesAverage ?? null,
     imageUrl: cover(row.image),
   }));
 }
@@ -148,6 +151,7 @@ export async function gameDetails(db: Db, id: number): Promise<BggThingResponse>
     name: row.name,
     imageUrl: cover(row.image),
     year: row.yearPublished ?? null,
+    bayesAverage: row.bayesAverage ?? null,
   };
 }
 

@@ -5,9 +5,14 @@ import type {
   MatchDetailResponse,
   SetMatchChoiceInput,
 } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
+import {
+  matchContactState,
+  resolveApiUrl,
+  useContacts,
+  useMatchDetail,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Card, Dropdown, Skeleton, Tabs, Tooltip } from "@heroui/react";
+import { Avatar, Button, Card, Dropdown, Popover, Skeleton, Tabs, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
@@ -25,8 +30,10 @@ import {
   Medal,
   Pencil,
   RotateCcw,
+  Star,
   Trash2,
   Trophy,
+  UserRoundX,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -37,6 +44,7 @@ import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { MatchWizard } from "@/components/MatchWizard";
+import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -128,6 +136,8 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     "delete" | "leave" | "confirm" | "replan" | null
   >(null);
   const [showBlockedReason, setShowBlockedReason] = useState(false);
+  const [removePlayerId, setRemovePlayerId] = useState<string | null>(null);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<MatchDetailResponse | null>(null);
   const [registeringMatch, setRegisteringMatch] = useState<MatchDetailResponse | null>(null);
 
@@ -151,6 +161,14 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     feedback: mutationFeedback,
     matchId,
   });
+  const contacts = useContacts(
+    apiUrl(),
+    token,
+    getToken,
+    protectionBypass(),
+    userId,
+    mutationFeedback,
+  );
 
   // Keep drafts mounted when a background refetch or token rotation changes query state.
   if (
@@ -216,18 +234,78 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     match.status === "PLANNING" && (isAdmin || ownInvitation?.status === "ACCEPTED");
   const choose = (input: SetMatchChoiceInput) => matches.setChoice.mutate(input);
   const participants = [
-    { ...administrator, status: "ACCEPTED" as const, isAdministrator: true },
+    { ...administrator, status: "ACCEPTED" as const, isAdministrator: true as const },
     ...invitedPlayers.map((player) => ({
       ...player,
       status: player.invitation.status,
-      isAdministrator: false,
+      isAdministrator: false as const,
     })),
   ];
   const actionBusy =
     matches.deleteMatch.isPending ||
     matches.leaveMatch.isPending ||
     matches.setStatus.isPending ||
-    matches.registerResults.isPending;
+    matches.registerResults.isPending ||
+    matches.removePlayer.isPending;
+  const socialQueries = [
+    contacts.following,
+    contacts.followers,
+    contacts.friends,
+    contacts.pending,
+    contacts.sent,
+    contacts.blocked,
+  ];
+  const socialBusy =
+    !socialQueries.every((query) => query.isSuccess) ||
+    [
+      contacts.follow,
+      contacts.unfollow,
+      contacts.unfriend,
+      contacts.friendRequest,
+      contacts.cancelFriendRequest,
+      contacts.acceptFriendRequest,
+      contacts.rejectFriendRequest,
+      contacts.block,
+      contacts.unblock,
+    ].some((mutation) => mutation.isPending);
+  const socialLists = {
+    following: contacts.following.data,
+    followers: contacts.followers.data,
+    friends: contacts.friends.data,
+    pending: contacts.pending.data,
+    sent: contacts.sent.data,
+    blocked: contacts.blocked.data,
+  };
+  const socialAction = (player: typeof administrator, key: UserActionKey) => {
+    if (key === "profile") return;
+    const targetUser = matchContactState(player, socialLists).user;
+    const mutation = {
+      follow: contacts.follow,
+      unfollow: contacts.unfollow,
+      unfriend: contacts.unfriend,
+      friend_request: contacts.friendRequest,
+      cancel_friend_request: contacts.cancelFriendRequest,
+      accept_friend_request: contacts.acceptFriendRequest,
+      reject_friend_request: contacts.rejectFriendRequest,
+      block: contacts.block,
+      unblock: contacts.unblock,
+    }[key];
+    mutation?.mutate({ targetUserId: player.id, targetUser });
+  };
+  const socialMenu = (player: typeof administrator) => {
+    if (player.id === userId) return null;
+    const state = matchContactState(player, socialLists);
+    return (
+      <UserMenu
+        user={state.user}
+        busy={socialBusy}
+        canSendFriendRequest={state.canSendFriendRequest}
+        friendRequest={state.friendRequest}
+        matchContext
+        onAction={(key) => socialAction(player, key)}
+      />
+    );
+  };
   const summary = matchData.voteSummary;
   const reasons = summary?.reasons.map((reason) =>
     reason === "NOT_ENOUGH_PLAYERS"
@@ -298,28 +376,50 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               </Button>
             ) : null}
             {match.status !== "TERMINATED" && (
-              <Dropdown>
-                <Dropdown.Trigger
+              <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
+                <Popover.Trigger
                   aria-label={t`More match actions`}
                   className="button button--icon-only button--sm button--outline"
                 >
                   <Ellipsis className="h-4 w-4" />
-                </Dropdown.Trigger>
-                <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu aria-label={t`More match actions`}>
+                </Popover.Trigger>
+                <Popover.Content placement="bottom end" className="w-56">
+                  <Popover.Dialog className="space-y-1 p-2">
                     {match.status === "CREATED" && (
-                      <Dropdown.Item id="replan" onAction={() => setConfirmAction("replan")}>
-                        <RotateCcw className="h-4 w-4" />
-                        {t`Back to planning`}
-                      </Dropdown.Item>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="outline"
+                          aria-label={t`Back to planning`}
+                          onPress={() => {
+                            setMoreActionsOpen(false);
+                            setConfirmAction("replan");
+                          }}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm">{t`Back to planning`}</span>
+                      </div>
                     )}
-                    <Dropdown.Item id="delete" onAction={() => setConfirmAction("delete")}>
-                      <Trash2 className="h-4 w-4" />
-                      {t`Delete match`}
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="danger-soft"
+                        aria-label={t`Delete match`}
+                        onPress={() => {
+                          setMoreActionsOpen(false);
+                          setConfirmAction("delete");
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm text-danger">{t`Delete match`}</span>
+                    </div>
+                  </Popover.Dialog>
+                </Popover.Content>
+              </Popover>
             )}
           </div>
         ) : canLeave ? (
@@ -340,11 +440,14 @@ export function MatchDetail({ matchId }: { matchId: string }) {
       </div>
 
       {ownInvitation?.status === "PENDING" && (
-        <Card className="flex flex-col items-start justify-between gap-3 rounded-xl p-4 sm:flex-row sm:items-center">
+        <Card className="relative min-h-14 rounded-xl p-3 pr-24">
           <p className="text-sm font-medium">{t`Your invitation is waiting for a response.`}</p>
-          <div className="flex shrink-0 gap-2">
+          <div className="absolute right-2 bottom-2 flex gap-1">
             <Button
+              isIconOnly
               size="sm"
+              className="h-8 min-h-8 w-8 min-w-8"
+              aria-label={t`Decline`}
               variant="outline"
               isDisabled={matches.respondInvitation.isPending}
               onPress={() =>
@@ -355,10 +458,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               }
             >
               <X className="h-4 w-4" />
-              {t`Decline`}
             </Button>
             <Button
+              isIconOnly
               size="sm"
+              className="h-8 min-h-8 w-8 min-w-8"
+              aria-label={t`Accept`}
               isDisabled={matches.respondInvitation.isPending}
               onPress={() =>
                 matches.respondInvitation.mutate({
@@ -368,7 +473,6 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               }
             >
               <Check className="h-4 w-4" />
-              {t`Accept`}
             </Button>
           </div>
         </Card>
@@ -378,6 +482,16 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         <p className="text-sm text-danger">{t`Could not update the invitation`}</p>
       )}
 
+      {socialQueries.some((query) => query.isError) && (
+        <p className="text-sm text-danger">
+          {t`Could not load social actions`}{" "}
+          <Button
+            size="sm"
+            variant="ghost"
+            onPress={() => void contacts.refreshContacts()}
+          >{t`Retry`}</Button>
+        </p>
+      )}
       <Tabs aria-label={t`Match details`} defaultSelectedKey="overview">
         <Tabs.ListContainer>
           <Tabs.List>
@@ -453,10 +567,31 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 <GroupedList>
                   {participants.map((player) => (
                     <GroupedRow key={player.id}>
-                      <Avatar size="md" color="accent">
-                        <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
-                        <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                      </Avatar>
+                      <div className="relative shrink-0">
+                        <Avatar size="md" color="accent">
+                          <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
+                          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+                        </Avatar>
+                        <span
+                          className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5"
+                          role="img"
+                          aria-label={
+                            player.status === "PENDING"
+                              ? t`Pending`
+                              : player.status === "ACCEPTED"
+                                ? t`Accepted`
+                                : t`Declined`
+                          }
+                        >
+                          {player.status === "PENDING" ? (
+                            <Clock3 className="h-4 w-4 text-warning" />
+                          ) : player.status === "ACCEPTED" ? (
+                            <CircleCheck className="h-4 w-4 text-success" />
+                          ) : (
+                            <CircleX className="h-4 w-4 text-danger" />
+                          )}
+                        </span>
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <p className="truncate font-medium">{player.name}</p>
@@ -471,24 +606,19 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                           <p className="truncate text-sm text-default-500">{player.email}</p>
                         ) : null}
                       </div>
-                      <span
-                        role="img"
-                        aria-label={
-                          player.status === "PENDING"
-                            ? t`Pending`
-                            : player.status === "ACCEPTED"
-                              ? t`Accepted`
-                              : t`Declined`
-                        }
-                      >
-                        {player.status === "PENDING" ? (
-                          <Clock3 className="h-5 w-5 text-warning" />
-                        ) : player.status === "ACCEPTED" ? (
-                          <CircleCheck className="h-5 w-5 text-success" />
-                        ) : (
-                          <CircleX className="h-5 w-5 text-danger" />
-                        )}
-                      </span>
+                      {isAdmin && match.status === "PLANNING" && !player.isAdministrator && (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="danger-soft"
+                          isDisabled={actionBusy}
+                          aria-label={`${t`Remove player`}: ${player.name}`}
+                          onPress={() => setRemovePlayerId(player.invitation.id)}
+                        >
+                          <UserRoundX className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {socialMenu(player)}
                     </GroupedRow>
                   ))}
                 </GroupedList>
@@ -522,10 +652,27 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{game.name}</p>
-                        {game.yearPublished ? (
-                          <p className="text-xs text-default-500">{game.yearPublished}</p>
-                        ) : null}
+                        <p className="max-w-[40ch] truncate text-sm font-medium" title={game.name}>
+                          {game.name}
+                        </p>
+                        {(game.yearPublished || game.bayesAverage != null) && (
+                          <p className="flex items-center gap-2 text-xs text-default-500">
+                            {game.yearPublished || null}
+                            {game.bayesAverage != null && (
+                              <span
+                                className="inline-flex items-center gap-1"
+                                role="img"
+                                aria-label={`${t`Bayesian average`}: ${game.bayesAverage.toLocaleString(i18n.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                              >
+                                <Star className="h-3 w-3 text-warning" aria-hidden="true" />
+                                {game.bayesAverage.toLocaleString(i18n.locale, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            )}
+                          </p>
+                        )}
                       </div>
                       {match.status === "TERMINATED" && winnerNames && (
                         <span className="inline-flex min-w-0 items-center gap-1 text-sm">
@@ -563,6 +710,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                     <GroupedRow key={entry.userId}>
                       {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
                       <span className="shrink-0 font-semibold">{entry.score ?? "ND"}</span>
+                      {player && socialMenu(player)}
                     </GroupedRow>
                   );
                 })}
@@ -583,6 +731,26 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         </Button>
       ) : null}
 
+      {removePlayerId && isAdmin && match.status === "PLANNING" && (
+        <ContactConfirmDialog
+          title={t`Remove player?`}
+          description={t`This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them.`}
+          busy={matches.removePlayer.isPending}
+          actions={[
+            {
+              label: t`Remove player`,
+              variant: "danger",
+              onPress: () =>
+                matches.removePlayer.mutate(removePlayerId, {
+                  onSuccess: () => setRemovePlayerId(null),
+                }),
+            },
+          ]}
+          onCancel={() => {
+            if (!matches.removePlayer.isPending) setRemovePlayerId(null);
+          }}
+        />
+      )}
       {confirmAction && (
         <ContactConfirmDialog
           title={

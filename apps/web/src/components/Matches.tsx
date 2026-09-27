@@ -128,7 +128,7 @@ export function Matches() {
             ? `+${card.additionalDates} ${card.additionalDates === 1 ? t`date` : t`dates`}`
             : "";
           return (
-            <Card key={match.id} className="rounded-xl p-0">
+            <Card key={match.id} className="relative rounded-xl p-0">
               <Link
                 href={match.optimistic ? "/matches" : `/matches/${match.id}`}
                 aria-label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel} ${extraDates}, ${t`Players`}: ${card.players}/${card.maxPlayers}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${t`Winner`}: ${card.winnerNames.join(", ")}` : ""}`}
@@ -160,14 +160,18 @@ export function Matches() {
                       {extraDates && <span className="ml-1">{extraDates}</span>}
                     </div>
                   )}
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-default-500">
+                  <div
+                    className={`mt-2 flex min-w-0 items-center gap-3 overflow-hidden text-xs text-default-500 ${invitation?.status === "PENDING" ? "pr-20" : ""}`}
+                  >
                     <span className="inline-flex items-center gap-1">
                       <UsersRound className="h-4 w-4" aria-hidden="true" />
                       {card.players}/{card.maxPlayers}
                     </span>
                     <span className="inline-flex min-w-0 items-center gap-1">
                       <Dices className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      {gameLabel}
+                      <span className="max-w-[25ch] truncate" title={gameLabel}>
+                        {gameLabel}
+                      </span>
                     </span>
                     {card.winnerNames && card.winnerNames.length > 0 && (
                       <span className="inline-flex min-w-0 items-center gap-1">
@@ -182,10 +186,12 @@ export function Matches() {
               </Link>
 
               {invitation?.status === "PENDING" && (
-                <div className="flex gap-2 border-t border-default-200 p-3">
+                <div className="absolute bottom-2 right-2 z-10 flex gap-1 rounded-lg bg-background/90 p-0.5 shadow-sm">
                   <Button
+                    isIconOnly
                     size="sm"
                     variant="outline"
+                    className="h-8 min-h-8 w-8 min-w-8"
                     aria-label={t`Decline`}
                     isDisabled={matches.respondInvitation.isPending}
                     onPress={() =>
@@ -195,11 +201,12 @@ export function Matches() {
                       })
                     }
                   >
-                    <X className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t`Decline`}</span>
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                   <Button
+                    isIconOnly
                     size="sm"
+                    className="h-8 min-h-8 w-8 min-w-8"
                     aria-label={t`Accept`}
                     isDisabled={matches.respondInvitation.isPending}
                     onPress={() =>
@@ -209,8 +216,7 @@ export function Matches() {
                       })
                     }
                   >
-                    <Check className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t`Accept`}</span>
+                    <Check className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               )}

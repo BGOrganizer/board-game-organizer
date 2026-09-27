@@ -390,6 +390,71 @@ describe("useMatchDetail", () => {
     expect(result.current.list.data).toEqual([]);
   });
 
+  it.each([200, 500])(
+    "removes a player optimistically and %s reconciles or rolls back",
+    async (status) => {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      const listKey = ["matches", "https://api.example.com", "initial-token"];
+      client.setQueryData(listKey, [detail.match]);
+      const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };
+      let release: (response: Response) => void = () => {};
+      const fetchMock = vi.fn((_input: string | URL | Request, init?: RequestInit) =>
+        init?.method === "DELETE"
+          ? new Promise<Response>((resolve) => {
+              release = resolve;
+            })
+          : Promise.resolve(new Response(JSON.stringify(detail), { status: 200 })),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const { result } = renderHook(
+        () =>
+          useMatchDetail({
+            apiUrl: "https://api.example.com",
+            token: "initial-token",
+            getToken: vi.fn().mockResolvedValue("fresh-token"),
+            feedback,
+            matchId: invitation.matchId,
+          }),
+        { wrapper: wrapper(client) },
+      );
+      await waitFor(() => expect(result.current.detail.isSuccess).toBe(true));
+      act(() => result.current.removePlayer.mutate(invitation.id));
+      await waitFor(() =>
+        expect((client.getQueryData(listKey) as (typeof detail.match)[])[0]?.invitations).toEqual(
+          [],
+        ),
+      );
+      expect((client.getQueryData(listKey) as (typeof detail.match)[])[0]?.invitedUserIds).toEqual(
+        [],
+      );
+      expect(result.current.detail.data?.invitedPlayers).toEqual([]);
+      expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("remove_match_player");
+      expect(fetchMock).toHaveBeenCalledWith(
+        `https://api.example.com/api/matches/${invitation.matchId}/invitations/${invitation.id}`,
+        expect.objectContaining({
+          method: "DELETE",
+          headers: { Authorization: "Bearer fresh-token" },
+        }),
+      );
+      act(() => release(new Response(null, { status })));
+      await waitFor(() =>
+        expect(
+          status === 200
+            ? result.current.removePlayer.isSuccess
+            : result.current.removePlayer.isError,
+        ).toBe(true),
+      );
+      if (status !== 200) {
+        expect((client.getQueryData(listKey) as (typeof detail.match)[])[0]?.invitations).toEqual([
+          invitation,
+        ]);
+        expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "remove_match_player");
+      }
+    },
+  );
+
   it("optimistically deletes a match from every list cache", async () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },

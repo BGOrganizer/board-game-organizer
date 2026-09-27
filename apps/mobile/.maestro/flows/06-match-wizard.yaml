@@ -91,11 +91,13 @@ appId: com.bgo.mobile
     visible: "Select: Cascadia.*"
     timeout: 30000
 - assertVisible: "2021"
+- assertVisible: ".*7[.]66.*"
 - tapOn: "Select: Cascadia.*"
 - extendedWaitUntil:
     visible: "Board games"
     timeout: 30000
 - assertVisible: "Cascadia"
+- assertVisible: ".*7[.]66.*"
 # Submit, open the match and exercise all three HeroUI tabs.
 - tapOn:
     point: "90%,92%"
@@ -146,6 +148,7 @@ appId: com.bgo.mobile
 - assertVisible: "Game selection"
 - assertVisible: "Cascadia"
 - assertVisible: "2021"
+- assertVisible: ".*7[.]66.*"
 - tapOn:
     id: "choose-game"
 - assertVisible: "Choose game"
@@ -202,7 +205,9 @@ appId: com.bgo.mobile
 # Secondary actions live in the header popover. Deletion still requires confirmation.
 - tapOn:
     id: "more-match-actions"
-- tapOn: "Delete match"
+- assertVisible: "Delete match"
+- tapOn:
+    id: "delete-match-action"
 - assertVisible: "Delete match?"
 - tapOn: "Delete match"
 - extendedWaitUntil:

@@ -18,6 +18,7 @@ export type MutationFeedbackAction =
   | "register_match_results"
   | "delete_match"
   | "leave_match"
+  | "remove_match_player"
   | "accept_match_invitation"
   | "decline_match_invitation";
 

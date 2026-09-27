@@ -177,7 +177,7 @@ export default function MatchesScreen() {
               ? `+${card.additionalDates} ${card.additionalDates === 1 ? t("date") : t("dates")}`
               : "";
             return (
-              <Card key={match.id} style={{ borderRadius: 12 }}>
+              <Card key={match.id} style={{ borderRadius: 12, position: "relative" }}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`${t("Open match")}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel} ${extraDates}, ${t("Players")}: ${card.players}/${card.maxPlayers}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${t("Winner")}: ${card.winnerNames.join(", ")}` : ""}`}
@@ -215,9 +215,9 @@ export default function MatchesScreen() {
                     <View
                       style={{
                         flexDirection: "row",
-                        flexWrap: "wrap",
                         alignItems: "center",
                         gap: 12,
+                        paddingRight: invitation?.status === "PENDING" ? 88 : 0,
                       }}
                     >
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -235,7 +235,12 @@ export default function MatchesScreen() {
                         }}
                       >
                         <Dices size={14} color="#6b7280" />
-                        <Typography className="text-xs text-muted" style={{ flexShrink: 1 }}>
+                        <Typography
+                          className="text-xs text-muted"
+                          style={{ flexShrink: 1 }}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
                           {gameLabel}
                         </Typography>
                       </View>
@@ -269,19 +274,25 @@ export default function MatchesScreen() {
 
                 {invitation?.status === "PENDING" && (
                   <View
+                    className="bg-background"
                     style={{
+                      position: "absolute",
+                      right: 6,
+                      bottom: 6,
                       flexDirection: "row",
-                      justifyContent: "flex-end",
-                      gap: 6,
-                      paddingHorizontal: 12,
-                      paddingBottom: 10,
+                      gap: 8,
+                      padding: 2,
+                      borderRadius: 8,
+                      zIndex: 1,
                     }}
                   >
                     <Button
                       isIconOnly
                       size="sm"
                       variant="outline"
-                      accessibilityLabel={t("Decline")}
+                      accessibilityLabel={`${t("Decline")}: ${match.name}`}
+                      style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+                      hitSlop={4}
                       isDisabled={matches.respondInvitation.isPending}
                       onPress={() =>
                         matches.respondInvitation.mutate({
@@ -295,7 +306,9 @@ export default function MatchesScreen() {
                     <Button
                       isIconOnly
                       size="sm"
-                      accessibilityLabel={t("Accept")}
+                      accessibilityLabel={`${t("Accept")}: ${match.name}`}
+                      style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+                      hitSlop={4}
                       isDisabled={matches.respondInvitation.isPending}
                       onPress={() =>
                         matches.respondInvitation.mutate({
