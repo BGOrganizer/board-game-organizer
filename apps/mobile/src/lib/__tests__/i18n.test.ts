@@ -72,6 +72,9 @@ describe("translate (runtime)", () => {
     expect(translate(it, "Matches played")).toBe("Partite giocate");
     expect(translate(it, "Following")).toBe("Following");
     expect(translate(it, "Remove player")).toBe("Rimuovi giocatore");
+    expect(translate(it, "Members")).toBe("Membri");
+    expect(translate(it, "Invitations")).toBe("Inviti");
+    expect(translate(it, "No invitations")).toBe("Nessun invito");
     expect(translate(it, "Could not load social actions. Retry")).toBe(
       "Impossibile caricare le azioni social. Riprova",
     );

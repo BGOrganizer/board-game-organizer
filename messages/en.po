@@ -781,9 +781,9 @@ msgstr "Increase max players"
 msgid "Increase min players"
 msgstr "Increase min players"
 
-#: apps/web/src/components/Groups.tsx
-#~ msgid "Invitations"
-#~ msgstr "Invitations"
+#: apps/mobile/src/app/group/[groupId].tsx
+msgid "Invitations"
+msgstr "Invitations"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Invite a friend"
@@ -962,9 +962,9 @@ msgstr "member"
 msgid "members"
 msgstr "members"
 
-#: apps/web/src/components/Groups.tsx
-#~ msgid "Members"
-#~ msgstr "Members"
+#: apps/mobile/src/app/group/[groupId].tsx
+msgid "Members"
+msgstr "Members"
 
 #: apps/web/src/components/Groups.tsx
 msgid "Members are visible after accepting the invitation"
@@ -1055,9 +1055,9 @@ msgstr "No group"
 msgid "No groups yet"
 msgstr "No groups yet"
 
-#: apps/web/src/components/Groups.tsx
-#~ msgid "No invitations"
-#~ msgstr "No invitations"
+#: apps/mobile/src/app/group/[groupId].tsx
+msgid "No invitations"
+msgstr "No invitations"
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "No invited players"

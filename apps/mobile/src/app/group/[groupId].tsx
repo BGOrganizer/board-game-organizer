@@ -9,15 +9,12 @@ import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
   Check,
-  CircleCheck,
   CircleX,
   Clock3,
-  Crown,
   Ellipsis,
   LockKeyhole,
   LockKeyholeOpen,
@@ -47,7 +44,6 @@ export default function GroupDetailScreen() {
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [menuUserId, setMenuUserId] = useState<string | null>(null);
-  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     let active = true;
@@ -65,7 +61,7 @@ export default function GroupDetailScreen() {
   const groups = useGroups({ apiUrl, token, getToken, userId, feedback });
   const contacts = useContacts(apiUrl, token, getToken, undefined, userId, feedback);
   const group = groups.list.data?.find((candidate) => candidate.id === groupId);
-  const admin = group?.adminUserId === userId;
+  const admin = Boolean(group && group.adminUserId === userId);
   const invitation = group?.invitations.find((candidate) => candidate.inviteeUserId === userId);
   const people = group
     ? [
@@ -191,48 +187,33 @@ export default function GroupDetailScreen() {
           title: group?.name ?? t("Group"),
           headerRight: admin
             ? () => (
-                <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
-                  <Popover.Trigger asChild>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="outline"
-                      accessibilityLabel={t("More group actions")}
-                      style={{ minHeight: 44, minWidth: 44 }}
-                    >
-                      <Ellipsis size={18} color="#737373" />
-                    </Button>
-                  </Popover.Trigger>
-                  <Popover.Portal>
-                    <Popover.Overlay />
-                    <Popover.Content
-                      presentation="popover"
-                      placement="bottom"
-                      width={220}
-                      style={{ gap: 8, padding: 8 }}
-                    >
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="danger-soft"
-                          accessibilityLabel={t("Delete group")}
-                          isDisabled={groups.archive.isPending}
-                          style={{ minWidth: 44, minHeight: 44 }}
-                          onPress={() => {
-                            setMoreActionsOpen(false);
-                            confirm("delete");
-                          }}
-                        >
-                          <Trash2 size={18} color="#f31260" />
-                        </Button>
-                        <Typography className="text-danger">{t("Delete group")}</Typography>
-                      </View>
-                    </Popover.Content>
-                  </Popover.Portal>
-                </Popover>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="danger-soft"
+                  accessibilityLabel={t("Delete group")}
+                  isDisabled={groups.archive.isPending}
+                  style={{ minWidth: 44, minHeight: 44 }}
+                  onPress={() => confirm("delete")}
+                >
+                  <Trash2 size={18} color="#f31260" />
+                </Button>
               )
-            : undefined,
+            : invitation?.status === "ACCEPTED"
+              ? () => (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="danger-soft"
+                    accessibilityLabel={t("Leave group")}
+                    isDisabled={groups.leave.isPending}
+                    style={{ minWidth: 44, minHeight: 44 }}
+                    onPress={() => confirm("leave")}
+                  >
+                    <LogOut size={18} color="#dc2626" />
+                  </Button>
+                )
+              : undefined,
         }}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 110, gap: 16 }}>
@@ -268,99 +249,105 @@ export default function GroupDetailScreen() {
             {contacts.friends.isError && admin ? (
               <Typography className="text-danger">{t("Could not load friends")}</Typography>
             ) : null}
-            <GroupedList>
-              {people.map((person) => (
-                <GroupedRow key={person.id}>
-                  <View style={{ position: "relative" }}>
-                    <Avatar size="md">
-                      {person.avatarUrl ? (
-                        <Avatar.Image source={{ uri: person.avatarUrl }} />
-                      ) : null}
-                      <Avatar.Fallback>{person.name.charAt(0) || "?"}</Avatar.Fallback>
-                    </Avatar>
-                    <View
-                      accessible
-                      accessibilityRole="image"
-                      className="bg-background"
-                      accessibilityLabel={
-                        person.status === "PENDING"
-                          ? t("Pending")
-                          : person.status === "DECLINED"
-                            ? t("Declined")
-                            : t("Accepted")
-                      }
-                      style={{
-                        position: "absolute",
-                        right: -4,
-                        bottom: -4,
-                        borderRadius: 12,
-                        padding: 2,
-                      }}
-                    >
-                      {person.status === "PENDING" ? (
-                        <Clock3 size={15} color="#f5a524" />
-                      ) : person.status === "DECLINED" ? (
-                        <CircleX size={15} color="#f31260" />
-                      ) : (
-                        <CircleCheck size={15} color="#17c964" />
-                      )}
-                    </View>
-                    {person.id === group.adminUserId ? (
-                      <View
-                        accessible
-                        accessibilityRole="image"
-                        accessibilityLabel={t("Group admin")}
-                        className="bg-surface"
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          borderBottomRightRadius: 8,
-                          padding: 2,
-                        }}
-                      >
-                        <Crown size={16} color="#f5a524" />
-                      </View>
-                    ) : null}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Typography className="font-medium text-foreground" numberOfLines={1}>
-                      {person.name}
-                    </Typography>
-                    {person.email ? (
-                      <Typography className="text-sm text-muted" numberOfLines={1}>
-                        {person.email}
-                      </Typography>
-                    ) : null}
-                  </View>
-                  {admin && person.invitation ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      isDisabled={groups.removeInvitation.isPending}
-                      accessibilityLabel={`${t("Remove from group")}: ${person.name}`}
-                      style={{ minHeight: 44, minWidth: 44 }}
-                      onPress={() => remove(person.invitation?.id ?? "")}
-                    >
-                      <UserRoundX size={18} color="#f31260" />
-                    </Button>
-                  ) : null}
-                  {person.id !== userId ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="ghost"
-                      accessibilityLabel={`${t("Actions")}: ${person.name}`}
-                      style={{ minHeight: 44, minWidth: 44 }}
-                      onPress={() => setMenuUserId(person.id)}
-                    >
-                      <Ellipsis size={18} color="#737373" />
-                    </Button>
-                  ) : null}
-                </GroupedRow>
-              ))}
-            </GroupedList>
+            {[
+              {
+                id: "members",
+                title: t("Members"),
+                rows: people.filter((p) => p.status === "ACCEPTED"),
+              },
+              {
+                id: "invitations",
+                title: t("Invitations"),
+                rows: people.filter((p) => p.status !== "ACCEPTED"),
+              },
+            ].map((section) => (
+              <View key={section.id} style={{ gap: 8 }}>
+                <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                  {section.title}
+                </Typography>
+                {section.rows.length > 0 ? (
+                  <GroupedList>
+                    {section.rows.map((person) => (
+                      <GroupedRow key={person.id}>
+                        <View style={{ position: "relative" }}>
+                          <Avatar size="md">
+                            {person.avatarUrl ? (
+                              <Avatar.Image source={{ uri: person.avatarUrl }} />
+                            ) : null}
+                            <Avatar.Fallback>{person.name.charAt(0) || "?"}</Avatar.Fallback>
+                          </Avatar>
+                          {person.status !== "ACCEPTED" ? (
+                            <View
+                              accessible
+                              accessibilityRole="image"
+                              className="bg-background"
+                              accessibilityLabel={
+                                person.status === "PENDING" ? t("Pending") : t("Declined")
+                              }
+                              style={{
+                                position: "absolute",
+                                right: -4,
+                                bottom: -4,
+                                borderRadius: 12,
+                                padding: 2,
+                              }}
+                            >
+                              {person.status === "PENDING" ? (
+                                <Clock3 size={15} color="#f5a524" />
+                              ) : (
+                                <CircleX size={15} color="#f31260" />
+                              )}
+                            </View>
+                          ) : null}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Typography className="font-medium text-foreground" numberOfLines={1}>
+                            {person.name}
+                          </Typography>
+                          {person.email ? (
+                            <Typography className="text-sm text-muted" numberOfLines={1}>
+                              {person.email}
+                            </Typography>
+                          ) : null}
+                          {person.id === group.adminUserId ? (
+                            <Typography className="text-xs text-muted">
+                              {t("Group admin")}
+                            </Typography>
+                          ) : null}
+                        </View>
+                        {admin && person.invitation ? (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="danger-soft"
+                            isDisabled={groups.removeInvitation.isPending}
+                            accessibilityLabel={`${t("Remove from group")}: ${person.name}`}
+                            style={{ minHeight: 44, minWidth: 44 }}
+                            onPress={() => remove(person.invitation?.id ?? "")}
+                          >
+                            <UserRoundX size={18} color="#f31260" />
+                          </Button>
+                        ) : null}
+                        {person.id !== userId ? (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="ghost"
+                            accessibilityLabel={`${t("Actions")}: ${person.name}`}
+                            style={{ minHeight: 44, minWidth: 44 }}
+                            onPress={() => setMenuUserId(person.id)}
+                          >
+                            <Ellipsis size={18} color="#737373" />
+                          </Button>
+                        ) : null}
+                      </GroupedRow>
+                    ))}
+                  </GroupedList>
+                ) : section.id === "invitations" ? (
+                  <Typography className="text-muted">{t("No invitations")}</Typography>
+                ) : null}
+              </View>
+            ))}
             {socialQueries.some((query) => query.isError) ? (
               <Button
                 variant="ghost"
@@ -396,17 +383,6 @@ export default function GroupDetailScreen() {
                   <Typography className="text-danger">{t("Decline invitation")}</Typography>
                 </Button>
               </View>
-            ) : null}
-            {!admin && invitation?.status === "ACCEPTED" ? (
-              <Button
-                variant="danger-soft"
-                accessibilityLabel={t("Leave group")}
-                isDisabled={groups.leave.isPending}
-                onPress={() => confirm("leave")}
-              >
-                <LogOut size={16} color="#dc2626" />
-                <Typography className="text-danger">{t("Leave group")}</Typography>
-              </Button>
             ) : null}
           </>
         ) : null}
