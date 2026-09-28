@@ -69,11 +69,13 @@ appId: com.bgo.mobile
     id: "create-group-fab"
 - tapOn: "Group name"
 - inputText: "Shared Tabletop Club"
+- tapOn: "Select a friend"
 - extendedWaitUntil:
-    visible: "Invite E2E Target"
+    visible: "E2E Target"
     timeout: 30000
-- tapOn: "Invite E2E Target"
-- tapOn: "Create group"
+- tapOn: "Add: E2E Target"
+- tapOn:
+    id: "save-group-fab"
 - extendedWaitUntil:
     visible: "Shared Tabletop Club"
     timeout: 30000
@@ -103,7 +105,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Shared Tabletop Club"
     timeout: 30000
-- assertVisible: "Invitation pending"
+- tapOn: "Open group: Shared Tabletop Club"
 - tapOn: "Accept invitation"
 - extendedWaitUntil:
     visible: "2 members"

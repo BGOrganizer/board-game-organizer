@@ -15,6 +15,7 @@ vi.mock("@/components/NotificationsPage", () => ({
 vi.mock("next/headers", () => ({
   headers: () => ({ get: () => null }),
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({

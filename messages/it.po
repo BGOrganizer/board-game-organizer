@@ -37,6 +37,10 @@ msgstr "Accettare la richiesta di amicizia?"
 msgid "Accept group invitation"
 msgstr "Accetta l'invito al gruppo"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Accept invitation"
+msgstr "Accetta invito"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Accept or decline this friend request."
 msgstr "Accetta o rifiuta questa richiesta di amicizia."
@@ -78,6 +82,10 @@ msgstr "Aggiungi"
 msgid "Add date"
 msgstr "Aggiungi data"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Add friend"
+msgstr "Aggiungi amico"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Add game"
 msgstr "Aggiungi gioco"
@@ -99,6 +107,7 @@ msgstr "Amministratore"
 #~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
 #~ msgstr "Consentire a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "At least 5 characters"
 msgstr "Almeno 5 caratteri"
@@ -107,6 +116,7 @@ msgstr "Almeno 5 caratteri"
 msgid "Average"
 msgstr "Media"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Back"
@@ -156,7 +166,6 @@ msgid "Board games"
 msgstr "Giochi da tavolo"
 
 #: apps/web/src/components/ContactConfirmDialog.tsx
-#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Cancel"
 msgstr "Annulla"
@@ -213,10 +222,9 @@ msgstr "Scegli il gioco"
 #~ msgid "Claiming this invite connects you with the inviter."
 #~ msgstr "Accettando questo invito ti connetterai con chi ti ha invitato."
 
-#: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
-#~ msgid "Clear"
-#~ msgstr "Pulisci"
+msgid "Clear"
+msgstr "Pulisci"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Clear search"
@@ -393,6 +401,10 @@ msgid "Could not load game details"
 msgstr "Impossibile caricare i dettagli del gioco"
 
 #: apps/web/src/components/Groups.tsx
+msgid "Could not load group details"
+msgstr "Impossibile caricare i dettagli del gruppo"
+
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Could not load groups"
 msgstr "Impossibile caricare i gruppi"
@@ -538,6 +550,11 @@ msgstr "Rifiutare la richiesta di amicizia?"
 msgid "Decline group invitation"
 msgstr "Rifiuta l'invito al gruppo"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Decline invitation"
+msgstr "Rifiuta invito"
+
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Declined"
 msgstr "Rifiutato"
@@ -691,6 +708,14 @@ msgstr "Giochi"
 msgid "Generate a link to connect with someone."
 msgstr "Genera un link per connetterti con qualcuno."
 
+#. Mobile runtime only
+#~ msgid "Group"
+#~ msgstr "Gruppo"
+
+#. Mobile runtime only
+msgid "Group"
+msgstr "Gruppo"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Group (optional)"
 msgstr "Gruppo (facoltativo)"
@@ -755,6 +780,10 @@ msgstr "Aumenta il numero massimo di giocatori"
 msgid "Increase min players"
 msgstr "Aumenta il numero minimo di giocatori"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Invitations"
+msgstr "Inviti"
+
 #: apps/web/src/components/InviteCard.tsx
 msgid "Invite a friend"
 msgstr "Invita un amico"
@@ -786,6 +815,10 @@ msgstr "Invita membri del gruppo"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Invite link created"
 msgstr "Link di invito creato"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Invited"
+msgstr "Invitati"
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "Invited players"
@@ -928,6 +961,14 @@ msgstr "membro"
 msgid "members"
 msgstr "membri"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Members"
+msgstr "Membri"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Members are visible after accepting the invitation"
+msgstr "I membri saranno visibili dopo aver accettato l'invito"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Min"
 msgstr "Minimo"
@@ -951,6 +992,10 @@ msgstr "Sposta giù"
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Move up"
 msgstr "Sposta su"
+
+#: apps/web/src/components/Groups.tsx
+msgid "New group"
+msgstr "Nuovo gruppo"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "New invite"
@@ -986,8 +1031,8 @@ msgid "No friends from your contacts are on Board Game Organizer yet."
 msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
 
 #: apps/web/src/components/Groups.tsx
-msgid "No friends to invite yet"
-msgstr "Non ci sono ancora amici da invitare"
+#~ msgid "No friends to invite yet"
+#~ msgstr "Non ci sono ancora amici da invitare"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No friends yet"
@@ -1004,6 +1049,10 @@ msgstr "Nessun gruppo"
 #: apps/web/src/components/Groups.tsx
 msgid "No groups yet"
 msgstr "Nessun gruppo per ora"
+
+#: apps/web/src/components/Groups.tsx
+msgid "No invitations"
+msgstr "Nessun invito"
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "No invited players"
@@ -1072,6 +1121,10 @@ msgstr "Non conosciuta"
 msgid "Notifications"
 msgstr "Notifiche"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Open group"
+msgstr "Apri gruppo"
+
 #: apps/web/src/components/Matches.tsx
 msgid "Open match"
 msgstr "Apri partita"
@@ -1112,6 +1165,7 @@ msgstr "Partecipanti"
 #~ msgid "Paste an invite link or token to claim it"
 #~ msgstr "Incolla un link o un token di invito per accettarlo"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Pending"
 msgstr "In attesa"
@@ -1217,6 +1271,7 @@ msgstr "Rimuovere l'amico?"
 msgid "Remove game"
 msgstr "Rimuovi gioco"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove invite"
 msgstr "Rimuovi invito"
@@ -1270,9 +1325,10 @@ msgid "Retry"
 msgstr "Riprova"
 
 #: apps/web/src/components/Groups.tsx
-msgid "Save"
-msgstr "Salva"
+#~ msgid "Save"
+#~ msgstr "Salva"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Save changes"
 msgstr "Salva modifiche"
@@ -1321,6 +1377,7 @@ msgstr "Seleziona"
 msgid "Select a board game"
 msgstr "Seleziona un gioco da tavolo"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Select a friend"
 msgstr "Seleziona un amico"

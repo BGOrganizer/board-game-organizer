@@ -53,9 +53,13 @@ it("renders friends returned by the relationships API", async () => {
   const add = screen.getByRole("button", { name: "Add: E2E Target" });
   expect(add.closest("li")?.className).toContain("p-3 pl-4");
   expect(add.closest("ul")?.className).toContain("rounded-xl bg-surface");
-  expect(screen.getByPlaceholderText(/Search users/i).className).toContain("bg-surface");
+  const search = screen.getByPlaceholderText(/Search users/i) as HTMLInputElement;
+  expect(search.className).toContain("search-field__input");
+  fireEvent.change(search, { target: { value: "E2E Target" } });
+  fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+  expect(search.value).toBe("");
   expect(screen.queryByText("Add")).toBeNull();
-  fireEvent.click(add);
+  fireEvent.click(await screen.findByRole("button", { name: "Add: E2E Target" }));
   expect(onSelect).toHaveBeenCalledWith(
     expect.objectContaining({ id: "user_friend", name: "E2E Target" }),
   );

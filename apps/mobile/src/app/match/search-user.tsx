@@ -6,7 +6,7 @@ import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { Input } from "heroui-native/input";
+import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
@@ -156,11 +156,16 @@ export default function SearchUserScreen() {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-        <Input
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("Search users (at least 4 characters)")}
-        />
+        <SearchField value={query} onChange={setQuery}>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              accessibilityLabel={t("Search users by name or email")}
+              placeholder={t("Search users (at least 4 characters)")}
+            />
+            <SearchField.ClearButton accessibilityLabel={t("Clear")} />
+          </SearchField.Group>
+        </SearchField>
       </View>
       {(error || (groupId && groups.list.isError ? t("Could not load groups") : null)) && (
         <Typography style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>

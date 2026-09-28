@@ -1,40 +1,57 @@
 appId: com.bgo.mobile
 ---
-# Group creation/edit/archive and planning match group selection on Android.
+# Group flow mirrors match list -> wizard -> detail -> edit and invite-picker navigation.
 - tapOn: "Groups"
 - extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000
 - tapOn:
     id: "create-group-fab"
+- assertVisible: "New group"
 - assertVisible: "Group name"
 - assertVisible: "Public group"
+# Header back cancels without a second cancel action.
+- back
+- assertVisible: "No groups yet"
+- tapOn:
+    id: "create-group-fab"
 - tapOn: "Group name"
 - inputText: "abc"
 - assertVisible: "At least 5 characters"
 - tapOn: "Group name"
 - eraseText: 3
 - inputText: "Tabletop Friends"
-- tapOn: "Public group"
-- tapOn: "Create group"
+- tapOn:
+    id: "group-public-switch"
+- assertVisible: "Select a friend"
+- tapOn: "Select a friend"
+- assertVisible: "Search users (at least 4 characters)"
+- back
+- tapOn:
+    id: "save-group-fab"
 - extendedWaitUntil:
     visible: "Tabletop Friends"
     timeout: 30000
 - assertVisible: "Public"
 - assertVisible: "1 member"
 - assertVisible: "Group admin"
+- tapOn: "Open group: Tabletop Friends"
+- assertVisible: "Members"
 - tapOn: "Edit group"
 - assertVisible: "Tabletop Friends"
 - tapOn: "Group name"
 - eraseText: 16
 - inputText: "Weekend Games"
-- tapOn: "Public group"
-- tapOn: "Save"
+- tapOn:
+    id: "group-public-switch"
+- tapOn:
+    id: "save-group-fab"
 - extendedWaitUntil:
     visible: "Weekend Games"
     timeout: 30000
 - assertVisible: "Private"
-# The optional group appears on first match-wizard step; leave the draft unsaved.
+- back
+# Optional group appears on first match-wizard step; leave draft unsaved.
 - tapOn: "Matches"
 - tapOn:
     point: "90%,92%"
@@ -47,6 +64,7 @@ appId: com.bgo.mobile
 - assertVisible: "Weekend Games"
 - back
 - tapOn: "Groups"
+- tapOn: "Open group: Weekend Games"
 - tapOn: "Delete group"
 - assertVisible: "Delete group?"
 - tapOn: "Delete group"

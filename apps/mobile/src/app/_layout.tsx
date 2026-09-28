@@ -105,6 +105,8 @@ function RootNavigator() {
           <Stack.Screen name="mobile-number" options={{ title: t("Complete your profile") }} />
           <Stack.Screen name="notifications" options={{ title: t("Notifications") }} />
           <Stack.Screen name="profile" options={{ title: t("Profile") }} />
+          <Stack.Screen name="group/wizard" options={{ title: t("New group") }} />
+          <Stack.Screen name="group/[groupId]" options={{ title: t("Group") }} />
           <Stack.Screen name="match/wizard" options={{ title: t("Configure match") }} />
           <Stack.Screen name="match/results" options={{ title: t("Register results") }} />
           <Stack.Screen name="match/search-user" options={{ title: t("Invite friends") }} />

@@ -131,7 +131,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   const pendingGame = useAppStore((s) => s.pendingGame);
   const clearPending = useAppStore((s) => s.clearPending);
   useEffect(() => {
-    if (pendingUser) {
+    if (pendingUser && userSlots.some((slot) => slot.id === pendingUser.slotId)) {
       setUserSlots((p) =>
         p.some((s) => s.id !== pendingUser.slotId && s.user?.id === pendingUser.user.id)
           ? p
@@ -139,7 +139,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
       );
       clearPending();
     }
-  }, [pendingUser, clearPending]);
+  }, [pendingUser, userSlots, clearPending]);
   useEffect(() => {
     if (pendingGame) {
       setGameSlots((p) =>

@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Groups } from "@/components/Groups";
 import { renderWithI18n } from "@/test-utils";
 
+const router = { push: vi.fn(), replace: vi.fn() };
 const useGroupsMock = vi.fn();
 const useContactsMock = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: "admin", getToken: vi.fn().mockResolvedValue("token") }),
 }));
@@ -13,6 +15,28 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   useGroups: () => useGroupsMock(),
   useContacts: () => useContactsMock(),
   resolveApiUrl: (value?: string | null) => value ?? "http://localhost:4000",
+}));
+vi.mock("@/components/SearchUserPage", () => ({
+  SearchUserPage: ({
+    onSelect,
+    onClose,
+  }: {
+    onSelect: (user: unknown) => void;
+    onClose: () => void;
+  }) => (
+    <div>
+      <h2>Invite friends</h2>
+      <button
+        type="button"
+        onClick={() => onSelect({ id: "friend", name: "Friend", email: null, avatarUrl: null })}
+      >
+        Add: Friend
+      </button>
+      <button type="button" onClick={onClose}>
+        Back from search
+      </button>
+    </div>
+  ),
 }));
 
 const group = {
@@ -31,17 +55,18 @@ const update = { mutateAsync: vi.fn().mockResolvedValue(group), isPending: false
 const archive = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const leave = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const respond = { mutate: vi.fn(), isPending: false };
+const groups = (data: unknown = []) => ({
+  list: { data, isPending: false, isError: false },
+  create,
+  update,
+  archive,
+  leave,
+  respond,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useGroupsMock.mockReturnValue({
-    list: { data: [], isPending: false, isError: false },
-    create,
-    update,
-    archive,
-    leave,
-    respond,
-  });
+  useGroupsMock.mockReturnValue(groups());
   useContactsMock.mockReturnValue({
     friends: {
       data: [{ profile: { id: "friend", name: "Friend" } }],
@@ -51,14 +76,26 @@ beforeEach(() => {
   });
 });
 
-describe("Groups", () => {
-  it("shows empty state and creates private or public group with selected friend", async () => {
+describe("Groups screens", () => {
+  it("navigates from empty list to dedicated create screen", () => {
     renderWithI18n(<Groups />);
     expect(screen.getByText("No groups yet")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Create group" }));
+    expect(router.push).toHaveBeenCalledWith("/groups/new");
+    expect(screen.queryByLabelText("Group name")).toBeNull();
+  });
+
+  it("creates from empty friend slot via search screen, supports header back and HeroUI switch", async () => {
+    renderWithI18n(<Groups mode="new" />);
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(router.replace).toHaveBeenCalledWith("/groups");
     fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "Game Friends" } });
     fireEvent.click(screen.getByRole("switch", { name: "Public group" }));
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Select a friend" }));
+    expect(screen.getByRole("heading", { name: "Invite friends" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add: Friend" }));
+    expect(screen.getByText("Friend")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Create group" }));
     await waitFor(() =>
       expect(create.mutateAsync).toHaveBeenCalledWith({
@@ -67,41 +104,75 @@ describe("Groups", () => {
         invitedUserIds: ["friend"],
       }),
     );
+    expect(router.replace).toHaveBeenCalledWith("/groups");
   });
 
-  it("shows role, visibility, accepted count and admin edit/delete confirmation", async () => {
-    useGroupsMock.mockReturnValue({
-      list: { data: [group], isPending: false, isError: false },
-      create,
-      update,
-      archive,
-      leave,
-      respond,
-    });
-    renderWithI18n(<Groups />);
-    expect(screen.getByText("Board Gamers")).toBeTruthy();
+  it("opens detail from card, edits in dedicated screen and archives with confirmation", async () => {
+    useGroupsMock.mockReturnValue(groups([group]));
+    const { unmount } = renderWithI18n(<Groups />);
+    expect(
+      screen.getByRole("link", { name: "Open group: Board Gamers" }).getAttribute("href"),
+    ).toBe(`/groups/${group.id}`);
     expect(screen.getByLabelText("Group admin")).toBeTruthy();
     expect(screen.getByText("Private")).toBeTruthy();
-    expect(screen.getByText(/1 member/)).toBeTruthy();
+    unmount();
+    const detail = renderWithI18n(<Groups mode="detail" groupId={group.id} />);
+    expect(screen.getByText("Members")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Edit group" }));
-    fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "New Group Name" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() =>
-      expect(update.mutateAsync).toHaveBeenCalledWith({
-        id: group.id,
-        input: { name: "New Group Name", isPublic: false, invitedUserIds: [] },
-      }),
-    );
-    await waitFor(() => expect(screen.getByRole("button", { name: "Delete group" })).toBeTruthy());
+    expect(router.push).toHaveBeenCalledWith(`/groups/${group.id}/edit`);
     fireEvent.click(screen.getByRole("button", { name: "Delete group" }));
     expect(screen.getByRole("dialog", { name: "Delete group?" })).toBeTruthy();
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Delete group" }),
     );
     await waitFor(() => expect(archive.mutateAsync).toHaveBeenCalledWith(group.id));
+    detail.unmount();
+    renderWithI18n(<Groups mode="edit" groupId={group.id} />);
+    fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "New Group Name" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(update.mutateAsync).toHaveBeenCalledWith({
+        id: group.id,
+        input: { name: "New Group Name", isPublic: false, invitedUserIds: [] },
+      }),
+    );
   });
 
-  it("handles invitations, leave confirmation, and network failure without fake empty state", () => {
+  it("retains accepted and pending invitations on edit, excludes declined invitations", async () => {
+    const invited = ["ACCEPTED", "PENDING", "DECLINED"].map((status, index) => ({
+      id: `invite-${index}`,
+      groupId: group.id,
+      inviteeUserId: `user-${index}`,
+      status,
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
+    }));
+    useGroupsMock.mockReturnValue(
+      groups([
+        {
+          ...group,
+          invitations: invited,
+          memberProfiles: [
+            ...group.memberProfiles,
+            { id: "user-0", name: "Accepted", email: null, avatarUrl: null },
+          ],
+        },
+      ]),
+    );
+    renderWithI18n(<Groups mode="edit" groupId={group.id} />);
+    expect(screen.getByText("Accepted")).toBeTruthy();
+    expect(screen.getByText("user-1")).toBeTruthy();
+    expect(screen.queryByText("user-2")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(update.mutateAsync).toHaveBeenCalledWith({
+        id: group.id,
+        input: { name: group.name, isPublic: false, invitedUserIds: ["user-0", "user-1"] },
+      }),
+    );
+  });
+
+  it("accepts or declines invitation and preserves observable loading errors", () => {
     const invitation = {
       id: "22222222-2222-4222-8222-222222222222",
       groupId: group.id,
@@ -110,18 +181,9 @@ describe("Groups", () => {
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     };
-    useGroupsMock.mockReturnValue({
-      list: {
-        data: [{ ...group, adminUserId: "other", invitations: [invitation] }],
-        isPending: false,
-        isError: false,
-      },
-      create,
-      update,
-      archive,
-      leave,
-      respond,
-    });
+    useGroupsMock.mockReturnValue(
+      groups([{ ...group, adminUserId: "other", invitations: [invitation] }]),
+    );
     const { unmount } = renderWithI18n(<Groups />);
     fireEvent.click(screen.getByRole("button", { name: "Accept group invitation" }));
     expect(respond.mutate).toHaveBeenCalledWith({
@@ -134,13 +196,17 @@ describe("Groups", () => {
       decision: "decline",
     });
     unmount();
+    const detail = renderWithI18n(<Groups mode="detail" groupId={group.id} />);
+    expect(screen.getByText("Members are visible after accepting the invitation")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
+    expect(respond.mutate).toHaveBeenCalledWith({
+      invitationId: invitation.id,
+      decision: "accept",
+    });
+    detail.unmount();
     useGroupsMock.mockReturnValue({
+      ...groups(undefined),
       list: { data: undefined, isPending: false, isError: true },
-      create,
-      update,
-      archive,
-      leave,
-      respond,
     });
     renderWithI18n(<Groups />);
     expect(screen.getByRole("alert").textContent).toBe("Could not load groups");

@@ -381,8 +381,9 @@ protects application routes.
 The `(tabs)` group exposes Matches, Groups, Organizations, Contacts, and Profile. Do not repeat a page
 or section title inside tab content; main navigation already identifies the section.
 
-Use `@heroui/react` and Tailwind CSS. For unsupported components, build a small accessible custom
-component matching HeroUI styling.
+Use `@heroui/react` and Tailwind CSS. When HeroUI provides an appropriate component, use it
+instead of a custom or native substitute. For unsupported components, build a small accessible
+custom component matching HeroUI styling.
 
 HeroUI v3 uses React Aria composition:
 
@@ -415,7 +416,8 @@ Expo Router Stack
 Keep `index.tsx` authentication navigation declarative with `<Redirect>`; an effect-driven
 `router.replace` raced cold-start navigation.
 
-Use heroui-native components and Uniwind classes. Use explicit React Native style objects for
+Use heroui-native components and Uniwind classes. When HeroUI Native provides an appropriate
+component, use it instead of a custom or React Native substitute. Use explicit React Native style objects for
 structural layout (`flex`, row direction, gaps, dimensions) because generated utility availability is
 not reliable at runtime. Use classes for theme-aware visual styling. Every text element needs a
 visible theme-aware color or heroui-native's Typography default.
@@ -686,6 +688,10 @@ invitations. Public groups are not yet searchable: later, outsiders may request 
 to admin approval. Private groups remain invitation-only. Only the administrator may edit or
 archive a group; accepted members may leave. Archival is a soft deletion: it hides the group from
 lists and prevents new matches while retaining IDs, created matches, results, and rating history.
+
+Web and mobile group flows mirror match flows: a card opens a dedicated detail screen;
+create/edit open a separate screen with header back navigation, and invitation slots open a
+friend-picker screen. Use HeroUI switches for visibility and icon-bearing primary actions.
 
 Player ratings use **OpenSkill** (the installed JavaScript implementation of the Weng–Lin
 multiplayer model), not Glicko-2 or Elo. Each player is a one-person team, and a whole match's
