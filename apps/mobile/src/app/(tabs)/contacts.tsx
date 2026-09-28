@@ -498,6 +498,7 @@ export default function ContactsScreen() {
   return (
     <View style={{ flex: 1, padding: 16 }}>
       <Tabs
+        style={{ flex: 1 }}
         value={tab}
         onValueChange={(value) => router.setParams({ tab: value as ContactTab })}
         variant="primary"

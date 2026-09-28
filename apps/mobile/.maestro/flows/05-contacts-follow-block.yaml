@@ -25,6 +25,10 @@ appId: com.bgo.mobile
     timeout: 5000
 - assertNotVisible: "Add contacts"
 - assertNotVisible: "Allow address book access to find your friends here."
+- tapOn: "Requests"
+- assertVisible: "Received"
+- assertVisible: "Sent"
+- assertVisible: "Blocked"
 - tapOn: "Search"
 - extendedWaitUntil:
     visible: "E2E Unregistered"
