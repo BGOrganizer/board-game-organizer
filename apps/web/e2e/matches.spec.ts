@@ -478,7 +478,9 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(saveFab.locator("svg.lucide-save")).toBeVisible();
   await saveFab.click();
   await expect(page.getByText("Match created")).toBeVisible();
-  await page.getByRole("button", { name: "Dismiss notification" }).click();
+  const dismissToast = page.getByRole("button", { name: "Dismiss notification" });
+  await dismissToast.focus();
+  await dismissToast.press("Enter");
   await expect(page.getByText("Match created")).toBeHidden();
   expect((await createResponse).ok()).toBe(true);
   const card = page.getByRole("link", { name: /^Open match: Friday night games/ });
