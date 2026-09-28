@@ -86,7 +86,8 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await expect(page).toHaveURL(/\/groups$/);
   await page.getByRole("button", { name: "Create group" }).click();
   await page.getByLabel("Group name").fill("Saturday Players");
-  await page.getByRole("switch", { name: "Public group" }).check();
+  await page.getByText("Public group", { exact: true }).click();
+  await expect(page.getByRole("switch", { name: "Public group" })).toBeChecked();
   await page.getByRole("button", { name: "Remove invite" }).click();
   await expect(page.getByRole("button", { name: "Select a friend" })).toHaveCount(1);
   await page.getByRole("button", { name: "Add friend" }).click();
@@ -111,14 +112,15 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await page.getByRole("button", { name: "Edit group" }).click();
   await expect(page).toHaveURL(new RegExp(`/groups/${id}/edit$`));
   await page.getByLabel("Group name").fill("Updated Players");
-  await page.getByRole("switch", { name: "Public group" }).uncheck();
+  await page.getByText("Public group", { exact: true }).click();
+  await expect(page.getByRole("switch", { name: "Public group" })).not.toBeChecked();
   failUpdate = true;
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Could not update group")).toBeVisible();
   failUpdate = false;
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Updated Players")).toBeVisible();
-  await expect(page.getByText("Private", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Private · 1 member$/)).toBeVisible();
   await page.getByRole("button", { name: "Remove from group: E2E Friend" }).click();
   const removeDialog = page.getByRole("dialog", { name: "Remove from group?" });
   await expect(removeDialog).toBeVisible();
@@ -239,6 +241,8 @@ test("group invitations: accept, decline and leave with confirmation", async ({ 
   await expect(page.getByText("2 members")).toBeVisible();
   await page.getByRole("button", { name: "Decline group invitation" }).click();
   await expect(page.getByText("Second Club")).toBeHidden();
+  await page.getByRole("link", { name: "Open group: First Club" }).click();
+  await expect(page.getByRole("button", { name: "Leave group" })).toBeVisible();
   await page.getByRole("button", { name: "Leave group" }).click();
   await page
     .getByRole("dialog", { name: "Leave group?" })

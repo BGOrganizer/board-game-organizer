@@ -149,6 +149,9 @@ describe("Groups screens", () => {
     fireEvent.click(screen.getByRole("button", { name: "More group actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete group" }));
     expect(screen.getByRole("dialog", { name: "Delete group?" })).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "More group actions" })).toBeNull(),
+    );
     fireEvent.click(
       within(screen.getByRole("dialog", { name: "Delete group?" })).getByRole("button", {
         name: "Delete group",

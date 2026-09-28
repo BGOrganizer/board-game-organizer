@@ -453,6 +453,7 @@ export function Groups({
   const router = useRouter();
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const [confirm, setConfirm] = useState<{
     id: string;
     action: "delete" | "leave" | "remove";
@@ -517,7 +518,7 @@ export function Groups({
           </Button>
           <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{group.name}</h1>
           {admin ? (
-            <Popover>
+            <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
               <Popover.Trigger
                 aria-label={t`More group actions`}
                 className="button button--icon-only button--sm button--outline"
@@ -531,7 +532,10 @@ export function Groups({
                     size="sm"
                     variant="danger-soft"
                     aria-label={t`Delete group`}
-                    onPress={() => setConfirm({ id: group.id, action: "delete" })}
+                    onPress={() => {
+                      setMoreActionsOpen(false);
+                      setConfirm({ id: group.id, action: "delete" });
+                    }}
                   >
                     <Trash2 className="size-4" />
                   </Button>
