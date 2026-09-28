@@ -271,6 +271,29 @@ describe("Groups screens", () => {
     );
   });
 
+  it("shows accepted members without pending invitation IDs to non-admins", () => {
+    useGroupsMock.mockReturnValue(
+      groups([
+        {
+          ...group,
+          adminUserId: "other",
+          memberProfiles: [
+            { id: "other", name: "Host", email: null, avatarUrl: null },
+            { id: "admin", name: "Member", email: null, avatarUrl: null },
+          ],
+          invitations: [
+            { id: "accepted", groupId: group.id, inviteeUserId: "admin", status: "ACCEPTED" },
+            { id: "pending", groupId: group.id, inviteeUserId: "user_pending", status: "PENDING" },
+          ],
+        },
+      ]),
+    );
+    renderWithI18n(<Groups mode="detail" groupId={group.id} />);
+    expect(screen.getByText("Host")).toBeTruthy();
+    expect(screen.getByText("Member")).toBeTruthy();
+    expect(screen.queryByText("user_pending", { exact: true })).toBeNull();
+  });
+
   it("accepts or declines invitation and preserves observable loading errors", () => {
     const invitation = {
       id: "22222222-2222-4222-8222-222222222222",
@@ -297,6 +320,7 @@ describe("Groups screens", () => {
     unmount();
     const detail = renderWithI18n(<Groups mode="detail" groupId={group.id} />);
     expect(screen.getByText("Members are visible after accepting the invitation")).toBeTruthy();
+    expect(screen.queryByText(invitation.inviteeUserId, { exact: true })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
     expect(respond.mutate).toHaveBeenCalledWith({
       invitationId: invitation.id,

@@ -110,13 +110,7 @@ export default function GroupsScreen() {
               }
             >
               <GroupArtwork name={group.name} admin={admin} />
-              <View
-                style={{
-                  flex: 1,
-                  gap: 5,
-                  paddingBottom: invitation?.status === "PENDING" ? 36 : 0,
-                }}
-              >
+              <View style={{ flex: 1, gap: 5 }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
                   <Typography numberOfLines={1} style={{ flexShrink: 1, fontWeight: "600" }}>
                     {group.name}
@@ -139,7 +133,14 @@ export default function GroupsScreen() {
                     year: "numeric",
                   })}
                 </Typography>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingRight: invitation?.status === "PENDING" ? 88 : 0,
+                  }}
+                >
                   <UsersRound size={14} color="#6b7280" />
                   <Typography className="text-muted" style={{ fontSize: 13 }}>
                     {group.memberCount} {group.memberCount === 1 ? t("member") : t("members")}

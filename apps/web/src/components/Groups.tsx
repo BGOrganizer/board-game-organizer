@@ -344,7 +344,7 @@ function GroupPeople({
       invitation: group.invitations.find((item) => item.inviteeUserId === person.id),
     })),
     ...group.invitations
-      .filter((item) => item.status !== "ACCEPTED")
+      .filter((item) => group.adminUserId === userId && item.status !== "ACCEPTED")
       .map((item) => {
         const friend = contacts.friends.data?.find(
           (row) => row.profile?.id === item.inviteeUserId,

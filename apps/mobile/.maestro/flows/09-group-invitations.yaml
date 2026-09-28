@@ -139,9 +139,13 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Shared Tabletop Club"
     timeout: 30000
+- assertVisible: "Accept: Shared Tabletop Club"
 - tapOn: "Open group: Shared Tabletop Club"
+- assertVisible: "Members are visible after accepting the invitation"
+- assertNotVisible: "Invitations"
 - tapOn: "Accept"
 - assertVisible: "Members"
+- assertNotVisible: "Invitations"
 - extendedWaitUntil:
     visible: "2 members"
     timeout: 30000

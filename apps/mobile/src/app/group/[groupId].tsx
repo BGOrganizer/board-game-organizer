@@ -73,7 +73,7 @@ export default function GroupDetailScreen() {
           invitation: group.invitations.find((item) => item.inviteeUserId === person.id),
         })),
         ...group.invitations
-          .filter((item) => item.status !== "ACCEPTED")
+          .filter((item) => admin && item.status !== "ACCEPTED")
           .map((item) => {
             const friend = contacts.friends.data?.find(
               (row) => row.profile?.id === item.inviteeUserId,
@@ -288,11 +288,15 @@ export default function GroupDetailScreen() {
                 title: t("Members"),
                 rows: people.filter((p) => p.status === "ACCEPTED"),
               },
-              {
-                id: "invitations",
-                title: t("Invitations"),
-                rows: people.filter((p) => p.status !== "ACCEPTED"),
-              },
+              ...(admin
+                ? [
+                    {
+                      id: "invitations",
+                      title: t("Invitations"),
+                      rows: people.filter((p) => p.status !== "ACCEPTED"),
+                    },
+                  ]
+                : []),
             ].map((section) => (
               <View key={section.id} style={{ gap: 8 }}>
                 <Typography accessibilityRole="header" className="font-semibold text-foreground">
