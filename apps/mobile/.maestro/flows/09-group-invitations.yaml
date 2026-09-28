@@ -101,7 +101,10 @@ appId: com.bgo.mobile
 - tapOn: "Add: E2E Target"
 - tapOn:
     id: "save-group-fab"
-- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "More group actions"
+    timeout: 30000
+- back
 - tapOn: "Profile"
 - tapOn: "Logout"
 - extendedWaitUntil:

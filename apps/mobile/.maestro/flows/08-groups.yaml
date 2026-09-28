@@ -10,8 +10,8 @@ appId: com.bgo.mobile
 - assertVisible: "New group"
 - assertVisible: "Group name"
 - assertVisible: "Public group"
-# Header back stays below the safe area and remains tappable.
-- tapOn: "Back"
+# Group wizard uses the same native Stack header as the match wizard.
+- back
 - assertVisible: "No groups yet"
 - tapOn:
     id: "create-group-fab"
@@ -41,7 +41,7 @@ appId: com.bgo.mobile
 - assertVisible: "Accepted"
 - tapOn: "Edit group"
 - assertVisible: "Edit group"
-- tapOn: "Back"
+- back
 - assertVisible: "Accepted"
 - tapOn: "Edit group"
 - assertVisible: "Tabletop Friends"

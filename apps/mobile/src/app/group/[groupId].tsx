@@ -13,7 +13,6 @@ import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
-  ArrowLeft,
   Check,
   CircleCheck,
   CircleX,
@@ -186,71 +185,56 @@ export default function GroupDetailScreen() {
     );
   };
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={{ flex: 1 }}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
+    <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
+      <Stack.Screen
+        options={{
+          title: group?.name ?? t("Group"),
+          headerRight: admin
+            ? () => (
+                <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
+                  <Popover.Trigger asChild>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="outline"
+                      accessibilityLabel={t("More group actions")}
+                      style={{ minHeight: 44, minWidth: 44 }}
+                    >
+                      <Ellipsis size={18} color="#737373" />
+                    </Button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Overlay />
+                    <Popover.Content
+                      presentation="popover"
+                      placement="bottom"
+                      width={220}
+                      style={{ gap: 8, padding: 8 }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="danger-soft"
+                          accessibilityLabel={t("Delete group")}
+                          isDisabled={groups.archive.isPending}
+                          style={{ minWidth: 44, minHeight: 44 }}
+                          onPress={() => {
+                            setMoreActionsOpen(false);
+                            confirm("delete");
+                          }}
+                        >
+                          <Trash2 size={18} color="#f31260" />
+                        </Button>
+                        <Typography className="text-danger">{t("Delete group")}</Typography>
+                      </View>
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover>
+              )
+            : undefined,
         }}
-      >
-        <Button
-          isIconOnly
-          variant="ghost"
-          accessibilityLabel={t("Back")}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={20} color="#737373" />
-        </Button>
-        <Typography className="flex-1 font-semibold text-foreground" numberOfLines={1}>
-          {group?.name ?? t("Group")}
-        </Typography>
-        {admin ? (
-          <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
-            <Popover.Trigger asChild>
-              <Button
-                isIconOnly
-                size="sm"
-                variant="outline"
-                accessibilityLabel={t("More group actions")}
-                style={{ minHeight: 44, minWidth: 44 }}
-              >
-                <Ellipsis size={18} color="#737373" />
-              </Button>
-            </Popover.Trigger>
-            <Popover.Portal>
-              <Popover.Overlay />
-              <Popover.Content
-                presentation="popover"
-                placement="bottom"
-                width={220}
-                style={{ gap: 8, padding: 8 }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="danger-soft"
-                    accessibilityLabel={t("Delete group")}
-                    isDisabled={groups.archive.isPending}
-                    style={{ minWidth: 44, minHeight: 44 }}
-                    onPress={() => {
-                      setMoreActionsOpen(false);
-                      confirm("delete");
-                    }}
-                  >
-                    <Trash2 size={18} color="#f31260" />
-                  </Button>
-                  <Typography className="text-danger">{t("Delete group")}</Typography>
-                </View>
-              </Popover.Content>
-            </Popover.Portal>
-          </Popover>
-        ) : null}
-      </View>
+      />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 110, gap: 16 }}>
         {groups.list.isPending ? (
           <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
