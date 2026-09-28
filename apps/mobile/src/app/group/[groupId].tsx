@@ -15,6 +15,7 @@ import {
   Check,
   CircleX,
   Clock3,
+  Crown,
   Ellipsis,
   LockKeyhole,
   LockKeyholeOpen,
@@ -299,6 +300,23 @@ export default function GroupDetailScreen() {
                               )}
                             </View>
                           ) : null}
+                          {person.id === group.adminUserId ? (
+                            <View
+                              accessible
+                              accessibilityRole="image"
+                              accessibilityLabel={t("Group admin")}
+                              className="bg-surface"
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                borderBottomRightRadius: 8,
+                                padding: 2,
+                              }}
+                            >
+                              <Crown size={16} color="#f5a524" />
+                            </View>
+                          ) : null}
                         </View>
                         <View style={{ flex: 1 }}>
                           <Typography className="font-medium text-foreground" numberOfLines={1}>
@@ -307,11 +325,6 @@ export default function GroupDetailScreen() {
                           {person.email ? (
                             <Typography className="text-sm text-muted" numberOfLines={1}>
                               {person.email}
-                            </Typography>
-                          ) : null}
-                          {person.id === group.adminUserId ? (
-                            <Typography className="text-xs text-muted">
-                              {t("Group admin")}
                             </Typography>
                           ) : null}
                         </View>
