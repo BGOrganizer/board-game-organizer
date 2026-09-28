@@ -460,8 +460,13 @@ describe("match repositories on MongoDB replica set", () => {
       true,
     );
     expect((await new NotificationsRepository(db).list(TARGET, 10)).notifications).toEqual([
-      expect.objectContaining({ kind: "match_terminated", recipientUserId: TARGET }),
+      expect.objectContaining({ kind: "match_terminated" }),
     ]);
+    expect(
+      await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .findOne({ recipientUserId: TARGET, kind: "match_terminated" }),
+    ).toMatchObject({ recipientUserId: TARGET, actorUserId: ACTOR });
     expect((await new NotificationsRepository(db).list(ACTOR, 10)).notifications).toEqual([]);
     expect(registered).toMatchObject({
       status: "TERMINATED",
@@ -1087,8 +1092,13 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     );
     expect(group.memberCount).toBe(1);
     expect((await new NotificationsRepository(db).list(TARGET, 10)).notifications).toEqual([
-      expect.objectContaining({ kind: "group_invitation", recipientUserId: TARGET }),
+      expect.objectContaining({ kind: "group_invitation" }),
     ]);
+    expect(
+      await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .findOne({ recipientUserId: TARGET, kind: "group_invitation" }),
+    ).toMatchObject({ recipientUserId: TARGET, actorUserId: ACTOR });
     const inviteTo = (userId: string) => {
       const invitation = group.invitations.find((item) => item.inviteeUserId === userId);
       if (!invitation) throw new Error("Missing group invitation");
@@ -1103,8 +1113,18 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       true,
     );
     expect((await new NotificationsRepository(db).list(ACTOR, 10)).notifications).toEqual([
-      expect.objectContaining({ kind: "group_invitation_accepted", actorUserId: THIRD }),
-      expect.objectContaining({ kind: "group_invitation_accepted", actorUserId: TARGET }),
+      expect.objectContaining({ kind: "group_invitation_accepted" }),
+      expect.objectContaining({ kind: "group_invitation_accepted" }),
+    ]);
+    expect(
+      await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .find({ recipientUserId: ACTOR, kind: "group_invitation_accepted" })
+        .sort({ createdAt: -1, _id: -1 })
+        .toArray(),
+    ).toEqual([
+      expect.objectContaining({ recipientUserId: ACTOR, actorUserId: THIRD }),
+      expect.objectContaining({ recipientUserId: ACTOR, actorUserId: TARGET }),
     ]);
     expect((await withMatchTransaction(({ groups }) => groups.list(ACTOR)))[0].memberCount).toBe(3);
     await relationships.unfriend(ACTOR, TARGET);
