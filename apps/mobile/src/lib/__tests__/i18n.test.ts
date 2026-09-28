@@ -76,6 +76,7 @@ describe("translate (runtime)", () => {
     expect(translate(it, "Invitations")).toBe("Inviti");
     expect(translate(it, "No invitations")).toBe("Nessun invito");
     expect(translate(it, "Game rating")).toBe("Rating del gioco");
+    expect(translate(it, "Provisional game rating")).toBe("Rating del gioco provvisorio");
     expect(translate(it, "Not rated")).toBe("Senza rating");
     expect(translate(it, "Rating increased")).toBe("Rating aumentato");
     expect(translate(it, "Rating decreased")).toBe("Rating diminuito");

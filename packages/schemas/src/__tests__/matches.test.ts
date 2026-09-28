@@ -196,12 +196,30 @@ describe("match models and DTOs", () => {
       games: [{ id: 1, name: "Azul", yearPublished: 2017, thumbnail: null }],
     };
     expect(matchDetailResponseSchema.parse(detail)).toEqual(detail);
-    const rated = { ...detail, gameRatings: [{ userId: "user_admin", score: 4.5, delta: -1.25 }] };
+    const rated = {
+      ...detail,
+      gameRatings: [{ userId: "user_admin", score: 504.5, delta: -1.25, provisional: true }],
+    };
     expect(matchDetailResponseSchema.parse(rated)).toEqual(rated);
+    const created = {
+      ...detail,
+      currentGameRatings: [{ userId: "user_admin", score: 500, provisional: true }],
+    };
+    expect(matchDetailResponseSchema.parse(created)).toEqual(created);
+    expect(
+      matchDetailResponseSchema.safeParse({
+        ...created,
+        currentGameRatings: [
+          { userId: "user_admin", score: Number.POSITIVE_INFINITY, provisional: true },
+        ],
+      }).success,
+    ).toBe(false);
     expect(
       matchDetailResponseSchema.safeParse({
         ...rated,
-        gameRatings: [{ userId: "user_admin", score: Number.POSITIVE_INFINITY, delta: 0 }],
+        gameRatings: [
+          { userId: "user_admin", score: Number.POSITIVE_INFINITY, delta: 0, provisional: false },
+        ],
       }).success,
     ).toBe(false);
     expect(matchInvitationResponseSchema.parse(invitation)).toEqual(invitation);

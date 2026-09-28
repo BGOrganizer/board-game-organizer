@@ -315,6 +315,13 @@ export class MatchService {
     const gamesById = new Map(games.map((game) => [game.id, game]));
 
     const administrator = usersById.get(match.clerkId);
+    const currentGameRatings =
+      match.status === "CREATED" && match.selectedGameId && this.ratings
+        ? await this.ratings.currentForPlayers(
+            [match.clerkId, ...playerInvitations.map((invitation) => invitation.inviteeUserId)],
+            match.selectedGameId,
+          )
+        : undefined;
     const gameRatings =
       match.status === "TERMINATED" && match.selectedGameId && this.ratings
         ? await this.ratings.forMatch(match.id, match.selectedGameId)
@@ -323,6 +330,7 @@ export class MatchService {
     return {
       match: this.toResponse(match, visibleInvitations),
       ...(gameRatings ? { gameRatings } : {}),
+      ...(currentGameRatings ? { currentGameRatings } : {}),
       choices: {
         dates: match.choices?.[userId]?.dates ?? {},
         games: match.choices?.[userId]?.games ?? {},

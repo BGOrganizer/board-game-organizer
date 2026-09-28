@@ -1241,6 +1241,10 @@ msgstr "Private"
 msgid "Profile"
 msgstr "Profile"
 
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Provisional game rating"
+msgstr "Provisional game rating"
+
 #: apps/web/src/components/Groups.tsx
 msgid "Public"
 msgstr "Public"

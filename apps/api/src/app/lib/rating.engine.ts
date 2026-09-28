@@ -18,6 +18,15 @@ export function conservativeScore(state: Pick<RatingState, "mu" | "sigma">): num
   return ordinal(state); // Default OpenSkill score: mu - 3 * sigma.
 }
 
+/** Add display baseline without changing OpenSkill estimates, ranking order or match deltas. */
+export function displayRating(state: Pick<RatingState, "mu" | "sigma">): number {
+  return 500 + conservativeScore(state);
+}
+
+export function isProvisional(state: Pick<RatingState, "gamesPlayed">): boolean {
+  return state.gamesPlayed < 5;
+}
+
 export function calculateMatchRatings(
   entries: MatchResults["entries"],
   before: Map<string, RatingState>,

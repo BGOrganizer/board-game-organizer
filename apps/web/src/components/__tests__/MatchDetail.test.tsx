@@ -200,6 +200,30 @@ describe("MatchDetail", () => {
     expect(screen.getByText("Admin Player").tagName).toBe("STRONG");
   });
 
+  it("shows current game ratings instead of emails for confirmed participants", () => {
+    authMock.userId = "user_admin";
+    const accepted = { ...invitation, status: "ACCEPTED" as const };
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, status: "CREATED", selectedGameId: 1, invitations: [accepted] },
+        invitedPlayers: [{ ...detail.invitedPlayers[0], invitation: accepted }],
+        currentGameRatings: [
+          { userId: "user_admin", score: 500, provisional: true },
+          { userId: "user_guest", score: 498.17, provisional: false },
+        ],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    expect(screen.getByText("500.00")).toBeTruthy();
+    expect(screen.getByText("498.17")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Provisional game rating" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Game rating" })).toBeTruthy();
+    expect(screen.queryByText("guest@example.com")).toBeNull();
+    expect(screen.queryByText("admin@example.com")).toBeNull();
+  });
+
   it("shows participant profiles and invitation status icons", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
 

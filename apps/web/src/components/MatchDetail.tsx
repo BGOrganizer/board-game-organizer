@@ -45,7 +45,7 @@ import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
-import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
+import { GameRating, MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { MatchWizard } from "@/components/MatchWizard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
@@ -615,7 +615,13 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                             />
                           ) : null}
                         </div>
-                        {player.email ? (
+                        {match.status === "CREATED" ? (
+                          <GameRating
+                            rating={matchData.currentGameRatings?.find(
+                              (item) => item.userId === player.id,
+                            )}
+                          />
+                        ) : player.email ? (
                           <p className="truncate text-sm text-default-500">{player.email}</p>
                         ) : null}
                       </div>

@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
+import { GameRating, MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { renderWithI18n } from "@/test-utils";
 
 const player = { id: "user_admin", name: "Admin", email: "admin@example.com", avatarUrl: null };
@@ -17,16 +17,28 @@ describe("MatchStandingIdentity game rating", () => {
           player={player}
           rank={1}
           showGameRating
-          gameRating={{ userId: player.id, score: 12.345, delta }}
+          gameRating={{ userId: player.id, score: 512.345, delta, provisional: false }}
         />,
       );
-      expect(screen.getByText("12.35")).toBeTruthy();
+      expect(screen.getByText("512.35")).toBeTruthy();
       expect(screen.getByRole("img", { name: "Game rating" })).toBeTruthy();
       expect(screen.getByRole("img", { name: label }).textContent).toContain(number);
       expect(screen.getByRole("img", { name: label }).className).toContain(color);
       expect(screen.queryByText(player.email)).toBeNull();
       view.unmount();
     }
+  });
+
+  it("marks provisional ratings and switches to the regular icon after five rated matches", () => {
+    const view = renderWithI18n(<GameRating rating={{ score: 500, provisional: true }} />);
+    expect(screen.getByRole("img", { name: "Provisional game rating" })).toBeTruthy();
+    expect(screen.getByText("500.00")).toBeTruthy();
+    expect(screen.queryByRole("img", { name: /Rating unchanged/ })).toBeNull();
+    view.unmount();
+
+    renderWithI18n(<GameRating rating={{ score: 498.17, provisional: false }} />);
+    expect(screen.getByRole("img", { name: "Game rating" })).toBeTruthy();
+    expect(screen.getByText("498.17")).toBeTruthy();
   });
 
   it("marks unrated matches unchanged without inventing a score, preserving editor email", () => {

@@ -1108,6 +1108,14 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     );
     await withMatchTransaction(({ groups }) => groups.archive(ACTOR, group.id));
     expect(await withMatchTransaction(({ groups }) => groups.list(ACTOR))).toEqual([]);
+    const createdDetail = await withMatchTransaction(({ service }) =>
+      service.detail(TARGET, match.id),
+    );
+    expect(createdDetail.currentGameRatings).toEqual([
+      { userId: ACTOR, score: 500, provisional: true },
+      { userId: TARGET, score: 500, provisional: true },
+      { userId: THIRD, score: 500, provisional: true },
+    ]);
     const results = await withMatchTransaction(({ service }) =>
       service.registerResults(ACTOR, match.id, {
         lowerWins: false,
@@ -1124,11 +1132,16 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const global = await ratings.leaderboard(match.gameIds[0], "GLOBAL", null);
     const scoped = await ratings.leaderboard(match.gameIds[0], "GROUP", group.id);
     const gameRatings = await ratings.forMatch(match.id, match.gameIds[0]);
+    const current = await ratings.currentForPlayers([ACTOR, TARGET, THIRD], match.gameIds[0]);
+    expect(current.find((entry) => entry.userId === ACTOR)?.score).toBeCloseTo(
+      500 + (global.find((entry) => entry.userId === ACTOR)?.conservativeScore ?? NaN),
+    );
     expect(gameRatings).toHaveLength(3);
     expect(gameRatings.find((entry) => entry.userId === ACTOR)).toEqual({
       userId: ACTOR,
-      score: global.find((entry) => entry.userId === ACTOR)?.conservativeScore,
+      score: 500 + (global.find((entry) => entry.userId === ACTOR)?.conservativeScore ?? NaN),
       delta: global.find((entry) => entry.userId === ACTOR)?.conservativeScore,
+      provisional: true,
     });
     await expect(
       withMatchTransaction(({ service }) => service.detail(TARGET, match.id)),
@@ -1364,8 +1377,9 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       (entry) => entry.userId === ACTOR,
     );
     const score = second.after.mu - 3 * second.after.sigma;
-    expect(change?.score).toBeCloseTo(score);
+    expect(change?.score).toBeCloseTo(500 + score);
     expect(change?.delta).toBeCloseTo(score - (second.before.mu - 3 * second.before.sigma));
+    expect(change?.provisional).toBe(true);
   });
 
   it("does not create any rating or event when only one player scored", async () => {

@@ -95,8 +95,11 @@ export const matchGameRatingSchema = z.object({
   userId: targetUserIdSchema,
   score: z.number().finite(),
   delta: z.number().finite(),
+  provisional: z.boolean(),
 });
 export type MatchGameRating = z.infer<typeof matchGameRatingSchema>;
+export const matchCurrentGameRatingSchema = matchGameRatingSchema.omit({ delta: true });
+export type MatchCurrentGameRating = z.infer<typeof matchCurrentGameRatingSchema>;
 
 export const matchDetailResponseSchema = z.object({
   match: matchResponseSchema,
@@ -106,6 +109,7 @@ export const matchDetailResponseSchema = z.object({
   choices: matchChoicesSchema.optional(),
   voteSummary: matchVoteSummarySchema.optional(),
   gameRatings: z.array(matchGameRatingSchema).optional(),
+  currentGameRatings: z.array(matchCurrentGameRatingSchema).optional(),
 });
 export type MatchDetailResponse = z.infer<typeof matchDetailResponseSchema>;
 

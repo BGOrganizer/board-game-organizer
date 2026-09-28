@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   calculateMatchRatings,
   conservativeScore,
+  displayRating,
   initialGroupRating,
+  isProvisional,
   NEW_RATING,
 } from "@/app/lib/rating.engine";
 
@@ -19,7 +21,17 @@ describe("OpenSkill per physical match", () => {
   it("uses native defaults and conservative score", () => {
     expect(NEW_RATING).toEqual({ mu: 25, sigma: 25 / 3, gamesPlayed: 0 });
     expect(conservativeScore(NEW_RATING)).toBeCloseTo(0, 10);
+    expect(displayRating(NEW_RATING)).toBeCloseTo(500, 10);
+    expect(displayRating({ mu: -500, sigma: NEW_RATING.sigma })).toBeLessThan(0);
+    expect(isProvisional(NEW_RATING)).toBe(true);
+    expect(isProvisional({ gamesPlayed: 4 })).toBe(true);
+    expect(isProvisional({ gamesPlayed: 5 })).toBe(false);
     const [winner, loser] = ratings([entry("a", 1, "5"), entry("b", 2, "2")]);
+    expect(conservativeScore(loser.after)).toBeLessThan(0);
+    expect(displayRating(loser.after)).toBeCloseTo(498.1669, 4);
+    expect(displayRating(loser.after) - displayRating(loser.before)).toBeCloseTo(
+      conservativeScore(loser.after) - conservativeScore(loser.before),
+    );
     expect(winner.after.mu).toBeGreaterThan(25);
     expect(loser.after.mu).toBeLessThan(25);
     expect(winner.after.sigma).toBeLessThan(NEW_RATING.sigma);

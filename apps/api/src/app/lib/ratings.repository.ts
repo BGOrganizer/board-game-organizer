@@ -1,5 +1,6 @@
 import type {
   Match,
+  MatchCurrentGameRating,
   MatchGameRating,
   MatchResults,
   PlayerRating,
@@ -12,7 +13,10 @@ import { COLLECTIONS } from "@/app/lib/db";
 import {
   calculateMatchRatings,
   conservativeScore,
+  displayRating,
   initialGroupRating,
+  isProvisional,
+  NEW_RATING,
   RATING_ALGORITHM,
 } from "@/app/lib/rating.engine";
 
@@ -114,6 +118,14 @@ export class RatingsRepository {
     }
   }
 
+  async currentForPlayers(userIds: string[], gameId: number): Promise<MatchCurrentGameRating[]> {
+    const snapshots = await this.snapshots(userIds, gameId, "GLOBAL", null);
+    return userIds.map((userId) => {
+      const state = snapshots.get(userId) ?? NEW_RATING;
+      return { userId, score: displayRating(state), provisional: isProvisional(state) };
+    });
+  }
+
   async forMatch(matchId: string, gameId: number): Promise<MatchGameRating[]> {
     const events = await this.events
       .find(
@@ -123,8 +135,9 @@ export class RatingsRepository {
       .toArray();
     return events.map((event) => ({
       userId: event.userId,
-      score: conservativeScore(event.after),
+      score: displayRating(event.after),
       delta: conservativeScore(event.after) - conservativeScore(event.before),
+      provisional: isProvisional(event.after),
     }));
   }
 
@@ -135,6 +148,6 @@ export class RatingsRepository {
       .sort({ conservativeScore: -1, userId: 1 })
       .limit(Math.min(100, Math.max(1, limit)))
       .toArray();
-    return rows.map((row) => ({ ...row, provisional: row.gamesPlayed < 5 }));
+    return rows.map((row) => ({ ...row, provisional: isProvisional(row) }));
   }
 }

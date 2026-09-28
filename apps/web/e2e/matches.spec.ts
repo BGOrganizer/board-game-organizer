@@ -118,6 +118,14 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
                   thumbnail: null,
                 },
               ],
+              ...(status === "CREATED"
+                ? {
+                    currentGameRatings: [
+                      { userId: adminUserId, score: 500, provisional: true },
+                      { userId: "user_accepted", score: 500, provisional: true },
+                    ],
+                  }
+                : {}),
               choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
               voteSummary: {
                 dates: { [String(Date.parse(date))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
@@ -157,6 +165,10 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(page.getByRole("img", { name: /Yes: 2, No: 0/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Choose date/ })).toHaveCount(0);
   await page.getByRole("tab", { name: "Players" }).click();
+  const players = page.getByRole("tabpanel", { name: "Players" });
+  await expect(players.getByText("500.00")).toHaveCount(2);
+  await expect(players.getByRole("img", { name: "Provisional game rating" })).toHaveCount(2);
+  await expect(players.getByText("admin@example.com")).toHaveCount(0);
   await expect(page.getByText("Minimum players")).toHaveCount(0);
   await expect(page.getByText("Maximum players")).toHaveCount(0);
   await page.getByRole("tab", { name: "Games" }).click();

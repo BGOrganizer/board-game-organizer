@@ -1,6 +1,7 @@
 import type {
   Match,
   MatchChoice,
+  MatchCurrentGameRating,
   MatchGameRating,
   MatchInvitation,
 } from "@board-game-organizer/schemas";
@@ -133,6 +134,7 @@ function setup(withNotifications = false) {
   const ratings = {
     applyMatch: vi.fn(async () => undefined),
     forMatch: vi.fn(async (): Promise<MatchGameRating[]> => []),
+    currentForPlayers: vi.fn(async (): Promise<MatchCurrentGameRating[]> => []),
   };
   const groups = { requireMembers: vi.fn(async () => undefined) };
   const service = new MatchService(
@@ -955,9 +957,30 @@ describe("MatchService", () => {
     await expectMatchError(setup().service.detail("user_other", match.id), 404, "Match not found");
   });
 
+  it("includes current global game ratings for accepted players only while created", async () => {
+    const { service, matches, invitations, ratings } = setup();
+    const current = [
+      { userId: "user_admin", score: 500, provisional: true },
+      { userId: "user_guest", score: 513.25, provisional: false },
+    ];
+    ratings.currentForPlayers.mockResolvedValue(current);
+    await expect(service.detail("user_admin", match.id)).resolves.not.toHaveProperty(
+      "currentGameRatings",
+    );
+    expect(ratings.currentForPlayers).not.toHaveBeenCalled();
+
+    matches.findById.mockResolvedValue({ ...match, status: "CREATED", selectedGameId: 1 });
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    await expect(service.detail("user_guest", match.id)).resolves.toMatchObject({
+      currentGameRatings: current,
+    });
+    expect(ratings.currentForPlayers).toHaveBeenCalledWith(["user_admin", "user_guest"], 1);
+    expect(ratings.forMatch).not.toHaveBeenCalled();
+  });
+
   it("includes the selected game's immutable ratings only for terminated matches", async () => {
     const { service, matches, ratings } = setup();
-    const change = { userId: "user_admin", score: 4.5, delta: 4.5 };
+    const change = { userId: "user_admin", score: 504.5, delta: 4.5, provisional: true };
     ratings.forMatch.mockResolvedValue([change]);
     await expect(service.detail("user_admin", match.id)).resolves.not.toHaveProperty("gameRatings");
     expect(ratings.forMatch).not.toHaveBeenCalled();
