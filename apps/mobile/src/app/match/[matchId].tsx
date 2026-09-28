@@ -6,7 +6,6 @@ import {
   useContacts,
   useMatchDetail,
 } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -49,6 +48,7 @@ import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { UserActionKey } from "@/lib/user-actions";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -102,7 +102,7 @@ export default function MatchDetailScreen() {
     tab?: string;
   }>();
   const matchId = Array.isArray(matchIdParam) ? matchIdParam[0] : matchIdParam;
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const router = useRouter();
   const t = useT();
   const { i18n } = useLingui();

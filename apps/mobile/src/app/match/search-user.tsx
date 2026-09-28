@@ -1,7 +1,6 @@
 import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
 import { useGroups, withProtectionBypass } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
@@ -14,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return (
@@ -22,7 +22,7 @@ function apiUrl(): string {
 }
 
 export default function SearchUserScreen() {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const router = useRouter();
   const { slotId, exclude, groupId } = useLocalSearchParams<{

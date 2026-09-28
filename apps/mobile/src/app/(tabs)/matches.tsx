@@ -6,7 +6,6 @@ import {
   resolveApiUrl,
   useMatches,
 } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
 import waves from "@dicebear/styles/waves.json" with { type: "json" };
 import { useLingui } from "@lingui/react";
@@ -33,6 +32,7 @@ import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -89,7 +89,7 @@ function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string 
 }
 
 export default function MatchesScreen() {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();

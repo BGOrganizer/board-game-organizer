@@ -1,6 +1,5 @@
 import type { MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useMatchDetail } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
@@ -10,6 +9,7 @@ import { View } from "react-native";
 import { MatchWizard } from "@/components/MatchWizard";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -18,7 +18,7 @@ function apiUrl(): string {
 export default function MatchWizardScreen() {
   const { matchId: matchIdParam } = useLocalSearchParams<{ matchId?: string | string[] }>();
   const matchId = Array.isArray(matchIdParam) ? matchIdParam[0] : matchIdParam;
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);

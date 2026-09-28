@@ -6,7 +6,6 @@ import {
   type ScoreDraftRow,
   useMatchDetail,
 } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { BottomSheet } from "heroui-native/bottom-sheet";
@@ -25,6 +24,7 @@ import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const rowTransition = LinearTransition.duration(220).reduceMotion(ReduceMotion.System);
 type Player = MatchDetailResponse["administrator"];
@@ -33,7 +33,7 @@ export default function MatchResultsScreen() {
   const t = useT();
   const router = useRouter();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const [token, setToken] = useState<string | null>(null);
   const feedback = useMutationFeedback();
   const [draftData, setDraftData] = useState<MatchDetailResponse | null>(null);

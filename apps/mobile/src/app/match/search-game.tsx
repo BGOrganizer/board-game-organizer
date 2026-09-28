@@ -1,7 +1,6 @@
 import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/schemas";
 import { withProtectionBypass } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -14,6 +13,7 @@ import { Image, ScrollView, View } from "react-native";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return (
@@ -22,7 +22,7 @@ function apiUrl(): string {
 }
 
 export default function SearchGameScreen() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useSessionAuth();
   const t = useT();
   const router = useRouter();
   const { slotId, exclude } = useLocalSearchParams<{ slotId: string; exclude?: string }>();

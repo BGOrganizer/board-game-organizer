@@ -4,7 +4,6 @@ import {
   resolveApiUrl,
   useContacts,
 } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
@@ -34,6 +33,7 @@ import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts"
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 /** Placeholder shown while a contact list is loading. */
 function ContactListSkeleton({ count = 4 }: { count?: number }) {
@@ -109,7 +109,7 @@ function AvatarWithPresence({
 }
 
 export default function ContactsScreen() {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const mutationFeedback = useMutationFeedback();
   const router = useRouter();

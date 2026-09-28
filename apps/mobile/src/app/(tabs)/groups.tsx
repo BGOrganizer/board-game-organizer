@@ -1,5 +1,4 @@
 import { resolveApiUrl, useGroups } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
 import squircles from "@dicebear/styles/squircles.json" with { type: "json" };
 import { useLingui } from "@lingui/react";
@@ -16,6 +15,7 @@ import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 const squirclesStyle = new Style(squircles);
@@ -47,7 +47,7 @@ function GroupArtwork({ name, admin }: { name: string; admin: boolean }) {
 }
 
 export default function GroupsScreen() {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const router = useRouter();
   const t = useT();
   const { i18n } = useLingui();

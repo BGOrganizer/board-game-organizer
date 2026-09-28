@@ -6,7 +6,6 @@ import {
   useMatches,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { useAuth } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Constants from "expo-constants";
@@ -35,6 +34,7 @@ import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -62,7 +62,7 @@ function uid() {
 }
 
 export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse }) {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();

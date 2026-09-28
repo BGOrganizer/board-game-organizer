@@ -1,7 +1,6 @@
 import type { GroupResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useContacts, useGroups } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
@@ -16,6 +15,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 type InvitedUser = { id: string; name: string; email: string | null; avatarUrl: string | null };
@@ -238,7 +238,7 @@ function Editor({
 }
 
 export function GroupWizard({ groupId }: { groupId?: string }) {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);

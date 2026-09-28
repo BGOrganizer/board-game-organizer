@@ -4,7 +4,6 @@ import {
   useContacts,
   useGroups,
 } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
@@ -33,13 +32,14 @@ import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { UserActionKey } from "@/lib/user-actions";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 
 export default function GroupDetailScreen() {
   const { groupId: value } = useLocalSearchParams<{ groupId: string | string[] }>();
   const groupId = Array.isArray(value) ? value[0] : value;
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const router = useRouter();
   const t = useT();
   const feedback = useMutationFeedback();
