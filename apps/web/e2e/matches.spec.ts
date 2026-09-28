@@ -488,9 +488,10 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(card.locator('img[src^="data:image/svg+xml,"]')).toBeVisible();
   await expect(card.locator('[data-slot="chip"]')).toHaveText("Planning");
   await expect(card.getByText(/^\d+\/\d+$/)).toBeVisible();
-  await expect(card.locator("time")).toHaveCount(1);
+  await expect(card.locator("time")).toHaveCount(2);
   await expect(card.getByText("+1 date")).toBeVisible();
-  await expect(card.locator("time")).not.toContainText(/\d{4}|:/);
+  await expect(card.locator("time").first()).not.toContainText(/\d{4}|:/);
+  await expect(card.locator("time").last()).toContainText(":");
   await expect(card.locator("img.match-waves")).toBeVisible();
   await expect(card.getByRole("img", { name: "Administrator" })).toBeVisible();
 
