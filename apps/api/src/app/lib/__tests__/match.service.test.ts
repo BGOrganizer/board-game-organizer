@@ -1,4 +1,9 @@
-import type { Match, MatchChoice, MatchInvitation } from "@board-game-organizer/schemas";
+import type {
+  Match,
+  MatchChoice,
+  MatchGameRating,
+  MatchInvitation,
+} from "@board-game-organizer/schemas";
 import { MongoServerError } from "mongodb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -125,7 +130,10 @@ function setup(withNotifications = false) {
     notify: vi.fn(async () => undefined),
     notifyMany: vi.fn(async () => undefined),
   };
-  const ratings = { applyMatch: vi.fn(async () => undefined) };
+  const ratings = {
+    applyMatch: vi.fn(async () => undefined),
+    forMatch: vi.fn(async (): Promise<MatchGameRating[]> => []),
+  };
   const groups = { requireMembers: vi.fn(async () => undefined) };
   const service = new MatchService(
     matches as never,
@@ -945,6 +953,22 @@ describe("MatchService", () => {
       games: expected.games,
     });
     await expectMatchError(setup().service.detail("user_other", match.id), 404, "Match not found");
+  });
+
+  it("includes the selected game's immutable ratings only for terminated matches", async () => {
+    const { service, matches, ratings } = setup();
+    const change = { userId: "user_admin", score: 4.5, delta: 4.5 };
+    ratings.forMatch.mockResolvedValue([change]);
+    await expect(service.detail("user_admin", match.id)).resolves.not.toHaveProperty("gameRatings");
+    expect(ratings.forMatch).not.toHaveBeenCalled();
+
+    matches.findById.mockResolvedValue({ ...match, status: "TERMINATED", selectedGameId: 1 });
+    await expect(service.detail("user_admin", match.id)).resolves.toMatchObject({
+      gameRatings: [change],
+    });
+    expect(ratings.forMatch).toHaveBeenCalledWith(match.id, 1);
+    await expectMatchError(service.detail("user_other", match.id), 404, "Match not found");
+    expect(ratings.forMatch).toHaveBeenCalledTimes(1);
   });
 
   it("shows non-admins only accepted players and their own invitation", async () => {

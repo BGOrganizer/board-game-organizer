@@ -1,5 +1,6 @@
 import type {
   Match,
+  MatchGameRating,
   MatchResults,
   PlayerRating,
   RatingEvent,
@@ -111,6 +112,20 @@ export class RatingsRepository {
         );
       }
     }
+  }
+
+  async forMatch(matchId: string, gameId: number): Promise<MatchGameRating[]> {
+    const events = await this.events
+      .find(
+        { matchId, gameId, scope: "GLOBAL", groupId: null },
+        { projection: { _id: 0, userId: 1, before: 1, after: 1 }, ...this.opts },
+      )
+      .toArray();
+    return events.map((event) => ({
+      userId: event.userId,
+      score: conservativeScore(event.after),
+      delta: conservativeScore(event.after) - conservativeScore(event.before),
+    }));
   }
 
   async leaderboard(gameId: number, scope: RatingScope, groupId: string | null, limit = 50) {

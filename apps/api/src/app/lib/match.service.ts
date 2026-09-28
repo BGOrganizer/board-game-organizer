@@ -315,9 +315,14 @@ export class MatchService {
     const gamesById = new Map(games.map((game) => [game.id, game]));
 
     const administrator = usersById.get(match.clerkId);
+    const gameRatings =
+      match.status === "TERMINATED" && match.selectedGameId && this.ratings
+        ? await this.ratings.forMatch(match.id, match.selectedGameId)
+        : undefined;
 
     return {
       match: this.toResponse(match, visibleInvitations),
+      ...(gameRatings ? { gameRatings } : {}),
       choices: {
         dates: match.choices?.[userId]?.dates ?? {},
         games: match.choices?.[userId]?.games ?? {},

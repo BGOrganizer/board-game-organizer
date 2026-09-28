@@ -181,10 +181,12 @@ describe("MatchDetail", () => {
     expect(screen.getByText("-2.5")).toBeTruthy();
     expect(screen.getByText("ND")).toBeTruthy();
     expect(screen.getByText("Guest Player")).toBeTruthy();
-    expect(screen.getByText("guest@example.com")).toBeTruthy();
-    expect(screen.getByText("admin@example.com")).toBeTruthy();
-    const ownRow = screen.getByText("admin@example.com").closest("li");
-    const guestRow = screen.getByText("guest@example.com").closest("li");
+    expect(screen.queryByText("guest@example.com")).toBeNull();
+    expect(screen.queryByText("admin@example.com")).toBeNull();
+    expect(screen.getAllByText("Not rated")).toHaveLength(2);
+    expect(screen.getAllByRole("img", { name: "Rating unchanged: 0.00" })).toHaveLength(2);
+    const ownRow = screen.getByText("Admin Player").closest("li");
+    const guestRow = screen.getByText("Guest Player").closest("li");
     expect(
       ownRow && within(ownRow).getByRole("button", { name: "Actions" }).hasAttribute("disabled"),
     ).toBe(true);

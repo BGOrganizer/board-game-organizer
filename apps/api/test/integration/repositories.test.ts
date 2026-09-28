@@ -473,6 +473,7 @@ describe("match repositories on MongoDB replica set", () => {
       withMatchTransaction(({ service }) => service.detail(TARGET, created.id)),
     ).resolves.toMatchObject({
       match: { status: "TERMINATED", results: registered.results },
+      gameRatings: [],
     });
     await expect(
       withMatchTransaction(({ service }) => service.registerResults(ACTOR, created.id, input)),
@@ -1122,6 +1123,18 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const ratings = new RatingsRepository(db);
     const global = await ratings.leaderboard(match.gameIds[0], "GLOBAL", null);
     const scoped = await ratings.leaderboard(match.gameIds[0], "GROUP", group.id);
+    const gameRatings = await ratings.forMatch(match.id, match.gameIds[0]);
+    expect(gameRatings).toHaveLength(3);
+    expect(gameRatings.find((entry) => entry.userId === ACTOR)).toEqual({
+      userId: ACTOR,
+      score: global.find((entry) => entry.userId === ACTOR)?.conservativeScore,
+      delta: global.find((entry) => entry.userId === ACTOR)?.conservativeScore,
+    });
+    await expect(
+      withMatchTransaction(({ service }) => service.detail(TARGET, match.id)),
+    ).resolves.toMatchObject({
+      gameRatings,
+    });
     expect(global).toHaveLength(3);
     expect(scoped).toHaveLength(3);
     expect(global.every((row) => row.gamesPlayed === 1 && row.provisional)).toBe(true);
@@ -1345,6 +1358,14 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const events = await db.collection(COLLECTIONS.RATING_EVENTS).find({ userId: ACTOR }).toArray();
     expect(events).toHaveLength(2);
     expect(events.map((event) => event.before.gamesPlayed).sort()).toEqual([0, 1]);
+    const second = events.find((event) => event.before.gamesPlayed === 1);
+    if (!second) throw new Error("Missing subsequent rating event");
+    const change = (await new RatingsRepository(db).forMatch(second.matchId, second.gameId)).find(
+      (entry) => entry.userId === ACTOR,
+    );
+    const score = second.after.mu - 3 * second.after.sigma;
+    expect(change?.score).toBeCloseTo(score);
+    expect(change?.delta).toBeCloseTo(score - (second.before.mu - 3 * second.before.sigma));
   });
 
   it("does not create any rating or event when only one player scored", async () => {

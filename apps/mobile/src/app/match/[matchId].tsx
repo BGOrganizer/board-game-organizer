@@ -1011,7 +1011,16 @@ function MatchDetailContent({
                   const player = participants.find((item) => item.id === entry.userId);
                   return (
                     <GroupedRow key={entry.userId}>
-                      {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
+                      {player && (
+                        <MatchStandingIdentity
+                          player={player}
+                          rank={entry.rank}
+                          showGameRating
+                          gameRating={data.gameRatings?.find(
+                            (item) => item.userId === entry.userId,
+                          )}
+                        />
+                      )}
                       <Typography className="font-semibold text-foreground">
                         {entry.score ?? "ND"}
                       </Typography>

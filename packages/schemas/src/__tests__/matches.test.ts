@@ -196,6 +196,14 @@ describe("match models and DTOs", () => {
       games: [{ id: 1, name: "Azul", yearPublished: 2017, thumbnail: null }],
     };
     expect(matchDetailResponseSchema.parse(detail)).toEqual(detail);
+    const rated = { ...detail, gameRatings: [{ userId: "user_admin", score: 4.5, delta: -1.25 }] };
+    expect(matchDetailResponseSchema.parse(rated)).toEqual(rated);
+    expect(
+      matchDetailResponseSchema.safeParse({
+        ...rated,
+        gameRatings: [{ userId: "user_admin", score: Number.POSITIVE_INFINITY, delta: 0 }],
+      }).success,
+    ).toBe(false);
     expect(matchInvitationResponseSchema.parse(invitation)).toEqual(invitation);
   });
 

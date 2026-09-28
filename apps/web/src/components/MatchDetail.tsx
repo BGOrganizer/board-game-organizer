@@ -708,7 +708,16 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                   const player = participants.find((item) => item.id === entry.userId);
                   return (
                     <GroupedRow key={entry.userId}>
-                      {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
+                      {player && (
+                        <MatchStandingIdentity
+                          player={player}
+                          rank={entry.rank}
+                          showGameRating
+                          gameRating={matchData.gameRatings?.find(
+                            (item) => item.userId === entry.userId,
+                          )}
+                        />
+                      )}
                       <span className="shrink-0 font-semibold">{entry.score ?? "ND"}</span>
                       {player && socialMenu(player, true)}
                     </GroupedRow>

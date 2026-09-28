@@ -209,10 +209,12 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await page.getByRole("tab", { name: "Standings" }).click();
   const standings = page.getByRole("tabpanel", { name: "Standings" });
   await expect(standings.getByText("ND", { exact: true })).toBeVisible();
-  await expect(standings.getByText("admin@example.com")).toBeVisible();
+  await expect(standings.getByText("admin@example.com")).toHaveCount(0);
+  await expect(standings.getByText("Not rated")).toHaveCount(2);
+  await expect(standings.getByRole("img", { name: "Rating unchanged: 0.00" })).toHaveCount(2);
   await expect(
     standings
-      .getByText("admin@example.com")
+      .getByText("Admin", { exact: true })
       .locator("xpath=ancestor::li")
       .getByRole("button", { name: "Actions" }),
   ).toBeDisabled();

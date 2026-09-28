@@ -75,6 +75,11 @@ describe("translate (runtime)", () => {
     expect(translate(it, "Members")).toBe("Membri");
     expect(translate(it, "Invitations")).toBe("Inviti");
     expect(translate(it, "No invitations")).toBe("Nessun invito");
+    expect(translate(it, "Game rating")).toBe("Rating del gioco");
+    expect(translate(it, "Not rated")).toBe("Senza rating");
+    expect(translate(it, "Rating increased")).toBe("Rating aumentato");
+    expect(translate(it, "Rating decreased")).toBe("Rating diminuito");
+    expect(translate(it, "Rating unchanged")).toBe("Rating invariato");
     expect(translate(it, "Could not load social actions. Retry")).toBe(
       "Impossibile caricare le azioni social. Riprova",
     );
