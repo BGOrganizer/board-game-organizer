@@ -31,6 +31,7 @@ export const matchResponseSchema = z.object({
   maxPlayers: z.number(),
   invitedUserIds: z.array(z.string()),
   gameIds: z.array(z.number()),
+  groupId: z.uuid().optional(),
   status: matchStatusSchema,
   selectedDate: z.string().optional(),
   selectedGameId: z.number().optional(),
@@ -156,6 +157,7 @@ export const updateMatchSchema = z
       .min(1)
       .refine((gameIds) => new Set(gameIds).size === gameIds.length)
       .optional(),
+    groupId: z.uuid().nullable().optional(),
   })
   .strict()
   .refine((input) => Object.values(input).some((value) => value !== undefined), {

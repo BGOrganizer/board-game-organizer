@@ -28,6 +28,14 @@ vi.mock("@clerk/nextjs", () => ({
 
 vi.mock("@board-game-organizer/shared", () => ({
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
+  useGroups: () => ({
+    list: { data: [], isPending: false, isError: false },
+    create: { mutateAsync: vi.fn(), isPending: false },
+    update: { mutateAsync: vi.fn(), isPending: false },
+    archive: { mutateAsync: vi.fn(), isPending: false },
+    leave: { mutateAsync: vi.fn(), isPending: false },
+    respond: { mutate: vi.fn(), isPending: false },
+  }),
   useMatches: () => ({
     list: { isPending: false, isError: false, data: [] },
     create: { isError: false, mutateAsync: vi.fn(), isPending: false },
@@ -88,12 +96,12 @@ describe("tab pages", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the placeholder pages without a page title (tab bar shows it)", async () => {
+  it("renders groups and remaining placeholder without repeating tab titles", async () => {
     renderWithI18n(await Contacts());
     expect(screen.getByText("Following")).toBeTruthy();
 
     const { unmount: unmountGroups } = renderWithI18n(await Groups());
-    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    expect(screen.getByText("No groups yet")).toBeTruthy();
     unmountGroups();
 
     const { unmount: unmountOrgs } = renderWithI18n(await Organizations());

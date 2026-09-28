@@ -125,6 +125,8 @@ function setup(withNotifications = false) {
     notify: vi.fn(async () => undefined),
     notifyMany: vi.fn(async () => undefined),
   };
+  const ratings = { applyMatch: vi.fn(async () => undefined) };
+  const groups = { requireMembers: vi.fn(async () => undefined) };
   const service = new MatchService(
     matches as never,
     invitations as never,
@@ -132,13 +134,75 @@ function setup(withNotifications = false) {
     relationships as never,
     games as never,
     withNotifications ? (notifications as never) : undefined,
+    groups as never,
+    ratings as never,
   );
-  return { service, matches, invitations, users, relationships, games, notifications };
+  return {
+    service,
+    matches,
+    invitations,
+    users,
+    relationships,
+    games,
+    notifications,
+    ratings,
+    groups,
+  };
 }
 
 async function expectMatchError(promise: Promise<unknown>, status: number, message: string) {
   await expect(promise).rejects.toEqual(expect.objectContaining({ status, message }));
 }
+
+describe("planning group authorization", () => {
+  const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
+
+  it("checks all members on group creation and skips friendship checks", async () => {
+    const { service, groups, relationships, matches } = setup();
+    relationships.isFriend.mockResolvedValue(false);
+    matches.create.mockResolvedValue({ ...match, groupId });
+    expect((await service.create("user_admin", { ...input, groupId })).groupId).toBe(groupId);
+    expect(groups.requireMembers).toHaveBeenCalledWith(groupId, ["user_admin", "user_guest"], true);
+    expect(relationships.isFriend).not.toHaveBeenCalled();
+  });
+
+  it("checks accepted group members again before confirming", async () => {
+    const { service, groups, matches, invitations } = setup();
+    matches.findById.mockResolvedValue({ ...match, groupId });
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    await expectMatchError(
+      service.setStatus("user_admin", match.id, "CREATED"),
+      409,
+      "No shared date and game choices",
+    );
+    expect(groups.requireMembers).toHaveBeenCalledWith(groupId, ["user_admin", "user_guest"], true);
+  });
+
+  it("checks group membership on direct invites and edited planning matches", async () => {
+    const { service, groups, matches, relationships } = setup();
+    matches.findById.mockResolvedValue({ ...match, groupId });
+    relationships.isFriend.mockResolvedValue(false);
+    await service.invite("user_admin", match.id, "user_guest");
+    expect(groups.requireMembers).toHaveBeenCalledWith(groupId, ["user_admin", "user_guest"], true);
+    groups.requireMembers.mockClear();
+    await service.update("user_admin", match.id, { groupId, invitedUserIds: ["user_guest"] });
+    expect(groups.requireMembers).toHaveBeenCalledWith(groupId, ["user_admin", "user_guest"], true);
+    expect(relationships.isFriend).not.toHaveBeenCalled();
+    relationships.isFriend.mockResolvedValue(true);
+    await service.update("user_admin", match.id, { groupId: null, invitedUserIds: ["user_guest"] });
+    expect(relationships.isFriend).toHaveBeenCalledWith("user_admin", "user_guest");
+  });
+
+  it("fails closed if group service was not provided", async () => {
+    const { service } = setup();
+    Object.assign(service, { groups: undefined });
+    await expectMatchError(
+      service.create("user_admin", { ...input, groupId }),
+      500,
+      "Group service unavailable",
+    );
+  });
+});
 
 describe("result registration", () => {
   const created = { ...match, status: "CREATED" as const };
@@ -174,6 +238,16 @@ describe("result registration", () => {
       match.id,
       "user_admin",
       expect.objectContaining({ lowerWins: true }),
+    );
+  });
+
+  it("does not finalize results if the rating repository is missing", async () => {
+    const { service, matches, invitations } = setup();
+    matches.findById.mockResolvedValue(created);
+    invitations.listByMatch.mockResolvedValue([accepted]);
+    Object.assign(service, { ratings: undefined });
+    await expect(service.registerResults("user_admin", match.id, result)).rejects.toThrow(
+      "Ratings repository unavailable",
     );
   });
 

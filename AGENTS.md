@@ -40,8 +40,10 @@ Implemented product areas:
 - English and Italian localization.
 - Web Playwright and mobile Maestro end-to-end coverage.
 
-Groups and Organizations remain placeholders. Collection management, session logging, player
-statistics, venues, rankings, and marketplace features are not implemented.
+Groups support friend-only invitations, accepted membership, public/private visibility metadata,
+admin editing and archival, and optional attachment to planning matches. Public discovery and
+admin-approved join requests are future work. Organizations, collection management, session
+logging, venues, visual leaderboards, and marketplace features are not implemented.
 
 ## 3. Repository structure
 
@@ -219,6 +221,10 @@ Current route surface:
 | `/api/contacts/sync` | POST | Replace caller's matched address-book contacts |
 | `/api/invites` | POST | Create invite |
 | `/api/invites/claim` | POST | Claim invite and connect users |
+| `/api/groups` | GET, POST | List owned/invited groups or create a group with friend invitations |
+| `/api/groups/[groupId]` | GET, PATCH, DELETE | Get/edit group or archive it as admin |
+| `/api/groups/[groupId]/membership` | DELETE | Leave an accepted group |
+| `/api/group-invitations/[invitationId]` | PATCH | Accept or decline a group invitation |
 | `/api/matches` | GET, POST | List accessible matches and create planning matches |
 | `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, atomically update planning fields/invitations, or delete match as admin |
 | `/api/matches/[matchId]/choices` | PATCH | Save caller's choice for a match date or game as admin or accepted invitee while planning |
@@ -272,12 +278,16 @@ Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 - `contactLinks`
 - `matches`
 - `matchInvitations`
+- `groups`
+- `groupInvitations`
+- `playerRatings`
+- `ratingEvents`
 - `notifications`
 - `pushSubscriptions`
 - `boardGames`
 - legacy `relationships`, retained only as a migration constant
 
-`pnpm --filter api migrate` creates indexed social collections and drops legacy `relationships`.
+`pnpm --filter api migrate` creates indexed social, group, and rating collections and drops legacy `relationships`. Run migrations before deploying routes that write groups or ratings.
 The current `RelationshipRepository` writes only `follows`, `friendRequests`, and `blocks`.
 
 ### Relationship invariants
@@ -308,6 +318,15 @@ New matches always start as `PLANNING`. Match creation and initial invitation wr
 transaction. Names, ISO date slots, player limits, game IDs, invitee IDs, friendship, block state, and
 catalog existence are validated on the API. `minPlayers` is at least two, `maxPlayers` is not lower,
 and at least one date and game are required.
+
+A match may have an optional `groupId`, selected on the first wizard step and editable or removable
+only while `PLANNING`; from `CREATED` it is fixed. Ungrouped matches retain the friendship
+requirement for invitees. Group match invitees must be accepted members of that group (friendship
+is not required), and the admin must also be a member. Revalidate every selected invitee on an
+atomic planning edit and every accepted participant before confirmation; never silently remove
+incompatible players. Once `CREATED`, an accepted player leaving the group cannot prevent
+registering the result or updating both GLOBAL and GROUP ratings. Archiving a group retains its ID
+and historical matches and ratings; archived groups cannot be selected or confirmed for new matches.
 
 Match invitations live in `matchInvitations`, not on the match document. Admin counts as one player,
 so invitation records cannot exceed `maxPlayers - 1`; declined invitations still occupy their slot
@@ -657,8 +676,41 @@ Pull requests, Contents, Actions, and Metadata permissions plus organization Pro
 Never store this token in the repository.
 
 
-## Ranking domain
+## Groups and ranking domain
 
-Player rankings use Glicko-2 and are a core domain feature. Ratings are tracked independently per `userId + gameId + scope`, where scope is either `GLOBAL` or `GROUP(groupId)`. A match played in a group updates both the global rating for that game and the rating for that specific group; a match without a group updates only global. Multiplayer results must be processed as one Glicko-2 rating period using pairwise outcomes derived from final positions (`win=1`, `draw=0.5`, `loss=0`), always using pre-match snapshots for every participant—never sequentially update pairwise results.
+A group has one administrator (its creator); administrator counts as a member. Its other members
+are accepted invitees. Only friends may be invited into a group, although friendship is not
+required later to stay a member or to be invited into a match belonging to that group. Group
+creation/editing accepts a name of 5–120 characters, a public/private flag, and zero or more friend
+invitations. Public groups are not yet searchable: later, outsiders may request to join, subject
+to admin approval. Private groups remain invitation-only. Only the administrator may edit or
+archive a group; accepted members may leave. Archival is a soft deletion: it hides the group from
+lists and prevents new matches while retaining IDs, created matches, results, and rating history.
 
-Default new rating state is `1500 / RD 350 / volatility 0.06`, with `tau=0.5`. Group ratings are created lazily on the first match in that game/group. If a global rating already exists, initialize the group rating from the pre-match global state using `rating = global.rating`, `RD = min(350, max(200, global.RD * 1.5))`, and the same volatility. After initialization, global and group ratings evolve independently. Ranking updates must be atomic, idempotent, auditable through immutable rating history/events, and safe against concurrent match processing. Keep Glicko-2 calculation isolated from persistence and cover it with deterministic unit tests.
+Player ratings use **OpenSkill** (the installed JavaScript implementation of the Weng–Lin
+multiplayer model), not Glicko-2 or Elo. Each player is a one-person team, and a whole match's
+final ranks (including unresolved ties) are passed to one `rate` call per scope. Withdrawn (`ND`)
+players share last place, lose against finishers, and draw against other withdrawn players. If
+fewer than two participants have scores, terminate the match but do not change ratings or
+`gamesPlayed` for anyone. A rated match adds exactly one to `gamesPlayed` per player and scope,
+not one per opponent. Ratings are keyed by `userId + selectedGameId + scope`, where scope is
+`GLOBAL` or `GROUP(groupId)`. Group matches update both scopes using **pre-match** snapshots;
+ungrouped matches update only GLOBAL. Never use games proposed but not selected.
+
+New OpenSkill state uses its native defaults `mu=25`, `sigma=25/3`; `tau` uses the library's
+default. Group ratings are initialized lazily: if a pre-match global rating exists, start from its
+`mu`, inflate uncertainty to `min(25/3, max((25/3)*200/350, global.sigma*1.5))`, and start the
+**group** `gamesPlayed` at zero. Otherwise use new-player defaults. Thereafter the two scopes
+evolve independently. Conservative leaderboard score is `mu - 3*sigma` (OpenSkill `ordinal`).
+Provisional means `gamesPlayed < 5` in that game and scope; it disappears after the fifth rated
+physical match even if sigma remains high. Group ratings may remain provisional after the global
+rating is established. No historical test matches are backfilled.
+
+Persist mutable rating snapshots and immutable before/after/delta events in the *same MongoDB
+transaction* as immutable match finalization. Unique indexes prevent duplicate processing;
+concurrent matches sharing a player must retry against fresh pre-match snapshots. Keep the
+OpenSkill calculation separate from persistence, and store enough immutable match outcomes and
+algorithm version to recompute ratings under a future model: OpenSkill and Glicko-2 numbers cannot
+be converted directly. Leaderboard repository queries exist now, but no visual leaderboard or
+public search endpoint is exposed yet. Cover deterministic rating logic and group authorization
+with unit/integration tests; exercise new user-visible flows on web and mobile.

@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { MongoServerError } from "mongodb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withTransaction } from "@/app/lib/db";
 import { MatchError, MatchService } from "@/app/lib/match.service";
@@ -105,6 +106,24 @@ describe("match API routes", () => {
     );
     expect(response.status).toBe(200);
     expect(await json(response)).toEqual({ matches: [match] });
+  });
+
+  it("retries unique-key rating collisions using fresh transactions, then stops after three retries", async () => {
+    const collision = new MongoServerError({
+      code: 11000,
+      errmsg: "E11000 duplicate key in playerRatings",
+    });
+    const transaction = vi.mocked(withTransaction);
+    transaction
+      .mockRejectedValueOnce(collision)
+      .mockRejectedValueOnce(collision)
+      .mockRejectedValueOnce(collision);
+    expect((await matchesRoute.GET(request("/api/matches"))).status).toBe(200);
+    expect(transaction).toHaveBeenCalledTimes(4);
+    transaction.mockReset();
+    transaction.mockRejectedValue(collision);
+    expect((await matchesRoute.GET(request("/api/matches"))).status).toBe(500);
+    expect(transaction).toHaveBeenCalledTimes(4);
   });
 
   it("rejects unknown and duplicate query parameters", async () => {

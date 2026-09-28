@@ -1,16 +1,20 @@
 import { auth } from "@clerk/nextjs/server";
 import type { ClientSession, Db, ObjectId } from "mongodb";
+import { MongoServerError } from "mongodb";
 import { after } from "next/server";
 import { z } from "zod";
 import { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { getDb, withTransaction } from "@/app/lib/db";
+import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
 import { ensureCurrentUser } from "@/app/lib/ensureCurrentUser";
+import { GroupError, GroupService } from "@/app/lib/group.service";
+import { GroupsRepository } from "@/app/lib/groups.repository";
 import { MatchError, MatchService } from "@/app/lib/match.service";
 import { MatchInvitationsRepository } from "@/app/lib/match-invitations.repository";
 import { MatchesRepository } from "@/app/lib/matches.repository";
 import { NotificationsRepository } from "@/app/lib/notifications.repository";
 import { dispatchNotifications } from "@/app/lib/push";
+import { RatingsRepository } from "@/app/lib/ratings.repository";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { UsersRepository } from "@/app/lib/users.repository";
 
@@ -114,24 +118,49 @@ export async function runMatchOperation<T>(
   try {
     await ensureCurrentUser(userId, await getDb());
     const createdNotificationIds: ObjectId[] = [];
-    const result = await withTransaction(async (session, db) => {
-      const service = new MatchService(
-        new MatchesRepository(db, session),
-        new MatchInvitationsRepository(db, session),
-        new UsersRepository(db, session),
-        new RelationshipRepository(db, session),
-        new BoardGamesRepository(db, session),
-        new NotificationsRepository(db, session, createdNotificationIds),
-      );
-      await service.requireCurrentUser(userId);
-      return operation({ userId, db, session, service });
-    });
+    let result: T;
+    for (let attempt = 0; ; attempt++) {
+      createdNotificationIds.length = 0; // Transaction callback may be replayed on write conflict.
+      try {
+        result = await withTransaction(async (session, db) => {
+          createdNotificationIds.length = 0;
+          const service = new MatchService(
+            new MatchesRepository(db, session),
+            new MatchInvitationsRepository(db, session),
+            new UsersRepository(db, session),
+            new RelationshipRepository(db, session),
+            new BoardGamesRepository(db, session),
+            new NotificationsRepository(db, session, createdNotificationIds),
+            new GroupService(
+              new GroupsRepository(db, session),
+              new UsersRepository(db, session),
+              new RelationshipRepository(db, session),
+            ),
+            new RatingsRepository(db, session),
+          );
+          await service.requireCurrentUser(userId);
+          return operation({ userId, db, session, service });
+        });
+        break;
+      } catch (error) {
+        // Concurrent first ratings can race on their unique key: retry the entire snapshot.
+        if (
+          !(
+            error instanceof MongoServerError &&
+            error.code === 11000 &&
+            error.message.includes(COLLECTIONS.PLAYER_RATINGS) &&
+            attempt < 3
+          )
+        )
+          throw error;
+      }
+    }
     if (createdNotificationIds.length > 0) {
       after(() => dispatchNotifications(createdNotificationIds));
     }
     return corsJson(result ?? { success: true }, { status }, request);
   } catch (error) {
-    if (error instanceof MatchError) {
+    if (error instanceof MatchError || error instanceof GroupError) {
       return corsJson({ error: error.message }, { status: error.status }, request);
     }
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);

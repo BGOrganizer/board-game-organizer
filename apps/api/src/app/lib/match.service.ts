@@ -14,9 +14,11 @@ import { normalizeMatchScore, rankMatchResults } from "@board-game-organizer/sha
 import { MongoServerError } from "mongodb";
 import { gameThumbnail } from "@/app/lib/bgg";
 import type { BoardGamesRepository } from "@/app/lib/boardGames.repository";
+import type { GroupService } from "@/app/lib/group.service";
 import type { MatchInvitationsRepository } from "@/app/lib/match-invitations.repository";
 import type { MatchesRepository } from "@/app/lib/matches.repository";
 import type { NotificationsRepository } from "@/app/lib/notifications.repository";
+import type { RatingsRepository } from "@/app/lib/ratings.repository";
 import type { RelationshipRepository } from "@/app/lib/relationship.repository";
 import type { UsersRepository } from "@/app/lib/users.repository";
 
@@ -106,6 +108,8 @@ export class MatchService {
     private relationships: RelationshipRepository,
     private games: BoardGamesRepository,
     private notifications?: NotificationsRepository,
+    private groups?: GroupService,
+    private ratings?: RatingsRepository,
   ) {}
 
   async requireCurrentUser(userId: string) {
@@ -132,7 +136,7 @@ export class MatchService {
     }
   }
 
-  private async validateInvitee(adminUserId: string, inviteeUserId: string) {
+  private async validateInvitee(adminUserId: string, inviteeUserId: string, groupId?: string) {
     if (adminUserId === inviteeUserId) {
       throw new MatchError(400, "Match admin cannot invite themselves");
     }
@@ -142,9 +146,14 @@ export class MatchService {
     if (await this.relationships.isBlocked(adminUserId, inviteeUserId)) {
       throw new MatchError(404, "User not found");
     }
-    if (!(await this.relationships.isFriend(adminUserId, inviteeUserId))) {
+    if (!groupId && !(await this.relationships.isFriend(adminUserId, inviteeUserId))) {
       throw new MatchError(400, "Invited users must be friends of match admin");
     }
+  }
+
+  private async requireGroupMembers(groupId: string, userIds: string[], lock = false) {
+    if (!this.groups) throw new MatchError(500, "Group service unavailable");
+    await this.groups.requireMembers(groupId, userIds, lock);
   }
 
   private visibleInvitations(
@@ -171,6 +180,7 @@ export class MatchService {
       maxPlayers: match.maxPlayers,
       invitedUserIds: invitations.map((invitation) => invitation.inviteeUserId),
       gameIds: match.gameIds,
+      ...(match.groupId ? { groupId: match.groupId } : {}),
       status: match.status,
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
       ...(match.selectedGameId ? { selectedGameId: match.selectedGameId } : {}),
@@ -189,8 +199,10 @@ export class MatchService {
     if (existingGameIds.length !== input.gameIds.length) {
       throw new MatchError(400, "One or more games do not exist");
     }
+    if (input.groupId)
+      await this.requireGroupMembers(input.groupId, [userId, ...input.invitedUserIds], true);
     for (const inviteeUserId of input.invitedUserIds) {
-      await this.validateInvitee(userId, inviteeUserId);
+      await this.validateInvitee(userId, inviteeUserId, input.groupId);
     }
 
     const match = await this.matches.create({
@@ -200,6 +212,7 @@ export class MatchService {
       minPlayers: input.minPlayers,
       maxPlayers: input.maxPlayers,
       gameIds: input.gameIds,
+      groupId: input.groupId,
     });
     const invitations = await this.invitations.createMany(match.id, userId, input.invitedUserIds);
     await this.notifications?.notifyMany(
@@ -387,6 +400,12 @@ export class MatchService {
     const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
     let selected: { date: string; gameId: number } | undefined;
     if (status === "CREATED") {
+      if (match.groupId)
+        await this.requireGroupMembers(
+          match.groupId,
+          [userId, ...accepted.map((invitation) => invitation.inviteeUserId)],
+          true,
+        );
       const summary = summarizeMatchVotes(match, invitations);
       if (summary.reasons.includes("NOT_ENOUGH_PLAYERS")) {
         throw new MatchError(409, "Not enough accepted players");
@@ -420,7 +439,8 @@ export class MatchService {
     const match = await this.requireMatch(matchId);
     this.requireAdmin(match, userId);
     this.requirePlanning(match);
-    await this.validateInvitee(userId, inviteeUserId);
+    await this.validateInvitee(userId, inviteeUserId, match.groupId);
+    if (match.groupId) await this.requireGroupMembers(match.groupId, [userId, inviteeUserId], true);
     await this.matches.serializeInvitationChange(match.id);
 
     if (await this.invitations.findByMatchAndInvitee(matchId, inviteeUserId)) {
@@ -519,7 +539,7 @@ export class MatchService {
       }
     }
 
-    if (input.invitedUserIds || input.maxPlayers !== undefined) {
+    if (input.invitedUserIds || input.maxPlayers !== undefined || input.groupId !== undefined) {
       await this.matches.serializeInvitationChange(match.id);
     }
     let invitations = await this.invitations.listByMatch(match.id);
@@ -533,9 +553,12 @@ export class MatchService {
           : "maxPlayers cannot be lower than occupied player positions",
       );
     }
-    if (input.invitedUserIds) {
-      for (const inviteeUserId of input.invitedUserIds) {
-        await this.validateInvitee(userId, inviteeUserId);
+    const nextGroupId = input.groupId === undefined ? match.groupId : (input.groupId ?? undefined);
+    if (nextGroupId)
+      await this.requireGroupMembers(nextGroupId, [userId, ...finalInviteeIds], true);
+    if (input.invitedUserIds || input.groupId !== undefined) {
+      for (const inviteeUserId of finalInviteeIds) {
+        await this.validateInvitee(userId, inviteeUserId, nextGroupId);
       }
     }
 
@@ -653,6 +676,8 @@ export class MatchService {
     };
     const updated = await this.matches.registerResults(matchId, userId, results);
     if (!updated) throw new MatchError(409, "Match changed concurrently");
+    if (!this.ratings) throw new Error("Ratings repository unavailable");
+    await this.ratings.applyMatch(updated, results);
     return this.toResponse(updated, this.visibleInvitations(updated, userId, invitations));
   }
 

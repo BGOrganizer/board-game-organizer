@@ -1,6 +1,7 @@
 export * from "./api";
 export * from "./hooks/contactOptimistic";
 export * from "./hooks/useContacts";
+export * from "./hooks/useGroups";
 export * from "./hooks/useInvites";
 export * from "./hooks/useMatches";
 export * from "./hooks/useNotifications";

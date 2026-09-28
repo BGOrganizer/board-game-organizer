@@ -327,6 +327,7 @@ function patchMatch(match: MatchSummary, input: UpdateMatchInput): MatchSummary 
   return {
     ...match,
     ...input,
+    groupId: input.groupId === undefined ? match.groupId : (input.groupId ?? undefined),
     invitedUserIds,
     invitations: invitedUserIds.map(
       (inviteeUserId, index) =>
@@ -392,6 +393,7 @@ function optimisticMatch(input: CreateMatchInput, userId?: string | null): Match
     maxPlayers: input.maxPlayers,
     invitedUserIds: input.invitedUserIds,
     gameIds: input.gameIds,
+    ...(input.groupId ? { groupId: input.groupId } : {}),
     status: "PLANNING",
     createdAt: now,
     updatedAt: now,

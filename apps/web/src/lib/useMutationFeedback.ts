@@ -54,6 +54,18 @@ export function useMutationFeedback(): MutationFeedback {
         success: t`Match invitation declined`,
         error: t`Could not decline match invitation`,
       },
+      create_group: { success: t`Group created`, error: t`Could not create group` },
+      update_group: { success: t`Group updated`, error: t`Could not update group` },
+      delete_group: { success: t`Group deleted`, error: t`Could not delete group` },
+      leave_group: { success: t`Left group`, error: t`Could not leave group` },
+      accept_group_invitation: {
+        success: t`Group invitation accepted`,
+        error: t`Could not accept group invitation`,
+      },
+      decline_group_invitation: {
+        success: t`Group invitation declined`,
+        error: t`Could not decline group invitation`,
+      },
     };
 
     return {

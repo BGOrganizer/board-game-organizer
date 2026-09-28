@@ -1,0 +1,116 @@
+appId: com.bgo.mobile
+---
+# Two provisioned users: friend request -> group invite -> acceptance -> group match picker.
+# Flow 05 removes friendship; create it again here so this flow does not depend on its final state.
+- tapOn: "Contacts"
+- tapOn: "Search"
+- tapOn: ".*[Ss]earch.*users.*"
+- inputText: ${EMAIL_2}
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- tapOn: "Actions"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Contacts"
+- tapOn: "Friend requests"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- tapOn:
+    id: "respond-friend-request-btn"
+- tapOn:
+    id: "respond-accept-friend-request-btn"
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Groups"
+- tapOn:
+    id: "create-group-fab"
+- tapOn: "Group name"
+- inputText: "Shared Tabletop Club"
+- extendedWaitUntil:
+    visible: "Invite E2E Target"
+    timeout: 30000
+- tapOn: "Invite E2E Target"
+- tapOn: "Create group"
+- extendedWaitUntil:
+    visible: "Shared Tabletop Club"
+    timeout: 30000
+- assertVisible: "Invited"
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Groups"
+- extendedWaitUntil:
+    visible: "Shared Tabletop Club"
+    timeout: 30000
+- assertVisible: "Invitation pending"
+- tapOn: "Accept invitation"
+- extendedWaitUntil:
+    visible: "2 members"
+    timeout: 30000
+- tapOn: "Leave group"
+- assertVisible: "Leave group?"
+- tapOn: "Leave group"
+- extendedWaitUntil:
+    visible: "No groups yet"
+    timeout: 30000

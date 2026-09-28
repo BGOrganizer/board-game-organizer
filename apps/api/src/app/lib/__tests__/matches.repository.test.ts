@@ -51,6 +51,16 @@ describe("MatchesRepository", () => {
     expect(collection.insertOne).toHaveBeenCalledWith(match, {});
   });
 
+  it("persists optional group linkage and reads it back", async () => {
+    const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
+    const grouped = { ...stored, groupId };
+    const { db, collection } = setup([], grouped);
+    const repo = new MatchesRepository(db as never);
+    expect((await repo.create({ ...input, groupId })).groupId).toBe(groupId);
+    expect(collection.insertOne).toHaveBeenCalledWith(expect.objectContaining({ groupId }), {});
+    expect((await repo.findById(stored.id))?.groupId).toBe(groupId);
+  });
+
   it("passes a transaction session while creating", async () => {
     const { db, collection } = setup();
     const session = { id: "session" };
@@ -219,6 +229,27 @@ describe("MatchesRepository", () => {
     expect(collection.findOneAndUpdate).toHaveBeenCalledWith(
       { id: stored.id, clerkId: "user_1", status: "PLANNING" },
       { $set: { ...changes, updatedAt: expect.any(String) } },
+      { returnDocument: "after", projection: { _id: 0 } },
+    );
+  });
+
+  it("links and clears group only in planning update", async () => {
+    const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
+    const { db, collection } = setup([], { ...stored, groupId });
+    const repo = new MatchesRepository(db as never);
+    expect((await repo.updatePlanning(stored.id, "user_1", { groupId }))?.groupId).toBe(groupId);
+    expect(collection.findOneAndUpdate).toHaveBeenCalledWith(
+      { id: stored.id, clerkId: "user_1", status: "PLANNING" },
+      { $set: { groupId, updatedAt: expect.any(String) } },
+      { returnDocument: "after", projection: { _id: 0 } },
+    );
+    collection.findOneAndUpdate.mockResolvedValueOnce(stored);
+    expect(
+      (await repo.updatePlanning(stored.id, "user_1", { groupId: null }))?.groupId,
+    ).toBeUndefined();
+    expect(collection.findOneAndUpdate).toHaveBeenLastCalledWith(
+      { id: stored.id, clerkId: "user_1", status: "PLANNING" },
+      { $set: { updatedAt: expect.any(String) }, $unset: { groupId: "" } },
       { returnDocument: "after", projection: { _id: 0 } },
     );
   });

@@ -41,6 +41,7 @@ export class MatchesRepository {
       minPlayers: match.minPlayers,
       maxPlayers: match.maxPlayers,
       gameIds: match.gameIds,
+      ...(match.groupId ? { groupId: match.groupId } : {}),
       ...(match.choices ? { choices: match.choices } : {}),
       status: match.status ?? "PLANNING",
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
@@ -58,6 +59,7 @@ export class MatchesRepository {
     minPlayers: number;
     maxPlayers: number;
     gameIds: number[];
+    groupId?: string;
   }): Promise<Match> {
     const now = new Date().toISOString();
     const match: Match = {
@@ -68,6 +70,7 @@ export class MatchesRepository {
       minPlayers: input.minPlayers,
       maxPlayers: input.maxPlayers,
       gameIds: input.gameIds,
+      ...(input.groupId ? { groupId: input.groupId } : {}),
       status: "PLANNING",
       createdAt: now,
       updatedAt: now,
@@ -111,11 +114,17 @@ export class MatchesRepository {
   async updatePlanning(
     id: string,
     clerkId: string,
-    updates: Partial<Pick<Match, "name" | "dates" | "minPlayers" | "maxPlayers" | "gameIds">>,
+    updates: Partial<Pick<Match, "name" | "dates" | "minPlayers" | "maxPlayers" | "gameIds">> & {
+      groupId?: string | null;
+    },
   ): Promise<Match | null> {
+    const { groupId, ...fields } = updates;
     const match = await this.col.findOneAndUpdate(
       { id, clerkId, status: "PLANNING" },
-      { $set: { ...updates, updatedAt: new Date().toISOString() } },
+      {
+        $set: { ...fields, ...(groupId ? { groupId } : {}), updatedAt: new Date().toISOString() },
+        ...(groupId === null ? { $unset: { groupId: "" } } : {}),
+      },
       { returnDocument: "after", projection: { _id: 0 }, ...this.opts },
     );
     return match ? this.normalize(match) : null;

@@ -14,6 +14,7 @@ interface Props {
   getToken?: () => Promise<string | null>;
   protectionBypass?: string | null;
   excludeIds?: string[];
+  members?: Array<{ id: string; name: string; email: string | null; avatarUrl: string | null }>;
   onSelect: (user: {
     id: string;
     name: string;
@@ -34,6 +35,7 @@ export function SearchUserPage({
   getToken,
   protectionBypass,
   excludeIds = [],
+  members,
   onSelect,
   onClose,
 }: Props) {
@@ -52,6 +54,7 @@ export function SearchUserPage({
   // Load the full friends list once (invite picker) — reused as the empty
   // query state and as the source the search narrows.
   useEffect(() => {
+    if (members) return;
     let active = true;
     (async () => {
       try {
@@ -71,11 +74,12 @@ export function SearchUserPage({
     return () => {
       active = false;
     };
-  }, [apiUrl, token, getToken, protectionBypass, t]);
+  }, [apiUrl, token, getToken, protectionBypass, t, members]);
 
   // Search fires only at >= 4 chars; below that we show the full friends
   // list so the user always has something to pick from.
   useEffect(() => {
+    if (members) return;
     if (query.trim().length < 4) {
       setResults([]);
       setLoading(false);
@@ -107,12 +111,18 @@ export function SearchUserPage({
       active = false;
       clearTimeout(timer);
     };
-  }, [query, apiUrl, token, getToken, protectionBypass, friendIds, t]);
+  }, [query, apiUrl, token, getToken, protectionBypass, friendIds, t, members]);
 
   const shown = (
-    query.trim().length >= 4
-      ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+    members
+      ? members.filter(
+          (user) =>
+            query.trim().length < 4 ||
+            `${user.name} ${user.email ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()),
+        )
+      : query.trim().length >= 4
+        ? results
+        : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
   ).filter((user) => !excludeSet.has(user.id));
 
   return (
@@ -121,7 +131,9 @@ export function SearchUserPage({
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="text-lg font-semibold">{t`Invite friends`}</h2>
+        <h2 className="text-lg font-semibold">
+          {members ? t`Invite group members` : t`Invite friends`}
+        </h2>
       </div>
 
       <input

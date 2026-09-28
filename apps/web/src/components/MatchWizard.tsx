@@ -1,7 +1,7 @@
 "use client";
 
 import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
+import { resolveApiUrl, useGroups, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -59,6 +59,7 @@ export function MatchWizard({
 
   // Step 1: name + date slots.
   const [name, setName] = useState(initialData?.match.name ?? "");
+  const [groupId, setGroupId] = useState(initialData?.match.groupId ?? "");
   const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
     initialData
       ? initialData.match.dates.map((value) => ({ id: uid(), value }))
@@ -109,6 +110,14 @@ export function MatchWizard({
     };
   }, [isLoaded, isSignedIn, getToken]);
 
+  const groups = useGroups({
+    apiUrl: apiUrl(),
+    token,
+    getToken,
+    protectionBypass: protectionBypass(),
+    userId,
+  });
+  const selectedGroup = groups.list.data?.find((group) => group.id === groupId);
   const matches = useMatches({
     apiUrl: apiUrl(),
     token,
@@ -121,12 +130,23 @@ export function MatchWizard({
   const step1Valid = useMemo(
     // Every date slot must be filled: an added-but-empty slot blocks
     // progress (no "skip the second date" loophole).
-    () => name.trim().length >= 5 && dateSlots.every((s) => s.value !== null),
-    [name, dateSlots],
+    () =>
+      name.trim().length >= 5 &&
+      dateSlots.every((s) => s.value !== null) &&
+      (!groupId || Boolean(selectedGroup)),
+    [name, dateSlots, groupId, selectedGroup],
   );
   const step2Valid = useMemo(
-    () => minPlayers >= 2 && maxPlayers >= minPlayers,
-    [minPlayers, maxPlayers],
+    () =>
+      minPlayers >= 2 &&
+      maxPlayers >= minPlayers &&
+      (!groupId ||
+        userSlots.every(
+          (slot) =>
+            !slot.user ||
+            selectedGroup?.memberProfiles.some((member) => member.id === slot.user?.id),
+        )),
+    [minPlayers, maxPlayers, groupId, userSlots, selectedGroup],
   );
   const step3Valid = useMemo(
     // Every added game slot must hold a game (same rule as the dates).
@@ -186,10 +206,14 @@ export function MatchWizard({
       maxPlayers,
       invitedUserIds: userSlots.map((s) => s.user?.id).filter((x): x is string => Boolean(x)),
       gameIds: gameSlots.map((s) => s.game?.id).filter((x): x is number => Boolean(x)),
+      ...(groupId ? { groupId } : {}),
     };
     try {
       if (initialData) {
-        await matches.update.mutateAsync({ matchId: initialData.match.id, input });
+        await matches.update.mutateAsync({
+          matchId: initialData.match.id,
+          input: { ...input, groupId: groupId || null },
+        });
       } else {
         await matches.create.mutateAsync(input);
       }
@@ -206,6 +230,7 @@ export function MatchWizard({
     maxPlayers,
     userSlots,
     gameSlots,
+    groupId,
     matches,
     onCreated,
   ]);
@@ -252,6 +277,11 @@ export function MatchWizard({
         token={token}
         getToken={getToken}
         protectionBypass={protectionBypass()}
+        members={
+          groupId
+            ? (selectedGroup?.memberProfiles.filter((member) => member.id !== userId) ?? [])
+            : undefined
+        }
         excludeIds={userSlots.flatMap((slot) =>
           slot.id !== searchTarget.slotId && slot.user ? [slot.user.id] : [],
         )}
@@ -317,6 +347,38 @@ export function MatchWizard({
           {name.trim().length > 0 && name.trim().length < 5 && (
             <p className="text-sm text-danger">{t`At least 5 characters`}</p>
           )}{" "}
+          <label className="block space-y-1 text-sm font-medium">
+            <span>{t`Group (optional)`}</span>
+            <select
+              aria-label={t`Group (optional)`}
+              value={groupId}
+              disabled={groups.list.isPending || groups.list.isError}
+              onChange={(event) => setGroupId(event.target.value)}
+              className="w-full rounded-lg border border-default-200 bg-background px-3 py-2 text-foreground"
+            >
+              <option value="">{t`No group`}</option>
+              {groups.list.data
+                ?.filter(
+                  (group) =>
+                    group.adminUserId === userId ||
+                    group.invitations.some(
+                      (invitation) =>
+                        invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+                    ),
+                )
+                .map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          {groups.list.isError ? (
+            <p role="alert" className="text-danger">{t`Could not load groups`}</p>
+          ) : null}
+          {groupId && !selectedGroup && !groups.list.isPending ? (
+            <p role="alert" className="text-danger">{t`Selected group is unavailable`}</p>
+          ) : null}
           <p className="text-sm text-default-500">{t`When could you play?`}</p>
           <GroupedList>
             {dateSlots.map((slot) => (
@@ -411,7 +473,20 @@ export function MatchWizard({
             <p className="text-sm text-danger">{t`Max must be at least min`}</p>
           )}
 
-          <p className="text-sm text-default-500">{t`Invite friends`}</p>
+          <p className="text-sm text-default-500">
+            {groupId ? t`Invite group members` : t`Invite friends`}
+          </p>
+          {groupId &&
+          userSlots.some(
+            (slot) =>
+              slot.user &&
+              !selectedGroup?.memberProfiles.some((member) => member.id === slot.user?.id),
+          ) ? (
+            <p
+              role="alert"
+              className="text-danger"
+            >{t`Remove players who are not members of the selected group`}</p>
+          ) : null}
           <GroupedList>
             {userSlots.map((slot) => (
               <GroupedRow key={slot.id} className="relative">
@@ -436,7 +511,7 @@ export function MatchWizard({
                   ) : (
                     <span className="flex items-center gap-2 text-default-400">
                       <Users className="h-4 w-4" />
-                      {t`Select a friend`}
+                      {groupId ? t`Select group member` : t`Select a friend`}
                     </span>
                   )}
                 </Button>

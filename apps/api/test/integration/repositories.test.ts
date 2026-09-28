@@ -8,12 +8,15 @@ import { importDirectCsv } from "../../scripts/import-boardgames-direct";
 import { gameDetails, searchGames } from "../../src/app/lib/bgg";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
+import { GroupService } from "../../src/app/lib/group.service";
+import { GroupsRepository } from "../../src/app/lib/groups.repository";
 import { type MatchError, MatchService } from "../../src/app/lib/match.service";
 import { MatchInvitationsRepository } from "../../src/app/lib/match-invitations.repository";
 import { MatchesRepository } from "../../src/app/lib/matches.repository";
 import { migrate } from "../../src/app/lib/migrate";
 import { NotificationsRepository } from "../../src/app/lib/notifications.repository";
 import { PushSubscriptionsRepository } from "../../src/app/lib/push-subscriptions.repository";
+import { RatingsRepository } from "../../src/app/lib/ratings.repository";
 import { RelationshipRepository } from "../../src/app/lib/relationship.repository";
 import { RelationshipService } from "../../src/app/lib/relationship.service";
 import { UsersRepository } from "../../src/app/lib/users.repository";
@@ -264,6 +267,7 @@ async function withMatchTransaction<T>(
     service: MatchService;
     matches: MatchesRepository;
     invitations: MatchInvitationsRepository;
+    groups: GroupService;
   }) => Promise<T>,
   notify = false,
 ): Promise<T> {
@@ -272,7 +276,13 @@ async function withMatchTransaction<T>(
     const result = await session.withTransaction(async () => {
       const matches = new MatchesRepository(db, session);
       const invitations = new MatchInvitationsRepository(db, session);
+      const groups = new GroupService(
+        new GroupsRepository(db, session),
+        new UsersRepository(db, session),
+        new RelationshipRepository(db, session),
+      );
       return work({
+        groups,
         matches,
         invitations,
         service: new MatchService(
@@ -282,6 +292,8 @@ async function withMatchTransaction<T>(
           new RelationshipRepository(db, session),
           new BoardGamesRepository(db, session),
           notify ? new NotificationsRepository(db, session) : undefined,
+          groups,
+          new RatingsRepository(db, session),
         ),
       });
     });
@@ -1026,5 +1038,316 @@ describe("match repositories on MongoDB replica set", () => {
     await expect(
       withMatchTransaction(({ service }) => service.invite(ACTOR, created.id, TARGET)),
     ).rejects.toEqual(expect.objectContaining({ status: 404, message: "User not found" }));
+  });
+});
+
+describe("group membership and OpenSkill on the MongoDB replica set", () => {
+  it("accepts invited friends, allows group member match invite after unfriend, and keeps group history after archive", async () => {
+    await seedMatchDependencies();
+    await relationships.becomeFriends(ACTOR, THIRD);
+    const group = await withMatchTransaction(({ groups }) =>
+      groups.create(ACTOR, {
+        name: "Board Gamers",
+        isPublic: false,
+        invitedUserIds: [TARGET, THIRD],
+      }),
+    );
+    expect(group.memberCount).toBe(1);
+    const inviteTo = (userId: string) => {
+      const invitation = group.invitations.find((item) => item.inviteeUserId === userId);
+      if (!invitation) throw new Error("Missing group invitation");
+      return invitation.id;
+    };
+    await withMatchTransaction(({ groups }) => groups.respond(TARGET, inviteTo(TARGET), "accept"));
+    await withMatchTransaction(({ groups }) => groups.respond(THIRD, inviteTo(THIRD), "accept"));
+    expect((await withMatchTransaction(({ groups }) => groups.list(ACTOR)))[0].memberCount).toBe(3);
+    await relationships.unfriend(ACTOR, TARGET);
+    const match = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, {
+        ...matchInput,
+        groupId: group.id,
+        invitedUserIds: [TARGET, THIRD],
+      }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(TARGET, match.invitations[0].id, "accept"),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(THIRD, match.invitations[1].id, "accept"),
+    );
+    await withMatchTransaction(({ matches }) =>
+      matches.setStatus(match.id, ACTOR, "PLANNING", "CREATED", {
+        date: match.dates[0],
+        gameId: match.gameIds[0],
+      }),
+    );
+    await withMatchTransaction(({ groups }) => groups.archive(ACTOR, group.id));
+    expect(await withMatchTransaction(({ groups }) => groups.list(ACTOR))).toEqual([]);
+    const results = await withMatchTransaction(({ service }) =>
+      service.registerResults(ACTOR, match.id, {
+        lowerWins: false,
+        entries: [
+          { userId: ACTOR, score: "5" },
+          { userId: TARGET, score: "2" },
+          { userId: THIRD, score: null },
+        ],
+        tieBreaks: [],
+      }),
+    );
+    expect(results.status).toBe("TERMINATED");
+    const ratings = new RatingsRepository(db);
+    const global = await ratings.leaderboard(match.gameIds[0], "GLOBAL", null);
+    const scoped = await ratings.leaderboard(match.gameIds[0], "GROUP", group.id);
+    expect(global).toHaveLength(3);
+    expect(scoped).toHaveLength(3);
+    expect(global.every((row) => row.gamesPlayed === 1 && row.provisional)).toBe(true);
+    expect(scoped.find((row) => row.userId === THIRD)?.mu).toBeLessThan(25);
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ matchId: match.id }),
+    ).toBe(6);
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.registerResults(ACTOR, match.id, {
+          lowerWins: false,
+          entries: [{ userId: ACTOR, score: "5" }],
+          tieBreaks: [],
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ matchId: match.id }),
+    ).toBe(6);
+  });
+
+  it("edits a planning match group atomically, checks membership again at confirmation, and locks it when created", async () => {
+    await seedMatchDependencies();
+    const group = await withMatchTransaction(({ groups }) =>
+      groups.create(ACTOR, { name: "Tabletop Club", isPublic: false, invitedUserIds: [TARGET] }),
+    );
+    const invitation = group.invitations[0];
+    if (!invitation) throw new Error("Missing group invitation");
+    await withMatchTransaction(({ groups }) => groups.respond(TARGET, invitation.id, "accept"));
+    const match = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, invitedUserIds: [TARGET] }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(TARGET, match.invitations[0].id, "accept"),
+    );
+    const linked = await withMatchTransaction(({ service }) =>
+      service.update(ACTOR, match.id, { groupId: group.id, invitedUserIds: [TARGET] }),
+    );
+    expect(linked.groupId).toBe(group.id);
+    await withMatchTransaction(({ groups }) => groups.leave(TARGET, group.id));
+    await expect(
+      withMatchTransaction(({ service }) => service.setStatus(ACTOR, match.id, "CREATED")),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Every participant must be an accepted group member",
+    });
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.update(ACTOR, match.id, { groupId: group.id, invitedUserIds: [TARGET] }),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    const unlinked = await withMatchTransaction(({ service }) =>
+      service.update(ACTOR, match.id, { groupId: null, invitedUserIds: [TARGET] }),
+    );
+    expect(unlinked.groupId).toBeUndefined();
+    await withMatchTransaction(({ matches }) =>
+      matches.setStatus(match.id, ACTOR, "PLANNING", "CREATED", {
+        date: match.dates[0],
+        gameId: match.gameIds[0],
+      }),
+    );
+    await expect(
+      withMatchTransaction(({ service }) => service.update(ACTOR, match.id, { groupId: group.id })),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("initializes first group game from pre-match global snapshots and then evolves independently", async () => {
+    await seedMatchDependencies();
+    const group = await withMatchTransaction(({ groups }) =>
+      groups.create(ACTOR, { name: "Local Friends", isPublic: true, invitedUserIds: [TARGET] }),
+    );
+    const invitation = group.invitations[0];
+    if (!invitation) throw new Error("Missing group invitation");
+    await withMatchTransaction(({ groups }) => groups.respond(TARGET, invitation.id, "accept"));
+    const play = async (groupId?: string) => {
+      const match = await withMatchTransaction(({ service }) =>
+        service.create(ACTOR, {
+          ...matchInput,
+          ...(groupId ? { groupId } : {}),
+          invitedUserIds: [TARGET],
+        }),
+      );
+      await withMatchTransaction(({ service }) =>
+        service.respond(TARGET, match.invitations[0].id, "accept"),
+      );
+      await withMatchTransaction(({ matches }) =>
+        matches.setStatus(match.id, ACTOR, "PLANNING", "CREATED", {
+          date: match.dates[0],
+          gameId: match.gameIds[0],
+        }),
+      );
+      await withMatchTransaction(({ service }) =>
+        service.registerResults(ACTOR, match.id, {
+          lowerWins: false,
+          entries: [
+            { userId: ACTOR, score: "2" },
+            { userId: TARGET, score: "1" },
+          ],
+          tieBreaks: [],
+        }),
+      );
+      return match;
+    };
+    const first = await play();
+    const firstGlobal = await db.collection(COLLECTIONS.PLAYER_RATINGS).findOne({
+      userId: ACTOR,
+      gameId: matchInput.gameIds[0],
+      scope: "GLOBAL",
+      groupId: null,
+    });
+    if (!firstGlobal) throw new Error("Missing global rating");
+    expect(firstGlobal.mu).toBeGreaterThan(25);
+    const second = await play(group.id);
+    const groupEvent = await db.collection(COLLECTIONS.RATING_EVENTS).findOne({
+      matchId: second.id,
+      userId: ACTOR,
+      scope: "GROUP",
+      groupId: group.id,
+    });
+    if (!groupEvent) throw new Error("Missing group rating event");
+    expect(groupEvent.before.mu).toBeCloseTo(firstGlobal.mu);
+    expect(groupEvent.before.sigma).toBeCloseTo(
+      Math.min(25 / 3, Math.max(((25 / 3) * 200) / 350, firstGlobal.sigma * 1.5)),
+    );
+    expect(groupEvent.before.gamesPlayed).toBe(0);
+    expect(groupEvent.after.gamesPlayed).toBe(1);
+    const globalEvent = await db.collection(COLLECTIONS.RATING_EVENTS).findOne({
+      matchId: second.id,
+      userId: ACTOR,
+      scope: "GLOBAL",
+      groupId: null,
+    });
+    expect(globalEvent?.before.mu).toBeCloseTo(firstGlobal.mu);
+    expect(globalEvent?.after.gamesPlayed).toBe(2);
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ matchId: first.id }),
+    ).toBe(2);
+  });
+
+  it("applies concurrent result submissions once, without duplicate rating events", async () => {
+    await seedMatchDependencies();
+    const match = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, invitedUserIds: [TARGET] }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(TARGET, match.invitations[0].id, "accept"),
+    );
+    await withMatchTransaction(({ matches }) =>
+      matches.setStatus(match.id, ACTOR, "PLANNING", "CREATED", {
+        date: match.dates[0],
+        gameId: match.gameIds[0],
+      }),
+    );
+    const input = {
+      lowerWins: false,
+      entries: [
+        { userId: ACTOR, score: "5" },
+        { userId: TARGET, score: "3" },
+      ],
+      tieBreaks: [],
+    };
+    const attempts = await Promise.allSettled(
+      [1, 2].map(() =>
+        withMatchTransaction(({ service }) => service.registerResults(ACTOR, match.id, input)),
+      ),
+    );
+    expect(attempts.filter((item) => item.status === "fulfilled")).toHaveLength(1);
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ matchId: match.id }),
+    ).toBe(2);
+    const ratings = await db
+      .collection(COLLECTIONS.PLAYER_RATINGS)
+      .find({ gameId: matchInput.gameIds[0] })
+      .toArray();
+    expect(ratings).toHaveLength(2);
+    expect(ratings.map((row) => row.gamesPlayed)).toEqual([1, 1]);
+  });
+
+  it("recalculates from fresh ratings when distinct matches for same players finish concurrently", async () => {
+    await seedMatchDependencies();
+    const matches = [];
+    for (let index = 0; index < 2; index++) {
+      const match = await withMatchTransaction(({ service }) =>
+        service.create(ACTOR, {
+          ...matchInput,
+          name: `Ranking round ${index + 1}`,
+          invitedUserIds: [TARGET],
+        }),
+      );
+      await withMatchTransaction(({ service }) =>
+        service.respond(TARGET, match.invitations[0].id, "accept"),
+      );
+      await withMatchTransaction(({ matches: repository }) =>
+        repository.setStatus(match.id, ACTOR, "PLANNING", "CREATED", {
+          date: match.dates[0],
+          gameId: match.gameIds[0],
+        }),
+      );
+      matches.push(match);
+    }
+    await Promise.all(
+      matches.map((match) =>
+        withMatchTransaction(({ service }) =>
+          service.registerResults(ACTOR, match.id, {
+            lowerWins: false,
+            entries: [
+              { userId: ACTOR, score: "2" },
+              { userId: TARGET, score: "1" },
+            ],
+            tieBreaks: [],
+          }),
+        ),
+      ),
+    );
+    const ratings = await db
+      .collection(COLLECTIONS.PLAYER_RATINGS)
+      .find({ gameId: matchInput.gameIds[0] })
+      .toArray();
+    expect(ratings).toHaveLength(2);
+    expect(ratings.map((row) => row.gamesPlayed)).toEqual([2, 2]);
+    const events = await db.collection(COLLECTIONS.RATING_EVENTS).find({ userId: ACTOR }).toArray();
+    expect(events).toHaveLength(2);
+    expect(events.map((event) => event.before.gamesPlayed).sort()).toEqual([0, 1]);
+  });
+
+  it("does not create any rating or event when only one player scored", async () => {
+    await seedMatchDependencies();
+    const created = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, invitedUserIds: [TARGET] }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(TARGET, created.invitations[0].id, "accept"),
+    );
+    await withMatchTransaction(({ matches }) =>
+      matches.setStatus(created.id, ACTOR, "PLANNING", "CREATED", {
+        date: created.dates[0],
+        gameId: created.gameIds[0],
+      }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.registerResults(ACTOR, created.id, {
+        lowerWins: false,
+        entries: [
+          { userId: ACTOR, score: "1" },
+          { userId: TARGET, score: null },
+        ],
+        tieBreaks: [],
+      }),
+    );
+    expect(await db.collection(COLLECTIONS.PLAYER_RATINGS).countDocuments()).toBe(0);
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
   });
 });

@@ -19,6 +19,7 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useMatches: (opts: unknown) => useMatchesMock(opts),
+  useGroups: () => ({ list: { data: [], isPending: false, isError: false } }),
 }));
 
 describe("Matches", () => {
@@ -375,6 +376,7 @@ describe("Matches", () => {
           maxPlayers: 5,
           invitedUserIds: [],
           gameIds: [342942],
+          groupId: null,
         },
       }),
     );

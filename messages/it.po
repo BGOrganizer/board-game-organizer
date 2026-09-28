@@ -33,6 +33,10 @@ msgstr "Accetta richiesta di amicizia"
 msgid "Accept friend request?"
 msgstr "Accettare la richiesta di amicizia?"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Accept group invitation"
+msgstr "Accetta l'invito al gruppo"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Accept or decline this friend request."
 msgstr "Accetta o rifiuta questa richiesta di amicizia."
@@ -49,6 +53,7 @@ msgstr "Accettato"
 #~ msgid "Action failed"
 #~ msgstr "Azione non riuscita"
 
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/UserMenu.tsx
 msgid "Actions"
 msgstr "Azioni"
@@ -151,6 +156,7 @@ msgid "Board games"
 msgstr "Giochi da tavolo"
 
 #: apps/web/src/components/ContactConfirmDialog.tsx
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Cancel"
 msgstr "Annulla"
@@ -285,6 +291,10 @@ msgid "Could not accept friend request"
 msgstr "Impossibile accettare la richiesta di amicizia"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept group invitation"
+msgstr "Impossibile accettare l'invito al gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not accept match invitation"
 msgstr "Impossibile accettare l'invito alla partita"
 
@@ -313,6 +323,10 @@ msgid "Could not confirm match"
 msgstr "Impossibile confermare la partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create group"
+msgstr "Impossibile creare il gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not create invite link"
 msgstr "Impossibile creare il link di invito"
 
@@ -329,8 +343,16 @@ msgid "Could not create the match"
 msgstr "Impossibile creare la partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not decline group invitation"
+msgstr "Impossibile rifiutare l'invito al gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not decline match invitation"
 msgstr "Impossibile rifiutare l'invito alla partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete group"
+msgstr "Impossibile eliminare il gruppo"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not delete match"
@@ -345,6 +367,10 @@ msgid "Could not follow user"
 msgstr "Impossibile seguire l'utente"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not leave group"
+msgstr "Impossibile uscire dal gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not leave match"
 msgstr "Impossibile uscire dalla partita"
 
@@ -357,6 +383,7 @@ msgid "Could not load friend requests"
 msgstr "Impossibile caricare le richieste di amicizia"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Could not load friends"
 msgstr "Impossibile caricare gli amici"
@@ -364,6 +391,11 @@ msgstr "Impossibile caricare gli amici"
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Could not load game details"
 msgstr "Impossibile caricare i dettagli del gioco"
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Could not load groups"
+msgstr "Impossibile caricare i gruppi"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load match details"
@@ -383,8 +415,8 @@ msgid "Could not load social actions"
 msgstr "Impossibile caricare le azioni social"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Could not load social actions. Retry"
-msgstr "Impossibile caricare le azioni social. Riprova"
+#~ msgid "Could not load social actions. Retry"
+#~ msgstr "Impossibile caricare le azioni social. Riprova"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not register match"
@@ -435,6 +467,10 @@ msgid "Could not unfollow user"
 msgstr "Impossibile smettere di seguire l'utente"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not update group"
+msgstr "Impossibile aggiornare il gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not update match"
 msgstr "Impossibile aggiornare la partita"
 
@@ -454,6 +490,10 @@ msgstr "Impossibile aggiornare la partita"
 #: apps/web/src/components/Matches.tsx
 msgid "Create a match"
 msgstr "Crea una partita"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Create group"
+msgstr "Crea gruppo"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Create invite"
@@ -494,6 +534,10 @@ msgstr "Rifiuta richiesta di amicizia"
 msgid "Decline friend request?"
 msgstr "Rifiutare la richiesta di amicizia?"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Decline group invitation"
+msgstr "Rifiuta l'invito al gruppo"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Declined"
 msgstr "Rifiutato"
@@ -505,6 +549,14 @@ msgstr "Diminuisci il numero massimo di giocatori"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Decrease min players"
 msgstr "Diminuisci il numero minimo di giocatori"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Delete group"
+msgstr "Elimina gruppo"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Delete group?"
+msgstr "Eliminare il gruppo?"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Delete match"
@@ -525,6 +577,14 @@ msgstr "Chiudi notifica"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "es. Partite del venerdì sera"
+
+#: apps/web/src/components/Groups.tsx
+#~ msgid "Edit"
+#~ msgstr "Modifica"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Edit group"
+msgstr "Modifica gruppo"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/MatchWizard.tsx
@@ -631,6 +691,42 @@ msgstr "Giochi"
 msgid "Generate a link to connect with someone."
 msgstr "Genera un link per connetterti con qualcuno."
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Group (optional)"
+msgstr "Gruppo (facoltativo)"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group admin"
+msgstr "Amministratore del gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group created"
+msgstr "Gruppo creato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group deleted"
+msgstr "Gruppo eliminato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation accepted"
+msgstr "Invito al gruppo accettato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation declined"
+msgstr "Invito al gruppo rifiutato"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group name"
+msgstr "Nome del gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group updated"
+msgstr "Gruppo aggiornato"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group will be archived. Existing confirmed match results and ratings remain."
+msgstr "Il gruppo verrà archiviato. I risultati e le valutazioni delle partite confermate resteranno disponibili."
+
 #: apps/web/src/components/Header.tsx
 msgid "Groups"
 msgstr "Gruppi"
@@ -676,10 +772,16 @@ msgstr "Invita un amico"
 #~ msgid "Invite claimed — you now follow the inviter."
 #~ msgstr "Invito accettato — ora segui chi ti ha invitato."
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Invite friends"
 msgstr "Invita amici"
+
+#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/SearchUserPage.tsx
+msgid "Invite group members"
+msgstr "Invita membri del gruppo"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Invite link created"
@@ -697,6 +799,14 @@ msgstr "Link di invito creato"
 msgid "Language:"
 msgstr "Lingua:"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Leave group"
+msgstr "Esci dal gruppo"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Leave group?"
+msgstr "Uscire dal gruppo?"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Leave match"
 msgstr "Esci dalla partita"
@@ -704,6 +814,10 @@ msgstr "Esci dalla partita"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Leave match?"
 msgstr "Uscire dalla partita?"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Left group"
+msgstr "Hai lasciato il gruppo"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Live standings"
@@ -806,6 +920,14 @@ msgstr "Il massimo deve essere almeno uguale al minimo"
 msgid "Maximum players"
 msgstr "Giocatori massimi"
 
+#: apps/web/src/components/Groups.tsx
+msgid "member"
+msgstr "membro"
+
+#: apps/web/src/components/Groups.tsx
+msgid "members"
+msgstr "membri"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Min"
 msgstr "Minimo"
@@ -863,6 +985,10 @@ msgstr "Nessun follower"
 msgid "No friends from your contacts are on Board Game Organizer yet."
 msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
 
+#: apps/web/src/components/Groups.tsx
+msgid "No friends to invite yet"
+msgstr "Non ci sono ancora amici da invitare"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No friends yet"
 msgstr "Nessun amico"
@@ -870,6 +996,14 @@ msgstr "Nessun amico"
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "No games found"
 msgstr "Nessun gioco trovato"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "No group"
+msgstr "Nessun gruppo"
+
+#: apps/web/src/components/Groups.tsx
+msgid "No groups yet"
+msgstr "Nessun gruppo per ora"
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "No invited players"
@@ -1028,9 +1162,25 @@ msgstr "I giocatori restano in questa partita finché non escono o vengono rimos
 msgid "Previous step"
 msgstr "Passaggio precedente"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Private"
+msgstr "Privato"
+
 #: apps/web/src/components/Header.tsx
 msgid "Profile"
 msgstr "Profilo"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public"
+msgstr "Pubblico"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public group"
+msgstr "Gruppo pubblico"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public group search and join requests will be available later. Only the admin can invite friends now."
+msgstr "La ricerca dei gruppi pubblici e le richieste di accesso arriveranno più avanti. Per ora solo l'amministratore può invitare amici."
 
 #: apps/web/src/components/GameCatalogMetadata.tsx
 msgid "Rank"
@@ -1080,6 +1230,10 @@ msgid "Remove player?"
 msgstr "Rimuovere il giocatore?"
 
 #: apps/web/src/components/MatchWizard.tsx
+msgid "Remove players who are not members of the selected group"
+msgstr "Rimuovi i giocatori che non sono membri del gruppo selezionato"
+
+#: apps/web/src/components/MatchWizard.tsx
 msgid "Remove slot"
 msgstr "Rimuovi data"
 
@@ -1114,6 +1268,10 @@ msgstr "Risultati e classifica saranno definitivi e non potranno più essere mod
 #: apps/web/src/components/Profile.tsx
 msgid "Retry"
 msgstr "Riprova"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Save"
+msgstr "Salva"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Save changes"
@@ -1166,6 +1324,14 @@ msgstr "Seleziona un gioco da tavolo"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Select a friend"
 msgstr "Seleziona un amico"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Select group member"
+msgstr "Seleziona un membro del gruppo"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Selected group is unavailable"
+msgstr "Il gruppo selezionato non è disponibile"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "Send friend request"
@@ -1374,6 +1540,10 @@ msgstr "Diventerete amici e vi seguirete a vicenda."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "You will leave this match. The administrator can invite you again."
 msgstr "Uscirai da questa partita. L'amministratore potrà invitarti di nuovo."
+
+#: apps/web/src/components/Groups.tsx
+msgid "You will need a new invitation to rejoin."
+msgstr "Per rientrare servirà un nuovo invito."
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."

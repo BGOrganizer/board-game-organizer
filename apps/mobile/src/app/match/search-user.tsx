@@ -1,5 +1,5 @@
 import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import { useGroups, withProtectionBypass } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
@@ -25,9 +25,10 @@ export default function SearchUserScreen() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const t = useT();
   const router = useRouter();
-  const { slotId, exclude } = useLocalSearchParams<{
+  const { slotId, exclude, groupId } = useLocalSearchParams<{
     slotId: string;
     exclude?: string | string[];
+    groupId?: string;
   }>();
   const excludedIds = useMemo(() => {
     const value = Array.isArray(exclude) ? exclude[0] : exclude;
@@ -44,6 +45,10 @@ export default function SearchUserScreen() {
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const groups = useGroups({ apiUrl: apiUrl(), token, getToken });
+  const members = groupId
+    ? groups.list.data?.find((group) => group.id === groupId)?.memberProfiles
+    : undefined;
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -57,7 +62,7 @@ export default function SearchUserScreen() {
   }, [isLoaded, isSignedIn, getToken]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || groupId) return;
     let active = true;
     (async () => {
       try {
@@ -79,9 +84,10 @@ export default function SearchUserScreen() {
     return () => {
       active = false;
     };
-  }, [token, t]);
+  }, [token, t, groupId]);
 
   useEffect(() => {
+    if (groupId) return;
     if (query.trim().length < 4) {
       setResults([]);
       setLoading(false);
@@ -111,15 +117,26 @@ export default function SearchUserScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, token, friendIds, t]);
+  }, [query, token, friendIds, t, groupId]);
 
   const shown = (
-    query.trim().length >= 4
-      ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+    groupId
+      ? (members ?? []).filter(
+          (user) =>
+            query.trim().length < 4 ||
+            `${user.name} ${user.email ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()),
+        )
+      : query.trim().length >= 4
+        ? results
+        : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
   ).filter((user) => !excludedIds.has(user.id));
 
-  const select = (u: ContactUser) => {
+  const select = (u: {
+    id: string;
+    name: string;
+    email: string | null;
+    avatarUrl: string | null;
+  }) => {
     if (!slotId) {
       // Route param missing (deep link / stale navigation): the selection
       // can't be routed back to a wizard slot — drop it instead of leaving
@@ -145,9 +162,9 @@ export default function SearchUserScreen() {
           placeholder={t("Search users (at least 4 characters)")}
         />
       </View>
-      {error && (
+      {(error || (groupId && groups.list.isError ? t("Could not load groups") : null)) && (
         <Typography style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
-          {error}
+          {error || t("Could not load groups")}
         </Typography>
       )}
       {loading && (

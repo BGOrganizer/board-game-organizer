@@ -26,7 +26,7 @@ web, API, and mobile, all in one TypeScript monorepo.
   Vercel) with **logout**; specular web/mobile implementation
 - Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
-- App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
+- Matches and Groups on web and mobile. Groups have friend invitations, accepted membership, public/private visibility metadata, and admin-only edits/archival. Public search and join requests are future work.
 - **Contacts tab** (web + mobile): Following/Followers/Blocked lists, follow/unfollow,
   address-book suggestions (mobile: permission-gated, matched registered users persisted
   in `contactLinks`; 'Add contacts' CTA re-prompts when denied), prefix search (with block
@@ -44,7 +44,7 @@ web, API, and mobile, all in one TypeScript monorepo.
 
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
-- Groups, match scheduling, venues, ELO rankings, marketplace
+- Venues, visual leaderboards, marketplace (and public group search/join requests)
 
 **Release 2 (deferred)** — see `plan.md`: friend requests UI + expired-invite
 cleanup job.
@@ -94,6 +94,8 @@ Configure the API with:
 MONGODB_URI=mongodb://localhost:27017/?replicaSet=rs0&directConnection=true
 MONGODB_DB_NAME=board-game-organizer
 ```
+
+Run `pnpm --filter api migrate` before deploying the group or ranking API: it creates unique membership/rating/event indexes. OpenSkill stores per-game GLOBAL and optional GROUP ratings when a match is terminated. One physical match increments `gamesPlayed` once per scope; ND shares last place unless fewer than two players scored (no rating). No older test matches are backfilled. Archived groups retain historical match/rating references. Leaderboard repository queries support both scopes; visual leaderboards and public group search remain future work.
 
 To refresh the local catalog from a CSV elsewhere, recreate the container (plain `up`
 may leave it running without re-importing):

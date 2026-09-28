@@ -33,6 +33,10 @@ msgstr "Accept friend request"
 msgid "Accept friend request?"
 msgstr "Accept friend request?"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Accept group invitation"
+msgstr "Accept group invitation"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Accept or decline this friend request."
 msgstr "Accept or decline this friend request."
@@ -49,6 +53,7 @@ msgstr "Accepted"
 #~ msgid "Action failed"
 #~ msgstr "Action failed"
 
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/UserMenu.tsx
 msgid "Actions"
 msgstr "Actions"
@@ -151,6 +156,7 @@ msgid "Board games"
 msgstr "Board games"
 
 #: apps/web/src/components/ContactConfirmDialog.tsx
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -285,6 +291,10 @@ msgid "Could not accept friend request"
 msgstr "Could not accept friend request"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept group invitation"
+msgstr "Could not accept group invitation"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not accept match invitation"
 msgstr "Could not accept match invitation"
 
@@ -313,6 +323,10 @@ msgid "Could not confirm match"
 msgstr "Could not confirm match"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create group"
+msgstr "Could not create group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not create invite link"
 msgstr "Could not create invite link"
 
@@ -329,8 +343,16 @@ msgid "Could not create the match"
 msgstr "Could not create the match"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not decline group invitation"
+msgstr "Could not decline group invitation"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not decline match invitation"
 msgstr "Could not decline match invitation"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete group"
+msgstr "Could not delete group"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not delete match"
@@ -345,6 +367,10 @@ msgid "Could not follow user"
 msgstr "Could not follow user"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not leave group"
+msgstr "Could not leave group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not leave match"
 msgstr "Could not leave match"
 
@@ -357,6 +383,7 @@ msgid "Could not load friend requests"
 msgstr "Could not load friend requests"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Could not load friends"
 msgstr "Could not load friends"
@@ -364,6 +391,11 @@ msgstr "Could not load friends"
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Could not load game details"
 msgstr "Could not load game details"
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Could not load groups"
+msgstr "Could not load groups"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load match details"
@@ -383,8 +415,8 @@ msgid "Could not load social actions"
 msgstr "Could not load social actions"
 
 #: apps/mobile/src/app/match/[matchId].tsx
-msgid "Could not load social actions. Retry"
-msgstr "Could not load social actions. Retry"
+#~ msgid "Could not load social actions. Retry"
+#~ msgstr "Could not load social actions. Retry"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not register match"
@@ -435,6 +467,10 @@ msgid "Could not unfollow user"
 msgstr "Could not unfollow user"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not update group"
+msgstr "Could not update group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not update match"
 msgstr "Could not update match"
 
@@ -454,6 +490,10 @@ msgstr "Could not update the match"
 #: apps/web/src/components/Matches.tsx
 msgid "Create a match"
 msgstr "Create a match"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Create group"
+msgstr "Create group"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Create invite"
@@ -494,6 +534,10 @@ msgstr "Decline friend request"
 msgid "Decline friend request?"
 msgstr "Decline friend request?"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Decline group invitation"
+msgstr "Decline group invitation"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Declined"
 msgstr "Declined"
@@ -505,6 +549,14 @@ msgstr "Decrease max players"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Decrease min players"
 msgstr "Decrease min players"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Delete group"
+msgstr "Delete group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Delete group?"
+msgstr "Delete group?"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Delete match"
@@ -525,6 +577,14 @@ msgstr "Dismiss notification"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "e.g. Friday night games"
+
+#: apps/web/src/components/Groups.tsx
+#~ msgid "Edit"
+#~ msgstr "Edit"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Edit group"
+msgstr "Edit group"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/MatchWizard.tsx
@@ -631,6 +691,42 @@ msgstr "Games"
 msgid "Generate a link to connect with someone."
 msgstr "Generate a link to connect with someone."
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Group (optional)"
+msgstr "Group (optional)"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group admin"
+msgstr "Group admin"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group created"
+msgstr "Group created"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group deleted"
+msgstr "Group deleted"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation accepted"
+msgstr "Group invitation accepted"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation declined"
+msgstr "Group invitation declined"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group name"
+msgstr "Group name"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group updated"
+msgstr "Group updated"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group will be archived. Existing confirmed match results and ratings remain."
+msgstr "Group will be archived. Existing confirmed match results and ratings remain."
+
 #: apps/web/src/components/Header.tsx
 msgid "Groups"
 msgstr "Groups"
@@ -676,10 +772,16 @@ msgstr "Invite a friend"
 #~ msgid "Invite claimed — you now follow the inviter."
 #~ msgstr "Invite claimed — you now follow the inviter."
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Invite friends"
 msgstr "Invite friends"
+
+#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/SearchUserPage.tsx
+msgid "Invite group members"
+msgstr "Invite group members"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Invite link created"
@@ -697,6 +799,14 @@ msgstr "Invite link created"
 msgid "Language:"
 msgstr "Language:"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Leave group"
+msgstr "Leave group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Leave group?"
+msgstr "Leave group?"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Leave match"
 msgstr "Leave match"
@@ -704,6 +814,10 @@ msgstr "Leave match"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Leave match?"
 msgstr "Leave match?"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Left group"
+msgstr "Left group"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Live standings"
@@ -806,6 +920,14 @@ msgstr "Max must be at least min"
 msgid "Maximum players"
 msgstr "Maximum players"
 
+#: apps/web/src/components/Groups.tsx
+msgid "member"
+msgstr "member"
+
+#: apps/web/src/components/Groups.tsx
+msgid "members"
+msgstr "members"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Min"
 msgstr "Min"
@@ -863,6 +985,10 @@ msgstr "No followers yet"
 msgid "No friends from your contacts are on Board Game Organizer yet."
 msgstr "No friends from your contacts are on Board Game Organizer yet."
 
+#: apps/web/src/components/Groups.tsx
+msgid "No friends to invite yet"
+msgstr "No friends to invite yet"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No friends yet"
 msgstr "No friends yet"
@@ -870,6 +996,14 @@ msgstr "No friends yet"
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "No games found"
 msgstr "No games found"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "No group"
+msgstr "No group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "No groups yet"
+msgstr "No groups yet"
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "No invited players"
@@ -1028,9 +1162,25 @@ msgstr "Players remain in this match until they leave or are removed."
 msgid "Previous step"
 msgstr "Previous step"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Private"
+msgstr "Private"
+
 #: apps/web/src/components/Header.tsx
 msgid "Profile"
 msgstr "Profile"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public"
+msgstr "Public"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public group"
+msgstr "Public group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public group search and join requests will be available later. Only the admin can invite friends now."
+msgstr "Public group search and join requests will be available later. Only the admin can invite friends now."
 
 #: apps/web/src/components/GameCatalogMetadata.tsx
 msgid "Rank"
@@ -1080,6 +1230,10 @@ msgid "Remove player?"
 msgstr "Remove player?"
 
 #: apps/web/src/components/MatchWizard.tsx
+msgid "Remove players who are not members of the selected group"
+msgstr "Remove players who are not members of the selected group"
+
+#: apps/web/src/components/MatchWizard.tsx
 msgid "Remove slot"
 msgstr "Remove slot"
 
@@ -1114,6 +1268,10 @@ msgstr "Results and standings will become final and cannot be edited."
 #: apps/web/src/components/Profile.tsx
 msgid "Retry"
 msgstr "Retry"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Save"
+msgstr "Save"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Save changes"
@@ -1166,6 +1324,14 @@ msgstr "Select a board game"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Select a friend"
 msgstr "Select a friend"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Select group member"
+msgstr "Select group member"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Selected group is unavailable"
+msgstr "Selected group is unavailable"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "Send friend request"
@@ -1374,6 +1540,10 @@ msgstr "You will become friends and follow each other."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "You will leave this match. The administrator can invite you again."
 msgstr "You will leave this match. The administrator can invite you again."
+
+#: apps/web/src/components/Groups.tsx
+msgid "You will need a new invitation to rejoin."
+msgstr "You will need a new invitation to rejoin."
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."

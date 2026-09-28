@@ -20,7 +20,13 @@ export type MutationFeedbackAction =
   | "leave_match"
   | "remove_match_player"
   | "accept_match_invitation"
-  | "decline_match_invitation";
+  | "decline_match_invitation"
+  | "create_group"
+  | "update_group"
+  | "delete_group"
+  | "leave_group"
+  | "accept_group_invitation"
+  | "decline_group_invitation";
 
 export interface MutationFeedback {
   onOptimisticUpdate?: (action: MutationFeedbackAction) => void;
