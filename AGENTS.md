@@ -477,6 +477,11 @@ literal that produces a hashed fallback.
   must retain an accessible label. Section-level creation actions may keep a compact text label.
 - Search runs automatically after 300 ms, requires at least four characters, and has a clear button;
   do not add a submit button.
+- For every variable-length list, default to paginated data and virtualized rendering: use `FlatList` or
+  `SectionList` on mobile and pagination (plus windowing when large) on web. Load further pages as the
+  user scrolls; do not render an entire address book, search result set, or feed with `ScrollView` plus
+  `.map()`, and never nest a virtualized list in a same-direction `ScrollView`. Keep short, fixed-size
+  lists simple. Preserve loading, empty, error, permission, and accessibility states while paging.
 
 ## 12. Tests
 

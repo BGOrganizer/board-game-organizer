@@ -3,6 +3,7 @@ import {
   contactConnections,
   reportPresence,
   resolveApiUrl,
+  type SyncedContactIdentifiers,
   useContacts,
   useInvites,
 } from "@board-game-organizer/shared";
@@ -19,7 +20,16 @@ import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
 import { BookUser, MoreVertical, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, Linking, Pressable, ScrollView, Share, View } from "react-native";
+import {
+  Alert,
+  AppState,
+  FlatList,
+  Linking,
+  Pressable,
+  ScrollView,
+  Share,
+  View,
+} from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
 import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts";
@@ -28,6 +38,9 @@ import { unregisteredContacts } from "@/lib/unregisteredContacts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
 import { useSessionAuth } from "@/lib/useSessionAuth";
+
+const CONTACT_SCAN_PAGE_SIZE = 200;
+const CONTACT_LIST_PAGE_SIZE = 40;
 
 /** Placeholder shown while a contact list is loading. */
 function ContactListSkeleton({ count = 4 }: { count?: number }) {
@@ -115,12 +128,22 @@ export default function ContactsScreen() {
   const [menuFriendRequest, setMenuFriendRequest] = useState<FriendRequestContext>();
   const [initialConfirmAction, setInitialConfirmAction] = useState<UserActionConfirmation>();
   const [unregistered, setUnregistered] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingDevicePage, setLoadingDevicePage] = useState(false);
+  const [hasMoreDeviceContacts, setHasMoreDeviceContacts] = useState(false);
   const [contactsReadError, setContactsReadError] = useState(false);
   const [contactsPermission, setContactsPermission] = useState<
     "checking" | "undetermined" | "granted" | "denied"
   >("checking");
   const [syncingContacts, setSyncingContacts] = useState(false);
   const contactsSyncRef = useRef<Promise<void> | null>(null);
+  const devicePageRef = useRef<Promise<void> | null>(null);
+  const deviceOffsetRef = useRef(0);
+  const deviceHasMoreRef = useRef(false);
+  const deviceGenerationRef = useRef(0);
+  const deviceMatchesRef = useRef<{
+    submitted: SyncedContactIdentifiers;
+    registered: SyncedContactIdentifiers;
+  } | null>(null);
   const contactsPromptShownRef = useRef(false);
   const initialSyncRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -210,27 +233,105 @@ export default function ContactsScreen() {
   // With consent matched users are persisted through POST /api/contacts/sync;
   // unmatched names are kept in memory only, never persisted.
   const syncContactsMutation = contacts.syncContacts.mutateAsync;
+  const loadDevicePage = useCallback(() => {
+    if (!deviceHasMoreRef.current || !deviceMatchesRef.current || devicePageRef.current) {
+      return devicePageRef.current ?? Promise.resolve();
+    }
+    const generation = deviceGenerationRef.current;
+    const matches = deviceMatchesRef.current;
+    const task = (async () => {
+      setLoadingDevicePage(true);
+      try {
+        // Skip pages without eligible contacts; otherwise an empty first page
+        // would never give the user a scroll event to request the next page.
+        while (deviceHasMoreRef.current) {
+          const page = await Contacts.Contact.getAllDetails(
+            [
+              Contacts.ContactField.FULL_NAME,
+              Contacts.ContactField.EMAILS,
+              Contacts.ContactField.PHONES,
+            ],
+            {
+              limit: CONTACT_LIST_PAGE_SIZE,
+              offset: deviceOffsetRef.current,
+              sortOrder: Contacts.ContactsSortOrder.GivenName,
+            },
+          );
+          if (generation !== deviceGenerationRef.current) return;
+          deviceOffsetRef.current += page.length;
+          deviceHasMoreRef.current = page.length === CONTACT_LIST_PAGE_SIZE;
+          setHasMoreDeviceContacts(deviceHasMoreRef.current);
+          const next = unregisteredContacts(page, matches.submitted, matches.registered);
+          if (next.length) setUnregistered((current) => [...current, ...next]);
+          if (next.length || !deviceHasMoreRef.current) break;
+        }
+      } catch (error) {
+        if (generation !== deviceGenerationRef.current) return;
+        Sentry.captureException(error, { tags: { operation: "contacts.page" } });
+        setContactsReadError(true);
+        deviceHasMoreRef.current = false;
+        setHasMoreDeviceContacts(false);
+      } finally {
+        if (generation === deviceGenerationRef.current) setLoadingDevicePage(false);
+        devicePageRef.current = null;
+      }
+    })();
+    devicePageRef.current = task;
+    return task;
+  }, []);
+
   const syncContactsData = useCallback(
     (showFeedback = true) => {
       if (!token) return Promise.resolve();
       if (contactsSyncRef.current) return contactsSyncRef.current;
       initialSyncRef.current = true;
+      const generation = ++deviceGenerationRef.current;
+      deviceHasMoreRef.current = false;
+      deviceMatchesRef.current = null;
+      setUnregistered([]);
+      setHasMoreDeviceContacts(false);
+      setLoadingDevicePage(false);
 
       const sync = (async () => {
         setSyncingContacts(true);
         setContactsReadError(false);
         let stage = "read";
         try {
-          const data = await Contacts.Contact.getAllDetails([
-            Contacts.ContactField.FULL_NAME,
-            Contacts.ContactField.EMAILS,
-            Contacts.ContactField.PHONES,
-          ]);
-          const payload = contactSyncPayload(data);
+          if (devicePageRef.current) await devicePageRef.current;
+          const emails = new Set<string>();
+          const phoneNumbers = new Set<string>();
+          let offset = 0;
+          while (true) {
+            const page = await Contacts.Contact.getAllDetails(
+              [Contacts.ContactField.EMAILS, Contacts.ContactField.PHONES],
+              {
+                limit: CONTACT_SCAN_PAGE_SIZE,
+                offset,
+                sortOrder: Contacts.ContactsSortOrder.GivenName,
+              },
+            );
+            if (generation !== deviceGenerationRef.current) return;
+            const identifiers = contactSyncPayload(page);
+            for (const email of identifiers.emails) {
+              if (emails.size < 1000) emails.add(email);
+            }
+            for (const phone of identifiers.phoneNumbers) {
+              if (phoneNumbers.size < 1000) phoneNumbers.add(phone);
+            }
+            offset += page.length;
+            if (page.length < CONTACT_SCAN_PAGE_SIZE) break;
+          }
+          const submitted = { emails: [...emails], phoneNumbers: [...phoneNumbers] };
           stage = "request";
-          const synced = await syncContactsMutation({ ...payload, silent: !showFeedback });
-          setUnregistered(unregisteredContacts(data, payload, synced.registeredIdentifiers));
+          const synced = await syncContactsMutation({ ...submitted, silent: !showFeedback });
+          if (generation !== deviceGenerationRef.current) return;
+          deviceMatchesRef.current = { submitted, registered: synced.registeredIdentifiers };
+          deviceOffsetRef.current = 0;
+          deviceHasMoreRef.current = true;
+          setHasMoreDeviceContacts(true);
+          await loadDevicePage();
         } catch (error) {
+          if (generation !== deviceGenerationRef.current) return;
           Sentry.captureException(error, { tags: { operation: "contacts.sync", stage } });
           setContactsReadError(stage === "read");
           if (stage === "read" && showFeedback) {
@@ -240,14 +341,14 @@ export default function ContactsScreen() {
             );
           }
         } finally {
-          setSyncingContacts(false);
+          if (generation === deviceGenerationRef.current) setSyncingContacts(false);
           contactsSyncRef.current = null;
         }
       })();
       contactsSyncRef.current = sync;
       return sync;
     },
-    [mutationFeedback, syncContactsMutation, token],
+    [loadDevicePage, mutationFeedback, syncContactsMutation, token],
   );
 
   // Fire the REAL system permission request and track denials. A denial only
@@ -343,7 +444,12 @@ export default function ContactsScreen() {
       try {
         const permission = await Contacts.getPermissionsAsync();
         if (!permission.granted) {
+          deviceGenerationRef.current += 1;
+          deviceHasMoreRef.current = false;
+          deviceMatchesRef.current = null;
           setUnregistered([]);
+          setHasMoreDeviceContacts(false);
+          setLoadingDevicePage(false);
           setContactsReadError(false);
           initialSyncRef.current = false;
           setContactsPermission("denied");
@@ -431,6 +537,15 @@ export default function ContactsScreen() {
       ? []
       : suggestions;
   const searchResults = contacts.search.data?.users ?? [];
+  const searchRows = [
+    ...searchResults.map((user) => ({ kind: "user" as const, id: `user:${user.id}`, user })),
+    { kind: "device-header" as const, id: "device-header" },
+    ...unregistered.map((contact) => ({
+      kind: "device" as const,
+      id: `device:${contact.id}`,
+      contact,
+    })),
+  ];
 
   const connections = contactConnections(
     friendsRows,
@@ -516,131 +631,151 @@ export default function ContactsScreen() {
           </Tabs.Trigger>
         </Tabs.List>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <Tabs.Content value="search" style={{ marginTop: 12 }}>
-            <View style={{ marginBottom: 12, gap: 8 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <Input
-                    value={query}
-                    onChangeText={setQuery}
-                    placeholder={t("Search users (at least 4 characters)")}
-                  />
+        <Tabs.Content value="search" style={{ flex: 1, marginTop: 12 }}>
+          <FlatList
+            style={{ flex: 1 }}
+            contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
+            keyboardShouldPersistTaps="handled"
+            data={searchRows}
+            keyExtractor={(row) => row.id}
+            onEndReached={() => void loadDevicePage()}
+            onEndReachedThreshold={0.5}
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            windowSize={7}
+            ListFooterComponent={loadingDevicePage ? <ContactListSkeleton count={2} /> : null}
+            ListHeaderComponent={
+              <View style={{ marginBottom: 12, gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      value={query}
+                      onChangeText={setQuery}
+                      placeholder={t("Search users (at least 4 characters)")}
+                    />
+                  </View>
+                  {query.length > 0 && (
+                    <Pressable
+                      onPress={() => {
+                        setQuery("");
+                        contacts.runSearch("");
+                      }}
+                      hitSlop={8}
+                      accessibilityLabel={t("Clear search")}
+                    >
+                      <X size={18} color="#8e8e93" />
+                    </Pressable>
+                  )}
+                  {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                    <Button
+                      isIconOnly
+                      variant="outline"
+                      accessibilityLabel={t("Add contacts")}
+                      onPress={confirmAndRequestContacts}
+                      testID="enable-contacts-btn"
+                    >
+                      <BookUser size={18} color="#111" />
+                    </Button>
+                  ) : null}
                 </View>
-                {query.length > 0 && (
-                  <Pressable
-                    onPress={() => {
-                      setQuery("");
-                      contacts.runSearch("");
-                    }}
-                    hitSlop={8}
-                    accessibilityLabel={t("Clear search")}
-                  >
-                    <X size={18} color="#8e8e93" />
-                  </Pressable>
-                )}
-                {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
-                  <Button
-                    isIconOnly
-                    variant="outline"
-                    accessibilityLabel={t("Add contacts")}
-                    onPress={confirmAndRequestContacts}
-                    testID="enable-contacts-btn"
-                  >
-                    <BookUser size={18} color="#111" />
-                  </Button>
-                ) : null}
-              </View>
-              {query.trim().length > 0 && query.trim().length < 4 && (
-                <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
-                  {t("Type at least 4 characters to search")}
-                </Typography>
-              )}
-              {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-              {query.trim().length >= 4 &&
-                !contacts.search.isLoading &&
-                !contacts.search.isError &&
-                searchResults.length === 0 && (
+                {query.trim().length > 0 && query.trim().length < 4 && (
                   <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
-                    {t("No users found")}
+                    {t("Type at least 4 characters to search")}
                   </Typography>
                 )}
-              {contacts.search.isError ? (
-                <Typography className="text-danger">{t("Could not load contacts")}</Typography>
-              ) : null}
-              <GroupedList>{searchResults.map((user) => contactRow(user))}</GroupedList>
-              <Typography className="font-semibold text-foreground">
-                {t("Invite device contacts")}
-              </Typography>
-              {contactsPermission === "checking" || syncingContacts ? (
-                <ContactListSkeleton count={2} />
-              ) : null}
-              {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
-                <Typography className="text-muted">
-                  {t("Allow address book access to find your friends here.")}
-                </Typography>
-              ) : null}
-              {contactsPermission === "granted" &&
-              (contacts.syncContacts.isError || contactsReadError) ? (
-                <Button variant="outline" onPress={() => void syncContactsData()}>
-                  <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
-                </Button>
-              ) : null}
-              {contactsPermission === "granted" &&
-              !syncingContacts &&
-              !contacts.syncContacts.isError &&
-              !contactsReadError &&
-              unregistered.length === 0 ? (
-                <Typography className="text-muted">{t("No contacts to invite")}</Typography>
-              ) : null}
-              {contactsPermission === "granted" &&
-              !contacts.syncContacts.isError &&
-              !contactsReadError ? (
-                <GroupedList>
-                  {unregistered.map((contact) => (
-                    <GroupedRow key={contact.id}>
-                      <Avatar size="md">
-                        <Avatar.Fallback>{contact.name.charAt(0).toUpperCase()}</Avatar.Fallback>
-                      </Avatar>
-                      <Typography
-                        className="font-medium text-foreground"
-                        style={{ flex: 1 }}
-                        numberOfLines={1}
-                      >
-                        {contact.name}
+                {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+                {query.trim().length >= 4 &&
+                  !contacts.search.isLoading &&
+                  !contacts.search.isError &&
+                  searchResults.length === 0 && (
+                    <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
+                      {t("No users found")}
+                    </Typography>
+                  )}
+                {contacts.search.isError ? (
+                  <Typography className="text-danger">{t("Could not load contacts")}</Typography>
+                ) : null}
+              </View>
+            }
+            renderItem={({ item }) => {
+              if (item.kind === "user") {
+                return <GroupedList>{contactRow(item.user)}</GroupedList>;
+              }
+              if (item.kind === "device-header") {
+                return (
+                  <View style={{ gap: 8 }}>
+                    <Typography className="font-semibold text-foreground">
+                      {t("Invite device contacts")}
+                    </Typography>
+                    {contactsPermission === "checking" || syncingContacts ? (
+                      <ContactListSkeleton count={2} />
+                    ) : null}
+                    {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                      <Typography className="text-muted">
+                        {t("Allow address book access to find your friends here.")}
                       </Typography>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        isDisabled={invite.isPending}
-                        accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
-                        onPress={() =>
-                          invite.mutate(undefined, {
-                            onSuccess: (created) => {
-                              void Share.share({ message: created.link }).catch(() => {});
-                            },
-                          })
-                        }
-                      >
-                        <Typography>{t("Send")}</Typography>
+                    ) : null}
+                    {contactsPermission === "granted" &&
+                    (contacts.syncContacts.isError || contactsReadError) ? (
+                      <Button variant="outline" onPress={() => void syncContactsData()}>
+                        <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
                       </Button>
-                    </GroupedRow>
-                  ))}
+                    ) : null}
+                    {contactsPermission === "granted" &&
+                    !syncingContacts &&
+                    !contacts.syncContacts.isError &&
+                    !contactsReadError &&
+                    !loadingDevicePage &&
+                    !hasMoreDeviceContacts &&
+                    unregistered.length === 0 ? (
+                      <Typography className="text-muted">{t("No contacts to invite")}</Typography>
+                    ) : null}
+                    {invite.isError ? (
+                      <Typography className="text-danger">
+                        {t("Could not create the invite. Try again.")}
+                      </Typography>
+                    ) : null}
+                  </View>
+                );
+              }
+              const contact = item.contact;
+              return (
+                <GroupedList>
+                  <GroupedRow>
+                    <Avatar size="md">
+                      <Avatar.Fallback>{contact.name.charAt(0).toUpperCase()}</Avatar.Fallback>
+                    </Avatar>
+                    <Typography
+                      className="font-medium text-foreground"
+                      style={{ flex: 1 }}
+                      numberOfLines={1}
+                    >
+                      {contact.name}
+                    </Typography>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      isDisabled={invite.isPending}
+                      accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
+                      onPress={() =>
+                        invite.mutate(undefined, {
+                          onSuccess: (created) => {
+                            void Share.share({ message: created.link }).catch(() => {});
+                          },
+                        })
+                      }
+                    >
+                      <Typography>{t("Send")}</Typography>
+                    </Button>
+                  </GroupedRow>
                 </GroupedList>
-              ) : null}
-              {invite.isError ? (
-                <Typography className="text-danger">
-                  {t("Could not create the invite. Try again.")}
-                </Typography>
-              ) : null}
-            </View>
-          </Tabs.Content>
+              );
+            }}
+          />
+        </Tabs.Content>
 
-          <Tabs.Content value="requests" style={{ gap: 20, marginTop: 12 }}>
+        <Tabs.Content value="requests" style={{ flex: 1, marginTop: 12 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 20, paddingBottom: 24 }}>
             {[
               {
                 key: "received",
@@ -699,9 +834,11 @@ export default function ContactsScreen() {
                 {blockedRows.map((row) => (row.profile ? contactRow(row.profile) : null))}
               </GroupedList>
             </View>
-          </Tabs.Content>
+          </ScrollView>
+        </Tabs.Content>
 
-          <Tabs.Content value="connections" style={{ gap: 20, marginTop: 12 }}>
+        <Tabs.Content value="connections" style={{ flex: 1, marginTop: 12 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 20, paddingBottom: 24 }}>
             {connections.map((section) => {
               const state = connectionQueries[section.key];
               if (!section.users.length && !state.isLoading && !state.isError) return null;
@@ -737,8 +874,8 @@ export default function ContactsScreen() {
             !Object.values(connectionQueries).some((state) => state.isLoading || state.isError) ? (
               <Typography className="text-muted">{t("No connections yet")}</Typography>
             ) : null}
-          </Tabs.Content>
-        </ScrollView>
+          </ScrollView>
+        </Tabs.Content>
       </Tabs>
 
       <UserActionsSheet

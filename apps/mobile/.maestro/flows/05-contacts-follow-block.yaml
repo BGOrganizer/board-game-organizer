@@ -33,6 +33,15 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Unregistered"
     timeout: 90000
+- scrollUntilVisible:
+    element: "ZZ Page 43"
+    direction: DOWN
+    timeout: 90000
+- assertVisible: "ZZ Page 43"
+- scrollUntilVisible:
+    element: "E2E Unregistered"
+    direction: UP
+    timeout: 90000
 - assertNotVisible: "Send invite: E2E Target"
 - tapOn: "Send invite: E2E Unregistered"
 - extendedWaitUntil:
