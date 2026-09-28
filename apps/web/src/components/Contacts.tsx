@@ -2,18 +2,17 @@
 
 import {
   type ContactUser,
+  contactConnections,
   reportPresence,
   resolveApiUrl,
   useContacts,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
+import { Avatar, Card, Chip, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { UserMinus, UserPlus, UserRoundCheck, UserRoundX, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
-import { InviteCard } from "@/components/InviteCard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -27,28 +26,17 @@ function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 }
 
-type TabKey =
-  | "following"
-  | "followers"
-  | "friends"
-  | "requests"
-  | "blocked"
-  | "suggestions"
-  | "search";
-
 function ContactCard({
   name,
   email,
   avatarUrl,
   online,
-  action,
   menu,
 }: {
   name: string;
   email: string | null;
   avatarUrl: string | null;
   online: boolean;
-  action?: React.ReactNode;
   menu?: React.ReactNode;
 }) {
   return (
@@ -71,11 +59,8 @@ function ContactCard({
           {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
         </div>
       </div>
-      {action || menu ? (
-        <div className="flex shrink-0 items-center justify-end gap-1 self-end sm:self-auto">
-          {action}
-          {menu}
-        </div>
+      {menu ? (
+        <div className="flex shrink-0 items-center justify-end self-end sm:self-auto">{menu}</div>
       ) : null}
     </GroupedRow>
   );
@@ -108,10 +93,7 @@ export function Contacts() {
   const { t } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
-  const [confirmUnfriend, setConfirmUnfriend] = useState<ContactUser | null>(null);
-  const [requestDecision, setRequestDecision] = useState<ContactUser | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -222,11 +204,6 @@ export function Contacts() {
   }, [contacts.runSearch, query, token]);
 
   const followingRows = contacts.following.data ?? [];
-  // Ids the viewer follows — used by the Followers tab to render the right
-  // icon (server-side isFollowing is always false for follower rows).
-  const followingIds = new Set(
-    followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
-  );
   const followersRows = contacts.followers.data ?? [];
   const friendsRows = contacts.friends.data ?? [];
   const pendingRows = contacts.pending.data ?? [];
@@ -245,118 +222,77 @@ export function Contacts() {
     !user.blockedMe &&
     !pendingRequestIds.has(user.id) &&
     !sentRequestIds.has(user.id);
-  const relationshipActions = (user: ContactUser) => {
-    if (user.blockedByMe || user.blockedMe) return undefined;
-    if (user.isFriend) {
-      return (
-        <Button
-          isIconOnly
-          size="sm"
-          variant="danger-soft"
-          isDisabled={isBusy}
-          aria-label={`${t`Remove friend`}: ${user.name}`}
-          onPress={() => setConfirmUnfriend(user)}
-        >
-          <UserRoundX className="h-4 w-4" />
-        </Button>
-      );
-    }
-    return (
-      <Button
-        isIconOnly
-        size="sm"
-        variant="outline"
-        isDisabled={isBusy}
-        aria-label={user.isFollowing ? t`Unfollow` : t`Follow`}
-        onPress={() => handleUserAction(user)(user.isFollowing ? "unfollow" : "follow")}
-      >
-        {user.isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-      </Button>
-    );
-  };
+
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
-  const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
-  // List tabs: which query feeds each tab, plus the empty-state copy.
-  const listTabs: Array<{
-    key: TabKey;
-    label: string;
-    rows: typeof followingRows;
-    isLoading: boolean;
-    isError: boolean;
-    empty: string;
-  }> = [
-    {
-      key: "following",
-      label: t`Following`,
-      rows: followingRows,
-      isLoading: contacts.following.isLoading,
-      isError: contacts.following.isError,
-      empty: t`You are not following anyone yet`,
-    },
-    {
-      key: "followers",
-      label: t`Followers`,
-      rows: followersRows,
-      isLoading: contacts.followers.isLoading,
-      isError: contacts.followers.isError,
-      empty: t`No followers yet`,
-    },
-    {
-      key: "friends",
-      label: t`Friends`,
-      rows: friendsRows,
-      isLoading: contacts.friends.isLoading,
-      isError: contacts.friends.isError,
-      empty: t`No friends yet`,
-    },
-    {
-      key: "blocked",
-      label: t`Blocked`,
-      rows: blockedRows,
-      isLoading: contacts.blocked.isLoading,
-      isError: contacts.blocked.isError,
-      empty: t`No blocked users`,
-    },
-  ];
+  const connections = contactConnections(friendsRows, followingRows, followersRows, suggestions);
+  const connectionLabels = {
+    friends: t`Friends`,
+    following: t`Following`,
+    followers: t`Followers`,
+    device: t`Contacts on BGO`,
+  };
+  const connectionQueries = {
+    friends: contacts.friends,
+    following: contacts.following,
+    followers: contacts.followers,
+    device: contacts.suggestions,
+  };
+  const contactCard = (user: ContactUser, friendRequest?: "incoming" | "outgoing") => (
+    <ContactCard
+      key={user.id}
+      name={user.name}
+      email={user.email}
+      avatarUrl={user.avatarUrl}
+      online={user.presence.online}
+      menu={
+        <UserMenu
+          user={user}
+          busy={isBusy}
+          canSendFriendRequest={canSendFriendRequest(user)}
+          friendRequest={
+            friendRequest ??
+            (pendingRequestIds.has(user.id)
+              ? "incoming"
+              : sentRequestIds.has(user.id)
+                ? "outgoing"
+                : undefined)
+          }
+          onAction={handleUserAction(user)}
+        />
+      }
+    />
+  );
 
   return (
     <div className="min-w-0 space-y-4">
-      <InviteCard apiUrl={apiUrl()} protectionBypass={protectionBypass()} />
-
       {actionFailed ? (
         <p role="alert" className="text-sm text-danger">
           {t`Could not complete the action. Try again.`}
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["following", t`Following`],
-            ["followers", t`Followers`],
-            ["friends", t`Friends`],
-            ["requests", t`Friend requests`],
-            ["blocked", t`Blocked`],
-            ["suggestions", t`Suggestions`],
-            ["search", t`Search`],
-          ] as Array<[TabKey, string]>
-        ).map(([key, label]) => (
-          <Button
-            key={key}
-            size="sm"
-            variant={tab === key ? "primary" : "outline"}
-            onPress={() => setTab(key)}
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
+      <Tabs aria-label={t`Contacts`} defaultSelectedKey="connections">
+        <Tabs.ListContainer>
+          <Tabs.List>
+            <Tabs.Tab id="connections">
+              {t`Connections`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="requests">
+              {t`Requests`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="search">
+              {t`Search`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs.ListContainer>
 
-      {tab === "search" && (
-        <div className="space-y-3">
+        <Tabs.Panel id="search" className="space-y-3 pt-4">
           <div className="relative">
             <input
               value={query}
@@ -384,34 +320,19 @@ export function Contacts() {
             <p className="text-sm text-default-500">{t`Type at least 4 characters to search`}</p>
           )}
           {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-          {query.trim().length >= 4 && !contacts.search.isLoading && searchResults.length === 0 && (
-            <p className="text-sm text-default-500">{t`No users found`}</p>
-          )}
-          <GroupedList>
-            {searchResults.map((u) => (
-              <ContactCard
-                key={u.id}
-                name={u.name}
-                email={u.email}
-                avatarUrl={u.avatarUrl}
-                online={u.presence.online}
-                action={relationshipActions(u)}
-                menu={
-                  <UserMenu
-                    user={u}
-                    busy={isBusy}
-                    canSendFriendRequest={canSendFriendRequest(u)}
-                    onAction={handleUserAction(u)}
-                  />
-                }
-              />
-            ))}
-          </GroupedList>
-        </div>
-      )}
+          {query.trim().length >= 4 &&
+            !contacts.search.isLoading &&
+            !contacts.search.isError &&
+            searchResults.length === 0 && (
+              <p className="text-sm text-default-500">{t`No users found`}</p>
+            )}
+          {contacts.search.isError ? (
+            <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+          ) : null}
+          <GroupedList>{searchResults.map((user) => contactCard(user))}</GroupedList>
+        </Tabs.Panel>
 
-      {tab === "requests" && (
-        <div className="space-y-5">
+        <Tabs.Panel id="requests" className="space-y-5 pt-4">
           {[
             {
               key: "received",
@@ -448,179 +369,63 @@ export function Contacts() {
                 <p className="text-sm text-default-500">{section.empty}</p>
               )}
               <GroupedList>
-                {section.rows.map((row) => {
-                  const profile = row.profile;
-                  if (!profile) return null;
-                  return (
-                    <ContactCard
-                      key={profile.id}
-                      name={profile.name}
-                      email={profile.email}
-                      avatarUrl={profile.avatarUrl}
-                      online={profile.presence.online}
-                      action={
-                        section.key === "received" ? (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            isDisabled={isBusy}
-                            aria-label={`${t`Respond to friend request`}: ${profile.name}`}
-                            onPress={() => setRequestDecision(profile)}
-                          >
-                            <UserRoundCheck className="h-4 w-4" />
-                          </Button>
-                        ) : undefined
-                      }
-                      menu={
-                        <UserMenu
-                          user={profile}
-                          busy={isBusy}
-                          friendRequest={section.key === "received" ? "incoming" : "outgoing"}
-                          onAction={handleUserAction(profile)}
-                        />
-                      }
-                    />
-                  );
-                })}
+                {section.rows.map((row) =>
+                  row.profile
+                    ? contactCard(row.profile, section.key === "received" ? "incoming" : "outgoing")
+                    : null,
+                )}
               </GroupedList>
             </section>
           ))}
-        </div>
-      )}
+          <section className="space-y-2" aria-labelledby="blocked-title">
+            <h2 id="blocked-title" className="text-sm font-semibold">{t`Blocked`}</h2>
+            {contacts.blocked.isLoading ? <ContactListSkeleton count={2} /> : null}
+            {contacts.blocked.isError ? (
+              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+            ) : null}
+            {!contacts.blocked.isLoading &&
+            !contacts.blocked.isError &&
+            blockedRows.length === 0 ? (
+              <p className="text-sm text-default-500">{t`No blocked users`}</p>
+            ) : null}
+            <GroupedList>
+              {blockedRows.map((row) => (row.profile ? contactCard(row.profile) : null))}
+            </GroupedList>
+          </section>
+        </Tabs.Panel>
 
-      {tab === "suggestions" && (
-        <div className="space-y-2">
-          {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
-          {suggestions.length === 0 && !contacts.suggestions.isLoading && (
-            <p className="text-sm text-default-500">
-              {hasContacts
-                ? t`No friends from your contacts are on Board Game Organizer yet.`
-                : t`Sync your address book from the mobile app to see friend suggestions here.`}
-            </p>
-          )}
-          <GroupedList>
-            {suggestions.map((u) => (
-              <ContactCard
-                key={u.id}
-                name={u.name}
-                email={u.email}
-                avatarUrl={u.avatarUrl}
-                online={u.presence.online}
-                action={relationshipActions(u)}
-                menu={
-                  <UserMenu
-                    user={u}
-                    busy={isBusy}
-                    canSendFriendRequest={canSendFriendRequest(u)}
-                    onAction={handleUserAction(u)}
-                  />
-                }
-              />
-            ))}
-          </GroupedList>
-        </div>
-      )}
-
-      {listTabs.some((t) => t.key === tab) &&
-        listTabs
-          .filter((t) => t.key === tab)
-          .map((listTab) => (
-            <div className="space-y-2" key={listTab.key}>
-              {listTab.isLoading && <ContactListSkeleton count={4} />}
-              {listTab.isError && (
-                <p role="alert" className="text-sm text-danger">
-                  {listTab.key === "friends"
-                    ? t`Could not load friends`
-                    : t`Could not load contacts`}
-                </p>
-              )}
-              {listTab.rows.length === 0 && !listTab.isLoading && !listTab.isError && (
-                <p className="text-sm text-default-500">{listTab.empty}</p>
-              )}
-              <GroupedList>
-                {listTab.rows.map((row) => {
-                  const profile = row.profile;
-                  if (!profile) return null;
-                  const actionUser =
-                    listTab.key === "following"
-                      ? { ...profile, isFollowing: true }
-                      : listTab.key === "followers"
-                        ? { ...profile, isFollowing: followingIds.has(profile.id) }
-                        : profile;
-                  return (
-                    <ContactCard
-                      key={profile.id}
-                      name={profile.name}
-                      email={profile.email}
-                      avatarUrl={profile.avatarUrl}
-                      online={profile.presence.online}
-                      action={
-                        listTab.key === "blocked" ? undefined : relationshipActions(actionUser)
-                      }
-                      menu={
-                        <UserMenu
-                          user={actionUser}
-                          busy={isBusy}
-                          canSendFriendRequest={canSendFriendRequest(actionUser)}
-                          onAction={handleUserAction(actionUser)}
-                        />
-                      }
-                    />
-                  );
-                })}
-              </GroupedList>
-            </div>
-          ))}
+        <Tabs.Panel id="connections" className="space-y-5 pt-4">
+          {connections.map((section) => {
+            const state = connectionQueries[section.key];
+            if (!section.users.length && !state.isLoading && !state.isError) return null;
+            return (
+              <section
+                key={section.key}
+                className="space-y-2"
+                aria-labelledby={`connections-${section.key}`}
+              >
+                <h2 id={`connections-${section.key}`} className="text-sm font-semibold">
+                  {connectionLabels[section.key]}
+                </h2>
+                {state.isLoading ? <ContactListSkeleton count={2} /> : null}
+                {state.isError ? (
+                  <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+                ) : null}
+                <GroupedList>{section.users.map((user) => contactCard(user))}</GroupedList>
+              </section>
+            );
+          })}
+          {connections.every((section) => section.users.length === 0) &&
+          !Object.values(connectionQueries).some((state) => state.isLoading || state.isError) ? (
+            <p className="text-sm text-default-500">{t`No connections yet`}</p>
+          ) : null}
+        </Tabs.Panel>
+      </Tabs>
 
       {!isSignedIn && (
         <Chip color="warning" variant="soft">
           {t`Sign in to see your contacts`}
         </Chip>
-      )}
-
-      {confirmUnfriend && (
-        <ContactConfirmDialog
-          title={t`Remove friend?`}
-          description={t`The friendship and your follow will be removed.`}
-          busy={isBusy}
-          onCancel={() => setConfirmUnfriend(null)}
-          actions={[
-            {
-              label: t`Remove friend`,
-              variant: "danger",
-              onPress: () => {
-                handleUserAction(confirmUnfriend)("unfriend");
-                setConfirmUnfriend(null);
-              },
-            },
-          ]}
-        />
-      )}
-
-      {requestDecision && (
-        <ContactConfirmDialog
-          title={t`Respond to friend request`}
-          description={t`Accept or decline this friend request.`}
-          busy={isBusy}
-          onCancel={() => setRequestDecision(null)}
-          actions={[
-            {
-              label: t`Decline`,
-              variant: "danger",
-              onPress: () => {
-                handleUserAction(requestDecision)("reject_friend_request");
-                setRequestDecision(null);
-              },
-            },
-            {
-              label: t`Accept`,
-              onPress: () => {
-                handleUserAction(requestDecision)("accept_friend_request");
-                setRequestDecision(null);
-              },
-            },
-          ]}
-        />
       )}
     </div>
   );

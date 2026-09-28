@@ -1,8 +1,10 @@
 import {
   type ContactUser,
+  contactConnections,
   reportPresence,
   resolveApiUrl,
   useContacts,
+  useInvites,
 } from "@board-game-organizer/shared";
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
@@ -11,26 +13,18 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { Chip } from "heroui-native/chip";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
+import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import {
-  BookUser,
-  MoreVertical,
-  UserMinus,
-  UserPlus,
-  UserRoundCheck,
-  UserRoundX,
-  X,
-} from "lucide-react-native";
+import { BookUser, MoreVertical, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
+import { Alert, AppState, Linking, Pressable, ScrollView, Share, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
-import { InviteCard } from "@/components/InviteCard";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
 import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts";
 import { useT } from "@/lib/i18n";
+import { unregisteredContacts } from "@/lib/unregisteredContacts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -120,12 +114,15 @@ export default function ContactsScreen() {
   const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
   const [menuFriendRequest, setMenuFriendRequest] = useState<FriendRequestContext>();
   const [initialConfirmAction, setInitialConfirmAction] = useState<UserActionConfirmation>();
+  const [unregistered, setUnregistered] = useState<Array<{ id: string; name: string }>>([]);
+  const [contactsReadError, setContactsReadError] = useState(false);
   const [contactsPermission, setContactsPermission] = useState<
     "checking" | "undetermined" | "granted" | "denied"
   >("checking");
   const [syncingContacts, setSyncingContacts] = useState(false);
   const contactsSyncRef = useRef<Promise<void> | null>(null);
   const contactsPromptShownRef = useRef(false);
+  const initialSyncRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -163,6 +160,7 @@ export default function ContactsScreen() {
   }, [token, getToken]);
 
   const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback);
+  const invite = useInvites({ apiUrl: apiUrl(), token, getToken, feedback: mutationFeedback });
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
@@ -204,30 +202,37 @@ export default function ContactsScreen() {
     // profile: not implemented yet — no-op.
   };
 
-  // Device address book: on first visit to Suggestions (and via the "Add
-  // contacts" CTA) we show a CONFIRMATION dialog first. Only if the user
+  // Device address book: on entry to Contacts (or via the Search tab CTA)
+  // we show a confirmation dialog before the native permission request. Only if the user
   // taps "Yes" does the real Android/iOS permission dialog fire. If the user
   // declines twice the system stops asking (canAskAgain=false) and we open
   // the app settings instead. The CTA stays tappable until consent is given.
   // With consent matched users are persisted through POST /api/contacts/sync;
-  // raw address-book values are never stored locally.
+  // unmatched names are kept in memory only, never persisted.
   const syncContactsMutation = contacts.syncContacts.mutateAsync;
   const syncContactsData = useCallback(
     (showFeedback = true) => {
+      if (!token) return Promise.resolve();
       if (contactsSyncRef.current) return contactsSyncRef.current;
+      initialSyncRef.current = true;
 
       const sync = (async () => {
         setSyncingContacts(true);
+        setContactsReadError(false);
         let stage = "read";
         try {
           const data = await Contacts.Contact.getAllDetails([
+            Contacts.ContactField.FULL_NAME,
             Contacts.ContactField.EMAILS,
             Contacts.ContactField.PHONES,
           ]);
+          const payload = contactSyncPayload(data);
           stage = "request";
-          await syncContactsMutation({ ...contactSyncPayload(data), silent: !showFeedback });
+          const synced = await syncContactsMutation({ ...payload, silent: !showFeedback });
+          setUnregistered(unregisteredContacts(data, payload, synced.registeredIdentifiers));
         } catch (error) {
           Sentry.captureException(error, { tags: { operation: "contacts.sync", stage } });
+          setContactsReadError(stage === "read");
           if (stage === "read" && showFeedback) {
             mutationFeedback.onError?.(
               error instanceof Error ? error : new Error("Could not read contacts"),
@@ -242,7 +247,7 @@ export default function ContactsScreen() {
       contactsSyncRef.current = sync;
       return sync;
     },
-    [mutationFeedback, syncContactsMutation],
+    [mutationFeedback, syncContactsMutation, token],
   );
 
   // Fire the REAL system permission request and track denials. A denial only
@@ -338,6 +343,9 @@ export default function ContactsScreen() {
       try {
         const permission = await Contacts.getPermissionsAsync();
         if (!permission.granted) {
+          setUnregistered([]);
+          setContactsReadError(false);
+          initialSyncRef.current = false;
           setContactsPermission("denied");
           return;
         }
@@ -372,19 +380,21 @@ export default function ContactsScreen() {
     return () => sub.remove();
   }, [checkContactsGranted]);
 
-  // Ask for permission the first time the user opens the Suggestions tab
-  // (through the confirmation dialog — never an unprompted system dialog).
+  // Ask on entry to Contacts, never show an unprompted system permission dialog.
   useEffect(() => {
-    if (
-      tab !== "suggestions" ||
-      contactsPermission !== "undetermined" ||
-      contactsPromptShownRef.current
-    ) {
+    if (contactsPermission !== "undetermined" || contactsPromptShownRef.current) {
       return;
     }
     contactsPromptShownRef.current = true;
     confirmAndRequestContacts();
-  }, [confirmAndRequestContacts, contactsPermission, tab]);
+  }, [confirmAndRequestContacts, contactsPermission]);
+
+  // Restore the in-memory invite list when permission was granted earlier.
+  useEffect(() => {
+    if (contactsPermission !== "granted" || !token || initialSyncRef.current) return;
+    initialSyncRef.current = true;
+    void syncContactsData(false);
+  }, [contactsPermission, syncContactsData, token]);
 
   // Auto-search on input: fires 300ms after the user stops typing, only when
   // at least 4 characters are present (min prefix length per product spec).
@@ -403,12 +413,6 @@ export default function ContactsScreen() {
   }, [contacts.runSearch, query]);
 
   const followingRows = contacts.following.data ?? [];
-  // Ids the viewer follows — used by the Followers tab to render the right
-  // icon (the server-side profile.isFollowing is relative to the list row and
-  // is always false for follower rows).
-  const followingIds = new Set(
-    followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
-  );
   const followersRows = contacts.followers.data ?? [];
   const friendsRows = contacts.friends.data ?? [];
   const pendingRows = contacts.pending.data ?? [];
@@ -426,55 +430,26 @@ export default function ContactsScreen() {
     contacts.suggestions.isLoading || syncingContacts || contactsPermission === "checking"
       ? []
       : suggestions;
-  const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
-  const tabButtons: Array<[ContactTab, string]> = [
-    ["following", t("Following")],
-    ["followers", t("Followers")],
-    ["friends", t("Friends")],
-    ["requests", t("Friend requests")],
-    ["blocked", t("Blocked")],
-    ["suggestions", t("Suggestions")],
-    ["search", t("Search")],
-  ];
-
-  const listTab =
-    tab === "following" || tab === "followers" || tab === "friends" || tab === "blocked"
-      ? tab
-      : null;
-  const listRows =
-    listTab === "following"
-      ? followingRows
-      : listTab === "followers"
-        ? followersRows
-        : listTab === "friends"
-          ? friendsRows
-          : blockedRows;
-  const listLoading =
-    listTab === "following"
-      ? contacts.following.isLoading
-      : listTab === "followers"
-        ? contacts.followers.isLoading
-        : listTab === "friends"
-          ? contacts.friends.isLoading
-          : contacts.blocked.isLoading;
-  const listError =
-    listTab === "following"
-      ? contacts.following.isError
-      : listTab === "followers"
-        ? contacts.followers.isError
-        : listTab === "friends"
-          ? contacts.friends.isError
-          : contacts.blocked.isError;
-  const listEmpty =
-    listTab === "following"
-      ? t("You are not following anyone yet")
-      : listTab === "followers"
-        ? t("No followers yet")
-        : listTab === "friends"
-          ? t("No friends yet")
-          : t("No blocked users");
+  const connections = contactConnections(
+    friendsRows,
+    followingRows,
+    followersRows,
+    visibleSuggestions,
+  );
+  const connectionLabels = {
+    friends: t("Friends"),
+    following: t("Following"),
+    followers: t("Followers"),
+    device: t("Contacts on BGO"),
+  };
+  const connectionQueries = {
+    friends: contacts.friends,
+    following: contacts.following,
+    followers: contacts.followers,
+    device: contacts.suggestions,
+  };
   const canSendFriendRequest = (user: ContactUser) =>
     friendRequestsLoaded &&
     !user.isFriend &&
@@ -482,151 +457,189 @@ export default function ContactsScreen() {
     !user.blockedMe &&
     !pendingRequestIds.has(user.id) &&
     !sentRequestIds.has(user.id);
-  const relationshipActions = (user: ContactUser) => {
-    if (user.blockedByMe || user.blockedMe) return null;
-    if (user.isFriend) {
-      return (
-        <Button
-          variant="danger-soft"
-          isIconOnly
-          size="sm"
-          style={{ minHeight: 30, minWidth: 30 }}
-          isDisabled={isBusy}
-          accessibilityLabel={`${t("Remove friend")}: ${user.name}`}
-          testID="remove-friend-btn"
-          onPress={() => openUserActions(user, undefined, "unfriend")}
-        >
-          <UserRoundX size={16} color="#dc2626" />
-        </Button>
-      );
-    }
-    return (
-      <Button
-        variant="outline"
-        isIconOnly
-        size="sm"
-        style={{ minHeight: 30, minWidth: 30 }}
-        isDisabled={isBusy}
-        accessibilityLabel={user.isFollowing ? t("Unfollow") : t("Follow")}
-        testID={user.isFollowing ? "unfollow-btn" : "follow-btn"}
+  const contactRow = (user: ContactUser, friendRequest?: FriendRequestContext) => (
+    <GroupedRow key={user.id}>
+      <AvatarWithPresence
+        name={user.name}
+        avatarUrl={user.avatarUrl}
+        online={user.presence.online}
+      />
+      <View style={{ flex: 1 }}>
+        <Typography className="font-medium text-foreground" numberOfLines={1}>
+          {user.name}
+        </Typography>
+        {user.email ? (
+          <Typography className="text-sm text-muted" numberOfLines={1}>
+            {user.email}
+          </Typography>
+        ) : null}
+      </View>
+      <Pressable
         onPress={() =>
-          void handleUserAction(user)(user.isFollowing ? "unfollow" : "follow").catch(() => {})
+          openUserActions(
+            user,
+            friendRequest ??
+              (pendingRequestIds.has(user.id)
+                ? "incoming"
+                : sentRequestIds.has(user.id)
+                  ? "outgoing"
+                  : undefined),
+          )
         }
+        hitSlop={8}
+        accessibilityLabel={`${t("Actions")}: ${user.name}`}
+        style={{ padding: 6 }}
       >
-        {user.isFollowing ? (
-          <UserMinus size={16} color="#111" />
-        ) : (
-          <UserPlus size={16} color="#111" />
-        )}
-      </Button>
-    );
-  };
+        <MoreVertical size={18} color="#333" />
+      </Pressable>
+    </GroupedRow>
+  );
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <InviteCard apiUrl={apiUrl()} token={token} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginTop: 12, marginBottom: 12, flexGrow: 0 }}
+      <Tabs
+        value={tab}
+        onValueChange={(value) => router.setParams({ tab: value as ContactTab })}
+        variant="primary"
       >
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {tabButtons.map(([key, label]) => (
-            <Chip
-              key={key}
-              variant={tab === key ? "primary" : "secondary"}
-              color={tab === key ? "accent" : "default"}
-              size="md"
-              onPress={() => router.setParams({ tab: key })}
-            >
-              <Typography className={tab === key ? "text-accent-foreground" : "text-muted"}>
-                {label}
-              </Typography>
-            </Chip>
-          ))}
-        </View>
-      </ScrollView>
+        <Tabs.List>
+          <Tabs.Indicator />
+          <Tabs.Trigger value="connections" style={{ flex: 1 }}>
+            <Tabs.Label>{t("Connections")}</Tabs.Label>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="requests" style={{ flex: 1 }}>
+            <Tabs.Label>{t("Requests")}</Tabs.Label>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="search" style={{ flex: 1 }}>
+            <Tabs.Label>{t("Search")}</Tabs.Label>
+          </Tabs.Trigger>
+        </Tabs.List>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {tab === "search" && (
-          <View style={{ marginBottom: 12, gap: 8 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Input
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder={t("Search users (at least 4 characters)")}
-                />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Tabs.Content value="search" style={{ marginTop: 12 }}>
+            <View style={{ marginBottom: 12, gap: 8 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder={t("Search users (at least 4 characters)")}
+                  />
+                </View>
+                {query.length > 0 && (
+                  <Pressable
+                    onPress={() => {
+                      setQuery("");
+                      contacts.runSearch("");
+                    }}
+                    hitSlop={8}
+                    accessibilityLabel={t("Clear search")}
+                  >
+                    <X size={18} color="#8e8e93" />
+                  </Pressable>
+                )}
+                {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                  <Button
+                    isIconOnly
+                    variant="outline"
+                    accessibilityLabel={t("Add contacts")}
+                    onPress={confirmAndRequestContacts}
+                    testID="enable-contacts-btn"
+                  >
+                    <BookUser size={18} color="#111" />
+                  </Button>
+                ) : null}
               </View>
-              {query.length > 0 && (
-                <Pressable
-                  onPress={() => {
-                    setQuery("");
-                    contacts.runSearch("");
-                  }}
-                  hitSlop={8}
-                  accessibilityLabel={t("Clear search")}
-                >
-                  <X size={18} color="#8e8e93" />
-                </Pressable>
-              )}
-            </View>
-            {query.trim().length > 0 && query.trim().length < 4 && (
-              <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
-                {t("Type at least 4 characters to search")}
-              </Typography>
-            )}
-            {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-            {query.trim().length >= 4 &&
-              !contacts.search.isLoading &&
-              searchResults.length === 0 && (
+              {query.trim().length > 0 && query.trim().length < 4 && (
                 <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
-                  {t("No users found")}
+                  {t("Type at least 4 characters to search")}
                 </Typography>
               )}
-            <GroupedList>
-              {searchResults.map((u) => (
-                <GroupedRow key={u.id}>
-                  <AvatarWithPresence
-                    name={u.name}
-                    avatarUrl={u.avatarUrl}
-                    online={u.presence.online}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Typography className="font-medium">{u.name}</Typography>
-                    </View>
-                    {u.email ? (
+              {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+              {query.trim().length >= 4 &&
+                !contacts.search.isLoading &&
+                !contacts.search.isError &&
+                searchResults.length === 0 && (
+                  <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
+                    {t("No users found")}
+                  </Typography>
+                )}
+              {contacts.search.isError ? (
+                <Typography className="text-danger">{t("Could not load contacts")}</Typography>
+              ) : null}
+              <GroupedList>{searchResults.map((user) => contactRow(user))}</GroupedList>
+              <Typography className="font-semibold text-foreground">
+                {t("Invite device contacts")}
+              </Typography>
+              {contactsPermission === "checking" || syncingContacts ? (
+                <ContactListSkeleton count={2} />
+              ) : null}
+              {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                <Typography className="text-muted">
+                  {t("Allow address book access to find your friends here.")}
+                </Typography>
+              ) : null}
+              {contactsPermission === "granted" &&
+              (contacts.syncContacts.isError || contactsReadError) ? (
+                <Button variant="outline" onPress={() => void syncContactsData()}>
+                  <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+                </Button>
+              ) : null}
+              {contactsPermission === "granted" &&
+              !syncingContacts &&
+              !contacts.syncContacts.isError &&
+              !contactsReadError &&
+              unregistered.length === 0 ? (
+                <Typography className="text-muted">{t("No contacts to invite")}</Typography>
+              ) : null}
+              {contactsPermission === "granted" &&
+              !contacts.syncContacts.isError &&
+              !contactsReadError ? (
+                <GroupedList>
+                  {unregistered.map((contact) => (
+                    <GroupedRow key={contact.id}>
+                      <Avatar size="md">
+                        <Avatar.Fallback>{contact.name.charAt(0).toUpperCase()}</Avatar.Fallback>
+                      </Avatar>
                       <Typography
+                        className="font-medium text-foreground"
+                        style={{ flex: 1 }}
                         numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={{ fontSize: 13, color: "#8e8e93" }}
                       >
-                        {u.email}
+                        {contact.name}
                       </Typography>
-                    ) : null}
-                  </View>
-                  {relationshipActions(u)}
-                  <Pressable
-                    onPress={() => setMenuUser(u)}
-                    hitSlop={8}
-                    accessibilityLabel={t("Actions")}
-                    style={{ padding: 6 }}
-                  >
-                    <MoreVertical size={18} color="#333" />
-                  </Pressable>
-                </GroupedRow>
-              ))}
-            </GroupedList>
-          </View>
-        )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        isDisabled={invite.isPending}
+                        accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
+                        onPress={() =>
+                          invite.mutate(undefined, {
+                            onSuccess: (created) => {
+                              void Share.share({ message: created.link }).catch(() => {});
+                            },
+                          })
+                        }
+                      >
+                        <Typography>{t("Send")}</Typography>
+                      </Button>
+                    </GroupedRow>
+                  ))}
+                </GroupedList>
+              ) : null}
+              {invite.isError ? (
+                <Typography className="text-danger">
+                  {t("Could not create the invite. Try again.")}
+                </Typography>
+              ) : null}
+            </View>
+          </Tabs.Content>
 
-        {tab === "requests" && (
-          <View style={{ gap: 20 }}>
+          <Tabs.Content value="requests" style={{ gap: 20, marginTop: 12 }}>
             {[
               {
                 key: "received",
@@ -657,195 +670,75 @@ export default function ContactsScreen() {
                   <Typography className="text-sm text-muted">{section.empty}</Typography>
                 )}
                 <GroupedList>
-                  {section.rows.map((row) => {
-                    const profile = row.profile;
-                    if (!profile) return null;
-                    return (
-                      <GroupedRow key={profile.id}>
-                        <AvatarWithPresence
-                          name={profile.name}
-                          avatarUrl={profile.avatarUrl}
-                          online={profile.presence.online}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Typography className="font-medium text-foreground">
-                            {profile.name}
-                          </Typography>
-                          {profile.email ? (
-                            <Typography className="text-sm text-muted" numberOfLines={1}>
-                              {profile.email}
-                            </Typography>
-                          ) : null}
-                        </View>
-                        {section.key === "received" ? (
-                          <Button
-                            size="sm"
-                            isIconOnly
-                            isDisabled={isBusy}
-                            accessibilityLabel={`${t("Respond to friend request")}: ${profile.name}`}
-                            testID="respond-friend-request-btn"
-                            onPress={() =>
-                              openUserActions(profile, "incoming", "respond_friend_request")
-                            }
-                          >
-                            <UserRoundCheck size={16} color="#fff" />
-                          </Button>
-                        ) : null}
-                        <Pressable
-                          onPress={() =>
-                            openUserActions(
-                              profile,
-                              section.key === "received" ? "incoming" : "outgoing",
-                            )
-                          }
-                          hitSlop={8}
-                          accessibilityLabel={t("Actions")}
-                          style={{ padding: 6 }}
-                        >
-                          <MoreVertical size={18} color="#333" />
-                        </Pressable>
-                      </GroupedRow>
-                    );
-                  })}
+                  {section.rows.map((row) =>
+                    row.profile
+                      ? contactRow(
+                          row.profile,
+                          section.key === "received" ? "incoming" : "outgoing",
+                        )
+                      : null,
+                  )}
                 </GroupedList>
               </View>
             ))}
-          </View>
-        )}
-
-        {tab === "suggestions" && (
-          <View style={{ gap: 8 }}>
-            {(contacts.suggestions.isLoading ||
-              syncingContacts ||
-              contactsPermission === "checking") && <ContactListSkeleton count={3} />}
-            {!contacts.suggestions.isLoading &&
-              !syncingContacts &&
-              contactsPermission !== "checking" &&
-              contactsPermission !== "granted" && (
-                <View style={{ gap: 8 }}>
-                  <Typography className="text-sm text-muted">
-                    {contactsPermission === "denied"
-                      ? t("Allow address book access to find your friends here.")
-                      : t("No suggestions yet — sync your address book to find friends.")}
-                  </Typography>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    isDisabled={syncingContacts}
-                    onPress={confirmAndRequestContacts}
-                  >
-                    <BookUser size={16} color="#111" />
-                    <Typography>{t("Add contacts")}</Typography>
-                  </Button>
-                </View>
-              )}
-            {!contacts.suggestions.isLoading &&
-              !syncingContacts &&
-              contactsPermission === "granted" &&
-              suggestions.length === 0 && (
-                <Typography className="text-sm text-muted">
-                  {hasContacts
-                    ? t("No friends from your contacts are on Board Game Organizer yet.")
-                    : t("No contacts found in your address book.")}
+            <View style={{ gap: 8, marginTop: 20 }}>
+              <Typography className="font-semibold text-foreground">{t("Blocked")}</Typography>
+              {contacts.blocked.isLoading ? <ContactListSkeleton count={2} /> : null}
+              {contacts.blocked.isError ? (
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t("Could not load contacts")}
                 </Typography>
-              )}
-            <GroupedList>
-              {visibleSuggestions.map((u) => (
-                <GroupedRow key={u.id}>
-                  <AvatarWithPresence
-                    name={u.name}
-                    avatarUrl={u.avatarUrl}
-                    online={u.presence.online}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Typography className="font-medium">{u.name}</Typography>
-                    </View>
-                    {u.email ? (
-                      <Typography
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={{ fontSize: 13, color: "#8e8e93" }}
-                      >
-                        {u.email}
-                      </Typography>
-                    ) : null}
-                  </View>
-                  {relationshipActions(u)}
-                  <Pressable
-                    onPress={() => setMenuUser(u)}
-                    hitSlop={8}
-                    accessibilityLabel={t("Actions")}
-                    style={{ padding: 6 }}
-                  >
-                    <MoreVertical size={18} color="#333" />
-                  </Pressable>
-                </GroupedRow>
-              ))}
-            </GroupedList>
-          </View>
-        )}
+              ) : null}
+              {!contacts.blocked.isLoading &&
+              !contacts.blocked.isError &&
+              blockedRows.length === 0 ? (
+                <Typography className="text-muted">{t("No blocked users")}</Typography>
+              ) : null}
+              <GroupedList>
+                {blockedRows.map((row) => (row.profile ? contactRow(row.profile) : null))}
+              </GroupedList>
+            </View>
+          </Tabs.Content>
 
-        {listTab && (
-          <View style={{ gap: 8 }}>
-            {listLoading && <ContactListSkeleton count={4} />}
-            {listError && (
-              <Typography accessibilityRole="alert" className="text-sm text-danger">
-                {listTab === "friends" ? t("Could not load friends") : t("Could not load contacts")}
-              </Typography>
-            )}
-            {listRows.length === 0 && !listLoading && !listError && (
-              <Typography className="text-sm text-muted" style={{ textAlign: "left" }}>
-                {listEmpty}
-              </Typography>
-            )}
-            <GroupedList>
-              {listRows.map((row) => {
-                const profile = row.profile;
-                if (!profile) return null;
-                const actionUser =
-                  listTab === "following"
-                    ? { ...profile, isFollowing: true }
-                    : listTab === "followers"
-                      ? { ...profile, isFollowing: followingIds.has(profile.id) }
-                      : profile;
-                return (
-                  <GroupedRow key={profile.id}>
-                    <AvatarWithPresence
-                      name={profile.name}
-                      avatarUrl={profile.avatarUrl}
-                      online={profile.presence.online}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <Typography className="font-medium">{profile.name}</Typography>
-                      </View>
-                      {profile.email ? (
-                        <Typography
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                          style={{ fontSize: 13, color: "#8e8e93" }}
-                        >
-                          {profile.email}
-                        </Typography>
-                      ) : null}
-                    </View>
-                    {listTab === "blocked" ? null : relationshipActions(actionUser)}
-                    <Pressable
-                      onPress={() => setMenuUser(actionUser)}
-                      hitSlop={8}
-                      accessibilityLabel={t("Actions")}
-                      style={{ padding: 6 }}
-                    >
-                      <MoreVertical size={18} color="#333" />
-                    </Pressable>
-                  </GroupedRow>
-                );
-              })}
-            </GroupedList>
-          </View>
-        )}
-      </ScrollView>
+          <Tabs.Content value="connections" style={{ gap: 20, marginTop: 12 }}>
+            {connections.map((section) => {
+              const state = connectionQueries[section.key];
+              if (!section.users.length && !state.isLoading && !state.isError) return null;
+              return (
+                <View key={section.key} style={{ gap: 8 }}>
+                  <Typography className="font-semibold text-foreground">
+                    {connectionLabels[section.key]}
+                  </Typography>
+                  {state.isLoading ? <ContactListSkeleton count={2} /> : null}
+                  {state.isError ? (
+                    <Typography accessibilityRole="alert" className="text-danger">
+                      {t("Could not load contacts")}
+                    </Typography>
+                  ) : null}
+                  <GroupedList>{section.users.map((user) => contactRow(user))}</GroupedList>
+                </View>
+              );
+            })}
+            {syncingContacts || contactsPermission === "checking" ? (
+              <ContactListSkeleton count={2} />
+            ) : null}
+            {contactsPermission === "granted" &&
+            (contactsReadError || contacts.syncContacts.isError) ? (
+              <Button variant="outline" onPress={() => void syncContactsData()}>
+                <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+              </Button>
+            ) : null}
+            {connections.every((section) => section.users.length === 0) &&
+            !syncingContacts &&
+            !contactsReadError &&
+            !contacts.syncContacts.isError &&
+            contactsPermission !== "checking" &&
+            !Object.values(connectionQueries).some((state) => state.isLoading || state.isError) ? (
+              <Typography className="text-muted">{t("No connections yet")}</Typography>
+            ) : null}
+          </Tabs.Content>
+        </ScrollView>
+      </Tabs>
 
       <UserActionsSheet
         visible={menuUser !== null}

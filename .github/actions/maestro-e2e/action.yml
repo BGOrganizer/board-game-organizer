@@ -78,6 +78,21 @@ runs:
               --bind raw_contact_id:i:"$RAW_CONTACT_ID" \
               --bind mimetype:s:vnd.android.cursor.item/phone_v2 \
               --bind data1:s:"$TARGET_PHONE" --bind data2:i:2
+            # Exercise local-only, unregistered device contacts in the Search tab.
+            adb shell content insert --uri content://com.android.contacts/raw_contacts \
+              --bind account_name:s:bgo-e2e --bind account_type:s:com.bgo.e2e
+            INVITE_CONTACT_ID=$(adb shell content query \
+              --uri content://com.android.contacts/raw_contacts \
+              --projection _id | tail -1 | sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p')
+            test -n "$INVITE_CONTACT_ID"
+            adb shell content insert --uri content://com.android.contacts/data \
+              --bind raw_contact_id:i:"$INVITE_CONTACT_ID" \
+              --bind mimetype:s:vnd.android.cursor.item/name \
+              --bind data1:s:"E2E Unregistered"
+            adb shell content insert --uri content://com.android.contacts/data \
+              --bind raw_contact_id:i:"$INVITE_CONTACT_ID" \
+              --bind mimetype:s:vnd.android.cursor.item/phone_v2 \
+              --bind data1:s:+199999999999999 --bind data2:i:2
           fi
           # Report dirs (created up front so junit has a target even on success)
           mkdir -p /tmp/maestro-reports /tmp/maestro-debug

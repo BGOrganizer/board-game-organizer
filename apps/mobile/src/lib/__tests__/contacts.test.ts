@@ -4,12 +4,15 @@ import { contactSyncPayload, contactTab } from "../contacts";
 describe("contactTab", () => {
   it("selects valid string and array route parameters", () => {
     expect(contactTab("requests")).toBe("requests");
-    expect(contactTab(["friends", "requests"])).toBe("friends");
+    expect(contactTab(["friends", "requests"])).toBe("connections");
+    expect(contactTab("blocked")).toBe("requests");
+    expect(contactTab("suggestions")).toBe("connections");
+    expect(contactTab("search")).toBe("search");
   });
 
-  it("falls back to following for absent or unknown tabs", () => {
-    expect(contactTab(undefined)).toBe("following");
-    expect(contactTab("unknown")).toBe("following");
+  it("falls back to connections for absent or unknown tabs", () => {
+    expect(contactTab(undefined)).toBe("connections");
+    expect(contactTab("unknown")).toBe("connections");
   });
 });
 

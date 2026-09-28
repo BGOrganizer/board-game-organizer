@@ -105,6 +105,10 @@ describe("POST /api/contacts/sync", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       stored: 2,
+      registeredIdentifiers: {
+        emails: ["friend@example.com"],
+        phoneNumbers: ["391111111111", "393331234567", "3900001"],
+      },
       users: [
         { contactClerkId: "user_email", email: "friend@example.com" },
         { contactClerkId: "user_phone", email: "phone@example.com" },
@@ -152,7 +156,11 @@ describe("POST /api/contacts/sync", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ stored: 0, users: [] });
+    expect(await res.json()).toEqual({
+      stored: 0,
+      users: [],
+      registeredIdentifiers: { emails: [], phoneNumbers: [] },
+    });
     expect(database.userFind).not.toHaveBeenCalled();
     expect(database.deleteMany).toHaveBeenCalledWith({ userId: "user_1" });
     expect(database.insertMany).not.toHaveBeenCalled();

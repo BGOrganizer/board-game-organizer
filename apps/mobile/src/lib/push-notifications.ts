@@ -56,7 +56,7 @@ export function notificationHref(
   data: unknown,
 ):
   | "/contacts"
-  | "/contacts?tab=friends"
+  | "/contacts?tab=connections"
   | "/contacts?tab=requests"
   | "/matches"
   | "/groups"
@@ -65,7 +65,7 @@ export function notificationHref(
   const { href, kind } = data as { href?: unknown; kind?: unknown };
   if (href === "/contacts" && kind === "friend_request") return "/contacts?tab=requests";
   if (href === "/contacts" && kind === "friend_request_accepted") {
-    return "/contacts?tab=friends";
+    return "/contacts?tab=connections";
   }
   return href === "/contacts" ||
     href === "/matches" ||

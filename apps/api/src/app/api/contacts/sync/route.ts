@@ -65,5 +65,21 @@ export async function POST(request: Request) {
     .map((user) => ({ contactClerkId: user.clerkId, email: user.email }));
 
   const stored = await new ContactLinksRepository(db).replaceForUser(userId, matches);
-  return corsJson({ stored, users: matches }, request);
+  return corsJson(
+    {
+      stored,
+      users: matches,
+      registeredIdentifiers: {
+        emails: [
+          ...new Set(
+            registered
+              .map((user) => user.email.trim().toLowerCase())
+              .filter((email) => emailSet.has(email)),
+          ),
+        ],
+        phoneNumbers: [...phoneCounts.keys()],
+      },
+    },
+    request,
+  );
 }

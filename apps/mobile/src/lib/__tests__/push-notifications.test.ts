@@ -110,7 +110,7 @@ describe("mobile push notifications", () => {
       "/contacts?tab=requests",
     );
     expect(notificationHref({ href: "/contacts", kind: "friend_request_accepted" })).toBe(
-      "/contacts?tab=friends",
+      "/contacts?tab=connections",
     );
     expect(notificationHref({ href: "/matches" })).toBe("/matches");
     expect(notificationHref({ href: "/groups" })).toBe("/groups");

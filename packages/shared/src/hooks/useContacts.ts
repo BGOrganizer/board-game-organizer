@@ -125,6 +125,11 @@ export async function fetchSuggestionsWithToken(
   return fetchSuggestions(apiUrl, await resolveToken(token, getToken), protectionBypass);
 }
 
+export interface SyncedContactIdentifiers {
+  emails: string[];
+  phoneNumbers: string[];
+}
+
 export async function syncContactsWithToken(
   apiUrl: string,
   emails: string[],
@@ -132,7 +137,11 @@ export async function syncContactsWithToken(
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
   protectionBypass?: string | null,
-): Promise<{ stored: number; users: Array<{ contactClerkId: string; email: string }> }> {
+): Promise<{
+  stored: number;
+  users: Array<{ contactClerkId: string; email: string }>;
+  registeredIdentifiers: SyncedContactIdentifiers;
+}> {
   const freshToken = await resolveToken(token, getToken);
   const res = await fetch(withProtectionBypass(`${apiUrl}/api/contacts/sync`, protectionBypass), {
     method: "POST",
@@ -143,6 +152,7 @@ export async function syncContactsWithToken(
   return (await res.json()) as {
     stored: number;
     users: Array<{ contactClerkId: string; email: string }>;
+    registeredIdentifiers: SyncedContactIdentifiers;
   };
 }
 

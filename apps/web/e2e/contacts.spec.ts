@@ -24,7 +24,7 @@ async function signIn(page: import("@playwright/test").Page, emailAddress: strin
 }
 
 async function findTarget(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByRole("tab", { name: "Search" }).click();
   const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
   await expect(searchInput).toBeVisible();
   await searchInput.fill(E2E_EMAIL_2);
@@ -103,12 +103,14 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
     { phone: E2E_PHONE_2, token, url: syncUrl.toString() },
   );
   await page.reload();
-  await page.getByRole("button", { name: "Suggestions" }).click();
+  await expect(page.getByRole("heading", { name: "Contacts on BGO" })).toBeVisible({
+    timeout: 90_000,
+  });
   await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 90_000 });
 
   await findTarget(page);
   await sendFriendRequest(page);
-  await page.getByRole("button", { name: "Friend requests" }).click();
+  await page.getByRole("tab", { name: "Requests" }).click();
   const sent = page.getByRole("heading", { name: "Sent" }).locator("..");
   await expect(sent.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
 
@@ -121,7 +123,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(sent.getByText("No sent friend requests")).toBeVisible({ timeout: 30_000 });
   await findTarget(page);
   await sendFriendRequest(page);
-  await page.getByRole("button", { name: "Friend requests" }).click();
+  await page.getByRole("tab", { name: "Requests" }).click();
   await expect(sent.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
 
   // The target sees both request sections and can reject the incoming request.
@@ -143,10 +145,11 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   );
   await targetPage.getByText("New friend request").first().click();
   expect((await markNotificationRead).ok()).toBe(true);
-  await targetPage.getByRole("button", { name: "Friend requests" }).click();
+  await targetPage.getByRole("tab", { name: "Requests" }).click();
   const received = targetPage.getByRole("heading", { name: "Received" }).locator("..");
   await expect(received.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
-  await received.getByRole("button", { name: /Respond to friend request/ }).click();
+  await received.getByRole("button", { name: "Actions" }).click();
+  await targetPage.getByRole("menuitem", { name: "Decline friend request" }).click();
   const declineResponse = targetPage.waitForResponse(
     (response) =>
       response.request().method() === "PATCH" && response.url().includes("/api/friend-requests/"),
@@ -160,62 +163,59 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await findTarget(page);
   await sendFriendRequest(page);
   await targetPage.reload();
-  await targetPage.getByRole("button", { name: "Friend requests" }).click();
+  await targetPage.getByRole("tab", { name: "Requests" }).click();
   const receivedAgain = targetPage.getByRole("heading", { name: "Received" }).locator("..");
   await expect(receivedAgain.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
-  await receivedAgain.getByRole("button", { name: /Respond to friend request/ }).click();
+  await receivedAgain.getByRole("button", { name: "Actions" }).click();
+  await targetPage.getByRole("menuitem", { name: "Accept friend request" }).click();
   const acceptResponse = targetPage.waitForResponse(
     (response) =>
       response.request().method() === "PATCH" && response.url().includes("/api/friend-requests/"),
   );
   await targetPage.getByRole("button", { name: "Accept", exact: true }).click();
   expect((await acceptResponse).ok()).toBe(true);
-  await targetPage.getByRole("button", { name: "Friends" }).click();
+  await targetPage.getByRole("tab", { name: "Connections" }).click();
   await expect(targetPage.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
 
   await page.reload();
-  await page.getByRole("button", { name: "Friends" }).click();
+  await page.getByRole("tab", { name: "Connections" }).click();
   await expect(page.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
   await targetContext.close();
 
   // One action removes friendship plus the actor's follow and refreshes every list.
-  await page.getByRole("button", { name: /Remove friend: E2E Target/ }).click();
+  await page.getByRole("button", { name: "Actions" }).first().click();
+  await page.getByRole("menuitem", { name: "Remove friend" }).click();
   const unfriendResponse = waitForRelationshipResponse(page, "DELETE", "friend");
   await page.getByRole("button", { name: "Remove friend", exact: true }).click();
   expect((await unfriendResponse).ok()).toBe(true);
-  await expect(page.getByText("E2E Target")).toBeHidden({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Friends" })).toBeHidden({ timeout: 30_000 });
   await findTarget(page);
-  await expect(page.getByRole("button", { name: "Follow", exact: true }).first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await page.getByRole("button", { name: "Actions" }).first().click();
+  await expect(page.getByRole("menuitem", { name: "Follow", exact: true })).toBeVisible();
 
   // -- Follow → button flips to Unfollow.
   const followResponse = waitForRelationshipResponse(page, "POST", "follow");
-  await page.getByRole("button", { name: "Follow", exact: true }).first().click();
+  await page.getByRole("menuitem", { name: "Follow", exact: true }).click();
   expect((await followResponse).ok()).toBe(true);
-  await expect(page.getByRole("button", { name: "Unfollow", exact: true }).first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await page.getByRole("button", { name: "Actions" }).first().click();
+  await expect(page.getByRole("menuitem", { name: "Unfollow", exact: true })).toBeVisible();
 
   // -- Unfollow → back to Follow.
   const unfollowResponse = waitForRelationshipResponse(page, "DELETE", "follow");
-  await page.getByRole("button", { name: "Unfollow", exact: true }).first().click();
+  await page.getByRole("menuitem", { name: "Unfollow", exact: true }).click();
   expect((await unfollowResponse).ok()).toBe(true);
-  await expect(page.getByRole("button", { name: "Follow", exact: true }).first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await page.getByRole("button", { name: "Actions" }).first().click();
+  await expect(page.getByRole("menuitem", { name: "Follow", exact: true })).toBeVisible();
 
   // -- Follow again (so blocking also removes the follow).
   const refollowResponse = waitForRelationshipResponse(page, "POST", "follow");
-  await page.getByRole("button", { name: "Follow", exact: true }).first().click();
+  await page.getByRole("menuitem", { name: "Follow", exact: true }).click();
   expect((await refollowResponse).ok()).toBe(true);
-  await expect(page.getByRole("button", { name: "Unfollow", exact: true }).first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await page.getByRole("button", { name: "Actions" }).first().click();
+  await expect(page.getByRole("menuitem", { name: "Unfollow", exact: true })).toBeVisible();
 
   // -- Block via the kebab menu + confirmation dialog.
-  await page.getByRole("button", { name: "Actions" }).first().click();
-  await page.getByRole("menuitem", { name: /block/i }).click();
+  await page.getByRole("menuitem", { name: "Block", exact: true }).click();
   const dialog = page.getByRole("dialog").last();
   await expect(dialog).toBeVisible();
   const blockResponse = waitForRelationshipResponse(page, "POST", "block");
@@ -226,7 +226,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(page.getByText("E2E Target").first()).toBeHidden({ timeout: 30_000 });
 
   // -- Blocked tab lists the target; unblock brings them back.
-  await page.getByRole("button", { name: "Blocked" }).click();
+  await page.getByRole("tab", { name: "Requests" }).click();
   await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Actions" }).first().click();
   await page.getByRole("menuitem", { name: /unblock/i }).click();
@@ -236,6 +236,6 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(page.getByText("No blocked users")).toBeVisible({ timeout: 30_000 });
 
   // Back to search: the target is findable again.
-  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByRole("tab", { name: "Search" }).click();
   await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 30_000 });
 });

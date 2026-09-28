@@ -1,21 +1,22 @@
 appId: com.bgo.mobile
 ---
-# 5. Social flow: suggestions → sent/received requests → reject/accept → friends → block.
+# 5. Social flow: connections → requests → reject/accept → friends → block.
 # Requires signed-in actor session (run after flow 02-login).
 - tapOn: "Contacts"
-- extendedWaitUntil:
-    visible: "Suggestions"
-    timeout: 60000
-# Phone-only address-book contact must resolve the registered target.
-- tapOn: "Suggestions"
+# Permission prompt appears as soon as Contacts opens.
 - extendedWaitUntil:
     visible: "Access contacts"
     timeout: 30000
+- tapOn: "No"
+- tapOn: "Search"
+- tapOn:
+    id: "enable-contacts-btn"
 - tapOn: "Yes"
 - extendedWaitUntil:
     visible: ".*[Aa]llow.*contacts.*"
     timeout: 30000
 - tapOn: "Allow"
+- tapOn: "Connections"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
@@ -25,6 +26,15 @@ appId: com.bgo.mobile
 - assertNotVisible: "Add contacts"
 - assertNotVisible: "Allow address book access to find your friends here."
 - tapOn: "Search"
+- extendedWaitUntil:
+    visible: "E2E Unregistered"
+    timeout: 90000
+- assertNotVisible: "Send invite: E2E Target"
+- tapOn: "Send invite: E2E Unregistered"
+- extendedWaitUntil:
+    visible: "Copy"
+    timeout: 30000
+- back
 - extendedWaitUntil:
     visible: ".*[Ss]earch.*users.*"
     timeout: 30000
@@ -55,7 +65,7 @@ appId: com.bgo.mobile
       id: "confirm-friend-request-btn"
     timeout: 30000
 # Actor sees the outgoing request.
-- tapOn: "Friend requests"
+- tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
@@ -76,7 +86,7 @@ appId: com.bgo.mobile
 - tapOn: "Send friend request"
 - tapOn:
     id: "confirm-friend-request-btn"
-- tapOn: "Friend requests"
+- tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
@@ -136,10 +146,10 @@ appId: com.bgo.mobile
     visible: "E2E Test"
     timeout: 60000
 - assertVisible: "Received"
+- tapOn: "Actions"
+- tapOn: "Decline friend request"
 - tapOn:
-    id: "respond-friend-request-btn"
-- tapOn:
-    id: "respond-reject-friend-request-btn"
+    id: "confirm-reject_friend_request-btn"
 - extendedWaitUntil:
     notVisible: "E2E Test"
     timeout: 30000
@@ -205,15 +215,15 @@ appId: com.bgo.mobile
     visible: "Matches"
     timeout: 120000
 - tapOn: "Contacts"
-- tapOn: "Friend requests"
+- tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Test"
     timeout: 60000
+- tapOn: "Actions"
+- tapOn: "Accept friend request"
 - tapOn:
-    id: "respond-friend-request-btn"
-- tapOn:
-    id: "respond-accept-friend-request-btn"
-- tapOn: "Friends"
+    id: "confirm-accept_friend_request-btn"
+- tapOn: "Connections"
 - extendedWaitUntil:
     visible: "E2E Test"
     timeout: 30000
@@ -250,13 +260,13 @@ appId: com.bgo.mobile
     visible: "E2E Target"
     timeout: 30000
 - assertVisible: "Friends"
-# One action removes friendship plus the actor's follow and refreshes every list.
-- tapOn:
-    id: "remove-friend-btn"
+# One menu action removes friendship and refreshes every list.
+- tapOn: "Actions"
+- tapOn: "Remove friend"
 - tapOn:
     id: "confirm-unfriend-btn"
 - extendedWaitUntil:
-    notVisible: "E2E Target"
+    notVisible: "Friends"
     timeout: 30000
 - tapOn: "Search"
 - tapOn: ".*[Ss]earch.*users.*"
@@ -264,16 +274,16 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
+- tapOn: "Actions"
 - extendedWaitUntil:
-    visible:
-      id: "follow-btn"
+    visible: "Follow"
     timeout: 30000
-- tapOn:
-    id: "follow-btn"
+- tapOn: "Follow"
+- tapOn: "Actions"
 - extendedWaitUntil:
-    visible:
-      id: "unfollow-btn"
+    visible: "Unfollow"
     timeout: 30000
+- tapOn: "Unfollow"
 # Block hides the target.
 - tapOn: "Actions"
 - extendedWaitUntil:
@@ -289,7 +299,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000
-- tapOn: "Blocked"
+- tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000

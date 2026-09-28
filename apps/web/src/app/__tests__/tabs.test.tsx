@@ -27,7 +27,8 @@ vi.mock("@clerk/nextjs", () => ({
   useClerk: () => ({ signOut: vi.fn() }),
 }));
 
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useGroups: () => ({
     list: { data: [], isPending: false, isError: false },
@@ -106,7 +107,7 @@ describe("tab pages", () => {
 
   it("renders groups and remaining placeholder without repeating tab titles", async () => {
     renderWithI18n(await Contacts());
-    expect(screen.getByText("Following")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Connections" })).toBeTruthy();
 
     const { unmount: unmountGroups } = renderWithI18n(await Groups());
     expect(screen.getByText("No groups yet")).toBeTruthy();
