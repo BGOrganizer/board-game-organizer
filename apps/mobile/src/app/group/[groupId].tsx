@@ -30,6 +30,7 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { useT } from "@/lib/i18n";
@@ -185,7 +186,7 @@ export default function GroupDetailScreen() {
     );
   };
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView edges={["top", "bottom"]} style={{ flex: 1 }}>
       <Stack.Screen options={{ headerShown: false }} />
       <View
         style={{
@@ -454,6 +455,6 @@ export default function GroupDetailScreen() {
         onClose={() => setMenuUserId(null)}
         onAction={socialAction}
       />
-    </View>
+    </SafeAreaView>
   );
 }

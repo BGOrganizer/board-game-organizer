@@ -6,7 +6,6 @@ import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
@@ -20,8 +19,9 @@ import {
   X,
 } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SvgXml } from "react-native-svg";
+import { LinkedListCard } from "@/components/LinkedListCard";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -95,85 +95,94 @@ export default function GroupsScreen() {
           const admin = group.adminUserId === userId;
           const invitation = group.invitations.find((item) => item.inviteeUserId === userId);
           return (
-            <Card key={group.id} className="w-full p-3" style={{ width: "100%" }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${t("Open group")}: ${group.name}`}
-                onPress={() =>
-                  router.push({ pathname: "/group/[groupId]", params: { groupId: group.id } })
-                }
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+            <LinkedListCard
+              key={group.id}
+              label={`${t("Open group")}: ${group.name}`}
+              onPress={() =>
+                router.push({ pathname: "/group/[groupId]", params: { groupId: group.id } })
+              }
+              actions={
+                invitation?.status === "PENDING" ? (
+                  <>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="outline"
+                      accessibilityLabel={t("Accept group invitation")}
+                      style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+                      hitSlop={4}
+                      isDisabled={groups.respond.isPending}
+                      onPress={() =>
+                        groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
+                      }
+                    >
+                      <Check size={18} color="#17c964" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="outline"
+                      accessibilityLabel={t("Decline group invitation")}
+                      style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+                      hitSlop={4}
+                      isDisabled={groups.respond.isPending}
+                      onPress={() =>
+                        groups.respond.mutate({ invitationId: invitation.id, decision: "decline" })
+                      }
+                    >
+                      <X size={18} color="#f31260" />
+                    </Button>
+                  </>
+                ) : undefined
+              }
+            >
+              <GroupArtwork name={group.name} admin={admin} />
+              <View
+                style={{
+                  flex: 1,
+                  gap: 5,
+                  paddingBottom: invitation?.status === "PENDING" ? 36 : 0,
+                }}
               >
-                <GroupArtwork name={group.name} admin={admin} />
-                <View style={{ flex: 1, gap: 5 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-                    <Typography numberOfLines={1} style={{ flexShrink: 1, fontWeight: "600" }}>
-                      {group.name}
-                    </Typography>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                      {group.isPublic ? (
-                        <LockKeyholeOpen size={14} color="#6b7280" />
-                      ) : (
-                        <LockKeyhole size={14} color="#6b7280" />
-                      )}
-                      <Typography className="text-muted" style={{ fontSize: 12 }}>
-                        {group.isPublic ? t("Public") : t("Private")}
-                      </Typography>
-                    </View>
-                  </View>
-                  <Typography className="text-muted" style={{ fontSize: 13 }}>
-                    {new Date(group.createdAt).toLocaleDateString(i18n.locale, {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
+                  <Typography numberOfLines={1} style={{ flexShrink: 1, fontWeight: "600" }}>
+                    {group.name}
                   </Typography>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <UsersRound size={14} color="#6b7280" />
-                    <Typography className="text-muted" style={{ fontSize: 13 }}>
-                      {group.memberCount} {group.memberCount === 1 ? t("member") : t("members")}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                    {group.isPublic ? (
+                      <LockKeyholeOpen size={14} color="#6b7280" />
+                    ) : (
+                      <LockKeyhole size={14} color="#6b7280" />
+                    )}
+                    <Typography className="text-muted" style={{ fontSize: 12 }}>
+                      {group.isPublic ? t("Public") : t("Private")}
                     </Typography>
                   </View>
-                  {admin && group.invitations.some((item) => item.status === "PENDING") ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Mail size={14} color="#6b7280" />
-                      <Typography className="text-muted" style={{ fontSize: 12 }}>
-                        {group.invitations.filter((item) => item.status === "PENDING").length}{" "}
-                        {t("Invited")}
-                      </Typography>
-                    </View>
-                  ) : null}
                 </View>
-              </Pressable>
-              {invitation?.status === "PENDING" ? (
-                <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="ghost"
-                    accessibilityLabel={t("Accept group invitation")}
-                    isDisabled={groups.respond.isPending}
-                    onPress={() =>
-                      groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
-                    }
-                  >
-                    <Check size={18} color="#17c964" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="ghost"
-                    accessibilityLabel={t("Decline group invitation")}
-                    isDisabled={groups.respond.isPending}
-                    onPress={() =>
-                      groups.respond.mutate({ invitationId: invitation.id, decision: "decline" })
-                    }
-                  >
-                    <X size={18} color="#f31260" />
-                  </Button>
+                <Typography className="text-muted" style={{ fontSize: 13 }}>
+                  {new Date(group.createdAt).toLocaleDateString(i18n.locale, {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </Typography>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <UsersRound size={14} color="#6b7280" />
+                  <Typography className="text-muted" style={{ fontSize: 13 }}>
+                    {group.memberCount} {group.memberCount === 1 ? t("member") : t("members")}
+                  </Typography>
                 </View>
-              ) : null}
-            </Card>
+                {admin && group.invitations.some((item) => item.status === "PENDING") ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Mail size={14} color="#6b7280" />
+                    <Typography className="text-muted" style={{ fontSize: 12 }}>
+                      {group.invitations.filter((item) => item.status === "PENDING").length}{" "}
+                      {t("Invited")}
+                    </Typography>
+                  </View>
+                ) : null}
+              </View>
+            </LinkedListCard>
           );
         })}
       </ScrollView>

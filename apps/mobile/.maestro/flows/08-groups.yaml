@@ -10,8 +10,8 @@ appId: com.bgo.mobile
 - assertVisible: "New group"
 - assertVisible: "Group name"
 - assertVisible: "Public group"
-# Header back cancels without a second cancel action.
-- back
+# Header back stays below the safe area and remains tappable.
+- tapOn: "Back"
 - assertVisible: "No groups yet"
 - tapOn:
     id: "create-group-fab"
@@ -25,8 +25,7 @@ appId: com.bgo.mobile
     id: "group-public-switch"
 - assertVisible: "Select a friend"
 - tapOn: "Remove invite"
-- assertNotVisible: "Select a friend"
-- tapOn: "Add friend"
+- assertVisible: "Select a friend"
 - tapOn: "Select a friend"
 - assertVisible: "Search users (at least 4 characters)"
 - back
@@ -39,6 +38,10 @@ appId: com.bgo.mobile
 - assertVisible: "1 member"
 - assertVisible: "Group admin"
 - tapOn: "Open group: Tabletop Friends"
+- assertVisible: "Accepted"
+- tapOn: "Edit group"
+- assertVisible: "Edit group"
+- tapOn: "Back"
 - assertVisible: "Accepted"
 - tapOn: "Edit group"
 - assertVisible: "Tabletop Friends"

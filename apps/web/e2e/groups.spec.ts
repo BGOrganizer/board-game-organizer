@@ -88,10 +88,16 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await page.getByLabel("Group name").fill("Saturday Players");
   await page.getByRole("switch", { name: "Public group" }).check();
   await page.getByRole("button", { name: "Remove invite" }).click();
-  await expect(page.getByRole("button", { name: "Select a friend" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Select a friend" })).toHaveCount(1);
   await page.getByRole("button", { name: "Add friend" }).click();
+  await page.getByRole("button", { name: "Remove invite" }).first().click();
+  await expect(page.getByRole("button", { name: "Select a friend" })).toHaveCount(1);
   await page.getByRole("button", { name: "Select a friend" }).click();
   await expect(page.getByText("E2E Friend")).toBeVisible();
+  await page.getByRole("button", { name: "Add: E2E Friend" }).click();
+  await page.getByRole("button", { name: "Remove invite" }).click();
+  await expect(page.getByRole("button", { name: "Select a friend" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Select a friend" }).click();
   await page.getByRole("button", { name: "Add: E2E Friend" }).click();
   await expect(page.getByText("E2E Friend")).toBeVisible();
   await page.getByRole("button", { name: "Create group" }).click();

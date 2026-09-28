@@ -90,9 +90,6 @@ function Editor({
   return (
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 16 }}>
-        <Typography style={{ fontSize: 18, fontWeight: "600" }}>
-          {group ? t("Edit group") : t("New group")}
-        </Typography>
         <Input
           accessibilityLabel={t("Group name")}
           value={name}
@@ -191,7 +188,13 @@ function Editor({
                   variant="danger-soft"
                   accessibilityLabel={t("Remove invite")}
                   onPress={() =>
-                    setSlots((current) => current.filter((item) => item.id !== slot.id))
+                    setSlots((current) =>
+                      current.length > 1
+                        ? current.filter((item) => item.id !== slot.id)
+                        : current.map((item) =>
+                            item.id === slot.id ? { ...item, user: null } : item,
+                          ),
+                    )
                   }
                 >
                   <Trash2 color="#dc2626" size={16} />

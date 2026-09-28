@@ -11,7 +11,7 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
 import waves from "@dicebear/styles/waves.json" with { type: "json" };
-import { Button, Card, Chip, Skeleton } from "@heroui/react";
+import { Button, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   CalendarDays,
@@ -24,8 +24,8 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { LinkedListCard } from "@/components/LinkedListCard";
 import { MatchWizard } from "@/components/MatchWizard";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -141,108 +141,104 @@ export function Matches() {
             ? `+${card.additionalDates} ${card.additionalDates === 1 ? t`date` : t`dates`}`
             : "";
           return (
-            <Card key={match.id} className="relative rounded-xl p-0">
-              <Link
-                href={match.optimistic ? "/matches" : `/matches/${match.id}`}
-                aria-label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
-                aria-disabled={match.optimistic}
-                onClick={(event) => {
-                  if (match.optimistic) event.preventDefault();
-                }}
-                className="flex w-full cursor-pointer items-start gap-3 p-3 text-left"
-              >
-                <MatchArtwork
-                  name={match.name}
-                  adminLabel={match.adminUserId === userId ? t`Administrator` : undefined}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="min-w-0 font-semibold">{match.name}</p>
-                    <Chip
+            <LinkedListCard
+              key={match.id}
+              href={match.optimistic ? "/matches" : `/matches/${match.id}`}
+              label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
+              disabled={match.optimistic}
+              actions={
+                invitation?.status === "PENDING" ? (
+                  <>
+                    <Button
+                      isIconOnly
                       size="sm"
-                      variant="soft"
-                      color={matchCardStatusColor[match.status]}
-                      className="shrink-0"
+                      variant="outline"
+                      className="h-8 min-h-8 w-8 min-w-8"
+                      aria-label={t`Decline`}
+                      isDisabled={matches.respondInvitation.isPending}
+                      onPress={() =>
+                        matches.respondInvitation.mutate({
+                          invitationId: invitation.id,
+                          decision: "decline",
+                        })
+                      }
                     >
-                      {statusLabels[match.status]}
-                    </Chip>
-                  </div>
-                  {card.date && dateLabel && (
-                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-default-600">
-                      <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                      <time dateTime={card.date}>{dateLabel.date}</time>
-                      <Clock3 className="h-4 w-4" aria-hidden="true" />
-                      <time dateTime={card.date}>{dateLabel.time}</time>
-                      {extraDates && <span>{extraDates}</span>}
-                    </div>
-                  )}
-                  <div
-                    className={`mt-2 flex min-w-0 items-center gap-3 overflow-hidden text-xs text-default-500 ${invitation?.status === "PENDING" ? "pr-20" : ""}`}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      <UsersRound className="h-4 w-4" aria-hidden="true" />
-                      {playersLabel}
-                    </span>
-                    <span className="inline-flex min-w-0 items-center gap-1">
-                      <Dices className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="max-w-[25ch] truncate" title={gameLabel}>
-                        {gameLabel}
-                      </span>
-                    </span>
-                  </div>
-                  {card.winnerNames && card.winnerNames.length > 0 && (
-                    <div className="mt-2 flex min-w-0 items-start gap-1 text-xs">
-                      <Medal
-                        className="h-4 w-4 shrink-0 text-warning"
-                        aria-label={card.winnerNames.length === 1 ? t`Winner` : t`Winners`}
-                      />
-                      <span className="min-w-0">
-                        <strong className="block whitespace-pre-line text-default-foreground">
-                          {card.winnerNames.join("\n")}
-                        </strong>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </Link>
-
-              {invitation?.status === "PENDING" && (
-                <div className="absolute bottom-2 right-2 z-10 flex gap-1 rounded-lg bg-surface p-0.5">
-                  <Button
-                    isIconOnly
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="outline"
+                      className="h-8 min-h-8 w-8 min-w-8 bg-surface text-success"
+                      aria-label={t`Accept`}
+                      isDisabled={matches.respondInvitation.isPending}
+                      onPress={() =>
+                        matches.respondInvitation.mutate({
+                          invitationId: invitation.id,
+                          decision: "accept",
+                        })
+                      }
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                ) : undefined
+              }
+            >
+              <MatchArtwork
+                name={match.name}
+                adminLabel={match.adminUserId === userId ? t`Administrator` : undefined}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 font-semibold">{match.name}</p>
+                  <Chip
                     size="sm"
-                    variant="outline"
-                    className="h-8 min-h-8 w-8 min-w-8"
-                    aria-label={t`Decline`}
-                    isDisabled={matches.respondInvitation.isPending}
-                    onPress={() =>
-                      matches.respondInvitation.mutate({
-                        invitationId: invitation.id,
-                        decision: "decline",
-                      })
-                    }
+                    variant="soft"
+                    color={matchCardStatusColor[match.status]}
+                    className="shrink-0"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="outline"
-                    className="h-8 min-h-8 w-8 min-w-8 bg-surface text-success"
-                    aria-label={t`Accept`}
-                    isDisabled={matches.respondInvitation.isPending}
-                    onPress={() =>
-                      matches.respondInvitation.mutate({
-                        invitationId: invitation.id,
-                        decision: "accept",
-                      })
-                    }
-                  >
-                    <Check className="h-3.5 w-3.5" />
-                  </Button>
+                    {statusLabels[match.status]}
+                  </Chip>
                 </div>
-              )}
-            </Card>
+                {card.date && dateLabel && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-default-600">
+                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                    <time dateTime={card.date}>{dateLabel.date}</time>
+                    <Clock3 className="h-4 w-4" aria-hidden="true" />
+                    <time dateTime={card.date}>{dateLabel.time}</time>
+                    {extraDates && <span>{extraDates}</span>}
+                  </div>
+                )}
+                <div
+                  className={`mt-2 flex min-w-0 items-center gap-3 overflow-hidden text-xs text-default-500 ${invitation?.status === "PENDING" ? "pr-20" : ""}`}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <UsersRound className="h-4 w-4" aria-hidden="true" />
+                    {playersLabel}
+                  </span>
+                  <span className="inline-flex min-w-0 items-center gap-1">
+                    <Dices className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="max-w-[25ch] truncate" title={gameLabel}>
+                      {gameLabel}
+                    </span>
+                  </span>
+                </div>
+                {card.winnerNames && card.winnerNames.length > 0 && (
+                  <div className="mt-2 flex min-w-0 items-start gap-1 text-xs">
+                    <Medal
+                      className="h-4 w-4 shrink-0 text-warning"
+                      aria-label={card.winnerNames.length === 1 ? t`Winner` : t`Winners`}
+                    />
+                    <span className="min-w-0">
+                      <strong className="block whitespace-pre-line text-default-foreground">
+                        {card.winnerNames.join("\n")}
+                      </strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </LinkedListCard>
           );
         })}
       </div>

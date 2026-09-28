@@ -107,12 +107,18 @@ describe("Groups screens", () => {
     fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "Game Friends" } });
     fireEvent.click(screen.getByRole("switch", { name: "Public group" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove invite" }));
-    expect(screen.queryByRole("button", { name: "Select a friend" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Select a friend" })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Add friend" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove invite" })[0]);
+    expect(screen.getAllByRole("button", { name: "Select a friend" })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Select a friend" }));
     expect(screen.getByRole("heading", { name: "Invite friends" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add: Friend" }));
     expect(screen.getByText("Friend")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Remove invite" }));
+    expect(screen.getAllByRole("button", { name: "Select a friend" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Select a friend" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add: Friend" }));
     fireEvent.click(screen.getByRole("button", { name: "Create group" }));
     await waitFor(() =>
       expect(create.mutateAsync).toHaveBeenCalledWith({
@@ -127,9 +133,9 @@ describe("Groups screens", () => {
   it("opens detail from card, edits in dedicated screen and archives with confirmation", async () => {
     useGroupsMock.mockReturnValue(groups([group]));
     const { unmount } = renderWithI18n(<Groups />);
-    expect(
-      screen.getByRole("link", { name: "Open group: Board Gamers" }).getAttribute("href"),
-    ).toBe(`/groups/${group.id}`);
+    const groupLink = screen.getByRole("link", { name: "Open group: Board Gamers" });
+    expect(groupLink.getAttribute("href")).toBe(`/groups/${group.id}`);
+    expect(groupLink.className).toContain("p-3");
     expect(screen.getByLabelText("Group admin")).toBeTruthy();
     expect(document.querySelector('img[src^="data:image/svg+xml,"]')).toBeTruthy();
     expect(screen.getByText("Private")).toBeTruthy();

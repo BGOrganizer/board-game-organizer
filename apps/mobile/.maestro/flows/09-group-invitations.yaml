@@ -74,6 +74,10 @@ appId: com.bgo.mobile
     visible: "E2E Target"
     timeout: 30000
 - tapOn: "Add: E2E Target"
+- tapOn: "Remove invite"
+- assertVisible: "Select a friend"
+- tapOn: "Select a friend"
+- tapOn: "Add: E2E Target"
 - tapOn:
     id: "save-group-fab"
 - extendedWaitUntil:

@@ -13,7 +13,6 @@ import squircles from "@dicebear/styles/squircles.json" with { type: "json" };
 import {
   Avatar,
   Button,
-  Card,
   FieldError,
   Input,
   Label,
@@ -43,11 +42,11 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { LinkedListCard } from "@/components/LinkedListCard";
 import { SearchUserPage } from "@/components/SearchUserPage";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -228,7 +227,15 @@ function GroupEditor({
                 variant="danger-soft"
                 className="absolute right-2 top-1/2 -translate-y-1/2"
                 aria-label={t`Remove invite`}
-                onPress={() => setSlots((current) => current.filter((item) => item.id !== slot.id))}
+                onPress={() =>
+                  setSlots((current) =>
+                    current.length > 1
+                      ? current.filter((item) => item.id !== slot.id)
+                      : current.map((item) =>
+                          item.id === slot.id ? { ...item, user: null } : item,
+                        ),
+                  )
+                }
               >
                 <Trash2 className="size-4" />
               </Button>
@@ -663,14 +670,45 @@ export function Groups({
             (candidate) => candidate.inviteeUserId === userId,
           );
           return (
-            <Card key={item.id} className="relative flex min-w-0 flex-row items-center gap-3 p-4">
-              <Link
-                href={`/groups/${item.id}`}
-                aria-label={`${t`Open group`}: ${item.name}`}
-                className="absolute inset-0 z-10 rounded-xl"
-              />
+            <LinkedListCard
+              key={item.id}
+              href={`/groups/${item.id}`}
+              label={`${t`Open group`}: ${item.name}`}
+              actions={
+                invitation?.status === "PENDING" ? (
+                  <>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="outline"
+                      className="h-8 min-h-8 w-8 min-w-8"
+                      aria-label={t`Accept group invitation`}
+                      isDisabled={groups.respond.isPending}
+                      onPress={() =>
+                        groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
+                      }
+                    >
+                      <Check className="size-4" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="outline"
+                      className="h-8 min-h-8 w-8 min-w-8"
+                      aria-label={t`Decline group invitation`}
+                      isDisabled={groups.respond.isPending}
+                      onPress={() =>
+                        groups.respond.mutate({ invitationId: invitation.id, decision: "decline" })
+                      }
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </>
+                ) : undefined
+              }
+            >
               <GroupArtwork name={item.name} adminLabel={admin ? t`Group admin` : undefined} />
-              <div className="relative min-w-0 flex-1 pointer-events-none">
+              <div className={`min-w-0 flex-1 ${invitation?.status === "PENDING" ? "pb-8" : ""}`}>
                 <div className="flex items-start justify-between gap-2">
                   <p className="truncate font-semibold">{item.name}</p>
                   <span className="flex shrink-0 items-center gap-1 text-xs text-default-500">
@@ -697,35 +735,7 @@ export function Groups({
                   </p>
                 ) : null}
               </div>
-              {invitation?.status === "PENDING" ? (
-                <div className="relative z-20 flex gap-1">
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="outline"
-                    aria-label={t`Accept group invitation`}
-                    isDisabled={groups.respond.isPending}
-                    onPress={() =>
-                      groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
-                    }
-                  >
-                    <Check className="size-4" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="outline"
-                    aria-label={t`Decline group invitation`}
-                    isDisabled={groups.respond.isPending}
-                    onPress={() =>
-                      groups.respond.mutate({ invitationId: invitation.id, decision: "decline" })
-                    }
-                  >
-                    <X className="size-4" />
-                  </Button>
-                </div>
-              ) : null}
-            </Card>
+            </LinkedListCard>
           );
         })}
       </div>
