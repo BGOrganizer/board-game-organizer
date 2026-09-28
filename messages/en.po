@@ -45,6 +45,7 @@ msgstr "Accept invitation"
 msgid "Accept or decline this friend request."
 msgstr "Accept or decline this friend request."
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Accepted"
 msgstr "Accepted"
@@ -443,6 +444,10 @@ msgid "Could not remove friend"
 msgstr "Could not remove friend"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove person from group"
+msgstr "Could not remove person from group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not remove player from match"
 msgstr "Could not remove player from match"
 
@@ -709,10 +714,6 @@ msgid "Generate a link to connect with someone."
 msgstr "Generate a link to connect with someone."
 
 #. Mobile runtime only
-#~ msgid "Group"
-#~ msgstr "Group"
-
-#. Mobile runtime only
 msgid "Group"
 msgstr "Group"
 
@@ -781,8 +782,8 @@ msgid "Increase min players"
 msgstr "Increase min players"
 
 #: apps/web/src/components/Groups.tsx
-msgid "Invitations"
-msgstr "Invitations"
+#~ msgid "Invitations"
+#~ msgstr "Invitations"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Invite a friend"
@@ -962,8 +963,8 @@ msgid "members"
 msgstr "members"
 
 #: apps/web/src/components/Groups.tsx
-msgid "Members"
-msgstr "Members"
+#~ msgid "Members"
+#~ msgstr "Members"
 
 #: apps/web/src/components/Groups.tsx
 msgid "Members are visible after accepting the invitation"
@@ -980,6 +981,10 @@ msgstr "Minimum players"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Mobile number"
 msgstr "Mobile number"
+
+#: apps/web/src/components/Groups.tsx
+msgid "More group actions"
+msgstr "More group actions"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "More match actions"
@@ -1051,8 +1056,8 @@ msgid "No groups yet"
 msgstr "No groups yet"
 
 #: apps/web/src/components/Groups.tsx
-msgid "No invitations"
-msgstr "No invitations"
+#~ msgid "No invitations"
+#~ msgstr "No invitations"
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "No invited players"
@@ -1170,6 +1175,10 @@ msgstr "Participants"
 msgid "Pending"
 msgstr "Pending"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Person removed from group"
+msgstr "Person removed from group"
+
 #: apps/mobile/src/app/(tabs)/matches.tsx (mobile-only, runtime useT)
 #~ msgid "Pick date and time"
 #~ msgstr "Pick date and time"
@@ -1266,6 +1275,14 @@ msgstr "Remove friend"
 #: apps/web/src/components/UserMenu.tsx
 msgid "Remove friend?"
 msgstr "Remove friend?"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Remove from group"
+msgstr "Remove from group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Remove from group?"
+msgstr "Remove from group?"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove game"
@@ -1490,6 +1507,10 @@ msgstr "This deletes the match and all invitations. This action cannot be undone
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."
 msgstr "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."
+
+#: apps/web/src/components/Groups.tsx
+msgid "This removes the invitation or member from the group. You can invite them again."
+msgstr "This removes the invitation or member from the group. You can invite them again."
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Tie-break applied"

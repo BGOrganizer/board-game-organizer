@@ -151,6 +151,27 @@ export function useGroups({
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
+  const removeInvitation = useMutation({
+    mutationFn: async (invitationId: string) =>
+      request(`group-invitations/${encodeURIComponent(invitationId)}`, "DELETE"),
+    onMutate: (invitationId) =>
+      optimistic("remove_group_invitation", (rows) =>
+        rows.map((row) => {
+          const invitation = row.invitations.find((item) => item.id === invitationId);
+          if (!invitation) return row;
+          return {
+            ...row,
+            memberCount: row.memberCount - (invitation.status === "ACCEPTED" ? 1 : 0),
+            memberProfiles: row.memberProfiles.filter(
+              (user) => user.id !== invitation.inviteeUserId,
+            ),
+            invitations: row.invitations.filter((item) => item.id !== invitationId),
+          };
+        }),
+      ),
+    onError: (error, _id, context) => undo(context, error, "remove_group_invitation"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
+  });
   const leave = useMutation({
     mutationFn: async (id: string) =>
       request(`groups/${encodeURIComponent(id)}/membership`, "DELETE"),
@@ -158,5 +179,5 @@ export function useGroups({
     onError: (error, _id, context) => undo(context, error, "leave_group"),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
-  return { list, create, update, archive, respond, leave };
+  return { list, create, update, archive, respond, leave, removeInvitation };
 }

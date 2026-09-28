@@ -10,6 +10,16 @@ import {
 
 export const OPTIONS = matchOptions;
 
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ invitationId: string }> },
+) {
+  const id = z.uuid().safeParse((await context.params).invitationId);
+  if (!hasValidMatchQuery(request) || !id.success)
+    return badMatchRequest(request, "Invalid invitation id");
+  return runGroupOperation(request, (userId, service) => service.removeInvitation(userId, id.data));
+}
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ invitationId: string }> },

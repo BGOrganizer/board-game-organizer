@@ -56,6 +56,12 @@ describe("Matches", () => {
     useMatchesMock.mockReturnValue(baseMock);
   });
 
+  it("keeps match group optional in the HeroUI select", () => {
+    renderWithI18n(<MatchWizard onCreated={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Group \(optional\)/ }));
+    expect(screen.getByRole("option", { name: "No group" })).toBeTruthy();
+  });
+
   it("lists the matches with name, dates and player range", () => {
     renderWithI18n(<Matches />);
     expect(screen.getByText("Friday night games")).toBeTruthy();

@@ -3,7 +3,7 @@
 import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
 import { resolveApiUrl, useGroups, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button } from "@heroui/react";
+import { Avatar, Button, Label, ListBox, Select } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Save, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -347,32 +347,41 @@ export function MatchWizard({
           {name.trim().length > 0 && name.trim().length < 5 && (
             <p className="text-sm text-danger">{t`At least 5 characters`}</p>
           )}{" "}
-          <label className="block space-y-1 text-sm font-medium">
-            <span>{t`Group (optional)`}</span>
-            <select
-              aria-label={t`Group (optional)`}
-              value={groupId}
-              disabled={groups.list.isPending || groups.list.isError}
-              onChange={(event) => setGroupId(event.target.value)}
-              className="w-full rounded-lg border border-default-200 bg-background px-3 py-2 text-foreground"
-            >
-              <option value="">{t`No group`}</option>
-              {groups.list.data
-                ?.filter(
-                  (group) =>
-                    group.adminUserId === userId ||
-                    group.invitations.some(
-                      (invitation) =>
-                        invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
-                    ),
-                )
-                .map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+          <Select
+            fullWidth
+            value={groupId || "none"}
+            onChange={(value) => setGroupId(value === "none" ? "" : String(value ?? ""))}
+            isDisabled={groups.list.isPending || groups.list.isError}
+          >
+            <Label>{t`Group (optional)`}</Label>
+            <Select.Trigger>
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                <ListBox.Item id="none" textValue={t`No group`}>
+                  {t`No group`}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+                {groups.list.data
+                  ?.filter(
+                    (group) =>
+                      group.adminUserId === userId ||
+                      group.invitations.some(
+                        (invitation) =>
+                          invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+                      ),
+                  )
+                  .map((group) => (
+                    <ListBox.Item key={group.id} id={group.id} textValue={group.name}>
+                      {group.name}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
           {groups.list.isError ? (
             <p role="alert" className="text-danger">{t`Could not load groups`}</p>
           ) : null}

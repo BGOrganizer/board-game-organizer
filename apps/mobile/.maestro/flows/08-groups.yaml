@@ -24,6 +24,9 @@ appId: com.bgo.mobile
 - tapOn:
     id: "group-public-switch"
 - assertVisible: "Select a friend"
+- tapOn: "Remove invite"
+- assertNotVisible: "Select a friend"
+- tapOn: "Add friend"
 - tapOn: "Select a friend"
 - assertVisible: "Search users (at least 4 characters)"
 - back
@@ -36,7 +39,7 @@ appId: com.bgo.mobile
 - assertVisible: "1 member"
 - assertVisible: "Group admin"
 - tapOn: "Open group: Tabletop Friends"
-- assertVisible: "Members"
+- assertVisible: "Accepted"
 - tapOn: "Edit group"
 - assertVisible: "Tabletop Friends"
 - tapOn: "Group name"

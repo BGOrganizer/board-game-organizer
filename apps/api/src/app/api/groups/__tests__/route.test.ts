@@ -40,6 +40,7 @@ describe("group API routes", () => {
     vi.spyOn(GroupService.prototype, "archive").mockResolvedValue();
     vi.spyOn(GroupService.prototype, "respond").mockResolvedValue(group as never);
     vi.spyOn(GroupService.prototype, "leave").mockResolvedValue();
+    vi.spyOn(GroupService.prototype, "removeInvitation").mockResolvedValue();
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -108,6 +109,18 @@ describe("group API routes", () => {
     );
     expect(
       (
+        await invitationRoute.DELETE(
+          request(`/api/group-invitations/${invitationId}`, "DELETE"),
+          invitationContext,
+        )
+      ).status,
+    ).toBe(200);
+    expect(GroupService.prototype.removeInvitation).toHaveBeenCalledWith(
+      "user_admin",
+      invitationId,
+    );
+    expect(
+      (
         await membershipRoute.DELETE(
           request(`/api/groups/${groupId}/membership`, "DELETE"),
           context,
@@ -152,6 +165,22 @@ describe("group API routes", () => {
         )
       ).status,
     ).toBe(400);
+    expect(
+      (
+        await invitationRoute.DELETE(request("/api/group-invitations/bad", "DELETE"), {
+          params: Promise.resolve({ invitationId: "bad" }),
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await invitationRoute.DELETE(
+          request(`/api/group-invitations/${invitationId}?bad=1`, "DELETE"),
+          invitationContext,
+        )
+      ).status,
+    ).toBe(400);
+    expect(GroupService.prototype.removeInvitation).not.toHaveBeenCalled();
     expect(GroupService.prototype.update).not.toHaveBeenCalled();
   });
 });

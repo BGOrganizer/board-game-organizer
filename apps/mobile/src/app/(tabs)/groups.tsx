@@ -1,5 +1,8 @@
 import { resolveApiUrl, useGroups } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
+import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
+import squircles from "@dicebear/styles/squircles.json" with { type: "json" };
+import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -11,21 +14,51 @@ import {
   Crown,
   LockKeyhole,
   LockKeyholeOpen,
+  Mail,
   Plus,
   UsersRound,
   X,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import { SvgXml } from "react-native-svg";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
+const squirclesStyle = new Style(squircles);
+
+function GroupArtwork({ name, admin }: { name: string; admin: boolean }) {
+  const t = useT();
+  const xml = useMemo(
+    () => new DiceBearAvatar(squirclesStyle, { seed: name, size: 64 }).toString(),
+    [name],
+  );
+  return (
+    <View style={{ width: 64, height: 64, flexShrink: 0 }}>
+      <View style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden" }}>
+        <SvgXml xml={xml} width={64} height={64} />
+      </View>
+      {admin ? (
+        <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={t("Group admin")}
+          className="bg-surface"
+          style={{ position: "absolute", top: 0, left: 0, padding: 4, borderBottomRightRadius: 8 }}
+        >
+          <Crown size={16} color="#f59e0b" />
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 export default function GroupsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const router = useRouter();
   const t = useT();
+  const { i18n } = useLingui();
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   useEffect(() => {
@@ -71,28 +104,7 @@ export default function GroupsScreen() {
                 }
                 style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
               >
-                <View
-                  className="bg-accent/10"
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <UsersRound size={26} color="#006fee" />
-                  {admin ? (
-                    <View
-                      accessible
-                      accessibilityRole="image"
-                      accessibilityLabel={t("Group admin")}
-                      style={{ position: "absolute", top: 0, left: 0 }}
-                    >
-                      <Crown size={16} color="#f59e0b" />
-                    </View>
-                  ) : null}
-                </View>
+                <GroupArtwork name={group.name} admin={admin} />
                 <View style={{ flex: 1, gap: 5 }}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
                     <Typography numberOfLines={1} style={{ flexShrink: 1, fontWeight: "600" }}>
@@ -110,13 +122,26 @@ export default function GroupsScreen() {
                     </View>
                   </View>
                   <Typography className="text-muted" style={{ fontSize: 13 }}>
-                    {group.memberCount} {group.memberCount === 1 ? t("member") : t("members")}
+                    {new Date(group.createdAt).toLocaleDateString(i18n.locale, {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
                   </Typography>
-                  {admin && group.invitations.some((item) => item.status === "PENDING") ? (
-                    <Typography className="text-muted" style={{ fontSize: 12 }}>
-                      {group.invitations.filter((item) => item.status === "PENDING").length}{" "}
-                      {t("Invited")}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <UsersRound size={14} color="#6b7280" />
+                    <Typography className="text-muted" style={{ fontSize: 13 }}>
+                      {group.memberCount} {group.memberCount === 1 ? t("member") : t("members")}
                     </Typography>
+                  </View>
+                  {admin && group.invitations.some((item) => item.status === "PENDING") ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <Mail size={14} color="#6b7280" />
+                      <Typography className="text-muted" style={{ fontSize: 12 }}>
+                        {group.invitations.filter((item) => item.status === "PENDING").length}{" "}
+                        {t("Invited")}
+                      </Typography>
+                    </View>
                   ) : null}
                 </View>
               </Pressable>

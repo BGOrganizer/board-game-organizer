@@ -14,13 +14,13 @@ import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
+import { Select } from "heroui-native/select";
 import { Typography } from "heroui-native/text";
 import {
   ArrowLeft,
   ArrowRight,
   CalendarClock,
   CalendarDays,
-  Check,
   Clock3,
   Gamepad2,
   Minus,
@@ -376,37 +376,42 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             {groups.list.isError ? (
               <Typography className="text-danger">{t("Could not load groups")}</Typography>
             ) : null}
-            <GroupedList>
-              {[
-                { id: "", name: t("No group") },
-                ...(groups.list.data?.filter(
-                  (group) =>
-                    group.adminUserId === userId ||
-                    group.invitations.some(
-                      (invitation) =>
-                        invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
-                    ),
-                ) ?? []),
-              ].map((group) => (
-                <GroupedRow key={group.id || "none"}>
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityLabel={group.name}
-                    accessibilityState={{ selected: groupId === group.id }}
-                    onPress={() => setGroupId(group.id)}
-                    style={{
-                      flex: 1,
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      padding: 12,
-                    }}
-                  >
-                    <Typography>{group.name}</Typography>
-                    {groupId === group.id ? <Check color="#006fee" size={18} /> : null}
-                  </Pressable>
-                </GroupedRow>
-              ))}
-            </GroupedList>
+            <Select
+              presentation="bottom-sheet"
+              value={{
+                value: groupId || "none",
+                label: selectedGroup?.name ?? (groupId || t("No group")),
+              }}
+              onValueChange={(item) => {
+                if (!Array.isArray(item))
+                  setGroupId(item?.value === "none" ? "" : (item?.value ?? ""));
+              }}
+              isDisabled={groups.list.isPending || groups.list.isError}
+            >
+              <Select.Trigger accessibilityLabel={t("Group (optional)")}>
+                <Select.Value placeholder={t("No group")} />
+                <Select.TriggerIndicator />
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Overlay />
+                <Select.Content presentation="bottom-sheet">
+                  <Select.ListLabel>{t("Group (optional)")}</Select.ListLabel>
+                  <Select.Item value="none" label={t("No group")} />
+                  {groups.list.data
+                    ?.filter(
+                      (group) =>
+                        group.adminUserId === userId ||
+                        group.invitations.some(
+                          (invitation) =>
+                            invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+                        ),
+                    )
+                    .map((group) => (
+                      <Select.Item key={group.id} value={group.id} label={group.name} />
+                    ))}
+                </Select.Content>
+              </Select.Portal>
+            </Select>
             {groupId && !selectedGroup && !groups.list.isPending ? (
               <Typography className="text-danger">{t("Selected group is unavailable")}</Typography>
             ) : null}

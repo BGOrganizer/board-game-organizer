@@ -25,6 +25,7 @@ export type MutationFeedbackAction =
   | "update_group"
   | "delete_group"
   | "leave_group"
+  | "remove_group_invitation"
   | "accept_group_invitation"
   | "decline_group_invitation";
 

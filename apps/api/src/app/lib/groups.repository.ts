@@ -153,6 +153,10 @@ export class GroupsRepository {
     );
   }
 
+  removeById(id: string, groupId: string) {
+    return this.invitations.deleteOne({ id, groupId }, this.opts);
+  }
+
   remove(groupId: string, inviteeUserId: string) {
     return this.invitations.deleteOne({ groupId, inviteeUserId }, this.opts);
   }

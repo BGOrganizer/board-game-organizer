@@ -80,6 +80,24 @@ appId: com.bgo.mobile
     visible: "Shared Tabletop Club"
     timeout: 30000
 - assertVisible: "Invited"
+- tapOn: "Open group: Shared Tabletop Club"
+- extendedWaitUntil:
+    visible: "Remove from group: E2E Target"
+    timeout: 30000
+- assertVisible: "Pending"
+- tapOn: "Remove from group: E2E Target"
+- assertVisible: "Remove from group?"
+- tapOn: "Remove from group"
+- assertVisible: "Person removed from group"
+- tapOn: "Edit group"
+- tapOn: "Select a friend"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- tapOn: "Add: E2E Target"
+- tapOn:
+    id: "save-group-fab"
+- tapOn: "Back"
 - tapOn: "Profile"
 - tapOn: "Logout"
 - extendedWaitUntil:
@@ -107,6 +125,7 @@ appId: com.bgo.mobile
     timeout: 30000
 - tapOn: "Open group: Shared Tabletop Club"
 - tapOn: "Accept invitation"
+- assertVisible: "Accepted"
 - extendedWaitUntil:
     visible: "2 members"
     timeout: 30000

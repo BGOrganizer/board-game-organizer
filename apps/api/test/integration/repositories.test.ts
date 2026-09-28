@@ -1042,6 +1042,30 @@ describe("match repositories on MongoDB replica set", () => {
 });
 
 describe("group membership and OpenSkill on the MongoDB replica set", () => {
+  it("allows only admin to remove pending or accepted group invitations by id", async () => {
+    await seedMatchDependencies();
+    await relationships.becomeFriends(ACTOR, THIRD);
+    const group = await withMatchTransaction(({ groups }) =>
+      groups.create(ACTOR, {
+        name: "Board Gamers",
+        isPublic: false,
+        invitedUserIds: [TARGET, THIRD],
+      }),
+    );
+    const [pending, accepted] = group.invitations;
+    await withMatchTransaction(({ groups }) => groups.respond(THIRD, accepted.id, "accept"));
+    await expect(
+      withMatchTransaction(({ groups }) => groups.removeInvitation(TARGET, pending.id)),
+    ).rejects.toEqual(expect.objectContaining({ status: 403 }));
+    await withMatchTransaction(({ groups }) => groups.removeInvitation(ACTOR, pending.id));
+    await withMatchTransaction(({ groups }) => groups.removeInvitation(ACTOR, accepted.id));
+    const updated = await withMatchTransaction(({ groups }) => groups.detail(ACTOR, group.id));
+    expect(updated.invitations).toEqual([]);
+    expect(updated.memberCount).toBe(1);
+    await expect(
+      withMatchTransaction(({ groups }) => groups.removeInvitation(ACTOR, pending.id)),
+    ).rejects.toEqual(expect.objectContaining({ status: 404 }));
+  });
   it("accepts invited friends, allows group member match invite after unfriend, and keeps group history after archive", async () => {
     await seedMatchDependencies();
     await relationships.becomeFriends(ACTOR, THIRD);

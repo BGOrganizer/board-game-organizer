@@ -38,6 +38,11 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
       ],
     }),
   );
+  await page.route("**/api/group-invitations/**", (route) => {
+    if (route.request().method() !== "DELETE" || !current) return route.fulfill({ status: 404 });
+    current = { ...current, invitations: [] };
+    return route.fulfill({ json: { success: true } });
+  });
   await page.route("**/api/groups**", async (route) => {
     const method = route.request().method();
     const path = new URL(route.request().url()).pathname;
@@ -82,6 +87,9 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await page.getByRole("button", { name: "Create group" }).click();
   await page.getByLabel("Group name").fill("Saturday Players");
   await page.getByRole("switch", { name: "Public group" }).check();
+  await page.getByRole("button", { name: "Remove invite" }).click();
+  await expect(page.getByRole("button", { name: "Select a friend" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Add friend" }).click();
   await page.getByRole("button", { name: "Select a friend" }).click();
   await expect(page.getByText("E2E Friend")).toBeVisible();
   await page.getByRole("button", { name: "Add: E2E Friend" }).click();
@@ -93,7 +101,7 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await expect(page.getByLabel("Group admin")).toBeVisible();
   await page.getByRole("link", { name: "Open group: Saturday Players" }).click();
   await expect(page).toHaveURL(new RegExp(`/groups/${id}$`));
-  await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove from group: E2E Friend" })).toBeVisible();
   await page.getByRole("button", { name: "Edit group" }).click();
   await expect(page).toHaveURL(new RegExp(`/groups/${id}/edit$`));
   await page.getByLabel("Group name").fill("Updated Players");
@@ -105,6 +113,12 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Updated Players")).toBeVisible();
   await expect(page.getByText("Private", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Remove from group: E2E Friend" }).click();
+  const removeDialog = page.getByRole("dialog", { name: "Remove from group?" });
+  await expect(removeDialog).toBeVisible();
+  await removeDialog.getByRole("button", { name: "Remove from group" }).click();
+  await expect(page.getByText("Person removed from group")).toBeVisible();
+  await page.getByRole("button", { name: "More group actions" }).click();
   await page.getByRole("button", { name: "Delete group" }).click();
   const dialog = page.getByRole("dialog", { name: "Delete group?" });
   await expect(dialog).toBeVisible();
@@ -151,7 +165,8 @@ test("match wizard selects optional group and picks an accepted non-friend membe
   await page.goto("/matches");
   await page.getByRole("button", { name: "Create a match" }).click();
   await page.getByLabel("Match name").fill("Group Games Night");
-  await page.getByLabel("Group (optional)").selectOption(id);
+  await page.getByRole("button", { name: /Group \(optional\)/ }).click();
+  await page.getByRole("option", { name: "Tabletop Club" }).click();
   await page.locator('input[type="datetime-local"]').first().fill("2026-10-01T20:00");
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByText("Invite group members")).toBeVisible();

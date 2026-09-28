@@ -218,6 +218,18 @@ export class GroupService {
     });
   }
 
+  async removeInvitation(userId: string, invitationId: string) {
+    const invitation = await this.groups.findInvitation(invitationId);
+    if (!invitation) throw new GroupError(404, "Invitation not found");
+    if ((await this.groups.serializeMembershipChange(invitation.groupId)).matchedCount === 0)
+      throw new GroupError(404, "Group not found");
+    const group = await this.requireGroup(invitation.groupId);
+    if (group.adminUserId !== userId)
+      throw new GroupError(403, "Only group admin can remove invitations");
+    if ((await this.groups.removeById(invitation.id, invitation.groupId)).deletedCount === 0)
+      throw new GroupError(409, "Invitation changed concurrently");
+  }
+
   async leave(userId: string, groupId: string) {
     if ((await this.groups.serializeMembershipChange(groupId)).matchedCount === 0)
       throw new GroupError(404, "Group not found");

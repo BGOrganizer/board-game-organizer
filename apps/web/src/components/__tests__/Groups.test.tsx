@@ -54,6 +54,7 @@ const create = { mutateAsync: vi.fn().mockResolvedValue(group), isPending: false
 const update = { mutateAsync: vi.fn().mockResolvedValue(group), isPending: false };
 const archive = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const leave = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+const removeInvitation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const respond = { mutate: vi.fn(), isPending: false };
 const groups = (data: unknown = []) => ({
   list: { data, isPending: false, isError: false },
@@ -61,18 +62,31 @@ const groups = (data: unknown = []) => ({
   update,
   archive,
   leave,
+  removeInvitation,
   respond,
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
   useGroupsMock.mockReturnValue(groups());
+  const query = { data: [], isPending: false, isError: false, isSuccess: true };
+  const mutation = { mutate: vi.fn(), isPending: false };
   useContactsMock.mockReturnValue({
-    friends: {
-      data: [{ profile: { id: "friend", name: "Friend" } }],
-      isPending: false,
-      isError: false,
-    },
+    friends: { ...query, data: [{ profile: { id: "friend", name: "Friend" } }] },
+    following: query,
+    followers: query,
+    pending: query,
+    sent: query,
+    blocked: query,
+    follow: mutation,
+    unfollow: mutation,
+    unfriend: mutation,
+    friendRequest: mutation,
+    cancelFriendRequest: mutation,
+    acceptFriendRequest: mutation,
+    rejectFriendRequest: mutation,
+    block: mutation,
+    unblock: mutation,
   });
 });
 
@@ -92,6 +106,9 @@ describe("Groups screens", () => {
     expect(router.replace).toHaveBeenCalledWith("/groups");
     fireEvent.change(screen.getByLabelText("Group name"), { target: { value: "Game Friends" } });
     fireEvent.click(screen.getByRole("switch", { name: "Public group" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove invite" }));
+    expect(screen.queryByRole("button", { name: "Select a friend" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add friend" }));
     fireEvent.click(screen.getByRole("button", { name: "Select a friend" }));
     expect(screen.getByRole("heading", { name: "Invite friends" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add: Friend" }));
@@ -114,16 +131,22 @@ describe("Groups screens", () => {
       screen.getByRole("link", { name: "Open group: Board Gamers" }).getAttribute("href"),
     ).toBe(`/groups/${group.id}`);
     expect(screen.getByLabelText("Group admin")).toBeTruthy();
+    expect(document.querySelector('img[src^="data:image/svg+xml,"]')).toBeTruthy();
     expect(screen.getByText("Private")).toBeTruthy();
+    expect(document.querySelector("time")?.getAttribute("datetime")).toBe(group.createdAt);
     unmount();
     const detail = renderWithI18n(<Groups mode="detail" groupId={group.id} />);
-    expect(screen.getByText("Members")).toBeTruthy();
+    expect(screen.getByText("Admin")).toBeTruthy();
+    expect(screen.queryByText("Members")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit group" }));
     expect(router.push).toHaveBeenCalledWith(`/groups/${group.id}/edit`);
+    fireEvent.click(screen.getByRole("button", { name: "More group actions" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete group" }));
     expect(screen.getByRole("dialog", { name: "Delete group?" })).toBeTruthy();
     fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Delete group" }),
+      within(screen.getByRole("dialog", { name: "Delete group?" })).getByRole("button", {
+        name: "Delete group",
+      }),
     );
     await waitFor(() => expect(archive.mutateAsync).toHaveBeenCalledWith(group.id));
     detail.unmount();
@@ -136,6 +159,41 @@ describe("Groups screens", () => {
         input: { name: "New Group Name", isPublic: false, invitedUserIds: [] },
       }),
     );
+  });
+
+  it("confirms removal of pending invitees and accepted members without leaving group", async () => {
+    const invited = ["PENDING", "ACCEPTED"].map((status, index) => ({
+      id: `invite-${index}`,
+      groupId: group.id,
+      inviteeUserId: `user-${index}`,
+      status,
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
+    }));
+    useGroupsMock.mockReturnValue(
+      groups([
+        {
+          ...group,
+          memberCount: 2,
+          invitations: invited,
+          memberProfiles: [
+            ...group.memberProfiles,
+            { id: "user-1", name: "Member", email: null, avatarUrl: null },
+          ],
+        },
+      ]),
+    );
+    renderWithI18n(<Groups mode="detail" groupId={group.id} />);
+    for (const [name, id] of [
+      ["user-0", "invite-0"],
+      ["Member", "invite-1"],
+    ]) {
+      fireEvent.click(screen.getByRole("button", { name: `Remove from group: ${name}` }));
+      const dialog = screen.getByRole("dialog", { name: "Remove from group?" });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Remove from group" }));
+      await waitFor(() => expect(removeInvitation.mutateAsync).toHaveBeenCalledWith(id));
+    }
+    expect(screen.queryByText("Members")).toBeNull();
   });
 
   it("retains accepted and pending invitations on edit, excludes declined invitations", async () => {

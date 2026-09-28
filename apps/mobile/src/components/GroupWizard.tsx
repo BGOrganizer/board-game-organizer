@@ -185,19 +185,17 @@ function Editor({
                     ) : null}
                   </View>
                 </Pressable>
-                {slot.user ? (
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="danger-soft"
-                    accessibilityLabel={t("Remove invite")}
-                    onPress={() =>
-                      setSlots((current) => current.filter((item) => item.id !== slot.id))
-                    }
-                  >
-                    <Trash2 color="#dc2626" size={16} />
-                  </Button>
-                ) : null}
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="danger-soft"
+                  accessibilityLabel={t("Remove invite")}
+                  onPress={() =>
+                    setSlots((current) => current.filter((item) => item.id !== slot.id))
+                  }
+                >
+                  <Trash2 color="#dc2626" size={16} />
+                </Button>
               </GroupedRow>
             );
           })}
@@ -230,7 +228,7 @@ function Editor({
           justifyContent: "center",
         }}
       >
-        {group ? <Save color="#fff" size={26} /> : <Plus color="#fff" size={26} />}
+        {group ? <Save color="#fff" size={26} /> : <UsersRound color="#fff" size={26} />}
       </Button>
     </View>
   );

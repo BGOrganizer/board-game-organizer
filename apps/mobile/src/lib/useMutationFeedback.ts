@@ -66,6 +66,10 @@ export function useMutationFeedback(): MutationFeedback {
       update_group: { success: t("Group updated"), error: t("Could not update group") },
       delete_group: { success: t("Group deleted"), error: t("Could not delete group") },
       leave_group: { success: t("Left group"), error: t("Could not leave group") },
+      remove_group_invitation: {
+        success: t("Person removed from group"),
+        error: t("Could not remove person from group"),
+      },
       accept_group_invitation: {
         success: t("Group invitation accepted"),
         error: t("Could not accept group invitation"),
