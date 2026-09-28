@@ -9,10 +9,10 @@ import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
+import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
-  Check,
   CircleX,
   Clock3,
   Crown,
@@ -23,12 +23,12 @@ import {
   Pencil,
   Trash2,
   UserRoundX,
-  X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { InvitationActions } from "@/components/InvitationActions";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -45,6 +45,7 @@ export default function GroupDetailScreen() {
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [menuUserId, setMenuUserId] = useState<string | null>(null);
+  const [exiting, setExiting] = useState(false);
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     let active = true;
@@ -151,12 +152,13 @@ export default function GroupDetailScreen() {
           text: action === "delete" ? t("Delete group") : t("Leave group"),
           style: "destructive",
           onPress: async () => {
+            setExiting(true);
             try {
               if (action === "delete") await groups.archive.mutateAsync(id);
               else await groups.leave.mutateAsync(id);
               router.back();
             } catch {
-              // Shared mutation feedback shows failure.
+              setExiting(false); // Shared mutation feedback shows failure.
             }
           },
         },
@@ -218,10 +220,10 @@ export default function GroupDetailScreen() {
         }}
       />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 110, gap: 16 }}>
-        {groups.list.isPending ? (
+        {groups.list.isPending || (exiting && !group) ? (
           <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
         ) : null}
-        {!groups.list.isPending && !group ? (
+        {!groups.list.isPending && !group && !exiting ? (
           <Typography className="text-danger">{t("Could not load group details")}</Typography>
         ) : null}
         {group ? (
@@ -239,6 +241,36 @@ export default function GroupDetailScreen() {
                 · {group.memberCount} {group.memberCount === 1 ? t("member") : t("members")}
               </Typography>
             </View>
+            {invitation?.status === "PENDING" ? (
+              <Card
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  minHeight: 56,
+                  padding: 12,
+                  paddingRight: 100,
+                  borderRadius: 12,
+                }}
+              >
+                <Typography className="font-medium text-foreground">
+                  {t("Your invitation is waiting for a response.")}
+                </Typography>
+                <InvitationActions
+                  placement="detail"
+                  pending={groups.respond.isPending}
+                  onAccept={() =>
+                    groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
+                  }
+                  onDecline={() => {
+                    setExiting(true);
+                    groups.respond.mutate(
+                      { invitationId: invitation.id, decision: "decline" },
+                      { onSuccess: () => router.back(), onError: () => setExiting(false) },
+                    );
+                  }}
+                />
+              </Card>
+            ) : null}
             {invitation?.status === "PENDING" ? (
               <Typography className="text-muted">
                 {t("Members are visible after accepting the invitation")}
@@ -369,33 +401,6 @@ export default function GroupDetailScreen() {
               >
                 <Typography>{t("Could not load social actions. Retry")}</Typography>
               </Button>
-            ) : null}
-            {invitation?.status === "PENDING" ? (
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Button
-                  variant="primary"
-                  isDisabled={groups.respond.isPending}
-                  onPress={() =>
-                    groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
-                  }
-                >
-                  <Check size={16} color="#fff" />
-                  <Typography className="text-white">{t("Accept invitation")}</Typography>
-                </Button>
-                <Button
-                  variant="danger-soft"
-                  isDisabled={groups.respond.isPending}
-                  onPress={() =>
-                    groups.respond.mutate(
-                      { invitationId: invitation.id, decision: "decline" },
-                      { onSuccess: () => router.back() },
-                    )
-                  }
-                >
-                  <X size={16} color="#dc2626" />
-                  <Typography className="text-danger">{t("Decline invitation")}</Typography>
-                </Button>
-              </View>
             ) : null}
           </>
         ) : null}

@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { enrichSingleUser } from "@/app/lib/clerk";
 import { getDb } from "@/app/lib/db";
+import { GroupsRepository } from "@/app/lib/groups.repository";
 import { MatchesRepository } from "@/app/lib/matches.repository";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { RelationshipService } from "@/app/lib/relationship.service";
@@ -49,11 +50,20 @@ export async function GET(request: NextRequest) {
 
   const db = await getDb();
   const relationships = new RelationshipService(new RelationshipRepository(db));
-  const [friends, followers, following, playedMatches] = await Promise.all([
+  const groupsRepository = new GroupsRepository(db);
+  const [friends, followers, following, playedMatches, groups] = await Promise.all([
     relationships.list(userId, "friends"),
     relationships.list(userId, "followers"),
     relationships.list(userId, "following"),
     new MatchesRepository(db).countPlayedByUser(userId),
+    groupsRepository.listInvitationsForUser(userId).then((invitations) =>
+      groupsRepository.listForUser(
+        userId,
+        invitations
+          .filter((invitation) => invitation.status === "ACCEPTED")
+          .map((invitation) => invitation.groupId),
+      ),
+    ),
   ]);
 
   const profile = {
@@ -68,6 +78,8 @@ export async function GET(request: NextRequest) {
       followers: followers.length,
       following: following.length,
       playedMatches,
+      adminGroups: groups.filter((group) => group.adminUserId === userId).length,
+      joinedGroups: groups.filter((group) => group.adminUserId !== userId).length,
     },
   };
 

@@ -280,6 +280,7 @@ async function withMatchTransaction<T>(
         new GroupsRepository(db, session),
         new UsersRepository(db, session),
         new RelationshipRepository(db, session),
+        notify ? new NotificationsRepository(db, session) : undefined,
       );
       return work({
         groups,
@@ -454,9 +455,14 @@ describe("match repositories on MongoDB replica set", () => {
       tieBreaks: [],
     };
     expect(await new MatchesRepository(db).countPlayedByUser(ACTOR)).toBe(0);
-    const registered = await withMatchTransaction(({ service }) =>
-      service.registerResults(ACTOR, created.id, input),
+    const registered = await withMatchTransaction(
+      ({ service }) => service.registerResults(ACTOR, created.id, input),
+      true,
     );
+    expect((await new NotificationsRepository(db).list(TARGET, 10)).notifications).toEqual([
+      expect.objectContaining({ kind: "match_terminated", recipientUserId: TARGET }),
+    ]);
+    expect((await new NotificationsRepository(db).list(ACTOR, 10)).notifications).toEqual([]);
     expect(registered).toMatchObject({
       status: "TERMINATED",
       results: {
@@ -1070,21 +1076,36 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
   it("accepts invited friends, allows group member match invite after unfriend, and keeps group history after archive", async () => {
     await seedMatchDependencies();
     await relationships.becomeFriends(ACTOR, THIRD);
-    const group = await withMatchTransaction(({ groups }) =>
-      groups.create(ACTOR, {
-        name: "Board Gamers",
-        isPublic: false,
-        invitedUserIds: [TARGET, THIRD],
-      }),
+    const group = await withMatchTransaction(
+      ({ groups }) =>
+        groups.create(ACTOR, {
+          name: "Board Gamers",
+          isPublic: false,
+          invitedUserIds: [TARGET, THIRD],
+        }),
+      true,
     );
     expect(group.memberCount).toBe(1);
+    expect((await new NotificationsRepository(db).list(TARGET, 10)).notifications).toEqual([
+      expect.objectContaining({ kind: "group_invitation", recipientUserId: TARGET }),
+    ]);
     const inviteTo = (userId: string) => {
       const invitation = group.invitations.find((item) => item.inviteeUserId === userId);
       if (!invitation) throw new Error("Missing group invitation");
       return invitation.id;
     };
-    await withMatchTransaction(({ groups }) => groups.respond(TARGET, inviteTo(TARGET), "accept"));
-    await withMatchTransaction(({ groups }) => groups.respond(THIRD, inviteTo(THIRD), "accept"));
+    await withMatchTransaction(
+      ({ groups }) => groups.respond(TARGET, inviteTo(TARGET), "accept"),
+      true,
+    );
+    await withMatchTransaction(
+      ({ groups }) => groups.respond(THIRD, inviteTo(THIRD), "accept"),
+      true,
+    );
+    expect((await new NotificationsRepository(db).list(ACTOR, 10)).notifications).toEqual([
+      expect.objectContaining({ kind: "group_invitation_accepted", actorUserId: THIRD }),
+      expect.objectContaining({ kind: "group_invitation_accepted", actorUserId: TARGET }),
+    ]);
     expect((await withMatchTransaction(({ groups }) => groups.list(ACTOR)))[0].memberCount).toBe(3);
     await relationships.unfriend(ACTOR, TARGET);
     const match = await withMatchTransaction(({ service }) =>

@@ -126,6 +126,11 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Notifications"
     timeout: 30000
+- assertVisible: "Mark all as read"
+- tapOn: "Mark all as read"
+- extendedWaitUntil:
+    notVisible: "Mark all as read"
+    timeout: 30000
 - tapOn: "New friend request"
 - extendedWaitUntil:
     visible: "E2E Test"

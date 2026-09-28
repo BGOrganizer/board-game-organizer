@@ -22,6 +22,18 @@ const cases: Array<{
     href: "/contacts",
   },
   {
+    kind: "group_invitation",
+    enTitle: "New group invitation",
+    itTitle: "Nuovo invito a un gruppo",
+    href: "/groups",
+  },
+  {
+    kind: "group_invitation_accepted",
+    enTitle: "Group invitation accepted",
+    itTitle: "Invito al gruppo accettato",
+    href: "/groups",
+  },
+  {
     kind: "match_invitation",
     enTitle: "New match invitation",
     itTitle: "Nuovo invito a una partita",
@@ -57,6 +69,12 @@ const cases: Array<{
     itTitle: "Partita di nuovo in pianificazione",
     href: "/matches",
   },
+  {
+    kind: "match_terminated",
+    enTitle: "Match finished",
+    itTitle: "Partita terminata",
+    href: "/matches",
+  },
 ];
 
 describe("notificationCopy", () => {
@@ -77,6 +95,12 @@ describe("notificationCopy", () => {
   it("includes actor and match names in descriptions", () => {
     expect(notificationCopy("friend_request", "en", "Alex").description).toContain("Alex");
     expect(notificationCopy("match_updated", "it", "Alex", "Catan").description).toContain("Catan");
+    expect(notificationCopy("group_invitation", "it", "Alex", "Catan").description).toContain(
+      "Catan",
+    );
+    expect(
+      notificationCopy("group_invitation_accepted", "en", "Alex", "Catan").description,
+    ).toContain("Alex");
   });
 
   it("skips empty or unresolved event batches and bulk-inserts resolved events", async () => {

@@ -15,13 +15,20 @@ export type NotificationEvent =
       actorUserId: string;
     }
   | {
+      kind: "group_invitation" | "group_invitation_accepted";
+      recipientUserId: string;
+      actorUserId: string;
+      groupName: string;
+    }
+  | {
       kind:
         | "match_invitation"
         | "match_invitation_accepted"
         | "match_invitation_declined"
         | "match_updated"
         | "match_created"
-        | "match_replanning";
+        | "match_replanning"
+        | "match_terminated";
       recipientUserId: string;
       actorUserId: string;
       matchName: string;
@@ -46,6 +53,18 @@ export function notificationCopy(
           title: "Richiesta di amicizia accettata",
           description: `${actorName} ha accettato la tua richiesta di amicizia.`,
           href: "/contacts",
+        };
+      case "group_invitation":
+        return {
+          title: "Nuovo invito a un gruppo",
+          description: `${actorName} ti ha invitato al gruppo “${matchName}”.`,
+          href: "/groups",
+        };
+      case "group_invitation_accepted":
+        return {
+          title: "Invito al gruppo accettato",
+          description: `${actorName} ha accettato l'invito al gruppo “${matchName}”.`,
+          href: "/groups",
         };
       case "match_invitation":
         return {
@@ -77,6 +96,12 @@ export function notificationCopy(
           description: `La partita “${matchName}” è tornata in pianificazione.`,
           href: "/matches",
         };
+      case "match_terminated":
+        return {
+          title: "Partita terminata",
+          description: `La partita “${matchName}” è terminata.`,
+          href: "/matches",
+        };
       case "match_updated":
         return {
           title: "Partita aggiornata",
@@ -98,6 +123,18 @@ export function notificationCopy(
         title: "Friend request accepted",
         description: `${actorName} accepted your friend request.`,
         href: "/contacts",
+      };
+    case "group_invitation":
+      return {
+        title: "New group invitation",
+        description: `${actorName} invited you to the group “${matchName}”.`,
+        href: "/groups",
+      };
+    case "group_invitation_accepted":
+      return {
+        title: "Group invitation accepted",
+        description: `${actorName} accepted the invitation to the group “${matchName}”.`,
+        href: "/groups",
       };
     case "match_invitation":
       return {
@@ -127,6 +164,12 @@ export function notificationCopy(
       return {
         title: "Match back in planning",
         description: `“${matchName}” is back in planning.`,
+        href: "/matches",
+      };
+    case "match_terminated":
+      return {
+        title: "Match finished",
+        description: `“${matchName}” has finished.`,
         href: "/matches",
       };
     case "match_updated":
@@ -189,7 +232,11 @@ export class NotificationsRepository {
             event.kind,
             recipient.preferredLanguage,
             actor.name,
-            "matchName" in event ? event.matchName : undefined,
+            "matchName" in event
+              ? event.matchName
+              : "groupName" in event
+                ? event.groupName
+                : undefined,
           ),
           createdAt,
         } as Notification,

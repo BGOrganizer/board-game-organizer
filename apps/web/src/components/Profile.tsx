@@ -68,8 +68,8 @@ export function Profile() {
             <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-6">
-          {[0, 1, 2, 3].map((n) => (
+        <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-6">
+          {[0, 1, 2, 3, 4, 5].map((n) => (
             <Skeleton key={`stat-${n}`} animationType="pulse" className="h-8 w-12 rounded" />
           ))}
         </div>
@@ -114,7 +114,7 @@ export function Profile() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-6">
+      <div className="mt-4 grid grid-cols-3 gap-3 sm:gap-6">
         <div>
           <p className="text-xl font-bold">{profile.stats.friends}</p>
           <p className="text-xs text-default-400">{t`Friends`}</p>
@@ -130,6 +130,14 @@ export function Profile() {
         <div>
           <p className="text-xl font-bold">{profile.stats.playedMatches}</p>
           <p className="text-xs text-default-400">{t`Matches played`}</p>
+        </div>
+        <div>
+          <p className="text-xl font-bold">{profile.stats.adminGroups}</p>
+          <p className="text-xs text-default-400">{t`Admin groups`}</p>
+        </div>
+        <div>
+          <p className="text-xl font-bold">{profile.stats.joinedGroups}</p>
+          <p className="text-xs text-default-400">{t`Joined groups`}</p>
         </div>
       </div>
 

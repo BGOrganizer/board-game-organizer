@@ -113,6 +113,7 @@ describe("mobile push notifications", () => {
       "/contacts?tab=friends",
     );
     expect(notificationHref({ href: "/matches" })).toBe("/matches");
+    expect(notificationHref({ href: "/groups" })).toBe("/groups");
     expect(notificationHref({ href: "/notifications" })).toBe("/notifications");
     expect(notificationHref({ href: "https://evil.example" })).toBe("/notifications");
     expect(notificationHref(null)).toBe("/notifications");

@@ -22,7 +22,6 @@ import { Typography } from "heroui-native/text";
 import {
   CalendarCheck2,
   CalendarDays,
-  Check,
   CircleAlert,
   CircleCheck,
   CircleQuestionMark,
@@ -38,12 +37,12 @@ import {
   Trash2,
   Trophy,
   UserRoundX,
-  X,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { InvitationActions } from "@/components/InvitationActions";
 import { GameRating, MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
@@ -680,31 +679,12 @@ function MatchDetailContent({
           <Typography className="font-medium text-foreground">
             {t("Your invitation is waiting for a response.")}
           </Typography>
-          <View style={{ position: "absolute", right: 8, bottom: 8, flexDirection: "row", gap: 8 }}>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="outline"
-              accessibilityLabel={t("Decline")}
-              style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-              hitSlop={4}
-              isDisabled={isResponding}
-              onPress={() => respond(ownInvitation.id, "decline")}
-            >
-              <X size={14} color="#6b7280" />
-            </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              accessibilityLabel={t("Accept")}
-              style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-              hitSlop={4}
-              isDisabled={isResponding}
-              onPress={() => respond(ownInvitation.id, "accept")}
-            >
-              <Check size={14} color="#fff" />
-            </Button>
-          </View>
+          <InvitationActions
+            placement="detail"
+            pending={isResponding}
+            onDecline={() => respond(ownInvitation.id, "decline")}
+            onAccept={() => respond(ownInvitation.id, "accept")}
+          />
         </Card>
       )}
 

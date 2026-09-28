@@ -17,6 +17,38 @@ async function signIn(page: import("@playwright/test").Page) {
   return page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
 }
 
+test("group and match lifecycle notifications appear in inbox", async ({ page }) => {
+  await signIn(page);
+  const titles = [
+    ["group_invitation", "New group invitation", "/groups"],
+    ["group_invitation_accepted", "Group invitation accepted", "/groups"],
+    ["match_created", "Match confirmed", "/matches"],
+    ["match_terminated", "Match finished", "/matches"],
+  ] as const;
+  await page.route("**/api/notifications?**", (route) =>
+    route.fulfill({
+      json: {
+        notifications: titles.map(([kind, title, href], index) => ({
+          id: `00000000000000000000000${index}`,
+          kind,
+          title,
+          description: `${title} description`,
+          href,
+          readAt: null,
+          createdAt: now,
+        })),
+        unreadCount: titles.length,
+        nextCursor: null,
+      },
+    }),
+  );
+  await page.goto("/notifications");
+  for (const [, title, href] of titles)
+    await expect(
+      page.getByText(title, { exact: true }).locator("xpath=ancestor::a"),
+    ).toHaveAttribute("href", href);
+});
+
 test("groups: empty, create, edit, archive and failed request", async ({ page }) => {
   const adminUserId = await signIn(page);
   let current: Record<string, unknown> | null = null;
@@ -249,4 +281,5 @@ test("group invitations: accept, decline and leave with confirmation", async ({ 
     .getByRole("button", { name: "Leave group" })
     .click();
   await expect(page.getByText("No groups yet")).toBeVisible();
+  await expect(page.getByText("Could not load group details")).not.toBeVisible();
 });

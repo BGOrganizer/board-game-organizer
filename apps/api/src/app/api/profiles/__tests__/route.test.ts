@@ -15,6 +15,14 @@ const mocks = vi.hoisted(() => ({
     return Array.from({ length: lengths[type] ?? 0 }, () => ({}));
   }),
   countPlayedByUser: vi.fn(async () => 5),
+  listInvitationsForUser: vi.fn(async () => [
+    { groupId: "joined", status: "ACCEPTED" },
+    { groupId: "pending", status: "PENDING" },
+  ]),
+  listForUser: vi.fn(async () => [
+    { id: "owned", adminUserId: "user_1" },
+    { id: "joined", adminUserId: "user_other" },
+  ]),
 }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/app/lib/clerk", () => ({ enrichSingleUser: mocks.enrich }));
@@ -22,6 +30,12 @@ vi.mock("@/app/lib/db", () => ({ getDb: mocks.getDb }));
 vi.mock("@/app/lib/relationship.repository", () => ({ RelationshipRepository: vi.fn() }));
 vi.mock("@/app/lib/relationship.service", () => ({
   RelationshipService: vi.fn().mockImplementation(() => ({ list: mocks.list })),
+}));
+vi.mock("@/app/lib/groups.repository", () => ({
+  GroupsRepository: vi.fn().mockImplementation(() => ({
+    listInvitationsForUser: mocks.listInvitationsForUser,
+    listForUser: mocks.listForUser,
+  })),
 }));
 vi.mock("@/app/lib/matches.repository", () => ({
   MatchesRepository: vi
@@ -62,7 +76,14 @@ describe("GET /api/profiles", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       id: "user_1",
-      stats: { friends: 2, followers: 3, following: 4, playedMatches: 5 },
+      stats: {
+        friends: 2,
+        followers: 3,
+        following: 4,
+        playedMatches: 5,
+        adminGroups: 1,
+        joinedGroups: 1,
+      },
     });
     expect(mocks.list.mock.calls).toEqual([
       ["user_1", "friends"],
@@ -70,6 +91,7 @@ describe("GET /api/profiles", () => {
       ["user_1", "following"],
     ]);
     expect(mocks.countPlayedByUser).toHaveBeenCalledWith("user_1");
+    expect(mocks.listForUser).toHaveBeenCalledWith("user_1", ["joined"]);
   });
 
   it("responds to preflight requests", async () => {

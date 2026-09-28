@@ -691,6 +691,14 @@ export class MatchService {
     if (!updated) throw new MatchError(409, "Match changed concurrently");
     if (!this.ratings) throw new Error("Ratings repository unavailable");
     await this.ratings.applyMatch(updated, results);
+    await this.notifications?.notifyMany(
+      accepted.map((invitation) => ({
+        kind: "match_terminated" as const,
+        recipientUserId: invitation.inviteeUserId,
+        actorUserId: userId,
+        matchName: updated.name,
+      })),
+    );
     return this.toResponse(updated, this.visibleInvitations(updated, userId, invitations));
   }
 

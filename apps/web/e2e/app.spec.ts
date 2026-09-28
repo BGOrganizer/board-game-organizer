@@ -61,7 +61,14 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "E2E Test" })).toBeVisible({
     timeout: 30_000,
   });
-  for (const label of ["Friends", "Followers", "Following", "Matches played"]) {
+  for (const label of [
+    "Friends",
+    "Followers",
+    "Following",
+    "Matches played",
+    "Admin groups",
+    "Joined groups",
+  ]) {
     await expect(
       page.getByText(label, { exact: true }).locator("..").getByText(/^\d+$/),
     ).toBeVisible();

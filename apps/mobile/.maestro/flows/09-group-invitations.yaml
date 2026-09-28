@@ -129,12 +129,18 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
+- tapOn:
+    id: "notifications-button"
+- extendedWaitUntil:
+    visible: "New group invitation"
+    timeout: 30000
+- back
 - tapOn: "Groups"
 - extendedWaitUntil:
     visible: "Shared Tabletop Club"
     timeout: 30000
 - tapOn: "Open group: Shared Tabletop Club"
-- tapOn: "Accept invitation"
+- tapOn: "Accept"
 - assertVisible: "Members"
 - extendedWaitUntil:
     visible: "2 members"
@@ -145,3 +151,4 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000
+- assertNotVisible: "Could not load group details"

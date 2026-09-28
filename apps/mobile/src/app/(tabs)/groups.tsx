@@ -8,19 +8,11 @@ import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import {
-  Check,
-  Crown,
-  LockKeyhole,
-  LockKeyholeOpen,
-  Mail,
-  Plus,
-  UsersRound,
-  X,
-} from "lucide-react-native";
+import { Crown, LockKeyhole, LockKeyholeOpen, Mail, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { SvgXml } from "react-native-svg";
+import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -103,36 +95,17 @@ export default function GroupsScreen() {
               }
               actions={
                 invitation?.status === "PENDING" ? (
-                  <>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="outline"
-                      accessibilityLabel={t("Accept group invitation")}
-                      style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-                      hitSlop={4}
-                      isDisabled={groups.respond.isPending}
-                      onPress={() =>
-                        groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
-                      }
-                    >
-                      <Check size={18} color="#17c964" />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="outline"
-                      accessibilityLabel={t("Decline group invitation")}
-                      style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-                      hitSlop={4}
-                      isDisabled={groups.respond.isPending}
-                      onPress={() =>
-                        groups.respond.mutate({ invitationId: invitation.id, decision: "decline" })
-                      }
-                    >
-                      <X size={18} color="#f31260" />
-                    </Button>
-                  </>
+                  <InvitationActions
+                    placement="card"
+                    name={group.name}
+                    pending={groups.respond.isPending}
+                    onAccept={() =>
+                      groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
+                    }
+                    onDecline={() =>
+                      groups.respond.mutate({ invitationId: invitation.id, decision: "decline" })
+                    }
+                  />
                 ) : undefined
               }
             >

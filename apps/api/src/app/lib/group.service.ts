@@ -6,6 +6,7 @@ import type {
   User,
 } from "@board-game-organizer/schemas";
 import type { GroupsRepository } from "@/app/lib/groups.repository";
+import type { NotificationsRepository } from "@/app/lib/notifications.repository";
 import type { RelationshipRepository } from "@/app/lib/relationship.repository";
 import type { UsersRepository } from "@/app/lib/users.repository";
 
@@ -23,6 +24,7 @@ export class GroupService {
     private groups: GroupsRepository,
     private users: UsersRepository,
     private relationships: RelationshipRepository,
+    private notifications?: NotificationsRepository,
   ) {}
 
   private async requireGroup(groupId: string): Promise<Group> {
@@ -110,6 +112,14 @@ export class GroupService {
     const group = await this.groups.create(userId, input.name, input.isPublic);
     for (const invitedUserId of input.invitedUserIds)
       await this.groups.invite(group.id, userId, invitedUserId);
+    await this.notifications?.notifyMany(
+      input.invitedUserIds.map((recipientUserId) => ({
+        kind: "group_invitation" as const,
+        recipientUserId,
+        actorUserId: userId,
+        groupName: group.name,
+      })),
+    );
     return this.responseForGroup(group, await this.groups.listInvitations(group.id), userId);
   }
 
@@ -176,6 +186,7 @@ export class GroupService {
         await this.groups.remove(groupId, invitation.inviteeUserId);
       }
     }
+    const newlyInvitedIds: string[] = [];
     for (const id of input.invitedUserIds) {
       if (
         !existing.some(
@@ -183,10 +194,19 @@ export class GroupService {
         )
       ) {
         await this.groups.invite(groupId, userId, id);
+        newlyInvitedIds.push(id);
       }
     }
     const updated = await this.groups.update(groupId, userId, input.name, input.isPublic);
     if (!updated) throw new GroupError(409, "Group changed concurrently");
+    await this.notifications?.notifyMany(
+      newlyInvitedIds.map((recipientUserId) => ({
+        kind: "group_invitation" as const,
+        recipientUserId,
+        actorUserId: userId,
+        groupName: updated.name,
+      })),
+    );
     return this.responseForGroup(updated, await this.groups.listInvitations(groupId), userId);
   }
 
@@ -204,12 +224,20 @@ export class GroupService {
       throw new GroupError(404, "Invitation not found");
     if ((await this.groups.serializeMembershipChange(invitation.groupId)).matchedCount === 0)
       throw new GroupError(404, "Group not found");
+    const group = await this.requireGroup(invitation.groupId);
     const updated = await this.groups.respond(
       invitationId,
       userId,
       decision === "accept" ? "ACCEPTED" : "DECLINED",
     );
     if (!updated) throw new GroupError(409, "Invitation changed concurrently");
+    if (decision === "accept")
+      await this.notifications?.notify({
+        kind: "group_invitation_accepted",
+        recipientUserId: group.adminUserId,
+        actorUserId: userId,
+        groupName: group.name,
+      });
     return this.detail(userId, invitation.groupId).catch((error: unknown) => {
       // Declining hides the invitation immediately from the caller's group list.
       if (decision === "decline" && error instanceof GroupError && error.status === 404)

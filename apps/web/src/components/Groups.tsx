@@ -454,6 +454,7 @@ export function Groups({
   const feedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [confirm, setConfirm] = useState<{
     id: string;
     action: "delete" | "leave" | "remove";
@@ -473,19 +474,20 @@ export function Groups({
         setConfirm(null);
         return;
       }
+      setExiting(true);
       if (confirm.action === "delete") await groups.archive.mutateAsync(confirm.id);
       else await groups.leave.mutateAsync(confirm.id);
       setConfirm(null);
       router.push("/groups");
     } catch {
-      // Keep confirmation open for retry.
+      setExiting(false); // Keep confirmation open for retry.
     }
   };
 
   if ((mode === "edit" || mode === "detail") && !group)
     return (
       <main className="mx-auto max-w-3xl">
-        {groups.list.isPending ? (
+        {groups.list.isPending || exiting ? (
           <Skeleton className="h-24 w-full rounded-xl" />
         ) : (
           <p role="alert" className="text-danger">{t`Could not load group details`}</p>

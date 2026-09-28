@@ -95,6 +95,10 @@ msgstr "Add game"
 msgid "Add your mobile number to continue."
 msgstr "Add your mobile number to continue."
 
+#: apps/web/src/components/Profile.tsx
+msgid "Admin groups"
+msgstr "Admin groups"
+
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
 msgid "Administrator"
@@ -785,7 +789,7 @@ msgstr "Increase max players"
 msgid "Increase min players"
 msgstr "Increase min players"
 
-#: apps/mobile/src/app/group/[groupId].tsx
+#. Mobile runtime only
 msgid "Invitations"
 msgstr "Invitations"
 
@@ -832,6 +836,10 @@ msgstr "Invited"
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "Invites"
 #~ msgstr "Invites"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Joined groups"
+msgstr "Joined groups"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Language:"
@@ -966,7 +974,7 @@ msgstr "member"
 msgid "members"
 msgstr "members"
 
-#: apps/mobile/src/app/group/[groupId].tsx
+#. Mobile runtime only
 msgid "Members"
 msgstr "Members"
 
@@ -1059,7 +1067,7 @@ msgstr "No group"
 msgid "No groups yet"
 msgstr "No groups yet"
 
-#: apps/mobile/src/app/group/[groupId].tsx
+#. Mobile runtime only
 msgid "No invitations"
 msgstr "No invitations"
 

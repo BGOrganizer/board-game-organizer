@@ -3,6 +3,8 @@ export interface UserStats {
   followers: number;
   following: number;
   playedMatches: number;
+  adminGroups: number;
+  joinedGroups: number;
 }
 
 /**

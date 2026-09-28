@@ -22,7 +22,7 @@ function apiUrl(): string {
 }
 
 export default function SearchUserScreen() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
   const router = useRouter();
   const { slotId, exclude, groupId } = useLocalSearchParams<{
@@ -129,7 +129,7 @@ export default function SearchUserScreen() {
       : query.trim().length >= 4
         ? results
         : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
-  ).filter((user) => !excludedIds.has(user.id));
+  ).filter((user) => user.id !== userId && !excludedIds.has(user.id));
 
   const select = (u: {
     id: string;

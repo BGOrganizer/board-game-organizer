@@ -104,22 +104,34 @@ export function Profile() {
         </View>
       </View>
 
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
-        <View style={{ width: "46%" }}>
-          <Typography className="text-xl font-bold">{profile.stats.friends}</Typography>
-          <Typography className="text-xs text-muted">{t("Friends")}</Typography>
+      <View style={{ gap: 16, marginTop: 16 }}>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Typography className="text-xl font-bold">{profile.stats.friends}</Typography>
+            <Typography className="text-xs text-muted">{t("Friends")}</Typography>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Typography className="text-xl font-bold">{profile.stats.followers}</Typography>
+            <Typography className="text-xs text-muted">{t("Followers")}</Typography>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Typography className="text-xl font-bold">{profile.stats.following}</Typography>
+            <Typography className="text-xs text-muted">{t("Following")}</Typography>
+          </View>
         </View>
-        <View style={{ width: "46%" }}>
-          <Typography className="text-xl font-bold">{profile.stats.followers}</Typography>
-          <Typography className="text-xs text-muted">{t("Followers")}</Typography>
-        </View>
-        <View style={{ width: "46%" }}>
-          <Typography className="text-xl font-bold">{profile.stats.following}</Typography>
-          <Typography className="text-xs text-muted">{t("Following")}</Typography>
-        </View>
-        <View style={{ width: "46%" }}>
-          <Typography className="text-xl font-bold">{profile.stats.playedMatches}</Typography>
-          <Typography className="text-xs text-muted">{t("Matches played")}</Typography>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Typography className="text-xl font-bold">{profile.stats.playedMatches}</Typography>
+            <Typography className="text-xs text-muted">{t("Matches played")}</Typography>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Typography className="text-xl font-bold">{profile.stats.adminGroups}</Typography>
+            <Typography className="text-xs text-muted">{t("Admin groups")}</Typography>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Typography className="text-xl font-bold">{profile.stats.joinedGroups}</Typography>
+            <Typography className="text-xs text-muted">{t("Joined groups")}</Typography>
+          </View>
         </View>
       </View>
 

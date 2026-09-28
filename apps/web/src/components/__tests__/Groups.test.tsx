@@ -1,7 +1,10 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Groups } from "@/components/Groups";
 import { renderWithI18n } from "@/test-utils";
+import { messages } from "../../../../../messages/en.js";
 
 const router = { push: vi.fn(), replace: vi.fn() };
 const useGroupsMock = vi.fn();
@@ -168,6 +171,35 @@ describe("Groups screens", () => {
         input: { name: "New Group Name", isPublic: false, invitedUserIds: [] },
       }),
     );
+  });
+
+  it("hides the missing-group error while archiving and navigating away", async () => {
+    useGroupsMock.mockReturnValue(groups([group]));
+    let finishArchive!: () => void;
+    archive.mutateAsync.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishArchive = resolve;
+        }),
+    );
+    const { rerender } = renderWithI18n(<Groups mode="detail" groupId={group.id} />);
+    fireEvent.click(screen.getByRole("button", { name: "More group actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete group" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Delete group?" })).getByRole("button", {
+        name: "Delete group",
+      }),
+    );
+    await waitFor(() => expect(archive.mutateAsync).toHaveBeenCalledWith(group.id));
+    useGroupsMock.mockReturnValue(groups([]));
+    rerender(
+      <I18nProvider i18n={setupI18n({ locale: "en", messages: { en: messages } })}>
+        <Groups mode="detail" groupId={group.id} />
+      </I18nProvider>,
+    );
+    expect(screen.queryByText("Could not load group details")).toBeNull();
+    await act(async () => finishArchive());
+    expect(router.push).toHaveBeenCalledWith("/groups");
   });
 
   it("confirms removal of pending invitees and accepted members without leaving group", async () => {

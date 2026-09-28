@@ -59,6 +59,7 @@ export function notificationHref(
   | "/contacts?tab=friends"
   | "/contacts?tab=requests"
   | "/matches"
+  | "/groups"
   | "/notifications" {
   if (!data || typeof data !== "object") return "/notifications";
   const { href, kind } = data as { href?: unknown; kind?: unknown };
@@ -66,7 +67,10 @@ export function notificationHref(
   if (href === "/contacts" && kind === "friend_request_accepted") {
     return "/contacts?tab=friends";
   }
-  return href === "/contacts" || href === "/matches" || href === "/notifications"
+  return href === "/contacts" ||
+    href === "/matches" ||
+    href === "/groups" ||
+    href === "/notifications"
     ? href
     : "/notifications";
 }

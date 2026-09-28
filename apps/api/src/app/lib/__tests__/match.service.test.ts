@@ -235,11 +235,19 @@ describe("result registration", () => {
   });
 
   it("records a completed match with ND even below the planned minimum", async () => {
-    const { service, matches, invitations } = setup();
+    const { service, matches, invitations, notifications } = setup(true);
     matches.findById.mockResolvedValue(created);
     invitations.listByMatch.mockResolvedValue([accepted]);
     const response = await service.registerResults("user_admin", match.id, result);
     expect(response.status).toBe("TERMINATED");
+    expect(notifications.notifyMany).toHaveBeenCalledWith([
+      {
+        kind: "match_terminated",
+        recipientUserId: "user_guest",
+        actorUserId: "user_admin",
+        matchName: match.name,
+      },
+    ]);
     expect(response.results?.entries).toEqual([
       { userId: "user_admin", score: "-2.5", rank: 1 },
       { userId: "user_guest", score: null, rank: null },

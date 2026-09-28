@@ -3,12 +3,15 @@ import type { ObjectId } from "mongodb";
 export const NOTIFICATION_KINDS = [
   "friend_request",
   "friend_request_accepted",
+  "group_invitation",
+  "group_invitation_accepted",
   "match_invitation",
   "match_invitation_accepted",
   "match_invitation_declined",
   "match_updated",
   "match_created",
   "match_replanning",
+  "match_terminated",
 ] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];

@@ -35,7 +35,7 @@ export default function NotificationsScreen() {
       {notifications.unreadCount > 0 && (
         <Button variant="ghost" size="sm" onPress={() => notifications.markAllRead.mutate()}>
           <CheckCheck size={18} color="#737373" />
-          {t("Mark all as read")}
+          <Button.Label>{t("Mark all as read")}</Button.Label>
         </Button>
       )}
 

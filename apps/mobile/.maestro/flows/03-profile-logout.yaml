@@ -12,6 +12,8 @@ appId: com.bgo.mobile
 - assertVisible: "Followers"
 - assertVisible: "Following"
 - assertVisible: "Matches played"
+- assertVisible: "Admin groups"
+- assertVisible: "Joined groups"
 - tapOn: "Logout"
 - extendedWaitUntil:
     visible: "Welcome to Board Game Organizer"

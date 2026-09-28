@@ -14,20 +14,9 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Chip } from "heroui-native/chip";
-import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import {
-  CalendarDays,
-  Check,
-  Clock3,
-  Crown,
-  Dices,
-  Medal,
-  Plus,
-  UsersRound,
-  X,
-} from "lucide-react-native";
+import { CalendarDays, Clock3, Crown, Dices, Medal, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import Animated, {
@@ -40,6 +29,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SvgXml } from "react-native-svg";
+import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -102,7 +92,6 @@ export default function MatchesScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
   const { i18n } = useLingui();
-  const success = useThemeColor("success");
   const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -198,43 +187,23 @@ export default function MatchesScreen() {
                 }
                 actions={
                   invitation?.status === "PENDING" ? (
-                    <>
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="outline"
-                        accessibilityLabel={`${t("Decline")}: ${match.name}`}
-                        style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-                        hitSlop={4}
-                        isDisabled={matches.respondInvitation.isPending}
-                        onPress={() =>
-                          matches.respondInvitation.mutate({
-                            invitationId: invitation.id,
-                            decision: "decline",
-                          })
-                        }
-                      >
-                        <X size={14} color="#6b7280" />
-                      </Button>
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="outline"
-                        className="bg-surface"
-                        accessibilityLabel={`${t("Accept")}: ${match.name}`}
-                        style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-                        hitSlop={4}
-                        isDisabled={matches.respondInvitation.isPending}
-                        onPress={() =>
-                          matches.respondInvitation.mutate({
-                            invitationId: invitation.id,
-                            decision: "accept",
-                          })
-                        }
-                      >
-                        <Check size={14} color={success} />
-                      </Button>
-                    </>
+                    <InvitationActions
+                      placement="card"
+                      name={match.name}
+                      pending={matches.respondInvitation.isPending}
+                      onDecline={() =>
+                        matches.respondInvitation.mutate({
+                          invitationId: invitation.id,
+                          decision: "decline",
+                        })
+                      }
+                      onAccept={() =>
+                        matches.respondInvitation.mutate({
+                          invitationId: invitation.id,
+                          decision: "accept",
+                        })
+                      }
+                    />
                   ) : undefined
                 }
               >
