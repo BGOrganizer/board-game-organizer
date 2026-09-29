@@ -1,3 +1,4 @@
+export * from "./dto/bggCollection";
 export * from "./dto/blocks";
 export * from "./dto/common";
 export * from "./dto/contacts";
@@ -10,6 +11,7 @@ export * from "./dto/notifications";
 export * from "./dto/presence";
 export * from "./dto/search";
 export * from "./dto/user";
+export * from "./models/bggCollection";
 export * from "./models/blocks";
 export * from "./models/follows";
 export * from "./models/friendRequests";

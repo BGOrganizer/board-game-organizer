@@ -427,6 +427,9 @@ jobs:
                 -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' -d @- |
               jq -e '.ok == true' > /dev/null
           done
+          jq -cn --arg userId "$USER_ID" '{action:"seed-bgg",databaseName:"bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}",userId:$userId}' |
+            curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+              -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' -d @- > /dev/null
 
   # -------------------------------------------------- Maestro E2E (isolated Preview)
   e2e-maestro:

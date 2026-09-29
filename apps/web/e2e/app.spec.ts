@@ -69,9 +69,7 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
     "Admin groups",
     "Joined groups",
   ]) {
-    await expect(
-      page.getByText(label, { exact: true }).locator("..").getByText(/^\d+$/),
-    ).toBeVisible();
+    await expect(page.getByRole("group", { name: new RegExp(`^${label}: \\d+$`) })).toBeVisible();
   }
   await expect(page.getByRole("button", { name: "Logout" })).toHaveClass(/button--danger/);
   const cardBackground = await page

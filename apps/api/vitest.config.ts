@@ -51,6 +51,12 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/app/lib/bgg-collection.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/app/lib/boardGames.csv.ts": {
           lines: 100,
           functions: 100,

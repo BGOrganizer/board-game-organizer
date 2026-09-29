@@ -3,9 +3,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb, withTransaction } from "@/app/lib/db";
 import { POST } from "../route";
 
+const bggDelete = vi.hoisted(() => ({
+  account: vi.fn(async () => ({ deletedCount: 1 })),
+  games: vi.fn(async () => ({ deletedCount: 1 })),
+}));
 vi.mock("@/app/lib/db", () => ({
+  COLLECTIONS: { BGG_ACCOUNTS: "bggAccounts", BGG_COLLECTION_GAMES: "bggCollectionGames" },
   getDb: vi.fn(async () => ({})),
-  withTransaction: vi.fn(async (callback) => callback({ id: "session" }, {})),
+  withTransaction: vi.fn(async (callback) =>
+    callback(
+      { id: "session" },
+      {
+        collection: (name: string) =>
+          name === "bggAccounts"
+            ? { deleteOne: bggDelete.account }
+            : { deleteMany: bggDelete.games },
+      },
+    ),
+  ),
 }));
 
 vi.mock("@/app/lib/relationship.repository", () => {
@@ -262,6 +277,14 @@ describe("POST /api/webhooks/clerk", () => {
     expect(relationshipInstance.deleteAllForUser).toHaveBeenCalledWith("user_3");
     expect(notificationRepoMock).toHaveBeenCalled();
     expect(notificationInstance.deleteForUser).toHaveBeenCalledWith("user_3");
+    expect(bggDelete.account).toHaveBeenCalledWith(
+      { userId: "user_3" },
+      { session: { id: "session" } },
+    );
+    expect(bggDelete.games).toHaveBeenCalledWith(
+      { userId: "user_3" },
+      { session: { id: "session" } },
+    );
   });
 
   it("skips E2E deletions when no user was mirrored into dev", async () => {

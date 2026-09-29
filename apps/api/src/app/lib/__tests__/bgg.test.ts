@@ -3,6 +3,15 @@ import { gameDetails, hydrateGames, searchGames } from "@/app/lib/bgg";
 
 const quota = { updateOne: vi.fn() };
 const games = { find: vi.fn(), findOne: vi.fn(), bulkWrite: vi.fn() };
+function cursor(rows: unknown[]) {
+  const result = {
+    sort: () => result,
+    skip: () => result,
+    limit: () => result,
+    toArray: async () => rows,
+  };
+  return result;
+}
 const db = {
   collection: (name: string) => (name === "bggQuota" ? quota : games),
 } as never;
@@ -30,7 +39,7 @@ afterEach(() => {
 describe("BGG covers", () => {
   it("fetches real batched images and reuses the cache", async () => {
     const rows = [{ ...sample }, { id: 2, name: "Catan", yearPublished: 1995 }];
-    games.find.mockReturnValue({ limit: () => ({ toArray: async () => rows }) });
+    games.find.mockReturnValue(cursor(rows));
     games.findOne.mockImplementation(async () => rows[0]);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -266,7 +275,7 @@ describe("BGG covers", () => {
     });
 
     const row = { id: 1, name: "Azul", image: "https://cf.geekdo-images.com/a/full.jpg" };
-    games.find.mockReturnValue({ limit: () => ({ toArray: async () => [row] }) });
+    games.find.mockReturnValue(cursor([row]));
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     expect(await searchGames(db, "Azul")).toEqual([

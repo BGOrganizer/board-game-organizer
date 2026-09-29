@@ -33,6 +33,14 @@ export function useMutationFeedback(): MutationFeedback {
         success: t`Contacts synchronized`,
         error: t`Could not synchronize contacts`,
       },
+      sync_bgg: {
+        success: t`BoardGameGeek sync started`,
+        error: t`Could not synchronize BoardGameGeek`,
+      },
+      disconnect_bgg: {
+        success: t`BoardGameGeek disconnected`,
+        error: t`Could not disconnect BoardGameGeek`,
+      },
       create_invite: { success: t`Invite link created`, error: t`Could not create invite link` },
       create_match: { success: t`Match created`, error: t`Could not create match` },
       update_match: { success: t`Match updated`, error: t`Could not update match` },

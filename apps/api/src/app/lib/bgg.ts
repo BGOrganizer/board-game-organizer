@@ -112,7 +112,12 @@ export async function hydrateGames(db: Db, games: GameRow[]): Promise<void> {
 }
 
 /** Search and game details always read the local catalog, with best-effort cover enrichment. */
-export async function searchGames(db: Db, query: string): Promise<BggSearchItem[]> {
+export async function searchGames(
+  db: Db,
+  query: string,
+  skip = 0,
+  limit = 25,
+): Promise<BggSearchItem[]> {
   const rows = await db
     .collection<GameRow>(COLLECTIONS.BOARD_GAMES)
     .find(
@@ -134,7 +139,9 @@ export async function searchGames(db: Db, query: string): Promise<BggSearchItem[
         },
       },
     )
-    .limit(25)
+    .sort({ name: 1, id: 1 })
+    .skip(skip)
+    .limit(limit)
     .toArray();
   await hydrateGames(db, rows);
   return rows.map((row) => ({

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
@@ -15,9 +16,11 @@ it("shows unranked games and zero arithmetic average without a Bayesian fallback
 it("hides selected games and uses an icon-only selection action", async () => {
   const fetchMock = vi
     .fn()
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ active: null, pending: null }) })
     .mockResolvedValueOnce({
       ok: true,
       json: async () => ({
+        nextCursor: null,
         items: [
           {
             id: 1,
@@ -26,6 +29,7 @@ it("hides selected games and uses an icon-only selection action", async () => {
             average: 7.83,
             rank: 42,
             imageUrl: "https://cf.geekdo-images.com/a/thumb.jpg",
+            source: "search",
           },
           { id: 2, name: "Already selected", year: null, imageUrl: null },
         ],
@@ -46,13 +50,18 @@ it("hides selected games and uses an icon-only selection action", async () => {
   const onSelect = vi.fn();
 
   renderWithI18n(
-    <SearchGamePage
-      apiUrl="https://api.example.com"
-      token="token"
-      excludeIds={[2]}
-      onSelect={onSelect}
-      onClose={vi.fn()}
-    />,
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <SearchGamePage
+        apiUrl="https://api.example.com"
+        token="token"
+        userId="user"
+        excludeIds={[2]}
+        onSelect={onSelect}
+        onClose={vi.fn()}
+      />
+    </QueryClientProvider>,
   );
 
   fireEvent.change(screen.getByPlaceholderText(/Search board games/i), {
@@ -62,7 +71,7 @@ it("hides selected games and uses an icon-only selection action", async () => {
   const select = await screen.findByRole("button", { name: "Select: Cascadia" });
   expect(select.closest("li")?.className).toContain("p-3 pl-4");
   expect(select.closest("ul")?.className).toContain("rounded-xl bg-surface");
-  expect(screen.getByPlaceholderText(/Search board games/i).className).toContain("bg-surface");
+  expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy();
   expect(screen.queryByText("Already selected")).toBeNull();
   expect(screen.queryByText("Select")).toBeNull();
   expect(screen.getByText("2021")).toBeTruthy();

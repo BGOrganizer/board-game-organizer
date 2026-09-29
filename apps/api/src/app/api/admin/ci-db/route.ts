@@ -1,12 +1,15 @@
 import { z } from "zod";
+import { BggAccountRepository } from "@/app/lib/bgg-account.repository";
+import { parseBggCollection } from "@/app/lib/bgg-collection";
 import { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { getDb } from "@/app/lib/db";
+import { COLLECTIONS, getDb } from "@/app/lib/db";
 import { migrate } from "@/app/lib/migrate";
 
 const requestSchema = z.object({
-  action: z.enum(["seed", "cleanup"]),
+  action: z.enum(["seed", "seed-bgg", "cleanup"]),
   databaseName: z.string().regex(/^bgo_ci_[1-9][0-9]*_[1-9][0-9]*$/),
+  userId: z.string().min(1).optional(),
 });
 
 export function OPTIONS(request: Request) {
@@ -39,6 +42,24 @@ export async function POST(request: Request) {
         isExpansion: false,
       },
     ]);
+  } else if (parsed.data.action === "seed-bgg") {
+    const userId = parsed.data.userId;
+    if (!userId || !(await db.collection(COLLECTIONS.USERS).findOne({ clerkId: userId }))) {
+      return corsJson({ error: "Unknown CI user" }, { status: 400 }, request);
+    }
+    const account = new BggAccountRepository(db);
+    const identity = { id: 295947, username: "bgg-e2e", avatarUrl: null };
+    const snapshot = await account.stage(userId, identity);
+    await account.publish(
+      userId,
+      snapshot,
+      identity,
+      parseBggCollection(
+        '<items><item objectid="295947" subtype="boardgame"><name>Cascadia</name><yearpublished>2021</yearpublished></item></items>',
+        userId,
+        snapshot,
+      ),
+    );
   } else {
     // Atlas readWrite can drop collections but not databases. Once the last
     // collection is removed, MongoDB no longer retains the CI database.

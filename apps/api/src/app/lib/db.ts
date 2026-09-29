@@ -49,4 +49,6 @@ export const COLLECTIONS = {
   PUSH_SUBSCRIPTIONS: "pushSubscriptions",
   BOARD_GAMES: "boardGames",
   BGG_QUOTA: "bggQuota",
+  BGG_ACCOUNTS: "bggAccounts",
+  BGG_COLLECTION_GAMES: "bggCollectionGames",
 } as const;

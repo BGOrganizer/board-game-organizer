@@ -36,7 +36,7 @@ Implemented product areas:
 - Match creation, listing, detail, and invitation lifecycle, including date slots, player limits,
   friend invitations, board-game selection, and immutable result registration with standings.
 - Durable notification inboxes, unread state, and optional FCM/APNs push delivery.
-- BoardGameGeek catalog import and MongoDB-backed game search.
+- BoardGameGeek catalog import, MongoDB-backed game search, and user collection synchronization.
 - English and Italian localization.
 - Web Playwright and mobile Maestro end-to-end coverage.
 
@@ -141,7 +141,7 @@ Copy examples; never commit generated environment files.
 | App | File | Variables |
 | --- | --- | --- |
 | web | `apps/web/.env.local` | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_API_URL` |
-| api | `apps/api/.env.local` | `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_WEBHOOK_SECRET`, `MONGODB_URI`, `MONGODB_DB_NAME`, `ALLOWED_ORIGINS` |
+| api | `apps/api/.env.local` | `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_WEBHOOK_SECRET`, `MONGODB_URI`, `MONGODB_DB_NAME`, `ALLOWED_ORIGINS`, `BGG_TOKEN` |
 | mobile | `apps/mobile/.env` | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SENTRY_DSN` |
 
 `MONGODB_URI` is mandatory. Transactions require a replica set.
@@ -237,10 +237,13 @@ Current route surface:
 | `/api/notifications/[notificationId]` | PATCH | Mark one owned notification read |
 | `/api/push-subscriptions` | POST, DELETE | Register, rotate, or remove a device push token |
 | `/api/bgg/search` | GET | Search imported board-game catalog |
+| `/api/bgg/account` | GET, POST, DELETE | Read, validate/link, or unlink caller's BoardGameGeek account |
+| `/api/bgg/account/sync` | POST | Continue or retry caller's staged collection sync |
+| `/api/bgg/picker` | GET | Paginated collection-first and catalog game picker |
 | `/api/bgg/thing` | GET | Get imported game details |
 | `/api/webhooks/clerk` | POST | Mirror Clerk user events |
 | `/api/admin/sync-user` | GET, POST | Authenticated CI database attestation and administrative user mirror |
-| `/api/admin/ci-db` | POST | Authenticated, name-guarded PR E2E database seed/cleanup |
+| `/api/admin/ci-db` | POST | Authenticated, name-guarded PR E2E database seed/BGG fixture/cleanup |
 | `/api/admin/import-games` | GET, POST | Authenticated import preflight and chunked catalog import |
 
 Most routes expose `OPTIONS` through CORS helpers. Keep CORS handling centralized in
@@ -285,6 +288,8 @@ Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 - `notifications`
 - `pushSubscriptions`
 - `boardGames`
+- `bggAccounts`
+- `bggCollectionGames`
 - legacy `relationships`, retained only as a migration constant
 
 `pnpm --filter api migrate` creates indexed social, group, and rating collections and drops legacy `relationships`. Run migrations before deploying routes that write groups or ratings.
@@ -368,7 +373,7 @@ Runtime search reads MongoDB `boardGames`; it does not call BoardGameGeek and ex
 `isExpansion: true`. Import all BGG rankings CSV columns through
 `apps/api/scripts/import-boardgames.mjs`, `/api/admin/import-games`, or the manual
 `import-boardgames.yml` workflow. Imports use idempotent upserts keyed by BGG ID;
-missing games remain for existing matches. Store one validated BGG cover URL in `image`, not a
+missing games remain for existing matches. Linking a BGG username validates it through XML API2; sync stages a complete non-expansion collection before publishing and keeps the previous snapshot on failure. Collection games are available regardless of ownership/status; unlink removes private snapshots but not catalog games or match history. Set `BGG_TOKEN` on API deployments for authenticated XML API2 calls. Store one validated BGG cover URL in `image`, not a
 `thumbnail` database field; full remote imports remove any legacy `thumbnail` fields. Re-import a
 complete CSV before enabling the search filter on an older catalog without `isExpansion`.
 

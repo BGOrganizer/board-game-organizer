@@ -303,6 +303,7 @@ export function MatchWizard({
       <SearchGamePage
         apiUrl={apiUrl()}
         token={token}
+        userId={userId}
         getToken={getToken}
         protectionBypass={protectionBypass()}
         excludeIds={gameTarget.excludeIds}

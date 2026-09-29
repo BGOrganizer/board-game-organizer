@@ -1,28 +1,89 @@
-import { resolveApiUrl, useProfileQuery } from "@board-game-organizer/shared";
+import { resolveApiUrl, useBggAccount, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
+import { Dialog } from "heroui-native/dialog";
+import { useThemeColor } from "heroui-native/hooks";
+import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Surface } from "heroui-native/surface";
 import { Typography } from "heroui-native/text";
+import {
+  Crown,
+  Dices,
+  Link2,
+  LogOut,
+  type LucideIcon,
+  RefreshCw,
+  Unlink2,
+  UserCheck,
+  UserPlus,
+  UsersRound,
+} from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { View } from "react-native";
-
+import { Alert, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
+function Stat({
+  Icon,
+  label,
+  value,
+  color,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={`${label}: ${value}`}
+      style={{ width: "31%", alignItems: "center", gap: 8 }}
+    >
+      <View style={{ width: 64, height: 64, alignItems: "center", justifyContent: "center" }}>
+        <Icon size={40} color={color} accessible={false} />
+        <View
+          className="bg-accent"
+          style={{
+            position: "absolute",
+            right: -4,
+            bottom: -2,
+            borderRadius: 20,
+            minWidth: 26,
+            paddingHorizontal: 5,
+            height: 26,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Typography className="text-xs font-bold text-accent-foreground">{value}</Typography>
+        </View>
+      </View>
+      <Typography className="text-center text-xs text-muted">{label}</Typography>
+    </View>
+  );
+}
+
 export function Profile() {
   const { getToken, signOut, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
+  const feedback = useMutationFeedback();
+  const accent = useThemeColor("accent");
+  const foreground = useThemeColor("foreground");
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
-
-  // Server data lives in TanStack Query — Zustand never stores it.
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [username, setUsername] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     data: profile,
     isLoading,
@@ -35,46 +96,56 @@ export function Profile() {
     userId,
     enabled: isLoaded && Boolean(isSignedIn),
   });
-
+  const bgg = useBggAccount({
+    apiUrl: apiUrl(),
+    getToken,
+    userId,
+    enabled: isLoaded && Boolean(isSignedIn),
+    feedback,
+  });
   const handleLogout = useCallback(async () => {
     try {
       setIsSigningOut(true);
       await signOut();
-      // The (tabs) guard also redirects when the session state flips;
-      // this replace makes the transition immediate.
       router.replace("/");
     } catch {
-      // Clerk keeps the current session active when sign-out fails.
+      // Clerk keeps the session when sign-out fails.
     } finally {
       setIsSigningOut(false);
     }
   }, [signOut, router]);
 
+  const synchronize = async () => {
+    if (!username.trim()) return;
+    setFormError(null);
+    try {
+      await bgg.link.mutateAsync(username.trim());
+      setDialogOpen(false);
+      bgg.sync.mutate(false);
+    } catch (cause) {
+      setFormError(
+        cause instanceof Error && cause.message === "BGG user not found"
+          ? t("BGG user not found")
+          : t("Could not connect to BoardGameGeek. Try again."),
+      );
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={{ marginTop: 16, gap: 12 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-          <Skeleton isLoading variant="pulse" style={{ width: 64, height: 64, borderRadius: 32 }} />
-          <View style={{ flex: 1, gap: 8 }}>
-            <Skeleton
-              isLoading
-              variant="pulse"
-              style={{ width: "60%", height: 18, borderRadius: 4 }}
-            />
-            <Skeleton
-              isLoading
-              variant="pulse"
-              style={{ width: "40%", height: 14, borderRadius: 4 }}
-            />
-          </View>
-        </View>
+        <Skeleton isLoading variant="pulse" style={{ width: 64, height: 64, borderRadius: 32 }} />
+        <Skeleton
+          isLoading
+          variant="pulse"
+          style={{ width: "100%", height: 140, borderRadius: 12 }}
+        />
       </View>
     );
   }
-
   if (isError) {
     return (
-      <Surface className="mt-4 rounded-lg p-4">
+      <Surface className="mt-4 flex-1 rounded-lg p-4">
         <Typography className="text-danger">
           {t("Error while loading the profile:")}{" "}
           {error instanceof Error ? error.message : String(error)}
@@ -82,66 +153,193 @@ export function Profile() {
         <Button className="mt-3" variant="outline" onPress={() => refetch()}>
           {t("Retry")}
         </Button>
-        <Button className="mt-3" variant="danger" isDisabled={isSigningOut} onPress={handleLogout}>
-          {t("Logout")}
+        <Button
+          style={{ marginTop: "auto" }}
+          variant="danger"
+          isDisabled={isSigningOut}
+          onPress={handleLogout}
+        >
+          <LogOut size={18} color={foreground} />
+          <Typography>{t("Logout")}</Typography>
         </Button>
       </Surface>
     );
   }
-
   if (!profile) return null;
+  const stats = [
+    { label: t("Friends"), value: profile.stats.friends, Icon: UsersRound },
+    { label: t("Followers"), value: profile.stats.followers, Icon: UserCheck },
+    { label: t("Following"), value: profile.stats.following, Icon: UserPlus },
+    { label: t("Matches played"), value: profile.stats.playedMatches, Icon: Dices },
+    { label: t("Admin groups"), value: profile.stats.adminGroups, Icon: Crown },
+    { label: t("Joined groups"), value: profile.stats.joinedGroups, Icon: UsersRound },
+  ];
+  const active = bgg.account.data?.active;
+  const pending = bgg.account.data?.pending;
+  const shown = active ?? pending;
 
   return (
-    <Surface className="mt-6 rounded-xl p-6">
-      <View className="flex-row items-center gap-4">
-        <Avatar size="lg" color="accent">
-          <Avatar.Image source={{ uri: profile.avatarUrl }} alt={profile.name} />
-          <Avatar.Fallback>{profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
-        </Avatar>
-        <View>
-          <Typography className="text-lg font-semibold">{profile.name}</Typography>
-          <Typography className="text-sm text-muted">{profile.email}</Typography>
-        </View>
-      </View>
-
-      <View style={{ gap: 16, marginTop: 16 }}>
-        <View style={{ flexDirection: "row", gap: 8 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}>
+      <Surface className="mt-6 flex-1 rounded-xl p-6">
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+          <Avatar size="lg" color="accent">
+            <Avatar.Image source={{ uri: profile.avatarUrl }} alt={profile.name} />
+            <Avatar.Fallback>{profile.name?.charAt(0) ?? "?"}</Avatar.Fallback>
+          </Avatar>
           <View style={{ flex: 1 }}>
-            <Typography className="text-xl font-bold">{profile.stats.friends}</Typography>
-            <Typography className="text-xs text-muted">{t("Friends")}</Typography>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Typography className="text-xl font-bold">{profile.stats.followers}</Typography>
-            <Typography className="text-xs text-muted">{t("Followers")}</Typography>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Typography className="text-xl font-bold">{profile.stats.following}</Typography>
-            <Typography className="text-xs text-muted">{t("Following")}</Typography>
+            <Typography className="text-lg font-semibold" numberOfLines={1}>
+              {profile.name}
+            </Typography>
+            <Typography className="text-sm text-muted" numberOfLines={1}>
+              {profile.email}
+            </Typography>
           </View>
         </View>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <Typography className="text-xl font-bold">{profile.stats.playedMatches}</Typography>
-            <Typography className="text-xs text-muted">{t("Matches played")}</Typography>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Typography className="text-xl font-bold">{profile.stats.adminGroups}</Typography>
-            <Typography className="text-xs text-muted">{t("Admin groups")}</Typography>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Typography className="text-xl font-bold">{profile.stats.joinedGroups}</Typography>
-            <Typography className="text-xs text-muted">{t("Joined groups")}</Typography>
-          </View>
+
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            rowGap: 24,
+            marginTop: 28,
+          }}
+        >
+          {stats.map((stat) => (
+            <Stat key={stat.label} {...stat} color={accent} />
+          ))}
         </View>
-      </View>
+        <Typography className="mt-6 text-xs text-muted">
+          {t("Plan:")} {profile.plan} · {t("Language:")} {profile.preferredLanguage}
+        </Typography>
 
-      <Typography className="mt-3 text-xs text-muted">
-        {t("Plan:")} {profile.plan} · {t("Language:")} {profile.preferredLanguage}
-      </Typography>
+        <Button
+          className="mt-6"
+          variant="primary"
+          onPress={() => {
+            setUsername(active?.username ?? pending?.username ?? "");
+            setFormError(null);
+            setDialogOpen(true);
+          }}
+        >
+          <RefreshCw size={18} color={foreground} />
+          <Typography>{t("Sync with BoardGameGeek")}</Typography>
+        </Button>
+        {bgg.account.isError ? (
+          <Button className="mt-3" variant="outline" onPress={() => void bgg.account.refetch()}>
+            <Typography>{t("Could not load BoardGameGeek connection. Retry")}</Typography>
+          </Button>
+        ) : null}
+        {shown ? (
+          <View
+            className="mt-4 rounded-lg border border-border p-3"
+            style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+          >
+            <Avatar size="md" color="accent">
+              {shown.avatarUrl ? <Avatar.Image source={{ uri: shown.avatarUrl }} /> : null}
+              <Avatar.Fallback>{shown.username.charAt(0).toUpperCase()}</Avatar.Fallback>
+            </Avatar>
+            <Typography
+              className="font-medium text-foreground"
+              style={{ flex: 1 }}
+              numberOfLines={1}
+            >
+              {shown.username}
+            </Typography>
+            {active ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="danger-soft"
+                style={{ minWidth: 44, minHeight: 44 }}
+                accessibilityLabel={t("Disconnect BoardGameGeek")}
+                onPress={() =>
+                  Alert.alert(
+                    t("Disconnect BoardGameGeek?"),
+                    t(
+                      "Synced collection games will be removed from your profile. Existing matches remain unchanged.",
+                    ),
+                    [
+                      { text: t("Cancel"), style: "cancel" },
+                      {
+                        text: t("Disconnect"),
+                        style: "destructive",
+                        onPress: () => bgg.unlink.mutate(),
+                      },
+                    ],
+                  )
+                }
+              >
+                <Unlink2 size={18} color="#f31260" />
+              </Button>
+            ) : null}
+          </View>
+        ) : null}
+        {pending ? (
+          <View style={{ marginTop: 8, gap: 4 }}>
+            <Typography className={pending.status === "failed" ? "text-danger" : "text-muted"}>
+              {pending.status === "syncing"
+                ? `${t("Syncing BoardGameGeek collection")}: ${pending.username}`
+                : `${t("Could not synchronize BoardGameGeek collection")}: ${pending.username}`}
+            </Typography>
+            {pending.status === "failed" ? (
+              <Button
+                variant="outline"
+                isDisabled={bgg.sync.isPending}
+                onPress={() => bgg.sync.mutate(true)}
+              >
+                <Typography>{t("Retry")}</Typography>
+              </Button>
+            ) : null}
+          </View>
+        ) : null}
 
-      <Button className="mt-6" variant="danger" isDisabled={isSigningOut} onPress={handleLogout}>
-        {t("Logout")}
-      </Button>
-    </Surface>
+        <Button
+          style={{ marginTop: "auto", marginBottom: 8, paddingTop: 24 }}
+          variant="danger"
+          isDisabled={isSigningOut}
+          onPress={handleLogout}
+        >
+          <LogOut size={18} color={foreground} />
+          <Typography>{t("Logout")}</Typography>
+        </Button>
+      </Surface>
+      <Dialog isOpen={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay />
+          <Dialog.Content>
+            <Dialog.Title>{t("Sync with BoardGameGeek")}</Dialog.Title>
+            <Typography className="mt-4 text-foreground">{t("BGG username")}</Typography>
+            <Input
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              maxLength={64}
+              accessibilityLabel={t("BGG username")}
+            />
+            {formError ? <Typography className="mt-2 text-danger">{formError}</Typography> : null}
+            <View
+              style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8, marginTop: 24 }}
+            >
+              <Button
+                variant="ghost"
+                isDisabled={bgg.link.isPending}
+                onPress={() => setDialogOpen(false)}
+              >
+                <Typography>{t("Cancel")}</Typography>
+              </Button>
+              <Button
+                variant="primary"
+                isDisabled={!username.trim() || bgg.link.isPending}
+                onPress={() => void synchronize()}
+              >
+                <Link2 size={16} color={foreground} />
+                <Typography>{t("Sync")}</Typography>
+              </Button>
+            </View>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog>
+    </ScrollView>
   );
 }

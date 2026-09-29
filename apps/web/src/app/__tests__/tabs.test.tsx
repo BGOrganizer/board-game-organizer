@@ -46,6 +46,12 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
     thing: { isPending: false, isError: false, mutate: vi.fn(), data: null },
     respondInvitation: { isPending: false, isError: false, mutate: vi.fn() },
   }),
+  useBggAccount: () => ({
+    account: { data: { active: null, pending: null }, isError: false, refetch: vi.fn() },
+    link: { mutateAsync: vi.fn(), isPending: false },
+    sync: { mutate: vi.fn(), isPending: false },
+    unlink: { mutate: vi.fn(), isPending: false },
+  }),
   useProfileQuery: () => ({
     data: {
       id: "user_1",

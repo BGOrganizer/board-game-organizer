@@ -6,6 +6,8 @@ import { GenericContainer, type StartedTestContainer, Wait } from "testcontainer
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { importDirectCsv } from "../../scripts/import-boardgames-direct";
 import { gameDetails, searchGames } from "../../src/app/lib/bgg";
+import { BggAccountRepository } from "../../src/app/lib/bgg-account.repository";
+import { parseBggCollection } from "../../src/app/lib/bgg-collection";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
 import { GroupService } from "../../src/app/lib/group.service";
@@ -375,6 +377,45 @@ describe("direct Preview catalog import on MongoDB replica set", () => {
       await preview.dropDatabase();
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+});
+
+describe("BGG account collection snapshots on MongoDB replica set", () => {
+  it("publishes only complete snapshots, preserves old data on failure, and unlinks privately", async () => {
+    const repository = new BggAccountRepository(db);
+    const alice = { id: 41, username: "alice", avatarUrl: null };
+    const first = await repository.stage(ACTOR, alice);
+    const games = parseBggCollection(
+      '<items><item objectid="987600" subtype="boardgame"><name>Rare Game</name><status own="0" wishlist="1"/></item></items>',
+      ACTOR,
+      first,
+    );
+    await repository.publish(ACTOR, first, alice, games);
+    expect((await repository.get(ACTOR)).active?.username).toBe("alice");
+    expect(await repository.games(ACTOR, first).toArray()).toHaveLength(1);
+    expect(await new BoardGamesRepository(db).findExistingIds([987600])).toEqual([987600]);
+
+    const bob = { id: 42, username: "bob", avatarUrl: null };
+    const failed = await repository.stage(ACTOR, bob);
+    await repository.failed(ACTOR, failed);
+    expect((await repository.get(ACTOR)).active?.snapshot).toBe(first);
+    expect(await repository.games(ACTOR, failed).toArray()).toHaveLength(0);
+
+    const empty = await repository.stage(ACTOR, bob);
+    await repository.publish(ACTOR, empty, bob, []);
+    expect((await repository.get(ACTOR)).active?.username).toBe("bob");
+    expect(await repository.games(ACTOR, first).toArray()).toHaveLength(0);
+    const session = client.startSession();
+    try {
+      await session.withTransaction(() => repository.unlink(ACTOR, session));
+    } finally {
+      await session.endSession();
+    }
+    expect((await repository.get(ACTOR)).active).toBeNull();
+    expect(
+      await db.collection(COLLECTIONS.BGG_COLLECTION_GAMES).countDocuments({ userId: ACTOR }),
+    ).toBe(0);
+    expect(await new BoardGamesRepository(db).findExistingIds([987600])).toEqual([987600]);
   });
 });
 

@@ -10,12 +10,24 @@ const mocks = vi.hoisted(() => ({
   })),
   dropCollection: vi.fn(async (_name: string) => true),
   bulkUpsert: vi.fn(async () => 1),
+  findUser: vi.fn(async (): Promise<{ clerkId: string } | null> => ({ clerkId: "user_1" })),
+  stageBgg: vi.fn(async () => "snapshot"),
+  publishBgg: vi.fn(async () => undefined),
 }));
 vi.mock("@/app/lib/db", () => ({
+  COLLECTIONS: { USERS: "users" },
   getDb: vi.fn(async () => ({
     listCollections: mocks.listCollections,
-    collection: (name: string) => ({ drop: () => mocks.dropCollection(name) }),
+    collection: (name: string) => ({
+      drop: () => mocks.dropCollection(name),
+      findOne: mocks.findUser,
+    }),
   })),
+}));
+vi.mock("@/app/lib/bgg-account.repository", () => ({
+  BggAccountRepository: vi
+    .fn()
+    .mockImplementation(() => ({ stage: mocks.stageBgg, publish: mocks.publishBgg })),
 }));
 vi.mock("@/app/lib/migrate", () => ({ migrate: vi.fn(async () => ({})) }));
 vi.mock("@/app/lib/boardGames.repository", () => ({
@@ -23,8 +35,8 @@ vi.mock("@/app/lib/boardGames.repository", () => ({
 }));
 
 const url = "http://localhost/api/admin/ci-db";
-const body = (action: string, databaseName = "bgo_ci_12_1") =>
-  JSON.stringify({ action, databaseName });
+const body = (action: string, databaseName = "bgo_ci_12_1", userId?: string) =>
+  JSON.stringify({ action, databaseName, userId });
 const request = (payload: string, auth = "Bearer sk_test_ci") =>
   new Request(url, { method: "POST", headers: { authorization: auth }, body: payload });
 
@@ -81,6 +93,24 @@ describe("POST /api/admin/ci-db", () => {
         isExpansion: false,
       },
     ]);
+  });
+
+  it("seeds BGG collection only for a mirrored CI user", async () => {
+    expect((await POST(request(body("seed-bgg")))).status).toBe(400);
+    mocks.findUser.mockResolvedValueOnce(null);
+    expect((await POST(request(body("seed-bgg", "bgo_ci_12_1", "missing")))).status).toBe(400);
+    expect(mocks.stageBgg).not.toHaveBeenCalled();
+    expect((await POST(request(body("seed-bgg", "bgo_ci_12_1", "user_1")))).status).toBe(200);
+    expect(mocks.stageBgg).toHaveBeenCalledWith(
+      "user_1",
+      expect.objectContaining({ username: "bgg-e2e" }),
+    );
+    expect(mocks.publishBgg).toHaveBeenCalledWith(
+      "user_1",
+      "snapshot",
+      expect.objectContaining({ username: "bgg-e2e" }),
+      [expect.objectContaining({ gameId: 295947, name: "Cascadia", userId: "user_1" })],
+    );
   });
 
   it("removes every collection in its own database without reseeding", async () => {
