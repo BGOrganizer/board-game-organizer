@@ -263,18 +263,23 @@ describe("Contacts tabs", () => {
     mocks.searchError = true;
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Search users by name or email" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search users by name or email" }), {
       target: { value: "missing" },
     });
     expect(screen.getByRole("alert").textContent).toBe("Could not load contacts");
     expect(screen.queryByText("No users found")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(
+      (screen.getByRole("searchbox", { name: "Search users by name or email" }) as HTMLInputElement)
+        .value,
+    ).toBe("");
   });
 
   it("web search shows BGO users without global invite or device-contact controls", () => {
     mocks.searchResult = true;
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
-    expect(screen.getByRole("textbox", { name: "Search users by name or email" })).toBeTruthy();
+    expect(screen.getByRole("searchbox", { name: "Search users by name or email" })).toBeTruthy();
     expect(screen.getByText("Target User")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Create invite|Add contacts/i })).toBeNull();
   });

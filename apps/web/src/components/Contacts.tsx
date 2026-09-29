@@ -8,9 +8,8 @@ import {
   useContacts,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Card, Chip, Skeleton, Tabs } from "@heroui/react";
+import { Avatar, Card, Chip, Label, SearchField, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
@@ -293,28 +292,21 @@ export function Contacts() {
         </Tabs.ListContainer>
 
         <Tabs.Panel id="search" className="space-y-3 pt-4">
-          <div className="relative">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t`Search users (at least 4 characters)`}
-              aria-label={t`Search users by name or email`}
-              className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
-            />
-            {query.length > 0 && (
-              <button
-                type="button"
-                aria-label={t`Clear search`}
-                onClick={() => {
-                  setQuery("");
-                  contacts.runSearch("");
-                }}
-                className="absolute inset-y-0 right-2 flex items-center text-default-400 hover:text-default-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <SearchField
+            fullWidth
+            value={query}
+            onChange={(value) => {
+              setQuery(value);
+              if (!value) contacts.runSearch("");
+            }}
+          >
+            <Label className="sr-only">{t`Search users by name or email`}</Label>
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder={t`Search users (at least 4 characters)`} />
+              <SearchField.ClearButton aria-label={t`Clear search`} />
+            </SearchField.Group>
+          </SearchField>
 
           {query.trim().length > 0 && query.trim().length < 4 && (
             <p className="text-sm text-default-500">{t`Type at least 4 characters to search`}</p>

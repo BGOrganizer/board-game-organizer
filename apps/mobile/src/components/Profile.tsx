@@ -100,7 +100,6 @@ export function Profile() {
   const t = useT();
   const feedback = useMutationFeedback();
   const accent = useThemeColor("accent");
-  const foreground = useThemeColor("foreground");
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -243,15 +242,14 @@ export function Profile() {
           <Button
             className="mt-6"
             variant="primary"
-            style={{ backgroundColor: "#93c5fd" }}
             onPress={() => {
               setUsername("");
               setFormError(null);
               setDialogOpen(true);
             }}
           >
-            <RefreshCw size={18} color="#000" />
-            <Typography style={{ color: "#000" }}>{t("Sync with BoardGameGeek")}</Typography>
+            <RefreshCw size={18} color="#fff" />
+            <Typography className="text-white">{t("Sync with BoardGameGeek")}</Typography>
           </Button>
         ) : null}
         {bgg.account.isError ? (
@@ -362,8 +360,8 @@ export function Profile() {
                 isDisabled={!username.trim() || bgg.link.isPending}
                 onPress={() => void synchronize()}
               >
-                <Link2 size={16} color={foreground} />
-                <Typography>{t("Sync")}</Typography>
+                <Link2 size={16} color="#fff" />
+                <Typography className="text-white">{t("Sync")}</Typography>
               </Button>
             </View>
           </Dialog.Content>

@@ -214,15 +214,14 @@ export function Profile() {
         <Button
           className="mt-6 w-full sm:w-auto"
           variant="primary"
-          style={{ backgroundColor: "#93c5fd" }}
           onPress={() => {
             setUsername("");
             setFormError(null);
             setDialogOpen(true);
           }}
         >
-          <RefreshCw className="h-5 w-5 text-black" />
-          <span className="text-black">{t`Sync with BoardGameGeek`}</span>
+          <RefreshCw className="h-5 w-5 text-white" />
+          <span className="text-white">{t`Sync with BoardGameGeek`}</span>
         </Button>
       ) : null}
       {bgg.account.isError ? (
@@ -309,8 +308,8 @@ export function Profile() {
               onPress={() => setDialogOpen(false)}
             >{t`Cancel`}</Button>
             <Button type="submit" variant="primary" isDisabled={bgg.link.isPending}>
-              <Link2 className="h-4 w-4" />
-              {t`Sync`}
+              <Link2 className="h-4 w-4 text-white" />
+              <span className="text-white">{t`Sync`}</span>
             </Button>
           </div>
         </form>

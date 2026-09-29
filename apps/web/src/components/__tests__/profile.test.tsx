@@ -108,8 +108,15 @@ describe("Profile", () => {
       unlink: { mutate: vi.fn(), isPending: false },
     });
     renderWithI18n(<Profile />);
-    fireEvent.click(screen.getByRole("button", { name: "Sync with BoardGameGeek" }));
+    const linkButton = screen.getByRole("button", { name: "Sync with BoardGameGeek" });
+    expect(linkButton.className).toContain("button--primary");
+    expect(linkButton.querySelector("span.text-white")).toBeTruthy();
+    expect(linkButton.getAttribute("style")).toBeNull();
+    fireEvent.click(linkButton);
     expect(screen.getByPlaceholderText("BGG username")).toBeTruthy();
+    const syncButton = screen.getByRole("button", { name: "Sync", hidden: true });
+    expect(syncButton.className).toContain("button--primary");
+    expect(syncButton.querySelector("span.text-white")).toBeTruthy();
     fireEvent.change(screen.getByRole("textbox", { name: "BGG username" }), {
       target: { value: "unknown" },
     });

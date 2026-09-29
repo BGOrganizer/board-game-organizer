@@ -23,12 +23,12 @@ const querySchema = z
   })
   .strict();
 const cursorSchema = z.object({
-  source: z.enum(["collection", "search"]),
-  offset: z.number().int().nonnegative().max(1_000_000),
+  collectionOffset: z.number().int().nonnegative().max(1_000_000),
+  searchOffset: z.number().int().nonnegative().max(1_000_000),
   snapshot: z.string().nullable(),
 });
-
 type Cursor = z.infer<typeof cursorSchema>;
+
 const encode = (cursor: Cursor) => Buffer.from(JSON.stringify(cursor)).toString("base64url");
 function decode(value: string): Cursor | null {
   try {
@@ -54,95 +54,97 @@ export async function GET(request: Request) {
     return corsJson({ error: "Stale cursor" }, { status: 409 }, request);
   if (!includeSearch && !includeCollection)
     return corsJson({ items: [], nextCursor: null }, request);
-  const source = cursor?.source ?? (includeCollection ? "collection" : "search");
-  const offset = cursor?.offset ?? 0;
-  const prefix = new RegExp(`^${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
 
-  if (source === "collection" && includeCollection && snapshot) {
+  const prefix = new RegExp(`^${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i");
+  const collectionBudget = includeCollection
+    ? includeSearch
+      ? Math.max(1, Math.floor(limit / 2))
+      : limit
+    : 0;
+  let collectionOffset = cursor?.collectionOffset ?? 0;
+  let searchOffset = cursor?.searchOffset ?? 0;
+  let moreCollection = false;
+  let moreSearch = false;
+  const items: BggPickerItem[] = [];
+
+  if (includeCollection && snapshot) {
     const rows = await db
       .collection<BggCollectionGame>(COLLECTIONS.BGG_COLLECTION_GAMES)
       .find({ userId, snapshot, ...(query ? { name: prefix } : {}) })
       .sort({ name: 1, gameId: 1 })
-      .skip(offset)
-      .limit(limit + 1)
+      .skip(collectionOffset)
+      .limit(collectionBudget + 1)
       .toArray();
-    const visible = rows.slice(0, limit);
-    const catalog = await db
-      .collection<{ id: number; average?: number; rank?: number; bayesAverage?: number }>(
-        COLLECTIONS.BOARD_GAMES,
-      )
-      .find({ id: { $in: visible.map((row) => row.gameId) } })
-      .toArray();
+    moreCollection = rows.length > collectionBudget;
+    const visible = rows.slice(0, collectionBudget);
+    collectionOffset += visible.length;
+    const catalog = visible.length
+      ? await db
+          .collection<{ id: number; average?: number; rank?: number; bayesAverage?: number }>(
+            COLLECTIONS.BOARD_GAMES,
+          )
+          .find({ id: { $in: visible.map((row) => row.gameId) } })
+          .toArray()
+      : [];
     const stats = new Map(catalog.map((game) => [game.id, game]));
-    const items: BggPickerItem[] = visible.map((row) => ({
-      id: row.gameId,
-      name: row.name,
-      year: row.year,
-      imageUrl: row.imageUrl,
-      average: stats.get(row.gameId)?.average ?? null,
-      rank: stats.get(row.gameId)?.rank ?? null,
-      bayesAverage: stats.get(row.gameId)?.bayesAverage ?? null,
-      source: "collection",
-    }));
-    return corsJson(
-      {
-        items,
-        nextCursor:
-          rows.length > limit
-            ? encode({ source: "collection", offset: offset + limit, snapshot })
-            : includeSearch
-              ? encode({ source: "search", offset: 0, snapshot })
-              : null,
-      } satisfies BggPickerResponse,
-      request,
+    items.push(
+      ...visible.map((row) => ({
+        id: row.gameId,
+        name: row.name,
+        year: row.year,
+        imageUrl: row.imageUrl,
+        average: stats.get(row.gameId)?.average ?? null,
+        rank: stats.get(row.gameId)?.rank ?? null,
+        bayesAverage: stats.get(row.gameId)?.bayesAverage ?? null,
+        source: "collection" as const,
+      })),
     );
   }
 
-  if (source === "collection" && !includeCollection)
-    return corsJson({ error: "Stale cursor" }, { status: 409 }, request);
-  if (!includeSearch) return corsJson({ items: [], nextCursor: null }, request);
-  const items: BggPickerItem[] = [];
-  let nextOffset = offset;
-  let exhausted = false;
-  while (items.length <= limit) {
-    const batch = await searchGames(db, query, nextOffset, limit + 1);
-    if (!batch.length) {
-      exhausted = true;
-      break;
-    }
-    const matchingCollectionIds = includeCollection
-      ? new Set(
-          (
-            await db
-              .collection<BggCollectionGame>(COLLECTIONS.BGG_COLLECTION_GAMES)
-              .find({
-                userId,
-                snapshot: snapshot as string,
-                gameId: { $in: batch.map((game) => game.id) },
-                name: prefix,
-              })
-              .project<{ gameId: number }>({ gameId: 1 })
-              .toArray()
-          ).map((game) => game.gameId),
-        )
-      : new Set<number>();
-    for (const game of batch) {
-      if (items.length > limit) break;
-      nextOffset++;
-      if (!matchingCollectionIds.has(game.id)) items.push({ ...game, source: "search" });
-    }
-    if (batch.length < limit + 1) {
-      exhausted = true;
-      break;
+  if (includeSearch) {
+    const remaining = limit - items.length;
+    const batchSize = Math.max(remaining + 1, 25);
+    while (true) {
+      const batch = await searchGames(db, query, searchOffset, batchSize);
+      if (!batch.length) break;
+      const matchingCollectionIds =
+        includeCollection && snapshot
+          ? new Set(
+              (
+                await db
+                  .collection<BggCollectionGame>(COLLECTIONS.BGG_COLLECTION_GAMES)
+                  .find({
+                    userId,
+                    snapshot,
+                    gameId: { $in: batch.map((game) => game.id) },
+                    name: prefix,
+                  })
+                  .project<{ gameId: number }>({ gameId: 1 })
+                  .toArray()
+              ).map((game) => game.gameId),
+            )
+          : new Set<number>();
+      for (const game of batch) {
+        if (matchingCollectionIds.has(game.id)) {
+          searchOffset++;
+          continue;
+        }
+        if (items.length === limit) {
+          moreSearch = true;
+          break;
+        }
+        items.push({ ...game, source: "search" });
+        searchOffset++;
+      }
+      if (moreSearch || batch.length < batchSize) break;
     }
   }
+
   return corsJson(
     {
-      items: items.slice(0, limit),
+      items,
       nextCursor:
-        !exhausted && items.length > limit
-          ? encode({ source: "search", offset: nextOffset - 1, snapshot })
-          : null,
+        moreCollection || moreSearch ? encode({ collectionOffset, searchOffset, snapshot }) : null,
     } satisfies BggPickerResponse,
     request,
   );

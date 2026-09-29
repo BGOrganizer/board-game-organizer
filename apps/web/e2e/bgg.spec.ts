@@ -62,8 +62,8 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
       return;
     }
     const params = new URL(route.request().url()).searchParams;
-    const collection = active && params.get("collection") !== "off";
-    const search = params.get("search") !== "off" && (params.get("query")?.length ?? 0) >= 4;
+    const collection = active && params.get("collection") === "1";
+    const search = params.get("search") === "1" && (params.get("query")?.length ?? 0) >= 4;
     await route.fulfill({
       headers,
       json: {
@@ -135,7 +135,8 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   await page.getByRole("button", { name: "Add game" }).click();
   await expect(page.getByRole("button", { name: "Collection", exact: true })).toBeVisible();
   await expect(page.getByText("Azul", { exact: true })).toBeVisible();
-  await page.getByRole("textbox", { name: "Search board games" }).fill("Azul");
+  await page.getByRole("searchbox", { name: "Search board games" }).fill("Azul");
+  await expect(page.getByText("Azul", { exact: true })).toBeVisible();
   await expect(page.getByText("Azul Summer")).toBeVisible();
   await page.getByRole("button", { name: "Collection", exact: true }).click();
   await expect(page.getByText("Azul", { exact: true })).toHaveCount(0);

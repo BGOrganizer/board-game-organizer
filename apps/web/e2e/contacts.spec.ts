@@ -25,7 +25,7 @@ async function signIn(page: import("@playwright/test").Page, emailAddress: strin
 
 async function findTarget(page: import("@playwright/test").Page) {
   await page.getByRole("tab", { name: "Search" }).click();
-  const searchInput = page.getByRole("textbox", { name: /search users by name or email/i });
+  const searchInput = page.getByRole("searchbox", { name: /search users by name or email/i });
   await expect(searchInput).toBeVisible();
   await searchInput.fill(E2E_EMAIL_2);
   await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 90_000 });

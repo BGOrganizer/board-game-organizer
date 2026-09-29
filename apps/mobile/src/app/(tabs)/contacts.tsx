@@ -15,11 +15,11 @@ import * as SecureStore from "expo-secure-store";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { Input } from "heroui-native/input";
+import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { BookUser, MoreVertical, UserPlus, X } from "lucide-react-native";
+import { BookUser, MoreVertical, UserPlus } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -650,24 +650,23 @@ export default function ContactsScreen() {
               <View style={{ marginBottom: 12, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <View style={{ flex: 1 }}>
-                    <Input
+                    <SearchField
                       value={query}
-                      onChangeText={setQuery}
-                      placeholder={t("Search users (at least 4 characters)")}
-                    />
-                  </View>
-                  {query.length > 0 && (
-                    <Pressable
-                      onPress={() => {
-                        setQuery("");
-                        contacts.runSearch("");
+                      onChange={(value) => {
+                        setQuery(value);
+                        if (!value) contacts.runSearch("");
                       }}
-                      hitSlop={8}
-                      accessibilityLabel={t("Clear search")}
                     >
-                      <X size={18} color="#8e8e93" />
-                    </Pressable>
-                  )}
+                      <SearchField.Group>
+                        <SearchField.SearchIcon />
+                        <SearchField.Input
+                          accessibilityLabel={t("Search users by name or email")}
+                          placeholder={t("Search users (at least 4 characters)")}
+                        />
+                        <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
+                      </SearchField.Group>
+                    </SearchField>
+                  </View>
                   {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
                     <Button
                       isIconOnly
