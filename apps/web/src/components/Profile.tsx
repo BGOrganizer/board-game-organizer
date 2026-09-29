@@ -2,7 +2,7 @@
 
 import { resolveApiUrl, useBggAccount, useProfileQuery } from "@board-game-organizer/shared";
 import { useAuth, useClerk } from "@clerk/nextjs";
-import { Avatar, Button, Card, Skeleton } from "@heroui/react";
+import { Avatar, Button, Card, Skeleton, Spinner } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Crown,
@@ -16,6 +16,7 @@ import {
   UserPlus,
   UsersRound,
 } from "lucide-react";
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -35,16 +36,33 @@ function Stat({ Icon, label, value }: { Icon: LucideIcon; label: string; value: 
       aria-label={`${label}: ${value}`}
     >
       <span
-        className="relative inline-flex h-14 w-14 items-center justify-center"
+        className="relative inline-flex h-12 w-12 items-center justify-center"
         aria-hidden="true"
       >
-        <Icon className="h-10 w-10 text-accent" />
-        <span className="absolute -bottom-1 -right-2 min-w-6 rounded-full bg-accent px-1 text-center text-xs font-bold leading-6 text-accent-foreground">
+        <Icon className="h-8 w-8 text-accent" />
+        <span className="absolute -bottom-0.5 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold leading-none text-accent-foreground">
           {value}
         </span>
       </span>
       <span className="text-xs text-default-500">{label}</span>
     </fieldset>
+  );
+}
+
+function BggAttribution() {
+  const { t } = useLingui();
+  return (
+    <div className="flex justify-center">
+      <div className="rounded-lg bg-white p-2">
+        <Image
+          src="/bgg-powered.png"
+          alt={t`Powered by BoardGameGeek`}
+          width={230}
+          height={68}
+          className="h-auto max-w-full"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -141,8 +159,17 @@ export function Profile() {
         <Button className="mt-3" variant="outline" onPress={() => refetch()}>
           {t`Retry`}
         </Button>
-        <Button className="mt-6" variant="danger" onPress={handleLogout}>
-          {t`Logout`}
+        <div className="mt-8">
+          <BggAttribution />
+        </div>
+        <Button
+          className="mt-6 justify-center"
+          variant="danger"
+          style={{ backgroundColor: "#b91c1c" }}
+          onPress={handleLogout}
+        >
+          <LogOut className="h-5 w-5 text-white" />
+          <span className="text-white">{t`Logout`}</span>
         </Button>
       </Card>
     );
@@ -158,7 +185,8 @@ export function Profile() {
   ];
   const active = bgg.account.data?.active;
   const pending = bgg.account.data?.pending;
-  const shown = active ?? pending;
+  const syncing = pending?.status === "syncing" ? pending : null;
+  const shown = syncing ?? active;
 
   return (
     <Card className="mx-auto mt-6 flex min-h-[60vh] w-full max-w-3xl flex-col rounded-xl p-4 sm:p-6">
@@ -182,31 +210,39 @@ export function Profile() {
         {t`Plan:`} {profile.plan} &middot; {t`Language:`} {profile.preferredLanguage}
       </p>
 
-      <Button
-        className="mt-6 w-full sm:w-auto"
-        variant="primary"
-        onPress={() => {
-          setUsername(active?.username ?? pending?.username ?? "");
-          setFormError(null);
-          setDialogOpen(true);
-        }}
-      >
-        <RefreshCw className="h-5 w-5" />
-        {t`Sync with BoardGameGeek`}
-      </Button>
+      {!active && !syncing ? (
+        <Button
+          className="mt-6 w-full sm:w-auto"
+          variant="primary"
+          style={{ backgroundColor: "#93c5fd" }}
+          onPress={() => {
+            setUsername("");
+            setFormError(null);
+            setDialogOpen(true);
+          }}
+        >
+          <RefreshCw className="h-5 w-5 text-black" />
+          <span className="text-black">{t`Sync with BoardGameGeek`}</span>
+        </Button>
+      ) : null}
       {bgg.account.isError ? (
         <Button className="mt-3" variant="outline" onPress={() => void bgg.account.refetch()}>
           {t`Could not load BoardGameGeek connection. Retry`}
         </Button>
       ) : null}
       {shown ? (
-        <div className="mt-4 flex items-center gap-3 rounded-lg border border-default-200 p-3">
+        <div
+          className={`mt-4 flex items-center gap-3 rounded-lg border border-default-200 p-3${syncing ? " opacity-60" : ""}`}
+          aria-busy={Boolean(syncing)}
+        >
           <Avatar size="md" color="accent">
             {shown.avatarUrl ? <Avatar.Image src={shown.avatarUrl} alt="" /> : null}
             <Avatar.Fallback>{shown.username.charAt(0).toUpperCase()}</Avatar.Fallback>
           </Avatar>
           <span className="min-w-0 flex-1 truncate font-medium">{shown.username}</span>
-          {active ? (
+          {syncing ? (
+            <Spinner size="sm" aria-label={t`Syncing BoardGameGeek collection`} />
+          ) : active ? (
             <Button
               isIconOnly
               size="sm"
@@ -219,30 +255,18 @@ export function Profile() {
           ) : null}
         </div>
       ) : null}
-      {pending ? (
-        <div className="mt-2 text-sm text-default-500" role="status">
-          {pending.status === "syncing" ? (
-            `${t`Syncing BoardGameGeek collection`}: ${pending.username}`
-          ) : (
-            <div className="flex flex-wrap items-center gap-2 text-danger">
-              {t`Could not synchronize BoardGameGeek collection`}: {pending.username}
-              <Button
-                size="sm"
-                variant="outline"
-                isDisabled={bgg.sync.isPending}
-                onPress={() => bgg.sync.mutate(true)}
-              >
-                {t`Retry`}
-              </Button>
-            </div>
-          )}
-        </div>
-      ) : null}
-
       <div className="mt-auto pt-10">
-        <Button className="w-full sm:w-auto" variant="danger" onPress={handleLogout}>
-          <LogOut className="h-5 w-5" />
-          {t`Logout`}
+        <BggAttribution />
+      </div>
+      <div className="flex justify-center pt-6">
+        <Button
+          className="w-full justify-center sm:w-auto"
+          variant="danger"
+          style={{ backgroundColor: "#b91c1c" }}
+          onPress={handleLogout}
+        >
+          <LogOut className="h-5 w-5 text-white" />
+          <span className="text-white">{t`Logout`}</span>
         </Button>
       </div>
 
@@ -269,6 +293,7 @@ export function Profile() {
             maxLength={64}
             autoFocus
             autoComplete="off"
+            placeholder={t`BGG username`}
             className="mt-2 w-full rounded-lg border border-default-200 bg-surface px-3 py-2 outline-none focus:border-primary"
           />
           {formError ? (

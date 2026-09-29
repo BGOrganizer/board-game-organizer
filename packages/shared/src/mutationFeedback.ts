@@ -9,7 +9,6 @@ export type MutationFeedbackAction =
   | "block"
   | "unblock"
   | "sync_contacts"
-  | "sync_bgg"
   | "disconnect_bgg"
   | "create_invite"
   | "create_match"

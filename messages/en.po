@@ -40,7 +40,7 @@ msgstr "Accept group invitation"
 msgid "Accept invitation"
 msgstr "Accept invitation"
 
-#: apps/mobile/src/components/UserActionsSheet.tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Accept or decline this friend request."
 #~ msgstr "Accept or decline this friend request."
 
@@ -182,8 +182,8 @@ msgid "BoardGameGeek disconnected"
 msgstr "BoardGameGeek disconnected"
 
 #: apps/web/src/lib/useMutationFeedback.ts
-msgid "BoardGameGeek sync started"
-msgstr "BoardGameGeek sync started"
+#~ msgid "BoardGameGeek sync started"
+#~ msgstr "BoardGameGeek sync started"
 
 #: apps/web/src/components/ContactConfirmDialog.tsx
 #: apps/web/src/components/MatchResultsEditor.tsx
@@ -243,6 +243,7 @@ msgstr "Choose game"
 #~ msgid "Claiming this invite connects you with the inviter."
 #~ msgstr "Claiming this invite connects you with the inviter."
 
+#: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Clear"
 msgstr "Clear"
@@ -516,18 +517,18 @@ msgstr "Could not send friend request"
 #~ msgstr "Could not sync contacts. Try again."
 
 #: apps/web/src/lib/useMutationFeedback.ts
-msgid "Could not synchronize BoardGameGeek"
-msgstr "Could not synchronize BoardGameGeek"
+#~ msgid "Could not synchronize BoardGameGeek"
+#~ msgstr "Could not synchronize BoardGameGeek"
 
 #: apps/web/src/components/Profile.tsx
-msgid "Could not synchronize BoardGameGeek collection"
-msgstr "Could not synchronize BoardGameGeek collection"
+#~ msgid "Could not synchronize BoardGameGeek collection"
+#~ msgstr "Could not synchronize BoardGameGeek collection"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not synchronize contacts"
 msgstr "Could not synchronize contacts"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Could not synchronize contacts. Retry"
 #~ msgstr "Could not synchronize contacts. Retry"
 
@@ -787,7 +788,7 @@ msgstr "Games"
 msgid "Generate a link to connect with someone."
 msgstr "Generate a link to connect with someone."
 
-#: apps/mobile/src/app/group/[groupId].tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Group"
 #~ msgstr "Group"
 
@@ -855,7 +856,7 @@ msgstr "Increase max players"
 msgid "Increase min players"
 msgstr "Increase min players"
 
-#: apps/mobile/src/app/group/[groupId].tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Invitations"
 #~ msgstr "Invitations"
 
@@ -876,7 +877,7 @@ msgstr "Invite a friend"
 #~ msgid "Invite claimed — you now follow the inviter."
 #~ msgstr "Invite claimed — you now follow the inviter."
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Invite device contacts"
 #~ msgstr "Invite device contacts"
 
@@ -1044,7 +1045,7 @@ msgstr "member"
 msgid "members"
 msgstr "members"
 
-#: apps/mobile/src/app/group/[groupId].tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Members"
 #~ msgstr "Members"
 
@@ -1117,7 +1118,7 @@ msgstr "No connections yet"
 #~ msgid "No contacts found in your address book."
 #~ msgstr "No contacts found in your address book."
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "No contacts to invite"
 #~ msgstr "No contacts to invite"
 
@@ -1319,6 +1320,10 @@ msgstr "Players remain in this match until they leave or are removed."
 #~ msgid "Possible dates"
 #~ msgstr "Possible dates"
 
+#: apps/web/src/components/Profile.tsx
+msgid "Powered by BoardGameGeek"
+msgstr "Powered by BoardGameGeek"
+
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Previous"
 msgstr "Previous"
@@ -1445,7 +1450,7 @@ msgstr "Requests"
 msgid "Resolve tie"
 msgstr "Resolve tie"
 
-#: apps/web/src/components/Contacts.tsx
+#. Mobile runtime only
 #~ msgid "Respond to friend request"
 #~ msgstr "Respond to friend request"
 
@@ -1531,7 +1536,7 @@ msgstr "Select group member"
 msgid "Selected group is unavailable"
 msgstr "Selected group is unavailable"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Send"
 #~ msgstr "Send"
 
@@ -1543,7 +1548,7 @@ msgstr "Send friend request"
 msgid "Send friend request?"
 msgstr "Send friend request?"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#. Mobile runtime only
 #~ msgid "Send invite"
 #~ msgstr "Send invite"
 

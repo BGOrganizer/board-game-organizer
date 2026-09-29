@@ -70,6 +70,7 @@ describe("translate (runtime)", () => {
     expect(translate(it, "Add game")).toBe("Aggiungi gioco");
     expect(translate(it, "Create match")).toBe("Crea partita");
     expect(translate(it, "Matches played")).toBe("Partite giocate");
+    expect(translate(it, "Powered by BoardGameGeek")).toBe("Con il supporto di BoardGameGeek");
     expect(translate(it, "Following")).toBe("Following");
     expect(translate(it, "Remove player")).toBe("Rimuovi giocatore");
     expect(translate(it, "Members")).toBe("Membri");

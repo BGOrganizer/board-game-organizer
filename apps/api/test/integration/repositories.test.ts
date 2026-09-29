@@ -399,6 +399,7 @@ describe("BGG account collection snapshots on MongoDB replica set", () => {
     const failed = await repository.stage(ACTOR, bob);
     await repository.failed(ACTOR, failed);
     expect((await repository.get(ACTOR)).active?.snapshot).toBe(first);
+    expect((await repository.get(ACTOR)).pending).toBeNull();
     expect(await repository.games(ACTOR, failed).toArray()).toHaveLength(0);
 
     const empty = await repository.stage(ACTOR, bob);

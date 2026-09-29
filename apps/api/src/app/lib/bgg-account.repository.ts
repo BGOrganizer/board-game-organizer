@@ -93,10 +93,7 @@ export class BggAccountRepository {
   async failed(userId: string, snapshot: string) {
     await this.accounts.updateOne(
       { userId, "pending.snapshot": snapshot },
-      {
-        $set: { "pending.status": "failed", "pending.error": "Collection sync failed" },
-        $unset: { "pending.nextAttemptAt": "", "pending.leaseUntil": "" },
-      },
+      { $unset: { pending: "" } },
     );
     const current = await this.accounts.findOne({ userId }, { projection: { active: 1 } });
     if (current?.active?.snapshot !== snapshot)

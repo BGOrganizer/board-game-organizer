@@ -8,6 +8,7 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   test.setTimeout(180_000);
   if (!email) throw new Error("E2E_EMAIL required for authenticated BGG E2E");
   let active = false;
+  let pendingUsername: string | null = null;
   const headers = {
     "access-control-allow-origin": "*",
     "access-control-allow-headers": "*",
@@ -21,15 +22,19 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
       return;
     }
     if (url.pathname.endsWith("/sync")) {
-      active = true;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      active = pendingUsername !== "bob";
+      pendingUsername = null;
     } else if (request.method() === "DELETE") {
       active = false;
+      pendingUsername = null;
     } else if (request.method() === "POST") {
       const { username } = request.postDataJSON();
       if (username === "unknown") {
         await route.fulfill({ status: 404, headers, json: { error: "BGG user not found" } });
         return;
       }
+      pendingUsername = username;
     }
     await route.fulfill({
       headers,
@@ -37,18 +42,17 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
         active: active
           ? { id: 41, username: "alice", avatarUrl: null, snapshot: "snap", syncedAt: "2026-09-01" }
           : null,
-        pending:
-          !active && request.method() === "POST"
-            ? {
-                id: 41,
-                username: "alice",
-                avatarUrl: null,
-                snapshot: "snap",
-                status: "syncing",
-                attempts: 0,
-                nextAttemptAt: null,
-              }
-            : null,
+        pending: pendingUsername
+          ? {
+              id: 41,
+              username: pendingUsername,
+              avatarUrl: null,
+              snapshot: "snap",
+              status: "syncing",
+              attempts: 0,
+              nextAttemptAt: null,
+            }
+          : null,
       },
     });
   });
@@ -102,6 +106,7 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   await page.goto("/");
   await completeMobileNumberIfNeeded(page);
   await page.goto("/profile");
+  await expect(page.getByRole("img", { name: "Powered by BoardGameGeek" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sync with BoardGameGeek" })).toBeVisible();
   await page.getByRole("button", { name: "Sync with BoardGameGeek" }).click();
   await page.getByRole("textbox", { name: "BGG username" }).fill("unknown");
@@ -110,7 +115,16 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   await page.getByRole("textbox", { name: "BGG username" }).fill("alice");
   await page.getByRole("button", { name: "Sync", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Sync with BoardGameGeek" })).not.toBeVisible();
-  await expect(page.getByText("alice", { exact: true })).toBeVisible();
+  await expect(page.getByText("alice", { exact: true }).locator("..")).toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  await expect(page.getByLabel("Syncing BoardGameGeek collection")).toBeVisible();
+  await expect(page.getByText("alice", { exact: true }).locator("..")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(page.getByRole("button", { name: "Sync with BoardGameGeek" })).toHaveCount(0);
 
   await page.goto("/matches");
   await page.getByLabel("Create a match").click();
@@ -134,5 +148,15 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   await expect(page.getByText("alice", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Disconnect BoardGameGeek" }).click();
   await page.getByRole("button", { name: "Disconnect", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sync with BoardGameGeek" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Sync with BoardGameGeek" }).click();
+  await page.getByRole("textbox", { name: "BGG username" }).fill("bob");
+  await page.getByRole("button", { name: "Sync", exact: true }).click();
+  await expect(page.getByText("bob", { exact: true }).locator("..")).toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  await expect(page.getByText("bob", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Sync with BoardGameGeek" })).toBeVisible();
 });

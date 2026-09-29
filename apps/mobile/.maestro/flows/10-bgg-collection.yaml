@@ -7,10 +7,8 @@ appId: com.bgo.mobile
     timeout: 60000
 - assertVisible: "Friends: .*"
 - assertVisible: "Matches played: .*"
-- tapOn: "Sync with BoardGameGeek"
-- assertVisible: "BGG username"
-- tapOn: "Cancel"
-- assertVisible: "bgg-e2e"
+- assertVisible: "Powered by BoardGameGeek"
+- assertNotVisible: "Sync with BoardGameGeek"
 - tapOn: "Matches"
 - tapOn:
     point: "90%,92%"
@@ -55,3 +53,6 @@ appId: com.bgo.mobile
     visible: "Sync with BoardGameGeek"
     timeout: 30000
 - assertNotVisible: "bgg-e2e"
+- tapOn: "Sync with BoardGameGeek"
+- assertVisible: "BGG username"
+- tapOn: "Cancel"

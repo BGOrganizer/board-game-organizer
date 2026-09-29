@@ -117,17 +117,25 @@ export function SearchGamePage({
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           size="sm"
-          variant={search ? "primary" : "outline"}
+          variant="primary"
+          className="h-7 min-h-7 px-2 text-xs"
+          style={search ? undefined : { backgroundColor: "#52525b" }}
           aria-pressed={search}
           onPress={() => setSearch((previous) => !previous)}
-        >{t`Search`}</Button>
+        >
+          <span className="text-white">{t`Search`}</span>
+        </Button>
         {hasCollection ? (
           <Button
             size="sm"
-            variant={collection ? "primary" : "outline"}
+            variant="primary"
+            className="h-7 min-h-7 px-2 text-xs"
+            style={collection ? undefined : { backgroundColor: "#52525b" }}
             aria-pressed={collection}
             onPress={() => setCollection((previous) => !previous)}
-          >{t`Collection`}</Button>
+          >
+            <span className="text-white">{t`Collection`}</span>
+          </Button>
         ) : null}
       </div>
       {error ? (

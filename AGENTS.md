@@ -373,7 +373,7 @@ Runtime search reads MongoDB `boardGames`; it does not call BoardGameGeek and ex
 `isExpansion: true`. Import all BGG rankings CSV columns through
 `apps/api/scripts/import-boardgames.mjs`, `/api/admin/import-games`, or the manual
 `import-boardgames.yml` workflow. Imports use idempotent upserts keyed by BGG ID;
-missing games remain for existing matches. Linking a BGG username validates it through XML API2; sync stages a complete non-expansion collection before publishing and keeps the previous snapshot on failure. Collection games are available regardless of ownership/status; unlink removes private snapshots but not catalog games or match history. Set `BGG_TOKEN` on API deployments for authenticated XML API2 calls. Store one validated BGG cover URL in `image`, not a
+missing games remain for existing matches. Linking a BGG username validates it through XML API2; sync stages a complete non-expansion collection before publishing. A failed sync removes its pending item while retaining any previously published snapshot. Collection games are available regardless of ownership/status; unlink removes private snapshots but not catalog games or match history. Keep the supplied Powered by BGG attribution visible above logout on both Profiles. Set `BGG_TOKEN` on API deployments for authenticated XML API2 calls. Store one validated BGG cover URL in `image`, not a
 `thumbnail` database field; full remote imports remove any legacy `thumbnail` fields. Re-import a
 complete CSV before enabling the search filter on an older catalog without `isExpansion`.
 

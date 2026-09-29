@@ -35,10 +35,6 @@ export function useMutationFeedback(): MutationFeedback {
         success: t("Contacts synchronized"),
         error: t("Could not synchronize contacts"),
       },
-      sync_bgg: {
-        success: t("BoardGameGeek sync started"),
-        error: t("Could not synchronize BoardGameGeek"),
-      },
       disconnect_bgg: {
         success: t("BoardGameGeek disconnected"),
         error: t("Could not disconnect BoardGameGeek"),

@@ -8,6 +8,7 @@ import { Dialog } from "heroui-native/dialog";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
+import { Spinner } from "heroui-native/spinner";
 import { Surface } from "heroui-native/surface";
 import { Typography } from "heroui-native/text";
 import {
@@ -23,7 +24,7 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, Image, ScrollView, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -49,26 +50,47 @@ function Stat({
       accessibilityLabel={`${label}: ${value}`}
       style={{ width: "31%", alignItems: "center", gap: 8 }}
     >
-      <View style={{ width: 64, height: 64, alignItems: "center", justifyContent: "center" }}>
-        <Icon size={40} color={color} accessible={false} />
+      <View style={{ width: 52, height: 52, alignItems: "center", justifyContent: "center" }}>
+        <Icon size={32} color={color} accessible={false} />
         <View
           className="bg-accent"
           style={{
             position: "absolute",
-            right: -4,
+            right: -3,
             bottom: -2,
-            borderRadius: 20,
-            minWidth: 26,
-            paddingHorizontal: 5,
-            height: 26,
+            borderRadius: 11,
+            minWidth: 22,
+            paddingHorizontal: 4,
+            height: 22,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Typography className="text-xs font-bold text-accent-foreground">{value}</Typography>
+          <Typography
+            className="font-bold text-accent-foreground"
+            style={{ fontSize: 11, lineHeight: 14, textAlign: "center", includeFontPadding: false }}
+          >
+            {value}
+          </Typography>
         </View>
       </View>
       <Typography className="text-center text-xs text-muted">{label}</Typography>
+    </View>
+  );
+}
+
+function BggAttribution() {
+  const t = useT();
+  return (
+    <View className="rounded-lg bg-white p-2" style={{ alignSelf: "center" }}>
+      <Image
+        source={require("../../assets/bgg-powered.png")}
+        style={{ width: 230, height: 68 }}
+        resizeMode="contain"
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={t("Powered by BoardGameGeek")}
+      />
     </View>
   );
 }
@@ -153,15 +175,18 @@ export function Profile() {
         <Button className="mt-3" variant="outline" onPress={() => refetch()}>
           {t("Retry")}
         </Button>
-        <Button
-          style={{ marginTop: "auto" }}
-          variant="danger"
-          isDisabled={isSigningOut}
-          onPress={handleLogout}
-        >
-          <LogOut size={18} color={foreground} />
-          <Typography>{t("Logout")}</Typography>
-        </Button>
+        <View style={{ marginTop: "auto", paddingTop: 32, width: "100%", gap: 24 }}>
+          <BggAttribution />
+          <Button
+            style={{ width: "100%", justifyContent: "center", backgroundColor: "#b91c1c" }}
+            variant="danger"
+            isDisabled={isSigningOut}
+            onPress={handleLogout}
+          >
+            <LogOut size={18} color="#fff" />
+            <Typography className="text-white">{t("Logout")}</Typography>
+          </Button>
+        </View>
       </Surface>
     );
   }
@@ -176,7 +201,8 @@ export function Profile() {
   ];
   const active = bgg.account.data?.active;
   const pending = bgg.account.data?.pending;
-  const shown = active ?? pending;
+  const syncing = pending?.status === "syncing" ? pending : null;
+  const shown = syncing ?? active;
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}>
@@ -213,18 +239,21 @@ export function Profile() {
           {t("Plan:")} {profile.plan} · {t("Language:")} {profile.preferredLanguage}
         </Typography>
 
-        <Button
-          className="mt-6"
-          variant="primary"
-          onPress={() => {
-            setUsername(active?.username ?? pending?.username ?? "");
-            setFormError(null);
-            setDialogOpen(true);
-          }}
-        >
-          <RefreshCw size={18} color={foreground} />
-          <Typography>{t("Sync with BoardGameGeek")}</Typography>
-        </Button>
+        {!active && !syncing ? (
+          <Button
+            className="mt-6"
+            variant="primary"
+            style={{ backgroundColor: "#93c5fd" }}
+            onPress={() => {
+              setUsername("");
+              setFormError(null);
+              setDialogOpen(true);
+            }}
+          >
+            <RefreshCw size={18} color="#000" />
+            <Typography style={{ color: "#000" }}>{t("Sync with BoardGameGeek")}</Typography>
+          </Button>
+        ) : null}
         {bgg.account.isError ? (
           <Button className="mt-3" variant="outline" onPress={() => void bgg.account.refetch()}>
             <Typography>{t("Could not load BoardGameGeek connection. Retry")}</Typography>
@@ -232,8 +261,9 @@ export function Profile() {
         ) : null}
         {shown ? (
           <View
-            className="mt-4 rounded-lg border border-border p-3"
+            className={`mt-4 rounded-lg border border-border p-3${syncing ? " opacity-60" : ""}`}
             style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+            accessibilityState={{ busy: Boolean(syncing) }}
           >
             <Avatar size="md" color="accent">
               {shown.avatarUrl ? <Avatar.Image source={{ uri: shown.avatarUrl }} /> : null}
@@ -246,7 +276,13 @@ export function Profile() {
             >
               {shown.username}
             </Typography>
-            {active ? (
+            {syncing ? (
+              <Spinner
+                size="sm"
+                color="default"
+                accessibilityLabel={t("Syncing BoardGameGeek collection")}
+              />
+            ) : active ? (
               <Button
                 isIconOnly
                 size="sm"
@@ -275,34 +311,26 @@ export function Profile() {
             ) : null}
           </View>
         ) : null}
-        {pending ? (
-          <View style={{ marginTop: 8, gap: 4 }}>
-            <Typography className={pending.status === "failed" ? "text-danger" : "text-muted"}>
-              {pending.status === "syncing"
-                ? `${t("Syncing BoardGameGeek collection")}: ${pending.username}`
-                : `${t("Could not synchronize BoardGameGeek collection")}: ${pending.username}`}
-            </Typography>
-            {pending.status === "failed" ? (
-              <Button
-                variant="outline"
-                isDisabled={bgg.sync.isPending}
-                onPress={() => bgg.sync.mutate(true)}
-              >
-                <Typography>{t("Retry")}</Typography>
-              </Button>
-            ) : null}
-          </View>
-        ) : null}
-
-        <Button
-          style={{ marginTop: "auto", marginBottom: 8, paddingTop: 24 }}
-          variant="danger"
-          isDisabled={isSigningOut}
-          onPress={handleLogout}
+        <View
+          style={{
+            marginTop: "auto",
+            paddingTop: 32,
+            width: "100%",
+            gap: 24,
+            alignItems: "center",
+          }}
         >
-          <LogOut size={18} color={foreground} />
-          <Typography>{t("Logout")}</Typography>
-        </Button>
+          <BggAttribution />
+          <Button
+            style={{ width: "100%", justifyContent: "center", backgroundColor: "#b91c1c" }}
+            variant="danger"
+            isDisabled={isSigningOut}
+            onPress={handleLogout}
+          >
+            <LogOut size={18} color="#fff" />
+            <Typography className="text-white">{t("Logout")}</Typography>
+          </Button>
+        </View>
       </Surface>
       <Dialog isOpen={dialogOpen} onOpenChange={setDialogOpen}>
         <Dialog.Portal>
@@ -316,6 +344,7 @@ export function Profile() {
               autoCapitalize="none"
               maxLength={64}
               accessibilityLabel={t("BGG username")}
+              placeholder={t("BGG username")}
             />
             {formError ? <Typography className="mt-2 text-danger">{formError}</Typography> : null}
             <View

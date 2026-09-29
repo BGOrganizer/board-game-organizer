@@ -48,17 +48,10 @@ export function useBggAccount({
   });
   const link = useMutation({
     mutationFn: (username: string) => request("POST", "account", { username }),
-    onSuccess: (data) => {
-      client.setQueryData(key, data);
-      feedback?.onOptimisticUpdate?.("sync_bgg");
-    },
-    onError: (error) => feedback?.onError?.(error, "sync_bgg"),
+    onSuccess: (data) => client.setQueryData(key, data),
   });
   const sync = useMutation({
     mutationFn: (retry: boolean) => request("POST", `account/sync${retry ? "?retry=true" : ""}`),
-    onMutate: (retry) => {
-      if (retry) feedback?.onOptimisticUpdate?.("sync_bgg");
-    },
     onSuccess: (data) => {
       client.setQueryData(key, data);
       if (data.active) void client.invalidateQueries({ queryKey: ["bgg-picker"] });

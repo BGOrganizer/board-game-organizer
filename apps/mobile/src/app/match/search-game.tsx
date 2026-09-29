@@ -128,22 +128,38 @@ export default function SearchGameScreen() {
           <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
             <Button
               size="sm"
-              variant={search ? "primary" : "outline"}
+              variant="primary"
+              style={{
+                minHeight: 32,
+                height: 32,
+                paddingHorizontal: 8,
+                ...(!search && { backgroundColor: "#52525b" }),
+              }}
               accessibilityLabel={t("Search")}
               accessibilityState={{ selected: search }}
               onPress={() => setSearch((value) => !value)}
             >
-              <Typography>{t("Search")}</Typography>
+              <Typography className="text-white" style={{ fontSize: 12 }}>
+                {t("Search")}
+              </Typography>
             </Button>
             {hasCollection ? (
               <Button
                 size="sm"
-                variant={collection ? "primary" : "outline"}
+                variant="primary"
+                style={{
+                  minHeight: 32,
+                  height: 32,
+                  paddingHorizontal: 8,
+                  ...(!collection && { backgroundColor: "#52525b" }),
+                }}
                 accessibilityLabel={t("Collection")}
                 accessibilityState={{ selected: collection }}
                 onPress={() => setCollection((value) => !value)}
               >
-                <Typography>{t("Collection")}</Typography>
+                <Typography className="text-white" style={{ fontSize: 12 }}>
+                  {t("Collection")}
+                </Typography>
               </Button>
             ) : null}
           </View>

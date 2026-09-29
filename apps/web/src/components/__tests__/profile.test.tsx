@@ -35,7 +35,10 @@ const { useProfileQueryMock, useBggAccountMock } = vi.hoisted(() => ({
   useProfileQueryMock: vi.fn(),
   useBggAccountMock: vi.fn(() => ({
     account: {
-      data: { active: null as BggAccountResponse["active"], pending: null },
+      data: {
+        active: null as BggAccountResponse["active"],
+        pending: null as BggAccountResponse["pending"],
+      },
       isError: false,
       refetch: vi.fn(),
     },
@@ -80,7 +83,7 @@ describe("Profile", () => {
     expect(screen.getByRole("button", { name: "Logout" }).className).toContain("button--danger");
   });
 
-  it("keeps BGG dialog open on unknown user and confirms disconnect", async () => {
+  it("keeps the BGG dialog open on an unknown username", async () => {
     HTMLDialogElement.prototype.showModal = function () {
       this.setAttribute("open", "");
     };
@@ -94,6 +97,63 @@ describe("Profile", () => {
       refetch: vi.fn(),
     });
     const link = vi.fn().mockRejectedValue(new Error("BGG user not found"));
+    useBggAccountMock.mockReturnValue({
+      account: {
+        data: { active: null, pending: null },
+        isError: false,
+        refetch: vi.fn(),
+      },
+      link: { mutateAsync: link, isPending: false },
+      sync: { mutate: vi.fn(), isPending: false },
+      unlink: { mutate: vi.fn(), isPending: false },
+    });
+    renderWithI18n(<Profile />);
+    fireEvent.click(screen.getByRole("button", { name: "Sync with BoardGameGeek" }));
+    expect(screen.getByPlaceholderText("BGG username")).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "BGG username" }), {
+      target: { value: "unknown" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sync", hidden: true }));
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("BGG user not found"),
+    );
+    expect(screen.getByRole("dialog", { name: "Sync with BoardGameGeek" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel", hidden: true }));
+    expect(link).toHaveBeenCalledWith("unknown");
+  });
+
+  it("shows a muted account row and a spinner while syncing, not a message", () => {
+    useProfileQueryMock.mockReturnValue({ data: profile, isLoading: false, isError: false });
+    useBggAccountMock.mockReturnValue({
+      account: {
+        data: {
+          active: null,
+          pending: {
+            id: 41,
+            username: "alice",
+            avatarUrl: null,
+            status: "syncing",
+            error: null,
+            nextAttemptAt: null,
+          },
+        },
+        isError: false,
+        refetch: vi.fn(),
+      },
+      link: { mutateAsync: vi.fn(), isPending: false },
+      sync: { mutate: vi.fn(), isPending: false },
+      unlink: { mutate: vi.fn(), isPending: false },
+    });
+    renderWithI18n(<Profile />);
+    expect(screen.getByText("alice").closest('[aria-busy="true"]')?.className).toContain(
+      "opacity-60",
+    );
+    expect(screen.getByLabelText("Syncing BoardGameGeek collection")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sync with BoardGameGeek" })).toBeNull();
+  });
+
+  it("shows a linked account and hides sync until confirmed unlink", () => {
+    useProfileQueryMock.mockReturnValue({ data: profile, isLoading: false, isError: false });
     const unlink = vi.fn();
     useBggAccountMock.mockReturnValue({
       account: {
@@ -110,30 +170,26 @@ describe("Profile", () => {
         isError: false,
         refetch: vi.fn(),
       },
-      link: { mutateAsync: link, isPending: false },
+      link: { mutateAsync: vi.fn(), isPending: false },
       sync: { mutate: vi.fn(), isPending: false },
       unlink: { mutate: unlink, isPending: false },
     });
     renderWithI18n(<Profile />);
     expect(screen.getByText("alice")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Sync with BoardGameGeek" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "BGG username" }), {
-      target: { value: "unknown" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Sync", hidden: true }));
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain("BGG user not found"),
-    );
-    expect(screen.getByRole("dialog", { name: "Sync with BoardGameGeek" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Cancel", hidden: true }));
+    expect(screen.queryByRole("button", { name: "Sync with BoardGameGeek" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Disconnect BoardGameGeek" }));
     expect(screen.getByRole("dialog", { name: "Disconnect BoardGameGeek?" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Disconnect", hidden: true }));
     expect(unlink).toHaveBeenCalledOnce();
-    expect(link).toHaveBeenCalledWith("unknown");
   });
 
   it("renders the profile data when loaded", () => {
+    useBggAccountMock.mockReturnValue({
+      account: { data: { active: null, pending: null }, isError: false, refetch: vi.fn() },
+      link: { mutateAsync: vi.fn(), isPending: false },
+      sync: { mutate: vi.fn(), isPending: false },
+      unlink: { mutate: vi.fn(), isPending: false },
+    });
     useProfileQueryMock.mockReturnValue({
       data: profile,
       isLoading: false,
@@ -154,6 +210,15 @@ describe("Profile", () => {
     ])
       expect(screen.getByRole("group", { name: label })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sync with BoardGameGeek" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Logout" }).className).toContain("button--danger");
+    const logo = screen.getByRole("img", { name: "Powered by BoardGameGeek" });
+    const logout = screen.getByRole("button", { name: "Logout" });
+    expect(logo.compareDocumentPosition(logout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(logout.className).toContain("button--danger");
+    expect(logout.className).toContain("justify-center");
+    expect(logout.querySelector("svg.text-white")).toBeTruthy();
+    expect(logout.querySelector("span.text-white")).toBeTruthy();
+    expect(
+      screen.getByRole("group", { name: "Friends: 4" }).querySelector(".min-w-5"),
+    ).toBeTruthy();
   });
 });
