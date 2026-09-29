@@ -1,4 +1,5 @@
 import { createMatchSchema } from "@board-game-organizer/schemas";
+import { pageNamedList, parseListQuery } from "@/app/lib/list-pagination";
 import {
   badMatchRequest,
   hasValidMatchQuery,
@@ -25,8 +26,19 @@ export async function POST(request: Request) {
 
 /** List matches created by or inviting the caller, newest first. */
 export function GET(request: Request) {
-  if (!hasValidMatchQuery(request)) return badMatchRequest(request, "Invalid query");
-  return runMatchOperation(request, async ({ userId, service }) => ({
-    matches: await service.list(userId),
-  }));
+  const options = parseListQuery(request);
+  if (!options) return badMatchRequest(request, "Invalid query");
+  return runMatchOperation(request, async ({ userId, service }) => {
+    const matches = await service.list(userId);
+    const page = pageNamedList(matches, options, (match) => {
+      if (match.adminUserId === userId) return "admin";
+      const invitation = match.invitations.find((item) => item.inviteeUserId === userId);
+      return invitation?.status === "PENDING"
+        ? "invited"
+        : invitation?.status === "ACCEPTED"
+          ? "accepted"
+          : null;
+    });
+    return { matches: page.items, ...(options.limit ? { nextCursor: page.nextCursor } : {}) };
+  });
 }

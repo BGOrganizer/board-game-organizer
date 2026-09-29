@@ -1,5 +1,6 @@
 import { createGroupSchema } from "@board-game-organizer/schemas";
 import { runGroupOperation } from "@/app/lib/group.http";
+import { pageNamedList, parseListQuery } from "@/app/lib/list-pagination";
 import {
   badMatchRequest,
   hasValidMatchQuery,
@@ -10,10 +11,21 @@ import {
 export const OPTIONS = matchOptions;
 
 export function GET(request: Request) {
-  if (!hasValidMatchQuery(request)) return badMatchRequest(request, "Invalid query");
-  return runGroupOperation(request, async (userId, service) => ({
-    groups: await service.list(userId),
-  }));
+  const options = parseListQuery(request);
+  if (!options) return badMatchRequest(request, "Invalid query");
+  return runGroupOperation(request, async (userId, service) => {
+    const groups = await service.list(userId);
+    const page = pageNamedList(groups, options, (group) => {
+      if (group.adminUserId === userId) return "admin";
+      const invitation = group.invitations.find((item) => item.inviteeUserId === userId);
+      return invitation?.status === "PENDING"
+        ? "invited"
+        : invitation?.status === "ACCEPTED"
+          ? "accepted"
+          : null;
+    });
+    return { groups: page.items, ...(options.limit ? { nextCursor: page.nextCursor } : {}) };
+  });
 }
 
 export async function POST(request: Request) {

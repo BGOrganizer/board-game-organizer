@@ -44,6 +44,7 @@ msgstr "Accept invitation"
 #~ msgstr "Accept or decline this friend request."
 
 #: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Accepted"
 msgstr "Accepted"
@@ -92,6 +93,10 @@ msgstr "Add game"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Add your mobile number to continue."
 msgstr "Add your mobile number to continue."
+
+#: apps/web/src/components/ListSearchFilters.tsx
+msgid "Admin"
+msgstr "Admin"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Admin groups"
@@ -256,6 +261,7 @@ msgid "Clear board game selection"
 msgstr "Clear board game selection"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -470,6 +476,10 @@ msgstr "Could not load group details"
 msgid "Could not load groups"
 msgstr "Could not load groups"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Could not load groups. Retry"
+msgstr "Could not load groups. Retry"
+
 #: apps/web/src/components/GroupLeaderboard.tsx
 msgid "Could not load leaderboards. Retry"
 msgstr "Could not load leaderboards. Retry"
@@ -481,6 +491,10 @@ msgstr "Could not load match details"
 #: apps/web/src/components/Matches.tsx
 msgid "Could not load matches"
 msgstr "Could not load matches"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Could not load matches. Retry"
+msgstr "Could not load matches. Retry"
 
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
@@ -735,6 +749,10 @@ msgstr "Enter a score for each participant or mark them as not participating. At
 msgid "Enter a valid score"
 msgstr "Enter a valid score"
 
+#: apps/web/src/components/ListSearchFilters.tsx
+msgid "Enter at least 4 characters to search"
+msgstr "Enter at least 4 characters to search"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Error while loading the profile:"
@@ -949,6 +967,7 @@ msgid "Invite link created"
 msgstr "Invite link created"
 
 #: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
 msgid "Invited"
 msgstr "Invited"
 
@@ -997,6 +1016,8 @@ msgid "Live standings"
 msgstr "Live standings"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/Matches.tsx
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Load more"
 msgstr "Load more"
@@ -1074,7 +1095,6 @@ msgid "Match updated"
 msgstr "Match updated"
 
 #: apps/web/src/components/Header.tsx
-#: apps/web/src/components/Matches.tsx
 msgid "Matches"
 msgstr "Matches"
 
@@ -1206,6 +1226,10 @@ msgid "No group"
 msgstr "No group"
 
 #: apps/web/src/components/Groups.tsx
+msgid "No groups match your filters"
+msgstr "No groups match your filters"
+
+#: apps/web/src/components/Groups.tsx
 msgid "No groups yet"
 msgstr "No groups yet"
 
@@ -1219,6 +1243,10 @@ msgstr "No groups yet"
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
 #~ msgstr "No invites yet — create one to share."
+
+#: apps/web/src/components/Matches.tsx
+msgid "No matches match your filters"
+msgstr "No matches match your filters"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
 msgid "No matches played in this group yet"
@@ -1577,6 +1605,22 @@ msgstr "Search failed"
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Search failed. Retry"
 msgstr "Search failed. Retry"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Search groups"
+msgstr "Search groups"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Search groups (at least 4 characters)"
+msgstr "Search groups (at least 4 characters)"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Search matches"
+msgstr "Search matches"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Search matches (at least 4 characters)"
+msgstr "Search matches (at least 4 characters)"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx

@@ -6,6 +6,7 @@ import {
   matchCardData,
   matchCardStatusColor,
   resolveApiUrl,
+  useListFilters,
   useMatches,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
@@ -26,7 +27,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { LinkedListCard } from "@/components/LinkedListCard";
+import { ListSearchFilters } from "@/components/ListSearchFilters";
 import { MatchWizard } from "@/components/MatchWizard";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 const wavesStyle = new Style(waves);
@@ -68,6 +71,7 @@ export function Matches() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t, i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
+  const filters = useListFilters();
   const [token, setToken] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -89,6 +93,13 @@ export function Matches() {
     protectionBypass: protectionBypass(),
     userId,
     feedback: mutationFeedback,
+    listFilters: filters.filters,
+  });
+  const endRef = useInfiniteScroll({
+    hasNextPage: matches.paging?.hasNextPage,
+    isFetchingNextPage: matches.paging?.isFetchingNextPage,
+    isFetchNextPageError: matches.paging?.isFetchNextPageError,
+    fetchNextPage: () => matches.paging?.fetchNextPage() ?? Promise.resolve(),
   });
 
   if (creating) {
@@ -101,7 +112,14 @@ export function Matches() {
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-24">
-      <h2 className="mb-4 text-lg font-semibold">{t`Matches`}</h2>
+      <ListSearchFilters
+        query={filters.query}
+        onQueryChange={filters.setQuery}
+        roles={filters.roles}
+        onToggle={filters.toggleRole}
+        label={t`Search matches`}
+        placeholder={t`Search matches (at least 4 characters)`}
+      />
 
       {matches.list.isPending && (
         <div className="space-y-2">
@@ -111,8 +129,12 @@ export function Matches() {
         </div>
       )}
       {matches.list.isError && <p className="text-sm text-danger">{t`Could not load matches`}</p>}
-      {matches.list.data && matches.list.data.length === 0 && (
-        <p className="text-sm text-default-500">{t`No matches yet — create your first one!`}</p>
+      {matches.list.data && matches.list.data.length === 0 && !matches.list.isError && (
+        <p className="text-sm text-default-500">
+          {filters.roles.length === 3 && !filters.filters.query
+            ? t`No matches yet — create your first one!`
+            : t`No matches match your filters`}
+        </p>
       )}
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -243,6 +265,24 @@ export function Matches() {
         })}
       </div>
 
+      {matches.paging?.hasNextPage && (
+        <>
+          <div ref={endRef} className="h-px" aria-hidden="true" />
+          {matches.paging.isFetchingNextPage ? (
+            <Skeleton className="mt-3 h-16 w-full rounded-xl" />
+          ) : (
+            <Button
+              variant="outline"
+              className="mt-3"
+              onPress={() => void matches.paging?.fetchNextPage()}
+            >
+              {matches.paging.isFetchNextPageError
+                ? t`Could not load matches. Retry`
+                : t`Load more`}
+            </Button>
+          )}
+        </>
+      )}
       {matches.respondInvitation.isError && (
         <p className="mt-3 text-sm text-danger">{t`Could not update the invitation`}</p>
       )}

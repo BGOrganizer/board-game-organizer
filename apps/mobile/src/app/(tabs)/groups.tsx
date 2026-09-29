@@ -1,4 +1,4 @@
-import { resolveApiUrl, useGroups } from "@board-game-organizer/shared";
+import { resolveApiUrl, useGroups, useListFilters } from "@board-game-organizer/shared";
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
 import squircles from "@dicebear/styles/squircles.json" with { type: "json" };
 import { useLingui } from "@lingui/react";
@@ -9,10 +9,11 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Crown, LockKeyhole, LockKeyholeOpen, Mail, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
+import { ListSearchFilters } from "@/components/ListSearchFilters";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -52,6 +53,7 @@ export default function GroupsScreen() {
   const t = useT();
   const { i18n } = useLingui();
   const feedback = useMutationFeedback();
+  const filters = useListFilters();
   const [token, setToken] = useState<string | null>(null);
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -67,23 +69,57 @@ export default function GroupsScreen() {
       active = false;
     };
   }, [getToken, isLoaded, isSignedIn]);
-  const groups = useGroups({ apiUrl, token, getToken, userId, feedback });
+  const groups = useGroups({
+    apiUrl,
+    token,
+    getToken,
+    userId,
+    feedback,
+    listFilters: filters.filters,
+  });
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 12 }}>
-        {groups.list.isPending
-          ? [1, 2, 3].map((id) => (
-              <Skeleton key={id} style={{ width: "100%", height: 96, borderRadius: 12 }} />
-            ))
-          : null}
-        {groups.list.isError ? (
-          <Typography className="text-danger">{t("Could not load groups")}</Typography>
-        ) : null}
-        {groups.list.data?.length === 0 ? (
-          <Typography className="text-muted">{t("No groups yet")}</Typography>
-        ) : null}
-        {groups.list.data?.map((group) => {
+      <FlatList
+        data={groups.list.data ?? []}
+        keyExtractor={(group) => group.id}
+        contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 12, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          if (
+            groups.paging.hasNextPage &&
+            !groups.paging.isFetchingNextPage &&
+            !groups.paging.isFetchNextPageError
+          )
+            void groups.paging.fetchNextPage();
+        }}
+        ListHeaderComponent={
+          <ListSearchFilters
+            query={filters.query}
+            onQueryChange={filters.setQuery}
+            roles={filters.roles}
+            onToggle={filters.toggleRole}
+            label={t("Search groups")}
+            placeholder={t("Search groups (at least 4 characters)")}
+          />
+        }
+        ListEmptyComponent={
+          groups.list.isPending ? (
+            <View style={{ gap: 12 }}>
+              {[1, 2, 3].map((id) => (
+                <Skeleton key={id} style={{ width: "100%", height: 96, borderRadius: 12 }} />
+              ))}
+            </View>
+          ) : groups.list.isError ? null : (
+            <Typography className="text-muted">
+              {filters.roles.length === 3 && !filters.filters.query
+                ? t("No groups yet")
+                : t("No groups match your filters")}
+            </Typography>
+          )
+        }
+        renderItem={({ item: group }) => {
           const admin = group.adminUserId === userId;
           const invitation = group.invitations.find((item) => item.inviteeUserId === userId);
           return (
@@ -158,8 +194,29 @@ export default function GroupsScreen() {
               </View>
             </LinkedListCard>
           );
-        })}
-      </ScrollView>
+        }}
+        ListFooterComponent={
+          <View style={{ gap: 12 }}>
+            {groups.list.isError && (
+              <View style={{ gap: 8 }}>
+                <Typography className="text-danger">{t("Could not load groups")}</Typography>
+                <Button variant="outline" onPress={() => void groups.list.refetch()}>
+                  {t("Try again")}
+                </Button>
+              </View>
+            )}
+            {groups.paging.isFetchingNextPage ? (
+              <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />
+            ) : groups.paging.hasNextPage ? (
+              <Button variant="outline" onPress={() => void groups.paging.fetchNextPage()}>
+                {groups.paging.isFetchNextPageError
+                  ? t("Could not load groups. Retry")
+                  : t("Load more")}
+              </Button>
+            ) : null}
+          </View>
+        }
+      />
       <Button
         isIconOnly
         variant="primary"

@@ -100,6 +100,55 @@ describe("match API routes", () => {
     expect(MatchService.prototype.create).toHaveBeenCalledWith("user_admin", createBody);
   });
 
+  it("filters match roles and names before returning paginated results", async () => {
+    const entries = [
+      {
+        ...match,
+        id: matchId,
+        name: "Catan evening",
+        adminUserId: "user_admin",
+        createdAt: "2026-09-24T12:00:00.000Z",
+        invitations: [],
+      },
+      {
+        ...match,
+        id: "00000000-0000-4000-8000-000000000002",
+        name: "Catan invitation",
+        adminUserId: "other",
+        createdAt: "2026-09-23T12:00:00.000Z",
+        invitations: [{ ...invitation, inviteeUserId: "user_admin" }],
+      },
+      {
+        ...match,
+        id: "00000000-0000-4000-8000-000000000001",
+        name: "Chess",
+        adminUserId: "other",
+        createdAt: "2026-09-22T12:00:00.000Z",
+        invitations: [{ ...invitation, inviteeUserId: "user_admin", status: "ACCEPTED" }],
+      },
+    ];
+    vi.spyOn(MatchService.prototype, "list").mockResolvedValue(entries as never);
+    const result = await matchesRoute.GET(
+      request("/api/matches?limit=1&query=Catan&roles=admin,invited"),
+    );
+    expect(result.status).toBe(200);
+    const first = (await json(result)) as { matches: typeof entries; nextCursor: string };
+    expect(first.matches.map((item) => item.id)).toEqual([matchId]);
+    const next = (await json(
+      await matchesRoute.GET(
+        request(
+          `/api/matches?limit=1&query=Catan&roles=admin,invited&cursor=${encodeURIComponent(first.nextCursor)}`,
+        ),
+      ),
+    )) as { matches: typeof entries; nextCursor: string | null };
+    expect(next.matches.map((item) => item.id)).toEqual([entries[1].id]);
+    expect(next.nextCursor).toBeNull();
+    const accepted = (await json(
+      await matchesRoute.GET(request("/api/matches?limit=10&roles=accepted")),
+    )) as { matches: typeof entries };
+    expect(accepted.matches.map((item) => item.id)).toEqual([entries[2].id]);
+  });
+
   it("lists matches and permits one protection bypass parameter", async () => {
     const response = await matchesRoute.GET(
       request("/api/matches?x-vercel-protection-bypass=preview"),

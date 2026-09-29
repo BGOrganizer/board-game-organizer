@@ -47,7 +47,10 @@ export const matchResponseSchema = z.object({
 export type MatchResponse = z.infer<typeof matchResponseSchema>;
 
 /** GET /api/matches — matches created by or inviting caller. */
-export const listMatchesResponseSchema = z.object({ matches: z.array(matchResponseSchema) });
+export const listMatchesResponseSchema = z.object({
+  matches: z.array(matchResponseSchema),
+  nextCursor: z.string().nullable().optional(),
+});
 export type ListMatchesResponse = z.infer<typeof listMatchesResponseSchema>;
 
 export const matchPlayerSchema = z.object({

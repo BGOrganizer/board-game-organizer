@@ -1,7 +1,8 @@
 import type { CreateGroupInput, GroupResponse } from "@board-game-organizer/schemas";
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MutationFeedback, MutationFeedbackAction } from "../mutationFeedback";
+import { filterPagedRows, type ListFilters, listPagePath, patchPagedList } from "./listFilters";
 
 export interface GroupsApiOptions {
   apiUrl: string;
@@ -10,6 +11,7 @@ export interface GroupsApiOptions {
   protectionBypass?: string | null;
   userId?: string | null;
   feedback?: MutationFeedback;
+  listFilters?: ListFilters;
 }
 
 export function useGroups({
@@ -19,6 +21,7 @@ export function useGroups({
   protectionBypass,
   userId,
   feedback,
+  listFilters,
 }: GroupsApiOptions) {
   const queryClient = useQueryClient();
   const key = ["groups", apiUrl, token] as const;
@@ -43,24 +46,53 @@ export function useGroups({
     action: MutationFeedbackAction,
     patch: (rows: GroupResponse[]) => GroupResponse[],
   ) {
-    const previous = queryClient.getQueryData<GroupResponse[]>(key);
-    if (previous) queryClient.setQueryData(key, patch(previous));
+    const snapshots = queryClient.getQueriesData({ queryKey: ["groups"] });
+    for (const [queryKey, data] of snapshots) {
+      if (Array.isArray(data)) queryClient.setQueryData(queryKey, patch(data));
+      else
+        queryClient.setQueryData(
+          queryKey,
+          patchPagedList(data, "groups", (rows: GroupResponse[], index) =>
+            filterPagedRows(
+              action === "create_group" && index > 0 ? rows : patch(rows),
+              userId,
+              queryKey,
+            ),
+          ),
+        );
+    }
     notify(action);
-    return { previous };
+    return { snapshots };
   }
   function undo(
-    context: { previous?: GroupResponse[] } | undefined,
+    context: { snapshots: [readonly unknown[], unknown][] } | undefined,
     error: Error,
     action: MutationFeedbackAction,
   ) {
-    if (context?.previous) queryClient.setQueryData(key, context.previous);
+    for (const [queryKey, data] of context?.snapshots ?? [])
+      queryClient.setQueryData(queryKey, data);
     rollback(error, action);
   }
-  const list = useQuery({
+  const legacyList = useQuery({
     queryKey: key,
     queryFn: async () => (await request<{ groups: GroupResponse[] }>("groups")).groups,
-    enabled: Boolean(apiUrl && token),
+    enabled: Boolean(apiUrl && token && !listFilters),
   });
+  const paging = useInfiniteQuery({
+    queryKey: ["groups", "paged", apiUrl, token, listFilters?.query, listFilters?.roles.join(",")],
+    queryFn: ({ pageParam }) => {
+      if (!listFilters) throw new Error("Missing list filters");
+      return request<{ groups: GroupResponse[]; nextCursor: string | null }>(
+        listPagePath("groups", listFilters, pageParam),
+      );
+    },
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: Boolean(apiUrl && token && listFilters),
+  });
+  const list = listFilters
+    ? { ...paging, data: paging.data?.pages.flatMap((page) => page.groups) }
+    : legacyList;
   const create = useMutation({
     mutationFn: async (input: CreateGroupInput) =>
       (await request<{ group: GroupResponse }>("groups", "POST", input)).group,
@@ -157,10 +189,20 @@ export function useGroups({
         variables.decision === "accept" ? "accept_group_invitation" : "decline_group_invitation",
       ),
     onSuccess: (group) => {
-      if (group)
-        queryClient.setQueryData<GroupResponse[]>(key, (rows) =>
-          rows?.map((row) => (row.id === group.id ? group : row)),
-        );
+      if (group) {
+        const replace = (rows: GroupResponse[]) =>
+          rows.map((row) => (row.id === group.id ? group : row));
+        for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["groups"] })) {
+          if (Array.isArray(data)) queryClient.setQueryData(queryKey, replace(data));
+          else
+            queryClient.setQueryData(
+              queryKey,
+              patchPagedList(data, "groups", (rows: GroupResponse[]) =>
+                filterPagedRows(replace(rows), userId, queryKey),
+              ),
+            );
+        }
+      }
       void queryClient.invalidateQueries({ queryKey: ["group-leaderboard"] });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
@@ -195,5 +237,5 @@ export function useGroups({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["group-leaderboard"] }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
-  return { list, create, update, archive, respond, leave, removeInvitation };
+  return { list, paging, create, update, archive, respond, leave, removeInvitation };
 }

@@ -44,6 +44,7 @@ msgstr "Accetta invito"
 #~ msgstr "Accetta o rifiuta questa richiesta di amicizia."
 
 #: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Accepted"
 msgstr "Accettato"
@@ -92,6 +93,10 @@ msgstr "Aggiungi gioco"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Add your mobile number to continue."
 msgstr "Inserisci il tuo numero di cellulare per continuare."
+
+#: apps/web/src/components/ListSearchFilters.tsx
+msgid "Admin"
+msgstr "Amministratore"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Admin groups"
@@ -256,6 +261,7 @@ msgid "Clear board game selection"
 msgstr "Deseleziona gioco"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
 msgid "Clear search"
 msgstr "Pulisci ricerca"
 
@@ -470,6 +476,10 @@ msgstr "Impossibile caricare i dettagli del gruppo"
 msgid "Could not load groups"
 msgstr "Impossibile caricare i gruppi"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Could not load groups. Retry"
+msgstr "Impossibile caricare i gruppi. Riprova"
+
 #: apps/web/src/components/GroupLeaderboard.tsx
 msgid "Could not load leaderboards. Retry"
 msgstr "Impossibile caricare le classifiche. Riprova"
@@ -481,6 +491,10 @@ msgstr "Impossibile caricare i dettagli della partita"
 #: apps/web/src/components/Matches.tsx
 msgid "Could not load matches"
 msgstr "Impossibile caricare le partite"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Could not load matches. Retry"
+msgstr "Impossibile caricare le partite. Riprova"
 
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
@@ -735,6 +749,10 @@ msgstr "Inserisci un punteggio per ogni giocatore o indica che non ha partecipat
 msgid "Enter a valid score"
 msgstr "Inserisci un punteggio valido"
 
+#: apps/web/src/components/ListSearchFilters.tsx
+msgid "Enter at least 4 characters to search"
+msgstr "Inserisci almeno 4 caratteri per cercare"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Errore durante il caricamento del profilo:"
@@ -949,6 +967,7 @@ msgid "Invite link created"
 msgstr "Link di invito creato"
 
 #: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
 msgid "Invited"
 msgstr "Invitati"
 
@@ -997,6 +1016,8 @@ msgid "Live standings"
 msgstr "Classifica provvisoria"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/Matches.tsx
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Load more"
 msgstr "Carica altro"
@@ -1074,7 +1095,6 @@ msgid "Match updated"
 msgstr "Partita aggiornata"
 
 #: apps/web/src/components/Header.tsx
-#: apps/web/src/components/Matches.tsx
 msgid "Matches"
 msgstr "Partite"
 
@@ -1206,6 +1226,10 @@ msgid "No group"
 msgstr "Nessun gruppo"
 
 #: apps/web/src/components/Groups.tsx
+msgid "No groups match your filters"
+msgstr "Nessun gruppo corrisponde ai filtri"
+
+#: apps/web/src/components/Groups.tsx
 msgid "No groups yet"
 msgstr "Nessun gruppo per ora"
 
@@ -1219,6 +1243,10 @@ msgstr "Nessun gruppo per ora"
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
 #~ msgstr "Nessun invito ancora — creane uno da condividere."
+
+#: apps/web/src/components/Matches.tsx
+msgid "No matches match your filters"
+msgstr "Nessuna partita corrisponde ai filtri"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
 msgid "No matches played in this group yet"
@@ -1577,6 +1605,22 @@ msgstr "Ricerca non riuscita"
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Search failed. Retry"
 msgstr "Ricerca non riuscita. Riprova"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Search groups"
+msgstr "Cerca gruppi"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Search groups (at least 4 characters)"
+msgstr "Cerca gruppi (almeno 4 caratteri)"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Search matches"
+msgstr "Cerca partite"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Search matches (at least 4 characters)"
+msgstr "Cerca partite (almeno 4 caratteri)"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx

@@ -6,6 +6,7 @@ import {
   resolveApiUrl,
   useContacts,
   useGroups,
+  useListFilters,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
@@ -49,8 +50,10 @@ import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { GroupLeaderboard } from "@/components/GroupLeaderboard";
 import { LinkedListCard } from "@/components/LinkedListCard";
+import { ListSearchFilters } from "@/components/ListSearchFilters";
 import { SearchUserPage } from "@/components/SearchUserPage";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -454,6 +457,7 @@ export function Groups({
   const { t, i18n } = useLingui();
   const router = useRouter();
   const feedback = useMutationFeedback();
+  const filters = useListFilters();
   const [token, setToken] = useState<string | null>(null);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
@@ -466,7 +470,21 @@ export function Groups({
       .then(setToken)
       .catch(() => setToken(null));
   }, [getToken]);
-  const groups = useGroups({ apiUrl, token, getToken, userId, protectionBypass, feedback });
+  const groups = useGroups({
+    apiUrl,
+    token,
+    getToken,
+    userId,
+    protectionBypass,
+    feedback,
+    listFilters: mode === "list" ? filters.filters : undefined,
+  });
+  const endRef = useInfiniteScroll({
+    hasNextPage: groups.paging?.hasNextPage,
+    isFetchingNextPage: groups.paging?.isFetchingNextPage,
+    isFetchNextPageError: groups.paging?.isFetchNextPageError,
+    fetchNextPage: () => groups.paging?.fetchNextPage() ?? Promise.resolve(),
+  });
   const group = groups.list.data?.find((item) => item.id === groupId);
   const destroy = async () => {
     if (!confirm) return;
@@ -682,6 +700,14 @@ export function Groups({
 
   return (
     <main className="mx-auto w-full max-w-6xl pb-24">
+      <ListSearchFilters
+        query={filters.query}
+        onQueryChange={filters.setQuery}
+        roles={filters.roles}
+        onToggle={filters.toggleRole}
+        label={t`Search groups`}
+        placeholder={t`Search groups (at least 4 characters)`}
+      />
       {groups.list.isPending ? (
         <div className="grid gap-3 md:grid-cols-2">
           {[1, 2, 3].map((id) => (
@@ -692,8 +718,12 @@ export function Groups({
       {groups.list.isError ? (
         <p role="alert" className="text-danger">{t`Could not load groups`}</p>
       ) : null}
-      {groups.list.data?.length === 0 ? (
-        <p className="text-default-500">{t`No groups yet`}</p>
+      {groups.list.data?.length === 0 && !groups.list.isError ? (
+        <p className="text-default-500">
+          {filters.roles.length === 3 && !filters.filters.query
+            ? t`No groups yet`
+            : t`No groups match your filters`}
+        </p>
       ) : null}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {groups.list.data?.map((item) => {
@@ -771,6 +801,22 @@ export function Groups({
           );
         })}
       </div>
+      {groups.paging?.hasNextPage && (
+        <>
+          <div ref={endRef} className="h-px" aria-hidden="true" />
+          {groups.paging.isFetchingNextPage ? (
+            <Skeleton className="mt-3 h-16 w-full rounded-xl" />
+          ) : (
+            <Button
+              variant="outline"
+              className="mt-3"
+              onPress={() => void groups.paging?.fetchNextPage()}
+            >
+              {groups.paging.isFetchNextPageError ? t`Could not load groups. Retry` : t`Load more`}
+            </Button>
+          )}
+        </>
+      )}
       <Button
         isIconOnly
         variant="primary"

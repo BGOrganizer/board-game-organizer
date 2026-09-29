@@ -15,7 +15,7 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
-  useGroups: () => useGroupsMock(),
+  useGroups: (options: unknown) => useGroupsMock(options),
   useContacts: () => useContactsMock(),
   resolveApiUrl: (value?: string | null) => value ?? "http://localhost:4000",
 }));
@@ -94,6 +94,23 @@ beforeEach(() => {
 });
 
 describe("Groups screens", () => {
+  it("starts with all roles and sends searched group name with active roles", async () => {
+    renderWithI18n(<Groups />);
+    for (const role of ["Admin", "Invited", "Accepted"])
+      expect(screen.getByRole("button", { name: role }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Invited" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search groups" }), {
+      target: { value: "Chess" },
+    });
+    await waitFor(() =>
+      expect(useGroupsMock.mock.lastCall?.[0].listFilters).toMatchObject({
+        query: "Chess",
+        roles: ["admin", "accepted"],
+        limit: 20,
+      }),
+    );
+  });
+
   it("navigates from empty list to dedicated create screen", () => {
     renderWithI18n(<Groups />);
     expect(screen.getByText("No groups yet")).toBeTruthy();

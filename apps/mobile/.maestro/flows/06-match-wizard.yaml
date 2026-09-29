@@ -119,6 +119,22 @@ appId: com.bgo.mobile
     id: "match-waves-image"
 - assertVisible:
     id: "admin-match-badge"
+- assertVisible: "Search matches (at least 4 characters)"
+- assertVisible: "Admin"
+- assertVisible: "Invited"
+- assertVisible: "Accepted"
+- tapOn: "Search matches (at least 4 characters)"
+- inputText: "Friday"
+- assertVisible: "Friday night games"
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "No matches match your filters"
+    timeout: 30000
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "Friday night games"
+    timeout: 30000
+- tapOn: "Clear search"
 - tapOn: "Friday night games"
 - extendedWaitUntil:
     visible: "Overview"

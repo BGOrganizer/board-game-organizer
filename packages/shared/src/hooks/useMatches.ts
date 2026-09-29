@@ -10,10 +10,17 @@ import type {
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useMemo } from "react";
 import { rankMatchResults } from "../matchResults";
 import type { MutationFeedback } from "../mutationFeedback";
+import { filterPagedRows, type ListFilters, listPagePath, patchPagedList } from "./listFilters";
 
 /**
  * Matches API surface shared by web + mobile.
@@ -30,6 +37,7 @@ export interface MatchesApiOptions {
   protectionBypass?: string | null;
   userId?: string | null;
   feedback?: MutationFeedback;
+  listFilters?: ListFilters;
 }
 
 export interface MatchDetailApiOptions extends MatchesApiOptions {
@@ -289,6 +297,12 @@ function patchInvitationCache(
   invitationId: string,
   status: "ACCEPTED" | "DECLINED",
 ): unknown {
+  if (data && typeof data === "object" && "pages" in data)
+    return patchPagedList(
+      data,
+      "matches",
+      (rows: MatchSummary[]) => patchInvitationCache(rows, invitationId, status) as MatchSummary[],
+    );
   if (Array.isArray(data)) {
     if (status === "DECLINED") {
       return data.filter(
@@ -345,7 +359,45 @@ function patchMatch(match: MatchSummary, input: UpdateMatchInput): MatchSummary 
   };
 }
 
+function patchFilteredInvitation(
+  data: unknown,
+  invitationId: string,
+  status: "ACCEPTED" | "DECLINED",
+  queryKey: readonly unknown[],
+  userId: string | null | undefined,
+) {
+  const updated = patchInvitationCache(data, invitationId, status);
+  return queryKey[1] === "paged"
+    ? patchPagedList(updated, "matches", (rows: MatchSummary[]) =>
+        filterPagedRows(rows, userId, queryKey),
+      )
+    : updated;
+}
+
+function filterPatchedMatch(
+  data: unknown,
+  queryKey: readonly unknown[],
+  userId: string | null | undefined,
+) {
+  return queryKey[1] === "paged"
+    ? patchPagedList(data, "matches", (rows: MatchSummary[]) =>
+        filterPagedRows(rows, userId, queryKey),
+      )
+    : data;
+}
+
+function patchMatchList(data: unknown, patch: (rows: MatchSummary[]) => MatchSummary[]): unknown {
+  if (Array.isArray(data)) return patch(data);
+  return patchPagedList(data, "matches", patch);
+}
+
 function patchMatchCache(data: unknown, matchId: string, input: UpdateMatchInput): unknown {
+  if (data && typeof data === "object" && "pages" in data)
+    return patchPagedList(
+      data,
+      "matches",
+      (rows: MatchSummary[]) => patchMatchCache(rows, matchId, input) as MatchSummary[],
+    );
   if (Array.isArray(data)) {
     return data.map((match: MatchSummary) =>
       match.id === matchId ? patchMatch(match, input) : match,
@@ -365,6 +417,12 @@ function patchMatchCache(data: unknown, matchId: string, input: UpdateMatchInput
 }
 
 function replaceMatchCache(data: unknown, match: MatchSummary): unknown {
+  if (data && typeof data === "object" && "pages" in data)
+    return patchPagedList(
+      data,
+      "matches",
+      (rows: MatchSummary[]) => replaceMatchCache(rows, match) as MatchSummary[],
+    );
   if (Array.isArray(data)) {
     return data.map((candidate: MatchSummary) => (candidate.id === match.id ? match : candidate));
   }
@@ -430,7 +488,10 @@ function useRespondToInvitation(options: MatchesApiOptions) {
       const snapshots = queryClient.getQueriesData({ queryKey: ["matches"] });
       const status = decision === "accept" ? "ACCEPTED" : "DECLINED";
       for (const [queryKey, data] of snapshots) {
-        queryClient.setQueryData(queryKey, patchInvitationCache(data, invitationId, status));
+        queryClient.setQueryData(
+          queryKey,
+          patchFilteredInvitation(data, invitationId, status, queryKey, options.userId),
+        );
       }
       feedback?.onOptimisticUpdate?.(
         decision === "accept" ? "accept_match_invitation" : "decline_match_invitation",
@@ -442,7 +503,7 @@ function useRespondToInvitation(options: MatchesApiOptions) {
       for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["matches"] })) {
         queryClient.setQueryData(
           queryKey,
-          patchInvitationCache(data, invitation.id, invitation.status),
+          patchFilteredInvitation(data, invitation.id, invitation.status, queryKey, options.userId),
         );
       }
     },
@@ -462,20 +523,42 @@ function useRespondToInvitation(options: MatchesApiOptions) {
 }
 
 export function useMatches(options: MatchesApiOptions) {
-  const { apiUrl, token, getToken, protectionBypass, userId, feedback } = options;
+  const { apiUrl, token, getToken, protectionBypass, userId, feedback, listFilters } = options;
   const queryClient = useQueryClient();
   const enabled = Boolean(apiUrl) && Boolean(token);
   const respondInvitation = useRespondToInvitation(options);
 
-  const list = useQuery({
+  const legacyList = useQuery({
     queryKey: ["matches", apiUrl, token],
     queryFn: async () => {
       const freshToken = await resolveToken(token, getToken);
       return listMatches(apiUrl, freshToken, protectionBypass);
     },
-    enabled,
+    enabled: enabled && !listFilters,
     staleTime: 30_000,
   });
+  const paging = useInfiniteQuery({
+    queryKey: ["matches", "paged", apiUrl, token, listFilters?.query, listFilters?.roles.join(",")],
+    queryFn: async ({ pageParam }) => {
+      const freshToken = await resolveToken(token, getToken);
+      if (!listFilters) throw new Error("Missing list filters");
+      const path = listPagePath("matches", listFilters, pageParam);
+      const response = await fetch(
+        withProtectionBypass(`${apiUrl}/api/${path}`, protectionBypass),
+        {
+          headers: { Authorization: `Bearer ${freshToken}` },
+        },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json() as Promise<{ matches: MatchSummary[]; nextCursor: string | null }>;
+    },
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: enabled && Boolean(listFilters),
+  });
+  const list = listFilters
+    ? { ...paging, data: paging.data?.pages.flatMap((page) => page.matches) }
+    : legacyList;
 
   const create = useMutation({
     mutationFn: async (input: CreateMatchInput) => {
@@ -488,6 +571,27 @@ export function useMatches(options: MatchesApiOptions) {
       for (const [queryKey, data] of snapshots) {
         if (Array.isArray(data)) {
           queryClient.setQueryData(queryKey, [optimisticMatch(input, userId), ...data]);
+        } else if (
+          queryKey[1] === "paged" &&
+          data &&
+          typeof data === "object" &&
+          "pages" in data &&
+          (!queryKey[4] ||
+            input.name.toLocaleLowerCase().includes(String(queryKey[4]).toLocaleLowerCase())) &&
+          String(queryKey[5]).split(",").includes("admin")
+        ) {
+          const pages = data as InfiniteData<{
+            matches: MatchSummary[];
+            nextCursor: string | null;
+          }>;
+          queryClient.setQueryData(queryKey, {
+            ...pages,
+            pages: pages.pages.map((page, index) =>
+              index === 0
+                ? { ...page, matches: [optimisticMatch(input, userId), ...page.matches] }
+                : page,
+            ),
+          });
         }
       }
       feedback?.onOptimisticUpdate?.("create_match");
@@ -509,14 +613,20 @@ export function useMatches(options: MatchesApiOptions) {
       await queryClient.cancelQueries({ queryKey: ["matches"] });
       const snapshots = queryClient.getQueriesData({ queryKey: ["matches"] });
       for (const [queryKey, data] of snapshots) {
-        queryClient.setQueryData(queryKey, patchMatchCache(data, matchId, input));
+        queryClient.setQueryData(
+          queryKey,
+          filterPatchedMatch(patchMatchCache(data, matchId, input), queryKey, userId),
+        );
       }
       feedback?.onOptimisticUpdate?.("update_match");
       return snapshots;
     },
     onSuccess: ({ match }) => {
       for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["matches"] })) {
-        queryClient.setQueryData(queryKey, replaceMatchCache(data, match));
+        queryClient.setQueryData(
+          queryKey,
+          filterPatchedMatch(replaceMatchCache(data, match), queryKey, userId),
+        );
       }
     },
     onError: (error: Error, _variables, snapshots) => {
@@ -541,8 +651,8 @@ export function useMatches(options: MatchesApiOptions) {
   });
 
   return useMemo(
-    () => ({ list, create, update, search, thing, respondInvitation }),
-    [list, create, update, search, thing, respondInvitation],
+    () => ({ list, paging, create, update, search, thing, respondInvitation }),
+    [list, paging, create, update, search, thing, respondInvitation],
   );
 }
 
@@ -626,7 +736,11 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
             }
           : match;
       for (const [queryKey, data] of snapshots) {
-        if (Array.isArray(data)) queryClient.setQueryData(queryKey, data.map(patch));
+        if (Array.isArray(data) || (data && typeof data === "object" && "pages" in data))
+          queryClient.setQueryData(
+            queryKey,
+            patchMatchList(data, (rows) => rows.map(patch)),
+          );
         else if (data && typeof data === "object" && "match" in data) {
           const detail = data as MatchDetailResponse;
           queryClient.setQueryData(queryKey, {
@@ -674,7 +788,11 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       const patch = (match: MatchResponse) =>
         match.id === matchId ? { ...match, status: "TERMINATED" as const, results } : match;
       for (const [queryKey, data] of snapshots) {
-        if (Array.isArray(data)) queryClient.setQueryData(queryKey, data.map(patch));
+        if (Array.isArray(data) || (data && typeof data === "object" && "pages" in data))
+          queryClient.setQueryData(
+            queryKey,
+            patchMatchList(data, (rows) => rows.map(patch)),
+          );
         else if (data && typeof data === "object" && "match" in data) {
           const detail = data as MatchDetailResponse;
           queryClient.setQueryData(queryKey, { ...detail, match: patch(detail.match) });
@@ -703,12 +821,10 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       await queryClient.cancelQueries({ queryKey: ["matches"] });
       const snapshots = queryClient.getQueriesData({ queryKey: ["matches"] });
       for (const [queryKey, data] of snapshots) {
-        if (Array.isArray(data)) {
-          queryClient.setQueryData(
-            queryKey,
-            data.filter((match: MatchSummary) => match.id !== id),
-          );
-        }
+        queryClient.setQueryData(
+          queryKey,
+          patchMatchList(data, (rows) => rows.filter((match) => match.id !== id)),
+        );
       }
       feedback?.onOptimisticUpdate?.("delete_match");
       return snapshots;
@@ -736,15 +852,14 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       await queryClient.cancelQueries({ queryKey: ["matches"] });
       const snapshots = queryClient.getQueriesData({ queryKey: ["matches"] });
       for (const [queryKey, data] of snapshots) {
-        if (Array.isArray(data)) {
-          queryClient.setQueryData(
-            queryKey,
-            data.filter(
-              (match: MatchSummary) =>
-                !match.invitations.some((invitation) => invitation.id === invitationId),
+        queryClient.setQueryData(
+          queryKey,
+          patchMatchList(data, (rows) =>
+            rows.filter(
+              (match) => !match.invitations.some((invitation) => invitation.id === invitationId),
             ),
-          );
-        }
+          ),
+        );
       }
       feedback?.onOptimisticUpdate?.("leave_match");
       return snapshots;
@@ -781,11 +896,11 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
         };
       };
       for (const [queryKey, data] of snapshots) {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) || (data && typeof data === "object" && "pages" in data)) {
           queryClient.setQueryData(
             queryKey,
-            data.map((match: MatchSummary) =>
-              match.id === matchId ? withoutPlayer(match) : match,
+            patchMatchList(data, (rows) =>
+              rows.map((match) => (match.id === matchId ? withoutPlayer(match) : match)),
             ),
           );
         } else if (data && typeof data === "object" && "match" in data) {

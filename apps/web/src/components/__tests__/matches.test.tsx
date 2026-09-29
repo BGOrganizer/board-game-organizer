@@ -62,6 +62,26 @@ describe("Matches", () => {
     expect(screen.getByRole("option", { name: "No group" })).toBeTruthy();
   });
 
+  it("starts with all roles selected and combines chips with debounced search", async () => {
+    renderWithI18n(<Matches />);
+    for (const role of ["Admin", "Invited", "Accepted"])
+      expect(screen.getByRole("button", { name: role }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+    expect(screen.getByRole("button", { name: "Admin" }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
+    expect(useMatchesMock.mock.lastCall?.[0].listFilters.roles).toEqual(["invited", "accepted"]);
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search matches" }), {
+      target: { value: "Cat" },
+    });
+    expect(useMatchesMock.mock.lastCall?.[0].listFilters.query).toBe("");
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search matches" }), {
+      target: { value: "Catan" },
+    });
+    await waitFor(() => expect(useMatchesMock.mock.lastCall?.[0].listFilters.query).toBe("Catan"));
+    expect(useMatchesMock.mock.lastCall?.[0].listFilters.roles).toEqual(["invited", "accepted"]);
+  });
+
   it("lists the matches with name, dates and player range", () => {
     renderWithI18n(<Matches />);
     expect(screen.getByText("Friday night games")).toBeTruthy();
@@ -81,7 +101,7 @@ describe("Matches", () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByLabelText("Player")).toBeNull();
-    expect(screen.getByText("Matches")).toBeTruthy();
+    expect(screen.getByRole("searchbox", { name: "Search matches" })).toBeTruthy();
   });
 
   it("lists only the confirmed date for a created match", () => {

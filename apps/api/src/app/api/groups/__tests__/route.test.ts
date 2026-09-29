@@ -44,6 +44,41 @@ describe("group API routes", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it("filters group invitations and memberships independently from name query", async () => {
+    const entries = [
+      { ...group, name: "Game Night", createdAt: "2026-09-24T12:00:00.000Z", invitations: [] },
+      {
+        ...group,
+        id: "00000000-0000-4000-8000-000000000002",
+        name: "Game Friends",
+        adminUserId: "other",
+        createdAt: "2026-09-23T12:00:00.000Z",
+        invitations: [{ id: invitationId, inviteeUserId: "user_admin", status: "PENDING" }],
+      },
+      {
+        ...group,
+        id: "00000000-0000-4000-8000-000000000001",
+        name: "Chess Club",
+        adminUserId: "other",
+        createdAt: "2026-09-22T12:00:00.000Z",
+        invitations: [{ id: invitationId, inviteeUserId: "user_admin", status: "ACCEPTED" }],
+      },
+    ];
+    vi.spyOn(GroupService.prototype, "list").mockResolvedValue(entries as never);
+    const response = await groupsRoute.GET(
+      request("/api/groups?limit=20&query=game&roles=admin,invited"),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).groups.map((item: typeof group) => item.id)).toEqual([
+      groupId,
+      entries[1].id,
+    ]);
+    const accepted = await groupsRoute.GET(request("/api/groups?limit=20&roles=accepted"));
+    expect((await accepted.json()).groups.map((item: typeof group) => item.id)).toEqual([
+      entries[2].id,
+    ]);
+  });
+
   it("lists and creates groups with validated data", async () => {
     const list = await groupsRoute.GET(request("/api/groups?x-vercel-protection-bypass=test"));
     expect(list.status).toBe(200);

@@ -4,6 +4,7 @@ import {
   matchCardData,
   matchCardStatusColor,
   resolveApiUrl,
+  useListFilters,
   useMatches,
 } from "@board-game-organizer/shared";
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
@@ -17,7 +18,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, Clock3, Crown, Dices, Medal, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { FlatList, Pressable, View } from "react-native";
 import Animated, {
   cancelAnimation,
   ReduceMotion,
@@ -30,6 +31,7 @@ import Animated, {
 import { SvgXml } from "react-native-svg";
 import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
+import { ListSearchFilters } from "@/components/ListSearchFilters";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -93,6 +95,7 @@ export default function MatchesScreen() {
   const t = useT();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
+  const filters = useListFilters();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
@@ -113,195 +116,230 @@ export default function MatchesScreen() {
     getToken,
     userId,
     feedback: mutationFeedback,
+    listFilters: filters.filters,
   });
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-        <Typography style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
-          {t("Matches")}
-        </Typography>
-
-        {matches.list.isPending && (
-          <View style={{ gap: 12, width: "100%" }}>
-            <Skeleton
-              isLoading
-              variant="pulse"
-              style={{ width: "100%", height: 96, borderRadius: 12 }}
-            />
-            <Skeleton
-              isLoading
-              variant="pulse"
-              style={{ width: "100%", height: 96, borderRadius: 12 }}
-            />
-            <Skeleton
-              isLoading
-              variant="pulse"
-              style={{ width: "100%", height: 96, borderRadius: 12 }}
-            />
-          </View>
-        )}
-        {matches.list.isError && (
-          <Typography style={{ color: "#f31260", fontSize: 14 }}>
-            {t("Could not load matches")}
-          </Typography>
-        )}
-        {matches.list.data && matches.list.data.length === 0 && (
-          <Typography style={{ color: "#6b7280", fontSize: 14 }}>
-            {t("No matches yet — create your first one!")}
-          </Typography>
-        )}
-
-        <View style={{ gap: 12 }}>
-          {matches.list.data?.map((match) => {
-            const invitation = match.invitations.find(
-              (candidate) => candidate.inviteeUserId === userId,
-            );
-            const card = matchCardData(match);
-            const statusLabels: Record<MatchCardStatus, string> = {
-              PLANNING: t("Planning"),
-              CREATED: t("Confirmed"),
-              IN_PROGRESS: t("In progress"),
-              TERMINATED: t("Terminated"),
-              CANCELLED: t("Cancelled"),
-            };
-            const gameLabel =
-              card.gameCount === undefined
-                ? (card.selectedGameName ?? t("Game unavailable"))
-                : `${card.gameCount} ${card.gameCount === 1 ? t("game") : t("games")}`;
-            const dateLabel = card.date ? formatMatchDateTime(card.date, i18n.locale) : null;
-            const playersLabel =
-              match.status === "PLANNING"
-                ? `${card.players}/${card.maxPlayers}`
-                : String(card.players);
-            const extraDates = card.additionalDates
-              ? `+${card.additionalDates} ${card.additionalDates === 1 ? t("date") : t("dates")}`
-              : "";
-            return (
-              <LinkedListCard
-                key={match.id}
-                label={`${t("Open match")}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t("Players")}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t("Winner") : t("Winners")}: ${card.winnerNames.join(", ")}` : ""}`}
-                disabled={match.optimistic}
-                onPress={() =>
-                  router.push({ pathname: "/match/[matchId]", params: { matchId: match.id } })
-                }
-                actions={
-                  invitation?.status === "PENDING" ? (
-                    <InvitationActions
-                      placement="card"
-                      name={match.name}
-                      pending={matches.respondInvitation.isPending}
-                      onDecline={() =>
-                        matches.respondInvitation.mutate({
-                          invitationId: invitation.id,
-                          decision: "decline",
-                        })
-                      }
-                      onAccept={() =>
-                        matches.respondInvitation.mutate({
-                          invitationId: invitation.id,
-                          decision: "accept",
-                        })
-                      }
-                    />
-                  ) : undefined
-                }
-              >
-                <MatchArtwork
-                  name={match.name}
-                  adminLabel={match.adminUserId === userId ? t("Administrator") : undefined}
-                />
-                <View style={{ flex: 1, gap: 8 }}>
-                  <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-                    <Typography
-                      className="flex-1 text-foreground"
-                      style={{ fontSize: 15, fontWeight: "600" }}
-                    >
-                      {match.name}
-                    </Typography>
-                    <Chip size="sm" variant="soft" color={matchCardStatusColor[match.status]}>
-                      {statusLabels[match.status]}
-                    </Chip>
-                  </View>
-                  {card.date && dateLabel && (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: 6,
-                      }}
-                    >
-                      <CalendarDays size={14} color="#6b7280" />
-                      <Typography className="text-sm text-muted">{dateLabel.date}</Typography>
-                      <Clock3 size={14} color="#6b7280" />
-                      <Typography className="text-sm text-muted">{dateLabel.time}</Typography>
-                      {extraDates && (
-                        <Typography className="text-sm text-muted">{extraDates}</Typography>
-                      )}
-                    </View>
-                  )}
+      <FlatList
+        data={matches.list.data ?? []}
+        keyExtractor={(match) => match.id}
+        contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 12, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          if (
+            matches.paging.hasNextPage &&
+            !matches.paging.isFetchingNextPage &&
+            !matches.paging.isFetchNextPageError
+          )
+            void matches.paging.fetchNextPage();
+        }}
+        ListHeaderComponent={
+          <ListSearchFilters
+            query={filters.query}
+            onQueryChange={filters.setQuery}
+            roles={filters.roles}
+            onToggle={filters.toggleRole}
+            label={t("Search matches")}
+            placeholder={t("Search matches (at least 4 characters)")}
+          />
+        }
+        ListEmptyComponent={
+          matches.list.isPending ? (
+            <View style={{ gap: 12, width: "100%" }}>
+              <Skeleton
+                isLoading
+                variant="pulse"
+                style={{ width: "100%", height: 96, borderRadius: 12 }}
+              />
+              <Skeleton
+                isLoading
+                variant="pulse"
+                style={{ width: "100%", height: 96, borderRadius: 12 }}
+              />
+              <Skeleton
+                isLoading
+                variant="pulse"
+                style={{ width: "100%", height: 96, borderRadius: 12 }}
+              />
+            </View>
+          ) : matches.list.isError ? null : (
+            <Typography className="text-muted">
+              {filters.roles.length === 3 && !filters.filters.query
+                ? t("No matches yet — create your first one!")
+                : t("No matches match your filters")}
+            </Typography>
+          )
+        }
+        renderItem={({ item: match }) => {
+          const invitation = match.invitations.find(
+            (candidate) => candidate.inviteeUserId === userId,
+          );
+          const card = matchCardData(match);
+          const statusLabels: Record<MatchCardStatus, string> = {
+            PLANNING: t("Planning"),
+            CREATED: t("Confirmed"),
+            IN_PROGRESS: t("In progress"),
+            TERMINATED: t("Terminated"),
+            CANCELLED: t("Cancelled"),
+          };
+          const gameLabel =
+            card.gameCount === undefined
+              ? (card.selectedGameName ?? t("Game unavailable"))
+              : `${card.gameCount} ${card.gameCount === 1 ? t("game") : t("games")}`;
+          const dateLabel = card.date ? formatMatchDateTime(card.date, i18n.locale) : null;
+          const playersLabel =
+            match.status === "PLANNING"
+              ? `${card.players}/${card.maxPlayers}`
+              : String(card.players);
+          const extraDates = card.additionalDates
+            ? `+${card.additionalDates} ${card.additionalDates === 1 ? t("date") : t("dates")}`
+            : "";
+          return (
+            <LinkedListCard
+              key={match.id}
+              label={`${t("Open match")}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t("Players")}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t("Winner") : t("Winners")}: ${card.winnerNames.join(", ")}` : ""}`}
+              disabled={match.optimistic}
+              onPress={() =>
+                router.push({ pathname: "/match/[matchId]", params: { matchId: match.id } })
+              }
+              actions={
+                invitation?.status === "PENDING" ? (
+                  <InvitationActions
+                    placement="card"
+                    name={match.name}
+                    pending={matches.respondInvitation.isPending}
+                    onDecline={() =>
+                      matches.respondInvitation.mutate({
+                        invitationId: invitation.id,
+                        decision: "decline",
+                      })
+                    }
+                    onAccept={() =>
+                      matches.respondInvitation.mutate({
+                        invitationId: invitation.id,
+                        decision: "accept",
+                      })
+                    }
+                  />
+                ) : undefined
+              }
+            >
+              <MatchArtwork
+                name={match.name}
+                adminLabel={match.adminUserId === userId ? t("Administrator") : undefined}
+              />
+              <View style={{ flex: 1, gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                  <Typography
+                    className="flex-1 text-foreground"
+                    style={{ fontSize: 15, fontWeight: "600" }}
+                  >
+                    {match.name}
+                  </Typography>
+                  <Chip size="sm" variant="soft" color={matchCardStatusColor[match.status]}>
+                    {statusLabels[match.status]}
+                  </Chip>
+                </View>
+                {card.date && dateLabel && (
                   <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 12,
-                      paddingRight: invitation?.status === "PENDING" ? 88 : 0,
+                      flexWrap: "wrap",
+                      gap: 6,
                     }}
                   >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <UsersRound size={14} color="#6b7280" />
-                      <Typography className="text-xs text-muted">{playersLabel}</Typography>
-                    </View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                        flexShrink: 1,
-                      }}
+                    <CalendarDays size={14} color="#6b7280" />
+                    <Typography className="text-sm text-muted">{dateLabel.date}</Typography>
+                    <Clock3 size={14} color="#6b7280" />
+                    <Typography className="text-sm text-muted">{dateLabel.time}</Typography>
+                    {extraDates && (
+                      <Typography className="text-sm text-muted">{extraDates}</Typography>
+                    )}
+                  </View>
+                )}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    paddingRight: invitation?.status === "PENDING" ? 88 : 0,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <UsersRound size={14} color="#6b7280" />
+                    <Typography className="text-xs text-muted">{playersLabel}</Typography>
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      flexShrink: 1,
+                    }}
+                  >
+                    <Dices size={14} color="#6b7280" />
+                    <Typography
+                      className="text-xs text-muted"
+                      style={{ flexShrink: 1 }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
-                      <Dices size={14} color="#6b7280" />
-                      <Typography
-                        className="text-xs text-muted"
-                        style={{ flexShrink: 1 }}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {gameLabel}
+                      {gameLabel}
+                    </Typography>
+                  </View>
+                </View>
+                {card.winnerNames && card.winnerNames.length > 0 && (
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
+                    <View
+                      accessible
+                      accessibilityRole="image"
+                      accessibilityLabel={
+                        card.winnerNames.length === 1 ? t("Winner") : t("Winners")
+                      }
+                    >
+                      <Medal size={14} color="#f59e0b" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Typography className="text-xs font-bold text-foreground">
+                        {card.winnerNames.join("\n")}
                       </Typography>
                     </View>
                   </View>
-                  {card.winnerNames && card.winnerNames.length > 0 && (
-                    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
-                      <View
-                        accessible
-                        accessibilityRole="image"
-                        accessibilityLabel={
-                          card.winnerNames.length === 1 ? t("Winner") : t("Winners")
-                        }
-                      >
-                        <Medal size={14} color="#f59e0b" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Typography className="text-xs font-bold text-foreground">
-                          {card.winnerNames.join("\n")}
-                        </Typography>
-                      </View>
-                    </View>
-                  )}
-                </View>
-              </LinkedListCard>
-            );
-          })}
-        </View>
-
-        {matches.respondInvitation.isError && (
-          <Typography style={{ color: "#f31260", fontSize: 14, marginTop: 12 }}>
-            {t("Could not update the invitation")}
-          </Typography>
-        )}
-      </ScrollView>
+                )}
+              </View>
+            </LinkedListCard>
+          );
+        }}
+        ListFooterComponent={
+          <View style={{ gap: 12 }}>
+            {matches.list.isError && (
+              <View style={{ gap: 8 }}>
+                <Typography className="text-danger">{t("Could not load matches")}</Typography>
+                <Button variant="outline" onPress={() => void matches.list.refetch()}>
+                  {t("Try again")}
+                </Button>
+              </View>
+            )}
+            {matches.paging.isFetchingNextPage ? (
+              <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />
+            ) : matches.paging.hasNextPage ? (
+              <Button variant="outline" onPress={() => void matches.paging.fetchNextPage()}>
+                {matches.paging.isFetchNextPageError
+                  ? t("Could not load matches. Retry")
+                  : t("Load more")}
+              </Button>
+            ) : null}
+            {matches.respondInvitation.isError && (
+              <Typography style={{ color: "#f31260", fontSize: 14, marginTop: 12 }}>
+                {t("Could not update the invitation")}
+              </Typography>
+            )}
+          </View>
+        }
+      />
 
       <Pressable
         accessibilityRole="button"

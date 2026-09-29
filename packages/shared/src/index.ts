@@ -1,6 +1,7 @@
 export * from "./api";
 export * from "./contactConnections";
 export * from "./hooks/contactOptimistic";
+export * from "./hooks/listFilters";
 export * from "./hooks/useBggAccount";
 export * from "./hooks/useBggPicker";
 export * from "./hooks/useContacts";

@@ -37,6 +37,22 @@ appId: com.bgo.mobile
 - assertVisible: "Public"
 - assertVisible: "1 member"
 - assertVisible: "Group admin"
+- assertVisible: "Search groups (at least 4 characters)"
+- assertVisible: "Admin"
+- assertVisible: "Invited"
+- assertVisible: "Accepted"
+- tapOn: "Search groups (at least 4 characters)"
+- inputText: "Tabletop"
+- assertVisible: "Tabletop Friends"
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "No groups match your filters"
+    timeout: 30000
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "Tabletop Friends"
+    timeout: 30000
+- tapOn: "Clear search"
 - tapOn: "Open group: Tabletop Friends"
 - assertVisible: "Settings"
 - tapOn: "Leaderboards"
