@@ -23,7 +23,7 @@ export default function MobileNumberPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const countries = useMemo(() => phoneCountries(i18n.locale), [i18n.locale]);
-  const selected = countries.find((item) => item.code === country);
+  const selected = countries.find((item) => item.code === country) as (typeof countries)[number];
   const options = filterPhoneCountries(countries, debouncedSearch);
   useEffect(() => {
     const locale = navigator.language;
@@ -97,10 +97,10 @@ export default function MobileNumberPage() {
               <Label className="sr-only">{t`Country calling code`}</Label>
               <Select.Trigger className="w-full">
                 <Select.Value className="sr-only">
-                  {selected ? `${selected.name} ${selected.callingCode}` : country}
+                  {`${selected.name} ${selected.callingCode}`}
                 </Select.Value>
                 <span aria-hidden="true">
-                  {selected?.flag} {selected?.callingCode}
+                  {selected.flag} {selected.callingCode}
                 </span>
                 <Select.Indicator />
               </Select.Trigger>

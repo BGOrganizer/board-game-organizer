@@ -45,6 +45,28 @@ describe("MobileNumberPage", () => {
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/matches"));
   });
 
+  it("starts with the browser region, including an Italian-only locale", async () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, "language");
+    try {
+      Object.defineProperty(navigator, "language", { configurable: true, value: "it" });
+      renderWithI18n(<MobileNumberPage />);
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: /Country calling code/ }).textContent).toContain(
+          "+39",
+        ),
+      );
+      cleanup();
+      Object.defineProperty(navigator, "language", { configurable: true, value: "fr" });
+      renderWithI18n(<MobileNumberPage />);
+      expect(screen.getByRole("button", { name: /Country calling code/ }).textContent).toContain(
+        "+1",
+      );
+    } finally {
+      if (original) Object.defineProperty(navigator, "language", original);
+      else Reflect.deleteProperty(navigator, "language");
+    }
+  });
+
   it("requires a non-empty value and saves arbitrary text", async () => {
     renderWithI18n(<MobileNumberPage />);
     const button = screen.getByRole("button", { name: "Continue" });
