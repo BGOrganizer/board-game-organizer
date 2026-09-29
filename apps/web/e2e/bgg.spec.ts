@@ -102,7 +102,7 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
 
   await setupClerkTestingToken({ page });
   await page.goto("/");
-  await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier: email } });
+  await clerk.signIn({ page, emailAddress: email });
   await page.goto("/");
   await completeMobileNumberIfNeeded(page);
   await page.goto("/profile");
