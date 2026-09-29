@@ -123,7 +123,14 @@ export function useGroups({
     }: {
       invitationId: string;
       decision: "accept" | "decline";
-    }) => request(`group-invitations/${encodeURIComponent(invitationId)}`, "PATCH", { decision }),
+    }) =>
+      (
+        await request<{ group: GroupResponse | null }>(
+          `group-invitations/${encodeURIComponent(invitationId)}`,
+          "PATCH",
+          { decision },
+        )
+      ).group,
     onMutate: ({ invitationId, decision }) =>
       optimistic(
         decision === "accept" ? "accept_group_invitation" : "decline_group_invitation",
@@ -149,6 +156,12 @@ export function useGroups({
         error,
         variables.decision === "accept" ? "accept_group_invitation" : "decline_group_invitation",
       ),
+    onSuccess: (group) => {
+      if (group)
+        queryClient.setQueryData<GroupResponse[]>(key, (rows) =>
+          rows?.map((row) => (row.id === group.id ? group : row)),
+        );
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
   const removeInvitation = useMutation({

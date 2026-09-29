@@ -43,6 +43,7 @@ appId: com.bgo.mobile
     direction: UP
     timeout: 90000
 - assertNotVisible: "Send invite: E2E Target"
+- assertNotVisible: "^Send$"
 - tapOn: "Send invite: E2E Unregistered"
 - extendedWaitUntil:
     visible: "Copy"

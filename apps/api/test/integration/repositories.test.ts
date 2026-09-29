@@ -1091,6 +1091,9 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       true,
     );
     expect(group.memberCount).toBe(1);
+    expect(
+      (await withMatchTransaction(({ groups }) => groups.list(TARGET)))[0].memberProfiles,
+    ).toEqual([]);
     expect((await new NotificationsRepository(db).list(TARGET, 10)).notifications).toEqual([
       expect.objectContaining({ kind: "group_invitation" }),
     ]);
@@ -1112,6 +1115,11 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       ({ groups }) => groups.respond(THIRD, inviteTo(THIRD), "accept"),
       true,
     );
+    expect(
+      (await withMatchTransaction(({ groups }) => groups.list(TARGET)))[0].memberProfiles
+        .map((person) => person.id)
+        .sort(),
+    ).toEqual([ACTOR, TARGET, THIRD].sort());
     expect((await new NotificationsRepository(db).list(ACTOR, 10)).notifications).toEqual([
       expect.objectContaining({ kind: "group_invitation_accepted" }),
       expect.objectContaining({ kind: "group_invitation_accepted" }),

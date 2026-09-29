@@ -149,6 +149,11 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "2 members"
     timeout: 30000
+- extendedWaitUntil:
+    visible: "Group admin"
+    timeout: 30000
+- assertVisible: "E2E Test"
+- assertVisible: "E2E Target"
 - tapOn: "Leave group"
 - assertVisible: "Leave group?"
 - tapOn: "Leave group"

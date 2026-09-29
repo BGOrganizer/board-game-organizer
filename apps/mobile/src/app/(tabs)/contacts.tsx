@@ -14,11 +14,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { BookUser, MoreVertical, X } from "lucide-react-native";
+import { BookUser, MoreVertical, UserPlus, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -118,6 +119,7 @@ function AvatarWithPresence({
 export default function ContactsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
+  const foreground = useThemeColor("foreground");
   const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string | string[] }>();
@@ -753,8 +755,10 @@ export default function ContactsScreen() {
                       {contact.name}
                     </Typography>
                     <Button
+                      isIconOnly
                       size="sm"
                       variant="outline"
+                      style={{ minWidth: 44, minHeight: 44 }}
                       isDisabled={invite.isPending}
                       accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
                       onPress={() =>
@@ -765,7 +769,7 @@ export default function ContactsScreen() {
                         })
                       }
                     >
-                      <Typography>{t("Send")}</Typography>
+                      <UserPlus size={18} color={foreground} />
                     </Button>
                   </GroupedRow>
                 </GroupedList>

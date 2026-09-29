@@ -166,6 +166,49 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await expect(page.getByText("No groups yet")).toBeVisible();
 });
 
+test("accepted group invitation shows admin alongside accepted members", async ({ page }) => {
+  const inviteeUserId = await signIn(page);
+  const invitation = {
+    id: "b40e695e-ad90-4730-85f3-a8ddb581c49b",
+    groupId: id,
+    inviteeUserId,
+    status: "PENDING",
+    createdAt: now,
+    updatedAt: now,
+  };
+  let group = {
+    id,
+    adminUserId: "user_host",
+    name: "Board Gamers",
+    isPublic: false,
+    memberCount: 1,
+    memberProfiles: [] as { id: string; name: string; email: string | null; avatarUrl: null }[],
+    invitations: [invitation],
+    createdAt: now,
+    updatedAt: now,
+  };
+  await page.route("**/api/groups**", (route) => route.fulfill({ json: { groups: [group] } }));
+  await page.route("**/api/group-invitations/**", (route) => {
+    group = {
+      ...group,
+      memberCount: 2,
+      invitations: [{ ...invitation, status: "ACCEPTED" }],
+      memberProfiles: [
+        { id: "user_host", name: "Group Host", email: null, avatarUrl: null },
+        { id: inviteeUserId, name: "Group Guest", email: null, avatarUrl: null },
+      ],
+    };
+    return route.fulfill({ json: { group } });
+  });
+  await page.goto("/groups");
+  await page.getByRole("link", { name: "Open group: Board Gamers" }).click();
+  await expect(page.getByText("Members are visible after accepting the invitation")).toBeVisible();
+  await page.getByRole("button", { name: "Accept invitation" }).click();
+  await expect(page.getByText("Group Host")).toBeVisible();
+  await expect(page.getByText("Group Guest")).toBeVisible();
+  await expect(page.getByLabel("Group admin")).toBeVisible();
+});
+
 test("match wizard selects optional group and picks an accepted non-friend member", async ({
   page,
 }) => {

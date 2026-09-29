@@ -85,6 +85,17 @@ describe("group notifications", () => {
     ]);
   });
 
+  it("includes the admin even when its user mirror is missing, but hides members until acceptance", async () => {
+    const { service, invitations } = setup();
+    invitations.push(invitation);
+    expect((await service.detail("guest", group.id)).memberProfiles).toEqual([]);
+    invitations[0] = { ...invitation, status: "ACCEPTED" };
+    expect((await service.detail("guest", group.id)).memberProfiles).toEqual([
+      { id: "admin", name: "admin", email: null, avatarUrl: null },
+      { id: "guest", name: "guest", email: null, avatarUrl: null },
+    ]);
+  });
+
   it("notifies admin on acceptance, not on decline", async () => {
     const { service, notifications, invitations } = setup();
     invitations.push(invitation);

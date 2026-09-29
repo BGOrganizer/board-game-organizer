@@ -66,21 +66,20 @@ export class GroupService {
           updatedAt,
         })),
       memberProfiles: canSeeMembers
-        ? users
-            .filter(
-              (user) =>
-                user.clerkId === group.adminUserId ||
-                invitations.some(
-                  (invitation) =>
-                    invitation.inviteeUserId === user.clerkId && invitation.status === "ACCEPTED",
-                ),
-            )
-            .map((user) => ({
-              id: user.clerkId,
-              name: user.name,
-              email: user.email,
-              avatarUrl: user.avatarUrl ?? null,
-            }))
+        ? [
+            group.adminUserId,
+            ...invitations
+              .filter((invitation) => invitation.status === "ACCEPTED")
+              .map((invitation) => invitation.inviteeUserId),
+          ].map((id) => {
+            const user = users.find((candidate) => candidate.clerkId === id);
+            return {
+              id,
+              name: user?.name ?? id,
+              email: user?.email ?? null,
+              avatarUrl: user?.avatarUrl ?? null,
+            };
+          })
         : [],
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,

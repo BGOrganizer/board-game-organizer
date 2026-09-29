@@ -30,6 +30,51 @@ const group = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+it("shows admin and accepted members from invitation response before groups refetch", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const pending = {
+    ...group,
+    memberCount: 1,
+    memberProfiles: [],
+    invitations: group.invitations.map((invitation) => ({ ...invitation, status: "PENDING" })),
+  };
+  let fetches = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === "PATCH")
+        return Promise.resolve(new Response(JSON.stringify({ group }), { status: 200 }));
+      if (fetches++ === 0)
+        return Promise.resolve(
+          new Response(JSON.stringify({ groups: [pending] }), { status: 200 }),
+        );
+      return new Promise<Response>(() => {}); // Keep invalidation refetch pending to verify response cache.
+    }),
+  );
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const { result } = renderHook(
+    () =>
+      useGroups({
+        apiUrl: "https://api.example.com",
+        token: "old-token",
+        getToken: vi.fn().mockResolvedValue("fresh-token"),
+        userId: "friend",
+      }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.list.data?.[0].memberProfiles).toEqual([]));
+  act(() => result.current.respond.mutate({ invitationId: "invite", decision: "accept" }));
+  await waitFor(() =>
+    expect(result.current.list.data?.[0].memberProfiles.map((person) => person.id)).toEqual([
+      "admin",
+      "friend",
+    ]),
+  );
+  expect(result.current.list.data?.[0].invitations[0].status).toBe("ACCEPTED");
+});
+
 it("optimistically removes accepted group member and rolls back on failed DELETE", async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
