@@ -107,6 +107,14 @@ describe("MobileNumberPage", () => {
     );
   });
 
+  it("selects a non-Italian prefix from the full country list", () => {
+    renderWithI18n(<MobileNumberPage />);
+    const prefix = screen.getByRole("button", { name: /Country calling code/ });
+    fireEvent.click(prefix);
+    fireEvent.click(screen.getByRole("option", { name: /Germany/ }));
+    expect(prefix.textContent).toContain("+49");
+  });
+
   it("reports non-error Clerk update failures", async () => {
     mocks.update.mockRejectedValue("failed");
     renderWithI18n(<MobileNumberPage />);

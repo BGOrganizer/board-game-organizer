@@ -15,6 +15,10 @@ export async function completeMobileNumberIfNeeded(page: Page) {
   if (destination === "mobile-number") {
     const prefix = page.getByRole("button", { name: /Country calling code/ });
     await prefix.click();
+    await page.getByRole("searchbox", { name: "Search countries by name or code" }).fill("DE");
+    await page.getByRole("option", { name: /Germany/ }).click();
+    await expect(prefix).toContainText("+49");
+    await prefix.click();
     await page.getByRole("searchbox", { name: "Search countries by name or code" }).fill("IT");
     await page.getByRole("option", { name: /Italy/ }).click();
     await expect(prefix).toContainText("+39");

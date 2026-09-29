@@ -28,6 +28,12 @@ appId: com.bgo.mobile
       - inputText: "zzzz"
       - assertVisible: "No countries found"
       - tapOn: "Clear search"
+      - inputText: "CA"
+      - tapOn: "Canada"
+      - assertVisible: "+1"
+      - tapOn:
+          id: "country-calling-code-select"
+      - tapOn: "Search countries by name or code"
       - inputText: "IT"
       - tapOn: "Italy"
       - assertVisible: "+39"

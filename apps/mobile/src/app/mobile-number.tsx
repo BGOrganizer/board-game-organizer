@@ -94,6 +94,7 @@ export default function MobileNumberScreen() {
         <Typography style={{ fontWeight: "600" }}>{t("Mobile number")}</Typography>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Select
+            presentation="bottom-sheet"
             style={{ width: 124 }}
             value={
               selected
