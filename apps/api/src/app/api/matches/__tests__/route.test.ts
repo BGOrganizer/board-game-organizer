@@ -126,6 +126,22 @@ describe("match API routes", () => {
         createdAt: "2026-09-22T12:00:00.000Z",
         invitations: [{ ...invitation, inviteeUserId: "user_admin", status: "ACCEPTED" }],
       },
+      {
+        ...match,
+        id: "00000000-0000-4000-8000-000000000003",
+        name: "Catan declined",
+        adminUserId: "other",
+        createdAt: "2026-09-21T12:00:00.000Z",
+        invitations: [{ ...invitation, inviteeUserId: "user_admin", status: "DECLINED" }],
+      },
+      {
+        ...match,
+        id: "00000000-0000-4000-8000-000000000004",
+        name: "Catan unrelated",
+        adminUserId: "other",
+        createdAt: "2026-09-20T12:00:00.000Z",
+        invitations: [],
+      },
     ];
     vi.spyOn(MatchService.prototype, "list").mockResolvedValue(entries as never);
     const result = await matchesRoute.GET(

@@ -116,7 +116,7 @@ test("group leaderboard filters played games and marks former members", async ({
   await page.getByRole("tab", { name: "Leaderboards" }).click();
   await chooseGame(page, "Azul");
   const selectedGame = page.getByRole("button", { name: /Azul Board game/ });
-  await expect(selectedGame.locator("img")).toHaveAttribute("src", /data:image/);
+  await expect(selectedGame.locator(":scope > img")).toHaveAttribute("src", /data:image/);
   await expect(selectedGame.locator('[data-slot="selected-game-name"]')).toBeVisible();
   await expect(selectedGame.locator('[data-slot="selected-game-name"]')).toHaveText("Azul");
   const ada = page.getByRole("row", { name: /Ada Lovelace/ });

@@ -67,7 +67,8 @@ test("group and match lifecycle notifications appear in inbox", async ({ page })
   const dropdown = page.locator('[data-slot="dropdown-popover"]');
   await expect(dropdown.getByText("Match confirmed", { exact: true })).toBeVisible();
   await expect(dropdown.getByText("Match finished", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Notifications" }).click();
+  await page.keyboard.press("Escape");
+  await expect(dropdown).toHaveCount(0);
   await page
     .getByText("New group invitation", { exact: true })
     .locator("xpath=ancestor::article")
