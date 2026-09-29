@@ -85,7 +85,9 @@ it("filters by selected game and identifies provisional former members", async (
   expect(screen.getByRole("columnheader", { name: "Ranking" })).toBeTruthy();
   const trigger = screen.getByRole("button", { name: /Azul Board game/ });
   expect(trigger.querySelector("img")).toBeTruthy();
-  expect(trigger.querySelector('[data-slot="select-value"]')?.textContent).toBe("Azul");
+  expect(trigger.querySelector('[data-slot="selected-game-name"]')?.textContent?.trim()).toBe(
+    "Azul",
+  );
   expect(trigger.parentElement?.parentElement).toBe(
     screen.getByRole("button", { name: "Clear board game selection" }).parentElement,
   );

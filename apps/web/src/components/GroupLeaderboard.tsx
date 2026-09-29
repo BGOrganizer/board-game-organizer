@@ -79,7 +79,14 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           <Label>{t`Board game`}</Label>
           <Select.Trigger className={selectedGame ? "w-full items-center gap-2 pe-10" : "w-full"}>
             {selectedGame ? <GameCover imageUrl={selectedGame.imageUrl} /> : null}
-            <Select.Value />
+            <Select.Value className="sr-only" />
+            <span
+              aria-hidden="true"
+              data-slot="selected-game-name"
+              className="min-w-0 flex-1 truncate text-left"
+            >
+              {selectedGame?.name ?? t`Select a board game`}
+            </span>
             {!selectedGame ? <Select.Indicator /> : null}
           </Select.Trigger>
           <Select.Popover>
@@ -88,7 +95,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                 <ListBox.Item key={game.id} id={String(game.id)} textValue={game.name}>
                   <span className="flex items-center gap-2">
                     <GameCover imageUrl={game.imageUrl} />
-                    {game.name}
+                    <span className="min-w-0 flex-1 truncate">{game.name}</span>
                   </span>
                   <ListBox.ItemIndicator />
                 </ListBox.Item>

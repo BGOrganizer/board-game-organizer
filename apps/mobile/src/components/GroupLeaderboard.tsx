@@ -71,11 +71,17 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           onValueChange={(value) => setGameId(value ? Number(value.value) : null)}
         >
           <Select.Trigger
-            accessibilityLabel={t("Board game")}
+            accessibilityLabel={selected ? `${t("Board game")}: ${selected.name}` : t("Board game")}
             style={selected ? { paddingRight: 52 } : undefined}
           >
             {selected ? <GameCover imageUrl={selected.imageUrl} /> : null}
-            <Select.Value style={{ flex: 1 }} placeholder={t("Select a board game")} />
+            <Typography
+              className={selected ? "text-foreground" : "text-muted"}
+              style={{ flex: 1 }}
+              numberOfLines={1}
+            >
+              {selected?.name ?? t("Select a board game")}
+            </Typography>
             {!selected ? <Select.TriggerIndicator /> : null}
           </Select.Trigger>
           <Select.Portal>
@@ -85,7 +91,9 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                 <Select.Item key={game.id} value={String(game.id)} label={game.name}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
                     <GameCover imageUrl={game.imageUrl} />
-                    <Select.ItemLabel />
+                    <Typography className="text-foreground" style={{ flex: 1 }} numberOfLines={1}>
+                      {game.name}
+                    </Typography>
                   </View>
                   <Select.ItemIndicator />
                 </Select.Item>

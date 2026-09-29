@@ -7,7 +7,9 @@ const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
 
 async function chooseGame(page: import("@playwright/test").Page, name: string) {
   await page.getByRole("button", { name: /Board game/ }).click();
-  await page.getByRole("option", { name }).click();
+  const option = page.getByRole("option", { name });
+  await expect(option.getByText(name, { exact: true })).toBeVisible();
+  await option.click();
 }
 
 test("group leaderboard filters played games and marks former members", async ({ page }) => {
@@ -111,8 +113,8 @@ test("group leaderboard filters played games and marks former members", async ({
   await chooseGame(page, "Azul");
   const selectedGame = page.getByRole("button", { name: /Azul Board game/ });
   await expect(selectedGame.locator("img")).toHaveAttribute("src", /data:image/);
-  await expect(selectedGame.locator('[data-slot="select-value"]')).toBeVisible();
-  await expect(selectedGame.locator('[data-slot="select-value"]')).toHaveText("Azul");
+  await expect(selectedGame.locator('[data-slot="selected-game-name"]')).toBeVisible();
+  await expect(selectedGame.locator('[data-slot="selected-game-name"]')).toHaveText("Azul");
   const ada = page.getByRole("row", { name: /Ada Lovelace/ });
   await expect(ada).toContainText("@ada");
   await expect(ada).toContainText("524.5");
