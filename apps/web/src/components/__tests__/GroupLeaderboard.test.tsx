@@ -83,7 +83,12 @@ it("filters by selected game and identifies provisional former members", async (
   expect(screen.getByRole("grid")).toBeTruthy();
   expect(screen.getByRole("columnheader", { name: "ND" })).toBeTruthy();
   expect(screen.getByRole("columnheader", { name: "Ranking" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: /Azul Board game/ }).querySelector("img")).toBeTruthy();
+  const trigger = screen.getByRole("button", { name: /Azul Board game/ });
+  expect(trigger.querySelector("img")).toBeTruthy();
+  expect(trigger.querySelector('[data-slot="select-value"]')?.textContent).toBe("Azul");
+  expect(trigger.parentElement?.parentElement).toBe(
+    screen.getByRole("button", { name: "Clear board game selection" }).parentElement,
+  );
   expect(screen.getByText("@grace")).toBeTruthy();
   expect(screen.getByText("Former group member")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Provisional rating" })).toBeTruthy();

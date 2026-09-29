@@ -12,9 +12,9 @@ const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 
 function GameCover({ imageUrl }: { imageUrl: string | null }) {
   return imageUrl ? (
-    <img src={imageUrl} alt="" className="size-6 shrink-0 rounded object-cover" />
+    <img src={imageUrl} alt="" className="size-5 shrink-0 rounded object-cover" />
   ) : (
-    <Gamepad2 className="size-6 shrink-0 text-default-500" aria-hidden="true" />
+    <Gamepad2 className="size-5 shrink-0 text-default-500" aria-hidden="true" />
   );
 }
 
@@ -69,24 +69,18 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex max-w-sm items-end gap-2">
+      <div className="relative max-w-sm">
         <Select
-          className="min-w-0 flex-1"
+          className="w-full"
           placeholder={t`Select a board game`}
           value={gameId === null ? null : String(gameId)}
           onChange={(value) => setGameId(value === null ? null : Number(value))}
         >
           <Label>{t`Board game`}</Label>
-          <Select.Trigger>
-            <Select.Value>
-              {selectedGame ? (
-                <span className="flex items-center gap-2">
-                  <GameCover imageUrl={selectedGame.imageUrl} />
-                  {selectedGame.name}
-                </span>
-              ) : undefined}
-            </Select.Value>
-            <Select.Indicator />
+          <Select.Trigger className={selectedGame ? "w-full items-center gap-2 pe-10" : "w-full"}>
+            {selectedGame ? <GameCover imageUrl={selectedGame.imageUrl} /> : null}
+            <Select.Value />
+            {!selectedGame ? <Select.Indicator /> : null}
           </Select.Trigger>
           <Select.Popover>
             <ListBox>
@@ -106,6 +100,8 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           <Button
             isIconOnly
             variant="ghost"
+            size="sm"
+            className="absolute end-1 bottom-1 z-10"
             aria-label={t`Clear board game selection`}
             onPress={() => setGameId(null)}
           >

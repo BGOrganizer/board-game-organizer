@@ -18,11 +18,11 @@ function GameCover({ imageUrl }: { imageUrl: string | null }) {
     <Image
       accessible={false}
       source={{ uri: imageUrl }}
-      style={{ width: 28, height: 36, borderRadius: 4 }}
+      style={{ width: 20, height: 24, borderRadius: 4 }}
     />
   ) : (
-    <View style={{ width: 28, height: 36, alignItems: "center", justifyContent: "center" }}>
-      <Gamepad2 size={20} color="#737373" />
+    <View style={{ width: 20, height: 24, alignItems: "center", justifyContent: "center" }}>
+      <Gamepad2 size={16} color="#737373" />
     </View>
   );
 }
@@ -63,17 +63,20 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
   return (
     <View style={{ flex: 1 }}>
       <Typography className="mb-2 font-medium text-foreground">{t("Board game")}</Typography>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ position: "relative" }}>
         <Select
           key={gameId ?? "none"}
-          style={{ flex: 1 }}
+          style={{ width: "100%" }}
           value={selected ? { value: String(selected.id), label: selected.name } : undefined}
           onValueChange={(value) => setGameId(value ? Number(value.value) : null)}
         >
-          <Select.Trigger accessibilityLabel={t("Board game")}>
+          <Select.Trigger
+            accessibilityLabel={t("Board game")}
+            style={selected ? { paddingRight: 52 } : undefined}
+          >
             {selected ? <GameCover imageUrl={selected.imageUrl} /> : null}
-            <Select.Value placeholder={t("Select a board game")} />
-            <Select.TriggerIndicator />
+            <Select.Value style={{ flex: 1 }} placeholder={t("Select a board game")} />
+            {!selected ? <Select.TriggerIndicator /> : null}
           </Select.Trigger>
           <Select.Portal>
             <Select.Overlay />
@@ -95,6 +98,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             isIconOnly
             variant="ghost"
             accessibilityLabel={t("Clear board game selection")}
+            style={{ position: "absolute", right: 2, bottom: 2, width: 44, height: 44 }}
             onPress={() => setGameId(null)}
           >
             <X size={18} color="#737373" />

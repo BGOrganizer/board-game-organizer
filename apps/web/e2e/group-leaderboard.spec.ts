@@ -109,9 +109,10 @@ test("group leaderboard filters played games and marks former members", async ({
   await page.reload();
   await page.getByRole("tab", { name: "Leaderboards" }).click();
   await chooseGame(page, "Azul");
-  await expect(
-    page.getByRole("button", { name: /Azul Board game/ }).locator("img"),
-  ).toHaveAttribute("src", /data:image/);
+  const selectedGame = page.getByRole("button", { name: /Azul Board game/ });
+  await expect(selectedGame.locator("img")).toHaveAttribute("src", /data:image/);
+  await expect(selectedGame.locator('[data-slot="select-value"]')).toBeVisible();
+  await expect(selectedGame.locator('[data-slot="select-value"]')).toHaveText("Azul");
   const ada = page.getByRole("row", { name: /Ada Lovelace/ });
   await expect(ada).toContainText("@ada");
   await expect(ada).toContainText("524.5");
