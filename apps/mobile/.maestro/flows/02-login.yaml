@@ -28,9 +28,9 @@ appId: com.bgo.mobile
       - inputText: "zzzz"
       - assertVisible: "No countries found"
       - tapOn: "Clear search"
-      - inputText: "CA"
-      - tapOn: "Canada"
-      - assertVisible: "+1"
+      - inputText: "DE"
+      - tapOn: "Germany"
+      - assertVisible: "+49"
       - tapOn:
           id: "country-calling-code-select"
       - tapOn: "Search countries by name or code"
