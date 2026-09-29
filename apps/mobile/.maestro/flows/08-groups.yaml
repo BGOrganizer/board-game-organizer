@@ -85,3 +85,5 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000
+- tapOn: "Organizations"
+- assertVisible: "Coming soon"

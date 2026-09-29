@@ -28,7 +28,8 @@ export type MutationFeedbackAction =
   | "leave_group"
   | "remove_group_invitation"
   | "accept_group_invitation"
-  | "decline_group_invitation";
+  | "decline_group_invitation"
+  | "delete_notification";
 
 export interface MutationFeedback {
   onOptimisticUpdate?: (action: MutationFeedbackAction) => void;

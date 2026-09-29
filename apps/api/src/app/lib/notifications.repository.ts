@@ -309,6 +309,12 @@ export class NotificationsRepository {
       );
   }
 
+  deleteOne(recipientUserId: string, notificationId: string) {
+    return this.db
+      .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
+      .deleteOne({ _id: new ObjectId(notificationId), recipientUserId }, this.opts);
+  }
+
   async deleteForUser(userId: string) {
     await this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)

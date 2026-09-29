@@ -82,6 +82,10 @@ export function useMutationFeedback(): MutationFeedback {
         success: t("Group invitation declined"),
         error: t("Could not decline group invitation"),
       },
+      delete_notification: {
+        success: t("Notification deleted"),
+        error: t("Could not delete notification"),
+      },
     };
 
     const show = (message: string, variant: "success" | "danger") =>

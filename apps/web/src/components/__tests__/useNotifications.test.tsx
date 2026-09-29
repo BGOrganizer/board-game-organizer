@@ -141,6 +141,48 @@ describe("useNotifications", () => {
     expect(result.current.unreadCount).toBe(1);
   });
 
+  it("optimistically deletes across inbox caches and restores failed deletes", async () => {
+    let failDelete = () => {};
+    vi.mocked(fetch).mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "DELETE") {
+        return new Promise<Response>((resolve) => {
+          failDelete = () => resolve(new Response("{}", { status: 500 }));
+        });
+      }
+      return new Response(
+        JSON.stringify({ notifications: [item("first")], unreadCount: 1, nextCursor: null }),
+        { status: 200 },
+      );
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };
+    const inbox = renderHook(() => useNotifications({ ...options, feedback }, 20), {
+      wrapper: wrapper(client),
+    });
+    const bell = renderHook(() => useNotifications(options, 3), { wrapper: wrapper(client) });
+    await waitFor(() => expect(bell.result.current.notifications).toHaveLength(1));
+    await waitFor(() => expect(inbox.result.current.notifications).toHaveLength(1));
+
+    act(() => inbox.result.current.deleteNotification.mutate("first"));
+    await waitFor(() => expect(inbox.result.current.notifications).toHaveLength(0));
+    expect(bell.result.current.notifications).toHaveLength(0);
+    expect(bell.result.current.unreadCount).toBe(0);
+    expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("delete_notification");
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.example.com/api/notifications/first?x-vercel-protection-bypass=bypass",
+      { method: "DELETE", headers: { Authorization: "Bearer fresh-token" } },
+    );
+
+    failDelete();
+    await waitFor(() => expect(inbox.result.current.deleteNotification.isError).toBe(true));
+    expect(inbox.result.current.notifications).toHaveLength(1);
+    expect(bell.result.current.notifications).toHaveLength(1);
+    expect(bell.result.current.unreadCount).toBe(1);
+    expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "delete_notification");
+  });
+
   it("exposes HTTP and missing-auth failures without fetching while disabled", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 500 }));
     const failed = renderHook(() => useNotifications(options), { wrapper: wrapper() });

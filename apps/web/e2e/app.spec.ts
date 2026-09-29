@@ -92,6 +92,10 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
     for (const path of ["/matches", "/contacts", "/profile", "/groups", "/organizations"]) {
       await page.goto(path);
       await expectNoHorizontalOverflow(page);
+      if (path === "/organizations") {
+        await expect(page.getByText("Coming soon")).toBeVisible();
+        await expect(page.locator("main svg.lucide-building-2")).toBeVisible();
+      }
     }
   }
 

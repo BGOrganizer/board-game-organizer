@@ -25,28 +25,87 @@ test("group and match lifecycle notifications appear in inbox", async ({ page })
     ["match_created", "Match confirmed", "/matches"],
     ["match_terminated", "Match finished", "/matches"],
   ] as const;
+  const deleted = new Set<string>();
   await page.route("**/api/notifications?**", (route) =>
     route.fulfill({
       json: {
-        notifications: titles.map(([kind, title, href], index) => ({
-          id: `00000000000000000000000${index}`,
-          kind,
-          title,
-          description: `${title} description`,
-          href,
-          readAt: null,
-          createdAt: now,
-        })),
-        unreadCount: titles.length,
+        notifications: titles.flatMap(([kind, title, href], index) => {
+          const id = `00000000000000000000000${index}`;
+          return deleted.has(id)
+            ? []
+            : [
+                {
+                  id,
+                  kind,
+                  title,
+                  description: `${title} description`,
+                  href,
+                  readAt: null,
+                  createdAt: now,
+                },
+              ];
+        }),
+        unreadCount: titles.length - deleted.size,
         nextCursor: null,
       },
     }),
   );
+  await page.route("**/api/notifications/*", (route) => {
+    if (route.request().method() !== "DELETE") return route.continue();
+    deleted.add(new URL(route.request().url()).pathname.split("/").at(-1) ?? "");
+    return route.fulfill({ json: { success: true } });
+  });
   await page.goto("/notifications");
   for (const [, title, href] of titles)
     await expect(
       page.getByText(title, { exact: true }).locator("xpath=ancestor::a"),
     ).toHaveAttribute("href", href);
+  await expect(
+    page.getByText("Match finished", { exact: true }).locator("xpath=ancestor::a").locator("svg"),
+  ).toHaveClass(/lucide-trophy/);
+  await page.getByRole("button", { name: "Notifications" }).click();
+  const dropdown = page.locator('[data-slot="dropdown-popover"]');
+  await expect(dropdown.getByText("Match confirmed", { exact: true })).toBeVisible();
+  await expect(dropdown.getByText("Match finished", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Notifications" }).click();
+  await page
+    .getByText("New group invitation", { exact: true })
+    .locator("xpath=ancestor::article")
+    .getByRole("button", { name: "Delete notification" })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Delete notification?" })
+    .getByRole("button", { name: "Delete notification" })
+    .click();
+  await expect(page.getByText("New group invitation", { exact: true })).toHaveCount(0);
+  expect(deleted).toContain("000000000000000000000000");
+});
+
+test("notification inbox loads later pages on scroll", async ({ page }) => {
+  await signIn(page);
+  await page.route("**/api/notifications?**", (route) => {
+    const url = new URL(route.request().url());
+    const start = url.searchParams.has("cursor") ? 20 : 0;
+    return route.fulfill({
+      json: {
+        notifications: Array.from({ length: start ? 3 : 20 }, (_, index) => ({
+          id: (start + index + 1).toString(16).padStart(24, "0"),
+          kind: "friend_request",
+          title: `Notification ${start + index + 1}`,
+          description: "Test notification",
+          href: "/contacts",
+          readAt: null,
+          createdAt: now,
+        })),
+        unreadCount: 23,
+        nextCursor: start ? null : (20).toString(16).padStart(24, "0"),
+      },
+    });
+  });
+  await page.goto("/notifications");
+  await expect(page.getByText("Notification 20", { exact: true })).toBeVisible();
+  await page.getByText("Notification 20", { exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByText("Notification 23", { exact: true })).toBeVisible();
 });
 
 test("groups: empty, create, edit, archive and failed request", async ({ page }) => {

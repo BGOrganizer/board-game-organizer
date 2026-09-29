@@ -267,6 +267,10 @@ msgstr "Close"
 msgid "Collection"
 msgstr "Collection"
 
+#: apps/web/src/app/(tabs)/organizations/page.tsx
+msgid "Coming soon"
+msgstr "Coming soon"
+
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Complete your profile"
 msgstr "Complete your profile"
@@ -413,6 +417,10 @@ msgid "Could not delete match"
 msgstr "Could not delete match"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete notification"
+msgstr "Could not delete notification"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not disconnect BoardGameGeek"
 msgstr "Could not disconnect BoardGameGeek"
 
@@ -478,6 +486,10 @@ msgstr "Could not load matches"
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Could not load notifications"
 msgstr "Could not load notifications"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Could not load notifications. Retry"
+msgstr "Could not load notifications. Retry"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load social actions"
@@ -653,6 +665,14 @@ msgstr "Delete match"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Delete match?"
 msgstr "Delete match?"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Delete notification"
+msgstr "Delete notification"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Delete notification?"
+msgstr "Delete notification?"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Did not participate"
@@ -1263,6 +1283,10 @@ msgstr "Not known"
 msgid "Not rated"
 msgstr "Not rated"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Notification deleted"
+msgstr "Notification deleted"
+
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Notifications"
@@ -1708,6 +1732,10 @@ msgstr "This contact will no longer be blocked."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This deletes the match and all invitations. This action cannot be undone."
 msgstr "This deletes the match and all invitations. This action cannot be undone."
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "This notification will be permanently deleted."
+msgstr "This notification will be permanently deleted."
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."

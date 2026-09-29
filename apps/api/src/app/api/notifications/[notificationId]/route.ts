@@ -8,7 +8,11 @@ export const OPTIONS = corsOptions;
 
 type NotificationRouteContext = { params: Promise<{ notificationId: string }> };
 
-export async function PATCH(request: Request, context: NotificationRouteContext) {
+async function handle(
+  request: Request,
+  context: NotificationRouteContext,
+  method: "PATCH" | "DELETE",
+) {
   const { userId } = await auth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const id = notificationIdSchema.safeParse((await context.params).notificationId);
@@ -22,9 +26,20 @@ export async function PATCH(request: Request, context: NotificationRouteContext)
   }
 
   try {
-    await new NotificationsRepository(await getDb()).markRead(userId, id.data);
+    const repository = new NotificationsRepository(await getDb());
+    if (method === "DELETE") {
+      const result = await repository.deleteOne(userId, id.data);
+      if (!result.deletedCount) return corsJson({ error: "Not found" }, { status: 404 }, request);
+    } else {
+      await repository.markRead(userId, id.data);
+    }
     return corsJson({ success: true }, {}, request);
   } catch {
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);
   }
 }
+
+export const PATCH = (request: Request, context: NotificationRouteContext) =>
+  handle(request, context, "PATCH");
+export const DELETE = (request: Request, context: NotificationRouteContext) =>
+  handle(request, context, "DELETE");

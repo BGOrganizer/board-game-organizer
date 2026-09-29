@@ -167,6 +167,18 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     notVisible: "E2E Test"
     timeout: 30000
+- tapOn:
+    id: "notifications-button"
+- tapOn: "View all notifications"
+- assertVisible: "New friend request"
+- tapOn:
+    id: "delete-notification-.*"
+- assertVisible: "Delete notification?"
+- tapOn: "Delete notification"
+- extendedWaitUntil:
+    notVisible: "New friend request"
+    timeout: 30000
+- back
 
 # Switch back to actor and send the rejected request again.
 - tapOn: "Profile"

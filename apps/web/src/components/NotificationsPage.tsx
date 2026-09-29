@@ -4,12 +4,19 @@ import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CheckCheck } from "lucide-react";
+import { CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
+import { NotificationKindIcon } from "@/components/NotificationKindIcon";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 export function NotificationsPage() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { i18n, t } = useLingui();
+  const feedback = useMutationFeedback();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const notifications = useNotifications(
     {
       apiUrl: resolveApiUrl(process.env.NEXT_PUBLIC_API_URL),
@@ -17,9 +24,32 @@ export function NotificationsPage() {
       userId,
       enabled: isLoaded && Boolean(isSignedIn),
       protectionBypass: process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS,
+      feedback,
     },
     20,
   );
+  const { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } =
+    notifications.list;
+
+  useEffect(() => {
+    const node = endRef.current;
+    if (
+      !node ||
+      !hasNextPage ||
+      isFetchingNextPage ||
+      isFetchNextPageError ||
+      typeof IntersectionObserver === "undefined"
+    )
+      return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void fetchNextPage();
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
@@ -63,43 +93,88 @@ export function NotificationsPage() {
 
       <div className="flex flex-col gap-3">
         {notifications.notifications.map((notification) => (
-          <Link
+          <article
             key={notification.id}
-            href={notification.href}
-            onClick={() => notifications.markRead.mutate(notification.id)}
-            className={`rounded-xl border bg-surface p-4 transition-colors hover:bg-default-100 ${
+            className={`relative rounded-xl border bg-surface transition-colors hover:bg-default-100 ${
               notification.readAt ? "border-default-200" : "border-accent/50"
             }`}
           >
-            <span className="flex items-start gap-3">
-              {!notification.readAt && (
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-              )}
-              <span className="min-w-0">
-                <span className="block font-medium">{notification.title}</span>
-                <span className="mt-1 block text-sm text-default-500">
-                  {notification.description}
-                </span>
-                <span className="mt-2 block text-xs text-default-400">
-                  {new Intl.DateTimeFormat(i18n.locale, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(new Date(notification.createdAt))}
+            <Link
+              href={notification.href}
+              onClick={() => notifications.markRead.mutate(notification.id)}
+              className="block rounded-xl p-4 pe-12"
+            >
+              <span className="flex items-start gap-3">
+                <NotificationKindIcon
+                  kind={notification.kind}
+                  className="mt-0.5 size-5 shrink-0 text-default-500"
+                />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2 font-medium">
+                    {notification.title}
+                    {!notification.readAt && (
+                      <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className="mt-1 block text-sm text-default-500">
+                    {notification.description}
+                  </span>
+                  <span className="mt-2 block text-xs text-default-400">
+                    {new Intl.DateTimeFormat(i18n.locale, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(notification.createdAt))}
+                  </span>
                 </span>
               </span>
-            </span>
-          </Link>
+            </Link>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="danger-soft"
+              aria-label={t`Delete notification`}
+              className="absolute end-3 bottom-3"
+              isDisabled={notifications.deleteNotification.isPending}
+              onPress={() => setDeletingId(notification.id)}
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </Button>
+          </article>
         ))}
       </div>
 
       {notifications.hasMore && (
-        <Button
-          variant="outline"
-          isPending={notifications.list.isFetchingNextPage}
-          onPress={() => void notifications.list.fetchNextPage()}
-        >
-          {t`Load more`}
-        </Button>
+        <>
+          <div ref={endRef} className="h-px" aria-hidden="true" />
+          {notifications.list.isFetchingNextPage ? (
+            <Skeleton className="h-16 w-full rounded-xl" />
+          ) : (
+            <Button variant="outline" onPress={() => void fetchNextPage()}>
+              {notifications.list.isFetchNextPageError
+                ? t`Could not load notifications. Retry`
+                : t`Load more`}
+            </Button>
+          )}
+        </>
+      )}
+
+      {deletingId && (
+        <ContactConfirmDialog
+          title={t`Delete notification?`}
+          description={t`This notification will be permanently deleted.`}
+          busy={notifications.deleteNotification.isPending}
+          actions={[
+            {
+              label: t`Delete notification`,
+              variant: "danger",
+              onPress: () =>
+                notifications.deleteNotification.mutate(deletingId, {
+                  onSuccess: () => setDeletingId(null),
+                }),
+            },
+          ]}
+          onCancel={() => setDeletingId(null)}
+        />
       )}
     </section>
   );

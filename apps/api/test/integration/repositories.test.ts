@@ -1016,6 +1016,14 @@ describe("match repositories on MongoDB replica set", () => {
 
     await notifications.markRead(TARGET, firstPage.notifications[0]?.id ?? "");
     expect((await notifications.list(TARGET, 5)).unreadCount).toBe(1);
+    expect(
+      (await notifications.deleteOne(ACTOR, firstPage.notifications[0]?.id ?? "")).deletedCount,
+    ).toBe(0);
+    expect(
+      (await notifications.deleteOne(TARGET, firstPage.notifications[0]?.id ?? "")).deletedCount,
+    ).toBe(1);
+    expect((await notifications.list(TARGET, 5)).notifications).toHaveLength(1);
+    expect((await notifications.list(TARGET, 5)).unreadCount).toBe(1);
     await notifications.markAllRead(TARGET);
     expect((await notifications.list(TARGET, 5)).unreadCount).toBe(0);
 

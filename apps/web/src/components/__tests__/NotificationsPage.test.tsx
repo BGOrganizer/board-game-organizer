@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationsPage } from "@/components/NotificationsPage";
 import { renderWithI18n } from "@/test-utils";
@@ -6,6 +6,7 @@ import { renderWithI18n } from "@/test-utils";
 const mocks = vi.hoisted(() => ({
   markRead: vi.fn(),
   markAllRead: vi.fn(),
+  deleteNotification: vi.fn(),
   refetch: vi.fn(),
   fetchNextPage: vi.fn(),
   state: {} as Record<string, unknown>,
@@ -48,6 +49,7 @@ function setState(overrides: Record<string, unknown> = {}) {
     hasMore: false,
     markRead: { mutate: mocks.markRead },
     markAllRead: { mutate: mocks.markAllRead },
+    deleteNotification: { mutate: mocks.deleteNotification, isPending: false },
     ...overrides,
   };
 }
@@ -61,13 +63,22 @@ describe("NotificationsPage", () => {
   it("renders inbox and marks notifications read", () => {
     renderWithI18n(<NotificationsPage />);
     expect(screen.getByRole("heading", { name: "Notifications" })).toBeTruthy();
-    expect(screen.getByText("New match invitation").closest("a")?.className).toContain(
-      "bg-surface",
-    );
+    const card = screen.getByText("New match invitation").closest("article");
+    expect(card?.className).toContain("bg-surface");
+    expect(card?.querySelector("svg")?.getAttribute("class")).toContain("lucide-calendar-plus");
     fireEvent.click(screen.getByText("Mark all as read"));
     expect(mocks.markAllRead).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByText("New match invitation"));
     expect(mocks.markRead).toHaveBeenCalledWith(item.id);
+  });
+
+  it("confirms permanent deletion without opening notification", () => {
+    renderWithI18n(<NotificationsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Delete notification" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete notification?" });
+    expect(mocks.markRead).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete notification" }));
+    expect(mocks.deleteNotification).toHaveBeenCalledWith(item.id, expect.any(Object));
   });
 
   it("renders loading, error retry, and empty states", () => {

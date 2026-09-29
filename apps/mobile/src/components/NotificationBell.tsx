@@ -11,6 +11,7 @@ import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, View } from "react-native";
+import { NotificationKindIcon } from "@/components/NotificationKindIcon";
 import { defaultI18n, useT } from "@/lib/i18n";
 import {
   notificationHref,
@@ -41,7 +42,7 @@ export function NotificationBell() {
       userId,
       enabled: isLoaded && Boolean(isSignedIn),
     },
-    5,
+    3,
   );
   const registerPushSubscription = notifications.registerPush.mutateAsync;
   const registrationPromiseRef = useRef<Promise<void> | null>(null);
@@ -235,7 +236,7 @@ export function NotificationBell() {
                   {t("No notifications yet")}
                 </Typography>
               )}
-            {notifications.notifications.map((notification) => (
+            {notifications.notifications.slice(0, 3).map((notification) => (
               <Pressable
                 key={notification.id}
                 accessibilityRole="button"
@@ -246,11 +247,14 @@ export function NotificationBell() {
                 className="rounded-lg p-2 active:bg-muted/20"
                 style={{ flexDirection: "row", gap: 8, width: "100%" }}
               >
-                {!notification.readAt && (
-                  <View className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
-                )}
+                <NotificationKindIcon kind={notification.kind} size={18} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Typography className="text-sm font-medium">{notification.title}</Typography>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Typography className="text-sm font-medium" style={{ flexShrink: 1 }}>
+                      {notification.title}
+                    </Typography>
+                    {!notification.readAt && <View className="h-2 w-2 rounded-full bg-accent" />}
+                  </View>
                   <Typography className="text-xs text-muted" numberOfLines={2}>
                     {notification.description}
                   </Typography>

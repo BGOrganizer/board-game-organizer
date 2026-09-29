@@ -7,6 +7,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Bell, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { NotificationKindIcon } from "@/components/NotificationKindIcon";
 import { getWebPushToken, isWebPushConfigured } from "@/lib/webPush";
 
 function apiUrl(): string {
@@ -35,7 +36,7 @@ export function NotificationBell() {
       enabled: isLoaded && Boolean(isSignedIn),
       protectionBypass: protectionBypass(),
     },
-    5,
+    3,
   );
   const registerPushSubscription = notifications.registerPush.mutateAsync;
   const registrationPromiseRef = useRef<Promise<void> | null>(null);
@@ -140,7 +141,7 @@ export function NotificationBell() {
                 <span className="text-sm text-default-500">{t`No notifications yet`}</span>
               </Dropdown.Item>
             )}
-          {notifications.notifications.map((notification) => (
+          {notifications.notifications.slice(0, 3).map((notification) => (
             <Dropdown.Item
               key={notification.id}
               id={notification.id}
@@ -149,10 +150,14 @@ export function NotificationBell() {
             >
               <span className="flex min-w-0 flex-col gap-0.5 py-1">
                 <span className="flex items-center gap-2">
+                  <NotificationKindIcon
+                    kind={notification.kind}
+                    className="size-4 shrink-0 text-default-500"
+                  />
+                  <span className="truncate text-sm font-medium">{notification.title}</span>
                   {!notification.readAt && (
                     <span className="h-2 w-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
                   )}
-                  <span className="truncate text-sm font-medium">{notification.title}</span>
                 </span>
                 <span className="line-clamp-2 text-xs text-default-500">
                   {notification.description}

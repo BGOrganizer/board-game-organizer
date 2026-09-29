@@ -267,6 +267,10 @@ msgstr "Chiudi"
 msgid "Collection"
 msgstr "Collezione"
 
+#: apps/web/src/app/(tabs)/organizations/page.tsx
+msgid "Coming soon"
+msgstr "Prossimamente"
+
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Complete your profile"
 msgstr "Completa il tuo profilo"
@@ -413,6 +417,10 @@ msgid "Could not delete match"
 msgstr "Impossibile eliminare la partita"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete notification"
+msgstr "Impossibile eliminare la notifica"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not disconnect BoardGameGeek"
 msgstr "Impossibile scollegare BoardGameGeek"
 
@@ -478,6 +486,10 @@ msgstr "Impossibile caricare le partite"
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Could not load notifications"
 msgstr "Impossibile caricare le notifiche"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Could not load notifications. Retry"
+msgstr "Impossibile caricare le notifiche. Riprova"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load social actions"
@@ -653,6 +665,14 @@ msgstr "Elimina partita"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Delete match?"
 msgstr "Eliminare la partita?"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Delete notification"
+msgstr "Elimina notifica"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Delete notification?"
+msgstr "Eliminare la notifica?"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Did not participate"
@@ -1263,6 +1283,10 @@ msgstr "Non conosciuta"
 msgid "Not rated"
 msgstr "Senza rating"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Notification deleted"
+msgstr "Notifica eliminata"
+
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Notifications"
@@ -1708,6 +1732,10 @@ msgstr "Questo contatto non sarà più bloccato."
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This deletes the match and all invitations. This action cannot be undone."
 msgstr "Questa operazione elimina la partita e tutti gli inviti. Non può essere annullata."
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "This notification will be permanently deleted."
+msgstr "Questa notifica verrà eliminata definitivamente."
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."

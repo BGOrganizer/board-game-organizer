@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiHeaders, withProtectionBypass } from "../api";
+import type { MutationFeedback } from "../mutationFeedback";
 
 export interface NotificationsApiOptions {
   apiUrl: string;
@@ -13,6 +14,7 @@ export interface NotificationsApiOptions {
   userId: string | null | undefined;
   enabled: boolean;
   protectionBypass?: string | null;
+  feedback?: MutationFeedback;
 }
 
 async function authToken(getToken: () => Promise<string | null>): Promise<string> {
@@ -40,8 +42,9 @@ async function fetchNotifications(
   return (await response.json()) as NotificationListResponse;
 }
 
-async function patchNotification(
+async function mutateNotification(
   options: NotificationsApiOptions,
+  method: "PATCH" | "DELETE",
   notificationId?: string,
 ): Promise<void> {
   const token = await authToken(options.getToken);
@@ -50,7 +53,7 @@ async function patchNotification(
     : "/api/notifications";
   const response = await fetch(
     withProtectionBypass(`${options.apiUrl}${path}`, options.protectionBypass),
-    { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+    { method, headers: { Authorization: `Bearer ${token}` } },
   );
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
@@ -136,13 +139,43 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   });
 
   const markRead = useMutation({
-    mutationFn: (notificationId: string) => patchNotification(options, notificationId),
+    mutationFn: (notificationId: string) => mutateNotification(options, "PATCH", notificationId),
     ...optimisticRead(undefined),
     onMutate: async (notificationId) => optimisticRead(notificationId).onMutate(),
   });
   const markAllRead = useMutation({
-    mutationFn: () => patchNotification(options),
+    mutationFn: () => mutateNotification(options, "PATCH"),
     ...optimisticRead(),
+  });
+  const deleteNotification = useMutation({
+    mutationFn: (notificationId: string) => mutateNotification(options, "DELETE", notificationId),
+    onMutate: async (notificationId) => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] });
+      const snapshots = queryClient.getQueriesData<InfiniteData<NotificationListResponse>>({
+        queryKey: ["notifications"],
+      });
+      for (const [key, data] of snapshots) {
+        if (!data) continue;
+        const wasUnread = data.pages.some((page) =>
+          page.notifications.some((item) => item.id === notificationId && !item.readAt),
+        );
+        queryClient.setQueryData(key, {
+          ...data,
+          pages: data.pages.map((page) => ({
+            ...page,
+            unreadCount: Math.max(0, page.unreadCount - Number(wasUnread)),
+            notifications: page.notifications.filter((item) => item.id !== notificationId),
+          })),
+        });
+      }
+      options.feedback?.onOptimisticUpdate?.("delete_notification");
+      return snapshots;
+    },
+    onError: (error, _id, snapshots) => {
+      for (const [key, data] of snapshots ?? []) queryClient.setQueryData(key, data);
+      options.feedback?.onError?.(error, "delete_notification");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
   const registerPush = useMutation({
     mutationFn: (input: { token: string; platform: PushPlatform; locale: "en" | "it" }) =>
@@ -159,6 +192,7 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     hasMore: list.hasNextPage,
     markRead,
     markAllRead,
+    deleteNotification,
     registerPush,
     removePush,
   };

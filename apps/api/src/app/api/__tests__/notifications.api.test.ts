@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   list: vi.fn(),
   markRead: vi.fn(),
+  deleteOne: vi.fn(),
   markAllRead: vi.fn(),
   upsert: vi.fn(),
   remove: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock("@/app/lib/notifications.repository", () => ({
   NotificationsRepository: vi.fn(() => ({
     list: mocks.list,
     markRead: mocks.markRead,
+    deleteOne: mocks.deleteOne,
     markAllRead: mocks.markAllRead,
   })),
 }));
@@ -22,7 +24,10 @@ vi.mock("@/app/lib/push-subscriptions.repository", () => ({
   PushSubscriptionsRepository: vi.fn(() => ({ upsert: mocks.upsert, remove: mocks.remove })),
 }));
 
-import { PATCH as markRead } from "@/app/api/notifications/[notificationId]/route";
+import {
+  DELETE as deleteNotification,
+  PATCH as markRead,
+} from "@/app/api/notifications/[notificationId]/route";
 import { GET as listNotifications, PATCH as markAllRead } from "@/app/api/notifications/route";
 import { POST as registerPush, DELETE as removePush } from "@/app/api/push-subscriptions/route";
 
@@ -46,6 +51,7 @@ describe("notification API", () => {
     mocks.auth.mockResolvedValue({ userId: "user_1" });
     mocks.list.mockResolvedValue({ notifications: [], unreadCount: 0, nextCursor: null });
     mocks.markRead.mockResolvedValue({ modifiedCount: 1 });
+    mocks.deleteOne.mockResolvedValue({ deletedCount: 1 });
     mocks.markAllRead.mockResolvedValue({ modifiedCount: 1 });
     mocks.upsert.mockResolvedValue({ upsertedCount: 1 });
     mocks.remove.mockResolvedValue({ deletedCount: 1 });
@@ -64,6 +70,9 @@ describe("notification API", () => {
           context(),
         )
       ).status,
+    ).toBe(401);
+    expect(
+      (await deleteNotification(new Request("http://x", { method: "DELETE" }), context())).status,
     ).toBe(401);
   });
 
@@ -122,6 +131,39 @@ describe("notification API", () => {
     mocks.markAllRead.mockRejectedValue(new Error("db"));
     expect(
       (await markAllRead(new Request("http://x/api/notifications", { method: "PATCH" }))).status,
+    ).toBe(500);
+  });
+
+  it("permanently deletes only owned notifications", async () => {
+    expect(
+      (await deleteNotification(new Request("http://x", { method: "DELETE" }), context("bad")))
+        .status,
+    ).toBe(400);
+    expect(
+      (await deleteNotification(new Request("http://x?other=1", { method: "DELETE" }), context()))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await deleteNotification(
+          new Request("http://x?x-vercel-protection-bypass=a&x-vercel-protection-bypass=b", {
+            method: "DELETE",
+          }),
+          context(),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await deleteNotification(new Request("http://x", { method: "DELETE" }), context())).status,
+    ).toBe(200);
+    expect(mocks.deleteOne).toHaveBeenCalledWith("user_1", ID);
+    mocks.deleteOne.mockResolvedValueOnce({ deletedCount: 0 });
+    expect(
+      (await deleteNotification(new Request("http://x", { method: "DELETE" }), context())).status,
+    ).toBe(404);
+    mocks.deleteOne.mockRejectedValueOnce(new Error("db"));
+    expect(
+      (await deleteNotification(new Request("http://x", { method: "DELETE" }), context())).status,
     ).toBe(500);
   });
 

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   markRead: vi.fn(),
   markAllRead: vi.fn(),
+  limit: vi.fn(),
   routerPush: vi.fn(),
   getWebPushToken: vi.fn(async () => "web-token-1234567890" as string | null),
   requestPermission: vi.fn(async () => "granted" as NotificationPermission),
@@ -28,7 +29,10 @@ vi.mock("@/lib/webPush", () => ({
 }));
 vi.mock("@board-game-organizer/shared", () => ({
   resolveApiUrl: (value?: string) => value || "http://localhost:4000",
-  useNotifications: () => mocks.state,
+  useNotifications: (...args: unknown[]) => {
+    mocks.limit(...args);
+    return mocks.state;
+  },
 }));
 
 const notification = {
@@ -74,6 +78,8 @@ describe("NotificationBell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
 
     expect(await screen.findByText("New friend request")).toBeTruthy();
+    expect(mocks.limit).toHaveBeenCalledWith(expect.any(Object), 3);
+    expect(document.querySelector(".lucide-user-round-plus")).toBeTruthy();
     expect(document.querySelector('[data-slot="dropdown-popover"]')?.className).toContain(
       "bg-surface",
     );
@@ -85,6 +91,20 @@ describe("NotificationBell", () => {
     fireEvent.click(await screen.findByText("New friend request"));
     expect(mocks.markRead).toHaveBeenCalledWith(notification.id);
     expect(mocks.routerPush).toHaveBeenCalledWith("/contacts");
+  });
+
+  it("shows at most three notifications even with extra cached rows", async () => {
+    setState({
+      notifications: [0, 1, 2, 3].map((index) => ({
+        ...notification,
+        id: String(index),
+        title: `Notification ${index}`,
+      })),
+    });
+    renderWithI18n(<NotificationBell />);
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    expect(await screen.findByText("Notification 2")).toBeTruthy();
+    expect(screen.queryByText("Notification 3")).toBeNull();
   });
 
   it("always links to full notification page", async () => {
