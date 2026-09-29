@@ -134,7 +134,7 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   await page.locator('input[type="datetime-local"]').first().fill("2026-09-05T20:00");
   await page.getByRole("button", { name: "Next step" }).click();
   await page.getByRole("button", { name: "Next step" }).click();
-  await page.getByRole("button", { name: "Add game" }).click();
+  await page.getByRole("button", { name: "Select a board game" }).click();
   await expect(page.getByRole("button", { name: "Collection", exact: true })).toBeVisible();
   await expect(page.getByText("Azul", { exact: true })).toBeVisible();
   await page.getByRole("searchbox", { name: "Search board games" }).fill("Azul");
