@@ -40,7 +40,6 @@ msgstr "Accept group invitation"
 msgid "Accept invitation"
 msgstr "Accept invitation"
 
-#. Mobile runtime only
 #~ msgid "Accept or decline this friend request."
 #~ msgstr "Accept or decline this friend request."
 
@@ -173,6 +172,10 @@ msgstr "Block contact"
 msgid "Blocked"
 msgstr "Blocked"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Board game"
+msgstr "Board game"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Board games"
 msgstr "Board games"
@@ -247,6 +250,10 @@ msgstr "Choose game"
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Clear"
 msgstr "Clear"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Clear board game selection"
+msgstr "Clear board game selection"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Clear search"
@@ -455,6 +462,10 @@ msgstr "Could not load group details"
 msgid "Could not load groups"
 msgstr "Could not load groups"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Could not load leaderboards. Retry"
+msgstr "Could not load leaderboards. Retry"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load match details"
 msgstr "Could not load match details"
@@ -528,7 +539,6 @@ msgstr "Could not send friend request"
 msgid "Could not synchronize contacts"
 msgstr "Could not synchronize contacts"
 
-#. Mobile runtime only
 #~ msgid "Could not synchronize contacts. Retry"
 #~ msgstr "Could not synchronize contacts. Retry"
 
@@ -685,6 +695,10 @@ msgstr "Edit match"
 msgid "Edit tie-break"
 msgstr "Edit tie-break"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+#~ msgid "ELO ranking"
+#~ msgstr "ELO ranking"
+
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Email unavailable"
 msgstr "Email unavailable"
@@ -726,6 +740,10 @@ msgstr "Followers"
 #: apps/web/src/components/Profile.tsx
 msgid "Following"
 msgstr "Following"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Former group member"
+msgstr "Former group member"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Friend removed"
@@ -784,11 +802,18 @@ msgstr "games"
 msgid "Games"
 msgstr "Games"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Games played"
+msgstr "Games played"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Games won"
+msgstr "Games won"
+
 #: apps/web/src/components/InviteCard.tsx
 msgid "Generate a link to connect with someone."
 msgstr "Generate a link to connect with someone."
 
-#. Mobile runtime only
 #~ msgid "Group"
 #~ msgstr "Group"
 
@@ -816,9 +841,17 @@ msgstr "Group invitation accepted"
 msgid "Group invitation declined"
 msgstr "Group invitation declined"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Group leaderboard"
+msgstr "Group leaderboard"
+
 #: apps/web/src/components/Groups.tsx
 msgid "Group name"
 msgstr "Group name"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group sections"
+msgstr "Group sections"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Group updated"
@@ -856,7 +889,6 @@ msgstr "Increase max players"
 msgid "Increase min players"
 msgstr "Increase min players"
 
-#. Mobile runtime only
 #~ msgid "Invitations"
 #~ msgstr "Invitations"
 
@@ -877,7 +909,7 @@ msgstr "Invite a friend"
 #~ msgid "Invite claimed — you now follow the inviter."
 #~ msgstr "Invite claimed — you now follow the inviter."
 
-#. Mobile runtime only
+#. Mobile runtime-only strings; keep after Lingui extraction.
 #~ msgid "Invite device contacts"
 #~ msgstr "Invite device contacts"
 
@@ -917,6 +949,10 @@ msgid "Language:"
 msgstr "Language:"
 
 #: apps/web/src/components/Groups.tsx
+msgid "Leaderboards"
+msgstr "Leaderboards"
+
+#: apps/web/src/components/Groups.tsx
 msgid "Leave group"
 msgstr "Leave group"
 
@@ -940,6 +976,7 @@ msgstr "Left group"
 msgid "Live standings"
 msgstr "Live standings"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Load more"
 msgstr "Load more"
@@ -1045,7 +1082,6 @@ msgstr "member"
 msgid "members"
 msgstr "members"
 
-#. Mobile runtime only
 #~ msgid "Members"
 #~ msgstr "Members"
 
@@ -1080,6 +1116,10 @@ msgstr "Move down"
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Move up"
 msgstr "Move up"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "ND"
+msgstr "ND"
 
 #: apps/web/src/components/Groups.tsx
 msgid "New group"
@@ -1118,7 +1158,6 @@ msgstr "No connections yet"
 #~ msgid "No contacts found in your address book."
 #~ msgstr "No contacts found in your address book."
 
-#. Mobile runtime only
 #~ msgid "No contacts to invite"
 #~ msgstr "No contacts to invite"
 
@@ -1150,7 +1189,6 @@ msgstr "No group"
 msgid "No groups yet"
 msgstr "No groups yet"
 
-#. Mobile runtime only
 #~ msgid "No invitations"
 #~ msgstr "No invitations"
 
@@ -1161,6 +1199,10 @@ msgstr "No groups yet"
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
 #~ msgstr "No invites yet — create one to share."
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "No matches played in this group yet"
+msgstr "No matches played in this group yet"
 
 #: apps/web/src/components/Matches.tsx
 msgid "No matches yet — create your first one!"
@@ -1216,6 +1258,7 @@ msgstr "Not enough accepted players"
 msgid "Not known"
 msgstr "Not known"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Not rated"
 msgstr "Not rated"
@@ -1294,9 +1337,9 @@ msgstr "Planning"
 #~ msgid "Played"
 #~ msgstr "Played"
 
-#: apps/web/src/components/Matches.tsx
-#~ msgid "Player"
-#~ msgstr "Player"
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Player"
+msgstr "Player"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Player removed from match"
@@ -1344,6 +1387,10 @@ msgstr "Profile"
 msgid "Provisional game rating"
 msgstr "Provisional game rating"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Provisional rating"
+msgstr "Provisional rating"
+
 #: apps/web/src/components/Groups.tsx
 msgid "Public"
 msgstr "Public"
@@ -1359,6 +1406,10 @@ msgstr "Public group search and join requests will be available later. Only the 
 #: apps/web/src/components/GameCatalogMetadata.tsx
 msgid "Rank"
 msgstr "Rank"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Ranking"
+msgstr "Ranking"
 
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Rating decreased"
@@ -1450,7 +1501,6 @@ msgstr "Requests"
 msgid "Resolve tie"
 msgstr "Resolve tie"
 
-#. Mobile runtime only
 #~ msgid "Respond to friend request"
 #~ msgstr "Respond to friend request"
 
@@ -1518,6 +1568,7 @@ msgstr "Search users by name or email"
 msgid "Select"
 msgstr "Select"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Select a board game"
@@ -1536,7 +1587,6 @@ msgstr "Select group member"
 msgid "Selected group is unavailable"
 msgstr "Selected group is unavailable"
 
-#. Mobile runtime only
 #~ msgid "Send"
 #~ msgstr "Send"
 
@@ -1548,7 +1598,6 @@ msgstr "Send friend request"
 msgid "Send friend request?"
 msgstr "Send friend request?"
 
-#. Mobile runtime only
 #~ msgid "Send invite"
 #~ msgstr "Send invite"
 
@@ -1559,6 +1608,10 @@ msgstr "Send request"
 #: apps/web/src/components/Contacts.tsx
 msgid "Sent"
 msgstr "Sent"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Settings"
+msgstr "Settings"
 
 #~ msgid "Share"
 #~ msgstr "Share"
@@ -1781,47 +1834,3 @@ msgstr "You will no longer see each other or find each other. Follow and friends
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Your invitation is waiting for a response."
 msgstr "Your invitation is waiting for a response."
-
-#. Mobile runtime only
-msgid "Invite device contacts"
-msgstr "Invite device contacts"
-
-#. Mobile runtime only
-msgid "Send invite"
-msgstr "Send invite"
-
-#. Mobile runtime only
-msgid "Send"
-msgstr "Send"
-
-#. Mobile runtime only
-msgid "No contacts to invite"
-msgstr "No contacts to invite"
-
-#. Mobile runtime only
-msgid "Could not synchronize contacts. Retry"
-msgstr "Could not synchronize contacts. Retry"
-
-#. Mobile runtime only
-msgid "Accept or decline this friend request."
-msgstr "Accept or decline this friend request."
-
-#. Mobile runtime only
-msgid "Group"
-msgstr "Group"
-
-#. Mobile runtime only
-msgid "Invitations"
-msgstr "Invitations"
-
-#. Mobile runtime only
-msgid "Members"
-msgstr "Members"
-
-#. Mobile runtime only
-msgid "No invitations"
-msgstr "No invitations"
-
-#. Mobile runtime only
-msgid "Respond to friend request"
-msgstr "Respond to friend request"

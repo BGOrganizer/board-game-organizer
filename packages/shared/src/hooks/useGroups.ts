@@ -161,6 +161,7 @@ export function useGroups({
         queryClient.setQueryData<GroupResponse[]>(key, (rows) =>
           rows?.map((row) => (row.id === group.id ? group : row)),
         );
+      void queryClient.invalidateQueries({ queryKey: ["group-leaderboard"] });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
@@ -183,6 +184,7 @@ export function useGroups({
         }),
       ),
     onError: (error, _id, context) => undo(context, error, "remove_group_invitation"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["group-leaderboard"] }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
   const leave = useMutation({
@@ -190,6 +192,7 @@ export function useGroups({
       request(`groups/${encodeURIComponent(id)}/membership`, "DELETE"),
     onMutate: (id) => optimistic("leave_group", (rows) => rows.filter((row) => row.id !== id)),
     onError: (error, _id, context) => undo(context, error, "leave_group"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["group-leaderboard"] }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
   return { list, create, update, archive, respond, leave, removeInvitation };

@@ -19,6 +19,7 @@ import {
   Popover,
   Skeleton,
   Switch,
+  Tabs,
   TextField,
 } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -46,6 +47,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { GroupLeaderboard } from "@/components/GroupLeaderboard";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { SearchUserPage } from "@/components/SearchUserPage";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
@@ -547,73 +549,97 @@ export function Groups({
             </Popover>
           ) : null}
         </div>
-        <p className="flex items-center gap-2 text-sm text-default-500">
-          {group.isPublic ? (
-            <LockKeyholeOpen className="size-4" />
-          ) : (
-            <LockKeyhole className="size-4" />
-          )}
-          {group.isPublic ? t`Public` : t`Private`} · {group.memberCount}{" "}
-          {group.memberCount === 1 ? t`member` : t`members`}
-        </p>
+        <Tabs aria-label={t`Group sections`} defaultSelectedKey="settings">
+          <Tabs.ListContainer>
+            <Tabs.List>
+              <Tabs.Tab id="settings">
+                {t`Settings`}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              {admin || invitation?.status === "ACCEPTED" ? (
+                <Tabs.Tab id="leaderboard">
+                  {t`Leaderboards`}
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+              ) : null}
+            </Tabs.List>
+          </Tabs.ListContainer>
+          <Tabs.Panel id="settings" className="space-y-5 pt-4">
+            <p className="flex items-center gap-2 text-sm text-default-500">
+              {group.isPublic ? (
+                <LockKeyholeOpen className="size-4" />
+              ) : (
+                <LockKeyhole className="size-4" />
+              )}
+              {group.isPublic ? t`Public` : t`Private`} · {group.memberCount}{" "}
+              {group.memberCount === 1 ? t`member` : t`members`}
+            </p>
 
-        {invitation?.status === "PENDING" ? (
-          <p className="text-sm text-default-500">{t`Members are visible after accepting the invitation`}</p>
-        ) : null}
-        <GroupPeople
-          group={group}
-          token={token}
-          getToken={getToken}
-          userId={userId}
-          removing={groups.removeInvitation.isPending}
-          onRemove={(id) => setConfirm({ id, action: "remove" })}
-        />
-        {invitation?.status === "PENDING" ? (
-          <div className="flex gap-2">
-            <Button
-              variant="primary"
-              isDisabled={groups.respond.isPending}
-              onPress={() =>
-                groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
-              }
-            >
-              <Check className="size-4" />
-              {t`Accept invitation`}
-            </Button>
-            <Button
-              variant="danger-soft"
-              isDisabled={groups.respond.isPending}
-              onPress={() =>
-                groups.respond.mutate(
-                  { invitationId: invitation.id, decision: "decline" },
-                  { onSuccess: () => router.push("/groups") },
-                )
-              }
-            >
-              <X className="size-4" />
-              {t`Decline invitation`}
-            </Button>
-          </div>
-        ) : null}
-        {admin ? (
-          <Button
-            isIconOnly
-            variant="primary"
-            aria-label={t`Edit group`}
-            className="fixed right-4 bottom-4 z-40 h-12 w-12 rounded-full shadow-lg sm:right-6 sm:bottom-6 sm:h-14 sm:w-14"
-            onPress={() => router.push(`/groups/${group.id}/edit`)}
-          >
-            <Pencil className="size-6" />
-          </Button>
-        ) : invitation?.status === "ACCEPTED" ? (
-          <Button
-            variant="danger-soft"
-            onPress={() => setConfirm({ id: group.id, action: "leave" })}
-          >
-            <LogOut className="size-4" />
-            {t`Leave group`}
-          </Button>
-        ) : null}
+            {invitation?.status === "PENDING" ? (
+              <p className="text-sm text-default-500">{t`Members are visible after accepting the invitation`}</p>
+            ) : null}
+            <GroupPeople
+              group={group}
+              token={token}
+              getToken={getToken}
+              userId={userId}
+              removing={groups.removeInvitation.isPending}
+              onRemove={(id) => setConfirm({ id, action: "remove" })}
+            />
+            {invitation?.status === "PENDING" ? (
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  isDisabled={groups.respond.isPending}
+                  onPress={() =>
+                    groups.respond.mutate({ invitationId: invitation.id, decision: "accept" })
+                  }
+                >
+                  <Check className="size-4" />
+                  {t`Accept invitation`}
+                </Button>
+                <Button
+                  variant="danger-soft"
+                  isDisabled={groups.respond.isPending}
+                  onPress={() =>
+                    groups.respond.mutate(
+                      { invitationId: invitation.id, decision: "decline" },
+                      { onSuccess: () => router.push("/groups") },
+                    )
+                  }
+                >
+                  <X className="size-4" />
+                  {t`Decline invitation`}
+                </Button>
+              </div>
+            ) : null}
+            {admin ? (
+              <Button
+                isIconOnly
+                variant="primary"
+                aria-label={t`Edit group`}
+                className="fixed right-4 bottom-4 z-40 h-12 w-12 rounded-full shadow-lg sm:right-6 sm:bottom-6 sm:h-14 sm:w-14"
+                onPress={() => router.push(`/groups/${group.id}/edit`)}
+              >
+                <Pencil className="size-6" />
+              </Button>
+            ) : invitation?.status === "ACCEPTED" ? (
+              <Button
+                variant="danger-soft"
+                onPress={() => setConfirm({ id: group.id, action: "leave" })}
+              >
+                <LogOut className="size-4" />
+                {t`Leave group`}
+              </Button>
+            ) : null}
+          </Tabs.Panel>
+          {admin || invitation?.status === "ACCEPTED" ? (
+            <Tabs.Panel id="leaderboard" className="pt-4">
+              <GroupLeaderboard groupId={group.id} />
+            </Tabs.Panel>
+          ) : null}
+        </Tabs>
+
         {confirm ? (
           <ContactConfirmDialog
             title={

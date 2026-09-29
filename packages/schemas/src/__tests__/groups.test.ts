@@ -1,10 +1,43 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { createGroupSchema, groupModel, playerRatingModel, ratingEventModel } from "../index";
+import {
+  createGroupSchema,
+  groupLeaderboardResponseSchema,
+  groupModel,
+  playerRatingModel,
+  ratingEventModel,
+} from "../index";
 
 const base = { name: "Board Gamers", isPublic: false, invitedUserIds: ["user_friend"] };
 
 describe("group and rating boundaries", () => {
+  it("validates game covers and withdrawn match counts in group leaderboards", () => {
+    const page = {
+      games: [{ id: 1, name: "Azul", imageUrl: null }],
+      players: [
+        {
+          userId: "former",
+          name: "Grace",
+          username: "grace",
+          avatarUrl: null,
+          gamesPlayed: 1,
+          gamesWon: 0,
+          nd: 1,
+          rating: null,
+          provisional: false,
+          left: true,
+        },
+      ],
+      nextCursor: null,
+    };
+    expect(groupLeaderboardResponseSchema.safeParse(page).success).toBe(true);
+    expect(
+      groupLeaderboardResponseSchema.safeParse({
+        ...page,
+        players: [{ ...page.players[0], nd: -1 }],
+      }).success,
+    ).toBe(false);
+  });
   it("validates group names, friends selection IDs and public flag", () => {
     expect(createGroupSchema.safeParse({ ...base, invitedUserIds: [] }).success).toBe(true);
     expect(createGroupSchema.safeParse({ ...base, name: "abcd" }).success).toBe(false);

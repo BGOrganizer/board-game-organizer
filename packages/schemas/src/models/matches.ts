@@ -79,6 +79,7 @@ export type MatchInvitation = z.infer<typeof matchInvitationModel>;
 export const MATCH_INDEXES = [
   { key: { id: 1 }, unique: true },
   { key: { clerkId: 1, createdAt: -1 } },
+  { key: { groupId: 1, status: 1, selectedGameId: 1 } },
 ] as const;
 
 function hasDuplicates(values: readonly unknown[]) {

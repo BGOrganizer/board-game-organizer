@@ -4,6 +4,7 @@ export * from "./hooks/contactOptimistic";
 export * from "./hooks/useBggAccount";
 export * from "./hooks/useBggPicker";
 export * from "./hooks/useContacts";
+export * from "./hooks/useGroupLeaderboard";
 export * from "./hooks/useGroups";
 export * from "./hooks/useInvites";
 export * from "./hooks/useMatches";

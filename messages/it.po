@@ -40,7 +40,6 @@ msgstr "Accetta l'invito al gruppo"
 msgid "Accept invitation"
 msgstr "Accetta invito"
 
-#. Mobile runtime only
 #~ msgid "Accept or decline this friend request."
 #~ msgstr "Accetta o rifiuta questa richiesta di amicizia."
 
@@ -173,6 +172,10 @@ msgstr "Blocca contatto"
 msgid "Blocked"
 msgstr "Bloccati"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Board game"
+msgstr "Gioco da tavolo"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Board games"
 msgstr "Giochi da tavolo"
@@ -247,6 +250,10 @@ msgstr "Scegli il gioco"
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Clear"
 msgstr "Pulisci"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Clear board game selection"
+msgstr "Deseleziona gioco"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Clear search"
@@ -455,6 +462,10 @@ msgstr "Impossibile caricare i dettagli del gruppo"
 msgid "Could not load groups"
 msgstr "Impossibile caricare i gruppi"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Could not load leaderboards. Retry"
+msgstr "Impossibile caricare le classifiche. Riprova"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load match details"
 msgstr "Impossibile caricare i dettagli della partita"
@@ -528,7 +539,6 @@ msgstr "Impossibile inviare la richiesta di amicizia"
 msgid "Could not synchronize contacts"
 msgstr "Impossibile sincronizzare i contatti"
 
-#. Mobile runtime only
 #~ msgid "Could not synchronize contacts. Retry"
 #~ msgstr "Impossibile sincronizzare i contatti. Riprova"
 
@@ -685,6 +695,10 @@ msgstr "Modifica partita"
 msgid "Edit tie-break"
 msgstr "Modifica spareggio"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+#~ msgid "ELO ranking"
+#~ msgstr "Ranking ELO"
+
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Email unavailable"
 msgstr "Email non disponibile"
@@ -726,6 +740,10 @@ msgstr "Follower"
 #: apps/web/src/components/Profile.tsx
 msgid "Following"
 msgstr "Following"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Former group member"
+msgstr "Uscito dal gruppo"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Friend removed"
@@ -784,11 +802,18 @@ msgstr "giochi"
 msgid "Games"
 msgstr "Giochi"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Games played"
+msgstr "Partite giocate"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Games won"
+msgstr "Partite vinte"
+
 #: apps/web/src/components/InviteCard.tsx
 msgid "Generate a link to connect with someone."
 msgstr "Genera un link per connetterti con qualcuno."
 
-#. Mobile runtime only
 #~ msgid "Group"
 #~ msgstr "Gruppo"
 
@@ -816,9 +841,17 @@ msgstr "Invito al gruppo accettato"
 msgid "Group invitation declined"
 msgstr "Invito al gruppo rifiutato"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Group leaderboard"
+msgstr "Classifica del gruppo"
+
 #: apps/web/src/components/Groups.tsx
 msgid "Group name"
 msgstr "Nome del gruppo"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group sections"
+msgstr "Sezioni del gruppo"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Group updated"
@@ -856,7 +889,6 @@ msgstr "Aumenta il numero massimo di giocatori"
 msgid "Increase min players"
 msgstr "Aumenta il numero minimo di giocatori"
 
-#. Mobile runtime only
 #~ msgid "Invitations"
 #~ msgstr "Inviti"
 
@@ -877,7 +909,7 @@ msgstr "Invita un amico"
 #~ msgid "Invite claimed — you now follow the inviter."
 #~ msgstr "Invito accettato — ora segui chi ti ha invitato."
 
-#. Mobile runtime only
+#. Mobile runtime-only strings; keep after Lingui extraction.
 #~ msgid "Invite device contacts"
 #~ msgstr "Invita contatti della rubrica"
 
@@ -917,6 +949,10 @@ msgid "Language:"
 msgstr "Lingua:"
 
 #: apps/web/src/components/Groups.tsx
+msgid "Leaderboards"
+msgstr "Classifiche"
+
+#: apps/web/src/components/Groups.tsx
 msgid "Leave group"
 msgstr "Esci dal gruppo"
 
@@ -940,6 +976,7 @@ msgstr "Hai lasciato il gruppo"
 msgid "Live standings"
 msgstr "Classifica provvisoria"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Load more"
 msgstr "Carica altro"
@@ -1045,7 +1082,6 @@ msgstr "membro"
 msgid "members"
 msgstr "membri"
 
-#. Mobile runtime only
 #~ msgid "Members"
 #~ msgstr "Membri"
 
@@ -1080,6 +1116,10 @@ msgstr "Sposta giù"
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Move up"
 msgstr "Sposta su"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "ND"
+msgstr "ND"
 
 #: apps/web/src/components/Groups.tsx
 msgid "New group"
@@ -1118,7 +1158,6 @@ msgstr "Nessuna connessione"
 #~ msgid "No contacts found in your address book."
 #~ msgstr "Nessun contatto trovato nella tua rubrica."
 
-#. Mobile runtime only
 #~ msgid "No contacts to invite"
 #~ msgstr "Nessun contatto da invitare"
 
@@ -1150,7 +1189,6 @@ msgstr "Nessun gruppo"
 msgid "No groups yet"
 msgstr "Nessun gruppo per ora"
 
-#. Mobile runtime only
 #~ msgid "No invitations"
 #~ msgstr "Nessun invito"
 
@@ -1161,6 +1199,10 @@ msgstr "Nessun gruppo per ora"
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
 #~ msgstr "Nessun invito ancora — creane uno da condividere."
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "No matches played in this group yet"
+msgstr "Nessun match ancora giocato nel gruppo"
 
 #: apps/web/src/components/Matches.tsx
 msgid "No matches yet — create your first one!"
@@ -1216,6 +1258,7 @@ msgstr "Giocatori che hanno accettato insufficienti"
 msgid "Not known"
 msgstr "Non conosciuta"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Not rated"
 msgstr "Senza rating"
@@ -1294,9 +1337,9 @@ msgstr "In pianificazione"
 #~ msgid "Played"
 #~ msgstr "Giocate"
 
-#: apps/web/src/components/Matches.tsx
-#~ msgid "Player"
-#~ msgstr "Giocatore"
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Player"
+msgstr "Giocatore"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Player removed from match"
@@ -1344,6 +1387,10 @@ msgstr "Profilo"
 msgid "Provisional game rating"
 msgstr "Rating del gioco provvisorio"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Provisional rating"
+msgstr "Ranking provvisorio"
+
 #: apps/web/src/components/Groups.tsx
 msgid "Public"
 msgstr "Pubblico"
@@ -1359,6 +1406,10 @@ msgstr "La ricerca dei gruppi pubblici e le richieste di accesso arriveranno pi�
 #: apps/web/src/components/GameCatalogMetadata.tsx
 msgid "Rank"
 msgstr "Posizione"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Ranking"
+msgstr "Ranking"
 
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Rating decreased"
@@ -1450,7 +1501,6 @@ msgstr "Richieste"
 msgid "Resolve tie"
 msgstr "Risolvi parità"
 
-#. Mobile runtime only
 #~ msgid "Respond to friend request"
 #~ msgstr "Rispondi alla richiesta di amicizia"
 
@@ -1518,6 +1568,7 @@ msgstr "Cerca utenti per nome o email"
 msgid "Select"
 msgstr "Seleziona"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Select a board game"
@@ -1536,7 +1587,6 @@ msgstr "Seleziona un membro del gruppo"
 msgid "Selected group is unavailable"
 msgstr "Il gruppo selezionato non è disponibile"
 
-#. Mobile runtime only
 #~ msgid "Send"
 #~ msgstr "Invia"
 
@@ -1548,7 +1598,6 @@ msgstr "Invia richiesta di amicizia"
 msgid "Send friend request?"
 msgstr "Inviare la richiesta di amicizia?"
 
-#. Mobile runtime only
 #~ msgid "Send invite"
 #~ msgstr "Invia invito"
 
@@ -1559,6 +1608,10 @@ msgstr "Invia richiesta"
 #: apps/web/src/components/Contacts.tsx
 msgid "Sent"
 msgstr "Inviate"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Settings"
+msgstr "Impostazioni"
 
 #~ msgid "Share"
 #~ msgstr "Condividi"
@@ -1781,47 +1834,3 @@ msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rim
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Your invitation is waiting for a response."
 msgstr "Il tuo invito è in attesa di una risposta."
-
-#. Mobile runtime only
-msgid "Invite device contacts"
-msgstr "Invita contatti della rubrica"
-
-#. Mobile runtime only
-msgid "Send invite"
-msgstr "Invia invito"
-
-#. Mobile runtime only
-msgid "Send"
-msgstr "Invia"
-
-#. Mobile runtime only
-msgid "No contacts to invite"
-msgstr "Nessun contatto da invitare"
-
-#. Mobile runtime only
-msgid "Could not synchronize contacts. Retry"
-msgstr "Impossibile sincronizzare i contatti. Riprova"
-
-#. Mobile runtime only
-msgid "Accept or decline this friend request."
-msgstr "Accetta o rifiuta questa richiesta di amicizia."
-
-#. Mobile runtime only
-msgid "Group"
-msgstr "Gruppo"
-
-#. Mobile runtime only
-msgid "Invitations"
-msgstr "Inviti"
-
-#. Mobile runtime only
-msgid "Members"
-msgstr "Membri"
-
-#. Mobile runtime only
-msgid "No invitations"
-msgstr "Nessun invito"
-
-#. Mobile runtime only
-msgid "Respond to friend request"
-msgstr "Rispondi alla richiesta di amicizia"

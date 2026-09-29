@@ -687,6 +687,8 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["matches"] })) {
         queryClient.setQueryData(queryKey, replaceMatchCache(data, match));
       }
+      if (match.groupId)
+        void queryClient.invalidateQueries({ queryKey: ["group-leaderboard", match.groupId] });
     },
     onError: (error: Error, _input, snapshots) => {
       for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);

@@ -11,6 +11,7 @@ import { parseBggCollection } from "../../src/app/lib/bgg-collection";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
 import { GroupService } from "../../src/app/lib/group.service";
+import { GroupLeaderboardRepository } from "../../src/app/lib/group-leaderboard.repository";
 import { GroupsRepository } from "../../src/app/lib/groups.repository";
 import { type MatchError, MatchService } from "../../src/app/lib/match.service";
 import { MatchInvitationsRepository } from "../../src/app/lib/match-invitations.repository";
@@ -1120,6 +1121,50 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       withMatchTransaction(({ groups }) => groups.removeInvitation(ACTOR, pending.id)),
     ).rejects.toEqual(expect.objectContaining({ status: 404 }));
   });
+  it("counts withdrawals and shared first-place wins, excluding planning matches", async () => {
+    const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
+    await db.collection(COLLECTIONS.MATCHES).insertMany([
+      {
+        id: "1f454adb-43e3-47ad-8c29-57b97a55a212",
+        groupId,
+        status: "TERMINATED",
+        selectedGameId: 42,
+        results: {
+          entries: [
+            { userId: ACTOR, score: "5", rank: 1 },
+            { userId: TARGET, score: "5", rank: 1 },
+            { userId: THIRD, score: null, rank: 3 },
+          ],
+        },
+      },
+      {
+        id: "1f454adb-43e3-47ad-8c29-57b97a55a213",
+        groupId,
+        status: "TERMINATED",
+        selectedGameId: 42,
+        results: {
+          entries: [
+            { userId: ACTOR, score: "6", rank: 1 },
+            { userId: TARGET, score: null, rank: 2 },
+          ],
+        },
+      },
+      {
+        id: "1f454adb-43e3-47ad-8c29-57b97a55a214",
+        groupId,
+        status: "PLANNING",
+        selectedGameId: 99,
+      },
+    ]);
+    const standings = new GroupLeaderboardRepository(db);
+    expect(await standings.games(groupId)).toEqual([{ id: 42, name: "42", imageUrl: null }]);
+    expect((await standings.players(groupId, 42, 0, 25)).rows).toMatchObject([
+      { _id: ACTOR, gamesPlayed: 2, gamesWon: 2, nd: 0 },
+      { _id: TARGET, gamesPlayed: 2, gamesWon: 1, nd: 1 },
+      { _id: THIRD, gamesPlayed: 1, gamesWon: 0, nd: 1 },
+    ]);
+  });
+
   it("accepts invited friends, allows group member match invite after unfriend, and keeps group history after archive", async () => {
     await seedMatchDependencies();
     await relationships.becomeFriends(ACTOR, THIRD);
@@ -1222,6 +1267,17 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const ratings = new RatingsRepository(db);
     const global = await ratings.leaderboard(match.gameIds[0], "GLOBAL", null);
     const scoped = await ratings.leaderboard(match.gameIds[0], "GROUP", group.id);
+    const standings = new GroupLeaderboardRepository(db);
+    expect(await standings.games(group.id)).toEqual([
+      { id: match.gameIds[0], name: "Ark Nova", imageUrl: null },
+    ]);
+    const first = await standings.players(group.id, match.gameIds[0], 0, 1);
+    expect(first.rows).toMatchObject([{ _id: ACTOR, gamesPlayed: 1, gamesWon: 1, nd: 0 }]);
+    expect(first.nextCursor).toBe(1);
+    expect((await standings.players(group.id, match.gameIds[0], 1, 25)).rows).toMatchObject([
+      { _id: TARGET, gamesPlayed: 1, gamesWon: 0, nd: 0 },
+      { _id: THIRD, gamesPlayed: 1, gamesWon: 0, nd: 1 },
+    ]);
     const gameRatings = await ratings.forMatch(match.id, match.gameIds[0]);
     const current = await ratings.currentForPlayers([ACTOR, TARGET, THIRD], match.gameIds[0]);
     expect(current.find((entry) => entry.userId === ACTOR)?.score).toBeCloseTo(

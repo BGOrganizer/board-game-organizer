@@ -41,9 +41,9 @@ Implemented product areas:
 - Web Playwright and mobile Maestro end-to-end coverage.
 
 Groups support friend-only invitations, accepted membership, public/private visibility metadata,
-admin editing and archival, and optional attachment to planning matches. Public discovery and
-admin-approved join requests are future work. Organizations, collection management, session
-logging, venues, visual leaderboards, and marketplace features are not implemented.
+admin editing and archival, optional attachment to planning matches, and per-game member leaderboards.
+Public discovery and admin-approved join requests are future work. Organizations, session logging,
+venues, and marketplace features are not implemented.
 
 ## 3. Repository structure
 
@@ -224,6 +224,7 @@ Current route surface:
 | `/api/groups` | GET, POST | List owned/invited groups or create a group with friend invitations |
 | `/api/groups/[groupId]` | GET, PATCH, DELETE | Get/edit group or archive it as admin |
 | `/api/groups/[groupId]/membership` | DELETE | Leave an accepted group |
+| `/api/groups/[groupId]/leaderboard` | GET | List played games and paginated group rankings for members |
 | `/api/group-invitations/[invitationId]` | PATCH | Accept or decline a group invitation |
 | `/api/matches` | GET, POST | List accessible matches and create planning matches |
 | `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, atomically update planning fields/invitations, or delete match as admin |
@@ -727,6 +728,6 @@ transaction* as immutable match finalization. Unique indexes prevent duplicate p
 concurrent matches sharing a player must retry against fresh pre-match snapshots. Keep the
 OpenSkill calculation separate from persistence, and store enough immutable match outcomes and
 algorithm version to recompute ratings under a future model: OpenSkill and Glicko-2 numbers cannot
-be converted directly. Leaderboard repository queries exist now, but no visual leaderboard or
-public search endpoint is exposed yet. Cover deterministic rating logic and group authorization
+be converted directly. Group detail shows member-only game leaderboards including withdrawals and historical members;
+no public leaderboard search endpoint is exposed. Cover deterministic rating logic and group authorization
 with unit/integration tests; exercise new user-visible flows on web and mobile.
