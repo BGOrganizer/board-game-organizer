@@ -5,25 +5,45 @@ import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { notificationHref } from "@/lib/push-notifications";
 
-export function PushNotificationRouter() {
+export function PushNotificationRouter({
+  onInitialResponse,
+}: {
+  onInitialResponse: (href: string | null | undefined) => void;
+}) {
   const { isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const router = useRouter();
 
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!isSignedIn) {
+      onInitialResponse(undefined);
+      return;
+    }
+    let active = true;
     const open = (response: Notifications.NotificationResponse) => {
       router.push(notificationHref(response.notification.request.content.data));
     };
     Notifications.getLastNotificationResponseAsync()
       .then((response) => {
+        if (!active) return;
+        onInitialResponse(
+          response ? notificationHref(response.notification.request.content.data) : null,
+        );
         if (!response) return;
         open(response);
         return Notifications.clearLastNotificationResponseAsync();
       })
-      .catch(Sentry.captureException);
+      .catch((error) => {
+        if (active) {
+          onInitialResponse(null);
+          Sentry.captureException(error);
+        }
+      });
     const subscription = Notifications.addNotificationResponseReceivedListener(open);
-    return () => subscription.remove();
-  }, [isSignedIn, router]);
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, [isSignedIn, router, onInitialResponse]);
 
   return null;
 }

@@ -1,0 +1,12 @@
+appId: com.bgo.mobile
+---
+# Cold start from a deep link must prioritize its destination, then leave tabs usable.
+- killApp
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible: "Search groups (at least 4 characters)"
+    timeout: 120000
+- tapOn: "Matches"
+- extendedWaitUntil:
+    visible: "Search matches (at least 4 characters)"
+    timeout: 30000

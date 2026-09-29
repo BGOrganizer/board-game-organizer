@@ -103,14 +103,20 @@ function optimisticNotifications(
   };
 }
 
+export function notificationsPageQuery(options: NotificationsApiOptions, limit = 5) {
+  return {
+    queryKey: ["notifications", options.apiUrl, options.userId, limit] as const,
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
+      fetchNotifications(options, limit, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page: NotificationListResponse) => page.nextCursor ?? undefined,
+  };
+}
+
 export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   const queryClient = useQueryClient();
-  const queryKey = ["notifications", options.apiUrl, options.userId, limit] as const;
   const list = useInfiniteQuery({
-    queryKey,
-    queryFn: ({ pageParam }) => fetchNotifications(options, limit, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    ...notificationsPageQuery(options, limit),
     enabled: options.enabled && Boolean(options.userId),
     refetchInterval: 30_000,
   });

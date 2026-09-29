@@ -7,7 +7,7 @@ import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { HeroUINativeProvider } from "heroui-native";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { Uniwind } from "uniwind";
@@ -15,8 +15,10 @@ import "../../global.css";
 
 import { PushNotificationRouter } from "@/components/PushNotificationRouter";
 import { RuntimeError } from "@/components/RuntimeError";
+import { Startup } from "@/components/Startup";
 import { defaultI18n, useT } from "@/lib/i18n";
 import { configureNotificationHandler } from "@/lib/push-notifications";
+import { startupStartedAt } from "@/lib/splash";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
@@ -93,11 +95,15 @@ function ThemeSync() {
 
 function RootNavigator() {
   const t = useT();
+  const [initialNotificationHref, setInitialNotificationHref] = useState<
+    string | null | undefined
+  >();
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <QueryProvider>
         <ThemeSync />
-        <PushNotificationRouter />
+        <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
+        <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
         <StatusBar style="auto" />
         <Stack>
           <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />

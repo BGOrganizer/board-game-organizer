@@ -32,6 +32,7 @@ module.exports = {
     },
     plugins: [
       "expo-router",
+      "expo-splash-screen",
       "@clerk/expo",
       "expo-secure-store",
       "@sentry/react-native",

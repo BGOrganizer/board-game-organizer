@@ -14,6 +14,41 @@ export interface GroupsApiOptions {
   listFilters?: ListFilters;
 }
 
+export function groupsPageQuery({
+  apiUrl,
+  token,
+  getToken,
+  protectionBypass,
+  listFilters,
+}: GroupsApiOptions) {
+  return {
+    queryKey: [
+      "groups",
+      "paged",
+      apiUrl,
+      token,
+      listFilters?.query,
+      listFilters?.roles.join(","),
+    ] as const,
+    queryFn: async ({ pageParam }: { pageParam: string }) => {
+      if (!listFilters) throw new Error("Missing list filters");
+      const fresh = getToken ? await getToken() : token;
+      if (!fresh) throw new Error("No session token");
+      const response = await fetch(
+        withProtectionBypass(
+          `${apiUrl}/api/${listPagePath("groups", listFilters, pageParam)}`,
+          protectionBypass,
+        ),
+        { headers: apiHeaders(fresh) },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json() as Promise<{ groups: GroupResponse[]; nextCursor: string | null }>;
+    },
+    initialPageParam: "",
+    getNextPageParam: (page: { nextCursor: string | null }) => page.nextCursor ?? undefined,
+  };
+}
+
 export function useGroups({
   apiUrl,
   token,
@@ -79,15 +114,7 @@ export function useGroups({
     enabled: Boolean(apiUrl && token && !listFilters),
   });
   const paging = useInfiniteQuery({
-    queryKey: ["groups", "paged", apiUrl, token, listFilters?.query, listFilters?.roles.join(",")],
-    queryFn: ({ pageParam }) => {
-      if (!listFilters) throw new Error("Missing list filters");
-      return request<{ groups: GroupResponse[]; nextCursor: string | null }>(
-        listPagePath("groups", listFilters, pageParam),
-      );
-    },
-    initialPageParam: "",
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    ...groupsPageQuery({ apiUrl, token, getToken, protectionBypass, listFilters }),
     enabled: Boolean(apiUrl && token && listFilters),
   });
   const list = listFilters

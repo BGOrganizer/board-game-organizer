@@ -522,6 +522,40 @@ function useRespondToInvitation(options: MatchesApiOptions) {
   });
 }
 
+export function matchesPageQuery({
+  apiUrl,
+  token,
+  getToken,
+  protectionBypass,
+  listFilters,
+}: MatchesApiOptions) {
+  return {
+    queryKey: [
+      "matches",
+      "paged",
+      apiUrl,
+      token,
+      listFilters?.query,
+      listFilters?.roles.join(","),
+    ] as const,
+    queryFn: async ({ pageParam }: { pageParam: string }) => {
+      const freshToken = await resolveToken(token, getToken);
+      if (!listFilters) throw new Error("Missing list filters");
+      const path = listPagePath("matches", listFilters, pageParam);
+      const response = await fetch(
+        withProtectionBypass(`${apiUrl}/api/${path}`, protectionBypass),
+        {
+          headers: { Authorization: `Bearer ${freshToken}` },
+        },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json() as Promise<{ matches: MatchSummary[]; nextCursor: string | null }>;
+    },
+    initialPageParam: "",
+    getNextPageParam: (page: { nextCursor: string | null }) => page.nextCursor ?? undefined,
+  };
+}
+
 export function useMatches(options: MatchesApiOptions) {
   const { apiUrl, token, getToken, protectionBypass, userId, feedback, listFilters } = options;
   const queryClient = useQueryClient();
@@ -538,22 +572,7 @@ export function useMatches(options: MatchesApiOptions) {
     staleTime: 30_000,
   });
   const paging = useInfiniteQuery({
-    queryKey: ["matches", "paged", apiUrl, token, listFilters?.query, listFilters?.roles.join(",")],
-    queryFn: async ({ pageParam }) => {
-      const freshToken = await resolveToken(token, getToken);
-      if (!listFilters) throw new Error("Missing list filters");
-      const path = listPagePath("matches", listFilters, pageParam);
-      const response = await fetch(
-        withProtectionBypass(`${apiUrl}/api/${path}`, protectionBypass),
-        {
-          headers: { Authorization: `Bearer ${freshToken}` },
-        },
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json() as Promise<{ matches: MatchSummary[]; nextCursor: string | null }>;
-    },
-    initialPageParam: "",
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    ...matchesPageQuery(options),
     enabled: enabled && Boolean(listFilters),
   });
   const list = listFilters

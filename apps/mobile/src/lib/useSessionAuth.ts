@@ -10,5 +10,5 @@ export function useSessionAuth() {
     latestGetToken.current = currentGetToken;
   }, [currentGetToken]);
   const getToken = useCallback(() => latestGetToken.current(), [userId, sessionId]);
-  return { getToken, isLoaded, isSignedIn, userId };
+  return { getToken, isLoaded, isSignedIn, userId, sessionId };
 }
