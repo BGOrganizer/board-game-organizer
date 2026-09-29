@@ -124,12 +124,12 @@ test("group leaderboard filters played games and marks former members", async ({
   await expect(ada).toContainText("524.5");
   await expect(ada.getByRole("img", { name: "Provisional rating" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "ND" })).toBeVisible();
-  await expect(ada.getByRole("cell").nth(3)).toHaveText("1");
+  await expect(ada.getByRole("gridcell").nth(2)).toHaveText("1");
   const grace = page.getByRole("row", { name: /Grace Hopper/ });
   await expect(grace).toContainText("@grace");
   await expect(grace).toContainText("Former group member");
   await expect(grace).toHaveClass(/opacity-60/);
-  await expect(grace.getByRole("cell").nth(3)).toHaveText("1");
+  await expect(grace.getByRole("gridcell").nth(2)).toHaveText("1");
   await expect(grace).not.toContainText("@example.com");
 
   await chooseGame(page, "Cascadia");
