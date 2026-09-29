@@ -53,6 +53,28 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   }
 });
 
+test("PR publishes the verified development APK to EAS and keeps GitHub and Telegram links", () => {
+  const steps = jobs["draft-release"].steps;
+  const upload = steps.find((item) => item.id === "eas");
+  const publish = steps.find((item) => item.uses === "./.github/actions/publish-draft-release");
+  const notify = step("draft-release", "🔗 Compose Telegram links");
+  assert.ok(
+    steps.indexOf(upload) >
+      steps.indexOf(step("draft-release", "🔒 Verify APK development API URL")),
+  );
+  assert.ok(steps.indexOf(publish) > steps.indexOf(upload));
+  assert.equal(upload.env.EXPO_TOKEN, `\${{ secrets.EXPO_TOKEN }}`);
+  assert.equal(upload.env.APK_PATH, `\${{ steps.meta.outputs.apk-path }}`);
+  assert.match(upload.run, /eas upload --platform android --build-path .* --json/);
+  assert.equal(publish.with["eas-build-url"], `\${{ steps.eas.outputs.url }}`);
+  assert.equal(publish.with["apk-path"], `\${{ steps.meta.outputs.apk-path }}`);
+  assert.match(notify.run, /steps\.draft\.outputs\.apk_url/);
+  assert.match(notify.run, /steps\.eas\.outputs\.url/);
+  const action = parse(readFileSync(".github/actions/publish-draft-release/action.yml", "utf8"));
+  assert.equal(action.inputs["eas-build-url"].required, true);
+  assert.match(JSON.stringify(action.runs.steps), /__EAS_BUILD__/);
+});
+
 test("watchdog cancels any failed PR job; independent cleanup survives cancellation", () => {
   assert.deepEqual(watchdog.on.workflow_run.workflows, [pr.name]);
   assert.deepEqual(watchdog.on.workflow_run.types, ["in_progress"]);

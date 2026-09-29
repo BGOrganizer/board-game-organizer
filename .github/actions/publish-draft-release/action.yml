@@ -29,6 +29,9 @@ inputs:
   apk-name:
     description: File name of the APK asset
     required: true
+  eas-build-url:
+    description: Shareable EAS link for the verified development APK
+    required: true
   web-preview-url:
     description: Vercel preview URL of the web app
     required: true
@@ -73,6 +76,7 @@ runs:
 
         ### 📱 APK (PR)
         - __APK_NAME__ — allegato a questa release
+        - **Build EAS:** __EAS_BUILD__
 
         ### 🌐 Preview Vercel
         - **Web:** __WEB__
@@ -86,6 +90,7 @@ runs:
           -e "s|__PR__|${{ inputs.pr-number }}|g" \
           -e "s|__PR_TITLE__|${{ inputs.pr-title }}|g" \
           -e "s|__APK_NAME__|${{ inputs.apk-name }}|g" \
+          -e "s|__EAS_BUILD__|${{ inputs.eas-build-url }}|g" \
           -e "s|__WEB__|${{ inputs.web-preview-url }}|g" \
           -e "s|__API__|${{ inputs.api-preview-url }}|g" \
           /tmp/release-body.md

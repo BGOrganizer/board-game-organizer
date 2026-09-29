@@ -112,6 +112,25 @@ test("published APK still targets production, not isolated Preview", () => {
   assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
 });
 
+test("main uploads the gated production APK to EAS before publishing GitHub and Telegram links", () => {
+  const steps = jobs["publish-release"].steps;
+  const upload = steps.find((item) => item.id === "eas");
+  const publish = steps.find((item) => item.id === "publish");
+  assert.ok(
+    steps.indexOf(upload) > steps.indexOf(step("publish-release", "📥 Download internal APK")),
+  );
+  assert.ok(steps.indexOf(publish) > steps.indexOf(upload));
+  assert.equal(upload.env.EXPO_TOKEN, `\${{ secrets.EXPO_TOKEN }}`);
+  assert.match(upload.run, /find .*apk.*\.apk/);
+  assert.match(upload.run, /eas upload --platform android --build-path .* --json/);
+  assert.equal(jobs["publish-release"].outputs.eas_build_url, `\${{ steps.eas.outputs.url }}`);
+  const links = step("publish-release", "🔗 Append production links to the release body");
+  assert.equal(links.env.EAS_BUILD_URL, `\${{ steps.eas.outputs.url }}`);
+  assert.match(links.run, /Build EAS:.*EAS_BUILD_URL/);
+  assert.match(step("notify-telegram", "🔗 Compose Telegram links").run, /eas_build_url/);
+  assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
+});
+
 test("PR builds isolated and development APKs concurrently, publishing only after E2E cleanup", () => {
   const prStep = (job, name) => prJobs[job].steps.find((item) => item.name === name);
   assert.equal(

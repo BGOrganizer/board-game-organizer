@@ -830,6 +830,17 @@ jobs:
           echo "apk-name=$(basename "$APK" -internal.apk)-development.apk" >> "$GITHUB_OUTPUT"
           echo "apk-path=$APK" >> "$GITHUB_OUTPUT"
 
+      - name: ☁️ Upload verified development APK to EAS
+        id: eas
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APK_PATH: ${{ steps.meta.outputs.apk-path }}
+        run: |
+          npm install -g eas-cli@latest
+          URL=$(eas upload --platform android --build-path "$GITHUB_WORKSPACE/$APK_PATH" --json | jq -er '.url')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
       - name: 📦 Publish/update draft prerelease
         id: draft
         uses: ./.github/actions/publish-draft-release
@@ -842,13 +853,15 @@ jobs:
           head-sha: ${{ github.event.pull_request.head.sha }}
           apk-path: ${{ steps.meta.outputs.apk-path }}
           apk-name: ${{ steps.meta.outputs.apk-name }}
+          eas-build-url: ${{ steps.eas.outputs.url }}
           web-preview-url: ${{ needs.deploy-preview-web.outputs.url }}
           api-preview-url: ${{ needs.deploy-development-api.outputs.url }}
 
       - name: 🔗 Compose Telegram links
         run: |
           cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="${{ steps.draft.outputs.apk_url }}">APK (PR)</a>
+          📱 <a href="${{ steps.draft.outputs.apk_url }}">APK (PR, GitHub)</a>
+          ☁️ <a href="${{ steps.eas.outputs.url }}">Build (EAS preview)</a>
           🌐 <a href="${{ needs.deploy-preview-web.outputs.url }}">Web (preview)</a>
           🔌 <a href="${{ needs.deploy-development-api.outputs.url }}">API (development preview)</a>
           EOF

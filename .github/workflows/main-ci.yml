@@ -586,6 +586,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_url: ${{ steps.publish.outputs.release_url }}
+      eas_build_url: ${{ steps.eas.outputs.url }}
     steps:
       - name: 📥 Checkout pinned release commit (full history)
         uses: actions/checkout@v4
@@ -595,6 +596,24 @@ jobs:
 
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
+
+      - name: 📥 Download internal APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-internal-main
+          path: apk
+
+      - name: ☁️ Upload verified production APK to EAS
+        id: eas
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          APK=$(find "$GITHUB_WORKSPACE/apk" -name '*.apk' -print -quit)
+          test -n "$APK"
+          npm install -g eas-cli@latest
+          URL=$(eas upload --platform android --build-path "$APK" --json | jq -er '.url')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
 
       - name: 📦 Create the GitHub release (changelog from the bump commit)
         id: publish
@@ -613,12 +632,6 @@ jobs:
           echo "release_url=$(jq -r .html_url /tmp/release.json)" >> "$GITHUB_OUTPUT"
           echo "release created: $(jq -r .html_url /tmp/release.json)"
 
-      - name: 📥 Download internal APK
-        uses: actions/download-artifact@v4
-        with:
-          name: apk-internal-main
-          path: apk
-
       - name: 📎 Attach APK with clean name
         env:
           GH_TOKEN: ${{ github.token }}
@@ -636,11 +649,12 @@ jobs:
       - name: 🔗 Append production links to the release body
         env:
           GH_TOKEN: ${{ github.token }}
+          EAS_BUILD_URL: ${{ steps.eas.outputs.url }}
         run: |
           REL_ID=$(jq -r .id /tmp/release.json)
           BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" | jq -r .body)
-          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release' "$BODY")
+          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release\n- **Build EAS:** %s' "$BODY" "$EAS_BUILD_URL")
           PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
           curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -698,7 +712,8 @@ jobs:
           RELEASE_URL: ${{ needs.publish-release.outputs.release_url }}
         run: |
           cat > /tmp/telegram-links.html <<EOF
-          📱 <a href="$RELEASE_URL">APK (internal)</a>
+          📱 <a href="$RELEASE_URL">APK (GitHub)</a>
+          ☁️ <a href="${{ needs.publish-release.outputs.eas_build_url }}">Build (EAS production)</a>
           🌐 <a href="https://board-game-organizer.com">Web (produzione)</a>
           🔌 <a href="https://api.board-game-organizer.com">API (produzione)</a>
           EOF
