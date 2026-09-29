@@ -111,7 +111,9 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   await page.getByRole("button", { name: "Sync with BoardGameGeek" }).click();
   await page.getByRole("textbox", { name: "BGG username" }).fill("unknown");
   await page.getByRole("button", { name: "Sync", exact: true }).click();
-  await expect(page.getByRole("alert")).toHaveText("BGG user not found");
+  await expect(
+    page.getByRole("dialog", { name: "Sync with BoardGameGeek" }).getByRole("alert"),
+  ).toHaveText("BGG user not found");
   await page.getByRole("textbox", { name: "BGG username" }).fill("alice");
   await page.getByRole("button", { name: "Sync", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Sync with BoardGameGeek" })).not.toBeVisible();
