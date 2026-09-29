@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /** Completes required post-signup step, or returns when another suite already completed it. */
 export async function completeMobileNumberIfNeeded(page: Page) {
@@ -13,6 +13,11 @@ export async function completeMobileNumberIfNeeded(page: Page) {
   ]);
 
   if (destination === "mobile-number") {
+    const prefix = page.getByRole("button", { name: /Country calling code/ });
+    await prefix.click();
+    await page.getByRole("searchbox", { name: "Search countries by name or code" }).fill("IT");
+    await page.getByRole("option", { name: /Italy/ }).click();
+    await expect(prefix).toContainText("+39");
     await input.fill("not a formatted phone");
     await page.getByRole("button", { name: "Continue" }).click();
     await page.waitForURL("**/matches", { timeout: 60_000 });

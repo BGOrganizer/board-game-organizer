@@ -260,7 +260,9 @@ msgstr "Pulisci"
 msgid "Clear board game selection"
 msgstr "Deseleziona gioco"
 
+#: apps/web/src/app/mobile-number/page.tsx
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/ListSearchFilters.tsx
 msgid "Clear search"
 msgstr "Pulisci ricerca"
@@ -596,6 +598,10 @@ msgstr "Impossibile aggiornare la partita"
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
 #~ msgstr "Counter (Zustand)"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Country calling code"
+msgstr "Prefisso internazionale"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Create a match"
@@ -1201,6 +1207,10 @@ msgstr "Nessuna connessione"
 #~ msgid "No contacts to invite"
 #~ msgstr "Nessun contatto da invitare"
 
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "No countries found"
+msgstr "Nessun paese trovato"
+
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No followers yet"
 #~ msgstr "Nessun follower"
@@ -1217,6 +1227,7 @@ msgstr "Nessuna connessione"
 #~ msgid "No friends yet"
 #~ msgstr "Nessun amico"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "No games found"
 msgstr "Nessun gioco trovato"
@@ -1398,8 +1409,8 @@ msgid "Player removed from match"
 msgstr "Giocatore rimosso dalla partita"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
-msgid "Player scores"
-msgstr "Punteggi giocatori"
+#~ msgid "Player scores"
+#~ msgstr "Punteggi giocatori"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
@@ -1590,13 +1601,19 @@ msgstr "Punteggio"
 msgid "Search"
 msgstr "Ricerca"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Search board games"
 msgstr "Cerca giochi da tavolo"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Search board games (at least 4 characters)"
 msgstr "Cerca giochi da tavolo (almeno 4 caratteri)"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Search countries by name or code"
+msgstr "Cerca paesi per nome o prefisso"
 
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Search failed"

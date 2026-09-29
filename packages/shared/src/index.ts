@@ -15,4 +15,5 @@ export * from "./matchCard";
 export * from "./matchContactState";
 export * from "./matchResults";
 export * from "./mutationFeedback";
+export * from "./phoneCountries";
 export * from "./types";

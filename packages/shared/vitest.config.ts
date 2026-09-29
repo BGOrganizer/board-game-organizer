@@ -12,6 +12,7 @@ export default defineConfig({
         "src/matchCard.ts",
         "src/matchContactState.ts",
         "src/matchResults.ts",
+        "src/phoneCountries.ts",
       ],
       thresholds: {
         lines: 50,
@@ -43,6 +44,12 @@ export default defineConfig({
           statements: 100,
         },
         "src/matchResults.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/phoneCountries.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

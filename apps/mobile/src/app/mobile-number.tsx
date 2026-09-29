@@ -1,11 +1,23 @@
 import { getMobileNumber, MOBILE_NUMBER_METADATA_KEY } from "@board-game-organizer/schemas";
+import {
+  defaultPhoneCountry,
+  filterPhoneCountries,
+  fullMobileNumber,
+  type PhoneCountryCode,
+  phoneCountries,
+} from "@board-game-organizer/shared";
 import { useUser } from "@clerk/expo";
+import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import { useLingui } from "@lingui/react";
+import * as Localization from "expo-localization";
 import { Redirect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
+import { SearchField } from "heroui-native/search-field";
+import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { useT } from "@/lib/i18n";
@@ -14,7 +26,20 @@ export default function MobileNumberScreen() {
   const { isLoaded, user } = useUser();
   const router = useRouter();
   const t = useT();
+  const { i18n } = useLingui();
   const [mobileNumber, setMobileNumber] = useState("");
+  const [country, setCountry] = useState<PhoneCountryCode>(() =>
+    defaultPhoneCountry(Localization.getLocales()[0]?.regionCode),
+  );
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const countries = useMemo(() => phoneCountries(i18n.locale), [i18n.locale]);
+  const selected = countries.find((item) => item.code === country);
+  const options = filterPhoneCountries(countries, debouncedSearch);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string>();
   const savedMobileNumber = getMobileNumber(user?.unsafeMetadata);
@@ -37,8 +62,8 @@ export default function MobileNumberScreen() {
   const currentUser = user;
 
   async function saveMobileNumber() {
-    const value = mobileNumber.trim();
-    if (!value) return;
+    if (!mobileNumber.trim()) return;
+    const value = fullMobileNumber(country, mobileNumber);
 
     setIsSaving(true);
     setError(undefined);
@@ -67,14 +92,85 @@ export default function MobileNumberScreen() {
       </Typography>
       <View style={{ gap: 8 }}>
         <Typography style={{ fontWeight: "600" }}>{t("Mobile number")}</Typography>
-        <Input
-          accessibilityLabel={t("Mobile number")}
-          autoComplete="tel"
-          keyboardType="phone-pad"
-          onChangeText={setMobileNumber}
-          testID="mobile-number-input"
-          value={mobileNumber}
-        />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Select
+            style={{ width: 124 }}
+            value={
+              selected
+                ? { value: selected.code, label: `${selected.name} ${selected.callingCode}` }
+                : undefined
+            }
+            onValueChange={(value) => {
+              if (value) setCountry(value.value as PhoneCountryCode);
+            }}
+            onOpenChange={(open) => {
+              if (!open) {
+                setSearch("");
+                setDebouncedSearch("");
+              }
+            }}
+          >
+            <Select.Trigger
+              accessibilityLabel={`${t("Country calling code")}: ${selected?.name ?? country} ${selected?.callingCode ?? ""}`}
+              testID="country-calling-code-select"
+              style={{ width: 124, flexDirection: "row", alignItems: "center", gap: 4 }}
+            >
+              <Typography className="text-foreground">{selected?.flag}</Typography>
+              <Typography className="flex-1 text-foreground">{selected?.callingCode}</Typography>
+              <Select.TriggerIndicator />
+            </Select.Trigger>
+            <Select.Portal>
+              <Select.Overlay />
+              <Select.Content
+                presentation="bottom-sheet"
+                snapPoints={["70%"]}
+                enableDynamicSizing={false}
+                keyboardBehavior="extend"
+              >
+                <SearchField value={search} onChange={setSearch}>
+                  <SearchField.Group>
+                    <SearchField.SearchIcon />
+                    <SearchField.Input
+                      accessibilityLabel={t("Search countries by name or code")}
+                      placeholder={t("Search countries by name or code")}
+                    />
+                    <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
+                  </SearchField.Group>
+                </SearchField>
+                <BottomSheetFlatList
+                  data={options}
+                  keyExtractor={(item) => item.code}
+                  keyboardShouldPersistTaps="handled"
+                  style={{ flex: 1 }}
+                  ListEmptyComponent={
+                    <Typography className="p-3 text-muted">{t("No countries found")}</Typography>
+                  }
+                  renderItem={({ item }) => (
+                    <Select.Item value={item.code} label={`${item.name} ${item.callingCode}`}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                        <Typography className="text-foreground">{item.flag}</Typography>
+                        <Typography className="flex-1 text-foreground" numberOfLines={1}>
+                          {item.name}
+                        </Typography>
+                        <Typography className="text-muted">{item.callingCode}</Typography>
+                      </View>
+                      <Select.ItemIndicator />
+                    </Select.Item>
+                  )}
+                />
+              </Select.Content>
+            </Select.Portal>
+          </Select>
+          <Input
+            accessibilityLabel={t("Mobile number")}
+            autoComplete="tel-national"
+            keyboardType="phone-pad"
+            onChangeText={setMobileNumber}
+            testID="mobile-number-input"
+            value={mobileNumber}
+            style={{ flex: 1 }}
+          />
+        </View>
       </View>
       {error ? (
         <Typography accessibilityRole="alert" className="text-danger">

@@ -23,6 +23,15 @@ appId: com.bgo.mobile
       visible: "Mobile number"
     commands:
       - tapOn:
+          id: "country-calling-code-select"
+      - tapOn: "Search countries by name or code"
+      - inputText: "zzzz"
+      - assertVisible: "No countries found"
+      - tapOn: "Clear search"
+      - inputText: "IT"
+      - tapOn: "Italy"
+      - assertVisible: "+39"
+      - tapOn:
           id: "mobile-number-input"
       - inputText: "not a formatted phone"
       - tapOn: "Continue"

@@ -1,17 +1,43 @@
 "use client";
 
 import { getMobileNumber, MOBILE_NUMBER_METADATA_KEY } from "@board-game-organizer/schemas";
+import {
+  defaultPhoneCountry,
+  filterPhoneCountries,
+  fullMobileNumber,
+  type PhoneCountryCode,
+  phoneCountries,
+} from "@board-game-organizer/shared";
 import { useUser } from "@clerk/nextjs";
-import { Button, Card } from "@heroui/react";
+import { Button, Card, Input, Label, ListBox, SearchField, Select, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 export default function MobileNumberPage() {
   const { isLoaded, user } = useUser();
   const router = useRouter();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [mobileNumber, setMobileNumber] = useState("");
+  const [country, setCountry] = useState<PhoneCountryCode>("US");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const countries = useMemo(() => phoneCountries(i18n.locale), [i18n.locale]);
+  const selected = countries.find((item) => item.code === country);
+  const options = filterPhoneCountries(countries, debouncedSearch);
+  useEffect(() => {
+    const locale = navigator.language;
+    setCountry(
+      defaultPhoneCountry(
+        locale.match(/[-_]([a-z]{2})(?:[-_]|$)/i)?.[1] ??
+          (locale.startsWith("it") ? "IT" : undefined),
+      ),
+    );
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string>();
   const savedMobileNumber = getMobileNumber(user?.unsafeMetadata);
@@ -22,8 +48,8 @@ export default function MobileNumberPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const value = mobileNumber.trim();
-    if (!user || !value) return;
+    if (!user || !mobileNumber.trim()) return;
+    const value = fullMobileNumber(country, mobileNumber);
 
     setIsSaving(true);
     setError(undefined);
@@ -54,20 +80,73 @@ export default function MobileNumberPage() {
         <h1 className="text-2xl font-bold">{t`Complete your profile`}</h1>
         <p className="mt-2 text-default-500">{t`Add your mobile number to continue.`}</p>
         <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
-          <label className="flex flex-col gap-2 font-medium" htmlFor="mobile-number">
-            {t`Mobile number`}
-            <input
-              autoComplete="tel"
-              className="w-full min-w-0 rounded-xl border border-default-300 bg-background px-3 py-2 font-normal outline-none focus:border-primary"
-              id="mobile-number"
-              inputMode="tel"
+          <div className="flex items-end gap-2">
+            <Select
+              className="w-28 shrink-0"
+              value={country}
+              onChange={(value) => {
+                if (value) setCountry(value as PhoneCountryCode);
+              }}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setSearch("");
+                  setDebouncedSearch("");
+                }
+              }}
+            >
+              <Label className="sr-only">{t`Country calling code`}</Label>
+              <Select.Trigger className="w-full">
+                <Select.Value className="sr-only">
+                  {selected ? `${selected.name} ${selected.callingCode}` : country}
+                </Select.Value>
+                <span aria-hidden="true">
+                  {selected?.flag} {selected?.callingCode}
+                </span>
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover className="w-72">
+                <SearchField fullWidth value={search} onChange={setSearch}>
+                  <Label className="sr-only">{t`Search countries by name or code`}</Label>
+                  <SearchField.Group>
+                    <SearchField.SearchIcon />
+                    <SearchField.Input placeholder={t`Search countries by name or code`} />
+                    <SearchField.ClearButton aria-label={t`Clear search`} />
+                  </SearchField.Group>
+                </SearchField>
+                <ListBox
+                  className="max-h-72 overflow-y-auto"
+                  renderEmptyState={() => (
+                    <p className="p-3 text-sm text-default-500">{t`No countries found`}</p>
+                  )}
+                >
+                  {options.map((item) => (
+                    <ListBox.Item
+                      key={item.code}
+                      id={item.code}
+                      textValue={`${item.name} ${item.callingCode}`}
+                    >
+                      <span className="flex w-full items-center gap-2">
+                        <span aria-hidden="true">{item.flag}</span>
+                        <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                        <span className="text-default-500">{item.callingCode}</span>
+                      </span>
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+            <TextField
+              fullWidth
               name="mobileNumber"
-              onChange={(event) => setMobileNumber(event.target.value)}
-              required
-              type="tel"
               value={mobileNumber}
-            />
-          </label>
+              onChange={setMobileNumber}
+              isRequired
+            >
+              <Label>{t`Mobile number`}</Label>
+              <Input type="tel" inputMode="tel" autoComplete="tel-national" />
+            </TextField>
+          </div>
           {error ? (
             <p className="text-danger" role="alert">
               {error}

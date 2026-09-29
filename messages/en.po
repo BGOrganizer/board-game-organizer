@@ -260,7 +260,9 @@ msgstr "Clear"
 msgid "Clear board game selection"
 msgstr "Clear board game selection"
 
+#: apps/web/src/app/mobile-number/page.tsx
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/ListSearchFilters.tsx
 msgid "Clear search"
 msgstr "Clear search"
@@ -596,6 +598,10 @@ msgstr "Could not update the match"
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
 #~ msgstr "Counter (Zustand)"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Country calling code"
+msgstr "Country calling code"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Create a match"
@@ -1201,6 +1207,10 @@ msgstr "No connections yet"
 #~ msgid "No contacts to invite"
 #~ msgstr "No contacts to invite"
 
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "No countries found"
+msgstr "No countries found"
+
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No followers yet"
 #~ msgstr "No followers yet"
@@ -1217,6 +1227,7 @@ msgstr "No connections yet"
 #~ msgid "No friends yet"
 #~ msgstr "No friends yet"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "No games found"
 msgstr "No games found"
@@ -1398,8 +1409,8 @@ msgid "Player removed from match"
 msgstr "Player removed from match"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
-msgid "Player scores"
-msgstr "Player scores"
+#~ msgid "Player scores"
+#~ msgstr "Player scores"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
@@ -1590,13 +1601,19 @@ msgstr "Score"
 msgid "Search"
 msgstr "Search"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Search board games"
 msgstr "Search board games"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Search board games (at least 4 characters)"
 msgstr "Search board games (at least 4 characters)"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Search countries by name or code"
+msgstr "Search countries by name or code"
 
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Search failed"

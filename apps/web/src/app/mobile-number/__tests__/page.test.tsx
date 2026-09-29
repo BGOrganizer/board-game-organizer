@@ -59,10 +59,30 @@ describe("MobileNumberPage", () => {
 
     await waitFor(() =>
       expect(mocks.update).toHaveBeenCalledWith({
-        unsafeMetadata: { existing: true, mobileNumber: "not a formatted phone" },
+        unsafeMetadata: { existing: true, mobileNumber: "+1 not a formatted phone" },
       }),
     );
     expect(mocks.replace).toHaveBeenCalledWith("/matches");
+  });
+
+  it("selects a country by name and stores its prefix with the national number", async () => {
+    renderWithI18n(<MobileNumberPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Country calling code/ }));
+    const search = screen.getByRole("searchbox", { name: "Search countries by name or code" });
+    fireEvent.change(search, { target: { value: "zzzz" } });
+    expect(await screen.findByText("No countries found")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    fireEvent.change(search, { target: { value: "ital" } });
+    const italy = await screen.findByRole("option", { name: /Italy/ });
+    expect(italy.textContent).toContain("+39");
+    fireEvent.click(italy);
+    fireEvent.change(screen.getByLabelText("Mobile number"), { target: { value: "333 1234567" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith({
+        unsafeMetadata: { existing: true, mobileNumber: "+39 333 1234567" },
+      }),
+    );
   });
 
   it("reports non-error Clerk update failures", async () => {
