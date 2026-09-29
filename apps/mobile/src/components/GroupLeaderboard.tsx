@@ -86,7 +86,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           </Select.Trigger>
           <Select.Portal>
             <Select.Overlay />
-            <Select.Content presentation="popover">
+            <Select.Content presentation="popover" width="trigger">
               {choices.map((game) => (
                 <Select.Item key={game.id} value={String(game.id)} label={game.name}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
