@@ -7,6 +7,10 @@ const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
 
 async function chooseGame(page: import("@playwright/test").Page, name: string) {
   await page.getByRole("button", { name: /Board game/ }).click();
+  if (name === "Cascadia") {
+    await page.getByRole("searchbox", { name: "Search board games" }).fill("casc");
+    await expect(page.getByRole("option", { name: "Azul" })).toHaveCount(0);
+  }
   const option = page.getByRole("option", { name });
   await expect(option.getByText(name, { exact: true })).toBeVisible();
   await option.click();

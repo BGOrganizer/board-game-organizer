@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { GroupLeaderboard } from "@/components/GroupLeaderboard";
 import { renderWithI18n } from "@/test-utils";
@@ -95,6 +95,19 @@ it("filters by selected game and identifies provisional former members", async (
   expect(screen.getByText("Former group member")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Provisional rating" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+  const search = screen.getByRole("searchbox", { name: "Search board games" });
+  fireEvent.change(search, { target: { value: "cas" } });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  });
+  expect(screen.getByRole("option", { name: "Azul" })).toBeTruthy();
+  fireEvent.change(search, { target: { value: "casc" } });
+  await waitFor(() => expect(screen.queryByRole("option", { name: "Azul" })).toBeNull());
+  expect(screen.getByRole("option", { name: "Cascadia" })).toBeTruthy();
+  fireEvent.change(search, { target: { value: "xxxx" } });
+  await screen.findByText("No games found");
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+  expect(await screen.findByRole("option", { name: "Azul" })).toBeTruthy();
   fireEvent.click(await screen.findByRole("option", { name: "Cascadia" }));
   expect(picker).toHaveBeenLastCalledWith(expect.objectContaining({ gameId: 2 }));
   fireEvent.click(screen.getByRole("button", { name: "Clear board game selection" }));

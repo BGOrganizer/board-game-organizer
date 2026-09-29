@@ -4,11 +4,12 @@ import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
+import { SearchField } from "heroui-native/search-field";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Clock3, Gamepad2, X } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FlatList, Image, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -36,6 +37,12 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
     maximumFractionDigits: 2,
   });
   const [gameId, setGameId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const { games, players } = useGroupLeaderboard({
     apiUrl: resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined),
     getToken,
@@ -44,6 +51,14 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
     gameId,
   });
   const choices = games.data?.games ?? [];
+  const filteredChoices =
+    debouncedSearch.length >= 4
+      ? choices.filter((game) =>
+          game.name
+            .toLocaleLowerCase(i18n.locale)
+            .includes(debouncedSearch.toLocaleLowerCase(i18n.locale)),
+        )
+      : choices;
   const selected = choices.find((game) => game.id === gameId);
   const rows = players.data?.pages.flatMap((page) => page.players) ?? [];
   const retry = () => void (games.isError ? games.refetch() : players.refetch());
@@ -69,6 +84,12 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           style={{ width: "100%" }}
           value={selected ? { value: String(selected.id), label: selected.name } : undefined}
           onValueChange={(value) => setGameId(value ? Number(value.value) : null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSearch("");
+              setDebouncedSearch("");
+            }
+          }}
         >
           <Select.Trigger
             accessibilityLabel={selected ? `${t("Board game")}: ${selected.name}` : t("Board game")}
@@ -87,7 +108,17 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           <Select.Portal>
             <Select.Overlay />
             <Select.Content presentation="popover" width="trigger">
-              {choices.map((game) => (
+              <SearchField value={search} onChange={setSearch}>
+                <SearchField.Group>
+                  <SearchField.SearchIcon />
+                  <SearchField.Input
+                    accessibilityLabel={t("Search board games")}
+                    placeholder={t("Search board games (at least 4 characters)")}
+                  />
+                  <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
+                </SearchField.Group>
+              </SearchField>
+              {filteredChoices.map((game) => (
                 <Select.Item key={game.id} value={String(game.id)} label={game.name}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
                     <GameCover imageUrl={game.imageUrl} />
@@ -98,6 +129,9 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                   <Select.ItemIndicator />
                 </Select.Item>
               ))}
+              {!filteredChoices.length ? (
+                <Typography className="p-3 text-muted">{t("No games found")}</Typography>
+              ) : null}
             </Select.Content>
           </Select.Portal>
         </Select>

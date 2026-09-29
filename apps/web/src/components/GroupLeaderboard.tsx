@@ -2,7 +2,16 @@
 
 import { resolveApiUrl, useGroupLeaderboard } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Label, ListBox, Select, Skeleton, Table } from "@heroui/react";
+import {
+  Avatar,
+  Button,
+  Label,
+  ListBox,
+  SearchField,
+  Select,
+  Skeleton,
+  Table,
+} from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Clock3, Gamepad2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -22,6 +31,12 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
   const { getToken, userId } = useAuth();
   const { t, i18n } = useLingui();
   const [gameId, setGameId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const endRef = useRef<HTMLDivElement>(null);
   const { games, players } = useGroupLeaderboard({
     apiUrl,
@@ -33,6 +48,14 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
   });
   const rows = players.data?.pages.flatMap((page) => page.players) ?? [];
   const selectedGame = games.data?.games.find((game) => game.id === gameId);
+  const filteredGames =
+    debouncedSearch.length >= 4
+      ? games.data?.games.filter((game) =>
+          game.name
+            .toLocaleLowerCase(i18n.locale)
+            .includes(debouncedSearch.toLocaleLowerCase(i18n.locale)),
+        )
+      : games.data?.games;
   const number = new Intl.NumberFormat(i18n.locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -75,6 +98,12 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           placeholder={t`Select a board game`}
           value={gameId === null ? null : String(gameId)}
           onChange={(value) => setGameId(value === null ? null : Number(value))}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSearch("");
+              setDebouncedSearch("");
+            }
+          }}
         >
           <Label>{t`Board game`}</Label>
           <Select.Trigger className={selectedGame ? "w-full items-center gap-2 pe-10" : "w-full"}>
@@ -90,8 +119,20 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             {!selectedGame ? <Select.Indicator /> : null}
           </Select.Trigger>
           <Select.Popover>
-            <ListBox>
-              {games.data.games.map((game) => (
+            <SearchField fullWidth value={search} onChange={setSearch}>
+              <Label className="sr-only">{t`Search board games`}</Label>
+              <SearchField.Group>
+                <SearchField.SearchIcon />
+                <SearchField.Input placeholder={t`Search board games (at least 4 characters)`} />
+                <SearchField.ClearButton aria-label={t`Clear search`} />
+              </SearchField.Group>
+            </SearchField>
+            <ListBox
+              renderEmptyState={() => (
+                <p className="p-3 text-sm text-default-500">{t`No games found`}</p>
+              )}
+            >
+              {filteredGames?.map((game) => (
                 <ListBox.Item key={game.id} id={String(game.id)} textValue={game.name}>
                   <span className="flex items-center gap-2">
                     <GameCover imageUrl={game.imageUrl} />
