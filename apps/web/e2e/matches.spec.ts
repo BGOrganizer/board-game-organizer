@@ -192,8 +192,12 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(confirmDialog).toHaveCount(0);
   await page.getByRole("button", { name: "Register results" }).click();
   await expect(page.getByRole("region", { name: "Live standings" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Player scores" })).toHaveCount(0);
   await page.getByRole("button", { name: "Score: Admin" }).click();
-  await page.getByRole("textbox", { name: "Score: Admin" }).fill("-1,5");
+  const adminScore = page.getByRole("textbox", { name: "Score: Admin" });
+  await adminScore.focus();
+  await expect(adminScore).toHaveValue("");
+  await adminScore.fill("-1,5");
   await page.getByRole("dialog", { name: "Admin" }).getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Score: Guest" }).click();
   await page.getByRole("textbox", { name: "Score: Guest" }).fill("-1,5");

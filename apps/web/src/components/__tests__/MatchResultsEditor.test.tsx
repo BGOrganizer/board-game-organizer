@@ -55,13 +55,12 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
     <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={submit} />,
   );
   const standings = screen.getByRole("region", { name: "Live standings" });
-  const scores = screen.getByRole("region", { name: "Player scores" });
-  expect(standings.compareDocumentPosition(scores) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.queryByRole("region", { name: "Player scores" })).toBeNull();
   expect(within(standings).getAllByText("0")).toHaveLength(3);
   expect(screen.getAllByRole("button", { name: /Score:/ })).toHaveLength(3);
-  expect(within(scores).getByText("admin@example.com")).toBeTruthy();
-  expect(within(scores).getByText("Anna Rossi")).toBeTruthy();
-  expect(within(scores).getAllByText(/@example.com/)).toHaveLength(3);
+  expect(within(standings).getByText("admin@example.com")).toBeTruthy();
+  expect(within(standings).getByText("Anna Rossi")).toBeTruthy();
+  expect(within(standings).getAllByText(/@example.com/)).toHaveLength(3);
   expect(screen.queryByRole("textbox", { name: /Score:/ })).toBeNull();
   expect(
     (screen.getByRole("button", { name: "Register match" }) as HTMLButtonElement).disabled,
@@ -120,6 +119,38 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
   });
 });
 
+it("clears zero on focus and restores zero for invalid scores on blur", () => {
+  renderWithI18n(
+    <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={vi.fn()} />,
+  );
+  openScore("Marco Verdi");
+  const input = screen.getByRole("textbox", { name: "Score: Marco Verdi" }) as HTMLInputElement;
+  expect(input.value).toBe("0");
+  fireEvent.focus(input);
+  expect(input.value).toBe("");
+  fireEvent.change(input, { target: { value: "12.5" } });
+  fireEvent.blur(input);
+  expect(input.value).toBe("12.5");
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(
+    within(screen.getByRole("region", { name: "Live standings" })).getByText("12.5"),
+  ).toBeTruthy();
+  openScore("Marco Verdi");
+  const reopenedInput = screen.getByRole("textbox", {
+    name: "Score: Marco Verdi",
+  }) as HTMLInputElement;
+  fireEvent.focus(reopenedInput);
+  expect(reopenedInput.value).toBe("12.5");
+  fireEvent.change(reopenedInput, { target: { value: "abc" } });
+  expect(screen.getByRole("alert").textContent).toBe("Enter a valid score");
+  fireEvent.blur(reopenedInput);
+  expect(reopenedInput.value).toBe("0");
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(
+    within(screen.getByRole("region", { name: "Live standings" })).getAllByText("0"),
+  ).toHaveLength(3);
+});
+
 it("can edit or remove an applied tie-break without changing scores", () => {
   renderWithI18n(
     <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={vi.fn()} />,
@@ -148,7 +179,7 @@ it("keeps at least one participant and validates scores inside the popover", () 
     <MatchResultsEditor data={missingEmailData} busy={false} onBack={vi.fn()} onSubmit={vi.fn()} />,
   );
   expect(
-    within(screen.getByRole("region", { name: "Player scores" })).getByText("Email unavailable"),
+    within(screen.getByRole("region", { name: "Live standings" })).getByText("Email unavailable"),
   ).toBeTruthy();
   for (const name of ["Marco Verdi", "Anna Rossi", "Luca Bianchi"]) {
     openScore(name);

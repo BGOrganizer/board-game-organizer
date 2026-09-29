@@ -8,7 +8,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Popover } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowDown, ArrowLeft, ArrowUp, Check, ListOrdered, Trophy, Undo2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ListOrdered, Pencil, Undo2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { ContactConfirmDialog } from "./ContactConfirmDialog";
@@ -46,6 +46,7 @@ export function MatchResultsEditor({
     RegisterMatchResultsInput["tieBreaks"][number] | null
   >(null);
   const [scoreEditor, setScoreEditor] = useState<string | null>(null);
+  const [scoreDraft, setScoreDraft] = useState({ rawScore: "0", notParticipated: false });
   const [confirm, setConfirm] = useState(false);
   const preview = useMemo(
     () =>
@@ -76,8 +77,107 @@ export function MatchResultsEditor({
     animate(() => setEditingTie({ ...editingTie, orderedUserIds: order }));
   };
   const submit = () => {
-    if (!preview.valid || busy || editingTie) return;
+    if (!preview.valid || busy || editingTie || scoreEditor) return;
     onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks });
+  };
+  const closeScore = (id: string) => {
+    setScoreEditor(null);
+    const rawScore = normalizeMatchScore(scoreDraft.rawScore) === null ? "0" : scoreDraft.rawScore;
+    const previous = rows.find((row) => row.userId === id);
+    if (
+      previous &&
+      (previous.rawScore !== rawScore || previous.notParticipated !== scoreDraft.notParticipated)
+    )
+      updateRow(id, { rawScore, notParticipated: scoreDraft.notParticipated });
+  };
+  const scoreButton = (player: MatchDetailResponse["administrator"]) => {
+    const row = rows.find((item) => item.userId === player.id);
+    if (!row) return null;
+    return (
+      <Popover
+        isOpen={scoreEditor === player.id}
+        onOpenChange={(open) => {
+          if (open) {
+            setScoreDraft({ rawScore: row.rawScore, notParticipated: row.notParticipated });
+            setScoreEditor(player.id);
+          } else if (scoreEditor === player.id) closeScore(player.id);
+        }}
+      >
+        <Button
+          size="sm"
+          isIconOnly
+          variant="primary"
+          isDisabled={busy}
+          aria-label={`${t`Score`}: ${player.name}`}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Popover.Content placement="bottom end" className="w-64">
+          <Popover.Dialog className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <Popover.Heading>{player.name}</Popover.Heading>
+              <Button
+                size="sm"
+                isIconOnly
+                variant="ghost"
+                aria-label={t`Close`}
+                onPress={() => closeScore(player.id)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <label className="block text-sm">
+              <span className="mb-1 block">{t`Score`}</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                aria-label={`${t`Score`}: ${player.name}`}
+                value={scoreDraft.rawScore}
+                disabled={scoreDraft.notParticipated || busy}
+                onFocus={() => {
+                  if (scoreDraft.rawScore === "0")
+                    setScoreDraft((old) => ({ ...old, rawScore: "" }));
+                }}
+                onBlur={() => {
+                  if (normalizeMatchScore(scoreDraft.rawScore) === null)
+                    setScoreDraft((old) => ({ ...old, rawScore: "0" }));
+                }}
+                onChange={(event) =>
+                  setScoreDraft((old) => ({ ...old, rawScore: event.target.value }))
+                }
+                aria-required={!scoreDraft.notParticipated}
+                aria-invalid={
+                  !scoreDraft.notParticipated &&
+                  scoreDraft.rawScore !== "" &&
+                  normalizeMatchScore(scoreDraft.rawScore) === null
+                }
+                className="w-full rounded-lg border border-default-300 bg-background px-2 py-2 text-foreground"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                role="switch"
+                aria-checked={scoreDraft.notParticipated}
+                aria-label={`${t`Did not participate`}: ${player.name}`}
+                checked={scoreDraft.notParticipated}
+                disabled={busy}
+                onChange={(event) =>
+                  setScoreDraft((old) => ({ ...old, notParticipated: event.target.checked }))
+                }
+                className="h-5 w-5 accent-primary"
+              />
+              {t`Did not participate`}
+            </label>
+            {!scoreDraft.notParticipated &&
+              scoreDraft.rawScore !== "" &&
+              normalizeMatchScore(scoreDraft.rawScore) === null && (
+                <span role="alert" className="text-xs text-danger">{t`Enter a valid score`}</span>
+              )}
+          </Popover.Dialog>
+        </Popover.Content>
+      </Popover>
+    );
   };
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 pb-28">
@@ -183,6 +283,7 @@ export function MatchResultsEditor({
                     >
                       {player && <MatchStandingIdentity player={player} rank={entry.rank} />}
                       <span className="font-medium">{entry.score}</span>
+                      {player && scoreButton(player)}
                       {editing && (
                         <span className="flex gap-1">
                           <Button
@@ -224,6 +325,7 @@ export function MatchResultsEditor({
                   <GroupedRow key={entry.userId} className="gap-2">
                     {player && <MatchStandingIdentity player={player} />}
                     <span>ND</span>
+                    {player && scoreButton(player)}
                   </GroupedRow>
                 );
               })}
@@ -233,110 +335,24 @@ export function MatchResultsEditor({
           <p className="text-sm text-default-500">{t`Enter a score for each participant or mark them as not participating. At least one must participate.`}</p>
         )}
       </section>
-      <section aria-label={t`Player scores`} className="space-y-3">
-        <h2 className="font-semibold">{t`Player scores`}</h2>
-        <GroupedList>
-          {players.map((player) => {
-            const row = rows.find((item) => item.userId === player.id);
-            if (!row) return null;
-            return (
-              <GroupedRow key={player.id} className="gap-2">
-                <MatchStandingIdentity player={player} />
-                <Popover
-                  isOpen={scoreEditor === player.id}
-                  onOpenChange={(open) => setScoreEditor(open ? player.id : null)}
-                >
-                  <Button
-                    size="sm"
-                    isIconOnly
-                    variant="primary"
-                    isDisabled={busy}
-                    aria-label={`${t`Score`}: ${player.name}`}
-                  >
-                    <Trophy className="h-4 w-4" />
-                  </Button>
-                  <Popover.Content placement="bottom end" className="w-64">
-                    <Popover.Dialog className="space-y-3 p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <Popover.Heading>{player.name}</Popover.Heading>
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          variant="ghost"
-                          aria-label={t`Close`}
-                          onPress={() => setScoreEditor(null)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <label className="block text-sm">
-                        <span className="mb-1 block">{t`Score`}</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          aria-label={`${t`Score`}: ${player.name}`}
-                          value={row.rawScore}
-                          disabled={row.notParticipated || busy}
-                          onChange={(event) =>
-                            updateRow(player.id, { rawScore: event.target.value })
-                          }
-                          aria-required={!row.notParticipated}
-                          aria-invalid={
-                            !row.notParticipated &&
-                            row.rawScore !== "" &&
-                            normalizeMatchScore(row.rawScore) === null
-                          }
-                          className="w-full rounded-lg border border-default-300 bg-background px-2 py-2 text-foreground"
-                        />
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          role="switch"
-                          aria-checked={row.notParticipated}
-                          aria-label={`${t`Did not participate`}: ${player.name}`}
-                          checked={row.notParticipated}
-                          disabled={busy}
-                          onChange={(event) =>
-                            updateRow(player.id, { notParticipated: event.target.checked })
-                          }
-                          className="h-5 w-5 accent-primary"
-                        />
-                        {t`Did not participate`}
-                      </label>
-                      {!row.notParticipated &&
-                        row.rawScore !== "" &&
-                        normalizeMatchScore(row.rawScore) === null && (
-                          <span role="alert" className="text-xs text-danger">
-                            {t`Enter a valid score`}
-                          </span>
-                        )}
-                    </Popover.Dialog>
-                  </Popover.Content>
-                </Popover>
-              </GroupedRow>
-            );
-          })}
-        </GroupedList>
-        <label className="flex items-center gap-2 rounded-xl bg-surface p-4">
-          <input
-            type="checkbox"
-            role="switch"
-            aria-checked={lowerWins}
-            checked={lowerWins}
-            disabled={busy}
-            onChange={(event) => {
-              const checked = event.currentTarget.checked;
-              animate(() => setLowerWins(checked));
-            }}
-            className="h-5 w-5 accent-primary"
-          />
-          {t`Lowest score wins`}
-        </label>
-      </section>
+      <label className="flex items-center gap-2 rounded-xl bg-surface p-4">
+        <input
+          type="checkbox"
+          role="switch"
+          aria-checked={lowerWins}
+          checked={lowerWins}
+          disabled={busy}
+          onChange={(event) => {
+            const checked = event.currentTarget.checked;
+            animate(() => setLowerWins(checked));
+          }}
+          className="h-5 w-5 accent-primary"
+        />
+        {t`Lowest score wins`}
+      </label>
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-default-200 bg-background p-4 text-center">
         <Button
-          isDisabled={!preview.valid || busy || Boolean(editingTie)}
+          isDisabled={!preview.valid || busy || Boolean(editingTie) || Boolean(scoreEditor)}
           onPress={() => setConfirm(true)}
         >
           {t`Register match`}

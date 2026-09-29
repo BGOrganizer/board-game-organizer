@@ -15,12 +15,11 @@ import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { ArrowDown, ArrowUp, Check, ListOrdered, Trophy, Undo2, X } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Check, ListOrdered, Pencil, Undo2, X } from "lucide-react-native";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -138,8 +137,14 @@ function ScoreSheetInput({
       <Input
         value={row.rawScore}
         onChangeText={onChange}
-        onFocus={onFocus}
-        onBlur={onBlur}
+        onFocus={(event) => {
+          onFocus(event);
+          if (row.rawScore === "0") onChange("");
+        }}
+        onBlur={(event) => {
+          onBlur(event);
+          if (normalizeMatchScore(row.rawScore) === null) onChange("0");
+        }}
         accessibilityLabel={`${scoreLabel}: ${player.name}`}
         placeholder={scoreLabel}
         keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
@@ -207,6 +212,20 @@ function ResultsForm({
     setEditingTie(null);
     setRows((old) => old.map((row) => (row.userId === id ? { ...row, ...change } : row)));
   };
+  const scoreButton = (player: Player) => (
+    <Button
+      isIconOnly
+      size="sm"
+      variant="primary"
+      isDisabled={busy}
+      accessibilityLabel={`${t("Score")}: ${player.name}`}
+      testID={`edit-score-${player.id}`}
+      style={{ minHeight: 44, minWidth: 44 }}
+      onPress={() => setScorePlayerId(player.id)}
+    >
+      <Pencil size={18} color={accentForeground} />
+    </Button>
+  );
   const activePlayer = players.find((player) => player.id === scorePlayerId);
   const activeRow = rows.find((row) => row.userId === scorePlayerId);
   const move = (index: number, direction: -1 | 1) => {
@@ -360,6 +379,7 @@ function ResultsForm({
                       <Typography className="font-semibold text-foreground">
                         {entry.score}
                       </Typography>
+                      {player && scoreButton(player)}
                       {editing && (
                         <View style={{ flexDirection: "row" }}>
                           <Button
@@ -392,6 +412,22 @@ function ResultsForm({
               </Fragment>
             );
           })}
+          {rows
+            .filter((row) => !row.notParticipated && normalizeMatchScore(row.rawScore) === null)
+            .map((row) => {
+              const player = playerById.get(row.userId);
+              return (
+                <Animated.View
+                  key={row.userId}
+                  layout={rowTransition}
+                  style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 8 }}
+                >
+                  {player && <MatchStandingIdentity player={player} />}
+                  <Typography className="text-foreground">—</Typography>
+                  {player && scoreButton(player)}
+                </Animated.View>
+              );
+            })}
           {preview.ranked
             .filter((entry) => entry.score === null)
             .map((entry) => {
@@ -404,30 +440,11 @@ function ResultsForm({
                 >
                   {player && <MatchStandingIdentity player={player} />}
                   <Typography className="text-foreground">ND</Typography>
+                  {player && scoreButton(player)}
                 </Animated.View>
               );
             })}
         </ScrollView>
-        <Typography className="font-semibold text-foreground">{t("Player scores")}</Typography>
-        <GroupedList>
-          {players.map((player) => (
-            <GroupedRow key={player.id}>
-              <MatchStandingIdentity player={player} />
-              <Button
-                isIconOnly
-                size="sm"
-                variant="primary"
-                isDisabled={busy}
-                accessibilityLabel={`${t("Score")}: ${player.name}`}
-                testID={`edit-score-${player.id}`}
-                style={{ minHeight: 44, minWidth: 44 }}
-                onPress={() => setScorePlayerId(player.id)}
-              >
-                <Trophy size={18} color={accentForeground} />
-              </Button>
-            </GroupedRow>
-          ))}
-        </GroupedList>
         {!preview.valid && (
           <Typography className="text-sm text-muted">
             {t(
