@@ -36,7 +36,7 @@ test("sign-in page renders the Clerk form", async ({ page }) => {
   await page.goto("/sign-in");
   await expect(page.getByText("Sign in to Board Game Organizer")).toBeVisible();
   await expect(page.getByPlaceholder("Enter email or username")).toBeVisible();
-  await expect(page.getByRole("button", { name: /continue/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
 });
 
 test("sign-in (testing token + ticket), profile and logout", async ({ page }) => {
