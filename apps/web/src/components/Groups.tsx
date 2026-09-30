@@ -265,7 +265,7 @@ function GroupEditor({
         isDisabled={name.trim().length < 5 || groups.create.isPending || groups.update.isPending}
         onPress={save}
       >
-        {group ? <Save className="size-6" /> : <UsersRound className="size-6" />}
+        <Save className="size-6" />
       </Button>
     </main>
   );
@@ -734,7 +734,7 @@ export function Groups({
         roles={filters.roles}
         onToggle={filters.toggleRole}
         label={t`Search groups`}
-        placeholder={t`Search groups (at least 4 characters)`}
+        placeholder={t`Search groups`}
       />
       {groups.list.isPending ? (
         <div className="grid gap-3 md:grid-cols-2">
@@ -753,7 +753,9 @@ export function Groups({
             : t`No groups match your filters`}
         </EmptyList>
       ) : null}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div
+        className={`grid gap-3 md:grid-cols-2 xl:grid-cols-3 ${groups.list.data?.length ? "min-h-36" : ""}`}
+      >
         {groups.list.data?.map((item) => {
           const admin = item.adminUserId === userId;
           const invitation = item.invitations.find(

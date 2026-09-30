@@ -145,7 +145,7 @@ export default function MatchesScreen() {
             roles={filters.roles}
             onToggle={filters.toggleRole}
             label={t("Search matches")}
-            placeholder={t("Search matches (at least 4 characters)")}
+            placeholder={t("Search matches")}
           />
         }
         ListEmptyComponent={

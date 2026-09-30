@@ -4,6 +4,7 @@ import { SearchField } from "heroui-native/search-field";
 import { Typography } from "heroui-native/text";
 import { Check, Crown, Mail } from "lucide-react-native";
 import { View } from "react-native";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 
 const roleIcons = { admin: Crown, invited: Mail, accepted: Check };
@@ -27,6 +28,7 @@ export function ListSearchFilters({
   const names = { admin: t("Admin"), invited: t("Invited"), accepted: t("Accepted") };
   return (
     <View style={{ gap: 12, marginBottom: 8 }}>
+      <SearchHelpLabel label={label} help={t("Type at least 4 characters to search")} />
       <SearchField value={query} onChange={onQueryChange}>
         <SearchField.Group>
           <SearchField.SearchIcon />

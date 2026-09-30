@@ -16,6 +16,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Clock3, Dices, Gamepad2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/EmptyList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
@@ -125,10 +126,13 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           </Select.Trigger>
           <Select.Popover>
             <SearchField fullWidth value={search} onChange={setSearch}>
-              <Label className="sr-only">{t`Search board games`}</Label>
+              <SearchHelpLabel
+                label={t`Search board games`}
+                help={t`Type at least 4 characters to search`}
+              />
               <SearchField.Group>
                 <SearchField.SearchIcon />
-                <SearchField.Input placeholder={t`Search board games (at least 4 characters)`} />
+                <SearchField.Input placeholder={t`Search board games`} />
                 <SearchField.ClearButton aria-label={t`Clear search`} />
               </SearchField.Group>
             </SearchField>

@@ -104,7 +104,7 @@ export default function GroupsScreen() {
             roles={filters.roles}
             onToggle={filters.toggleRole}
             label={t("Search groups")}
-            placeholder={t("Search groups (at least 4 characters)")}
+            placeholder={t("Search groups")}
           />
         }
         ListEmptyComponent={

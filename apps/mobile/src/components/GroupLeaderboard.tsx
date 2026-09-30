@@ -12,6 +12,7 @@ import { Clock3, Dices, Gamepad2, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { FlatList, Image, View } from "react-native";
 import { EmptyList } from "@/components/EmptyList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -111,12 +112,16 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
           <Select.Portal>
             <Select.Overlay />
             <Select.Content presentation="popover" width="trigger">
+              <SearchHelpLabel
+                label={t("Search board games")}
+                help={t("Type at least 4 characters to search")}
+              />
               <SearchField value={search} onChange={setSearch}>
                 <SearchField.Group>
                   <SearchField.SearchIcon />
                   <SearchField.Input
                     accessibilityLabel={t("Search board games")}
-                    placeholder={t("Search board games (at least 4 characters)")}
+                    placeholder={t("Search board games")}
                   />
                   <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
                 </SearchField.Group>

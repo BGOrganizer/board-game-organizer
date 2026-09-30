@@ -45,6 +45,7 @@ import {
 } from "react-native";
 import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
 import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts";
 import { useT } from "@/lib/i18n";
@@ -677,7 +678,11 @@ export default function ContactsScreen() {
             ListHeaderComponent={
               <View style={{ marginBottom: 12, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <SearchHelpLabel
+                      label={t("Search users by name or email")}
+                      help={t("Type at least 4 characters to search")}
+                    />
                     <SearchField
                       value={query}
                       onChange={(value) => {
@@ -689,7 +694,7 @@ export default function ContactsScreen() {
                         <SearchField.SearchIcon />
                         <SearchField.Input
                           accessibilityLabel={t("Search users by name or email")}
-                          placeholder={t("Search users (at least 4 characters)")}
+                          placeholder={t("Search users")}
                         />
                         <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
                       </SearchField.Group>

@@ -933,6 +933,7 @@ msgstr "Increase max players"
 msgid "Increase min players"
 msgstr "Increase min players"
 
+#: apps/web/src/components/Groups.tsx
 msgid "Invitations"
 msgstr "Invitations"
 
@@ -1249,6 +1250,7 @@ msgstr "No groups match your filters"
 msgid "No groups yet"
 msgstr "No groups yet"
 
+#: apps/web/src/components/Groups.tsx
 msgid "No invitations"
 msgstr "No invitations"
 
@@ -1617,8 +1619,12 @@ msgstr "Search board games"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
-msgid "Search board games (at least 4 characters)"
-msgstr "Search board games (at least 4 characters)"
+#~ msgid "Search board games (at least 4 characters)"
+#~ msgstr "Search board games (at least 4 characters)"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Search countries"
+msgstr "Search countries"
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Search countries by name or code"
@@ -1637,16 +1643,20 @@ msgid "Search groups"
 msgstr "Search groups"
 
 #: apps/web/src/components/Groups.tsx
-msgid "Search groups (at least 4 characters)"
-msgstr "Search groups (at least 4 characters)"
+#~ msgid "Search groups (at least 4 characters)"
+#~ msgstr "Search groups (at least 4 characters)"
+
+#: apps/web/src/components/SearchHelpLabel.tsx
+msgid "Search help"
+msgstr "Search help"
 
 #: apps/web/src/components/Matches.tsx
 msgid "Search matches"
 msgstr "Search matches"
 
 #: apps/web/src/components/Matches.tsx
-msgid "Search matches (at least 4 characters)"
-msgstr "Search matches (at least 4 characters)"
+#~ msgid "Search matches (at least 4 characters)"
+#~ msgstr "Search matches (at least 4 characters)"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Search results"
@@ -1654,8 +1664,13 @@ msgstr "Search results"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx
-msgid "Search users (at least 4 characters)"
-msgstr "Search users (at least 4 characters)"
+msgid "Search users"
+msgstr "Search users"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/SearchUserPage.tsx
+#~ msgid "Search users (at least 4 characters)"
+#~ msgstr "Search users (at least 4 characters)"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx
@@ -1836,6 +1851,10 @@ msgid "Try again"
 msgstr "Try again"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
+#: apps/web/src/components/SearchGamePage.tsx
+#: apps/web/src/components/SearchUserPage.tsx
 msgid "Type at least 4 characters to search"
 msgstr "Type at least 4 characters to search"
 

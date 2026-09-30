@@ -120,6 +120,13 @@ describe("mobile push notifications", () => {
     expect(notificationHref({ href: "/groups/507f1f77bcf86cd799439012" })).toBe(
       "/group/507f1f77bcf86cd799439012",
     );
+    expect(notificationHref({ href: "/groups/4ddc08de-7d21-4e90-8560-a478ab935224" })).toBe(
+      "/group/4ddc08de-7d21-4e90-8560-a478ab935224",
+    );
+    expect(notificationHref({ href: "/matches/5b3adbd6-8490-488a-b0ce-dd8e852734ba" })).toBe(
+      "/match/5b3adbd6-8490-488a-b0ce-dd8e852734ba",
+    );
+    expect(notificationHref({ href: "/groups/not-a-valid-uuid" })).toBe("/notifications");
     expect(notificationHref({ href: "/groups/../profile" })).toBe("/notifications");
     expect(notificationHref({ href: "/notifications" })).toBe("/notifications");
     expect(notificationHref({ href: "https://evil.example" })).toBe("/notifications");

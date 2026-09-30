@@ -80,6 +80,13 @@ test("match and group lists search names, union roles and load more on scroll", 
     });
     await page.goto(`/${kind}`);
     const label = kind === "matches" ? "Search matches" : "Search groups";
+    await expect(page.getByRole("searchbox", { name: label })).toHaveAttribute(
+      "placeholder",
+      label,
+    );
+    await page.getByRole("button", { name: `${label}: Search help` }).click();
+    await expect(page.getByText("Type at least 4 characters to search")).toBeVisible();
+    await page.keyboard.press("Escape");
     const empty =
       kind === "matches" ? "No matches match your filters" : "No groups match your filters";
     for (const role of ["Admin", "Invited", "Accepted"])

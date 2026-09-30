@@ -13,6 +13,7 @@ import { Button, Card, Input, Label, ListBox, SearchField, Select, TextField } f
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 
 export default function MobileNumberPage() {
   const { isLoaded, user } = useUser();
@@ -106,10 +107,13 @@ export default function MobileNumberPage() {
               </Select.Trigger>
               <Select.Popover className="w-72">
                 <SearchField fullWidth value={search} onChange={setSearch}>
-                  <Label className="sr-only">{t`Search countries by name or code`}</Label>
+                  <SearchHelpLabel
+                    label={t`Search countries`}
+                    help={t`Search countries by name or code`}
+                  />
                   <SearchField.Group>
                     <SearchField.SearchIcon />
-                    <SearchField.Input placeholder={t`Search countries by name or code`} />
+                    <SearchField.Input placeholder={t`Search countries`} />
                     <SearchField.ClearButton aria-label={t`Clear search`} />
                   </SearchField.Group>
                 </SearchField>

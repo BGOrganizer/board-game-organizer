@@ -8,7 +8,7 @@ import {
   useContacts,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Card, Chip, Label, SearchField, Skeleton, Tabs } from "@heroui/react";
+import { Avatar, Card, Chip, SearchField, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Ban,
@@ -24,6 +24,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -324,10 +325,13 @@ export function Contacts() {
               if (!value) contacts.runSearch("");
             }}
           >
-            <Label className="sr-only">{t`Search users by name or email`}</Label>
+            <SearchHelpLabel
+              label={t`Search users by name or email`}
+              help={t`Type at least 4 characters to search`}
+            />
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input placeholder={t`Search users (at least 4 characters)`} />
+              <SearchField.Input placeholder={t`Search users`} />
               <SearchField.ClearButton aria-label={t`Clear search`} />
             </SearchField.Group>
           </SearchField>

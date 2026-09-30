@@ -20,6 +20,7 @@ import { Typography } from "heroui-native/text";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 
 export default function MobileNumberScreen() {
@@ -128,12 +129,16 @@ export default function MobileNumberScreen() {
                 enableDynamicSizing={false}
                 keyboardBehavior="extend"
               >
+                <SearchHelpLabel
+                  label={t("Search countries")}
+                  help={t("Search countries by name or code")}
+                />
                 <SearchField value={search} onChange={setSearch}>
                   <SearchField.Group>
                     <SearchField.SearchIcon />
                     <SearchField.Input
                       accessibilityLabel={t("Search countries by name or code")}
-                      placeholder={t("Search countries by name or code")}
+                      placeholder={t("Search countries")}
                     />
                     <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
                   </SearchField.Group>

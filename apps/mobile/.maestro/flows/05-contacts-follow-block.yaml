@@ -10,7 +10,10 @@ appId: com.bgo.mobile
 - tapOn: "Don't allow"
 - tapOn: "Search"
 - assertVisible: "Search results"
+- tapOn: "Search users by name or email: Search help"
+- assertVisible: "Search help"
 - assertVisible: "Type at least 4 characters to search"
+- back
 - tapOn:
     id: "enable-contacts-btn"
 - tapOn: "Yes"

@@ -18,7 +18,7 @@ export function VoteCounts({ counts }: { counts: MatchVoteCounts }) {
       <Typography className="text-xs text-success">✓ {counts.yes}</Typography>
       <Typography className="text-xs text-danger">× {counts.no}</Typography>
       <Typography className="text-xs text-warning">~ {counts.ifNeeded}</Typography>
-      <Typography className="text-xs text-muted">? {counts.notChosen}</Typography>
+      <Typography className="text-xs text-muted">- {counts.notChosen}</Typography>
     </View>
   );
 }
@@ -47,7 +47,7 @@ export function VoteLegend() {
             <Typography className="text-sm text-success">✓ {t("Yes")}</Typography>
             <Typography className="text-sm text-danger">× {t("No")}</Typography>
             <Typography className="text-sm text-warning">~ {t("If needed")}</Typography>
-            <Typography className="text-sm text-muted">? {t("Not chosen")}</Typography>
+            <Typography className="text-sm text-muted">- {t("Not chosen")}</Typography>
           </View>
         </Popover.Content>
       </Popover.Portal>

@@ -6,6 +6,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Building2, ContactRound, Dices, UserRound, UsersRound } from "lucide-react-native";
 import { Platform, View } from "react-native";
 
+import { HeaderTitle } from "@/components/HeaderTitle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useT } from "@/lib/i18n";
 
@@ -62,6 +63,7 @@ export default function TabLayout() {
         name="matches"
         options={{
           title: t("Matches"),
+          headerTitle: () => <HeaderTitle title={t("Matches")} icon={Dices} />,
           tabBarIcon: ({ color }) => <Dices size={26} color={color} />,
         }}
       />
@@ -69,6 +71,7 @@ export default function TabLayout() {
         name="groups"
         options={{
           title: t("Groups"),
+          headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
           tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
         }}
       />
@@ -76,6 +79,7 @@ export default function TabLayout() {
         name="organizations"
         options={{
           title: t("Organizations"),
+          headerTitle: () => <HeaderTitle title={t("Organizations")} icon={Building2} />,
           tabBarIcon: ({ color }) => <Building2 size={26} color={color} />,
         }}
       />
@@ -83,6 +87,7 @@ export default function TabLayout() {
         name="contacts"
         options={{
           title: t("Contacts"),
+          headerTitle: () => <HeaderTitle title={t("Contacts")} icon={ContactRound} />,
           tabBarIcon: ({ color }) => <ContactRound size={26} color={color} />,
         }}
       />

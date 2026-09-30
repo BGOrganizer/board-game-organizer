@@ -7,12 +7,24 @@ import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { HeroUINativeProvider } from "heroui-native";
+import {
+  Bell,
+  Dices,
+  Gamepad2,
+  LogIn,
+  type LucideIcon,
+  Phone,
+  Trophy,
+  UserRound,
+  UsersRound,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { Uniwind } from "uniwind";
 import "../../global.css";
 
+import { HeaderTitle } from "@/components/HeaderTitle";
 import { PushNotificationRouter } from "@/components/PushNotificationRouter";
 import { RuntimeError } from "@/components/RuntimeError";
 import { Startup } from "@/components/Startup";
@@ -93,6 +105,15 @@ function ThemeSync() {
   return null;
 }
 
+function titleOptions(title: string, icon: LucideIcon) {
+  return {
+    title,
+    headerTitle: ({ children }: { children: string }) => (
+      <HeaderTitle title={children} icon={icon} />
+    ),
+  };
+}
+
 function RootNavigator() {
   const t = useT();
   const [initialNotificationHref, setInitialNotificationHref] = useState<
@@ -106,17 +127,32 @@ function RootNavigator() {
         <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
         <StatusBar style="auto" />
         <Stack>
-          <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
-          <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
-          <Stack.Screen name="mobile-number" options={{ title: t("Complete your profile") }} />
-          <Stack.Screen name="notifications" options={{ title: t("Notifications") }} />
-          <Stack.Screen name="profile" options={{ title: t("Profile") }} />
-          <Stack.Screen name="group/wizard" options={{ title: t("New group") }} />
-          <Stack.Screen name="group/[groupId]" options={{ title: t("Group") }} />
-          <Stack.Screen name="match/wizard" options={{ title: t("Configure match") }} />
-          <Stack.Screen name="match/results" options={{ title: t("Register results") }} />
-          <Stack.Screen name="match/search-user" options={{ title: t("Invite friends") }} />
-          <Stack.Screen name="match/search-game" options={{ title: t("Select a board game") }} />
+          <Stack.Screen name="index" options={titleOptions("Board Game Organizer", Dices)} />
+          <Stack.Screen
+            name="sign-in"
+            options={{ ...titleOptions(t("Sign in"), LogIn), presentation: "modal" }}
+          />
+          <Stack.Screen
+            name="mobile-number"
+            options={titleOptions(t("Complete your profile"), Phone)}
+          />
+          <Stack.Screen name="notifications" options={titleOptions(t("Notifications"), Bell)} />
+          <Stack.Screen name="profile" options={titleOptions(t("Profile"), UserRound)} />
+          <Stack.Screen name="group/wizard" options={titleOptions(t("New group"), UsersRound)} />
+          <Stack.Screen name="group/[groupId]" options={titleOptions(t("Group"), UsersRound)} />
+          <Stack.Screen name="match/wizard" options={titleOptions(t("Configure match"), Dices)} />
+          <Stack.Screen
+            name="match/results"
+            options={titleOptions(t("Register results"), Trophy)}
+          />
+          <Stack.Screen
+            name="match/search-user"
+            options={titleOptions(t("Invite friends"), UsersRound)}
+          />
+          <Stack.Screen
+            name="match/search-game"
+            options={titleOptions(t("Select a board game"), Gamepad2)}
+          />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
       </QueryProvider>

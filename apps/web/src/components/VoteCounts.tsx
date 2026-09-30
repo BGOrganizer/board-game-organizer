@@ -22,7 +22,7 @@ export function VoteCounts({ counts }: { counts: MatchVoteCounts }) {
         ~ {counts.ifNeeded}
       </span>
       <span aria-hidden="true" className="text-default-500">
-        ? {counts.notChosen}
+        - {counts.notChosen}
       </span>
     </span>
   );
@@ -49,7 +49,7 @@ export function VoteLegend() {
           <span className="text-success">✓ {t`Yes`}</span>
           <span className="text-danger">× {t`No`}</span>
           <span className="text-warning">~ {t`If needed`}</span>
-          <span className="text-default-500">? {t`Not chosen`}</span>
+          <span className="text-default-500">- {t`Not chosen`}</span>
         </div>
       </Tooltip.Content>
     </Tooltip>

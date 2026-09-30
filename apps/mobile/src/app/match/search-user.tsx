@@ -12,6 +12,7 @@ import { UserPlus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -156,12 +157,16 @@ export default function SearchUserScreen() {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+        <SearchHelpLabel
+          label={t("Search users by name or email")}
+          help={t("Type at least 4 characters to search")}
+        />
         <SearchField value={query} onChange={setQuery}>
           <SearchField.Group>
             <SearchField.SearchIcon />
             <SearchField.Input
               accessibilityLabel={t("Search users by name or email")}
-              placeholder={t("Search users (at least 4 characters)")}
+              placeholder={t("Search users")}
             />
             <SearchField.ClearButton accessibilityLabel={t("Clear")} />
           </SearchField.Group>

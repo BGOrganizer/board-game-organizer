@@ -19,7 +19,7 @@ async function signIn(page: import("@playwright/test").Page) {
 
 test("group and match lifecycle notifications appear in inbox", async ({ page }) => {
   await signIn(page);
-  const destinationId = "507f1f77bcf86cd799439011";
+  const destinationId = "d594128f-4fb6-495e-97a6-87b2ce4ad8f0";
   const titles = [
     ["group_invitation", "New group invitation", `/groups/${destinationId}`],
     ["group_invitation_accepted", "Group invitation accepted", `/groups/${destinationId}`],

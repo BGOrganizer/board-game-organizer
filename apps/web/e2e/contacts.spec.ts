@@ -188,7 +188,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const unfriendResponse = waitForRelationshipResponse(page, "DELETE", "friend");
   await page.getByRole("button", { name: "Remove friend", exact: true }).click();
   expect((await unfriendResponse).ok()).toBe(true);
-  await expect(page.getByRole("heading", { name: "Friends" })).toBeHidden({ timeout: 30_000 });
+  await expect(page.getByText("No friends yet")).toBeVisible({ timeout: 30_000 });
   await findTarget(page);
   await page.getByRole("button", { name: "Actions" }).first().click();
   await expect(page.getByRole("menuitem", { name: "Follow", exact: true })).toBeVisible();

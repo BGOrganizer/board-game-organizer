@@ -2,12 +2,13 @@
 
 import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/schemas";
 import { useBggAccount, useBggPicker, withProtectionBypass } from "@board-game-organizer/shared";
-import { Button, Label, SearchField, Skeleton } from "@heroui/react";
+import { Button, SearchField, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Gamepad2, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 
 interface Props {
   apiUrl: string;
@@ -107,10 +108,13 @@ export function SearchGamePage({
         <h2 className="text-lg font-semibold">{t`Select a board game`}</h2>
       </div>
       <SearchField fullWidth value={query} onChange={setQuery}>
-        <Label className="sr-only">{t`Search board games`}</Label>
+        <SearchHelpLabel
+          label={t`Search board games`}
+          help={t`Type at least 4 characters to search`}
+        />
         <SearchField.Group>
           <SearchField.SearchIcon />
-          <SearchField.Input placeholder={t`Search board games (at least 4 characters)`} />
+          <SearchField.Input placeholder={t`Search board games`} />
           <SearchField.ClearButton aria-label={t`Clear`} />
         </SearchField.Group>
       </SearchField>

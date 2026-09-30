@@ -512,9 +512,9 @@ describe("MatchDetail", () => {
     expect(within(votes).getByText("✓ 1").className).toContain("text-success");
     expect(within(votes).getByText("× 1").className).toContain("text-danger");
     expect(within(votes).getByText("~ 0").className).toContain("text-warning");
-    expect(within(votes).getByText("? 0").className).toContain("text-default-500");
+    expect(within(votes).getByText("- 0").className).toContain("text-default-500");
     fireEvent.focus(screen.getByRole("button", { name: "Vote count legend" }));
-    expect(await screen.findByText("? Not chosen")).toBeTruthy();
+    expect(await screen.findByText("- Not chosen")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(
       screen.getByRole("heading", { name: "Game selection" }).closest('[data-slot="card"]'),

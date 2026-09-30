@@ -94,7 +94,9 @@ export function NotificationsPage() {
           <EmptyList icon={<Bell className="size-7" />}>{t`No notifications yet`}</EmptyList>
         )}
 
-      <div className="flex flex-col gap-3">
+      <div
+        className={`flex flex-col gap-3 ${notifications.notifications.length ? "min-h-36" : ""}`}
+      >
         {notifications.notifications.map((notification) => (
           <article
             key={notification.id}

@@ -240,7 +240,7 @@ function Editor({
           justifyContent: "center",
         }}
       >
-        {group ? <Save color="#fff" size={26} /> : <UsersRound color="#fff" size={26} />}
+        <Save color="#fff" size={26} />
       </Button>
     </View>
   );

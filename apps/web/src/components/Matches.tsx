@@ -119,7 +119,7 @@ export function Matches() {
         roles={filters.roles}
         onToggle={filters.toggleRole}
         label={t`Search matches`}
-        placeholder={t`Search matches (at least 4 characters)`}
+        placeholder={t`Search matches`}
       />
 
       {matches.list.isPending && (
@@ -138,7 +138,9 @@ export function Matches() {
         </EmptyList>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div
+        className={`grid gap-3 md:grid-cols-2 xl:grid-cols-3 ${matches.list.data?.length ? "min-h-36" : ""}`}
+      >
         {matches.list.data?.map((match) => {
           const invitation = match.invitations.find(
             (candidate) => candidate.inviteeUserId === userId,

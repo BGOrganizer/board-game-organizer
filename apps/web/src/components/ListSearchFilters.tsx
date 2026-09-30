@@ -1,7 +1,8 @@
 import { type ListRole, listRoles } from "@board-game-organizer/shared";
-import { Button, Label, SearchField } from "@heroui/react";
+import { Button, SearchField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Crown, Mail } from "lucide-react";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 
 const roleIcons = { admin: Crown, invited: Mail, accepted: Check };
 
@@ -25,7 +26,7 @@ export function ListSearchFilters({
   return (
     <div className="mb-4 space-y-3">
       <SearchField fullWidth value={query} onChange={onQueryChange}>
-        <Label className="sr-only">{label}</Label>
+        <SearchHelpLabel label={label} help={t`Type at least 4 characters to search`} />
         <SearchField.Group>
           <SearchField.SearchIcon />
           <SearchField.Input placeholder={placeholder} />

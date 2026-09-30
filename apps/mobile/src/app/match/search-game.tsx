@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FlatList, Image, View } from "react-native";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -115,12 +116,16 @@ export default function SearchGameScreen() {
       }}
       ListHeaderComponent={
         <View style={{ gap: 12, marginBottom: 8 }}>
+          <SearchHelpLabel
+            label={t("Search board games")}
+            help={t("Type at least 4 characters to search")}
+          />
           <SearchField value={query} onChange={setQuery}>
             <SearchField.Group>
               <SearchField.SearchIcon />
               <SearchField.Input
                 accessibilityLabel={t("Search board games")}
-                placeholder={t("Search board games (at least 4 characters)")}
+                placeholder={t("Search board games")}
               />
               <SearchField.ClearButton accessibilityLabel={t("Clear")} />
             </SearchField.Group>

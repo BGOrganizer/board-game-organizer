@@ -90,7 +90,7 @@ describe("MobileNumberPage", () => {
   it("selects a country by name and stores its prefix with the national number", async () => {
     renderWithI18n(<MobileNumberPage />);
     fireEvent.click(screen.getByRole("button", { name: /Country calling code/ }));
-    const search = screen.getByRole("searchbox", { name: "Search countries by name or code" });
+    const search = screen.getByRole("searchbox", { name: "Search countries" });
     fireEvent.change(search, { target: { value: "zzzz" } });
     expect(await screen.findByText("No countries found")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));

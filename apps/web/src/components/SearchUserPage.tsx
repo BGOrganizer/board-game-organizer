@@ -2,11 +2,12 @@
 
 import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
 import { withProtectionBypass } from "@board-game-organizer/shared";
-import { Avatar, Button, Label, SearchField, Skeleton } from "@heroui/react";
+import { Avatar, Button, SearchField, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 
 interface Props {
   apiUrl: string;
@@ -137,10 +138,13 @@ export function SearchUserPage({
       </div>
 
       <SearchField fullWidth value={query} onChange={setQuery}>
-        <Label className="sr-only">{t`Search users by name or email`}</Label>
+        <SearchHelpLabel
+          label={t`Search users by name or email`}
+          help={t`Type at least 4 characters to search`}
+        />
         <SearchField.Group>
           <SearchField.SearchIcon />
-          <SearchField.Input placeholder={t`Search users (at least 4 characters)`} />
+          <SearchField.Input placeholder={t`Search users`} />
           <SearchField.ClearButton aria-label={t`Clear`} />
         </SearchField.Group>
       </SearchField>
