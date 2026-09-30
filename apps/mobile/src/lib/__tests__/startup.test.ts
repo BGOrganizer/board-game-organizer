@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { isStartupDestinationSettled, remainingSplashMs } from "../startup";
+import { isStartupAuthPending, isStartupDestinationSettled, remainingSplashMs } from "../startup";
 
 const url = "https://api.example.test";
 const userId = "user-1";
@@ -8,6 +8,16 @@ const settled = (client: QueryClient, path: string) =>
   isStartupDestinationSettled(client, path, url, userId);
 
 describe("startup destination", () => {
+  it("keeps splash while Clerk restores a pending session", () => {
+    expect(isStartupAuthPending(false, undefined, undefined, false)).toBe(true);
+    expect(isStartupAuthPending(true, undefined, undefined, false)).toBe(true);
+    expect(isStartupAuthPending(true, true, false, true)).toBe(true);
+    expect(isStartupAuthPending(true, true, undefined, true)).toBe(true);
+    expect(isStartupAuthPending(true, true, true, false)).toBe(true);
+    expect(isStartupAuthPending(true, true, true, true)).toBe(false);
+    expect(isStartupAuthPending(true, false, false, false)).toBe(false);
+  });
+
   it("caps splash at four seconds from boot rather than adding four seconds after auth", () => {
     expect(remainingSplashMs(1000, 1000)).toBe(4000);
     expect(remainingSplashMs(1000, 3500)).toBe(1500);

@@ -7,13 +7,17 @@ import {
   notificationsPageQuery,
   resolveApiUrl,
 } from "@board-game-organizer/shared";
-import { useUser } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { usePathname } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { hideStartupSplash } from "@/lib/splash";
-import { isStartupDestinationSettled, remainingSplashMs } from "@/lib/startup";
+import {
+  isStartupAuthPending,
+  isStartupDestinationSettled,
+  remainingSplashMs,
+} from "@/lib/startup";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
@@ -26,7 +30,14 @@ export function Startup({
   startedAt: number;
   initialNotificationHref: string | null | undefined;
 }) {
-  const { getToken, isLoaded, isSignedIn, userId, sessionId } = useSessionAuth();
+  const {
+    isLoaded: isAuthLoaded,
+    isSignedIn: isRestoredSignedIn,
+    sessionId,
+  } = useAuth({
+    treatPendingAsSignedOut: false,
+  });
+  const { getToken, isSignedIn, userId } = useSessionAuth();
   const { isLoaded: isUserLoaded, user } = useUser();
   const queryClient = useQueryClient();
   const pathname = usePathname();
@@ -35,7 +46,8 @@ export function Startup({
   const previousSession = useRef<string | null>(null);
   const warmedSession = useRef<string | null>(null);
   const eligible =
-    isLoaded &&
+    isAuthLoaded &&
+    isRestoredSignedIn &&
     isSignedIn &&
     isUserLoaded &&
     Boolean(userId) &&
@@ -55,13 +67,14 @@ export function Startup({
   }, [startedAt]);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isAuthLoaded) return;
     if (previousSession.current && previousSession.current !== sessionId) queryClient.clear();
     previousSession.current = sessionId ?? null;
-  }, [isLoaded, sessionId, queryClient]);
+  }, [isAuthLoaded, sessionId, queryClient]);
 
   useEffect(() => {
-    if (ready || !isLoaded || (isSignedIn && !isUserLoaded)) return;
+    if (ready || isStartupAuthPending(isAuthLoaded, isRestoredSignedIn, isSignedIn, isUserLoaded))
+      return;
     if (!eligible) {
       setReady(true); // Sign-in and required mobile-number step do not wait for network lists.
       return;
@@ -76,7 +89,8 @@ export function Startup({
     return queryClient.getQueryCache().subscribe(check);
   }, [
     ready,
-    isLoaded,
+    isAuthLoaded,
+    isRestoredSignedIn,
     isSignedIn,
     isUserLoaded,
     eligible,

@@ -8,6 +8,19 @@ export function remainingSplashMs(startedAt: number, now: number): number {
   return Math.max(0, STARTUP_SPLASH_LIMIT_MS - (now - startedAt));
 }
 
+export function isStartupAuthPending(
+  isAuthLoaded: boolean,
+  isRestoredSignedIn: boolean | undefined,
+  isSessionSignedIn: boolean | undefined,
+  isUserLoaded: boolean,
+): boolean {
+  return (
+    !isAuthLoaded ||
+    isRestoredSignedIn === undefined ||
+    (isRestoredSignedIn && (!isSessionSignedIn || !isUserLoaded))
+  );
+}
+
 /** Wait for the mounted destination screen's own request, not a duplicate bootstrap request. */
 export function isStartupDestinationSettled(
   queryClient: QueryClient,

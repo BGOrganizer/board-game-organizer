@@ -8,5 +8,5 @@ appId: com.bgo.mobile
     timeout: 120000
 - tapOn: "Matches"
 - extendedWaitUntil:
-    visible: "Search matches (at least 4 characters)"
+    visible: "No matches yet — create your first one!"
     timeout: 30000
