@@ -4,10 +4,11 @@ import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CheckCheck, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
+import { EmptyList } from "@/components/EmptyList";
 import { NotificationKindIcon } from "@/components/NotificationKindIcon";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -52,7 +53,11 @@ export function NotificationsPage() {
   }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+    <section
+      className="mx-auto flex w-full max-w-3xl flex-col gap-4"
+      inert={notifications.deleteNotification.isPending}
+      aria-busy={notifications.deleteNotification.isPending}
+    >
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t`Notifications`}</h1>
         {notifications.unreadCount > 0 && (
@@ -86,9 +91,7 @@ export function NotificationsPage() {
       {!notifications.list.isPending &&
         !notifications.list.isError &&
         notifications.notifications.length === 0 && (
-          <p className="rounded-xl border border-default-200 bg-surface p-8 text-center text-default-500">
-            {t`No notifications yet`}
-          </p>
+          <EmptyList icon={<Bell className="size-7" />}>{t`No notifications yet`}</EmptyList>
         )}
 
       <div className="flex flex-col gap-3">
@@ -101,7 +104,13 @@ export function NotificationsPage() {
           >
             <Link
               href={notification.href}
-              onClick={() => notifications.markRead.mutate(notification.id)}
+              onClick={(event) => {
+                if (notifications.deleteNotification.isPending) {
+                  event.preventDefault();
+                  return;
+                }
+                notifications.markRead.mutate(notification.id);
+              }}
               className="block rounded-xl p-4 pe-12"
             >
               <span className="flex items-start gap-3">

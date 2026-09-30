@@ -996,6 +996,7 @@ describe("match repositories on MongoDB replica set", () => {
       recipientUserId: TARGET,
       actorUserId: ACTOR,
       matchName: "Catan",
+      matchId: "507f1f77bcf86cd799439011",
     });
 
     expect(createdIds).toHaveLength(2);
@@ -1003,7 +1004,7 @@ describe("match repositories on MongoDB replica set", () => {
     expect(firstPage).toMatchObject({ unreadCount: 2 });
     expect(firstPage.notifications[0]).toMatchObject({
       title: "Nuovo invito a una partita",
-      href: "/matches",
+      href: "/matches/507f1f77bcf86cd799439011",
       readAt: null,
     });
     expect(firstPage.nextCursor).toBe(firstPage.notifications[0]?.id);
@@ -1187,8 +1188,10 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     );
     expect(group.memberCount).toBe(1);
     expect(
-      (await withMatchTransaction(({ groups }) => groups.list(TARGET)))[0].memberProfiles,
-    ).toEqual([]);
+      (await withMatchTransaction(({ groups }) => groups.list(TARGET)))[0].memberProfiles.map(
+        (person) => person.id,
+      ),
+    ).toEqual([ACTOR]);
     expect((await new NotificationsRepository(db).list(TARGET, 10)).notifications).toEqual([
       expect.objectContaining({ kind: "group_invitation" }),
     ]);

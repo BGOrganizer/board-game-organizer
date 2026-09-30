@@ -13,8 +13,9 @@ import {
   Table,
 } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Clock3, Gamepad2, X } from "lucide-react";
+import { Clock3, Dices, Gamepad2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { EmptyList } from "@/components/EmptyList";
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
@@ -88,7 +89,11 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
       >{t`Could not load leaderboards. Retry`}</Button>
     );
   if (!games.data?.games.length)
-    return <p className="text-sm text-default-500">{t`No matches played in this group yet`}</p>;
+    return (
+      <EmptyList icon={<Dices className="size-7" />}>
+        {t`No matches played in this group yet`}
+      </EmptyList>
+    );
 
   return (
     <div className="space-y-4">
@@ -129,7 +134,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             </SearchField>
             <ListBox
               renderEmptyState={() => (
-                <p className="p-3 text-sm text-default-500">{t`No games found`}</p>
+                <EmptyList icon={<Dices className="size-7" />}>{t`No games found`}</EmptyList>
               )}
             >
               {filteredGames?.map((game) => (

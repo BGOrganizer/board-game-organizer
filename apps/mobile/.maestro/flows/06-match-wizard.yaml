@@ -58,7 +58,7 @@ appId: com.bgo.mobile
     id: "remove-date-slot"
 # Advance to step 2 via the next FAB (bottom right).
 - tapOn:
-    point: "90%,92%"
+    id: "next-step-fab"
 - extendedWaitUntil:
     visible: "Players"
     timeout: 60000
@@ -70,7 +70,7 @@ appId: com.bgo.mobile
 # Advance to step 3 (invite slots are optional-empty; validation only
 # requires the player range, which defaults valid).
 - tapOn:
-    point: "90%,92%"
+    id: "next-step-fab"
 - extendedWaitUntil:
     visible: "Board games"
     timeout: 60000

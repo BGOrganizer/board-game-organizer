@@ -8,9 +8,10 @@ import { SearchField } from "heroui-native/search-field";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Clock3, Gamepad2, X } from "lucide-react-native";
+import { Clock3, Dices, Gamepad2, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { FlatList, Image, View } from "react-native";
+import { EmptyList } from "@/components/EmptyList";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -72,7 +73,9 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
     );
   if (!choices.length)
     return (
-      <Typography className="text-muted">{t("No matches played in this group yet")}</Typography>
+      <EmptyList icon={<Dices size={28} color="#737373" />}>
+        {t("No matches played in this group yet")}
+      </EmptyList>
     );
 
   return (
@@ -130,7 +133,9 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                 </Select.Item>
               ))}
               {!filteredChoices.length ? (
-                <Typography className="p-3 text-muted">{t("No games found")}</Typography>
+                <EmptyList icon={<Dices size={28} color="#737373" />}>
+                  {t("No games found")}
+                </EmptyList>
               ) : null}
             </Select.Content>
           </Select.Portal>

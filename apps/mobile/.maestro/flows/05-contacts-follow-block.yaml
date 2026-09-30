@@ -5,10 +5,12 @@ appId: com.bgo.mobile
 - tapOn: "Contacts"
 # Permission prompt appears as soon as Contacts opens.
 - extendedWaitUntil:
-    visible: "Access contacts"
+    visible: ".*[Aa]llow.*contacts.*"
     timeout: 30000
-- tapOn: "No"
+- tapOn: "Don't allow"
 - tapOn: "Search"
+- assertVisible: "Search results"
+- assertVisible: "Type at least 4 characters to search"
 - tapOn:
     id: "enable-contacts-btn"
 - tapOn: "Yes"
@@ -17,6 +19,10 @@ appId: com.bgo.mobile
     timeout: 30000
 - tapOn: "Allow"
 - tapOn: "Connections"
+- assertVisible: "Friends"
+- assertVisible: "Following"
+- assertVisible: "Followers"
+- assertVisible: "Contacts on BGO"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000

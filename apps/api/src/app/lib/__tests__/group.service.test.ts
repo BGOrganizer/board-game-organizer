@@ -60,6 +60,7 @@ describe("group notifications", () => {
         recipientUserId: "guest",
         actorUserId: "admin",
         groupName: group.name,
+        groupId: group.id,
       },
     ]);
     invitations.push(invitation);
@@ -81,19 +82,25 @@ describe("group notifications", () => {
         recipientUserId: "guest_2",
         actorUserId: "admin",
         groupName: group.name,
+        groupId: group.id,
       },
     ]);
   });
 
-  it("includes the admin even when its user mirror is missing, but hides members until acceptance", async () => {
+  it("shows pending invitees the admin and accepted members, never other pending invitees", async () => {
     const { service, invitations } = setup();
-    invitations.push(invitation);
-    expect((await service.detail("guest", group.id)).memberProfiles).toEqual([]);
+    invitations.push(invitation, { ...invitation, id: "invitation_2", inviteeUserId: "guest_2" });
+    expect((await service.detail("guest", group.id)).memberProfiles).toEqual([
+      { id: "admin", name: "admin", email: null, avatarUrl: null },
+    ]);
     invitations[0] = { ...invitation, status: "ACCEPTED" };
     expect((await service.detail("guest", group.id)).memberProfiles).toEqual([
       { id: "admin", name: "admin", email: null, avatarUrl: null },
       { id: "guest", name: "guest", email: null, avatarUrl: null },
     ]);
+    const pendingView = await service.detail("guest_2", group.id);
+    expect(pendingView.memberProfiles.map((person) => person.id)).toEqual(["admin", "guest"]);
+    expect(pendingView.invitations.map((item) => item.inviteeUserId)).toEqual(["guest", "guest_2"]);
   });
 
   it("notifies admin on acceptance, not on decline", async () => {
@@ -105,6 +112,7 @@ describe("group notifications", () => {
       recipientUserId: "admin",
       actorUserId: "guest",
       groupName: group.name,
+      groupId: group.id,
     });
     notifications.notify.mockClear();
     await service.respond("guest", invitation.id, "decline");

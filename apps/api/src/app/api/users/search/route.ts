@@ -18,10 +18,9 @@ const SEARCH_WINDOW_MS = 60_000;
 /**
  * GET /api/users/search?query=…
  *
- * Prefix (autocomplete) search over `users` name/email, using an anchored
- * ^$regex (case-insensitive) backed by plain indexes (USER_INDEXES) —
- * cheaper and more predictable than a text index for autocomplete-style
- * queries. Block policy stays asymmetric:
+ * Case-insensitive substring search over `users` name/email: surnames must
+ * match even when they follow a given name. Escape user input before regex.
+ * Block policy stays asymmetric:
  * - users `viewer` blocked  → excluded
  * - users who blocked `viewer` → excluded, so blocked users cannot discover
  *   or contact the blocker.
@@ -83,8 +82,8 @@ export async function GET(request: Request) {
     .find(
       {
         $or: [
-          { name: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
-          { email: { $regex: `^${escapeRegex(query)}`, $options: "i" } },
+          { name: { $regex: escapeRegex(query), $options: "i" } },
+          { email: { $regex: escapeRegex(query), $options: "i" } },
         ],
       },
       { projection: { _id: 0 } },

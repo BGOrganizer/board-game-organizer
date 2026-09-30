@@ -20,13 +20,16 @@ import {
   LockKeyhole,
   LockKeyholeOpen,
   LogOut,
+  Mail,
   Pencil,
   Trash2,
   UserRoundX,
+  UsersRound,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { GroupLeaderboard } from "@/components/GroupLeaderboard";
 import { InvitationActions } from "@/components/InvitationActions";
@@ -288,11 +291,6 @@ export default function GroupDetailScreen() {
                       />
                     </Card>
                   ) : null}
-                  {invitation?.status === "PENDING" ? (
-                    <Typography className="text-muted">
-                      {t("Members are visible after accepting the invitation")}
-                    </Typography>
-                  ) : null}
                   {contacts.friends.isPending && admin ? (
                     <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
                   ) : null}
@@ -303,6 +301,7 @@ export default function GroupDetailScreen() {
                     {
                       id: "members",
                       title: t("Members"),
+                      icon: UsersRound,
                       rows: people.filter((p) => p.status === "ACCEPTED"),
                     },
                     ...(admin
@@ -310,18 +309,22 @@ export default function GroupDetailScreen() {
                           {
                             id: "invitations",
                             title: t("Invitations"),
+                            icon: Mail,
                             rows: people.filter((p) => p.status !== "ACCEPTED"),
                           },
                         ]
                       : []),
                   ].map((section) => (
                     <View key={section.id} style={{ gap: 8 }}>
-                      <Typography
-                        accessibilityRole="header"
-                        className="font-semibold text-foreground"
-                      >
-                        {section.title}
-                      </Typography>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <section.icon size={18} color="#737373" />
+                        <Typography
+                          accessibilityRole="header"
+                          className="font-semibold text-foreground"
+                        >
+                          {section.title}
+                        </Typography>
+                      </View>
                       {section.rows.length > 0 ? (
                         <GroupedList>
                           {section.rows.map((person) => (
@@ -416,7 +419,9 @@ export default function GroupDetailScreen() {
                           ))}
                         </GroupedList>
                       ) : section.id === "invitations" ? (
-                        <Typography className="text-muted">{t("No invitations")}</Typography>
+                        <EmptyList icon={<Mail size={28} color="#737373" />}>
+                          {t("No invitations")}
+                        </EmptyList>
                       ) : null}
                     </View>
                   ))}

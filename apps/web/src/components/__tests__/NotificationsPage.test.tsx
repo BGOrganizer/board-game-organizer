@@ -81,6 +81,15 @@ describe("NotificationsPage", () => {
     expect(mocks.deleteNotification).toHaveBeenCalledWith(item.id, expect.any(Object));
   });
 
+  it("blocks inbox navigation while a notification is being deleted", () => {
+    setState({ deleteNotification: { mutate: mocks.deleteNotification, isPending: true } });
+    renderWithI18n(<NotificationsPage />);
+    const link = screen.getByText("New match invitation").closest("a");
+    expect(link?.closest("[inert]")).toBeTruthy();
+    expect(fireEvent.click(link as HTMLAnchorElement)).toBe(false);
+    expect(mocks.markRead).not.toHaveBeenCalled();
+  });
+
   it("renders loading, error retry, and empty states", () => {
     setState({ list: { isPending: true, isError: false }, notifications: [], unreadCount: 0 });
     const loading = renderWithI18n(<NotificationsPage />);
@@ -99,7 +108,9 @@ describe("NotificationsPage", () => {
 
     setState({ list: { isPending: false, isError: false }, notifications: [], unreadCount: 0 });
     renderWithI18n(<NotificationsPage />);
-    expect(screen.getByText("No notifications yet").className).toContain("bg-surface");
+    expect(screen.getByText("No notifications yet").parentElement?.className).toContain(
+      "text-center",
+    );
   });
 
   it("loads another page without a spinner", () => {

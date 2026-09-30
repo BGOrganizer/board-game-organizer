@@ -221,6 +221,7 @@ export class MatchService {
         recipientUserId,
         actorUserId: userId,
         matchName: match.name,
+        matchId: match.id,
       })),
     );
     return this.toResponse(match, invitations);
@@ -436,6 +437,7 @@ export class MatchService {
         recipientUserId: invitation.inviteeUserId,
         actorUserId: userId,
         matchName: updated.name,
+        matchId: updated.id,
       })),
     );
     return this.toResponse(updated, this.visibleInvitations(updated, userId, invitations));
@@ -470,6 +472,7 @@ export class MatchService {
         recipientUserId: inviteeUserId,
         actorUserId: userId,
         matchName: match.name,
+        matchId: match.id,
       });
       return invitation;
     } catch (error) {
@@ -501,6 +504,7 @@ export class MatchService {
       recipientUserId: match.clerkId,
       actorUserId: userId,
       matchName: match.name,
+      matchId: match.id,
     });
     return updated;
   }
@@ -613,6 +617,7 @@ export class MatchService {
           recipientUserId,
           actorUserId: userId,
           matchName: updated.name,
+          matchId: updated.id,
         })),
       );
     }
@@ -628,6 +633,7 @@ export class MatchService {
           recipientUserId: invitation.inviteeUserId,
           actorUserId: userId,
           matchName: updated.name,
+          matchId: updated.id,
         })),
     );
     return this.toResponse(updated, invitations);
@@ -697,6 +703,7 @@ export class MatchService {
         recipientUserId: invitation.inviteeUserId,
         actorUserId: userId,
         matchName: updated.name,
+        matchId: updated.id,
       })),
     );
     return this.toResponse(updated, this.visibleInvitations(updated, userId, invitations));

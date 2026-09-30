@@ -405,7 +405,7 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     const dateAction = screen.getByRole("button", { name: /Choose date/ });
     expect(dateAction.className).toContain("button--outline");
-    expect(dateAction.querySelector("svg.lucide-circle-question-mark")).toBeTruthy();
+    expect(dateAction.querySelector("svg.lucide-minus")).toBeTruthy();
     fireEvent.click(dateAction);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Yes" }));
     expect(setChoiceMutate).toHaveBeenCalledWith({
@@ -416,7 +416,7 @@ describe("MatchDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     const gameAction = screen.getByRole("button", { name: /Choose game/ });
     expect(gameAction.className).toContain("button--outline");
-    expect(gameAction.querySelector("svg.lucide-circle-question-mark")).toBeTruthy();
+    expect(gameAction.querySelector("svg.lucide-minus")).toBeTruthy();
   });
 
   it("allows only the admin to confirm and reopen a match and hides choices after confirmation", () => {
@@ -575,7 +575,7 @@ describe("MatchDetail", () => {
     expect(
       screen
         .getByRole("button", { name: "Choose game: Not known" })
-        .querySelector("svg.lucide-circle-question-mark"),
+        .querySelector("svg.lucide-minus"),
     ).toBeTruthy();
   });
 

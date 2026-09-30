@@ -22,7 +22,6 @@ import {
   Check,
   CircleAlert,
   CircleCheck,
-  CircleQuestionMark,
   CircleX,
   Clock3,
   Crown,
@@ -30,18 +29,21 @@ import {
   Gamepad2,
   LogOut,
   Medal,
+  Minus,
   MoreVertical,
   Pencil,
   RotateCcw,
   Trash2,
   Trophy,
   UserRoundX,
+  UsersRound,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
+import { EmptyList } from "@/components/EmptyList";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
@@ -67,7 +69,7 @@ const choiceColors: Record<MatchChoice, string> = {
   IF_NEEDED: "text-warning",
 };
 const choiceIcons = {
-  UNKNOWN: CircleQuestionMark,
+  UNKNOWN: Minus,
   YES: CircleCheck,
   NO: CircleX,
   IF_NEEDED: CircleAlert,
@@ -525,7 +527,8 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             <h1 className="text-xl font-semibold">{match.name}</h1>
             <div>
               <div className="mb-2 flex items-center gap-1">
-                <h2 className="text-sm font-semibold">
+                <h2 className="flex items-center gap-2 text-sm font-semibold">
+                  <CalendarDays className="size-4" aria-hidden="true" />
                   {match.status !== "PLANNING" ? t`Confirmed date` : t`Date selection`}
                 </h2>
                 {match.status === "PLANNING" && summary && <VoteLegend />}
@@ -576,7 +579,10 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 </div>
               )}
               <div>
-                <h2 className="mb-2 text-sm font-semibold">{t`Participants`}</h2>
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                  <UsersRound className="size-4" aria-hidden="true" />
+                  {t`Participants`}
+                </h2>
                 <GroupedList>
                   {participants.map((player) => (
                     <GroupedRow key={player.id}>
@@ -649,13 +655,14 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         <Tabs.Panel id="games">
           <div className="space-y-2">
             <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Gamepad2 className="size-4" aria-hidden="true" />
                 {match.status !== "PLANNING" ? t`Confirmed game` : t`Game selection`}
               </h2>
               {match.status === "PLANNING" && summary && <VoteLegend />}
             </div>
             {games.length === 0 ? (
-              <p className="text-sm text-default-500">{t`No selected games`}</p>
+              <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No selected games`}</EmptyList>
             ) : (
               <GroupedList>
                 {games

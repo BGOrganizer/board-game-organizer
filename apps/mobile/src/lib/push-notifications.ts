@@ -60,9 +60,17 @@ export function notificationHref(
   | "/contacts?tab=requests"
   | "/matches"
   | "/groups"
-  | "/notifications" {
+  | "/notifications"
+  | `/match/${string}`
+  | `/group/${string}` {
   if (!data || typeof data !== "object") return "/notifications";
   const { href, kind } = data as { href?: unknown; kind?: unknown };
+  if (typeof href === "string") {
+    const match = /^\/matches\/([a-f\d]{24})$/i.exec(href);
+    if (match) return `/match/${match[1]}`;
+    const group = /^\/groups\/([a-f\d]{24})$/i.exec(href);
+    if (group) return `/group/${group[1]}`;
+  }
   if (href === "/contacts" && kind === "friend_request") return "/contacts?tab=requests";
   if (href === "/contacts" && kind === "friend_request_accepted") {
     return "/contacts?tab=connections";

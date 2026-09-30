@@ -70,7 +70,7 @@ describe("GET /api/users/search", () => {
     const findMock = vi.fn<(filter: unknown) => unknown>(() => ({
       limit: vi.fn(() => ({
         toArray: async () => [
-          fakeUser(),
+          fakeUser({ name: "Alessandro Mancini" }),
           fakeUser({ clerkId: "user_2", name: "Alex", avatarUrl: null }),
           fakeUser({ clerkId: "blocked_user", name: "B" }),
           fakeUser({ clerkId: "blocker_user", name: "C" }),
@@ -100,7 +100,7 @@ describe("GET /api/users/search", () => {
       "blocker_user",
     ]);
 
-    const res = await GET(new Request("http://x/api/users/search?query=alice"));
+    const res = await GET(new Request("http://x/api/users/search?query=Mancini"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.users).toHaveLength(2);
@@ -111,11 +111,11 @@ describe("GET /api/users/search", () => {
     expect(body.users[0].isFriend).toBe(true);
     expect(body.users[1].isFriend).toBe(false);
 
-    // Prefix search: anchored ^$regex, case-insensitive, over name/email.
+    // Surname matches anywhere in the full name, not just at its start.
     const filter = findMock.mock.calls[0]?.[0] as { $or: Array<Record<string, unknown>> };
     expect(filter.$or).toHaveLength(2);
-    expect(filter.$or[0]).toEqual({ name: { $regex: "^alice", $options: "i" } });
-    expect(filter.$or[1]).toEqual({ email: { $regex: "^alice", $options: "i" } });
+    expect(filter.$or[0]).toEqual({ name: { $regex: "Mancini", $options: "i" } });
+    expect(filter.$or[1]).toEqual({ email: { $regex: "Mancini", $options: "i" } });
   });
 
   it("supports CORS preflight", async () => {

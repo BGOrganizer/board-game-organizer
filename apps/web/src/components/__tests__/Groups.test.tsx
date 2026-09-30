@@ -163,7 +163,8 @@ describe("Groups screens", () => {
     unmount();
     const detail = renderWithI18n(<Groups mode="detail" groupId={group.id} />);
     expect(screen.getByText("Admin")).toBeTruthy();
-    expect(screen.queryByText("Members")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Members" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Invitations" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Edit group" }));
     expect(router.push).toHaveBeenCalledWith(`/groups/${group.id}/edit`);
     fireEvent.click(screen.getByRole("button", { name: "More group actions" }));
@@ -251,7 +252,7 @@ describe("Groups screens", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Remove from group" }));
       await waitFor(() => expect(removeInvitation.mutateAsync).toHaveBeenCalledWith(id));
     }
-    expect(screen.queryByText("Members")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Members" })).toBeTruthy();
   });
 
   it("retains accepted and pending invitations on edit, excludes declined invitations", async () => {
@@ -336,7 +337,8 @@ describe("Groups screens", () => {
     });
     unmount();
     const detail = renderWithI18n(<Groups mode="detail" groupId={group.id} />);
-    expect(screen.getByText("Members are visible after accepting the invitation")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Invitations" })).toBeNull();
+    expect(screen.queryByText("Members are visible after accepting the invitation")).toBeNull();
     expect(screen.queryByText(invitation.inviteeUserId, { exact: true })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
     expect(respond.mutate).toHaveBeenCalledWith({

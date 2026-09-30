@@ -187,6 +187,23 @@ describe("Contacts tabs", () => {
     });
   });
 
+  it("shows empty connection sections and search guidance before typing", () => {
+    mocks.following = false;
+    renderWithI18n(<Contacts />);
+    for (const title of ["Friends", "Following", "Followers", "Contacts on BGO"])
+      expect(screen.getByRole("heading", { name: title })).toBeTruthy();
+    for (const message of [
+      "No friends yet",
+      "Not following anyone yet",
+      "No followers yet",
+      "No contacts on BGO yet",
+    ])
+      expect(screen.getByText(message)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+    expect(screen.getByRole("heading", { name: "Search results" })).toBeTruthy();
+    expect(screen.getByText("Type at least 4 characters to search")).toBeTruthy();
+  });
+
   it("groups each connection once and keeps social actions inside menu", () => {
     mocks.friends = true;
     renderWithI18n(<Contacts />);

@@ -114,6 +114,13 @@ describe("mobile push notifications", () => {
     );
     expect(notificationHref({ href: "/matches" })).toBe("/matches");
     expect(notificationHref({ href: "/groups" })).toBe("/groups");
+    expect(notificationHref({ href: "/matches/507f1f77bcf86cd799439011" })).toBe(
+      "/match/507f1f77bcf86cd799439011",
+    );
+    expect(notificationHref({ href: "/groups/507f1f77bcf86cd799439012" })).toBe(
+      "/group/507f1f77bcf86cd799439012",
+    );
+    expect(notificationHref({ href: "/groups/../profile" })).toBe("/notifications");
     expect(notificationHref({ href: "/notifications" })).toBe("/notifications");
     expect(notificationHref({ href: "https://evil.example" })).toBe("/notifications");
     expect(notificationHref(null)).toBe("/notifications");

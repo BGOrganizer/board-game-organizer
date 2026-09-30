@@ -38,7 +38,7 @@ export function MatchResultsEditor({
   ];
   const playerById = new Map(players.map((player) => [player.id, player]));
   const [rows, setRows] = useState<ScoreDraftRow[]>(() =>
-    players.map((player) => ({ userId: player.id, rawScore: "0", notParticipated: false })),
+    players.map((player) => ({ userId: player.id, rawScore: "", notParticipated: false })),
   );
   const [lowerWins, setLowerWins] = useState(false);
   const [tieBreaks, setTieBreaks] = useState<RegisterMatchResultsInput["tieBreaks"]>([]);
@@ -46,7 +46,7 @@ export function MatchResultsEditor({
     RegisterMatchResultsInput["tieBreaks"][number] | null
   >(null);
   const [scoreEditor, setScoreEditor] = useState<string | null>(null);
-  const [scoreDraft, setScoreDraft] = useState({ rawScore: "0", notParticipated: false });
+  const [scoreDraft, setScoreDraft] = useState({ rawScore: "", notParticipated: false });
   const [confirm, setConfirm] = useState(false);
   const preview = useMemo(
     () =>
@@ -82,7 +82,7 @@ export function MatchResultsEditor({
   };
   const closeScore = (id: string) => {
     setScoreEditor(null);
-    const rawScore = normalizeMatchScore(scoreDraft.rawScore) === null ? "0" : scoreDraft.rawScore;
+    const rawScore = scoreDraft.rawScore;
     const previous = rows.find((row) => row.userId === id);
     if (
       previous &&
@@ -134,14 +134,6 @@ export function MatchResultsEditor({
                 aria-label={`${t`Score`}: ${player.name}`}
                 value={scoreDraft.rawScore}
                 disabled={scoreDraft.notParticipated || busy}
-                onFocus={() => {
-                  if (scoreDraft.rawScore === "0")
-                    setScoreDraft((old) => ({ ...old, rawScore: "" }));
-                }}
-                onBlur={() => {
-                  if (normalizeMatchScore(scoreDraft.rawScore) === null)
-                    setScoreDraft((old) => ({ ...old, rawScore: "0" }));
-                }}
                 onChange={(event) =>
                   setScoreDraft((old) => ({ ...old, rawScore: event.target.value }))
                 }
@@ -325,6 +317,22 @@ export function MatchResultsEditor({
                   <GroupedRow key={entry.userId} className="gap-2">
                     {player && <MatchStandingIdentity player={player} />}
                     <span>ND</span>
+                    {player && scoreButton(player)}
+                  </GroupedRow>
+                );
+              })}
+          </GroupedList>
+        )}
+        {rows.some((row) => !row.notParticipated && normalizeMatchScore(row.rawScore) === null) && (
+          <GroupedList>
+            {rows
+              .filter((row) => !row.notParticipated && normalizeMatchScore(row.rawScore) === null)
+              .map((row) => {
+                const player = playerById.get(row.userId);
+                return (
+                  <GroupedRow key={row.userId} className="gap-2">
+                    {player && <MatchStandingIdentity player={player} />}
+                    <span>-</span>
                     {player && scoreButton(player)}
                   </GroupedRow>
                 );

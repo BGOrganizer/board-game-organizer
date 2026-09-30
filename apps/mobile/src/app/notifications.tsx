@@ -5,8 +5,9 @@ import { Redirect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CheckCheck, Trash2 } from "lucide-react-native";
+import { Bell, CheckCheck, Trash2 } from "lucide-react-native";
 import { Alert, FlatList, Pressable, View } from "react-native";
+import { EmptyList } from "@/components/EmptyList";
 import { NotificationKindIcon } from "@/components/NotificationKindIcon";
 import { defaultI18n, useT } from "@/lib/i18n";
 import { notificationHref } from "@/lib/push-notifications";
@@ -33,6 +34,7 @@ export default function NotificationsScreen() {
   return (
     <FlatList
       className="flex-1 bg-background"
+      pointerEvents={notifications.deleteNotification.isPending ? "none" : "auto"}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ padding: 16, paddingBottom: 72, gap: 12, flexGrow: 1 }}
       data={notifications.notifications}
@@ -80,9 +82,9 @@ export default function NotificationsScreen() {
             ))}
           </View>
         ) : notifications.list.isError ? null : (
-          <Typography className="rounded-xl border border-border bg-surface p-8 text-center text-muted">
+          <EmptyList icon={<Bell size={28} color="#737373" />}>
             {t("No notifications yet")}
-          </Typography>
+          </EmptyList>
         )
       }
       ListFooterComponent={
@@ -105,9 +107,11 @@ export default function NotificationsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${item.title}. ${item.description}`}
+            disabled={notifications.deleteNotification.isPending}
             className="rounded-xl p-4 active:bg-muted/20"
             style={{ flexDirection: "row", gap: 10, width: "100%", paddingRight: 56 }}
             onPress={() => {
+              if (notifications.deleteNotification.isPending) return;
               notifications.markRead.mutate(item.id);
               router.push(notificationHref({ href: item.href, kind: item.kind }));
             }}

@@ -19,11 +19,12 @@ async function signIn(page: import("@playwright/test").Page) {
 
 test("group and match lifecycle notifications appear in inbox", async ({ page }) => {
   await signIn(page);
+  const destinationId = "507f1f77bcf86cd799439011";
   const titles = [
-    ["group_invitation", "New group invitation", "/groups"],
-    ["group_invitation_accepted", "Group invitation accepted", "/groups"],
-    ["match_created", "Match confirmed", "/matches"],
-    ["match_terminated", "Match finished", "/matches"],
+    ["group_invitation", "New group invitation", `/groups/${destinationId}`],
+    ["group_invitation_accepted", "Group invitation accepted", `/groups/${destinationId}`],
+    ["match_created", "Match confirmed", `/matches/${destinationId}`],
+    ["match_terminated", "Match finished", `/matches/${destinationId}`],
   ] as const;
   const deleted = new Set<string>();
   await page.route("**/api/notifications?**", (route) =>
@@ -69,6 +70,12 @@ test("group and match lifecycle notifications appear in inbox", async ({ page })
   await expect(dropdown.getByText("Match finished", { exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(dropdown).toHaveCount(0);
+  await page.getByText("Match confirmed", { exact: true }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/matches/${destinationId}$`));
+  await page.goto("/notifications");
+  await page.getByText("Group invitation accepted", { exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/groups/${destinationId}$`));
+  await page.goto("/notifications");
   await page
     .getByText("New group invitation", { exact: true })
     .locator("xpath=ancestor::article")
@@ -226,7 +233,7 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await expect(page.getByText("No groups yet")).toBeVisible();
 });
 
-test("accepted group invitation shows admin alongside accepted members", async ({ page }) => {
+test("pending group invitation shows admin, then accepted members", async ({ page }) => {
   const inviteeUserId = await signIn(page);
   const invitation = {
     id: "b40e695e-ad90-4730-85f3-a8ddb581c49b",
@@ -242,7 +249,7 @@ test("accepted group invitation shows admin alongside accepted members", async (
     name: "Board Gamers",
     isPublic: false,
     memberCount: 1,
-    memberProfiles: [] as { id: string; name: string; email: string | null; avatarUrl: null }[],
+    memberProfiles: [{ id: "user_host", name: "Group Host", email: null, avatarUrl: null }],
     invitations: [invitation],
     createdAt: now,
     updatedAt: now,
@@ -262,7 +269,8 @@ test("accepted group invitation shows admin alongside accepted members", async (
   });
   await page.goto("/groups");
   await page.getByRole("link", { name: "Open group: Board Gamers" }).click();
-  await expect(page.getByText("Members are visible after accepting the invitation")).toBeVisible();
+  await expect(page.getByText("Group Host")).toBeVisible();
+  await expect(page.getByText("Group Guest")).toHaveCount(0);
   await page.getByRole("button", { name: "Accept invitation" }).click();
   await expect(page.getByText("Group Host")).toBeVisible();
   await expect(page.getByText("Group Guest")).toBeVisible();

@@ -49,14 +49,24 @@ function openScore(name: string) {
   fireEvent.click(screen.getByRole("button", { name: `Score: ${name}` }));
 }
 
-it("shows everyone at zero, opens score popovers, and confirms a staged three-way tie-break", () => {
+function fillAllScores() {
+  for (const name of ["Marco Verdi", "Anna Rossi", "Luca Bianchi"]) {
+    openScore(name);
+    fireEvent.change(screen.getByRole("textbox", { name: `Score: ${name}` }), {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  }
+}
+
+it("starts with unset scores, opens score popovers, and confirms a staged three-way tie-break", () => {
   const submit = vi.fn();
   renderWithI18n(
     <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={submit} />,
   );
   const standings = screen.getByRole("region", { name: "Live standings" });
   expect(screen.queryByRole("region", { name: "Player scores" })).toBeNull();
-  expect(within(standings).getAllByText("0")).toHaveLength(3);
+  expect(within(standings).getAllByText("-")).toHaveLength(3);
   expect(screen.getAllByRole("button", { name: /Score:/ })).toHaveLength(3);
   expect(within(standings).getByText("admin@example.com")).toBeTruthy();
   expect(within(standings).getByText("Anna Rossi")).toBeTruthy();
@@ -64,7 +74,7 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
   expect(screen.queryByRole("textbox", { name: /Score:/ })).toBeNull();
   expect(
     (screen.getByRole("button", { name: "Register match" }) as HTMLButtonElement).disabled,
-  ).toBe(false);
+  ).toBe(true);
 
   for (const name of ["Marco Verdi", "Anna Rossi", "Luca Bianchi"]) {
     openScore(name);
@@ -119,13 +129,13 @@ it("shows everyone at zero, opens score popovers, and confirms a staged three-wa
   });
 });
 
-it("clears zero on focus and restores zero for invalid scores on blur", () => {
+it("starts blank and preserves invalid input as an unset score", () => {
   renderWithI18n(
     <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={vi.fn()} />,
   );
   openScore("Marco Verdi");
   const input = screen.getByRole("textbox", { name: "Score: Marco Verdi" }) as HTMLInputElement;
-  expect(input.value).toBe("0");
+  expect(input.value).toBe("");
   fireEvent.focus(input);
   expect(input.value).toBe("");
   fireEvent.change(input, { target: { value: "12.5" } });
@@ -144,17 +154,21 @@ it("clears zero on focus and restores zero for invalid scores on blur", () => {
   fireEvent.change(reopenedInput, { target: { value: "abc" } });
   expect(screen.getByRole("alert").textContent).toBe("Enter a valid score");
   fireEvent.blur(reopenedInput);
-  expect(reopenedInput.value).toBe("0");
+  expect(reopenedInput.value).toBe("abc");
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(
-    within(screen.getByRole("region", { name: "Live standings" })).getAllByText("0"),
+    within(screen.getByRole("region", { name: "Live standings" })).getAllByText("-"),
   ).toHaveLength(3);
+  expect(
+    (screen.getByRole("button", { name: "Register match" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
 });
 
 it("can edit or remove an applied tie-break without changing scores", () => {
   renderWithI18n(
     <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={vi.fn()} />,
   );
+  fillAllScores();
   const standings = screen.getByRole("region", { name: "Live standings" });
   fireEvent.click(screen.getByRole("button", { name: "Resolve tie" }));
   fireEvent.click(screen.getByRole("button", { name: "Move up: Luca Bianchi" }));
@@ -220,6 +234,8 @@ it("keeps the selected win condition through an asynchronous view transition", (
     renderWithI18n(
       <MatchResultsEditor data={data} busy={false} onBack={vi.fn()} onSubmit={submit} />,
     );
+    fillAllScores();
+    while (pending.length) pending.shift()?.();
     const toggle = screen.getByRole("switch", { name: "Lowest score wins" });
     fireEvent.click(toggle);
     expect(pending).toHaveLength(1);

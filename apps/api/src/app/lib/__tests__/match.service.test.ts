@@ -246,6 +246,7 @@ describe("result registration", () => {
         recipientUserId: "user_guest",
         actorUserId: "user_admin",
         matchName: match.name,
+        matchId: match.id,
       },
     ]);
     expect(response.results?.entries).toEqual([
@@ -474,6 +475,7 @@ describe("MatchService", () => {
         recipientUserId: "user_guest",
         actorUserId: "user_admin",
         matchName: match.name,
+        matchId: match.id,
       },
     ]);
     matches.findById.mockResolvedValue({
@@ -502,6 +504,7 @@ describe("MatchService", () => {
         recipientUserId: "user_guest",
         actorUserId: "user_admin",
         matchName: match.name,
+        matchId: match.id,
       },
     ]);
   });
@@ -1365,12 +1368,14 @@ describe("MatchService", () => {
         recipientUserId: "user_reinvited",
         actorUserId: "user_admin",
         matchName: changes.name,
+        matchId: match.id,
       },
       {
         kind: "match_invitation",
         recipientUserId: "user_new",
         actorUserId: "user_admin",
         matchName: changes.name,
+        matchId: match.id,
       },
     ]);
     expect(notifications.notifyMany).toHaveBeenNthCalledWith(2, [
@@ -1379,6 +1384,7 @@ describe("MatchService", () => {
         recipientUserId: "user_guest",
         actorUserId: "user_admin",
         matchName: changes.name,
+        matchId: match.id,
       },
     ]);
   });
@@ -1551,6 +1557,7 @@ describe("MatchService", () => {
         recipientUserId: "user_guest",
         actorUserId: "user_admin",
         matchName: match.name,
+        matchId: match.id,
       },
     ]);
     expect(notifications.notify).toHaveBeenNthCalledWith(1, {
@@ -1558,18 +1565,21 @@ describe("MatchService", () => {
       recipientUserId: "user_guest",
       actorUserId: "user_admin",
       matchName: match.name,
+      matchId: match.id,
     });
     expect(notifications.notify).toHaveBeenNthCalledWith(2, {
       kind: "match_invitation_accepted",
       recipientUserId: "user_admin",
       actorUserId: "user_guest",
       matchName: match.name,
+      matchId: match.id,
     });
     expect(notifications.notify).toHaveBeenNthCalledWith(3, {
       kind: "match_invitation_declined",
       recipientUserId: "user_admin",
       actorUserId: "user_guest",
       matchName: match.name,
+      matchId: match.id,
     });
     expect(notifications.notifyMany).toHaveBeenNthCalledWith(2, [
       {
@@ -1577,6 +1587,7 @@ describe("MatchService", () => {
         recipientUserId: "user_guest",
         actorUserId: "user_admin",
         matchName: match.name,
+        matchId: match.id,
       },
     ]);
   });

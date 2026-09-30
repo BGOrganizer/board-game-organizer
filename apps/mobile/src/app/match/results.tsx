@@ -139,12 +139,8 @@ function ScoreSheetInput({
         onChangeText={onChange}
         onFocus={(event) => {
           onFocus(event);
-          if (row.rawScore === "0") onChange("");
         }}
-        onBlur={(event) => {
-          onBlur(event);
-          if (normalizeMatchScore(row.rawScore) === null) onChange("0");
-        }}
+        onBlur={onBlur}
         accessibilityLabel={`${scoreLabel}: ${player.name}`}
         placeholder={scoreLabel}
         keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
@@ -184,7 +180,7 @@ function ResultsForm({
   ];
   const playerById = new Map(players.map((player) => [player.id, player]));
   const [rows, setRows] = useState<ScoreDraftRow[]>(() =>
-    players.map((player) => ({ userId: player.id, rawScore: "0", notParticipated: false })),
+    players.map((player) => ({ userId: player.id, rawScore: "", notParticipated: false })),
   );
   const [scorePlayerId, setScorePlayerId] = useState<string | null>(null);
   const [lowerWins, setLowerWins] = useState(false);
@@ -423,7 +419,7 @@ function ResultsForm({
                   style={{ flexDirection: "row", alignItems: "center", padding: 12, gap: 8 }}
                 >
                   {player && <MatchStandingIdentity player={player} />}
-                  <Typography className="text-foreground">—</Typography>
+                  <Typography className="text-foreground">-</Typography>
                   {player && scoreButton(player)}
                 </Animated.View>
               );

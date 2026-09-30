@@ -10,7 +10,19 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Card, Chip, Label, SearchField, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import {
+  Ban,
+  BookUser,
+  Mail,
+  Search,
+  SearchX,
+  Send,
+  UserRoundCheck,
+  UserRoundPlus,
+  UsersRound,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -233,6 +245,18 @@ export function Contacts() {
     followers: t`Followers`,
     device: t`Contacts on BGO`,
   };
+  const connectionEmpty = {
+    friends: t`No friends yet`,
+    following: t`Not following anyone yet`,
+    followers: t`No followers yet`,
+    device: t`No contacts on BGO yet`,
+  };
+  const connectionIcons = {
+    friends: UsersRound,
+    following: UserRoundPlus,
+    followers: UserRoundCheck,
+    device: BookUser,
+  };
   const connectionQueries = {
     friends: contacts.friends,
     following: contacts.following,
@@ -308,15 +332,21 @@ export function Contacts() {
             </SearchField.Group>
           </SearchField>
 
-          {query.trim().length > 0 && query.trim().length < 4 && (
-            <p className="text-sm text-default-500">{t`Type at least 4 characters to search`}</p>
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Search className="size-4" aria-hidden="true" />
+            {t`Search results`}
+          </h2>
+          {query.trim().length < 4 && (
+            <EmptyList icon={<Search className="size-7" />}>
+              {t`Type at least 4 characters to search`}
+            </EmptyList>
           )}
           {contacts.search.isLoading && <ContactListSkeleton count={2} />}
           {query.trim().length >= 4 &&
             !contacts.search.isLoading &&
             !contacts.search.isError &&
             searchResults.length === 0 && (
-              <p className="text-sm text-default-500">{t`No users found`}</p>
+              <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
             )}
           {contacts.search.isError ? (
             <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
@@ -329,6 +359,7 @@ export function Contacts() {
             {
               key: "received",
               label: t`Received`,
+              icon: Mail,
               rows: pendingRows,
               isLoading: contacts.pending.isLoading,
               isError: contacts.pending.isError,
@@ -337,6 +368,7 @@ export function Contacts() {
             {
               key: "sent",
               label: t`Sent`,
+              icon: Send,
               rows: sentRows,
               isLoading: contacts.sent.isLoading,
               isError: contacts.sent.isError,
@@ -348,7 +380,11 @@ export function Contacts() {
               key={section.key}
               aria-labelledby={`${section.key}-title`}
             >
-              <h2 id={`${section.key}-title`} className="text-sm font-semibold">
+              <h2
+                id={`${section.key}-title`}
+                className="flex items-center gap-2 text-sm font-semibold"
+              >
+                <section.icon className="size-4" aria-hidden="true" />
                 {section.label}
               </h2>
               {section.isLoading && <ContactListSkeleton count={2} />}
@@ -358,7 +394,7 @@ export function Contacts() {
                 </p>
               )}
               {!section.isLoading && !section.isError && section.rows.length === 0 && (
-                <p className="text-sm text-default-500">{section.empty}</p>
+                <EmptyList icon={<section.icon className="size-7" />}>{section.empty}</EmptyList>
               )}
               <GroupedList>
                 {section.rows.map((row) =>
@@ -370,7 +406,10 @@ export function Contacts() {
             </section>
           ))}
           <section className="space-y-2" aria-labelledby="blocked-title">
-            <h2 id="blocked-title" className="text-sm font-semibold">{t`Blocked`}</h2>
+            <h2 id="blocked-title" className="flex items-center gap-2 text-sm font-semibold">
+              <Ban className="size-4" aria-hidden="true" />
+              {t`Blocked`}
+            </h2>
             {contacts.blocked.isLoading ? <ContactListSkeleton count={2} /> : null}
             {contacts.blocked.isError ? (
               <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
@@ -378,7 +417,7 @@ export function Contacts() {
             {!contacts.blocked.isLoading &&
             !contacts.blocked.isError &&
             blockedRows.length === 0 ? (
-              <p className="text-sm text-default-500">{t`No blocked users`}</p>
+              <EmptyList icon={<Ban className="size-7" />}>{t`No blocked users`}</EmptyList>
             ) : null}
             <GroupedList>
               {blockedRows.map((row) => (row.profile ? contactCard(row.profile) : null))}
@@ -389,28 +428,33 @@ export function Contacts() {
         <Tabs.Panel id="connections" className="space-y-5 pt-4">
           {connections.map((section) => {
             const state = connectionQueries[section.key];
-            if (!section.users.length && !state.isLoading && !state.isError) return null;
+            const Icon = connectionIcons[section.key];
             return (
               <section
                 key={section.key}
                 className="space-y-2"
                 aria-labelledby={`connections-${section.key}`}
               >
-                <h2 id={`connections-${section.key}`} className="text-sm font-semibold">
+                <h2
+                  id={`connections-${section.key}`}
+                  className="flex items-center gap-2 text-sm font-semibold"
+                >
+                  <Icon className="size-4" aria-hidden="true" />
                   {connectionLabels[section.key]}
                 </h2>
                 {state.isLoading ? <ContactListSkeleton count={2} /> : null}
                 {state.isError ? (
                   <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
                 ) : null}
+                {!state.isLoading && !state.isError && section.users.length === 0 && (
+                  <EmptyList icon={<Icon className="size-7" />}>
+                    {connectionEmpty[section.key]}
+                  </EmptyList>
+                )}
                 <GroupedList>{section.users.map((user) => contactCard(user))}</GroupedList>
               </section>
             );
           })}
-          {connections.every((section) => section.users.length === 0) &&
-          !Object.values(connectionQueries).some((state) => state.isLoading || state.isError) ? (
-            <p className="text-sm text-default-500">{t`No connections yet`}</p>
-          ) : null}
         </Tabs.Panel>
       </Tabs>
 

@@ -42,7 +42,9 @@ export class GroupService {
     const canSeeMembers =
       group.adminUserId === viewerId ||
       invitations.some(
-        (invitation) => invitation.inviteeUserId === viewerId && invitation.status === "ACCEPTED",
+        (invitation) =>
+          invitation.inviteeUserId === viewerId &&
+          (invitation.status === "PENDING" || invitation.status === "ACCEPTED"),
       );
     return {
       id: group.id,
@@ -117,6 +119,7 @@ export class GroupService {
         recipientUserId,
         actorUserId: userId,
         groupName: group.name,
+        groupId: group.id,
       })),
     );
     return this.responseForGroup(group, await this.groups.listInvitations(group.id), userId);
@@ -204,6 +207,7 @@ export class GroupService {
         recipientUserId,
         actorUserId: userId,
         groupName: updated.name,
+        groupId: updated.id,
       })),
     );
     return this.responseForGroup(updated, await this.groups.listInvitations(groupId), userId);
@@ -236,6 +240,7 @@ export class GroupService {
         recipientUserId: group.adminUserId,
         actorUserId: userId,
         groupName: group.name,
+        groupId: group.id,
       });
     return this.detail(userId, invitation.groupId).catch((error: unknown) => {
       // Declining hides the invitation immediately from the caller's group list.

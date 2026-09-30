@@ -103,6 +103,44 @@ describe("notificationCopy", () => {
     ).toContain("Alex");
   });
 
+  it("stores direct detail links for group and match notifications", async () => {
+    const insertMany = vi.fn(async (_documents: Array<{ href: string }>) => ({ insertedIds: {} }));
+    const db = {
+      collection: vi.fn((name: string) =>
+        name === "users"
+          ? {
+              find: () => ({
+                toArray: async () => [
+                  { clerkId: "actor", name: "Alex", preferredLanguage: "en" },
+                  { clerkId: "recipient", name: "Sam", preferredLanguage: "en" },
+                ],
+              }),
+            }
+          : { insertMany },
+      ),
+    };
+    await new NotificationsRepository(db as never).notifyMany([
+      {
+        kind: "group_invitation",
+        groupId: "507f1f77bcf86cd799439012",
+        groupName: "Catan club",
+        recipientUserId: "recipient",
+        actorUserId: "actor",
+      },
+      {
+        kind: "match_invitation",
+        matchId: "507f1f77bcf86cd799439011",
+        matchName: "Catan",
+        recipientUserId: "recipient",
+        actorUserId: "actor",
+      },
+    ]);
+    expect(insertMany.mock.calls[0]?.[0].map((item: { href: string }) => item.href)).toEqual([
+      "/groups/507f1f77bcf86cd799439012",
+      "/matches/507f1f77bcf86cd799439011",
+    ]);
+  });
+
   it("skips empty or unresolved event batches and bulk-inserts resolved events", async () => {
     const insertMany = vi.fn(async () => ({
       insertedIds: { 0: new ObjectId("0123456789abcdef01234567") },

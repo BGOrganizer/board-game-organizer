@@ -30,6 +30,7 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Platform, Pressable, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
@@ -64,6 +65,7 @@ function uid() {
 export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse }) {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
+  const insets = useSafeAreaInsets();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const router = useRouter();
@@ -290,7 +292,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
       style={{
         position: "absolute",
         right: 20,
-        bottom: 24,
+        bottom: Math.max(24, insets.bottom + 12),
         width: 56,
         height: 56,
         borderRadius: 28,
@@ -319,7 +321,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
         style={{
           position: "absolute",
           left: 20,
-          bottom: 24,
+          bottom: Math.max(24, insets.bottom + 12),
           width: 56,
           height: 56,
           borderRadius: 28,
@@ -339,7 +341,10 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 20, paddingBottom: Math.max(120, insets.bottom + 100) }}
+      >
         {/* Step indicator */}
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 16 }}>
           {[1, 2, 3].map((s) => (

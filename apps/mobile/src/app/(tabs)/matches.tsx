@@ -28,7 +28,9 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
+import { EmptyList } from "@/components/EmptyList";
 import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { ListSearchFilters } from "@/components/ListSearchFilters";
@@ -93,6 +95,7 @@ function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string 
 export default function MatchesScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
+  const insets = useSafeAreaInsets();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const filters = useListFilters();
@@ -165,11 +168,11 @@ export default function MatchesScreen() {
               />
             </View>
           ) : matches.list.isError ? null : (
-            <Typography className="text-muted">
+            <EmptyList icon={<Dices size={28} color="#737373" />}>
               {filters.roles.length === 3 && !filters.filters.query
                 ? t("No matches yet — create your first one!")
                 : t("No matches match your filters")}
-            </Typography>
+            </EmptyList>
           )
         }
         renderItem={({ item: match }) => {
@@ -348,7 +351,7 @@ export default function MatchesScreen() {
         style={{
           position: "absolute",
           right: 20,
-          bottom: 24,
+          bottom: Math.max(24, insets.bottom + 12),
           width: 56,
           height: 56,
           borderRadius: 28,

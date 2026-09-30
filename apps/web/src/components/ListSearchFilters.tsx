@@ -1,6 +1,9 @@
 import { type ListRole, listRoles } from "@board-game-organizer/shared";
 import { Button, Label, SearchField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Check, Crown, Mail } from "lucide-react";
+
+const roleIcons = { admin: Crown, invited: Mail, accepted: Check };
 
 export function ListSearchFilters({
   query,
@@ -30,19 +33,23 @@ export function ListSearchFilters({
         </SearchField.Group>
       </SearchField>
       <div className="flex flex-wrap gap-2">
-        {listRoles.map((role) => (
-          <Button
-            key={role}
-            size="sm"
-            variant="primary"
-            className="h-7 min-h-7 px-2 text-xs"
-            style={roles.includes(role) ? undefined : { backgroundColor: "#52525b" }}
-            aria-pressed={roles.includes(role)}
-            onPress={() => onToggle(role)}
-          >
-            <span className="text-white">{names[role]}</span>
-          </Button>
-        ))}
+        {listRoles.map((role) => {
+          const Icon = roleIcons[role];
+          return (
+            <Button
+              key={role}
+              size="sm"
+              variant="primary"
+              className="h-7 min-h-7 px-2 text-xs"
+              style={roles.includes(role) ? undefined : { backgroundColor: "#52525b" }}
+              aria-pressed={roles.includes(role)}
+              onPress={() => onToggle(role)}
+            >
+              <Icon className="size-3.5 text-white" aria-hidden="true" />
+              <span className="text-white">{names[role]}</span>
+            </Button>
+          );
+        })}
       </div>
       {query.trim().length > 0 && query.trim().length < 4 && (
         <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>

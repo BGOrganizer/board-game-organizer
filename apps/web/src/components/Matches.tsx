@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { EmptyList } from "@/components/EmptyList";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { ListSearchFilters } from "@/components/ListSearchFilters";
 import { MatchWizard } from "@/components/MatchWizard";
@@ -130,11 +131,11 @@ export function Matches() {
       )}
       {matches.list.isError && <p className="text-sm text-danger">{t`Could not load matches`}</p>}
       {matches.list.data && matches.list.data.length === 0 && !matches.list.isError && (
-        <p className="text-sm text-default-500">
+        <EmptyList icon={<Dices className="size-7" />}>
           {filters.roles.length === 3 && !filters.filters.query
             ? t`No matches yet — create your first one!`
             : t`No matches match your filters`}
-        </p>
+        </EmptyList>
       )}
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

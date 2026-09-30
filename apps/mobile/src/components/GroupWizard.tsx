@@ -12,6 +12,7 @@ import { Typography } from "heroui-native/text";
 import { Plus, Save, Trash2, UsersRound } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -36,6 +37,7 @@ function Editor({
   userId: string | null | undefined;
 }) {
   const t = useT();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const feedback = useMutationFeedback();
   const contacts = useContacts(apiUrl, token, getToken, undefined, userId, feedback);
@@ -89,7 +91,14 @@ function Editor({
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 16 }}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: Math.max(120, insets.bottom + 100),
+          gap: 16,
+        }}
+      >
         <Input
           accessibilityLabel={t("Group name")}
           value={name}
@@ -223,7 +232,7 @@ function Editor({
         style={{
           position: "absolute",
           right: 20,
-          bottom: 24,
+          bottom: Math.max(24, insets.bottom + 12),
           width: 56,
           height: 56,
           borderRadius: 28,

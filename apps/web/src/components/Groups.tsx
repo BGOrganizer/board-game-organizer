@@ -47,6 +47,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
+import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { GroupLeaderboard } from "@/components/GroupLeaderboard";
 import { LinkedListCard } from "@/components/LinkedListCard";
@@ -364,79 +365,109 @@ function GroupPeople({
         };
       }),
   ];
+  const sections = [
+    {
+      title: t`Members`,
+      icon: UsersRound,
+      people: people.filter((person) => person.status === "ACCEPTED"),
+    },
+    ...(group.adminUserId === userId
+      ? [
+          {
+            title: t`Invitations`,
+            icon: Mail,
+            people: people.filter((person) => person.status !== "ACCEPTED"),
+          },
+        ]
+      : []),
+  ];
   return (
     <>
-      <GroupedList>
-        {people.map((person) => {
-          const state = matchContactState(person, socialLists);
-          return (
-            <GroupedRow key={person.id}>
-              <span className="relative shrink-0">
-                <Avatar size="md" color="accent">
-                  <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
-                  <Avatar.Fallback>{person.name.charAt(0) || "?"}</Avatar.Fallback>
-                </Avatar>
-                <span
-                  className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5"
-                  role="img"
-                  aria-label={
-                    person.status === "PENDING"
-                      ? t`Pending`
-                      : person.status === "DECLINED"
-                        ? t`Declined`
-                        : t`Accepted`
-                  }
-                >
-                  {person.status === "PENDING" ? (
-                    <Clock3 className="size-4 text-warning" />
-                  ) : person.status === "DECLINED" ? (
-                    <CircleX className="size-4 text-danger" />
-                  ) : (
-                    <CircleCheck className="size-4 text-success" />
-                  )}
-                </span>
-                {person.id === group.adminUserId ? (
-                  <span
-                    className="absolute top-0 left-0 rounded-br-lg bg-surface p-0.5"
-                    role="img"
-                    aria-label={t`Group admin`}
-                  >
-                    <Crown className="size-4 text-warning" />
-                  </span>
-                ) : null}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{person.name}</span>
-                {person.email ? (
-                  <span className="block truncate text-sm text-default-500">{person.email}</span>
-                ) : null}
-              </span>
-              {group.adminUserId === userId && person.invitation ? (
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  isDisabled={removing}
-                  aria-label={`${t`Remove from group`}: ${person.name}`}
-                  onPress={() => onRemove(person.invitation?.id ?? "")}
-                >
-                  <UserRoundX className="size-4" />
-                </Button>
-              ) : null}
-              {person.id !== userId ? (
-                <UserMenu
-                  user={state.user}
-                  busy={socialBusy}
-                  matchContext
-                  canSendFriendRequest={state.canSendFriendRequest}
-                  friendRequest={state.friendRequest}
-                  onAction={(key) => socialAction(person, key)}
-                />
-              ) : null}
-            </GroupedRow>
-          );
-        })}
-      </GroupedList>
+      {sections.map((section) => (
+        <section key={section.title} className="flex flex-col gap-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <section.icon className="size-4" aria-hidden="true" />
+            {section.title}
+          </h2>
+          {section.people.length ? (
+            <GroupedList>
+              {section.people.map((person) => {
+                const state = matchContactState(person, socialLists);
+                return (
+                  <GroupedRow key={person.id}>
+                    <span className="relative shrink-0">
+                      <Avatar size="md" color="accent">
+                        <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
+                        <Avatar.Fallback>{person.name.charAt(0) || "?"}</Avatar.Fallback>
+                      </Avatar>
+                      <span
+                        className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5"
+                        role="img"
+                        aria-label={
+                          person.status === "PENDING"
+                            ? t`Pending`
+                            : person.status === "DECLINED"
+                              ? t`Declined`
+                              : t`Accepted`
+                        }
+                      >
+                        {person.status === "PENDING" ? (
+                          <Clock3 className="size-4 text-warning" />
+                        ) : person.status === "DECLINED" ? (
+                          <CircleX className="size-4 text-danger" />
+                        ) : (
+                          <CircleCheck className="size-4 text-success" />
+                        )}
+                      </span>
+                      {person.id === group.adminUserId ? (
+                        <span
+                          className="absolute top-0 left-0 rounded-br-lg bg-surface p-0.5"
+                          role="img"
+                          aria-label={t`Group admin`}
+                        >
+                          <Crown className="size-4 text-warning" />
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{person.name}</span>
+                      {person.email ? (
+                        <span className="block truncate text-sm text-default-500">
+                          {person.email}
+                        </span>
+                      ) : null}
+                    </span>
+                    {group.adminUserId === userId && person.invitation ? (
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="danger-soft"
+                        isDisabled={removing}
+                        aria-label={`${t`Remove from group`}: ${person.name}`}
+                        onPress={() => onRemove(person.invitation?.id ?? "")}
+                      >
+                        <UserRoundX className="size-4" />
+                      </Button>
+                    ) : null}
+                    {person.id !== userId ? (
+                      <UserMenu
+                        user={state.user}
+                        busy={socialBusy}
+                        matchContext
+                        canSendFriendRequest={state.canSendFriendRequest}
+                        friendRequest={state.friendRequest}
+                        onAction={(key) => socialAction(person, key)}
+                      />
+                    ) : null}
+                  </GroupedRow>
+                );
+              })}
+            </GroupedList>
+          ) : (
+            <EmptyList icon={<section.icon className="size-7" />}>{t`No invitations`}</EmptyList>
+          )}
+        </section>
+      ))}
       {socialQueries.some((query) => query.isError) ? (
         <Button variant="ghost" onPress={() => void contacts.refreshContacts()}>
           {t`Could not load social actions. Retry`}
@@ -593,9 +624,6 @@ export function Groups({
               {group.memberCount === 1 ? t`member` : t`members`}
             </p>
 
-            {invitation?.status === "PENDING" ? (
-              <p className="text-sm text-default-500">{t`Members are visible after accepting the invitation`}</p>
-            ) : null}
             <GroupPeople
               group={group}
               token={token}
@@ -719,11 +747,11 @@ export function Groups({
         <p role="alert" className="text-danger">{t`Could not load groups`}</p>
       ) : null}
       {groups.list.data?.length === 0 && !groups.list.isError ? (
-        <p className="text-default-500">
+        <EmptyList icon={<UsersRound className="size-7" />}>
           {filters.roles.length === 3 && !filters.filters.query
             ? t`No groups yet`
             : t`No groups match your filters`}
-        </p>
+        </EmptyList>
       ) : null}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {groups.list.data?.map((item) => {

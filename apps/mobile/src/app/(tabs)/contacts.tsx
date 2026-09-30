@@ -10,7 +10,7 @@ import {
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
@@ -19,7 +19,19 @@ import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { BookUser, MoreVertical, UserPlus } from "lucide-react-native";
+import {
+  Ban,
+  BookUser,
+  Mail,
+  MoreVertical,
+  Search,
+  SearchX,
+  Send,
+  UserPlus,
+  UserRoundCheck,
+  UserRoundPlus,
+  UsersRound,
+} from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -31,6 +43,7 @@ import {
   Share,
   View,
 } from "react-native";
+import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
 import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts";
@@ -488,14 +501,14 @@ export default function ContactsScreen() {
     return () => sub.remove();
   }, [checkContactsGranted]);
 
-  // Ask on entry to Contacts, never show an unprompted system permission dialog.
-  useEffect(() => {
-    if (contactsPermission !== "undetermined" || contactsPromptShownRef.current) {
-      return;
-    }
-    contactsPromptShownRef.current = true;
-    confirmAndRequestContacts();
-  }, [confirmAndRequestContacts, contactsPermission]);
+  // Ask for native permission only when the Contacts tab receives focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (contactsPermission !== "undetermined" || contactsPromptShownRef.current) return;
+      contactsPromptShownRef.current = true;
+      void requestContactsAccess();
+    }, [contactsPermission, requestContactsAccess]),
+  );
 
   // Restore the in-memory invite list when permission was granted earlier.
   useEffect(() => {
@@ -560,6 +573,21 @@ export default function ContactsScreen() {
     following: t("Following"),
     followers: t("Followers"),
     device: t("Contacts on BGO"),
+  };
+  const connectionEmpty = {
+    friends: t("No friends yet"),
+    following: t("Not following anyone yet"),
+    followers: t("No followers yet"),
+    device:
+      contactsPermission === "granted"
+        ? t("No contacts on BGO yet")
+        : t("Allow address book access to find your friends here."),
+  };
+  const connectionIcons = {
+    friends: UsersRound,
+    following: UserRoundPlus,
+    followers: UserRoundCheck,
+    device: BookUser,
   };
   const connectionQueries = {
     friends: contacts.friends,
@@ -679,19 +707,25 @@ export default function ContactsScreen() {
                     </Button>
                   ) : null}
                 </View>
-                {query.trim().length > 0 && query.trim().length < 4 && (
-                  <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
-                    {t("Type at least 4 characters to search")}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Search size={18} color={foreground} />
+                  <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                    {t("Search results")}
                   </Typography>
+                </View>
+                {query.trim().length < 4 && (
+                  <EmptyList icon={<Search size={28} color="#737373" />}>
+                    {t("Type at least 4 characters to search")}
+                  </EmptyList>
                 )}
                 {contacts.search.isLoading && <ContactListSkeleton count={2} />}
                 {query.trim().length >= 4 &&
                   !contacts.search.isLoading &&
                   !contacts.search.isError &&
                   searchResults.length === 0 && (
-                    <Typography style={{ fontSize: 13, color: "#8e8e93" }}>
+                    <EmptyList icon={<SearchX size={28} color="#737373" />}>
                       {t("No users found")}
-                    </Typography>
+                    </EmptyList>
                   )}
                 {contacts.search.isError ? (
                   <Typography className="text-danger">{t("Could not load contacts")}</Typography>
@@ -729,7 +763,9 @@ export default function ContactsScreen() {
                     !loadingDevicePage &&
                     !hasMoreDeviceContacts &&
                     unregistered.length === 0 ? (
-                      <Typography className="text-muted">{t("No contacts to invite")}</Typography>
+                      <EmptyList icon={<BookUser size={28} color="#737373" />}>
+                        {t("No contacts to invite")}
+                      </EmptyList>
                     ) : null}
                     {invite.isError ? (
                       <Typography className="text-danger">
@@ -783,6 +819,7 @@ export default function ContactsScreen() {
               {
                 key: "received",
                 label: t("Received"),
+                icon: Mail,
                 rows: pendingRows,
                 isLoading: contacts.pending.isLoading,
                 isError: contacts.pending.isError,
@@ -791,6 +828,7 @@ export default function ContactsScreen() {
               {
                 key: "sent",
                 label: t("Sent"),
+                icon: Send,
                 rows: sentRows,
                 isLoading: contacts.sent.isLoading,
                 isError: contacts.sent.isError,
@@ -798,7 +836,10 @@ export default function ContactsScreen() {
               },
             ].map((section) => (
               <View key={section.key} style={{ gap: 8 }}>
-                <Typography className="font-semibold text-foreground">{section.label}</Typography>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <section.icon size={18} color={foreground} />
+                  <Typography className="font-semibold text-foreground">{section.label}</Typography>
+                </View>
                 {section.isLoading && <ContactListSkeleton count={2} />}
                 {section.isError && (
                   <Typography accessibilityRole="alert" className="text-sm text-danger">
@@ -806,7 +847,9 @@ export default function ContactsScreen() {
                   </Typography>
                 )}
                 {!section.isLoading && !section.isError && section.rows.length === 0 && (
-                  <Typography className="text-sm text-muted">{section.empty}</Typography>
+                  <EmptyList icon={<section.icon size={28} color="#737373" />}>
+                    {section.empty}
+                  </EmptyList>
                 )}
                 <GroupedList>
                   {section.rows.map((row) =>
@@ -821,7 +864,10 @@ export default function ContactsScreen() {
               </View>
             ))}
             <View style={{ gap: 8, marginTop: 20 }}>
-              <Typography className="font-semibold text-foreground">{t("Blocked")}</Typography>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ban size={18} color={foreground} />
+                <Typography className="font-semibold text-foreground">{t("Blocked")}</Typography>
+              </View>
               {contacts.blocked.isLoading ? <ContactListSkeleton count={2} /> : null}
               {contacts.blocked.isError ? (
                 <Typography accessibilityRole="alert" className="text-danger">
@@ -831,7 +877,9 @@ export default function ContactsScreen() {
               {!contacts.blocked.isLoading &&
               !contacts.blocked.isError &&
               blockedRows.length === 0 ? (
-                <Typography className="text-muted">{t("No blocked users")}</Typography>
+                <EmptyList icon={<Ban size={28} color="#737373" />}>
+                  {t("No blocked users")}
+                </EmptyList>
               ) : null}
               <GroupedList>
                 {blockedRows.map((row) => (row.profile ? contactRow(row.profile) : null))}
@@ -844,18 +892,40 @@ export default function ContactsScreen() {
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 20, paddingBottom: 24 }}>
             {connections.map((section) => {
               const state = connectionQueries[section.key];
-              if (!section.users.length && !state.isLoading && !state.isError) return null;
+              const Icon = connectionIcons[section.key];
               return (
                 <View key={section.key} style={{ gap: 8 }}>
-                  <Typography className="font-semibold text-foreground">
-                    {connectionLabels[section.key]}
-                  </Typography>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Icon size={18} color={foreground} />
+                    <Typography
+                      accessibilityRole="header"
+                      className="font-semibold text-foreground"
+                      numberOfLines={1}
+                      style={{ flexShrink: 1 }}
+                    >
+                      {connectionLabels[section.key]}
+                    </Typography>
+                  </View>
                   {state.isLoading ? <ContactListSkeleton count={2} /> : null}
                   {state.isError ? (
                     <Typography accessibilityRole="alert" className="text-danger">
                       {t("Could not load contacts")}
                     </Typography>
                   ) : null}
+                  {!state.isLoading &&
+                    !state.isError &&
+                    section.users.length === 0 &&
+                    !(
+                      section.key === "device" &&
+                      (syncingContacts ||
+                        contactsPermission === "checking" ||
+                        contactsReadError ||
+                        contacts.syncContacts.isError)
+                    ) && (
+                      <EmptyList icon={<Icon size={28} color="#737373" />}>
+                        {connectionEmpty[section.key]}
+                      </EmptyList>
+                    )}
                   <GroupedList>{section.users.map((user) => contactRow(user))}</GroupedList>
                 </View>
               );
@@ -868,14 +938,6 @@ export default function ContactsScreen() {
               <Button variant="outline" onPress={() => void syncContactsData()}>
                 <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
               </Button>
-            ) : null}
-            {connections.every((section) => section.users.length === 0) &&
-            !syncingContacts &&
-            !contactsReadError &&
-            !contacts.syncContacts.isError &&
-            contactsPermission !== "checking" &&
-            !Object.values(connectionQueries).some((state) => state.isLoading || state.isError) ? (
-              <Typography className="text-muted">{t("No connections yet")}</Typography>
             ) : null}
           </ScrollView>
         </Tabs.Content>

@@ -23,7 +23,6 @@ import {
   CalendarDays,
   CircleAlert,
   CircleCheck,
-  CircleQuestionMark,
   CircleX,
   Clock3,
   Crown,
@@ -31,14 +30,17 @@ import {
   Gamepad2,
   LogOut,
   Medal,
+  Minus,
   Pencil,
   RotateCcw,
   Trash2,
   Trophy,
   UserRoundX,
+  UsersRound,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
+import { EmptyList } from "@/components/EmptyList";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { InvitationActions } from "@/components/InvitationActions";
@@ -62,7 +64,7 @@ const choiceColors: Record<MatchChoice, string> = {
   IF_NEEDED: "text-warning",
 };
 const choiceIcons = {
-  UNKNOWN: CircleQuestionMark,
+  UNKNOWN: Minus,
   YES: CircleCheck,
   NO: CircleX,
   IF_NEEDED: CircleAlert,
@@ -715,8 +717,9 @@ function MatchDetailContent({
         <Tabs.Content value="overview" style={{ marginTop: 16 }}>
           <View style={{ gap: 12 }}>
             <Typography className="text-xl font-semibold text-foreground">{match.name}</Typography>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Typography className="font-semibold text-foreground">
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <CalendarDays size={18} color={muted} />
+              <Typography accessibilityRole="header" className="font-semibold text-foreground">
                 {match.status !== "PLANNING" ? t("Confirmed date") : t("Date selection")}
               </Typography>
               {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
@@ -794,7 +797,12 @@ function MatchDetailContent({
                 </View>
               )}
 
-              <Typography className="font-semibold text-foreground">{t("Participants")}</Typography>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <UsersRound size={18} color={muted} />
+                <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                  {t("Participants")}
+                </Typography>
+              </View>
               <GroupedList>
                 {participants.map((player) => {
                   const statusLabel =
@@ -884,14 +892,17 @@ function MatchDetailContent({
 
         <Tabs.Content value="games" style={{ marginTop: 16 }}>
           <View style={{ gap: 12 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Typography className="font-semibold text-foreground">
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Gamepad2 size={18} color={muted} />
+              <Typography accessibilityRole="header" className="font-semibold text-foreground">
                 {match.status !== "PLANNING" ? t("Confirmed game") : t("Game selection")}
               </Typography>
               {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
             </View>
             {games.length === 0 ? (
-              <Typography className="text-sm text-muted">{t("No selected games")}</Typography>
+              <EmptyList icon={<Gamepad2 size={28} color="#737373" />}>
+                {t("No selected games")}
+              </EmptyList>
             ) : (
               <GroupedList>
                 {games

@@ -19,6 +19,7 @@ export type NotificationEvent =
       recipientUserId: string;
       actorUserId: string;
       groupName: string;
+      groupId: string;
     }
   | {
       kind:
@@ -32,6 +33,7 @@ export type NotificationEvent =
       recipientUserId: string;
       actorUserId: string;
       matchName: string;
+      matchId: string;
     };
 
 export function notificationCopy(
@@ -238,6 +240,11 @@ export class NotificationsRepository {
                 ? event.groupName
                 : undefined,
           ),
+          ...("matchId" in event
+            ? { href: `/matches/${event.matchId}` }
+            : "groupId" in event
+              ? { href: `/groups/${event.groupId}` }
+              : {}),
           createdAt,
         } as Notification,
       ];

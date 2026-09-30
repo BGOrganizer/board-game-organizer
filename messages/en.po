@@ -108,8 +108,8 @@ msgid "Administrator"
 msgstr "Administrator"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Allow address book access to find your friends here."
-#~ msgstr "Allow address book access to find your friends here."
+msgid "Allow address book access to find your friends here."
+msgstr "Allow address book access to find your friends here."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
@@ -933,8 +933,8 @@ msgstr "Increase max players"
 msgid "Increase min players"
 msgstr "Increase min players"
 
-#~ msgid "Invitations"
-#~ msgstr "Invitations"
+msgid "Invitations"
+msgstr "Invitations"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Invite a friend"
@@ -1128,12 +1128,13 @@ msgstr "member"
 msgid "members"
 msgstr "members"
 
-#~ msgid "Members"
-#~ msgstr "Members"
+#: apps/web/src/components/Groups.tsx
+msgid "Members"
+msgstr "Members"
 
 #: apps/web/src/components/Groups.tsx
-msgid "Members are visible after accepting the invitation"
-msgstr "Members are visible after accepting the invitation"
+#~ msgid "Members are visible after accepting the invitation"
+#~ msgstr "Members are visible after accepting the invitation"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Min"
@@ -1197,23 +1198,27 @@ msgid "No blocked users"
 msgstr "No blocked users"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No connections yet"
-msgstr "No connections yet"
+#~ msgid "No connections yet"
+#~ msgstr "No connections yet"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No contacts found in your address book."
 #~ msgstr "No contacts found in your address book."
 
-#~ msgid "No contacts to invite"
-#~ msgstr "No contacts to invite"
+#: apps/web/src/components/Contacts.tsx
+msgid "No contacts on BGO yet"
+msgstr "No contacts on BGO yet"
+
+msgid "No contacts to invite"
+msgstr "No contacts to invite"
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "No countries found"
 msgstr "No countries found"
 
 #: apps/web/src/components/Contacts.tsx
-#~ msgid "No followers yet"
-#~ msgstr "No followers yet"
+msgid "No followers yet"
+msgstr "No followers yet"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No friends from your contacts are on Board Game Organizer yet."
@@ -1224,8 +1229,8 @@ msgstr "No countries found"
 #~ msgstr "No friends to invite yet"
 
 #: apps/web/src/components/Contacts.tsx
-#~ msgid "No friends yet"
-#~ msgstr "No friends yet"
+msgid "No friends yet"
+msgstr "No friends yet"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
@@ -1244,8 +1249,8 @@ msgstr "No groups match your filters"
 msgid "No groups yet"
 msgstr "No groups yet"
 
-#~ msgid "No invitations"
-#~ msgstr "No invitations"
+msgid "No invitations"
+msgstr "No invitations"
 
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "No invited players"
@@ -1312,6 +1317,10 @@ msgstr "Not chosen"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Not enough accepted players"
 msgstr "Not enough accepted players"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Not following anyone yet"
+msgstr "Not following anyone yet"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Not known"
@@ -1638,6 +1647,10 @@ msgstr "Search matches"
 #: apps/web/src/components/Matches.tsx
 msgid "Search matches (at least 4 characters)"
 msgstr "Search matches (at least 4 characters)"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Search results"
+msgstr "Search results"
 
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/SearchUserPage.tsx
