@@ -570,7 +570,8 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     const warningAction = screen.getByRole("button", { name: "Choose date: If I have to" });
     expect(warningAction.className).toContain("text-warning");
-    expect(warningAction.querySelector("svg.lucide-circle-alert")).toBeTruthy();
+    expect(warningAction.textContent).toContain("~");
+    expect(warningAction.querySelector("svg.lucide-circle-alert")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Games" }));
     expect(
       screen

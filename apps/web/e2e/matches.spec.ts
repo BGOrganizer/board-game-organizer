@@ -554,7 +554,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   expect((await gameChoiceResponse).ok()).toBe(true);
   await expect(
     page.getByRole("button", { name: "Choose game: If I have to" }).first(),
-  ).toBeVisible();
+  ).toContainText("~");
 
   // Admin edits reuse the creation wizard and persist only on the final step.
   await page.getByRole("button", { name: "Edit match" }).click();

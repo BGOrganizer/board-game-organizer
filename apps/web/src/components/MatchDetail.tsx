@@ -20,7 +20,6 @@ import {
   CalendarCheck2,
   CalendarDays,
   Check,
-  CircleAlert,
   CircleCheck,
   CircleX,
   Clock3,
@@ -72,7 +71,6 @@ const choiceIcons = {
   UNKNOWN: Minus,
   YES: CircleCheck,
   NO: CircleX,
-  IF_NEEDED: CircleAlert,
 } as const;
 
 function ChoiceDropdown({
@@ -87,7 +85,7 @@ function ChoiceDropdown({
   onChoose: (choice: MatchChoice) => void;
 }) {
   const { t } = useLingui();
-  const ChoiceIcon = choiceIcons[choice];
+  const ChoiceIcon = choice === "IF_NEEDED" ? null : choiceIcons[choice];
   const labels: Record<MatchChoice, string> = {
     UNKNOWN: t`Not known`,
     YES: t`Yes`,
@@ -100,7 +98,13 @@ function ChoiceDropdown({
         aria-label={`${label}: ${labels[choice]}`}
         className={`button button--icon-only button--sm button--outline shrink-0 ${choiceColors[choice]}`}
       >
-        <ChoiceIcon aria-hidden="true" className="h-4 w-4" />
+        {ChoiceIcon ? (
+          <ChoiceIcon aria-hidden="true" className="h-4 w-4" />
+        ) : (
+          <span aria-hidden="true" className="text-lg font-bold leading-none">
+            ~
+          </span>
+        )}
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end">
         <Dropdown.Menu

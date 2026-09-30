@@ -4,7 +4,7 @@ import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/sche
 import { useBggAccount, useBggPicker, withProtectionBypass } from "@board-game-organizer/shared";
 import { Button, SearchField, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Gamepad2, Plus } from "lucide-react";
+import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
@@ -127,6 +127,7 @@ export function SearchGamePage({
           aria-pressed={search}
           onPress={() => setSearch((previous) => !previous)}
         >
+          <Search aria-hidden="true" className="h-3.5 w-3.5 text-white" />
           <span className="text-white">{t`Search`}</span>
         </Button>
         {hasCollection ? (
@@ -138,6 +139,7 @@ export function SearchGamePage({
             aria-pressed={collection}
             onPress={() => setCollection((previous) => !previous)}
           >
+            <LibraryBig aria-hidden="true" className="h-3.5 w-3.5 text-white" />
             <span className="text-white">{t`Collection`}</span>
           </Button>
         ) : null}

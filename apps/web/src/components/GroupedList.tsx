@@ -10,7 +10,7 @@ export function GroupedList({
   if (Children.toArray(children).length === 0) return null;
   return (
     <ul
-      className={`min-h-36 overflow-hidden rounded-xl bg-surface divide-y divide-default-200 ${className}`}
+      className={`overflow-hidden rounded-xl bg-surface divide-y divide-default-200 ${className}`}
     >
       {children}
     </ul>

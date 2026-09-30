@@ -12,7 +12,7 @@ import { Button } from "heroui-native/button";
 import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, Plus } from "lucide-react-native";
+import { Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, Image, View } from "react-native";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
@@ -139,12 +139,14 @@ export default function SearchGameScreen() {
                 minHeight: 32,
                 height: 32,
                 paddingHorizontal: 8,
+                gap: 6,
                 ...(!search && { backgroundColor: "#52525b" }),
               }}
               accessibilityLabel={t("Search")}
               accessibilityState={{ selected: search }}
               onPress={() => setSearch((value) => !value)}
             >
+              <Search size={14} color="#fff" />
               <Typography className="text-white" style={{ fontSize: 12 }}>
                 {t("Search")}
               </Typography>
@@ -157,12 +159,14 @@ export default function SearchGameScreen() {
                   minHeight: 32,
                   height: 32,
                   paddingHorizontal: 8,
+                  gap: 6,
                   ...(!collection && { backgroundColor: "#52525b" }),
                 }}
                 accessibilityLabel={t("Collection")}
                 accessibilityState={{ selected: collection }}
                 onPress={() => setCollection((value) => !value)}
               >
+                <LibraryBig size={14} color="#fff" />
                 <Typography className="text-white" style={{ fontSize: 12 }}>
                   {t("Collection")}
                 </Typography>

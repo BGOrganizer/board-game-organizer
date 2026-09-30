@@ -21,7 +21,6 @@ import { Typography } from "heroui-native/text";
 import {
   CalendarCheck2,
   CalendarDays,
-  CircleAlert,
   CircleCheck,
   CircleX,
   Clock3,
@@ -40,6 +39,7 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/EmptyList";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
@@ -67,10 +67,13 @@ const choiceIcons = {
   UNKNOWN: Minus,
   YES: CircleCheck,
   NO: CircleX,
-  IF_NEEDED: CircleAlert,
 } as const;
 
 function ChoiceIcon({ choice, color }: { choice: MatchChoice; color: string }) {
+  if (choice === "IF_NEEDED")
+    return (
+      <Typography style={{ color, fontSize: 22, fontWeight: "700", lineHeight: 22 }}>~</Typography>
+    );
   const Icon = choiceIcons[choice];
   return <Icon size={18} color={color} />;
 }
@@ -249,7 +252,7 @@ export default function MatchDetailScreen() {
   };
 
   return (
-    <>
+    <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           title: t("Match details"),
@@ -400,7 +403,7 @@ export default function MatchDetailScreen() {
             : undefined,
         }}
       />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
         {matches.detail.isPending && (
           <View style={{ gap: 12, width: "100%" }}>
             <Skeleton
@@ -520,7 +523,7 @@ export default function MatchDetailScreen() {
           style={{
             position: "absolute",
             right: 20,
-            bottom: 24,
+            bottom: 20,
             width: 56,
             height: 56,
             borderRadius: 28,
@@ -537,7 +540,7 @@ export default function MatchDetailScreen() {
           <Pencil color="#fff" size={24} />
         </Pressable>
       ) : null}
-    </>
+    </SafeAreaView>
   );
 }
 
