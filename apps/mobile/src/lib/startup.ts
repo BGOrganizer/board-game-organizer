@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 const initialRoles = "admin,invited,accepted";
+export const startupRelationshipTypes = ["friends", "pending", "following", "followers"] as const;
 
 export const STARTUP_SPLASH_LIMIT_MS = 4000;
 
@@ -30,6 +31,7 @@ export function isStartupDestinationSettled(
 ): boolean {
   if (pathname === "/") return false; // Wait for the declarative redirect.
 
+  const contactTypes = [...startupRelationshipTypes, "suggestions"] as const;
   const segments = pathname.split("/").filter(Boolean);
   const matchDetail =
     segments[0] === "match" &&
@@ -67,7 +69,7 @@ export function isStartupDestinationSettled(
       if (pathname === "/contacts") {
         return (
           key[0] === "contacts" &&
-          (key[1] === "friends" || key[1] === "pending") &&
+          contactTypes.some((type) => key[1] === type) &&
           key[2] === apiUrl &&
           Boolean(key[3])
         );
@@ -83,9 +85,7 @@ export function isStartupDestinationSettled(
     });
 
   if (pathname === "/contacts") {
-    return ["friends", "pending"].every((type) =>
-      matches.some((query) => query.queryKey[1] === type),
-    );
+    return contactTypes.every((type) => matches.some((query) => query.queryKey[1] === type));
   }
   // Unknown routes have no mandatory startup request.
   if (

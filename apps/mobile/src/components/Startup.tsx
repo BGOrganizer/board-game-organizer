@@ -1,6 +1,7 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import {
   fetchRelationshipsWithToken,
+  fetchSuggestionsWithToken,
   groupsPageQuery,
   listRoles,
   matchesPageQuery,
@@ -17,6 +18,7 @@ import {
   isStartupAuthPending,
   isStartupDestinationSettled,
   remainingSplashMs,
+  startupRelationshipTypes,
 } from "@/lib/startup";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -121,7 +123,7 @@ export function Startup({
           queryClient.prefetchInfiniteQuery(
             notificationsPageQuery({ apiUrl, getToken, userId, enabled: true }, 3),
           ),
-        ...(["friends", "pending"] as const).map(
+        ...startupRelationshipTypes.map(
           (type) => () =>
             queryClient.prefetchQuery({
               queryKey: ["contacts", type, apiUrl, token],
@@ -129,6 +131,12 @@ export function Startup({
               staleTime: 30_000,
             }),
         ),
+        () =>
+          queryClient.prefetchQuery({
+            queryKey: ["contacts", "suggestions", apiUrl, token],
+            queryFn: () => fetchSuggestionsWithToken(apiUrl, token, getToken),
+            staleTime: 60_000,
+          }),
       ];
       let next = 0;
       const worker = async () => {

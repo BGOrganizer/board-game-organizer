@@ -42,11 +42,16 @@ describe("startup destination", () => {
     expect(settled(client, "/groups")).toBe(true);
   });
 
-  it("waits for friends AND requests before showing contacts", () => {
+  it("waits for visible contact lists without requiring device address-book access", () => {
     const client = new QueryClient();
-    client.setQueryData(["contacts", "friends", url, "jwt"], []);
-    expect(settled(client, "/contacts")).toBe(false);
-    client.setQueryData(["contacts", "pending", url, "jwt"], []);
+    for (const type of ["friends", "pending", "following", "followers"]) {
+      client.setQueryData(["contacts", type, url, "jwt"], []);
+      expect(settled(client, "/contacts")).toBe(false);
+    }
+    client.setQueryData(["contacts", "suggestions", url, "jwt"], {
+      users: [],
+      hasContacts: false,
+    });
     expect(settled(client, "/contacts")).toBe(true);
   });
 
