@@ -32,7 +32,14 @@ module.exports = {
     },
     plugins: [
       "expo-router",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/icon.png",
+          imageWidth: 200,
+          backgroundColor: "#ffffff",
+        },
+      ],
       "@clerk/expo",
       "expo-secure-store",
       "@sentry/react-native",
