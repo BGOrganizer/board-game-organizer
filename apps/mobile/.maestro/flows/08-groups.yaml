@@ -27,7 +27,7 @@ appId: com.bgo.mobile
 - tapOn: "Remove invite"
 - assertVisible: "Select a friend"
 - tapOn: "Select a friend"
-- assertVisible: "Search users (at least 4 characters)"
+- assertVisible: "Search users"
 - back
 - tapOn:
     id: "save-group-fab"
@@ -37,11 +37,12 @@ appId: com.bgo.mobile
 - assertVisible: "Public"
 - assertVisible: "1 member"
 - assertVisible: "Group admin"
-- assertVisible: "Search groups (at least 4 characters)"
+- assertVisible: "Search groups"
 - assertVisible: "Admin"
 - assertVisible: "Invited"
 - assertVisible: "Accepted"
-- tapOn: "Search groups (at least 4 characters)"
+- tapOn:
+    id: "list-search-input"
 - inputText: "Tabletop"
 - assertVisible: "Tabletop Friends"
 - tapOn: "Admin"

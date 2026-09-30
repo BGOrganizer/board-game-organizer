@@ -153,7 +153,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
     page.getByRole("img", { name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Vote count legend" }).hover();
-  await expect(page.getByText("? Not chosen")).toBeVisible();
+  await expect(page.getByText("- Not chosen")).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm match" }).click();
   const confirmDialog = page.getByRole("dialog", { name: "Confirm match?" });

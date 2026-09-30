@@ -32,7 +32,11 @@ export function ListSearchFilters({
       <SearchField value={query} onChange={onQueryChange}>
         <SearchField.Group>
           <SearchField.SearchIcon />
-          <SearchField.Input accessibilityLabel={label} placeholder={placeholder} />
+          <SearchField.Input
+            testID="list-search-input"
+            accessibilityLabel={label}
+            placeholder={placeholder}
+          />
           <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
         </SearchField.Group>
       </SearchField>

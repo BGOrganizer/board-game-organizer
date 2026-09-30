@@ -124,6 +124,7 @@ export default function SearchGameScreen() {
             <SearchField.Group>
               <SearchField.SearchIcon />
               <SearchField.Input
+                testID="game-search-input"
                 accessibilityLabel={t("Search board games")}
                 placeholder={t("Search board games")}
               />

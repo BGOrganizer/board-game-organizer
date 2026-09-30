@@ -4,7 +4,7 @@ appId: com.bgo.mobile
 - killApp
 - openLink: bgo:///groups
 - extendedWaitUntil:
-    visible: "Search groups (at least 4 characters)"
+    visible: "Search groups"
     timeout: 120000
 - tapOn: "Matches"
 - extendedWaitUntil:

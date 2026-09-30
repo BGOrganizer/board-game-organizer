@@ -85,7 +85,8 @@ appId: com.bgo.mobile
     id: "remove-game-slot"
 - assertVisible: "Select a board game"
 - tapOn: "Select a board game"
-- tapOn: "Search board games (at least 4 characters)"
+- tapOn:
+    id: "game-search-input"
 - inputText: "Cascadia"
 - extendedWaitUntil:
     visible: "Select: Cascadia.*"
@@ -119,11 +120,12 @@ appId: com.bgo.mobile
     id: "match-waves-image"
 - assertVisible:
     id: "admin-match-badge"
-- assertVisible: "Search matches (at least 4 characters)"
+- assertVisible: "Search matches"
 - assertVisible: "Admin"
 - assertVisible: "Invited"
 - assertVisible: "Accepted"
-- tapOn: "Search matches (at least 4 characters)"
+- tapOn:
+    id: "list-search-input"
 - inputText: "Friday"
 - assertVisible: "Friday night games"
 - tapOn: "Admin"
@@ -214,7 +216,8 @@ appId: com.bgo.mobile
     id: "remove-game-slot"
 - assertVisible: "Select a board game"
 - tapOn: "Select a board game"
-- tapOn: "Search board games (at least 4 characters)"
+- tapOn:
+    id: "game-search-input"
 - inputText: "Cascadia"
 - extendedWaitUntil:
     visible: "Select: Cascadia.*"
