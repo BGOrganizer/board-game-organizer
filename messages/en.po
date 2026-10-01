@@ -1092,6 +1092,10 @@ msgstr "Match invitation accepted"
 msgid "Match invitation declined"
 msgstr "Match invitation declined"
 
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Match leaderboard"
+msgstr "Match leaderboard"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Match name"
 msgstr "Match name"

@@ -1258,10 +1258,14 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const createdDetail = await withMatchTransaction(({ service }) =>
       service.detail(TARGET, match.id),
     );
-    expect(createdDetail.currentGameRatings).toEqual([
-      { userId: ACTOR, score: 500, provisional: true },
-      { userId: TARGET, score: 500, provisional: true },
-      { userId: THIRD, score: 500, provisional: true },
+    expect(createdDetail).not.toHaveProperty("currentGameRatings");
+    const createdLeaderboard = await withMatchTransaction(({ service }) =>
+      service.leaderboard(TARGET, match.id, match.gameIds[0]),
+    );
+    expect(createdLeaderboard.ratings).toEqual([
+      { userId: ACTOR, score: 500, provisional: true, gamesPlayed: 0, gamesWon: 0, nd: 0 },
+      { userId: TARGET, score: 500, provisional: true, gamesPlayed: 0, gamesWon: 0, nd: 0 },
+      { userId: THIRD, score: 500, provisional: true, gamesPlayed: 0, gamesWon: 0, nd: 0 },
     ]);
     const results = await withMatchTransaction(({ service }) =>
       service.registerResults(ACTOR, match.id, {
@@ -1285,6 +1289,27 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const first = await standings.players(group.id, match.gameIds[0], 0, 1);
     expect(first.rows).toMatchObject([{ _id: ACTOR, gamesPlayed: 1, gamesWon: 1, nd: 0 }]);
     expect(first.nextCursor).toBe(1);
+    const groupStats = await ratings.matchStats([ACTOR, TARGET, THIRD], match.gameIds[0], group.id);
+    const globalStats = await ratings.matchStats([ACTOR, TARGET, THIRD], match.gameIds[0], null);
+    expect(groupStats).toEqual(
+      new Map([
+        [ACTOR, { gamesPlayed: 1, gamesWon: 1, nd: 0 }],
+        [TARGET, { gamesPlayed: 1, gamesWon: 0, nd: 0 }],
+        [THIRD, { gamesPlayed: 1, gamesWon: 0, nd: 1 }],
+      ]),
+    );
+    expect(globalStats).toEqual(groupStats);
+    expect(
+      (
+        await withMatchTransaction(({ service }) =>
+          service.leaderboard(TARGET, match.id, match.gameIds[0]),
+        )
+      ).ratings.find((row) => row.userId === THIRD),
+    ).toMatchObject({
+      gamesPlayed: 1,
+      gamesWon: 0,
+      nd: 1,
+    });
     expect((await standings.players(group.id, match.gameIds[0], 1, 25)).rows).toMatchObject([
       { _id: TARGET, gamesPlayed: 1, gamesWon: 0, nd: 0 },
       { _id: THIRD, gamesPlayed: 1, gamesWon: 0, nd: 1 },
@@ -1352,6 +1377,40 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     expect(
       await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ matchId: match.id }),
     ).toBe(6);
+    const ungrouped = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, invitedUserIds: [THIRD] }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.respond(THIRD, ungrouped.invitations[0].id, "accept"),
+    );
+    await withMatchTransaction(({ matches }) =>
+      matches.setStatus(ungrouped.id, ACTOR, "PLANNING", "CREATED", {
+        date: ungrouped.dates[0],
+        gameId: ungrouped.gameIds[0],
+      }),
+    );
+    await withMatchTransaction(({ service }) =>
+      service.registerResults(ACTOR, ungrouped.id, {
+        lowerWins: false,
+        entries: [
+          { userId: ACTOR, score: "1" },
+          { userId: THIRD, score: null },
+        ],
+        tieBreaks: [],
+      }),
+    );
+    expect(await ratings.matchStats([ACTOR, THIRD], match.gameIds[0], null)).toEqual(
+      new Map([
+        [ACTOR, { gamesPlayed: 2, gamesWon: 2, nd: 0 }],
+        [THIRD, { gamesPlayed: 2, gamesWon: 0, nd: 2 }],
+      ]),
+    );
+    expect(await ratings.matchStats([ACTOR, THIRD], match.gameIds[0], group.id)).toEqual(
+      new Map([
+        [ACTOR, { gamesPlayed: 1, gamesWon: 1, nd: 0 }],
+        [THIRD, { gamesPlayed: 1, gamesWon: 0, nd: 1 }],
+      ]),
+    );
   });
 
   it("edits a planning match group atomically, checks membership again at confirmation, and locks it when created", async () => {

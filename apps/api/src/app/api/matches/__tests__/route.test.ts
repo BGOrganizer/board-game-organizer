@@ -80,7 +80,9 @@ describe("match API routes", () => {
     } as never);
     vi.spyOn(MatchService.prototype, "leaderboard").mockResolvedValue({
       gameId: 1,
-      ratings: [{ userId: "user_admin", score: 500, provisional: true }],
+      ratings: [
+        { userId: "user_admin", score: 500, provisional: true, gamesPlayed: 2, gamesWon: 1, nd: 0 },
+      ],
     });
     vi.spyOn(MatchService.prototype, "listInvitations").mockResolvedValue([invitation] as never);
     vi.spyOn(MatchService.prototype, "registerResults").mockResolvedValue(match as never);
@@ -335,7 +337,9 @@ describe("match API routes", () => {
     expect(response.status).toBe(200);
     expect(await json(response)).toEqual({
       gameId: 1,
-      ratings: [{ userId: "user_admin", score: 500, provisional: true }],
+      ratings: [
+        { userId: "user_admin", score: 500, provisional: true, gamesPlayed: 2, gamesWon: 1, nd: 0 },
+      ],
     });
     expect(MatchService.prototype.leaderboard).toHaveBeenCalledWith("user_admin", matchId, 1);
     for (const invalid of [

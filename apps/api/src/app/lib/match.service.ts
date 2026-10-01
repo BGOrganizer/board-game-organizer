@@ -316,13 +316,6 @@ export class MatchService {
     const gamesById = new Map(games.map((game) => [game.id, game]));
 
     const administrator = usersById.get(match.clerkId);
-    const currentGameRatings =
-      match.status === "CREATED" && match.selectedGameId && this.ratings
-        ? await this.ratings.currentForPlayers(
-            [match.clerkId, ...playerInvitations.map((invitation) => invitation.inviteeUserId)],
-            match.selectedGameId,
-          )
-        : undefined;
     const gameRatings =
       match.status === "TERMINATED" && match.selectedGameId && this.ratings
         ? await this.ratings.forMatch(match.id, match.selectedGameId)
@@ -331,7 +324,6 @@ export class MatchService {
     return {
       match: this.toResponse(match, visibleInvitations),
       ...(gameRatings ? { gameRatings } : {}),
-      ...(currentGameRatings ? { currentGameRatings } : {}),
       choices: {
         dates: match.choices?.[userId]?.dates ?? {},
         games: match.choices?.[userId]?.games ?? {},
@@ -400,10 +392,19 @@ export class MatchService {
         .filter((player) => player.invitation.status === "ACCEPTED")
         .map((player) => player.id),
     ];
-    const ratings = await this.ratings.currentForPlayers(userIds, gameId, match.groupId ?? null);
+    const groupId = match.groupId ?? null;
+    const ratings = await this.ratings.currentForPlayers(userIds, gameId, groupId);
+    const stats = await this.ratings.matchStats(userIds, gameId, groupId);
     return {
       gameId,
-      ratings: ratings.sort((a, b) => b.score - a.score || a.userId.localeCompare(b.userId)),
+      ratings: ratings
+        .map((rating) => ({
+          ...rating,
+          gamesPlayed: stats.get(rating.userId)?.gamesPlayed ?? 0,
+          gamesWon: stats.get(rating.userId)?.gamesWon ?? 0,
+          nd: stats.get(rating.userId)?.nd ?? 0,
+        }))
+        .sort((a, b) => b.score - a.score || a.userId.localeCompare(b.userId)),
     };
   }
 

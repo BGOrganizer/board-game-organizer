@@ -47,7 +47,7 @@ import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { MatchLeaderboard } from "@/components/MatchLeaderboard";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
-import { GameRating, MatchStandingIdentity } from "@/components/MatchStandingIdentity";
+import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { MatchWizard } from "@/components/MatchWizard";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
@@ -705,13 +705,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                             />
                           ) : null}
                         </div>
-                        {match.status === "CREATED" ? (
-                          <GameRating
-                            rating={matchData.currentGameRatings?.find(
-                              (item) => item.userId === player.id,
-                            )}
-                          />
-                        ) : player.email ? (
+                        {player.email ? (
                           <p className="truncate text-sm text-default-500">{player.email}</p>
                         ) : null}
                       </div>

@@ -13,21 +13,14 @@ import {
   Table,
 } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Clock3, Dices, Gamepad2, X } from "lucide-react";
+import { Clock3, Dices, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/EmptyList";
+import { LeaderboardGameCover } from "@/components/LeaderboardGameCover";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
 const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
-
-function GameCover({ imageUrl }: { imageUrl: string | null }) {
-  return imageUrl ? (
-    <img src={imageUrl} alt="" className="size-5 shrink-0 rounded object-cover" />
-  ) : (
-    <Gamepad2 className="size-5 shrink-0 text-default-500" aria-hidden="true" />
-  );
-}
 
 export function GroupLeaderboard({ groupId }: { groupId: string }) {
   const { getToken, userId } = useAuth();
@@ -113,7 +106,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
         >
           <Label>{t`Board game`}</Label>
           <Select.Trigger className={selectedGame ? "w-full items-center gap-2 pe-10" : "w-full"}>
-            {selectedGame ? <GameCover imageUrl={selectedGame.imageUrl} /> : null}
+            {selectedGame ? <LeaderboardGameCover imageUrl={selectedGame.imageUrl} /> : null}
             <Select.Value className="sr-only" />
             <span
               aria-hidden="true"
@@ -144,7 +137,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
               {filteredGames?.map((game) => (
                 <ListBox.Item key={game.id} id={String(game.id)} textValue={game.name}>
                   <span className="flex items-center gap-2">
-                    <GameCover imageUrl={game.imageUrl} />
+                    <LeaderboardGameCover imageUrl={game.imageUrl} />
                     <span className="min-w-0 flex-1 truncate">{game.name}</span>
                   </span>
                   <ListBox.ItemIndicator />

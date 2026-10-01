@@ -133,6 +133,53 @@ export class RatingsRepository {
     });
   }
 
+  async matchStats(userIds: string[], gameId: number, groupId: string | null) {
+    const rows = await this.db
+      .collection(COLLECTIONS.MATCHES)
+      .aggregate<{
+        _id: string;
+        gamesPlayed: number;
+        gamesWon: number;
+        nd: number;
+      }>(
+        [
+          {
+            $match: {
+              status: "TERMINATED",
+              selectedGameId: gameId,
+              ...(groupId ? { groupId } : {}),
+            },
+          },
+          { $unwind: "$results.entries" },
+          { $match: { "results.entries.userId": { $in: userIds } } },
+          {
+            $group: {
+              _id: "$results.entries.userId",
+              gamesPlayed: { $sum: 1 },
+              gamesWon: {
+                $sum: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $eq: ["$results.entries.rank", 1] },
+                        { $ne: ["$results.entries.score", null] },
+                      ],
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              },
+              nd: { $sum: { $cond: [{ $eq: ["$results.entries.score", null] }, 1, 0] } },
+            },
+          },
+        ],
+        this.opts,
+      )
+      .toArray();
+    return new Map(rows.map(({ _id, ...stats }) => [_id, stats]));
+  }
+
   async forMatch(matchId: string, gameId: number): Promise<MatchGameRating[]> {
     const events = await this.events
       .find(

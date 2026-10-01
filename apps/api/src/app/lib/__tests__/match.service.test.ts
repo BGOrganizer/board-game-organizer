@@ -135,6 +135,9 @@ function setup(withNotifications = false) {
     applyMatch: vi.fn(async () => undefined),
     forMatch: vi.fn(async (): Promise<MatchGameRating[]> => []),
     currentForPlayers: vi.fn(async (): Promise<MatchCurrentGameRating[]> => []),
+    matchStats: vi.fn(
+      async () => new Map<string, { gamesPlayed: number; gamesWon: number; nd: number }>(),
+    ),
   };
   const groups = { requireMembers: vi.fn(async () => undefined) };
   const service = new MatchService(
@@ -983,14 +986,25 @@ describe("MatchService", () => {
       { userId: "user_admin", score: 497, provisional: true },
       { userId: "user_guest", score: 514, provisional: false },
     ]);
+    ratings.matchStats.mockResolvedValue(
+      new Map([["user_guest", { gamesPlayed: 3, gamesWon: 1, nd: 1 }]]),
+    );
     await expect(service.leaderboard("user_admin", match.id, 1)).resolves.toEqual({
       gameId: 1,
       ratings: [
-        { userId: "user_guest", score: 514, provisional: false },
-        { userId: "user_admin", score: 497, provisional: true },
+        {
+          userId: "user_guest",
+          score: 514,
+          provisional: false,
+          gamesPlayed: 3,
+          gamesWon: 1,
+          nd: 1,
+        },
+        { userId: "user_admin", score: 497, provisional: true, gamesPlayed: 0, gamesWon: 0, nd: 0 },
       ],
     });
     expect(ratings.currentForPlayers).toHaveBeenCalledWith(["user_admin", "user_guest"], 1, null);
+    expect(ratings.matchStats).toHaveBeenCalledWith(["user_admin", "user_guest"], 1, null);
     ratings.currentForPlayers.mockResolvedValue([
       { userId: "user_guest", score: 500, provisional: true },
       { userId: "user_admin", score: 500, provisional: true },
@@ -1033,6 +1047,7 @@ describe("MatchService", () => {
       1,
       "group_1",
     );
+    expect(ratings.matchStats).toHaveBeenLastCalledWith(["user_admin", "user_guest"], 1, "group_1");
     for (const status of ["CREATED", "TERMINATED"] as const) {
       matches.findById.mockResolvedValue({ ...match, status, selectedGameId: 1, gameIds: [1, 2] });
       await expectMatchError(
@@ -1046,13 +1061,8 @@ describe("MatchService", () => {
     }
   });
 
-  it("includes current global game ratings for accepted players only while created", async () => {
+  it("does not fetch rankings in planning or confirmed match details", async () => {
     const { service, matches, invitations, ratings } = setup();
-    const current = [
-      { userId: "user_admin", score: 500, provisional: true },
-      { userId: "user_guest", score: 513.25, provisional: false },
-    ];
-    ratings.currentForPlayers.mockResolvedValue(current);
     await expect(service.detail("user_admin", match.id)).resolves.not.toHaveProperty(
       "currentGameRatings",
     );
@@ -1060,10 +1070,10 @@ describe("MatchService", () => {
 
     matches.findById.mockResolvedValue({ ...match, status: "CREATED", selectedGameId: 1 });
     invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
-    await expect(service.detail("user_guest", match.id)).resolves.toMatchObject({
-      currentGameRatings: current,
-    });
-    expect(ratings.currentForPlayers).toHaveBeenCalledWith(["user_admin", "user_guest"], 1);
+    await expect(service.detail("user_guest", match.id)).resolves.not.toHaveProperty(
+      "currentGameRatings",
+    );
+    expect(ratings.currentForPlayers).not.toHaveBeenCalled();
     expect(ratings.forMatch).not.toHaveBeenCalled();
   });
 

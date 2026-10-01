@@ -1092,6 +1092,10 @@ msgstr "Invito alla partita accettato"
 msgid "Match invitation declined"
 msgstr "Invito alla partita rifiutato"
 
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Match leaderboard"
+msgstr "Classifica della partita"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Match name"
 msgstr "Nome della partita"

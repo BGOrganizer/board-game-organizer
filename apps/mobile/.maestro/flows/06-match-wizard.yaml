@@ -188,6 +188,9 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "500.00"
     timeout: 30000
+- assertVisible: "Games played"
+- assertVisible: "Games won"
+- assertVisible: "ND"
 - tapOn: "Overview"
 # Admin editing reuses the same wizard and sends changes only on final save.
 - tapOn: "Edit match"

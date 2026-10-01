@@ -45,7 +45,7 @@ import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { InvitationActions } from "@/components/InvitationActions";
 import { MatchLeaderboard } from "@/components/MatchLeaderboard";
-import { GameRating, MatchStandingIdentity } from "@/components/MatchStandingIdentity";
+import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
 import { useT } from "@/lib/i18n";
@@ -967,13 +967,7 @@ function MatchDetailContent({
                             </View>
                           ) : null}
                         </View>
-                        {match.status === "CREATED" ? (
-                          <GameRating
-                            rating={data.currentGameRatings?.find(
-                              (item) => item.userId === player.id,
-                            )}
-                          />
-                        ) : player.email ? (
+                        {player.email ? (
                           <Typography className="text-sm text-muted" numberOfLines={1}>
                             {player.email}
                           </Typography>

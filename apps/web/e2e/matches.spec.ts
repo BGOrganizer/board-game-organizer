@@ -47,8 +47,22 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
         json: {
           gameId: Number(url.searchParams.get("gameId")),
           ratings: [
-            { userId: adminUserId, score: 500, provisional: true },
-            { userId: "user_accepted", score: 490, provisional: false },
+            {
+              userId: adminUserId,
+              score: 500,
+              provisional: true,
+              gamesPlayed: 3,
+              gamesWon: 1,
+              nd: 1,
+            },
+            {
+              userId: "user_accepted",
+              score: 490,
+              provisional: false,
+              gamesPlayed: 2,
+              gamesWon: 0,
+              nd: 0,
+            },
           ],
         },
       });
@@ -131,14 +145,6 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
                   thumbnail: null,
                 },
               ],
-              ...(status === "CREATED"
-                ? {
-                    currentGameRatings: [
-                      { userId: adminUserId, score: 500, provisional: true },
-                      { userId: "user_accepted", score: 500, provisional: true },
-                    ],
-                  }
-                : {}),
               choices: { dates: { [String(Date.parse(date))]: "YES" }, games: { "342942": "YES" } },
               voteSummary: {
                 dates: { [String(Date.parse(date))]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
@@ -173,6 +179,10 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   const planningLeaderboard = page.getByRole("tabpanel", { name: "Leaderboards" });
   await expect(planningLeaderboard.getByText("500.00")).toBeVisible();
   await expect(planningLeaderboard.getByText("490.00")).toBeVisible();
+  await expect(
+    planningLeaderboard.getByRole("columnheader", { name: "Games played" }),
+  ).toBeVisible();
+  await expect(planningLeaderboard.getByRole("columnheader", { name: "Games won" })).toBeVisible();
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm match" }).click();
@@ -186,9 +196,9 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(page.getByRole("button", { name: /Choose date/ })).toHaveCount(0);
   await page.getByRole("tab", { name: "Players" }).click();
   const players = page.getByRole("tabpanel", { name: "Players" });
-  await expect(players.getByText("500.00")).toHaveCount(2);
-  await expect(players.getByRole("img", { name: "Provisional game rating" })).toHaveCount(2);
-  await expect(players.getByText("admin@example.com")).toHaveCount(0);
+  await expect(players.getByText("500.00")).toHaveCount(0);
+  await expect(players.getByRole("img", { name: "Provisional game rating" })).toHaveCount(0);
+  await expect(players.getByText("admin@example.com")).toBeVisible();
   await expect(page.getByText("Minimum players")).toHaveCount(0);
   await expect(page.getByText("Maximum players")).toHaveCount(0);
   await page.getByRole("tab", { name: "Overview" }).click();

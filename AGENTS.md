@@ -380,8 +380,9 @@ share a position; all `ND` participants appear last. Persist final ranks and sco
 `CREATED` → `TERMINATED` operation. Terminated matches cannot be edited, reopened or deleted. Match detail Overview holds dates and game selection, with one voting legend beside the match title.
 Leaderboards show current ratings for the administrator and accepted invitees only (GROUP for group
 matches, GLOBAL otherwise); pending/declined invitees cannot open them. Planning matches select from
-proposed games; confirmed/terminated matches show only the selected game. Leaderboards show no deltas.
-Web and mobile replace the Players tab with read-only Results only in TERMINATED status. Results keep
+proposed games with covers; confirmed/terminated matches show only the selected game. Leaderboards
+show games played, games won, withdrawals (ND), current rating, and no deltas. Confirmed-match Players
+show email instead of ranking. Web and mobile replace the Players tab with read-only Results only in TERMINATED status. Results keep
 player avatar, position badge, name, email, score (or ND), and immutable rating deltas; match cards
 identify all first-place players, including unresolved shared first place.
 

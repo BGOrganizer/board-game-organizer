@@ -8,27 +8,15 @@ import { SearchField } from "heroui-native/search-field";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Clock3, Dices, Gamepad2, X } from "lucide-react-native";
+import { Clock3, Dices, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { FlatList, Image, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/EmptyList";
+import { LeaderboardGameCover } from "@/components/LeaderboardGameCover";
+import { LeaderboardStat } from "@/components/LeaderboardStat";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
-
-function GameCover({ imageUrl }: { imageUrl: string | null }) {
-  return imageUrl ? (
-    <Image
-      accessible={false}
-      source={{ uri: imageUrl }}
-      style={{ width: 20, height: 24, borderRadius: 4 }}
-    />
-  ) : (
-    <View style={{ width: 20, height: 24, alignItems: "center", justifyContent: "center" }}>
-      <Gamepad2 size={16} color="#737373" />
-    </View>
-  );
-}
 
 export function GroupLeaderboard({ groupId }: { groupId: string }) {
   const { getToken, userId } = useSessionAuth();
@@ -99,7 +87,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             accessibilityLabel={selected ? `${t("Board game")}: ${selected.name}` : t("Board game")}
             style={selected ? { paddingRight: 52 } : undefined}
           >
-            {selected ? <GameCover imageUrl={selected.imageUrl} /> : null}
+            {selected ? <LeaderboardGameCover imageUrl={selected.imageUrl} /> : null}
             <Typography
               className={selected ? "text-foreground" : "text-muted"}
               style={{ flex: 1 }}
@@ -129,7 +117,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
               {filteredChoices.map((game) => (
                 <Select.Item key={game.id} value={String(game.id)} label={game.name}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                    <GameCover imageUrl={game.imageUrl} />
+                    <LeaderboardGameCover imageUrl={game.imageUrl} />
                     <Typography className="text-foreground" style={{ flex: 1 }} numberOfLines={1}>
                       {game.name}
                     </Typography>
@@ -228,9 +216,9 @@ function PlayerRow({
         </View>
       </View>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-        <Stat label={t("Games played")} value={String(player.gamesPlayed)} />
-        <Stat label={t("Games won")} value={String(player.gamesWon)} />
-        <Stat label={t("ND")} value={String(player.nd)} />
+        <LeaderboardStat label={t("Games played")} value={String(player.gamesPlayed)} />
+        <LeaderboardStat label={t("Games won")} value={String(player.gamesWon)} />
+        <LeaderboardStat label={t("ND")} value={String(player.nd)} />
         <View style={{ flex: 1, alignItems: "flex-end" }}>
           <Typography className="text-xs text-muted">{t("Ranking")}</Typography>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -249,15 +237,6 @@ function PlayerRow({
           </View>
         </View>
       </View>
-    </View>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1 }}>
-      <Typography className="text-xs text-muted">{label}</Typography>
-      <Typography className="font-medium text-foreground">{value}</Typography>
     </View>
   );
 }

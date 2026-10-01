@@ -7,6 +7,7 @@ import {
   matchDetailResponseSchema,
   matchInvitationModel,
   matchInvitationResponseSchema,
+  matchLeaderboardResponseSchema,
   matchModel,
   matchResponseSchema,
   matchVoteSummarySchema,
@@ -201,17 +202,24 @@ describe("match models and DTOs", () => {
       gameRatings: [{ userId: "user_admin", score: 504.5, delta: -1.25, provisional: true }],
     };
     expect(matchDetailResponseSchema.parse(rated)).toEqual(rated);
-    const created = {
-      ...detail,
-      currentGameRatings: [{ userId: "user_admin", score: 500, provisional: true }],
+    const leaderboard = {
+      gameId: 1,
+      ratings: [
+        {
+          userId: "user_admin",
+          score: 500,
+          provisional: true,
+          gamesPlayed: 0,
+          gamesWon: 0,
+          nd: 0,
+        },
+      ],
     };
-    expect(matchDetailResponseSchema.parse(created)).toEqual(created);
+    expect(matchLeaderboardResponseSchema.parse(leaderboard)).toEqual(leaderboard);
     expect(
-      matchDetailResponseSchema.safeParse({
-        ...created,
-        currentGameRatings: [
-          { userId: "user_admin", score: Number.POSITIVE_INFINITY, provisional: true },
-        ],
+      matchLeaderboardResponseSchema.safeParse({
+        ...leaderboard,
+        ratings: [{ ...leaderboard.ratings[0], gamesPlayed: -1 }],
       }).success,
     ).toBe(false);
     expect(
@@ -226,8 +234,9 @@ describe("match models and DTOs", () => {
   });
 
   it("exports match indexes", () => {
-    expect(MATCH_INDEXES).toHaveLength(3);
+    expect(MATCH_INDEXES).toHaveLength(4);
     expect(MATCH_INDEXES).toContainEqual({ key: { groupId: 1, status: 1, selectedGameId: 1 } });
+    expect(MATCH_INDEXES).toContainEqual({ key: { status: 1, selectedGameId: 1 } });
     expect(MATCH_INVITATION_INDEXES).toHaveLength(3);
   });
 

@@ -106,7 +106,13 @@ export type MatchCurrentGameRating = z.infer<typeof matchCurrentGameRatingSchema
 
 export const matchLeaderboardResponseSchema = z.object({
   gameId: z.number().int().positive(),
-  ratings: z.array(matchCurrentGameRatingSchema),
+  ratings: z.array(
+    matchCurrentGameRatingSchema.extend({
+      gamesPlayed: z.number().int().nonnegative(),
+      gamesWon: z.number().int().nonnegative(),
+      nd: z.number().int().nonnegative(),
+    }),
+  ),
 });
 export type MatchLeaderboardResponse = z.infer<typeof matchLeaderboardResponseSchema>;
 
@@ -118,7 +124,6 @@ export const matchDetailResponseSchema = z.object({
   choices: matchChoicesSchema.optional(),
   voteSummary: matchVoteSummarySchema.optional(),
   gameRatings: z.array(matchGameRatingSchema).optional(),
-  currentGameRatings: z.array(matchCurrentGameRatingSchema).optional(),
 });
 export type MatchDetailResponse = z.infer<typeof matchDetailResponseSchema>;
 

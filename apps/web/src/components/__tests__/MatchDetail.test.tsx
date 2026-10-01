@@ -151,8 +151,22 @@ describe("MatchDetail", () => {
       data: {
         gameId: 1,
         ratings: [
-          { userId: "user_admin", score: 500, provisional: true },
-          { userId: "user_guest", score: 498, provisional: false },
+          {
+            userId: "user_admin",
+            score: 500,
+            provisional: true,
+            gamesPlayed: 3,
+            gamesWon: 1,
+            nd: 1,
+          },
+          {
+            userId: "user_guest",
+            score: 498,
+            provisional: false,
+            gamesPlayed: 2,
+            gamesWon: 0,
+            nd: 0,
+          },
         ],
       },
       isPending: false,
@@ -218,6 +232,9 @@ describe("MatchDetail", () => {
     expect(screen.getByRole("heading", { name: "Azul" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Board game/ })).toBeNull();
     expect(screen.getByText("500.00")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Games played" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Games won" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Provisional rating" })).toBeTruthy();
     expect(screen.queryByRole("img", { name: /Rating unchanged/ })).toBeNull();
   });
 
@@ -234,7 +251,15 @@ describe("MatchDetail", () => {
         ...detail,
         match: { ...detail.match, gameIds: [1, 2], invitations: [accepted, declined] },
         voteSummary: { dates: {}, games: {}, reasons: [] },
-        games: [...detail.games, { id: 2, name: "Cascadia", yearPublished: 2021, thumbnail: null }],
+        games: [
+          ...detail.games,
+          {
+            id: 2,
+            name: "Cascadia",
+            yearPublished: 2021,
+            thumbnail: "data:image/svg+xml,%3Csvg/%3E",
+          },
+        ],
         invitedPlayers: [
           { ...detail.invitedPlayers[0], invitation: accepted },
           {
@@ -251,9 +276,30 @@ describe("MatchDetail", () => {
       data: {
         gameId: 2,
         ratings: [
-          { userId: "user_admin", score: 500, provisional: true },
-          { userId: "user_guest", score: 490, provisional: false },
-          { userId: "user_declined", score: 510, provisional: false },
+          {
+            userId: "user_admin",
+            score: 500,
+            provisional: true,
+            gamesPlayed: 0,
+            gamesWon: 0,
+            nd: 0,
+          },
+          {
+            userId: "user_guest",
+            score: 490,
+            provisional: false,
+            gamesPlayed: 4,
+            gamesWon: 2,
+            nd: 1,
+          },
+          {
+            userId: "user_declined",
+            score: 510,
+            provisional: false,
+            gamesPlayed: 8,
+            gamesWon: 3,
+            nd: 0,
+          },
         ],
       },
       isPending: false,
@@ -264,10 +310,23 @@ describe("MatchDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Leaderboards" }));
     expect(useMatchLeaderboardMock).toHaveBeenCalledWith(expect.anything(), null);
     fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
-    fireEvent.click(await screen.findByRole("option", { name: "Cascadia" }));
+    const cascadia = await screen.findByRole("option", { name: "Cascadia" });
+    expect(cascadia.querySelector("img")?.getAttribute("src")).toBe(
+      "data:image/svg+xml,%3Csvg/%3E",
+    );
+    fireEvent.click(cascadia);
     expect(useMatchLeaderboardMock).toHaveBeenCalledWith(expect.anything(), 2);
+    expect(screen.getByRole("button", { name: /Cascadia/ }).querySelector("img")).toBeTruthy();
     expect(screen.getByText("500.00")).toBeTruthy();
     expect(screen.getByText("490.00")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Games played" })).toBeTruthy();
+    const guestRow = screen.getByRole("row", { name: /Guest Player/ });
+    expect(within(guestRow).getByRole("rowheader").textContent).toContain("Guest Player");
+    expect(
+      within(guestRow)
+        .getAllByRole("gridcell")
+        .map((cell) => cell.textContent),
+    ).toEqual(["4", "2", "1", "490.00"]);
     expect(screen.queryByText("Declined Player")).toBeNull();
   });
 
@@ -287,7 +346,7 @@ describe("MatchDetail", () => {
     expect(refetch).toHaveBeenCalledOnce();
   });
 
-  it("shows current game ratings instead of emails for confirmed participants", () => {
+  it("shows emails instead of rankings for confirmed participants", () => {
     authMock.userId = "user_admin";
     const accepted = { ...invitation, status: "ACCEPTED" as const };
     useMatchDetailMock.mockReturnValue(
@@ -295,20 +354,14 @@ describe("MatchDetail", () => {
         ...detail,
         match: { ...detail.match, status: "CREATED", selectedGameId: 1, invitations: [accepted] },
         invitedPlayers: [{ ...detail.invitedPlayers[0], invitation: accepted }],
-        currentGameRatings: [
-          { userId: "user_admin", score: 500, provisional: true },
-          { userId: "user_guest", score: 498.17, provisional: false },
-        ],
       }),
     );
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
     fireEvent.click(screen.getByRole("tab", { name: "Players" }));
-    expect(screen.getByText("500.00")).toBeTruthy();
-    expect(screen.getByText("498.17")).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Provisional game rating" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Game rating" })).toBeTruthy();
-    expect(screen.queryByText("guest@example.com")).toBeNull();
-    expect(screen.queryByText("admin@example.com")).toBeNull();
+    expect(screen.getByText("guest@example.com")).toBeTruthy();
+    expect(screen.getByText("admin@example.com")).toBeTruthy();
+    expect(screen.queryByText("500.00")).toBeNull();
+    expect(screen.queryByRole("img", { name: "Game rating" })).toBeNull();
   });
 
   it("shows participant profiles and invitation status icons", () => {
