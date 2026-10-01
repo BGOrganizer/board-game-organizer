@@ -61,6 +61,32 @@ describe("optimisticContactData", () => {
     ]);
   });
 
+  it("updates paginated suggestions and tolerates a partially empty cached page", () => {
+    const suggestions = { pages: [{ users: [target], hasContacts: true }], pageParams: [""] };
+    expect(
+      optimisticContactData(
+        ["contacts", "suggestions"],
+        suggestions,
+        "follow",
+        variables,
+        "viewer",
+      ),
+    ).toEqual({ pages: [{ users: [], hasContacts: true }], pageParams: [""] });
+    expect(
+      optimisticContactData(
+        ["contacts", "following"],
+        { pages: [], pageParams: [] },
+        "follow",
+        variables,
+        "viewer",
+      ),
+    ).toEqual({ pages: [], pageParams: [] });
+    const incomplete = { pages: [{ rows: [row()] }, {}], pageParams: ["", "next"] };
+    expect(
+      optimisticContactData(["contacts", "following"], incomplete, "unfollow", variables, "viewer"),
+    ).toEqual({ pages: [{ rows: [] }, { rows: [] }], pageParams: ["", "next"] });
+  });
+
   it("adds and removes following rows while updating cached user flags", () => {
     expect(applyRows("following", "follow", [])).toEqual([
       expect.objectContaining({

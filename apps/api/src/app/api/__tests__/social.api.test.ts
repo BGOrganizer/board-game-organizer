@@ -349,6 +349,22 @@ describe("social API contracts", () => {
       rows: [{ fromUserId: "user_actor", toUserId: "user_charlie" }],
       nextCursor: null,
     });
+    mocks.service.list.mockResolvedValue([
+      { fromUserId: "user_target", toUserId: "user_actor" },
+      { fromUserId: "user_alpha", toUserId: "user_actor" },
+      { fromUserId: "user_target", toUserId: "user_actor" },
+    ]);
+    const received = await api(legacyRoute, "GET", {
+      url: "http://localhost/api/relationships?type=pending&limit=3",
+    });
+    expect(await received.json()).toEqual({
+      rows: [
+        { fromUserId: "user_alpha", toUserId: "user_actor" },
+        { fromUserId: "user_target", toUserId: "user_actor" },
+        { fromUserId: "user_target", toUserId: "user_actor" },
+      ],
+      nextCursor: null,
+    });
     expect(
       (
         await api(legacyRoute, "GET", {
@@ -367,6 +383,14 @@ describe("social API contracts", () => {
       (
         await api(legacyRoute, "POST", {
           url: "http://localhost/api/relationships?type=follow&limit=2",
+          body: { targetUserId: "user_target" },
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await api(legacyRoute, "POST", {
+          url: "http://localhost/api/relationships?type=follow&type=block",
           body: { targetUserId: "user_target" },
         })
       ).status,
