@@ -377,6 +377,36 @@ export class MatchService {
     };
   }
 
+  async leaderboard(userId: string, matchId: string, gameId: number) {
+    const { match, invitedPlayers } = await this.detail(userId, matchId);
+    if (
+      match.adminUserId !== userId &&
+      !invitedPlayers.some(
+        (player) => player.id === userId && player.invitation.status === "ACCEPTED",
+      )
+    ) {
+      throw new MatchError(404, "Match not found");
+    }
+    if (
+      !match.gameIds.includes(gameId) ||
+      (match.status !== "PLANNING" && match.selectedGameId !== gameId)
+    ) {
+      throw new MatchError(400, "Game unavailable for match");
+    }
+    if (!this.ratings) throw new MatchError(500, "Ratings repository unavailable");
+    const userIds = [
+      match.adminUserId,
+      ...invitedPlayers
+        .filter((player) => player.invitation.status === "ACCEPTED")
+        .map((player) => player.id),
+    ];
+    const ratings = await this.ratings.currentForPlayers(userIds, gameId, match.groupId ?? null);
+    return {
+      gameId,
+      ratings: ratings.sort((a, b) => b.score - a.score || a.userId.localeCompare(b.userId)),
+    };
+  }
+
   async setChoice(userId: string, matchId: string, input: SetMatchChoiceInput) {
     const match = await this.requireMatch(matchId);
     this.requirePlanning(match);

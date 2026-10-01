@@ -118,10 +118,17 @@ export class RatingsRepository {
     }
   }
 
-  async currentForPlayers(userIds: string[], gameId: number): Promise<MatchCurrentGameRating[]> {
-    const snapshots = await this.snapshots(userIds, gameId, "GLOBAL", null);
+  async currentForPlayers(
+    userIds: string[],
+    gameId: number,
+    groupId: string | null = null,
+  ): Promise<MatchCurrentGameRating[]> {
+    const snapshots = await this.snapshots(userIds, gameId, groupId ? "GROUP" : "GLOBAL", groupId);
+    const missing = groupId ? userIds.filter((userId) => !snapshots.has(userId)) : [];
+    const global = missing.length ? await this.snapshots(missing, gameId, "GLOBAL", null) : null;
     return userIds.map((userId) => {
-      const state = snapshots.get(userId) ?? NEW_RATING;
+      const state =
+        snapshots.get(userId) ?? (groupId ? initialGroupRating(global?.get(userId)) : NEW_RATING);
       return { userId, score: displayRating(state), provisional: isProvisional(state) };
     });
   }

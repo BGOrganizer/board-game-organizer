@@ -1295,6 +1295,10 @@ msgstr "Nessuna richiesta di amicizia ricevuta"
 msgid "No selected games"
 msgstr "Nessun gioco selezionato"
 
+#: apps/web/src/components/MatchLeaderboard.tsx apps/mobile/src/components/MatchLeaderboard.tsx (mobile-only, runtime useT)
+msgid "No rankings available"
+msgstr "Nessuna classifica disponibile"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No sent friend requests"
 msgstr "Nessuna richiesta di amicizia inviata"
@@ -1777,6 +1781,10 @@ msgstr "Registrati"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Standings"
 msgstr "Classifica"
+
+#: apps/web/src/components/MatchDetail.tsx apps/mobile/src/app/match/[matchId].tsx (mobile-only, runtime useT)
+msgid "Results"
+msgstr "Risultati"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "Suggestions"

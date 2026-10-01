@@ -968,6 +968,84 @@ describe("MatchService", () => {
     await expectMatchError(setup().service.detail("user_other", match.id), 404, "Match not found");
   });
 
+  it("limits leaderboard access and players, uses group scope and selected games", async () => {
+    const { service, matches, invitations, users, relationships, games, ratings } = setup();
+    const accepted = { ...invitation, status: "ACCEPTED" as const };
+    const declined = {
+      ...invitation,
+      id: "declined",
+      inviteeUserId: "user_declined",
+      status: "DECLINED" as const,
+    };
+    const pending = { ...invitation, id: "pending", inviteeUserId: "user_pending" };
+    invitations.listByMatch.mockResolvedValue([accepted, declined, pending]);
+    ratings.currentForPlayers.mockResolvedValue([
+      { userId: "user_admin", score: 497, provisional: true },
+      { userId: "user_guest", score: 514, provisional: false },
+    ]);
+    await expect(service.leaderboard("user_admin", match.id, 1)).resolves.toEqual({
+      gameId: 1,
+      ratings: [
+        { userId: "user_guest", score: 514, provisional: false },
+        { userId: "user_admin", score: 497, provisional: true },
+      ],
+    });
+    expect(ratings.currentForPlayers).toHaveBeenCalledWith(["user_admin", "user_guest"], 1, null);
+    ratings.currentForPlayers.mockResolvedValue([
+      { userId: "user_guest", score: 500, provisional: true },
+      { userId: "user_admin", score: 500, provisional: true },
+    ]);
+    expect(
+      (await service.leaderboard("user_admin", match.id, 1)).ratings.map((row) => row.userId),
+    ).toEqual(["user_admin", "user_guest"]);
+    const withoutRatings = new MatchService(
+      matches as never,
+      invitations as never,
+      users as never,
+      relationships as never,
+      games as never,
+    );
+    await expectMatchError(
+      withoutRatings.leaderboard("user_admin", match.id, 1),
+      500,
+      "Ratings repository unavailable",
+    );
+    await expectMatchError(
+      service.leaderboard("user_pending", match.id, 1),
+      404,
+      "Match not found",
+    );
+    await expectMatchError(
+      service.leaderboard("user_declined", match.id, 1),
+      404,
+      "Match not found",
+    );
+    await expectMatchError(service.leaderboard("user_other", match.id, 1), 404, "Match not found");
+    await expectMatchError(
+      service.leaderboard("user_guest", match.id, 2),
+      400,
+      "Game unavailable for match",
+    );
+    matches.findById.mockResolvedValue({ ...match, groupId: "group_1" });
+    await service.leaderboard("user_guest", match.id, 1);
+    expect(ratings.currentForPlayers).toHaveBeenLastCalledWith(
+      ["user_admin", "user_guest"],
+      1,
+      "group_1",
+    );
+    for (const status of ["CREATED", "TERMINATED"] as const) {
+      matches.findById.mockResolvedValue({ ...match, status, selectedGameId: 1, gameIds: [1, 2] });
+      await expectMatchError(
+        service.leaderboard("user_guest", match.id, 2),
+        400,
+        "Game unavailable for match",
+      );
+      await expect(service.leaderboard("user_guest", match.id, 1)).resolves.toHaveProperty(
+        "ratings",
+      );
+    }
+  });
+
   it("includes current global game ratings for accepted players only while created", async () => {
     const { service, matches, invitations, ratings } = setup();
     const current = [

@@ -7,6 +7,7 @@ import * as invitationRoute from "../../match-invitations/[invitationId]/route";
 import * as choiceRoute from "../[matchId]/choices/route";
 import * as adminInvitationRoute from "../[matchId]/invitations/[invitationId]/route";
 import * as invitationsRoute from "../[matchId]/invitations/route";
+import * as leaderboardRoute from "../[matchId]/leaderboard/route";
 import * as resultsRoute from "../[matchId]/results/route";
 import * as detailRoute from "../[matchId]/route";
 import * as statusRoute from "../[matchId]/status/route";
@@ -77,6 +78,10 @@ describe("match API routes", () => {
       invitedPlayers: [],
       games: [],
     } as never);
+    vi.spyOn(MatchService.prototype, "leaderboard").mockResolvedValue({
+      gameId: 1,
+      ratings: [{ userId: "user_admin", score: 500, provisional: true }],
+    });
     vi.spyOn(MatchService.prototype, "listInvitations").mockResolvedValue([invitation] as never);
     vi.spyOn(MatchService.prototype, "registerResults").mockResolvedValue(match as never);
     vi.spyOn(MatchService.prototype, "invite").mockResolvedValue(invitation as never);
@@ -322,6 +327,45 @@ describe("match API routes", () => {
     expect(response.status).toBe(200);
     expect(await json(response)).toEqual({ match, administrator, invitedPlayers: [], games: [] });
     expect(MatchService.prototype.detail).toHaveBeenCalledWith("user_admin", matchId);
+  });
+
+  it("returns authorized rankings and validates leaderboard queries", async () => {
+    const path = `/api/matches/${matchId}/leaderboard`;
+    const response = await leaderboardRoute.GET(request(`${path}?gameId=1`), matchContext());
+    expect(response.status).toBe(200);
+    expect(await json(response)).toEqual({
+      gameId: 1,
+      ratings: [{ userId: "user_admin", score: 500, provisional: true }],
+    });
+    expect(MatchService.prototype.leaderboard).toHaveBeenCalledWith("user_admin", matchId, 1);
+    for (const invalid of [
+      `${path}`,
+      `${path}?gameId=0`,
+      `${path}?gameId=1.5`,
+      `${path}?gameId=abc`,
+      `${path}?gameId=1&gameId=2`,
+      `${path}?gameId=1&other=1`,
+      `${path}?gameId=1&x-vercel-protection-bypass=a&x-vercel-protection-bypass=b`,
+    ]) {
+      expect((await leaderboardRoute.GET(request(invalid), matchContext())).status).toBe(400);
+    }
+    expect(
+      (await leaderboardRoute.GET(request(`${path}?gameId=1`), matchContext("nope"))).status,
+    ).toBe(400);
+    expect(MatchService.prototype.leaderboard).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        await leaderboardRoute.GET(
+          request(`${path}?gameId=1&x-vercel-protection-bypass=key`),
+          matchContext(),
+        )
+      ).status,
+    ).toBe(200);
+    vi.mocked(auth).mockResolvedValue({ userId: null } as never);
+    expect((await leaderboardRoute.GET(request(`${path}?gameId=1`), matchContext())).status).toBe(
+      401,
+    );
+    expect(leaderboardRoute.OPTIONS).toBeTypeOf("function");
   });
 
   it("hides invented covers in match details without BGG access", async () => {

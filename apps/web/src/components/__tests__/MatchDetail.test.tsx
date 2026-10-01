@@ -9,6 +9,7 @@ import { renderWithI18n } from "@/test-utils";
 import { messages } from "../../../../../messages/en.js";
 
 const useMatchDetailMock = vi.fn();
+const useMatchLeaderboardMock = vi.fn();
 const contactMutation = () => ({ mutate: vi.fn(), isPending: false });
 const contactQuery = () => ({ data: [], isSuccess: true, isError: false });
 const useContactsMock = vi.fn(() => ({
@@ -57,6 +58,8 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: () => "http://localhost:4000",
   useMatchDetail: (options: unknown) => useMatchDetailMock(options),
+  useMatchLeaderboard: (options: unknown, gameId: number | null) =>
+    useMatchLeaderboardMock(options, gameId),
   useContacts: () => useContactsMock(),
   matchContactState: (player: typeof detail.administrator) => ({
     user: { ...player, presence: { online: false, lastActiveAt: "" } },
@@ -144,6 +147,18 @@ describe("MatchDetail", () => {
     vi.clearAllMocks();
     authMock.userId = "user_guest";
     useMatchDetailMock.mockReturnValue(result());
+    useMatchLeaderboardMock.mockReturnValue({
+      data: {
+        gameId: 1,
+        ratings: [
+          { userId: "user_admin", score: 500, provisional: true },
+          { userId: "user_guest", score: 498, provisional: false },
+        ],
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
   });
 
   it("shows immutable standings to accepted invitees and no admin actions after termination", () => {
@@ -177,7 +192,7 @@ describe("MatchDetail", () => {
     expect(screen.queryByRole("button", { name: "Edit match" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Players" })).toBeNull();
     expect(screen.getAllByRole("tab")).toHaveLength(3);
-    fireEvent.click(screen.getByRole("tab", { name: "Standings" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Results" }));
     expect(screen.getByText("-2.5")).toBeTruthy();
     expect(screen.getByText("ND")).toBeTruthy();
     expect(screen.getByText("Guest Player")).toBeTruthy();
@@ -195,9 +210,81 @@ describe("MatchDetail", () => {
         within(guestRow).getByRole("button", { name: "Actions" }).hasAttribute("disabled"),
     ).toBe(false);
     expect(screen.getByText("1").className).toContain("leading-none");
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByLabelText("Winner")).toBeTruthy();
     expect(screen.getByText("Admin Player").tagName).toBe("STRONG");
+    fireEvent.click(screen.getByRole("tab", { name: "Leaderboards" }));
+    expect(useMatchLeaderboardMock).toHaveBeenCalledWith(expect.anything(), 1);
+    expect(screen.getByRole("heading", { name: "Azul" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Board game/ })).toBeNull();
+    expect(screen.getByText("500.00")).toBeTruthy();
+    expect(screen.queryByRole("img", { name: /Rating unchanged/ })).toBeNull();
+  });
+
+  it("selects proposed leaderboard games and excludes unaccepted players", async () => {
+    const accepted = { ...invitation, status: "ACCEPTED" as const };
+    const declined = {
+      ...invitation,
+      id: "declined",
+      inviteeUserId: "user_declined",
+      status: "DECLINED" as const,
+    };
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, gameIds: [1, 2], invitations: [accepted, declined] },
+        voteSummary: { dates: {}, games: {}, reasons: [] },
+        games: [...detail.games, { id: 2, name: "Cascadia", yearPublished: 2021, thumbnail: null }],
+        invitedPlayers: [
+          { ...detail.invitedPlayers[0], invitation: accepted },
+          {
+            id: "user_declined",
+            name: "Declined Player",
+            email: null,
+            avatarUrl: null,
+            invitation: declined,
+          },
+        ],
+      }),
+    );
+    useMatchLeaderboardMock.mockReturnValue({
+      data: {
+        gameId: 2,
+        ratings: [
+          { userId: "user_admin", score: 500, provisional: true },
+          { userId: "user_guest", score: 490, provisional: false },
+          { userId: "user_declined", score: 510, provisional: false },
+        ],
+      },
+      isPending: false,
+      isError: false,
+    });
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    expect(screen.getAllByRole("button", { name: "Vote count legend" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("tab", { name: "Leaderboards" }));
+    expect(useMatchLeaderboardMock).toHaveBeenCalledWith(expect.anything(), null);
+    fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+    fireEvent.click(await screen.findByRole("option", { name: "Cascadia" }));
+    expect(useMatchLeaderboardMock).toHaveBeenCalledWith(expect.anything(), 2);
+    expect(screen.getByText("500.00")).toBeTruthy();
+    expect(screen.getByText("490.00")).toBeTruthy();
+    expect(screen.queryByText("Declined Player")).toBeNull();
+  });
+
+  it("shows an observable leaderboard error and retries", () => {
+    authMock.userId = "user_admin";
+    const refetch = vi.fn();
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, status: "CREATED", selectedGameId: 1 },
+      }),
+    );
+    useMatchLeaderboardMock.mockReturnValue({ isPending: false, isError: true, refetch });
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Leaderboards" }));
+    fireEvent.click(screen.getByRole("button", { name: "Could not load leaderboards. Retry" }));
+    expect(refetch).toHaveBeenCalledOnce();
   });
 
   it("shows current game ratings instead of emails for confirmed participants", () => {
@@ -228,6 +315,7 @@ describe("MatchDetail", () => {
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
 
     expect(screen.getByText("Friday night games")).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Leaderboards" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Players" }));
     expect(screen.getByText("Admin Player")).toBeTruthy();
     expect(screen.getByText("admin@example.com")).toBeTruthy();
@@ -236,11 +324,11 @@ describe("MatchDetail", () => {
     expect(screen.getByLabelText("Administrator")).toBeTruthy();
     expect(screen.getByLabelText("Pending")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Remove player:/ })).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByText("Azul")).toBeTruthy();
   });
 
-  it("shows a game cover and publication year in the games tab", () => {
+  it("shows a game cover and publication year in overview", () => {
     useMatchDetailMock.mockReturnValue(
       result({
         ...detail,
@@ -258,7 +346,7 @@ describe("MatchDetail", () => {
       }),
     );
     renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByText("2017")).toBeTruthy();
     expect(screen.getByRole("img", { name: "Average: 7.50" })).toBeTruthy();
     expect(screen.getByRole("img", { name: "Rank: 123" })).toBeTruthy();
@@ -413,7 +501,7 @@ describe("MatchDetail", () => {
       itemId: detail.match.dates[0],
       choice: "YES",
     });
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     const gameAction = screen.getByRole("button", { name: /Choose game/ });
     expect(gameAction.className).toContain("button--outline");
     expect(gameAction.querySelector("svg.lucide-minus")).toBeTruthy();
@@ -467,7 +555,7 @@ describe("MatchDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Players" }));
     expect(screen.queryByText("Minimum players")).toBeNull();
     expect(screen.queryByText("Maximum players")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByRole("heading", { name: "Confirmed game" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Vote count legend" })).toBeNull();
     expect(screen.queryByRole("img", { name: /Yes: 1, No: 0/ })).toBeNull();
@@ -515,7 +603,7 @@ describe("MatchDetail", () => {
     expect(within(votes).getByText("- 0").className).toContain("text-default-500");
     fireEvent.focus(screen.getByRole("button", { name: "Vote count legend" }));
     expect(await screen.findByText("- Not chosen")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(
       screen.getByRole("heading", { name: "Game selection" }).closest('[data-slot="card"]'),
     ).toBeNull();
@@ -558,7 +646,7 @@ describe("MatchDetail", () => {
     const dateAction = screen.getByRole("button", { name: "Choose date: Yes" });
     expect(dateAction.className).toContain("text-success");
     expect(dateAction.querySelector("svg.lucide-circle-check")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     const gameAction = screen.getByRole("button", { name: "Choose game: No" });
     expect(gameAction.className).toContain("text-danger");
     expect(gameAction.querySelector("svg.lucide-circle-x")).toBeTruthy();
@@ -572,7 +660,7 @@ describe("MatchDetail", () => {
     expect(warningAction.className).toContain("text-warning");
     expect(warningAction.textContent).toContain("~");
     expect(warningAction.querySelector("svg.lucide-circle-alert")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(
       screen
         .getByRole("button", { name: "Choose game: Not known" })
@@ -659,7 +747,7 @@ describe("MatchDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Players" }));
     expect(screen.getByText("Admin Player")).toBeTruthy();
     expect(screen.queryByText("No invited players")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     expect(screen.getByText("No selected games")).toBeTruthy();
   });
 

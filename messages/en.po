@@ -1295,6 +1295,10 @@ msgstr "No received friend requests"
 msgid "No selected games"
 msgstr "No selected games"
 
+#: apps/web/src/components/MatchLeaderboard.tsx apps/mobile/src/components/MatchLeaderboard.tsx (mobile-only, runtime useT)
+msgid "No rankings available"
+msgstr "No rankings available"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No sent friend requests"
 msgstr "No sent friend requests"
@@ -1777,6 +1781,10 @@ msgstr "Sign Up"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Standings"
 msgstr "Standings"
+
+#: apps/web/src/components/MatchDetail.tsx apps/mobile/src/app/match/[matchId].tsx (mobile-only, runtime useT)
+msgid "Results"
+msgstr "Results"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "Suggestions"

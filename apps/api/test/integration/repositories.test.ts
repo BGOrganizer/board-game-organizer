@@ -1291,6 +1291,33 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     ]);
     const gameRatings = await ratings.forMatch(match.id, match.gameIds[0]);
     const current = await ratings.currentForPlayers([ACTOR, TARGET, THIRD], match.gameIds[0]);
+    const groupCurrent = await ratings.currentForPlayers(
+      [ACTOR, TARGET, THIRD, "new_player"],
+      match.gameIds[0],
+      group.id,
+    );
+    expect(groupCurrent.find((entry) => entry.userId === ACTOR)?.score).toBeCloseTo(
+      500 + (scoped.find((entry) => entry.userId === ACTOR)?.conservativeScore ?? Number.NaN),
+    );
+    expect(groupCurrent.find((entry) => entry.userId === "new_player")).toEqual({
+      userId: "new_player",
+      score: 500,
+      provisional: true,
+    });
+    await db.collection(COLLECTIONS.PLAYER_RATINGS).insertOne({
+      userId: "global_only",
+      gameId: match.gameIds[0],
+      scope: "GLOBAL",
+      groupId: null,
+      mu: 30,
+      sigma: 3,
+      gamesPlayed: 6,
+      conservativeScore: 21,
+      updatedAt: new Date().toISOString(),
+    });
+    expect(await ratings.currentForPlayers(["global_only"], match.gameIds[0], group.id)).toEqual([
+      { userId: "global_only", score: 500 + 30 - 3 * (((25 / 3) * 200) / 350), provisional: true },
+    ]);
     expect(current.find((entry) => entry.userId === ACTOR)?.score).toBeCloseTo(
       500 + (global.find((entry) => entry.userId === ACTOR)?.conservativeScore ?? NaN),
     );

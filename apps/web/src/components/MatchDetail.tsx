@@ -45,6 +45,7 @@ import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { EmptyList } from "@/components/EmptyList";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { MatchLeaderboard } from "@/components/MatchLeaderboard";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
 import { GameRating, MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { MatchWizard } from "@/components/MatchWizard";
@@ -245,6 +246,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   const { match, administrator, invitedPlayers, games } = matchData;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const isAdmin = match.adminUserId === userId;
+  const canViewLeaderboard = isAdmin || ownInvitation?.status === "ACCEPTED";
   const canLeave = match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
   const canChoose =
     match.status === "PLANNING" && (isAdmin || ownInvitation?.status === "ACCEPTED");
@@ -522,27 +524,31 @@ export function MatchDetail({ matchId }: { matchId: string }) {
               {t`Overview`}
               <Tabs.Indicator />
             </Tabs.Tab>
-            <Tabs.Tab id={match.status === "TERMINATED" ? "standings" : "players"}>
-              {match.status === "TERMINATED" ? t`Standings` : t`Players`}
+            <Tabs.Tab id={match.status === "TERMINATED" ? "results" : "players"}>
+              {match.status === "TERMINATED" ? t`Results` : t`Players`}
               <Tabs.Indicator />
             </Tabs.Tab>
-            <Tabs.Tab id="games">
-              {t`Games`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
+            {canViewLeaderboard && (
+              <Tabs.Tab id="leaderboard">
+                {t`Leaderboards`}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            )}
           </Tabs.List>
         </Tabs.ListContainer>
 
         <Tabs.Panel id="overview">
           <div className="space-y-4">
-            <h1 className="text-xl font-semibold">{match.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold">{match.name}</h1>
+              {match.status === "PLANNING" && summary && <VoteLegend />}
+            </div>
             <div>
               <div className="mb-2 flex items-center gap-1">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <CalendarDays className="size-4" aria-hidden="true" />
                   {match.status !== "PLANNING" ? t`Confirmed date` : t`Date selection`}
                 </h2>
-                {match.status === "PLANNING" && summary && <VoteLegend />}
               </div>
               <GroupedList className="text-sm text-default-600">
                 {(match.status !== "PLANNING" && match.selectedDate
@@ -570,6 +576,73 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                   </GroupedRow>
                 ))}
               </GroupedList>
+            </div>
+            <div className="space-y-2">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Gamepad2 className="size-4" aria-hidden="true" />
+                {match.status !== "PLANNING" ? t`Confirmed game` : t`Game selection`}
+              </h2>
+              {games.length === 0 ? (
+                <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No selected games`}</EmptyList>
+              ) : (
+                <GroupedList>
+                  {games
+                    .filter(
+                      (game) => match.status === "PLANNING" || game.id === match.selectedGameId,
+                    )
+                    .map((game) => (
+                      <GroupedRow key={game.id} className="flex-wrap">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+                          {game.thumbnail ? (
+                            // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                            <img
+                              src={game.thumbnail}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <Gamepad2 className="h-5 w-5 text-default-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="max-w-[40ch] truncate text-sm font-medium"
+                            title={game.name}
+                          >
+                            {game.name}
+                          </p>
+                          <GameCatalogMetadata
+                            year={game.yearPublished}
+                            average={game.average}
+                            rank={game.rank}
+                          />
+                        </div>
+                        {match.status === "TERMINATED" && winnerNames && (
+                          <span className="inline-flex min-w-0 items-center gap-1 text-sm">
+                            <Medal
+                              className="h-4 w-4 shrink-0 text-warning"
+                              aria-label={t`Winner`}
+                            />
+                            <strong className="truncate">{winnerNames}</strong>
+                          </span>
+                        )}
+                        {canChoose && (
+                          <ChoiceDropdown
+                            label={t`Choose game`}
+                            choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                            pending={matches.setChoice.isPending}
+                            onChoose={(choice) =>
+                              choose({ kind: "games", itemId: game.id, choice })
+                            }
+                          />
+                        )}
+                        {match.status === "PLANNING" && summary?.games[String(game.id)] && (
+                          <VoteCounts counts={summary.games[String(game.id)]} />
+                        )}
+                      </GroupedRow>
+                    ))}
+                </GroupedList>
+              )}
             </div>
           </div>
         </Tabs.Panel>
@@ -663,66 +736,20 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           </Tabs.Panel>
         )}
 
-        <Tabs.Panel id="games">
-          <div className="space-y-2">
-            <div className="flex items-center gap-1">
-              <h2 className="flex items-center gap-2 text-sm font-semibold">
-                <Gamepad2 className="size-4" aria-hidden="true" />
-                {match.status !== "PLANNING" ? t`Confirmed game` : t`Game selection`}
-              </h2>
-              {match.status === "PLANNING" && summary && <VoteLegend />}
-            </div>
-            {games.length === 0 ? (
-              <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No selected games`}</EmptyList>
-            ) : (
-              <GroupedList>
-                {games
-                  .filter((game) => match.status === "PLANNING" || game.id === match.selectedGameId)
-                  .map((game) => (
-                    <GroupedRow key={game.id} className="flex-wrap">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
-                        {game.thumbnail ? (
-                          // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-                          <img src={game.thumbnail} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <Gamepad2 className="h-5 w-5 text-default-400" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="max-w-[40ch] truncate text-sm font-medium" title={game.name}>
-                          {game.name}
-                        </p>
-                        <GameCatalogMetadata
-                          year={game.yearPublished}
-                          average={game.average}
-                          rank={game.rank}
-                        />
-                      </div>
-                      {match.status === "TERMINATED" && winnerNames && (
-                        <span className="inline-flex min-w-0 items-center gap-1 text-sm">
-                          <Medal className="h-4 w-4 shrink-0 text-warning" aria-label={t`Winner`} />
-                          <strong className="truncate">{winnerNames}</strong>
-                        </span>
-                      )}
-                      {canChoose && (
-                        <ChoiceDropdown
-                          label={t`Choose game`}
-                          choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                          pending={matches.setChoice.isPending}
-                          onChoose={(choice) => choose({ kind: "games", itemId: game.id, choice })}
-                        />
-                      )}
-                      {match.status === "PLANNING" && summary?.games[String(game.id)] && (
-                        <VoteCounts counts={summary.games[String(game.id)]} />
-                      )}
-                    </GroupedRow>
-                  ))}
-              </GroupedList>
-            )}
-          </div>
-        </Tabs.Panel>
+        {canViewLeaderboard && (
+          <Tabs.Panel id="leaderboard">
+            <MatchLeaderboard
+              data={matchData}
+              apiUrl={apiUrl()}
+              token={token}
+              getToken={getToken}
+              userId={userId}
+              protectionBypass={protectionBypass()}
+            />
+          </Tabs.Panel>
+        )}
         {match.status === "TERMINATED" && match.results && (
-          <Tabs.Panel id="standings">
+          <Tabs.Panel id="results">
             <div className="space-y-3">
               <p className="text-sm text-default-500">
                 {match.results.lowerWins ? t`Lowest score wins` : t`Highest score wins`}

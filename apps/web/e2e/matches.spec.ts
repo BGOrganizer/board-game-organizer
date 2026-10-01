@@ -40,7 +40,20 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
     | undefined;
   // Final ** must also intercept /status and /results; * stops at a slash.
   await page.route(`**/api/matches/${matchId}**`, async (route) => {
-    const path = new URL(route.request().url()).pathname;
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    if (path.endsWith("/leaderboard")) {
+      await route.fulfill({
+        json: {
+          gameId: Number(url.searchParams.get("gameId")),
+          ratings: [
+            { userId: adminUserId, score: 500, provisional: true },
+            { userId: "user_accepted", score: 490, provisional: false },
+          ],
+        },
+      });
+      return;
+    }
     if (path.endsWith("/status")) {
       status = (route.request().postDataJSON() as { status: typeof status }).status;
     }
@@ -145,15 +158,22 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   const removeDialog = page.getByRole("dialog", { name: "Remove player?" });
   await expect(removeDialog).toBeVisible();
   await removeDialog.getByRole("button", { name: "Cancel" }).click();
-  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("img", { name: "Average: 7.91" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Rank: 11" })).toBeVisible();
-  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(
     page.getByRole("img", { name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Vote count legend" }).hover();
   await expect(page.getByText("- Not chosen")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(1);
+  await page.getByRole("tab", { name: "Leaderboards" }).click();
+  await page.getByRole("button", { name: /Board game/ }).click();
+  await page.getByRole("option", { name: "Ark Nova" }).click();
+  const planningLeaderboard = page.getByRole("tabpanel", { name: "Leaderboards" });
+  await expect(planningLeaderboard.getByText("500.00")).toBeVisible();
+  await expect(planningLeaderboard.getByText("490.00")).toBeVisible();
+  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("button", { name: "Confirm match" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm match" }).click();
   const confirmDialog = page.getByRole("dialog", { name: "Confirm match?" });
@@ -171,7 +191,7 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await expect(players.getByText("admin@example.com")).toHaveCount(0);
   await expect(page.getByText("Minimum players")).toHaveCount(0);
   await expect(page.getByText("Maximum players")).toHaveCount(0);
-  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("heading", { name: "Confirmed game" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(0);
   await expect(page.getByRole("img", { name: /Yes: 1, No: 0/ })).toHaveCount(0);
@@ -222,12 +242,19 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await registerDialog.getByRole("button", { name: "Register match" }).click();
   await expect(registerDialog).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Players" })).toHaveCount(0);
-  await page.getByRole("tab", { name: "Standings" }).click();
-  const standings = page.getByRole("tabpanel", { name: "Standings" });
+  await page.getByRole("tab", { name: "Results" }).click();
+  const standings = page.getByRole("tabpanel", { name: "Results" });
   await expect(standings.getByText("ND", { exact: true })).toBeVisible();
   await expect(standings.getByText("admin@example.com")).toHaveCount(0);
   await expect(standings.getByText("Not rated")).toHaveCount(2);
   await expect(standings.getByRole("img", { name: "Rating unchanged: 0.00" })).toHaveCount(2);
+  await page.getByRole("tab", { name: "Leaderboards" }).click();
+  const finalLeaderboard = page.getByRole("tabpanel", { name: "Leaderboards" });
+  await expect(finalLeaderboard.getByRole("heading", { name: "Ark Nova" })).toBeVisible();
+  await expect(finalLeaderboard.getByText("500.00")).toBeVisible();
+  await expect(finalLeaderboard.getByRole("button", { name: /Board game/ })).toHaveCount(0);
+  await expect(finalLeaderboard.getByRole("img", { name: /Rating unchanged/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Results" }).click();
   await expect(
     standings
       .getByText("Admin", { exact: true })
@@ -240,9 +267,9 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
       .locator("xpath=ancestor::li")
       .getByRole("button", { name: "Actions" }),
   ).toBeEnabled();
-  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("img", { name: "Winner" })).toBeVisible();
-  await page.getByRole("tab", { name: "Standings" }).click();
+  await page.getByRole("tab", { name: "Results" }).click();
   await expect(standings.getByText("Lowest score wins", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Register results" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "More match actions" })).toHaveCount(0);
@@ -542,7 +569,7 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     await expect(page.getByText(pickedFriendLabel.replace(/^Add:\s*/, ""))).toBeVisible();
   }
 
-  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("heading", { name: "Game selection" })).toBeVisible();
   await expect(page.getByText("Cascadia").first()).toBeVisible();
   await expect(page.getByText("2021").first()).toBeVisible();

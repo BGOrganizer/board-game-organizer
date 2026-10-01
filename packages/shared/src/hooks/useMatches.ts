@@ -4,6 +4,7 @@ import type {
   CreateMatchInput,
   MatchDetailResponse,
   MatchInvitationResponse,
+  MatchLeaderboardResponse,
   MatchResponse,
   RegisterMatchResultsInput,
   SetMatchChoiceInput,
@@ -690,6 +691,29 @@ export function matchDetailQuery({
       fetchMatchDetail(apiUrl, await resolveToken(token, getToken), matchId, protectionBypass),
     staleTime: 5 * 60_000,
   };
+}
+
+export function useMatchLeaderboard(
+  { apiUrl, token, getToken, protectionBypass, userId, matchId }: MatchDetailApiOptions,
+  gameId: number | null,
+) {
+  return useQuery({
+    queryKey: ["matches", "leaderboard", matchId, apiUrl, userId ?? token, gameId],
+    queryFn: async (): Promise<MatchLeaderboardResponse> => {
+      const fresh = await resolveToken(token, getToken);
+      const response = await fetch(
+        withProtectionBypass(
+          `${apiUrl}/api/matches/${encodeURIComponent(matchId)}/leaderboard?gameId=${gameId}`,
+          protectionBypass,
+        ),
+        { headers: apiHeaders(fresh) },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    },
+    enabled: Boolean(apiUrl && token && matchId && gameId),
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useMatchDetail(options: MatchDetailApiOptions) {

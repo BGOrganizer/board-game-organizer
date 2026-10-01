@@ -107,7 +107,7 @@ export default function MatchResultsScreen() {
       onSubmit={(input) =>
         matches.registerResults.mutate(input, {
           onSuccess: () =>
-            router.replace({ pathname: "/match/[matchId]", params: { matchId, tab: "standings" } }),
+            router.replace({ pathname: "/match/[matchId]", params: { matchId, tab: "results" } }),
         })
       }
     />

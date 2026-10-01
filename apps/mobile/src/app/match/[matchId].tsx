@@ -44,6 +44,7 @@ import { FloatingActions } from "@/components/FloatingActions";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { InvitationActions } from "@/components/InvitationActions";
+import { MatchLeaderboard } from "@/components/MatchLeaderboard";
 import { GameRating, MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
@@ -113,7 +114,9 @@ export default function MatchDetailScreen() {
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(tab === "standings" ? "standings" : "overview");
+  const [activeTab, setActiveTab] = useState(
+    tab === "results" || tab === "standings" ? "results" : "overview",
+  );
   const [activeChoice, setActiveChoice] = useState<ActiveChoice | null>(null);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
 
@@ -437,6 +440,9 @@ export default function MatchDetailScreen() {
         {matches.detail.data && (
           <MatchDetailContent
             data={matches.detail.data}
+            apiUrl={apiUrl()}
+            token={token}
+            getToken={getToken}
             userId={userId}
             contacts={contacts}
             removePlayer={confirmRemovePlayer}
@@ -541,6 +547,9 @@ export default function MatchDetailScreen() {
 
 function MatchDetailContent({
   data,
+  apiUrl,
+  token,
+  getToken,
   userId,
   contacts,
   removePlayer,
@@ -554,6 +563,9 @@ function MatchDetailContent({
   respond,
 }: {
   data: MatchDetailResponse;
+  apiUrl: string;
+  token: string | null;
+  getToken: () => Promise<string | null>;
   userId: string | null | undefined;
   contacts: ReturnType<typeof useContacts>;
   removePlayer: (invitationId: string) => void;
@@ -583,6 +595,7 @@ function MatchDetailContent({
   };
   const { match, administrator, invitedPlayers, games } = data;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
+  const canViewLeaderboard = match.adminUserId === userId || ownInvitation?.status === "ACCEPTED";
   const canChoose =
     match.status === "PLANNING" &&
     (match.adminUserId === userId || ownInvitation?.status === "ACCEPTED");
@@ -701,26 +714,35 @@ function MatchDetailContent({
             <Tabs.Label>{t("Overview")}</Tabs.Label>
           </Tabs.Trigger>
           <Tabs.Trigger
-            value={match.status === "TERMINATED" ? "standings" : "players"}
+            value={match.status === "TERMINATED" ? "results" : "players"}
             style={{ flex: 1 }}
-            testID={match.status === "TERMINATED" ? "standings-tab" : undefined}
+            testID={match.status === "TERMINATED" ? "results-tab" : undefined}
           >
-            <Tabs.Label>{match.status === "TERMINATED" ? t("Standings") : t("Players")}</Tabs.Label>
+            <Tabs.Label>{match.status === "TERMINATED" ? t("Results") : t("Players")}</Tabs.Label>
           </Tabs.Trigger>
-          <Tabs.Trigger value="games" style={{ flex: 1 }}>
-            <Tabs.Label>{t("Games")}</Tabs.Label>
-          </Tabs.Trigger>
+          {canViewLeaderboard && (
+            <Tabs.Trigger value="leaderboard" style={{ flex: 1 }}>
+              <Tabs.Label>{t("Leaderboards")}</Tabs.Label>
+            </Tabs.Trigger>
+          )}
         </Tabs.List>
 
         <Tabs.Content value="overview" style={{ marginTop: 16 }}>
           <View style={{ gap: 12 }}>
-            <Typography className="text-xl font-semibold text-foreground">{match.name}</Typography>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Typography
+                className="text-xl font-semibold text-foreground"
+                style={{ flexShrink: 1 }}
+              >
+                {match.name}
+              </Typography>
+              {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
+            </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <CalendarDays size={18} color={muted} />
               <Typography accessibilityRole="header" className="font-semibold text-foreground">
                 {match.status !== "PLANNING" ? t("Confirmed date") : t("Date selection")}
               </Typography>
-              {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
             </View>
             <GroupedList>
               {(match.status !== "PLANNING" && match.selectedDate
@@ -772,6 +794,100 @@ function MatchDetailContent({
                 );
               })}
             </GroupedList>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Gamepad2 size={18} color={muted} />
+              <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                {match.status !== "PLANNING" ? t("Confirmed game") : t("Game selection")}
+              </Typography>
+            </View>
+            {games.length === 0 ? (
+              <EmptyList icon={<Gamepad2 size={28} color="#737373" />}>
+                {t("No selected games")}
+              </EmptyList>
+            ) : (
+              <GroupedList>
+                {games
+                  .filter((game) => match.status === "PLANNING" || game.id === match.selectedGameId)
+                  .map((game) => (
+                    <GroupedRow key={game.id}>
+                      <View
+                        className="bg-muted/20"
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {game.thumbnail ? (
+                          <Image
+                            source={{ uri: game.thumbnail }}
+                            accessible={false}
+                            style={{ width: 40, height: 40 }}
+                          />
+                        ) : (
+                          <Gamepad2 size={18} color="#6b7280" />
+                        )}
+                      </View>
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <Typography className="font-medium text-foreground" numberOfLines={1}>
+                          {game.name}
+                        </Typography>
+                        <GameCatalogMetadata
+                          year={game.yearPublished}
+                          average={game.average}
+                          rank={game.rank}
+                        />
+                        {match.status === "PLANNING" &&
+                          data.voteSummary?.games[String(game.id)] && (
+                            <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
+                          )}
+                      </View>
+                      {match.status === "TERMINATED" && winnerNames && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 4,
+                            flexShrink: 1,
+                          }}
+                        >
+                          <View
+                            accessible
+                            accessibilityRole="image"
+                            accessibilityLabel={t("Winner")}
+                          >
+                            <Medal size={16} color="#f59e0b" />
+                          </View>
+                          <Typography className="font-bold text-foreground" numberOfLines={1}>
+                            {winnerNames}
+                          </Typography>
+                        </View>
+                      )}
+                      {canChoose && (
+                        <Button
+                          variant="outline"
+                          isIconOnly
+                          size="sm"
+                          isDisabled={choicePending}
+                          testID="choose-game"
+                          accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
+                          onPress={() =>
+                            openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
+                          }
+                        >
+                          <ChoiceIcon
+                            choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                            color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
+                          />
+                        </Button>
+                      )}
+                    </GroupedRow>
+                  ))}
+              </GroupedList>
+            )}
           </View>
         </Tabs.Content>
 
@@ -888,115 +1004,19 @@ function MatchDetailContent({
           </Tabs.Content>
         )}
 
-        <Tabs.Content value="games" style={{ marginTop: 16 }}>
-          <View style={{ gap: 12 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Gamepad2 size={18} color={muted} />
-              <Typography accessibilityRole="header" className="font-semibold text-foreground">
-                {match.status !== "PLANNING" ? t("Confirmed game") : t("Game selection")}
-              </Typography>
-              {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
-            </View>
-            {games.length === 0 ? (
-              <EmptyList icon={<Gamepad2 size={28} color="#737373" />}>
-                {t("No selected games")}
-              </EmptyList>
-            ) : (
-              <GroupedList>
-                {games
-                  .filter((game) => match.status === "PLANNING" || game.id === match.selectedGameId)
-                  .map((game) => (
-                    <GroupedRow key={game.id}>
-                      <View
-                        className="bg-muted/20"
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          overflow: "hidden",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {game.thumbnail ? (
-                          <Image
-                            source={{ uri: game.thumbnail }}
-                            accessible={false}
-                            style={{ width: 40, height: 40 }}
-                          />
-                        ) : (
-                          <Gamepad2 size={18} color="#6b7280" />
-                        )}
-                      </View>
-                      <View style={{ flex: 1, gap: 3 }}>
-                        <Typography
-                          className="font-medium text-foreground"
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                        >
-                          {game.name}
-                        </Typography>
-                        <GameCatalogMetadata
-                          year={game.yearPublished}
-                          average={game.average}
-                          rank={game.rank}
-                        />
-                        {match.status === "PLANNING" &&
-                          data.voteSummary?.games[String(game.id)] && (
-                            <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
-                          )}
-                      </View>
-                      {match.status === "TERMINATED" && winnerNames && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 4,
-                            flexShrink: 1,
-                          }}
-                        >
-                          <View
-                            accessible
-                            accessibilityRole="image"
-                            accessibilityLabel={t("Winner")}
-                          >
-                            <Medal size={16} color="#f59e0b" />
-                          </View>
-                          <Typography className="font-bold text-foreground" numberOfLines={1}>
-                            {winnerNames}
-                          </Typography>
-                        </View>
-                      )}
-                      {canChoose && (
-                        <Button
-                          variant="outline"
-                          isIconOnly
-                          size="sm"
-                          isDisabled={choicePending}
-                          testID="choose-game"
-                          accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
-                          onPress={() =>
-                            openChoice({
-                              kind: "games",
-                              itemId: game.id,
-                              title: t("Choose game"),
-                            })
-                          }
-                        >
-                          <ChoiceIcon
-                            choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                            color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
-                          />
-                        </Button>
-                      )}
-                    </GroupedRow>
-                  ))}
-              </GroupedList>
-            )}
-          </View>
-        </Tabs.Content>
+        {canViewLeaderboard && (
+          <Tabs.Content value="leaderboard" style={{ marginTop: 16 }}>
+            <MatchLeaderboard
+              data={data}
+              apiUrl={apiUrl}
+              token={token}
+              getToken={getToken}
+              userId={userId}
+            />
+          </Tabs.Content>
+        )}
         {match.status === "TERMINATED" && match.results && (
-          <Tabs.Content value="standings" style={{ marginTop: 16 }}>
+          <Tabs.Content value="results" style={{ marginTop: 16 }}>
             <View style={{ gap: 12 }}>
               <Typography className="text-sm text-muted">
                 {match.results.lowerWins ? t("Lowest score wins") : t("Highest score wins")}

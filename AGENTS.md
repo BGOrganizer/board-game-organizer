@@ -377,10 +377,13 @@ be included once; scores are exact signed decimals, or null for `ND` (did not pa
 one player must have played even if the actual count falls below `minPlayers`. Highest score wins by
 default; admin may choose lowest wins and explicitly rank any group of equal scores. Unresolved ties
 share a position; all `ND` participants appear last. Persist final ranks and scores in one atomic
-`CREATED` → `TERMINATED` operation. Terminated matches cannot be edited, reopened or deleted. Web
-and mobile replace the Players tab with read-only Standings only in that status. Standings keep
-player avatar, position badge, name, email, and score (or ND); match cards identify all first-place
-players, including unresolved shared first place.
+`CREATED` → `TERMINATED` operation. Terminated matches cannot be edited, reopened or deleted. Match detail Overview holds dates and game selection, with one voting legend beside the match title.
+Leaderboards show current ratings for the administrator and accepted invitees only (GROUP for group
+matches, GLOBAL otherwise); pending/declined invitees cannot open them. Planning matches select from
+proposed games; confirmed/terminated matches show only the selected game. Leaderboards show no deltas.
+Web and mobile replace the Players tab with read-only Results only in TERMINATED status. Results keep
+player avatar, position badge, name, email, score (or ND), and immutable rating deltas; match cards
+identify all first-place players, including unresolved shared first place.
 
 ### Board-game catalog
 

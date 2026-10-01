@@ -31,7 +31,7 @@ export interface MatchContext {
   service: MatchService;
 }
 
-const idSchema = z.uuid();
+export const idSchema = z.uuid();
 const protectionQuerySchema = z
   .object({
     "x-vercel-protection-bypass": z.string().trim().min(1).max(512).optional(),

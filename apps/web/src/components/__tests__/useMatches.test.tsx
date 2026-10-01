@@ -1,4 +1,4 @@
-import { useMatchDetail, useMatches } from "@board-game-organizer/shared";
+import { useMatchDetail, useMatches, useMatchLeaderboard } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -56,6 +56,45 @@ const detail = {
   ],
   games: [{ id: 1, name: "Azul", yearPublished: 2017, thumbnail: null }],
 };
+
+describe("useMatchLeaderboard", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads only selected games with fresh JWTs and separate cache keys", async () => {
+    const getToken = vi.fn().mockResolvedValueOnce("fresh-one").mockResolvedValueOnce("fresh-two");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ gameId: 1, ratings: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const options = {
+      apiUrl: "https://api.example.com",
+      token: "old-token",
+      getToken,
+      userId: "user_admin",
+      matchId: invitation.matchId,
+      protectionBypass: "bypass",
+    };
+    const { result, rerender } = renderHook(({ gameId }) => useMatchLeaderboard(options, gameId), {
+      initialProps: { gameId: null as number | null },
+      wrapper: wrapper(),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    rerender({ gameId: 1 });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetchMock).toHaveBeenCalledWith(
+      `https://api.example.com/api/matches/${invitation.matchId}/leaderboard?gameId=1&x-vercel-protection-bypass=bypass`,
+      { headers: expect.objectContaining({ Authorization: "Bearer fresh-one" }) },
+    );
+    rerender({ gameId: 2 });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      `https://api.example.com/api/matches/${invitation.matchId}/leaderboard?gameId=2&x-vercel-protection-bypass=bypass`,
+      { headers: expect.objectContaining({ Authorization: "Bearer fresh-two" }) },
+    );
+    expect(getToken).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("useMatchDetail", () => {
   afterEach(() => vi.unstubAllGlobals());
