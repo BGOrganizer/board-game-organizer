@@ -8,6 +8,7 @@ import {
   useInvites,
 } from "@board-game-organizer/shared";
 import * as Sentry from "@sentry/react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -33,23 +34,19 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  AppState,
-  FlatList,
-  Linking,
-  Pressable,
-  ScrollView,
-  Share,
-  View,
-} from "react-native";
+import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
+import { ContactSections } from "@/components/ContactSections";
 import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
 import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts";
 import { useT } from "@/lib/i18n";
-import { pendingRegisteredContacts, scanContactIdentifiers } from "@/lib/registeredContacts";
+import {
+  pendingRegisteredContacts,
+  type SyncedContacts,
+  scanContactIdentifiers,
+} from "@/lib/registeredContacts";
 import { unregisteredContacts } from "@/lib/unregisteredContacts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
@@ -132,6 +129,7 @@ function AvatarWithPresence({
 
 export default function ContactsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
+  const queryClient = useQueryClient();
   const t = useT();
   const foreground = useThemeColor("foreground");
   const mutationFeedback = useMutationFeedback();
@@ -261,18 +259,24 @@ export default function ContactsScreen() {
         // Skip pages without eligible contacts; otherwise an empty first page
         // would never give the user a scroll event to request the next page.
         while (deviceHasMoreRef.current) {
-          const page = await Contacts.Contact.getAllDetails(
-            [
-              Contacts.ContactField.FULL_NAME,
-              Contacts.ContactField.EMAILS,
-              Contacts.ContactField.PHONES,
-            ],
-            {
-              limit: CONTACT_LIST_PAGE_SIZE,
-              offset: deviceOffsetRef.current,
-              sortOrder: Contacts.ContactsSortOrder.GivenName,
-            },
-          );
+          const page =
+            (deviceOffsetRef.current === 0 && userId
+              ? queryClient.getQueryData<
+                  Awaited<ReturnType<typeof Contacts.Contact.getAllDetails>>
+                >(["device-contacts", apiUrl(), userId])
+              : undefined) ??
+            (await Contacts.Contact.getAllDetails(
+              [
+                Contacts.ContactField.FULL_NAME,
+                Contacts.ContactField.EMAILS,
+                Contacts.ContactField.PHONES,
+              ],
+              {
+                limit: CONTACT_LIST_PAGE_SIZE,
+                offset: deviceOffsetRef.current,
+                sortOrder: Contacts.ContactsSortOrder.GivenName,
+              },
+            ));
           if (generation !== deviceGenerationRef.current) return;
           deviceOffsetRef.current += page.length;
           deviceHasMoreRef.current = page.length === CONTACT_LIST_PAGE_SIZE;
@@ -294,7 +298,7 @@ export default function ContactsScreen() {
     })();
     devicePageRef.current = task;
     return task;
-  }, []);
+  }, [queryClient, userId]);
 
   const syncContactsData = useCallback(
     (showFeedback = true) => {
@@ -315,7 +319,11 @@ export default function ContactsScreen() {
         try {
           if (devicePageRef.current) await devicePageRef.current;
           const warming = !showFeedback && userId ? pendingRegisteredContacts(userId) : undefined;
-          const warmed = warming ? await warming : null;
+          const warmed = warming
+            ? await warming
+            : !showFeedback && userId
+              ? queryClient.getQueryData<SyncedContacts>(["contact-sync", apiUrl(), userId])
+              : null;
           if (generation !== deviceGenerationRef.current) return;
           const submitted = warmed?.submitted ?? (await scanContactIdentifiers());
           if (generation !== deviceGenerationRef.current) return;
@@ -326,6 +334,8 @@ export default function ContactsScreen() {
               .registeredIdentifiers;
           if (generation !== deviceGenerationRef.current) return;
           deviceMatchesRef.current = { submitted, registered };
+          if (userId)
+            queryClient.setQueryData(["contact-sync", apiUrl(), userId], { submitted, registered });
           deviceOffsetRef.current = 0;
           deviceHasMoreRef.current = true;
           setHasMoreDeviceContacts(true);
@@ -348,7 +358,7 @@ export default function ContactsScreen() {
       contactsSyncRef.current = sync;
       return sync;
     },
-    [loadDevicePage, mutationFeedback, syncContactsMutation, token, userId],
+    [loadDevicePage, mutationFeedback, queryClient, syncContactsMutation, token, userId],
   );
 
   // Fire the REAL system permission request and track denials. A denial only
@@ -445,6 +455,8 @@ export default function ContactsScreen() {
         const permission = await Contacts.getPermissionsAsync();
         if (!permission.granted) {
           deviceGenerationRef.current += 1;
+          if (userId)
+            queryClient.removeQueries({ queryKey: ["device-contacts", apiUrl(), userId] });
           deviceHasMoreRef.current = false;
           deviceMatchesRef.current = null;
           setUnregistered([]);
@@ -454,6 +466,10 @@ export default function ContactsScreen() {
           initialSyncRef.current = false;
           setContactsPermission("denied");
           return;
+        }
+        if (userId) {
+          queryClient.removeQueries({ queryKey: ["device-contacts", apiUrl(), userId] });
+          queryClient.removeQueries({ queryKey: ["contact-sync", apiUrl(), userId] });
         }
         await syncContactsData(false);
       } catch {
@@ -468,6 +484,10 @@ export default function ContactsScreen() {
         const permission = await Contacts.getPermissionsAsync();
         if (permission.granted) {
           setContactsPermission("granted");
+          if (userId) {
+            queryClient.removeQueries({ queryKey: ["device-contacts", apiUrl(), userId] });
+            queryClient.removeQueries({ queryKey: ["contact-sync", apiUrl(), userId] });
+          }
           await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
           await syncContactsData(false);
           return;
@@ -477,7 +497,7 @@ export default function ContactsScreen() {
       }
       await new Promise<void>((resolve) => setTimeout(resolve, 400));
     }
-  }, [contactsPermission, syncContactsData]);
+  }, [contactsPermission, syncContactsData, queryClient, userId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
@@ -542,7 +562,11 @@ export default function ContactsScreen() {
     visibleSuggestions,
   );
   const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
-  const searchRows = contactSearchRows(searchResults, bgoContacts, unregistered);
+  const searchRows = contactSearchRows(
+    searchResults,
+    bgoContacts,
+    contacts.suggestions.hasNextPage ? [] : unregistered,
+  );
   const connectionLabels = {
     friends: t("Friends"),
     following: t("Following"),
@@ -636,13 +660,30 @@ export default function ContactsScreen() {
             keyboardShouldPersistTaps="handled"
             data={searchRows}
             keyExtractor={(row) => row.id}
-            onEndReached={() => void loadDevicePage()}
+            onEndReached={() => {
+              if (contacts.suggestions.hasNextPage) {
+                if (
+                  !contacts.suggestions.isFetchingNextPage &&
+                  !contacts.suggestions.isFetchNextPageError
+                )
+                  void contacts.suggestions.fetchNextPage();
+              } else void loadDevicePage();
+            }}
             onEndReachedThreshold={0.5}
             initialNumToRender={12}
             maxToRenderPerBatch={12}
             windowSize={7}
             ListFooterComponent={
-              loadingDevicePage || syncingContacts ? <ContactListSkeleton count={2} /> : null
+              <>
+                {loadingDevicePage || syncingContacts || contacts.suggestions.isFetchingNextPage ? (
+                  <ContactListSkeleton count={2} />
+                ) : null}
+                {contacts.suggestions.isFetchNextPageError ? (
+                  <Button variant="ghost" onPress={() => void contacts.suggestions.fetchNextPage()}>
+                    <Typography>{t("Retry")}</Typography>
+                  </Button>
+                ) : null}
+              </>
             }
             ListHeaderComponent={
               <View style={{ marginBottom: 12, gap: 8 }}>
@@ -799,8 +840,8 @@ export default function ContactsScreen() {
         </Tabs.Content>
 
         <Tabs.Content value="requests" style={{ flex: 1, marginTop: 12 }}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 20, paddingBottom: 24 }}>
-            {[
+          <ContactSections
+            sections={[
               {
                 key: "received",
                 label: t("Received"),
@@ -808,7 +849,9 @@ export default function ContactsScreen() {
                 rows: pendingRows,
                 isLoading: contacts.pending.isLoading,
                 isError: contacts.pending.isError,
+                error: t("Could not load friend requests"),
                 empty: t("No received friend requests"),
+                query: contacts.pending,
               },
               {
                 key: "sent",
@@ -817,107 +860,67 @@ export default function ContactsScreen() {
                 rows: sentRows,
                 isLoading: contacts.sent.isLoading,
                 isError: contacts.sent.isError,
+                error: t("Could not load friend requests"),
                 empty: t("No sent friend requests"),
+                query: contacts.sent,
               },
-            ].map((section) => (
-              <View key={section.key} style={{ gap: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <section.icon size={18} color={foreground} />
-                  <Typography className="font-semibold text-foreground">{section.label}</Typography>
-                </View>
-                {section.isLoading && <ContactListSkeleton count={2} />}
-                {section.isError && (
-                  <Typography accessibilityRole="alert" className="text-sm text-danger">
-                    {t("Could not load friend requests")}
-                  </Typography>
-                )}
-                {!section.isLoading && !section.isError && section.rows.length === 0 && (
-                  <EmptyList icon={<section.icon size={28} color="#737373" />}>
-                    {section.empty}
-                  </EmptyList>
-                )}
-                <GroupedList>
-                  {section.rows.map((row) =>
-                    row.profile
-                      ? contactRow(
-                          row.profile,
-                          section.key === "received" ? "incoming" : "outgoing",
-                        )
-                      : null,
-                  )}
-                </GroupedList>
-              </View>
-            ))}
-            <View style={{ gap: 8, marginTop: 20 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Ban size={18} color={foreground} />
-                <Typography className="font-semibold text-foreground">{t("Blocked")}</Typography>
-              </View>
-              {contacts.blocked.isLoading ? <ContactListSkeleton count={2} /> : null}
-              {contacts.blocked.isError ? (
-                <Typography accessibilityRole="alert" className="text-danger">
-                  {t("Could not load contacts")}
-                </Typography>
-              ) : null}
-              {!contacts.blocked.isLoading &&
-              !contacts.blocked.isError &&
-              blockedRows.length === 0 ? (
-                <EmptyList icon={<Ban size={28} color="#737373" />}>
-                  {t("No blocked users")}
-                </EmptyList>
-              ) : null}
-              <GroupedList>
-                {blockedRows.map((row) => (row.profile ? contactRow(row.profile) : null))}
-              </GroupedList>
-            </View>
-          </ScrollView>
+              {
+                key: "blocked",
+                label: t("Blocked"),
+                icon: Ban,
+                rows: blockedRows,
+                isLoading: contacts.blocked.isLoading,
+                isError: contacts.blocked.isError,
+                empty: t("No blocked users"),
+                query: contacts.blocked,
+              },
+            ]}
+            getRowKey={(row) => row.profile?.id ?? `${row.fromUserId}-${row.toUserId}`}
+            renderRow={(row, sectionKey) =>
+              row.profile
+                ? contactRow(
+                    row.profile,
+                    sectionKey === "received"
+                      ? "incoming"
+                      : sectionKey === "sent"
+                        ? "outgoing"
+                        : undefined,
+                  )
+                : null
+            }
+          />
         </Tabs.Content>
 
         <Tabs.Content value="connections" style={{ flex: 1, marginTop: 12 }}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 20, paddingBottom: 24 }}>
-            {connections
+          <ContactSections
+            sections={connections
               .filter((section) => section.key !== "device")
-              .map((section) => {
-                const state = connectionQueries[section.key];
-                const Icon = connectionIcons[section.key];
-                return (
-                  <View key={section.key} style={{ gap: 8 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Icon size={18} color={foreground} />
-                      <Typography
-                        accessibilityRole="header"
-                        className="font-semibold text-foreground"
-                        numberOfLines={1}
-                        style={{ flexShrink: 1 }}
-                      >
-                        {connectionLabels[section.key]}
-                      </Typography>
-                    </View>
-                    {state.isLoading ? <ContactListSkeleton count={2} /> : null}
-                    {state.isError ? (
-                      <Typography accessibilityRole="alert" className="text-danger">
-                        {t("Could not load contacts")}
-                      </Typography>
-                    ) : null}
-                    {!state.isLoading && !state.isError && section.users.length === 0 && (
-                      <EmptyList icon={<Icon size={28} color="#737373" />}>
-                        {connectionEmpty[section.key]}
-                      </EmptyList>
-                    )}
-                    <GroupedList>{section.users.map((user) => contactRow(user))}</GroupedList>
-                  </View>
-                );
-              })}
-            {syncingContacts || contactsPermission === "checking" ? (
-              <ContactListSkeleton count={2} />
-            ) : null}
-            {contactsPermission === "granted" &&
-            (contactsReadError || contacts.syncContacts.isError) ? (
-              <Button variant="outline" onPress={() => void syncContactsData()}>
-                <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
-              </Button>
-            ) : null}
-          </ScrollView>
+              .map((section) => ({
+                key: section.key,
+                label: connectionLabels[section.key],
+                icon: connectionIcons[section.key],
+                rows: section.users,
+                isLoading: connectionQueries[section.key].isLoading,
+                isError: connectionQueries[section.key].isError,
+                empty: connectionEmpty[section.key],
+                query: connectionQueries[section.key],
+              }))}
+            getRowKey={(user) => user.id}
+            renderRow={(user) => contactRow(user)}
+            footer={
+              <>
+                {syncingContacts || contactsPermission === "checking" ? (
+                  <ContactListSkeleton count={2} />
+                ) : null}
+                {contactsPermission === "granted" &&
+                (contactsReadError || contacts.syncContacts.isError) ? (
+                  <Button variant="outline" onPress={() => void syncContactsData()}>
+                    <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+                  </Button>
+                ) : null}
+              </>
+            }
+          />
         </Tabs.Content>
       </Tabs>
 

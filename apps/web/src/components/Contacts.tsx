@@ -26,6 +26,7 @@ import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
@@ -160,6 +161,36 @@ export function Contacts() {
     userId,
     mutationFeedback,
   );
+  const endRefs = {
+    friends: useInfiniteScroll({
+      ...contacts.friends,
+      fetchNextPage: () => contacts.friends.fetchNextPage(),
+    }),
+    following: useInfiniteScroll({
+      ...contacts.following,
+      fetchNextPage: () => contacts.following.fetchNextPage(),
+    }),
+    followers: useInfiniteScroll({
+      ...contacts.followers,
+      fetchNextPage: () => contacts.followers.fetchNextPage(),
+    }),
+    pending: useInfiniteScroll({
+      ...contacts.pending,
+      fetchNextPage: () => contacts.pending.fetchNextPage(),
+    }),
+    sent: useInfiniteScroll({
+      ...contacts.sent,
+      fetchNextPage: () => contacts.sent.fetchNextPage(),
+    }),
+    blocked: useInfiniteScroll({
+      ...contacts.blocked,
+      fetchNextPage: () => contacts.blocked.fetchNextPage(),
+    }),
+    suggestions: useInfiniteScroll({
+      ...contacts.suggestions,
+      fetchNextPage: () => contacts.suggestions.fetchNextPage(),
+    }),
+  };
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
@@ -373,6 +404,14 @@ export function Contacts() {
               </EmptyList>
             ) : null}
             <GroupedList>{bgoContacts.map((user) => contactCard(user))}</GroupedList>
+            <div ref={endRefs.suggestions} aria-hidden="true" />
+            {contacts.suggestions.isFetchNextPageError ? (
+              <button
+                type="button"
+                className="text-sm text-primary"
+                onClick={() => void contacts.suggestions.fetchNextPage()}
+              >{t`Retry`}</button>
+            ) : null}
           </section>
         </Tabs.Panel>
 
@@ -425,6 +464,22 @@ export function Contacts() {
                     : null,
                 )}
               </GroupedList>
+              <div
+                ref={section.key === "received" ? endRefs.pending : endRefs.sent}
+                aria-hidden="true"
+              />
+              {(section.key === "received" ? contacts.pending : contacts.sent)
+                .isFetchNextPageError ? (
+                <button
+                  type="button"
+                  className="text-sm text-primary"
+                  onClick={() =>
+                    void (
+                      section.key === "received" ? contacts.pending : contacts.sent
+                    ).fetchNextPage()
+                  }
+                >{t`Retry`}</button>
+              ) : null}
             </section>
           ))}
           <section className="space-y-2" aria-labelledby="blocked-title">
@@ -444,6 +499,14 @@ export function Contacts() {
             <GroupedList>
               {blockedRows.map((row) => (row.profile ? contactCard(row.profile) : null))}
             </GroupedList>
+            <div ref={endRefs.blocked} aria-hidden="true" />
+            {contacts.blocked.isFetchNextPageError ? (
+              <button
+                type="button"
+                className="text-sm text-primary"
+                onClick={() => void contacts.blocked.fetchNextPage()}
+              >{t`Retry`}</button>
+            ) : null}
           </section>
         </Tabs.Panel>
 
@@ -476,6 +539,14 @@ export function Contacts() {
                     </EmptyList>
                   )}
                   <GroupedList>{section.users.map((user) => contactCard(user))}</GroupedList>
+                  <div ref={endRefs[section.key]} aria-hidden="true" />
+                  {state.isFetchNextPageError ? (
+                    <button
+                      type="button"
+                      className="text-sm text-primary"
+                      onClick={() => void state.fetchNextPage()}
+                    >{t`Retry`}</button>
+                  ) : null}
                 </section>
               );
             })}

@@ -4,7 +4,7 @@ import { contactSyncPayload } from "@/lib/contacts";
 
 const SCAN_PAGE_SIZE = 200;
 
-type SyncedContacts = {
+export type SyncedContacts = {
   submitted: SyncedContactIdentifiers;
   registered: SyncedContactIdentifiers;
 };

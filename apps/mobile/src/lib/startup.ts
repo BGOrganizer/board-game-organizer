@@ -1,9 +1,21 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 const initialRoles = "admin,invited,accepted";
-export const startupRelationshipTypes = ["friends", "pending", "following", "followers"] as const;
+export const startupRelationshipTypes = [
+  "friends",
+  "pending",
+  "following",
+  "followers",
+  "sent",
+  "blocked",
+] as const;
 
 export const STARTUP_SPLASH_LIMIT_MS = 5000;
+
+export function startupLinkPath(url: string | null | undefined): string | null {
+  if (!url?.startsWith("bgo:")) return null;
+  return `/${url.slice(4).replace(/^\/+/, "").split("?")[0]}`;
+}
 
 export function remainingSplashMs(startedAt: number, now: number): number {
   return Math.max(0, STARTUP_SPLASH_LIMIT_MS - (now - startedAt));
@@ -50,18 +62,24 @@ export function isStartupDestinationSettled(
           key[1] === "detail" &&
           key[2] === segments[1] &&
           key[3] === apiUrl &&
-          Boolean(key[4])
+          key[4] === userId
         );
       }
       if (groupDetail) {
-        return key[0] === "groups" && key[1] === apiUrl && Boolean(key[2]);
+        return (
+          key[0] === "groups" &&
+          key[1] === "detail" &&
+          key[2] === segments[1] &&
+          key[3] === apiUrl &&
+          key[4] === userId
+        );
       }
       if (pathname === "/matches" || pathname === "/groups") {
         return (
           key[0] === (pathname === "/matches" ? "matches" : "groups") &&
           key[1] === "paged" &&
           key[2] === apiUrl &&
-          Boolean(key[3]) &&
+          key[3] === userId &&
           key[4] === "" &&
           key[5] === initialRoles
         );
@@ -71,7 +89,7 @@ export function isStartupDestinationSettled(
           key[0] === "contacts" &&
           contactTypes.some((type) => key[1] === type) &&
           key[2] === apiUrl &&
-          Boolean(key[3])
+          key[3] === userId
         );
       }
       if (pathname === "/notifications") {
@@ -95,4 +113,24 @@ export function isStartupDestinationSettled(
   )
     return true;
   return matches.length > 0;
+}
+
+/** Ordinary launches wait for first pages only, never every record. */
+export function isStartupEssentialsSettled(
+  queryClient: QueryClient,
+  apiUrl: string,
+  userId: string,
+): boolean {
+  const settled = (key: readonly unknown[]) => {
+    const state = queryClient.getQueryState(key);
+    return Boolean(state && state.status !== "pending" && state.fetchStatus === "idle");
+  };
+  return (
+    settled(["profile", apiUrl, userId]) &&
+    settled(["matches", "paged", apiUrl, userId, "", initialRoles]) &&
+    settled(["groups", "paged", apiUrl, userId, "", initialRoles]) &&
+    [...startupRelationshipTypes, "suggestions"].every((type) =>
+      settled(["contacts", type, apiUrl, userId]),
+    )
+  );
 }

@@ -56,6 +56,38 @@ describe("GET /api/users/suggestions", () => {
     expect(body).toEqual({ users: [], nextCursor: null, hasContacts: false });
   });
 
+  it("paginates only registered, visible suggestions", async () => {
+    contactClerkIdsForUser.mockResolvedValue(["user_c", "user_a", "user_b"]);
+    getDbMock.mockResolvedValue({
+      collection: (name: string) => ({
+        find: () => ({
+          toArray: async () =>
+            name === "users"
+              ? ["user_c", "user_a", "user_b"].map((clerkId) => ({
+                  clerkId,
+                  name: clerkId,
+                  email: null,
+                  avatarUrl: null,
+                  presence: { online: false, lastActiveAt: new Date() },
+                }))
+              : [],
+        }),
+      }),
+    } as never);
+    const first = await GET(new Request("http://localhost/api/users/suggestions?limit=2"));
+    const body = await first.json();
+    expect(body.users.map((user: { id: string }) => user.id)).toEqual(["user_a", "user_b"]);
+    expect(body.nextCursor).toBe("user_b");
+    expect(body.hasContacts).toBe(true);
+    const second = await GET(
+      new Request("http://localhost/api/users/suggestions?limit=2&cursor=user_b"),
+    );
+    expect((await second.json()).users.map((user: { id: string }) => user.id)).toEqual(["user_c"]);
+    expect((await GET(new Request("http://localhost/api/users/suggestions?limit=0"))).status).toBe(
+      400,
+    );
+  });
+
   it("returns only synced contacts (hasContacts=true)", async () => {
     contactClerkIdsForUser.mockResolvedValue(["user_b"]);
     const db = {

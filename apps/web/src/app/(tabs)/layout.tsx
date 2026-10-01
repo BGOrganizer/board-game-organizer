@@ -1,5 +1,6 @@
 import { Header } from "@/components/Header";
 import { MobileNumberGate } from "@/components/MobileNumberGate";
+import { WebDataWarmup } from "@/components/WebDataWarmup";
 
 export default function TabsLayout({
   children,
@@ -9,6 +10,7 @@ export default function TabsLayout({
   return (
     <MobileNumberGate>
       <div className="min-h-screen">
+        <WebDataWarmup />
         <Header />
         <main className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
           {children}

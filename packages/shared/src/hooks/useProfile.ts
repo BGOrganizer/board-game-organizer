@@ -41,6 +41,5 @@ export function useProfileQuery(options: UseProfileOptions) {
   return useQuery<UserProfile>({
     ...profileQueryOptions(options),
     enabled: (options.enabled ?? true) && Boolean(options.userId) && Boolean(options.apiUrl),
-    refetchOnMount: "always",
   });
 }

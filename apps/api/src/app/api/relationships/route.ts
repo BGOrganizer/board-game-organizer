@@ -19,6 +19,15 @@ const querySchema = z
     "x-vercel-protection-bypass": z.string().trim().min(1).max(512).optional(),
   })
   .strict();
+const listQuerySchema = querySchema.extend({
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  cursor: z
+    .string()
+    .min(1)
+    .max(128)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
+});
 
 export const OPTIONS = relationshipOptions;
 
@@ -35,9 +44,23 @@ function queryType(request: Request) {
 }
 
 export function GET(request: Request) {
-  const parsed = listTypeSchema.safeParse(queryType(request));
+  const params = new URL(request.url).searchParams;
+  if (
+    ["type", "limit", "cursor", "x-vercel-protection-bypass"].some(
+      (key) => params.getAll(key).length > 1,
+    )
+  )
+    return badRelationshipRequest(request, "Invalid list query");
+  const query = listQuerySchema.safeParse(Object.fromEntries(params));
+  if (!query.success) return badRelationshipRequest(request, "Invalid list query");
+  const parsed = listTypeSchema.safeParse(query.data.type);
   if (!parsed.success) return badRelationshipRequest(request, "Invalid type");
-  return runRelationshipList(request, parsed.data as RelationshipListType);
+  return runRelationshipList(
+    request,
+    parsed.data as RelationshipListType,
+    query.data.limit,
+    query.data.cursor,
+  );
 }
 
 export async function POST(request: Request) {

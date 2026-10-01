@@ -1,5 +1,5 @@
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import type { MutationFeedback } from "../mutationFeedback";
 import {
@@ -78,28 +78,26 @@ async function resolveToken(
   return token;
 }
 
-export function fetchRelationships(
-  apiUrl: string,
-  token: string,
-  type: RelationshipListType,
-  protectionBypass?: string | null,
-): Promise<RelationshipRow[]> {
-  return fetch(withProtectionBypass(`${apiUrl}/api/relationships?type=${type}`, protectionBypass), {
-    headers: apiHeaders(token),
-  }).then(async (res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as RelationshipRow[];
-  });
-}
-
-export async function fetchRelationshipsWithToken(
+export async function fetchRelationshipPageWithToken(
   apiUrl: string,
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
   type: RelationshipListType,
+  cursor = "",
   protectionBypass?: string | null,
-): Promise<RelationshipRow[]> {
-  return fetchRelationships(apiUrl, await resolveToken(token, getToken), type, protectionBypass);
+): Promise<{ rows: RelationshipRow[]; nextCursor: string | null }> {
+  const params = new URLSearchParams({ type, limit: "20", ...(cursor ? { cursor } : {}) });
+  const res = await fetch(
+    withProtectionBypass(`${apiUrl}/api/relationships?${params}`, protectionBypass),
+    {
+      headers: apiHeaders(await resolveToken(token, getToken)),
+    },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const page = (await res.json()) as
+    | { rows: RelationshipRow[]; nextCursor: string | null }
+    | RelationshipRow[];
+  return Array.isArray(page) ? { rows: page, nextCursor: null } : page;
 }
 
 export function fetchSuggestions(
@@ -123,6 +121,33 @@ export async function fetchSuggestionsWithToken(
   protectionBypass?: string | null,
 ): Promise<{ users: ContactUser[]; hasContacts: boolean }> {
   return fetchSuggestions(apiUrl, await resolveToken(token, getToken), protectionBypass);
+}
+
+export async function fetchSuggestionPageWithToken(
+  apiUrl: string,
+  token: string | null | undefined,
+  getToken: (() => Promise<string | null>) | undefined,
+  cursor = "",
+  protectionBypass?: string | null,
+): Promise<{ users: ContactUser[]; hasContacts: boolean; nextCursor: string | null }> {
+  const params = new URLSearchParams({ limit: "20", ...(cursor ? { cursor } : {}) });
+  const res = await fetch(
+    withProtectionBypass(`${apiUrl}/api/users/suggestions?${params}`, protectionBypass),
+    {
+      headers: apiHeaders(await resolveToken(token, getToken)),
+    },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const page = (await res.json()) as {
+    users: ContactUser[];
+    hasContacts?: boolean;
+    nextCursor?: string | null;
+  };
+  return {
+    users: page.users,
+    hasContacts: page.hasContacts ?? false,
+    nextCursor: page.nextCursor ?? null,
+  };
 }
 
 export interface SyncedContactIdentifiers {
@@ -271,6 +296,32 @@ async function respondToFriendRequestWithToken(
   return (await res.json()) as { success: boolean };
 }
 
+export function useRelationshipList(
+  apiUrl: string,
+  token: string | null | undefined,
+  getToken: (() => Promise<string | null>) | undefined,
+  protectionBypass: string | null | undefined,
+  currentUserId: string | null | undefined,
+  type: RelationshipListType,
+  enabled = true,
+) {
+  const query = useInfiniteQuery({
+    queryKey: ["contacts", type, apiUrl, currentUserId ?? token],
+    queryFn: ({ pageParam }) =>
+      fetchRelationshipPageWithToken(apiUrl, token, getToken, type, pageParam, protectionBypass),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: enabled && Boolean(apiUrl && token),
+    staleTime: 5 * 60_000,
+  });
+  return {
+    ...query,
+    data: Array.isArray(query.data)
+      ? (query.data as RelationshipRow[])
+      : query.data?.pages.flatMap((page) => page.rows),
+  };
+}
+
 /**
  * All contact queries + mutations in one hook. The web Contacts tab and the
  * mobile Contacts screen share this surface.
@@ -292,63 +343,88 @@ export function useContacts(
   const queryClient = useQueryClient();
   const enabled = Boolean(apiUrl) && Boolean(token);
 
-  const following = useQuery({
-    queryKey: ["contacts", "following", apiUrl, token],
-    queryFn: () =>
-      fetchRelationshipsWithToken(apiUrl, token, getToken, "following", protectionBypass),
-    enabled,
-    staleTime: 30_000,
-  });
+  const following = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "following",
+  );
 
-  const followers = useQuery({
-    queryKey: ["contacts", "followers", apiUrl, token],
-    queryFn: () =>
-      fetchRelationshipsWithToken(apiUrl, token, getToken, "followers", protectionBypass),
-    enabled,
-    staleTime: 30_000,
-  });
+  const followers = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "followers",
+  );
 
-  const friends = useQuery({
-    queryKey: ["contacts", "friends", apiUrl, token],
-    queryFn: () =>
-      fetchRelationshipsWithToken(apiUrl, token, getToken, "friends", protectionBypass),
-    enabled,
-    staleTime: 30_000,
-  });
+  const friends = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "friends",
+  );
 
-  const pending = useQuery({
-    queryKey: ["contacts", "pending", apiUrl, token],
-    queryFn: () =>
-      fetchRelationshipsWithToken(apiUrl, token, getToken, "pending", protectionBypass),
-    enabled,
-    staleTime: 30_000,
-  });
+  const pending = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "pending",
+  );
 
-  const sent = useQuery({
-    queryKey: ["contacts", "sent", apiUrl, token],
-    queryFn: () => fetchRelationshipsWithToken(apiUrl, token, getToken, "sent", protectionBypass),
-    enabled,
-    staleTime: 30_000,
-  });
+  const sent = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "sent",
+  );
 
-  const blocked = useQuery({
-    queryKey: ["contacts", "blocked", apiUrl, token],
-    queryFn: () =>
-      fetchRelationshipsWithToken(apiUrl, token, getToken, "blocked", protectionBypass),
-    enabled,
-    staleTime: 30_000,
-  });
+  const blocked = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    currentUserId,
+    "blocked",
+  );
 
-  const suggestions = useQuery({
-    queryKey: ["contacts", "suggestions", apiUrl, token],
-    queryFn: () => fetchSuggestionsWithToken(apiUrl, token, getToken, protectionBypass),
+  const suggestionsQuery = useInfiniteQuery({
+    queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token],
+    queryFn: ({ pageParam }) =>
+      fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam, protectionBypass),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
+  const suggestions = useMemo(
+    () => ({
+      ...suggestionsQuery,
+      data:
+        suggestionsQuery.data && "pages" in suggestionsQuery.data
+          ? {
+              users: suggestionsQuery.data.pages.flatMap((page) => page.users),
+              hasContacts: suggestionsQuery.data.pages[0]?.hasContacts ?? false,
+            }
+          : (suggestionsQuery.data as unknown as
+              | { users: ContactUser[]; hasContacts: boolean }
+              | undefined),
+    }),
+    [suggestionsQuery],
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const searchResult = useQuery({
-    queryKey: ["contacts", `search:${searchQuery}`, apiUrl, token],
+    queryKey: ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token],
     queryFn: () => searchUsersWithToken(apiUrl, token, getToken, searchQuery, protectionBypass),
     enabled: enabled && searchQuery.length >= 4,
     staleTime: 30_000,
@@ -382,7 +458,14 @@ export function useContacts(
       for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
       feedback?.onError?.(_error, action);
     },
-    onSettled: () => refreshContacts(),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
+      if (searchQuery.length >= 4)
+        void queryClient.invalidateQueries({
+          queryKey: ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token],
+          exact: true,
+        });
+    },
   });
 
   const follow = useMutation({
@@ -522,11 +605,17 @@ export function useContacts(
     onMutate: async ({ silent }) => {
       const queryKey = ["contacts", "suggestions"] as const;
       await queryClient.cancelQueries({ queryKey });
-      const snapshots = queryClient.getQueriesData<{ users: ContactUser[]; hasContacts: boolean }>({
-        queryKey,
-      });
+      const snapshots = queryClient.getQueriesData<
+        { users: ContactUser[]; hasContacts: boolean } | { pages: Array<{ hasContacts: boolean }> }
+      >({ queryKey });
       for (const [key, data] of snapshots) {
-        if (data) queryClient.setQueryData(key, { ...data, hasContacts: true });
+        if (!data) continue;
+        queryClient.setQueryData(
+          key,
+          "pages" in data
+            ? { ...data, pages: data.pages.map((page) => ({ ...page, hasContacts: true })) }
+            : { ...data, hasContacts: true },
+        );
       }
       if (!silent) feedback?.onOptimisticUpdate?.("sync_contacts");
       return snapshots;

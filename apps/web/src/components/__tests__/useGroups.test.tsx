@@ -30,6 +30,59 @@ const group = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+it("fetches uncached group details by ID without loading the legacy list", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const fetchMock = vi.fn(
+    async (_input: string | URL | Request) =>
+      new Response(JSON.stringify({ group }), { status: 200 }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const { result } = renderHook(
+    () =>
+      useGroups({
+        apiUrl: "https://api.example.com",
+        token: "jwt",
+        userId: "friend",
+        groupId: group.id,
+      }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.detail.data?.group.id).toBe(group.id));
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchMock.mock.calls[0][0]).toBe(`https://api.example.com/api/groups/${group.id}`);
+});
+
+it("uses an authorized full group row from the first cached page", () => {
+  const client = new QueryClient();
+  client.setQueryData(
+    ["groups", "paged", "https://api.example.com", "friend", "", "admin,invited,accepted"],
+    {
+      pages: [{ groups: [group], nextCursor: null }],
+      pageParams: [""],
+    },
+  );
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const { result } = renderHook(
+    () =>
+      useGroups({
+        apiUrl: "https://api.example.com",
+        token: "jwt",
+        userId: "friend",
+        groupId: group.id,
+      }),
+    { wrapper },
+  );
+  expect(result.current.detail.data?.group.name).toBe(group.name);
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
 it("shows admin and accepted members from invitation response before groups refetch", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const pending = {

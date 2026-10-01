@@ -509,6 +509,7 @@ export function Groups({
     protectionBypass,
     feedback,
     listFilters: mode === "list" ? filters.filters : undefined,
+    groupId: mode === "list" || mode === "new" ? undefined : groupId,
   });
   const endRef = useInfiniteScroll({
     hasNextPage: groups.paging?.hasNextPage,
@@ -516,7 +517,7 @@ export function Groups({
     isFetchNextPageError: groups.paging?.isFetchNextPageError,
     fetchNextPage: () => groups.paging?.fetchNextPage() ?? Promise.resolve(),
   });
-  const group = groups.list.data?.find((item) => item.id === groupId);
+  const group = groups.detail?.data?.group ?? groups.list.data?.find((item) => item.id === groupId);
   const destroy = async () => {
     if (!confirm) return;
     try {
@@ -538,7 +539,7 @@ export function Groups({
   if ((mode === "edit" || mode === "detail") && !group)
     return (
       <main className="mx-auto max-w-3xl">
-        {groups.list.isPending || exiting ? (
+        {(groups.detail?.isPending ?? groups.list.isPending) || exiting ? (
           <Skeleton className="h-24 w-full rounded-xl" />
         ) : (
           <p role="alert" className="text-danger">{t`Could not load group details`}</p>

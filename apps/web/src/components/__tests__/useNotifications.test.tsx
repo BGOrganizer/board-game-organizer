@@ -110,6 +110,39 @@ describe("useNotifications", () => {
     expect(options.getToken.mock.calls.length).toBeGreaterThanOrEqual(5);
   });
 
+  it("marks cached social data stale when a new notification arrives without polling it", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const matchesKey = [
+      "matches",
+      "paged",
+      options.apiUrl,
+      options.userId,
+      "",
+      "admin,invited,accepted",
+    ];
+    client.setQueryData(matchesKey, {
+      pages: [{ matches: [], nextCursor: null }],
+      pageParams: [""],
+    });
+    const { result } = renderHook(() => useNotifications(options), { wrapper: wrapper(client) });
+    await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
+    const key = ["notifications", options.apiUrl, options.userId, 5];
+    const previous = client.getQueryData<{
+      pages: Array<{ notifications: ReturnType<typeof item>[] }>;
+    }>(key);
+    expect(previous).toBeDefined();
+    act(() => {
+      client.setQueryData(key, {
+        ...previous,
+        pages: previous?.pages.map((page, index) =>
+          index === 0 ? { ...page, notifications: [item("new"), ...page.notifications] } : page,
+        ),
+      });
+    });
+    await waitFor(() => expect(client.getQueryState(matchesKey)?.isInvalidated).toBe(true));
+    expect(vi.mocked(fetch).mock.calls.filter(([, init]) => !init?.method)).toHaveLength(1);
+  });
+
   it("rolls notification state back after mutation failures", async () => {
     let failPatch = () => {};
     vi.mocked(fetch).mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {

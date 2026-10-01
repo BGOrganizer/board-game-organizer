@@ -5,6 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { apiHeaders, withProtectionBypass } from "../api";
 import type { MutationFeedback } from "../mutationFeedback";
 
@@ -120,6 +121,20 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     enabled: options.enabled && Boolean(options.userId),
     refetchInterval: 30_000,
   });
+  const lastSeen = useRef<{ userId: string; id: string } | null>(null);
+  useEffect(() => {
+    if (!options.userId) {
+      lastSeen.current = null;
+      return;
+    }
+    const latest = list.data?.pages[0]?.notifications[0];
+    if (!latest) return;
+    if (lastSeen.current?.userId === options.userId && lastSeen.current.id !== latest.id) {
+      for (const prefix of ["contacts", "groups", "matches"])
+        void queryClient.invalidateQueries({ queryKey: [prefix], refetchType: "none" });
+    }
+    lastSeen.current = { userId: options.userId, id: latest.id };
+  }, [list.data, options.userId, queryClient]);
 
   const optimisticRead = (notificationId?: string) => ({
     onMutate: async () => {

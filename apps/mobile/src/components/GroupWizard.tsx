@@ -257,12 +257,12 @@ export function GroupWizard({ groupId }: { groupId?: string }) {
       active = false;
     };
   }, [getToken, isLoaded, isSignedIn]);
-  const groups = useGroups({ apiUrl, token, getToken, userId, feedback });
-  const group = groups.list.data?.find((item) => item.id === groupId);
+  const groups = useGroups({ apiUrl, token, getToken, userId, feedback, groupId });
+  const group = groups.detail.data?.group;
   if (groupId && (!group || group.adminUserId !== userId))
     return (
       <View style={{ padding: 20 }}>
-        {groups.list.isPending ? (
+        {groups.detail.isPending ? (
           <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
         ) : (
           <Typography className="text-danger">{t("Could not load group details")}</Typography>

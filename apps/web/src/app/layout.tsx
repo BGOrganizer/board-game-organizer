@@ -1,7 +1,7 @@
-import { QueryProvider } from "@board-game-organizer/query";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { LinguiClientProvider } from "@/components/LinguiClientProvider";
+import { SessionQueryProvider } from "@/components/SessionQueryProvider";
 import { ThemeScript } from "@/components/ThemeScript";
 import { initServerI18n } from "@/lib/i18n";
 import "./globals.css";
@@ -41,11 +41,11 @@ export default async function RootLayout({
           appearance={clerkAppearance}
           signUpForceRedirectUrl="/mobile-number"
         >
-          <QueryProvider>
+          <SessionQueryProvider>
             <LinguiClientProvider initialLocale={locale} initialMessages={messages}>
               {children}
             </LinguiClientProvider>
-          </QueryProvider>
+          </SessionQueryProvider>
         </ClerkProvider>
       </body>
     </html>

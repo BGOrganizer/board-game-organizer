@@ -29,6 +29,38 @@ const applyUsers = (view: string, action: ContactAction) =>
   ) as { users: ContactUser[]; hasContacts: boolean };
 
 describe("optimisticContactData", () => {
+  it("patches paginated caches once across page boundaries", () => {
+    const pages = {
+      pages: [
+        { rows: [], nextCursor: "page-2" },
+        { rows: [row({ ...target, id: "other" })], nextCursor: null },
+      ],
+      pageParams: ["", "page-2"],
+    };
+    const updated = optimisticContactData(
+      ["contacts", "following"],
+      pages,
+      "follow",
+      variables,
+      "viewer",
+    ) as typeof pages;
+    expect(updated.pages.flatMap((page) => page.rows).map((item) => item.toUserId)).toEqual([
+      "other",
+      "target",
+    ]);
+    expect(updated.pages[0].nextCursor).toBe("page-2");
+    const removed = optimisticContactData(
+      ["contacts", "following"],
+      updated,
+      "block",
+      variables,
+      "viewer",
+    ) as typeof pages;
+    expect(removed.pages.flatMap((page) => page.rows).map((item) => item.toUserId)).toEqual([
+      "other",
+    ]);
+  });
+
   it("adds and removes following rows while updating cached user flags", () => {
     expect(applyRows("following", "follow", [])).toEqual([
       expect.objectContaining({

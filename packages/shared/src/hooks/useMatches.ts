@@ -528,13 +528,14 @@ export function matchesPageQuery({
   getToken,
   protectionBypass,
   listFilters,
+  userId,
 }: MatchesApiOptions) {
   return {
     queryKey: [
       "matches",
       "paged",
       apiUrl,
-      token,
+      userId ?? token,
       listFilters?.query,
       listFilters?.roles.join(","),
     ] as const,
@@ -563,7 +564,7 @@ export function useMatches(options: MatchesApiOptions) {
   const respondInvitation = useRespondToInvitation(options);
 
   const legacyList = useQuery({
-    queryKey: ["matches", apiUrl, token],
+    queryKey: ["matches", apiUrl, userId ?? token],
     queryFn: async () => {
       const freshToken = await resolveToken(token, getToken);
       return listMatches(apiUrl, freshToken, protectionBypass);
@@ -675,19 +676,38 @@ export function useMatches(options: MatchesApiOptions) {
   );
 }
 
+export function matchDetailQuery({
+  apiUrl,
+  token,
+  getToken,
+  protectionBypass,
+  matchId,
+  userId,
+}: MatchDetailApiOptions) {
+  return {
+    queryKey: ["matches", "detail", matchId, apiUrl, userId ?? token] as const,
+    queryFn: async () =>
+      fetchMatchDetail(apiUrl, await resolveToken(token, getToken), matchId, protectionBypass),
+    staleTime: 5 * 60_000,
+  };
+}
+
 export function useMatchDetail(options: MatchDetailApiOptions) {
-  const { apiUrl, token, getToken, protectionBypass, matchId, feedback } = options;
+  const { apiUrl, token, getToken, protectionBypass, matchId, feedback, userId } = options;
   const queryClient = useQueryClient();
   const respondInvitation = useRespondToInvitation(options);
   const detail = useQuery({
-    queryKey: ["matches", "detail", matchId, apiUrl, token],
-    queryFn: async () => {
-      const freshToken = await resolveToken(token, getToken);
-      return fetchMatchDetail(apiUrl, freshToken, matchId, protectionBypass);
-    },
+    ...matchDetailQuery(options),
     enabled: Boolean(apiUrl) && Boolean(token) && Boolean(matchId),
-    staleTime: 30_000,
   });
+  const summary = queryClient
+    .getQueriesData({ queryKey: ["matches", "paged", apiUrl, userId ?? token] })
+    .flatMap(([, data]) =>
+      data && typeof data === "object" && "pages" in data
+        ? (data.pages as { matches: MatchSummary[] }[]).flatMap((page) => page.matches)
+        : [],
+    )
+    .find((item) => item.id === matchId);
 
   const setChoice = useMutation({
     mutationFn: async (input: SetMatchChoiceInput) =>
@@ -699,7 +719,7 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
         protectionBypass,
       ),
     onMutate: async (input) => {
-      const key = ["matches", "detail", matchId, apiUrl, token];
+      const key = ["matches", "detail", matchId, apiUrl, userId ?? token];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<MatchDetailResponse>(key);
       if (previous) {
@@ -947,6 +967,7 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
   return useMemo(
     () => ({
       detail,
+      summary,
       respondInvitation,
       setChoice,
       setStatus,
@@ -957,6 +978,7 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
     }),
     [
       detail,
+      summary,
       respondInvitation,
       setChoice,
       setStatus,

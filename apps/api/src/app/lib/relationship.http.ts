@@ -132,9 +132,27 @@ export async function runRelationshipOperation<T>(
   }
 }
 
-export function runRelationshipList(request: Request, type: RelationshipListType) {
+export function runRelationshipList(
+  request: Request,
+  type: RelationshipListType,
+  limit?: number,
+  cursor?: string,
+) {
   return runRelationshipOperation(request, async ({ userId, db, session, service }) => {
     const relationships = await service.list(userId, type);
-    return enrichRelationshipsWithUsers(db, relationships, userId, session);
+    if (!limit) return enrichRelationshipsWithUsers(db, relationships, userId, session);
+    // ponytail: existing friendship derivation scans all edges; use indexed aggregation if graph size becomes a bottleneck.
+    const otherId = (row: (typeof relationships)[number]) =>
+      type === "followers" || type === "pending" ? row.fromUserId : row.toUserId;
+    const selected = relationships
+      .filter((row) => !cursor || otherId(row) > cursor)
+      .sort((a, b) => (otherId(a) < otherId(b) ? -1 : otherId(a) > otherId(b) ? 1 : 0))
+      .slice(0, limit + 1);
+    const hasMore = selected.length > limit;
+    const page = selected.slice(0, limit);
+    return {
+      rows: await enrichRelationshipsWithUsers(db, page, userId, session),
+      nextCursor: hasMore ? otherId(page[page.length - 1]) : null,
+    };
   });
 }

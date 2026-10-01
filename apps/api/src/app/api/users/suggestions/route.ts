@@ -1,5 +1,6 @@
 import type { User } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
 import { ContactLinksRepository } from "@/app/lib/contacts.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
@@ -23,6 +24,26 @@ export function OPTIONS(request: Request) {
 export async function GET(request: Request) {
   const { userId } = await auth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
+  const params = new URL(request.url).searchParams;
+  if (
+    ["limit", "cursor", "x-vercel-protection-bypass"].some((key) => params.getAll(key).length > 1)
+  )
+    return corsJson({ error: "Invalid list query" }, { status: 400 }, request);
+  const pageQuery = z
+    .object({
+      limit: z.coerce.number().int().min(1).max(50).optional(),
+      cursor: z
+        .string()
+        .min(1)
+        .max(128)
+        .regex(/^[A-Za-z0-9_-]+$/)
+        .optional(),
+      "x-vercel-protection-bypass": z.string().trim().min(1).max(512).optional(),
+    })
+    .strict()
+    .safeParse(Object.fromEntries(params));
+  if (!pageQuery.success)
+    return corsJson({ error: "Invalid list query" }, { status: 400 }, request);
 
   const db = await getDb();
   const repo = new ContactLinksRepository(db);
@@ -62,5 +83,21 @@ export async function GET(request: Request) {
       isFollowing: false,
     }));
 
-  return corsJson({ users: suggestions, nextCursor: null, hasContacts: true }, {}, request);
+  if (!pageQuery.data.limit)
+    return corsJson({ users: suggestions, nextCursor: null, hasContacts: true }, {}, request);
+  const rows = suggestions
+    .filter((user) => !pageQuery.data.cursor || user.id > pageQuery.data.cursor)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .slice(0, pageQuery.data.limit + 1);
+  const hasMore = rows.length > pageQuery.data.limit;
+  const usersPage = rows.slice(0, pageQuery.data.limit);
+  return corsJson(
+    {
+      users: usersPage,
+      nextCursor: hasMore ? usersPage[usersPage.length - 1].id : null,
+      hasContacts: true,
+    },
+    {},
+    request,
+  );
 }

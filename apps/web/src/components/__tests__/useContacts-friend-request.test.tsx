@@ -129,7 +129,7 @@ describe("useContacts friend request", () => {
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(10));
   });
 
-  it("refreshes every contact list and active search after unfriend", async () => {
+  it("keeps optimistic lists cached while refreshing an active search after unfriend", async () => {
     const fetchMock = vi.fn(
       async (input: string | URL | Request, _init?: RequestInit) =>
         new Response(
@@ -165,8 +165,8 @@ describe("useContacts friend request", () => {
     fireEvent.click(screen.getByRole("button", { name: "Unfriend" }));
 
     await waitFor(() => {
-      expect(listUrls.every((url) => getCount(url) > 1)).toBe(true);
       expect(getCount("/api/users/search")).toBe(2);
+      expect(listUrls.every((url) => getCount(url) === 1)).toBe(true);
     });
   });
 

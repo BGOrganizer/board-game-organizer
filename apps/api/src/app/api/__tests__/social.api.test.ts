@@ -326,6 +326,53 @@ describe("social API contracts", () => {
     expect(response.status).toBe(204);
   });
 
+  it("paginates authorized relationship rows with a stable cursor", async () => {
+    mocks.service.list.mockResolvedValue([
+      { fromUserId: "user_actor", toUserId: "user_charlie" },
+      { fromUserId: "user_actor", toUserId: "user_alpha" },
+      { fromUserId: "user_actor", toUserId: "user_bravo" },
+    ]);
+    const first = await api(legacyRoute, "GET", {
+      url: "http://localhost/api/relationships?type=following&limit=2",
+    });
+    expect(await first.json()).toEqual({
+      rows: [
+        { fromUserId: "user_actor", toUserId: "user_alpha" },
+        { fromUserId: "user_actor", toUserId: "user_bravo" },
+      ],
+      nextCursor: "user_bravo",
+    });
+    const second = await api(legacyRoute, "GET", {
+      url: "http://localhost/api/relationships?type=following&limit=2&cursor=user_bravo",
+    });
+    expect(await second.json()).toEqual({
+      rows: [{ fromUserId: "user_actor", toUserId: "user_charlie" }],
+      nextCursor: null,
+    });
+    expect(
+      (
+        await api(legacyRoute, "GET", {
+          url: "http://localhost/api/relationships?type=friends&limit=0",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await api(legacyRoute, "GET", {
+          url: "http://localhost/api/relationships?type=friends&limit=2&limit=3",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await api(legacyRoute, "POST", {
+          url: "http://localhost/api/relationships?type=follow&limit=2",
+          body: { targetUserId: "user_target" },
+        })
+      ).status,
+    ).toBe(400);
+  });
+
   it("keeps the legacy relationships API transactional during client migration", async () => {
     await api(legacyRoute, "GET", {
       url: "http://localhost/api/relationships?type=following",

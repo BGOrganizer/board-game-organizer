@@ -12,6 +12,7 @@ export interface GroupsApiOptions {
   userId?: string | null;
   feedback?: MutationFeedback;
   listFilters?: ListFilters;
+  groupId?: string;
 }
 
 export function groupsPageQuery({
@@ -20,13 +21,14 @@ export function groupsPageQuery({
   getToken,
   protectionBypass,
   listFilters,
+  userId,
 }: GroupsApiOptions) {
   return {
     queryKey: [
       "groups",
       "paged",
       apiUrl,
-      token,
+      userId ?? token,
       listFilters?.query,
       listFilters?.roles.join(","),
     ] as const,
@@ -57,9 +59,10 @@ export function useGroups({
   userId,
   feedback,
   listFilters,
+  groupId,
 }: GroupsApiOptions) {
   const queryClient = useQueryClient();
-  const key = ["groups", apiUrl, token] as const;
+  const key = ["groups", apiUrl, userId ?? token] as const;
   async function request<T>(path: string, method = "GET", input?: unknown): Promise<T> {
     const fresh = getToken ? await getToken() : token;
     if (!fresh) throw new Error("No session token");
@@ -77,14 +80,18 @@ export function useGroups({
   function rollback(error: Error, action: MutationFeedbackAction) {
     feedback?.onError?.(error, action);
   }
-  function optimistic(
+  async function optimistic(
     action: MutationFeedbackAction,
     patch: (rows: GroupResponse[]) => GroupResponse[],
   ) {
+    await queryClient.cancelQueries({ queryKey: ["groups"] });
     const snapshots = queryClient.getQueriesData({ queryKey: ["groups"] });
     for (const [queryKey, data] of snapshots) {
       if (Array.isArray(data)) queryClient.setQueryData(queryKey, patch(data));
-      else
+      else if (data && typeof data === "object" && "group" in data) {
+        const group = patch([(data as { group: GroupResponse }).group])[0];
+        if (group) queryClient.setQueryData(queryKey, { ...data, group });
+      } else
         queryClient.setQueryData(
           queryKey,
           patchPagedList(data, "groups", (rows: GroupResponse[], index) =>
@@ -108,14 +115,51 @@ export function useGroups({
       queryClient.setQueryData(queryKey, data);
     rollback(error, action);
   }
+  function reconcile(group: GroupResponse) {
+    for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["groups"] })) {
+      const replace = (rows: GroupResponse[]) =>
+        rows.map((row) => (row.id === group.id ? group : row));
+      if (Array.isArray(data)) queryClient.setQueryData(queryKey, replace(data));
+      else if (data && typeof data === "object" && "group" in data) {
+        if ((data as { group: GroupResponse }).group.id === group.id)
+          queryClient.setQueryData(queryKey, { ...data, group });
+      } else
+        queryClient.setQueryData(
+          queryKey,
+          patchPagedList(data, "groups", (rows: GroupResponse[]) =>
+            filterPagedRows(replace(rows), userId, queryKey),
+          ),
+        );
+    }
+  }
   const legacyList = useQuery({
     queryKey: key,
     queryFn: async () => (await request<{ groups: GroupResponse[] }>("groups")).groups,
-    enabled: Boolean(apiUrl && token && !listFilters),
+    enabled: Boolean(apiUrl && token && !listFilters && !groupId),
   });
   const paging = useInfiniteQuery({
-    ...groupsPageQuery({ apiUrl, token, getToken, protectionBypass, listFilters }),
+    ...groupsPageQuery({ apiUrl, token, getToken, protectionBypass, listFilters, userId }),
     enabled: Boolean(apiUrl && token && listFilters),
+  });
+  const detail = useQuery({
+    queryKey: ["groups", "detail", groupId, apiUrl, userId ?? token],
+    queryFn: () => request<{ group: GroupResponse }>(`groups/${encodeURIComponent(groupId ?? "")}`),
+    enabled: Boolean(apiUrl && token && groupId),
+    staleTime: 5 * 60_000,
+    initialData: () => {
+      if (!groupId || !userId) return undefined;
+      for (const [queryKey, data] of queryClient.getQueriesData({
+        queryKey: ["groups", "paged", apiUrl, userId],
+      })) {
+        if (queryKey[4] !== "" || queryKey[5] !== "admin,invited,accepted") continue;
+        const pages = data && typeof data === "object" && "pages" in data ? data.pages : [];
+        for (const page of pages as { groups: GroupResponse[] }[]) {
+          const group = page.groups.find((item) => item.id === groupId);
+          if (group) return { group };
+        }
+      }
+      return undefined;
+    },
   });
   const list = listFilters
     ? { ...paging, data: paging.data?.pages.flatMap((page) => page.groups) }
@@ -167,7 +211,8 @@ export function useGroups({
         ),
       ),
     onError: (error, _input, context) => undo(context, error, "update_group"),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
+    onSuccess: (group) => reconcile(group),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"], refetchType: "none" }),
   });
   const archive = useMutation({
     mutationFn: async (id: string) => request(`groups/${encodeURIComponent(id)}`, "DELETE"),
@@ -216,20 +261,7 @@ export function useGroups({
         variables.decision === "accept" ? "accept_group_invitation" : "decline_group_invitation",
       ),
     onSuccess: (group) => {
-      if (group) {
-        const replace = (rows: GroupResponse[]) =>
-          rows.map((row) => (row.id === group.id ? group : row));
-        for (const [queryKey, data] of queryClient.getQueriesData({ queryKey: ["groups"] })) {
-          if (Array.isArray(data)) queryClient.setQueryData(queryKey, replace(data));
-          else
-            queryClient.setQueryData(
-              queryKey,
-              patchPagedList(data, "groups", (rows: GroupResponse[]) =>
-                filterPagedRows(replace(rows), userId, queryKey),
-              ),
-            );
-        }
-      }
+      if (group) reconcile(group);
       void queryClient.invalidateQueries({ queryKey: ["group-leaderboard"] });
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
@@ -264,5 +296,5 @@ export function useGroups({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["group-leaderboard"] }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["groups"] }),
   });
-  return { list, paging, create, update, archive, respond, leave, removeInvitation };
+  return { list, paging, detail, create, update, archive, respond, leave, removeInvitation };
 }

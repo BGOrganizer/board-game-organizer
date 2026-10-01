@@ -173,24 +173,38 @@ Vercel preview protection bypass is a **query parameter**, not a custom header. 
 TanStack Query owns all server data: profiles, contacts, relationships, suggestions, matches, games,
 notifications, and invite results.
 
-Contact query keys use this shape:
+Scope authenticated Query keys by API URL, stable Clerk user ID, and resource parameters, not a
+rotating session JWT. Clear/cancel private caches when the user or session changes. Clerk session JWTs
+rotate: shared hooks receive `getToken` and resolve a fresh token immediately before every request.
+Do not retain a token snapshot for later network calls.
 
-```ts
-["contacts", listType, apiUrl, token]
-```
+On an ordinary authenticated mobile launch, start loading the profile, first pages of matches,
+groups, each social list, and BGO contact suggestions, plus the first local address-book page if
+permission was already granted. Never request contacts permission at startup. A deep link prioritizes
+its own detail instead; other lists may warm afterward. Keep the existing five-second **total** splash
+limit: unfinished requests continue without blocking navigation. Paginate API lists at the source;
+fetch subsequent pages on demand, not all records during bootstrap. A partial address-book scan must
+never replace the complete server contact snapshot: finish the scan before syncing in the background.
+Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 
-Every relationship mutation must invalidate the `['contacts']` prefix. If search is active,
-`useContacts` must rerun the last query so action state updates without manual refresh.
+Reuse cached data between lists and details when the server-authorized response actually contains
+all required fields. Fetch a missing match or group through its individual detail endpoint, prefetch
+likely next details with bounded concurrency, and keep cached fields visible while missing fields load.
+Keep per-resource stale and retention times deliberate. Revalidate stale data in the background on
+navigation, rather than polling every list. Notifications alone watch for unrelated remote events
+proactively; presence heartbeat and polling while an explicitly started BGG sync is in progress are
+narrow exceptions. Relevant notification events may mark affected data stale without fetching every
+inactive query.
 
-Match creation must invalidate the `['matches']` prefix.
-
-Explicit remote mutations must update owned Query caches optimistically when cached state exists. Show an
-action-specific default toast after the optimistic update, then roll back and show an action-specific danger
-toast if the request fails. Notification reads, push-subscription synchronization, logout, profile completion,
-and background synchronization do not show user-action toasts.
-
-Clerk session JWTs rotate. Shared hooks receive `getToken` and resolve a fresh token immediately
-before every request. Do not retain a token snapshot for later network calls.
+Every relationship mutation must mark the `['contacts']` prefix stale; if search is active,
+`useContacts` must rerun the last query so action state updates without manual refresh. Match creation
+must mark `['matches']` stale. Explicit remote mutations update owned Query caches optimistically when
+cached state exists, cancel conflicting requests first, then reconcile from the server response and
+refetch only affected active data when necessary. Show an action-specific default toast after the
+optimistic update; on failure restore affected cache snapshots and show an action-specific danger toast.
+Do not invent server-authoritative results or bypass validation. Notification reads, push-subscription
+synchronization, logout, profile completion, and background synchronization do not show user-action
+toasts.
 
 ### Zustand
 
@@ -471,7 +485,9 @@ literal that produces a hashed fallback.
 
 ## 11. Loading, errors, and accessibility
 
-- Use skeletons, not spinners, on all web and mobile pages and tabs.
+- Use skeletons, not spinners, only for data not yet available: initial startup, first access to an
+  uncached deep link or detail field, next pages, and searches. Never replace usable cached content
+  with skeletons during a background refetch; show partial skeletons only for missing detail fields.
 - Keep logout available even when profile loading fails.
 - Do not convert network failures into empty-list success states; preserve an observable error path.
 - Keep buttons, dialogs, dropdowns, and form inputs accessible by role and label.

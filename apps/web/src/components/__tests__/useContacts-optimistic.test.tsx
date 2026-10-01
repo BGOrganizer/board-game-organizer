@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 const apiUrl = "https://api.example.test";
-const token = "token";
+const token = "viewer";
 const feedback = {
   onOptimisticUpdate: vi.fn(),
   onError: vi.fn(),
@@ -56,8 +56,8 @@ afterEach(() => {
 it("optimistically marks contact sync and rolls it back on failure", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(["contacts", "suggestions", apiUrl, token], {
-    users: [],
-    hasContacts: false,
+    pages: [{ users: [], hasContacts: false, nextCursor: null }],
+    pageParams: [""],
   });
 
   let failRequest = () => {};
@@ -94,11 +94,14 @@ it("rolls all contact caches back when an optimistic mutation fails", async () =
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   for (const view of ["following", "followers", "friends", "pending", "sent", "blocked"]) {
-    client.setQueryData(["contacts", view, apiUrl, token], []);
+    client.setQueryData(["contacts", view, apiUrl, token], {
+      pages: [{ rows: [], nextCursor: null }],
+      pageParams: [""],
+    });
   }
   client.setQueryData(["contacts", "suggestions", apiUrl, token], {
-    users: [target],
-    hasContacts: true,
+    pages: [{ users: [target], hasContacts: true, nextCursor: null }],
+    pageParams: [""],
   });
 
   let failRequest = () => {};
@@ -132,7 +135,11 @@ it("rolls all contact caches back when an optimistic mutation fails", async () =
   expect(screen.getByTestId("sent").textContent).toBe("");
   expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "friend_request");
   expect(
-    client.getQueryData<{ users: ContactUser[] }>(["contacts", "suggestions", apiUrl, token])
-      ?.users,
+    client.getQueryData<{ pages: { users: ContactUser[] }[] }>([
+      "contacts",
+      "suggestions",
+      apiUrl,
+      token,
+    ])?.pages[0].users,
   ).toEqual([target]);
 });

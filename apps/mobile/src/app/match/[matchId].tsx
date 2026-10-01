@@ -406,11 +406,20 @@ export default function MatchDetailScreen() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
         {matches.detail.isPending && (
           <View style={{ gap: 12, width: "100%" }}>
-            <Skeleton
-              isLoading
-              variant="pulse"
-              style={{ width: "100%", height: 56, borderRadius: 12 }}
-            />
+            {matches.summary ? (
+              <Typography
+                accessibilityRole="header"
+                className="text-xl font-semibold text-foreground"
+              >
+                {matches.summary.name}
+              </Typography>
+            ) : (
+              <Skeleton
+                isLoading
+                variant="pulse"
+                style={{ width: "100%", height: 56, borderRadius: 12 }}
+              />
+            )}
             <Skeleton
               isLoading
               variant="pulse"

@@ -215,8 +215,15 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   if (matches.detail.isPending) {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <Skeleton className="h-6 w-32 rounded-lg" />
-        <Skeleton className="h-12 w-full rounded-xl" />
+        <Link href="/matches" className="inline-flex items-center gap-2 text-sm text-primary">
+          <ArrowLeft className="h-4 w-4" />
+          {t`Back matches`}
+        </Link>
+        {matches.summary ? (
+          <h2 className="text-xl font-semibold">{matches.summary.name}</h2>
+        ) : (
+          <Skeleton className="h-12 w-full rounded-xl" />
+        )}
         <Skeleton className="h-56 w-full rounded-xl" />
       </div>
     );

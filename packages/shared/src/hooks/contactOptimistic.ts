@@ -83,6 +83,37 @@ export function optimisticContactData(
   if (!data) return data;
   const view = String(queryKey[1] ?? "");
 
+  if (typeof data === "object" && "pages" in data && Array.isArray(data.pages)) {
+    const pages = data.pages as Array<{ rows?: RelationshipRow[]; users?: ContactUser[] }>;
+    if (pages[0]?.rows) {
+      const previous = pages.flatMap((page) => page.rows ?? []);
+      const updated = optimisticContactData(
+        queryKey,
+        previous,
+        action,
+        variables,
+        currentUserId,
+      ) as RelationshipRow[];
+      let offset = 0;
+      return {
+        ...data,
+        pages: pages.map((page, index) => {
+          const count =
+            (page.rows?.length ?? 0) + (index === 0 ? updated.length - previous.length : 0);
+          const rows = updated.slice(offset, offset + count);
+          offset += count;
+          return { ...page, rows };
+        }),
+      };
+    }
+    return {
+      ...data,
+      pages: pages.map((page) =>
+        optimisticContactData(queryKey, page, action, variables, currentUserId),
+      ),
+    };
+  }
+
   if (Array.isArray(data)) {
     let rows = updateRows(data as RelationshipRow[], action, variables);
     const targetId = variables.targetUserId;

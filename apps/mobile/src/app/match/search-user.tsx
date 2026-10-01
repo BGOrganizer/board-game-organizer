@@ -1,5 +1,9 @@
-import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
-import { useGroups, withProtectionBypass } from "@board-game-organizer/shared";
+import {
+  type ContactUser,
+  useGroups,
+  useRelationshipList,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -10,7 +14,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
@@ -38,18 +42,20 @@ export default function SearchUserScreen() {
   const setPendingUser = useAppStore((s) => s.setPendingUser);
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [friends, setFriends] = useState<RelationshipRow[]>([]);
-  const friendIds = useMemo(
-    () => new Set(friends.flatMap((friend) => (friend.profile ? [friend.profile.id] : []))),
-    [friends],
+  const friends = useRelationshipList(
+    apiUrl(),
+    token,
+    getToken,
+    undefined,
+    userId,
+    "friends",
+    !groupId,
   );
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const groups = useGroups({ apiUrl: apiUrl(), token, getToken });
-  const members = groupId
-    ? groups.list.data?.find((group) => group.id === groupId)?.memberProfiles
-    : undefined;
+  const groups = useGroups({ apiUrl: apiUrl(), token, getToken, userId, groupId });
+  const members = groupId ? groups.detail.data?.group.memberProfiles : undefined;
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -63,51 +69,30 @@ export default function SearchUserScreen() {
   }, [isLoaded, isSignedIn, getToken]);
 
   useEffect(() => {
-    if (!token || groupId) return;
-    let active = true;
-    (async () => {
-      try {
-        const res = await fetch(
-          withProtectionBypass(`${apiUrl()}/api/relationships?type=friends`),
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        // The endpoint returns a bare array of RelationshipRow (not an
-        // envelope): mapping data.relationships would crash with
-        // "cannot read property map of undefined".
-        const data = (await res.json()) as RelationshipRow[] | { relationships: RelationshipRow[] };
-        const rows = Array.isArray(data) ? data : (data.relationships ?? []);
-        if (active) setFriends(rows);
-      } catch {
-        if (active) setError(t("Could not load friends"));
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [token, t, groupId]);
-
-  useEffect(() => {
     if (groupId) return;
     if (query.trim().length < 4) {
       setResults([]);
       setLoading(false);
+      setError(null);
       return;
     }
     if (!token) return;
     let active = true;
     setLoading(true);
+    setError(null);
     const timer = setTimeout(async () => {
       try {
+        const fresh = await getToken();
+        if (!fresh) throw new Error("Authentication required");
         const res = await fetch(
           withProtectionBypass(
             `${apiUrl()}/api/users/search?query=${encodeURIComponent(query.trim())}`,
           ),
-          { headers: { Authorization: `Bearer ${token}` } },
+          { headers: { Authorization: `Bearer ${fresh}` } },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users.filter((user) => friendIds.has(user.id)));
+        if (active) setResults(data.users.filter((user) => user.isFriend));
       } catch {
         if (active) setError(t("Search failed"));
       } finally {
@@ -118,7 +103,7 @@ export default function SearchUserScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, token, friendIds, t, groupId]);
+  }, [query, token, getToken, t, groupId]);
 
   const shown = (
     groupId
@@ -129,7 +114,7 @@ export default function SearchUserScreen() {
         )
       : query.trim().length >= 4
         ? results
-        : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+        : (friends.data ?? []).map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
   ).filter((user) => user.id !== userId && !excludedIds.has(user.id));
 
   const select = (u: {
@@ -154,6 +139,16 @@ export default function SearchUserScreen() {
     router.back();
   };
 
+  const listError =
+    error ||
+    (groupId
+      ? groups.detail.isError
+        ? t("Could not load groups")
+        : null
+      : friends.isError
+        ? t("Could not load friends")
+        : null);
+
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
@@ -172,26 +167,76 @@ export default function SearchUserScreen() {
           </SearchField.Group>
         </SearchField>
       </View>
-      {(error || (groupId && groups.list.isError ? t("Could not load groups") : null)) && (
-        <Typography style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
-          {error || t("Could not load groups")}
+      {listError && (
+        <Typography
+          className="text-danger"
+          style={{ fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}
+        >
+          {listError}
         </Typography>
       )}
-      {loading && (
+      {(groupId
+        ? groups.detail.isError && !groups.detail.data
+        : friends.isError && !friends.data) && (
+        <Button
+          variant="secondary"
+          onPress={() => void (groupId ? groups.detail.refetch() : friends.refetch())}
+        >
+          {t("Retry")}
+        </Button>
+      )}
+      {(loading || (groupId ? groups.detail.isPending : friends.isPending)) && (
         <View style={{ padding: 16, gap: 12 }}>
-          <Skeleton isLoading variant="pulse" style={{ height: 48, borderRadius: 12 }} />
-          <Skeleton isLoading variant="pulse" style={{ height: 48, borderRadius: 12 }} />
+          <Skeleton
+            isLoading
+            variant="pulse"
+            style={{ width: "100%", height: 48, borderRadius: 12 }}
+          />
+          <Skeleton
+            isLoading
+            variant="pulse"
+            style={{ width: "100%", height: 48, borderRadius: 12 }}
+          />
         </View>
       )}
-      {!loading && shown.length === 0 && query.trim().length >= 4 && (
-        <Typography style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>
-          {t("No users found")}
-        </Typography>
-      )}
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <GroupedList>
-          {shown.map((u) => (
-            <GroupedRow key={u.id}>
+      {!loading &&
+        !(groupId ? groups.detail.isPending : friends.isPending) &&
+        shown.length === 0 &&
+        (query.trim().length >= 4 || !friends.hasNextPage) &&
+        !listError && (
+          <Typography style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>
+            {t("No users found")}
+          </Typography>
+        )}
+      <FlatList
+        data={shown}
+        keyExtractor={(user) => user.id}
+        contentContainerStyle={{ padding: 16, gap: 8 }}
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          if (
+            !groupId &&
+            query.trim().length < 4 &&
+            friends.hasNextPage &&
+            !friends.isFetchingNextPage &&
+            !friends.isFetchNextPageError
+          )
+            void friends.fetchNextPage();
+        }}
+        ListFooterComponent={
+          !groupId && query.trim().length < 4 ? (
+            friends.isFetchingNextPage ? (
+              <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
+            ) : friends.isFetchNextPageError ? (
+              <Button variant="secondary" onPress={() => void friends.fetchNextPage()}>
+                {t("Retry")}
+              </Button>
+            ) : null
+          ) : null
+        }
+        renderItem={({ item: u }) => (
+          <GroupedList>
+            <GroupedRow>
               <Avatar size="md">
                 {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
                 <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
@@ -209,9 +254,9 @@ export default function SearchUserScreen() {
                 <UserPlus size={16} color="#fff" />
               </Button>
             </GroupedRow>
-          ))}
-        </GroupedList>
-      </ScrollView>
+          </GroupedList>
+        )}
+      />
     </View>
   );
 }

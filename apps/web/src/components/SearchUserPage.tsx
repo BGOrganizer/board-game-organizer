@@ -1,13 +1,18 @@
 "use client";
 
-import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import {
+  type ContactUser,
+  useRelationshipList,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
+import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, SearchField, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
 interface Props {
   apiUrl: string;
@@ -42,40 +47,26 @@ export function SearchUserPage({
 }: Props) {
   const { t } = useLingui();
   const [query, setQuery] = useState("");
-  const [friends, setFriends] = useState<RelationshipRow[]>([]);
+  const { userId } = useAuth();
+  const friends = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    userId,
+    "friends",
+    !members,
+  );
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
-  const friendIds = useMemo(
-    () => new Set(friends.flatMap((friend) => (friend.profile ? [friend.profile.id] : []))),
-    [friends],
-  );
-
-  // Load the full friends list once (invite picker) — reused as the empty
-  // query state and as the source the search narrows.
-  useEffect(() => {
-    if (members) return;
-    let active = true;
-    (async () => {
-      try {
-        const t = getToken ? ((await getToken()) ?? token) : token;
-        if (!t) return;
-        const res = await fetch(
-          withProtectionBypass(`${apiUrl}/api/relationships?type=friends`, protectionBypass),
-          { headers: { Authorization: `Bearer ${t}` } },
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as RelationshipRow[];
-        if (active) setFriends(data);
-      } catch {
-        if (active) setError(t`Could not load friends`);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [apiUrl, token, getToken, protectionBypass, t, members]);
+  const endRef = useInfiniteScroll({
+    hasNextPage: !members && query.trim().length < 4 && friends.hasNextPage,
+    isFetchingNextPage: friends.isFetchingNextPage,
+    isFetchNextPageError: friends.isFetchNextPageError,
+    fetchNextPage: friends.fetchNextPage,
+  });
 
   // Search fires only at >= 4 chars; below that we show the full friends
   // list so the user always has something to pick from.
@@ -84,14 +75,16 @@ export function SearchUserPage({
     if (query.trim().length < 4) {
       setResults([]);
       setLoading(false);
+      setError(null);
       return;
     }
     let active = true;
     setLoading(true);
+    setError(null);
     const timer = setTimeout(async () => {
       try {
-        const t = getToken ? ((await getToken()) ?? token) : token;
-        if (!t) return;
+        const t = getToken ? await getToken() : token;
+        if (!t) throw new Error("Authentication required");
         const res = await fetch(
           withProtectionBypass(
             `${apiUrl}/api/users/search?query=${encodeURIComponent(query.trim())}`,
@@ -101,7 +94,7 @@ export function SearchUserPage({
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users.filter((user) => friendIds.has(user.id)));
+        if (active) setResults(data.users.filter((user) => user.isFriend));
       } catch {
         if (active) setError(t`Search failed`);
       } finally {
@@ -112,7 +105,7 @@ export function SearchUserPage({
       active = false;
       clearTimeout(timer);
     };
-  }, [query, apiUrl, token, getToken, protectionBypass, friendIds, t, members]);
+  }, [query, apiUrl, token, getToken, protectionBypass, t, members]);
 
   const shown = (
     members
@@ -123,7 +116,7 @@ export function SearchUserPage({
         )
       : query.trim().length >= 4
         ? results
-        : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+        : (friends.data ?? []).map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
   ).filter((user) => !excludeSet.has(user.id));
 
   return (
@@ -149,8 +142,13 @@ export function SearchUserPage({
         </SearchField.Group>
       </SearchField>
 
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-      {loading && (
+      {(error || (!members && friends.isError)) && (
+        <p className="mt-2 text-sm text-danger">{error || t`Could not load friends`}</p>
+      )}
+      {!members && friends.isError && !friends.data && (
+        <Button variant="ghost" onPress={() => void friends.refetch()}>{t`Retry`}</Button>
+      )}
+      {(loading || (!members && friends.isPending)) && (
         <div className="mt-3 space-y-2">
           <Skeleton className="h-12 w-full rounded-lg" />
           <Skeleton className="h-12 w-full rounded-lg" />
@@ -185,6 +183,15 @@ export function SearchUserPage({
           </GroupedRow>
         ))}
       </GroupedList>
+      {!members && query.trim().length < 4 && (
+        <>
+          <div ref={endRef} aria-hidden="true" />
+          {friends.isFetchingNextPage && <Skeleton className="mt-3 h-12 w-full rounded-lg" />}
+          {friends.isFetchNextPageError && (
+            <Button variant="ghost" onPress={() => void friends.fetchNextPage()}>{t`Retry`}</Button>
+          )}
+        </>
+      )}
     </div>
   );
 }

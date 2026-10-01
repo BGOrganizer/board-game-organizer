@@ -22,6 +22,7 @@ it("prefetches first pages under screen query keys using fresh Clerk tokens", as
   const base = {
     apiUrl: "https://api.example.test",
     token: "old-jwt",
+    userId: "user-1",
     getToken,
     listFilters: { query: "", roles: ["admin", "invited", "accepted"] as const, limit: 20 },
   };
@@ -47,7 +48,7 @@ it("prefetches first pages under screen query keys using fresh Clerk tokens", as
     "matches",
     "paged",
     base.apiUrl,
-    "old-jwt",
+    "user-1",
     "",
     "admin,invited,accepted",
   ]);
@@ -55,11 +56,13 @@ it("prefetches first pages under screen query keys using fresh Clerk tokens", as
     "groups",
     "paged",
     base.apiUrl,
-    "old-jwt",
+    "user-1",
     "",
     "admin,invited,accepted",
   ]);
   expect(notifications.queryKey).toEqual(["notifications", base.apiUrl, "user-1", 3]);
+  expect(matchesPageQuery({ ...base, token: "rotated-jwt" }).queryKey).toEqual(matches.queryKey);
+  expect(groupsPageQuery({ ...base, token: "rotated-jwt" }).queryKey).toEqual(groups.queryKey);
   expect(client.getQueryData(matches.queryKey)).toMatchObject({ pages: [{ matches: [] }] });
   expect(client.getQueryData(groups.queryKey)).toMatchObject({ pages: [{ groups: [] }] });
   expect(client.getQueryData(notifications.queryKey)).toMatchObject({

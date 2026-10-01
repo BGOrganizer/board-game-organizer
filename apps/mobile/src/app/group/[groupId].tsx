@@ -66,9 +66,9 @@ export default function GroupDetailScreen() {
       active = false;
     };
   }, [getToken, isLoaded, isSignedIn]);
-  const groups = useGroups({ apiUrl, token, getToken, userId, feedback });
+  const groups = useGroups({ apiUrl, token, getToken, userId, feedback, groupId });
   const contacts = useContacts(apiUrl, token, getToken, undefined, userId, feedback);
-  const group = groups.list.data?.find((candidate) => candidate.id === groupId);
+  const group = groups.detail.data?.group;
   const admin = Boolean(group && group.adminUserId === userId);
   const invitation = group?.invitations.find((candidate) => candidate.inviteeUserId === userId);
   const people = group
@@ -240,10 +240,10 @@ export default function GroupDetailScreen() {
           </Tabs.List>
           <Tabs.Content value="settings" style={{ flex: 1, marginTop: 12 }}>
             <ScrollView contentContainerStyle={{ paddingBottom: 110, gap: 16 }}>
-              {groups.list.isPending || (exiting && !group) ? (
+              {groups.detail.isPending || (exiting && !group) ? (
                 <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
               ) : null}
-              {!groups.list.isPending && !group && !exiting ? (
+              {!groups.detail.isPending && !group && !exiting ? (
                 <Typography className="text-danger">{t("Could not load group details")}</Typography>
               ) : null}
               {group ? (
