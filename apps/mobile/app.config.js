@@ -45,7 +45,7 @@ module.exports = {
       "@sentry/react-native",
       "expo-font",
       "expo-contacts",
-      "expo-notifications",
+      ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#006fee" }],
       "@react-native-community/datetimepicker",
     ],
     extra: {

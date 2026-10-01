@@ -83,6 +83,7 @@ describe("mobile push notifications", () => {
     expect(mocks.setNotificationChannelAsync).toHaveBeenCalledWith("default", {
       name: "Notifications",
       importance: 4,
+      showBadge: true,
       vibrationPattern: [0, 250, 250, 250],
     });
     expect(mocks.requestPermissionsAsync).not.toHaveBeenCalled();

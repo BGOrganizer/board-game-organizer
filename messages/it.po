@@ -108,8 +108,8 @@ msgid "Administrator"
 msgstr "Amministratore"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Allow address book access to find your friends here."
-msgstr "Consenti l'accesso alla rubrica per trovare qui i tuoi amici."
+#~ msgid "Allow address book access to find your friends here."
+#~ msgstr "Consenti l'accesso alla rubrica per trovare qui i tuoi amici."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
@@ -329,8 +329,8 @@ msgid "Contacts"
 msgstr "Contatti"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "Contacts on BGO"
-msgstr "Contatti su BGO"
+#~ msgid "Contacts on BGO"
+#~ msgstr "Contatti su BGO"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Contacts synchronized"
@@ -694,6 +694,10 @@ msgstr "Elimina notifica"
 msgid "Delete notification?"
 msgstr "Eliminare la notifica?"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Device Contacts"
+msgstr "Contatti del dispositivo"
+
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Did not participate"
 msgstr "Non ha partecipato"
@@ -876,6 +880,9 @@ msgstr "Gruppo creato"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Group deleted"
 msgstr "Gruppo eliminato"
+
+#~ msgid "Group details"
+#~ msgstr "Dettaglio Gruppo"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Group invitation accepted"
@@ -1207,9 +1214,10 @@ msgstr "Nessun utente bloccato"
 #~ msgstr "Nessun contatto trovato nella tua rubrica."
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No contacts on BGO yet"
-msgstr "Nessun contatto su BGO"
+#~ msgid "No contacts on BGO yet"
+#~ msgstr "Nessun contatto su BGO"
 
+#: apps/web/src/components/Contacts.tsx
 msgid "No contacts to invite"
 msgstr "Nessun contatto da invitare"
 

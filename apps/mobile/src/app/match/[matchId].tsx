@@ -39,8 +39,8 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/EmptyList";
+import { FloatingActions } from "@/components/FloatingActions";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { InvitationActions } from "@/components/InvitationActions";
@@ -252,7 +252,7 @@ export default function MatchDetailScreen() {
   };
 
   return (
-    <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           title: t("Match details"),
@@ -514,33 +514,19 @@ export default function MatchDetailScreen() {
         </BottomSheet.Portal>
       </BottomSheet>
       {editableMatch ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("Edit match")}
+        <FloatingActions
+          label="Edit match"
+          testID="edit-match-fab"
           onPress={() =>
-            router.push({ pathname: "/match/wizard", params: { matchId: editableMatch.id } })
+            void router.push({ pathname: "/match/wizard", params: { matchId: editableMatch.id } })
           }
-          style={{
-            position: "absolute",
-            right: 20,
-            bottom: 20,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: "#006fee",
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#000",
-            shadowOpacity: 0.2,
-            shadowRadius: 6,
-            shadowOffset: { width: 0, height: 3 },
-            elevation: 6,
-          }}
+          extraBottom={100}
+          variant="primary"
         >
-          <Pencil color="#fff" size={24} />
-        </Pressable>
+          <Pencil color="#fff" size={26} />
+        </FloatingActions>
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 

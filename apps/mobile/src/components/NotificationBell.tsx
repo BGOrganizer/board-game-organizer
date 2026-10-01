@@ -1,5 +1,6 @@
 import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
+import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
@@ -26,6 +27,7 @@ function apiUrl(): string {
 export function NotificationBell() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const t = useT();
   const surface = useThemeColor("surface");
   const registeredRef = useRef(false);
@@ -115,10 +117,14 @@ export function NotificationBell() {
             : "unsupported",
       canAskAgain: result.status === "denied" && result.canAskAgain,
     });
-    if (result.status === "granted" && !registeredRef.current && isSignedIn) {
-      await registerPush();
+    if (result.status === "granted") {
+      try {
+        if (!registeredRef.current && isSignedIn) await registerPush();
+      } finally {
+        await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      }
     }
-  }, [isSignedIn, registerPush]);
+  }, [isSignedIn, registerPush, queryClient]);
 
   const openNotification = (id: string, href: string, kind: string) => {
     notifications.markRead.mutate(id);

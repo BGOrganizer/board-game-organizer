@@ -28,8 +28,8 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/EmptyList";
+import { FloatingActions } from "@/components/FloatingActions";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { GroupLeaderboard } from "@/components/GroupLeaderboard";
 import { InvitationActions } from "@/components/InvitationActions";
@@ -190,10 +190,10 @@ export default function GroupDetailScreen() {
     );
   };
   return (
-    <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
-          title: group?.name ?? t("Group"),
+          title: t("Group details"),
           headerRight: admin
             ? () => (
                 <Button
@@ -446,22 +446,15 @@ export default function GroupDetailScreen() {
         </Tabs>
       </View>
       {admin && activeTab === "settings" ? (
-        <Button
-          isIconOnly
-          variant="primary"
-          accessibilityLabel={t("Edit group")}
-          style={{
-            position: "absolute",
-            right: 20,
-            bottom: 20,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-          }}
+        <FloatingActions
+          label="Edit group"
+          testID="edit-group-fab"
           onPress={() => router.push({ pathname: "/group/wizard", params: { groupId } })}
+          extraBottom={100}
+          variant="primary"
         >
-          <Pencil size={24} color="#fff" />
-        </Button>
+          <Pencil color="#fff" size={26} />
+        </FloatingActions>
       ) : null}
       <UserActionsSheet
         visible={selectedContact !== null}
@@ -473,6 +466,6 @@ export default function GroupDetailScreen() {
         onClose={() => setMenuUserId(null)}
         onAction={socialAction}
       />
-    </SafeAreaView>
+    </View>
   );
 }

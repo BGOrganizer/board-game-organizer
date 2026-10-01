@@ -3,7 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 const initialRoles = "admin,invited,accepted";
 export const startupRelationshipTypes = ["friends", "pending", "following", "followers"] as const;
 
-export const STARTUP_SPLASH_LIMIT_MS = 4000;
+export const STARTUP_SPLASH_LIMIT_MS = 5000;
 
 export function remainingSplashMs(startedAt: number, now: number): number {
   return Math.max(0, STARTUP_SPLASH_LIMIT_MS - (now - startedAt));

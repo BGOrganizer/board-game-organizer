@@ -28,7 +28,12 @@ async function findTarget(page: import("@playwright/test").Page) {
   const searchInput = page.getByRole("searchbox", { name: /search users by name or email/i });
   await expect(searchInput).toBeVisible();
   await searchInput.fill(E2E_EMAIL_2);
-  await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 90_000 });
+  await expect(
+    page
+      .getByRole("heading", { name: "Search results" })
+      .locator("xpath=following-sibling::ul[1]")
+      .getByText("E2E Target"),
+  ).toBeVisible({ timeout: 90_000 });
 }
 
 function waitForRelationshipResponse(
@@ -103,10 +108,12 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
     { phone: E2E_PHONE_2, token, url: syncUrl.toString() },
   );
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Contacts on BGO" })).toBeVisible({
+  await page.getByRole("tab", { name: "Search" }).click();
+  await expect(page.getByRole("heading", { name: "Device Contacts" })).toBeVisible({
     timeout: 90_000,
   });
-  await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 90_000 });
+  const deviceContacts = page.locator("#device-contacts-title").locator("..");
+  await expect(deviceContacts.getByText("E2E Target")).toBeVisible({ timeout: 90_000 });
 
   await findTarget(page);
   await sendFriendRequest(page);

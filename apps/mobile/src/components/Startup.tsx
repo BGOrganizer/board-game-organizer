@@ -6,13 +6,18 @@ import {
   listRoles,
   matchesPageQuery,
   notificationsPageQuery,
+  profileQueryOptions,
   resolveApiUrl,
 } from "@board-game-organizer/shared";
 import { useAuth, useUser } from "@clerk/expo";
+import * as Sentry from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { usePathname } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { AnimatedStartupSplash } from "@/components/AnimatedStartupSplash";
+import { NotificationBadgeSync } from "@/components/NotificationBadgeSync";
+import { warmRegisteredContacts } from "@/lib/registeredContacts";
 import { hideStartupSplash } from "@/lib/splash";
 import {
   isStartupAuthPending,
@@ -43,8 +48,8 @@ export function Startup({
   const { isLoaded: isUserLoaded, user } = useUser();
   const queryClient = useQueryClient();
   const pathname = usePathname();
-  const [ready, setReady] = useState(false);
-  const [timedOut, setTimedOut] = useState(false);
+  const [ready, setReady] = useState(() => remainingSplashMs(startedAt, Date.now()) === 0);
+  const [timedOut, setTimedOut] = useState(ready);
   const previousSession = useRef<string | null>(null);
   const warmedSession = useRef<string | null>(null);
   const eligible =
@@ -82,13 +87,22 @@ export function Startup({
       return;
     }
     if (initialNotificationHref === undefined || !userId) return;
+    let active = true;
     const check = () => {
+      if (!active) return;
       // A push notification may still be redirecting from /matches to its destination.
       if (initialNotificationHref && pathname !== destination) return;
       if (isStartupDestinationSettled(queryClient, destination, apiUrl, userId)) setReady(true);
     };
     check();
-    return queryClient.getQueryCache().subscribe(check);
+    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
+      // Query observers may notify while another component renders.
+      queueMicrotask(check);
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [
     ready,
     isAuthLoaded,
@@ -117,6 +131,26 @@ export function Startup({
       if (!token || cancelled) return;
       const options = { apiUrl, token, getToken, listFilters: initialFilters };
       const tasks = [
+        () => queryClient.prefetchQuery(profileQueryOptions({ apiUrl, getToken, userId })),
+        async () => {
+          try {
+            const synced = await warmRegisteredContacts(userId, apiUrl, getToken, () => !cancelled);
+            if (synced && !cancelled)
+              await queryClient.invalidateQueries({
+                queryKey: ["contacts", "suggestions"],
+                refetchType: "all",
+              });
+          } catch (error) {
+            Sentry.captureException(error, { tags: { operation: "contacts.startup-sync" } });
+            // Contacts tab retains its observable sync error and retry path.
+          }
+        },
+        () =>
+          queryClient.prefetchQuery({
+            queryKey: ["contacts", "suggestions", apiUrl, token],
+            queryFn: () => fetchSuggestionsWithToken(apiUrl, token, getToken),
+            staleTime: 60_000,
+          }),
         () => queryClient.prefetchInfiniteQuery(matchesPageQuery(options)),
         () => queryClient.prefetchInfiniteQuery(groupsPageQuery(options)),
         () =>
@@ -131,12 +165,6 @@ export function Startup({
               staleTime: 30_000,
             }),
         ),
-        () =>
-          queryClient.prefetchQuery({
-            queryKey: ["contacts", "suggestions", apiUrl, token],
-            queryFn: () => fetchSuggestionsWithToken(apiUrl, token, getToken),
-            staleTime: 60_000,
-          }),
       ];
       let next = 0;
       const worker = async () => {
@@ -154,5 +182,5 @@ export function Startup({
     };
   }, [canWarm, userId, sessionId, getToken, queryClient]);
 
-  return null;
+  return ready ? <NotificationBadgeSync /> : <AnimatedStartupSplash startedAt={startedAt} />;
 }

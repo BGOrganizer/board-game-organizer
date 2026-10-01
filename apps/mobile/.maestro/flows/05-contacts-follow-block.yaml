@@ -25,10 +25,7 @@ appId: com.bgo.mobile
 - assertVisible: "Friends"
 - assertVisible: "Following"
 - assertVisible: "Followers"
-- assertVisible: "Contacts on BGO"
-- extendedWaitUntil:
-    visible: "E2E Target"
-    timeout: 90000
+- assertNotVisible: "Contacts on BGO"
 - assertNotVisible: "Action failed"
 - waitForAnimationToEnd:
     timeout: 5000
@@ -39,8 +36,13 @@ appId: com.bgo.mobile
 - assertVisible: "Sent"
 - assertVisible: "Blocked"
 - tapOn: "Search"
+- assertVisible: "Device Contacts"
 - extendedWaitUntil:
-    visible: "E2E Unregistered"
+    visible: "E2E Target"
+    timeout: 90000
+- scrollUntilVisible:
+    element: "E2E Unregistered"
+    direction: DOWN
     timeout: 90000
 - scrollUntilVisible:
     element: "ZZ Page 43"

@@ -124,7 +124,6 @@ function RootNavigator() {
       <QueryProvider>
         <ThemeSync />
         <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
-        <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
         <StatusBar style="auto" />
         <Stack>
           <Stack.Screen name="index" options={titleOptions("Board Game Organizer", Dices)} />
@@ -139,7 +138,11 @@ function RootNavigator() {
           <Stack.Screen name="notifications" options={titleOptions(t("Notifications"), Bell)} />
           <Stack.Screen name="profile" options={titleOptions(t("Profile"), UserRound)} />
           <Stack.Screen name="group/wizard" options={titleOptions(t("New group"), UsersRound)} />
-          <Stack.Screen name="group/[groupId]" options={titleOptions(t("Group"), UsersRound)} />
+          <Stack.Screen
+            name="group/[groupId]"
+            options={titleOptions(t("Group details"), UsersRound)}
+          />
+          <Stack.Screen name="match/[matchId]" options={titleOptions(t("Match details"), Dices)} />
           <Stack.Screen name="match/wizard" options={titleOptions(t("Configure match"), Dices)} />
           <Stack.Screen
             name="match/results"
@@ -155,6 +158,7 @@ function RootNavigator() {
           />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
+        <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
       </QueryProvider>
     </ClerkProvider>
   );

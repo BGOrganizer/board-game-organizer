@@ -18,9 +18,9 @@ describe("startup destination", () => {
     expect(isStartupAuthPending(true, false, false, false)).toBe(false);
   });
 
-  it("caps splash at four seconds from boot rather than adding four seconds after auth", () => {
-    expect(remainingSplashMs(1000, 1000)).toBe(4000);
-    expect(remainingSplashMs(1000, 3500)).toBe(1500);
+  it("caps splash at five seconds from boot rather than adding five seconds after auth", () => {
+    expect(remainingSplashMs(1000, 1000)).toBe(5000);
+    expect(remainingSplashMs(1000, 3500)).toBe(2500);
     expect(remainingSplashMs(1000, 6000)).toBe(0);
   });
 

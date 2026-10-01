@@ -19,23 +19,28 @@ export interface UseProfileOptions {
  * API. Mutations live in `queryClient.invalidateQueries(["profile"])`
  * callers — Zustand never stores this server data.
  */
-export function useProfileQuery({
+export function profileQueryOptions({
   apiUrl,
   getToken,
   userId,
-  enabled = true,
   protectionBypass,
 }: UseProfileOptions) {
-  return useQuery<UserProfile>({
-    queryKey: ["profile", apiUrl, userId],
-    queryFn: async () => {
+  return {
+    queryKey: ["profile", apiUrl, userId] as const,
+    queryFn: async (): Promise<UserProfile> => {
       const token = await getToken();
       if (!token) throw new Error("Missing session token");
       return fetchProfile(apiUrl, token, protectionBypass);
     },
-    enabled: enabled && Boolean(userId) && Boolean(apiUrl),
     staleTime: 60_000,
-    refetchOnMount: "always",
     retry: 1,
+  };
+}
+
+export function useProfileQuery(options: UseProfileOptions) {
+  return useQuery<UserProfile>({
+    ...profileQueryOptions(options),
+    enabled: (options.enabled ?? true) && Boolean(options.userId) && Boolean(options.apiUrl),
+    refetchOnMount: "always",
   });
 }

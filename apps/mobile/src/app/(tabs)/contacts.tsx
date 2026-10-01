@@ -47,14 +47,14 @@ import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
-import { type ContactTab, contactSyncPayload, contactTab } from "@/lib/contacts";
+import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts";
 import { useT } from "@/lib/i18n";
+import { pendingRegisteredContacts, scanContactIdentifiers } from "@/lib/registeredContacts";
 import { unregisteredContacts } from "@/lib/unregisteredContacts";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
-const CONTACT_SCAN_PAGE_SIZE = 200;
 const CONTACT_LIST_PAGE_SIZE = 40;
 
 /** Placeholder shown while a contact list is loading. */
@@ -314,34 +314,18 @@ export default function ContactsScreen() {
         let stage = "read";
         try {
           if (devicePageRef.current) await devicePageRef.current;
-          const emails = new Set<string>();
-          const phoneNumbers = new Set<string>();
-          let offset = 0;
-          while (true) {
-            const page = await Contacts.Contact.getAllDetails(
-              [Contacts.ContactField.EMAILS, Contacts.ContactField.PHONES],
-              {
-                limit: CONTACT_SCAN_PAGE_SIZE,
-                offset,
-                sortOrder: Contacts.ContactsSortOrder.GivenName,
-              },
-            );
-            if (generation !== deviceGenerationRef.current) return;
-            const identifiers = contactSyncPayload(page);
-            for (const email of identifiers.emails) {
-              if (emails.size < 1000) emails.add(email);
-            }
-            for (const phone of identifiers.phoneNumbers) {
-              if (phoneNumbers.size < 1000) phoneNumbers.add(phone);
-            }
-            offset += page.length;
-            if (page.length < CONTACT_SCAN_PAGE_SIZE) break;
-          }
-          const submitted = { emails: [...emails], phoneNumbers: [...phoneNumbers] };
-          stage = "request";
-          const synced = await syncContactsMutation({ ...submitted, silent: !showFeedback });
+          const warming = !showFeedback && userId ? pendingRegisteredContacts(userId) : undefined;
+          const warmed = warming ? await warming : null;
           if (generation !== deviceGenerationRef.current) return;
-          deviceMatchesRef.current = { submitted, registered: synced.registeredIdentifiers };
+          const submitted = warmed?.submitted ?? (await scanContactIdentifiers());
+          if (generation !== deviceGenerationRef.current) return;
+          stage = "request";
+          const registered =
+            warmed?.registered ??
+            (await syncContactsMutation({ ...submitted, silent: !showFeedback }))
+              .registeredIdentifiers;
+          if (generation !== deviceGenerationRef.current) return;
+          deviceMatchesRef.current = { submitted, registered };
           deviceOffsetRef.current = 0;
           deviceHasMoreRef.current = true;
           setHasMoreDeviceContacts(true);
@@ -364,7 +348,7 @@ export default function ContactsScreen() {
       contactsSyncRef.current = sync;
       return sync;
     },
-    [loadDevicePage, mutationFeedback, syncContactsMutation, token],
+    [loadDevicePage, mutationFeedback, syncContactsMutation, token, userId],
   );
 
   // Fire the REAL system permission request and track denials. A denial only
@@ -549,52 +533,35 @@ export default function ContactsScreen() {
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
   const visibleSuggestions =
-    contacts.suggestions.isLoading || syncingContacts || contactsPermission === "checking"
-      ? []
-      : suggestions;
+    contacts.suggestions.isLoading || contactsPermission === "checking" ? [] : suggestions;
   const searchResults = contacts.search.data?.users ?? [];
-  const searchRows = [
-    ...searchResults.map((user) => ({ kind: "user" as const, id: `user:${user.id}`, user })),
-    { kind: "device-header" as const, id: "device-header" },
-    ...unregistered.map((contact) => ({
-      kind: "device" as const,
-      id: `device:${contact.id}`,
-      contact,
-    })),
-  ];
-
   const connections = contactConnections(
     friendsRows,
     followingRows,
     followersRows,
     visibleSuggestions,
   );
+  const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
+  const searchRows = contactSearchRows(searchResults, bgoContacts, unregistered);
   const connectionLabels = {
     friends: t("Friends"),
     following: t("Following"),
     followers: t("Followers"),
-    device: t("Contacts on BGO"),
   };
   const connectionEmpty = {
     friends: t("No friends yet"),
     following: t("Not following anyone yet"),
     followers: t("No followers yet"),
-    device:
-      contactsPermission === "granted"
-        ? t("No contacts on BGO yet")
-        : t("Allow address book access to find your friends here."),
   };
   const connectionIcons = {
     friends: UsersRound,
     following: UserRoundPlus,
     followers: UserRoundCheck,
-    device: BookUser,
   };
   const connectionQueries = {
     friends: contacts.friends,
     following: contacts.following,
     followers: contacts.followers,
-    device: contacts.suggestions,
   };
   const canSendFriendRequest = (user: ContactUser) =>
     friendRequestsLoaded &&
@@ -674,7 +641,9 @@ export default function ContactsScreen() {
             initialNumToRender={12}
             maxToRenderPerBatch={12}
             windowSize={7}
-            ListFooterComponent={loadingDevicePage ? <ContactListSkeleton count={2} /> : null}
+            ListFooterComponent={
+              loadingDevicePage || syncingContacts ? <ContactListSkeleton count={2} /> : null
+            }
             ListHeaderComponent={
               <View style={{ marginBottom: 12, gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -738,17 +707,25 @@ export default function ContactsScreen() {
               </View>
             }
             renderItem={({ item }) => {
-              if (item.kind === "user") {
+              if (item.kind === "user" || item.kind === "bgo") {
                 return <GroupedList>{contactRow(item.user)}</GroupedList>;
               }
               if (item.kind === "device-header") {
                 return (
                   <View style={{ gap: 8 }}>
-                    <Typography className="font-semibold text-foreground">
-                      {t("Invite device contacts")}
+                    <Typography
+                      accessibilityRole="header"
+                      className="font-semibold text-foreground"
+                    >
+                      {t("Device Contacts")}
                     </Typography>
-                    {contactsPermission === "checking" || syncingContacts ? (
+                    {contacts.suggestions.isLoading || contactsPermission === "checking" ? (
                       <ContactListSkeleton count={2} />
+                    ) : null}
+                    {contacts.suggestions.isError ? (
+                      <Typography accessibilityRole="alert" className="text-danger">
+                        {t("Could not load contacts")}
+                      </Typography>
                     ) : null}
                     {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
                       <Typography className="text-muted">
@@ -767,6 +744,9 @@ export default function ContactsScreen() {
                     !contactsReadError &&
                     !loadingDevicePage &&
                     !hasMoreDeviceContacts &&
+                    !contacts.suggestions.isLoading &&
+                    !contacts.suggestions.isError &&
+                    bgoContacts.length === 0 &&
                     unregistered.length === 0 ? (
                       <EmptyList icon={<BookUser size={28} color="#737373" />}>
                         {t("No contacts to invite")}
@@ -895,46 +875,39 @@ export default function ContactsScreen() {
 
         <Tabs.Content value="connections" style={{ flex: 1, marginTop: 12 }}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 20, paddingBottom: 24 }}>
-            {connections.map((section) => {
-              const state = connectionQueries[section.key];
-              const Icon = connectionIcons[section.key];
-              return (
-                <View key={section.key} style={{ gap: 8 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Icon size={18} color={foreground} />
-                    <Typography
-                      accessibilityRole="header"
-                      className="font-semibold text-foreground"
-                      numberOfLines={1}
-                      style={{ flexShrink: 1 }}
-                    >
-                      {connectionLabels[section.key]}
-                    </Typography>
-                  </View>
-                  {state.isLoading ? <ContactListSkeleton count={2} /> : null}
-                  {state.isError ? (
-                    <Typography accessibilityRole="alert" className="text-danger">
-                      {t("Could not load contacts")}
-                    </Typography>
-                  ) : null}
-                  {!state.isLoading &&
-                    !state.isError &&
-                    section.users.length === 0 &&
-                    !(
-                      section.key === "device" &&
-                      (syncingContacts ||
-                        contactsPermission === "checking" ||
-                        contactsReadError ||
-                        contacts.syncContacts.isError)
-                    ) && (
+            {connections
+              .filter((section) => section.key !== "device")
+              .map((section) => {
+                const state = connectionQueries[section.key];
+                const Icon = connectionIcons[section.key];
+                return (
+                  <View key={section.key} style={{ gap: 8 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Icon size={18} color={foreground} />
+                      <Typography
+                        accessibilityRole="header"
+                        className="font-semibold text-foreground"
+                        numberOfLines={1}
+                        style={{ flexShrink: 1 }}
+                      >
+                        {connectionLabels[section.key]}
+                      </Typography>
+                    </View>
+                    {state.isLoading ? <ContactListSkeleton count={2} /> : null}
+                    {state.isError ? (
+                      <Typography accessibilityRole="alert" className="text-danger">
+                        {t("Could not load contacts")}
+                      </Typography>
+                    ) : null}
+                    {!state.isLoading && !state.isError && section.users.length === 0 && (
                       <EmptyList icon={<Icon size={28} color="#737373" />}>
                         {connectionEmpty[section.key]}
                       </EmptyList>
                     )}
-                  <GroupedList>{section.users.map((user) => contactRow(user))}</GroupedList>
-                </View>
-              );
-            })}
+                    <GroupedList>{section.users.map((user) => contactRow(user))}</GroupedList>
+                  </View>
+                );
+              })}
             {syncingContacts || contactsPermission === "checking" ? (
               <ContactListSkeleton count={2} />
             ) : null}

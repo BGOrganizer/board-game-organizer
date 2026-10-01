@@ -13,6 +13,7 @@ import { Plus, Save, Trash2, UsersRound } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FloatingActions } from "@/components/FloatingActions";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -222,26 +223,17 @@ function Editor({
           <Typography className="text-white">{t("Add friend")}</Typography>
         </Button>
       </ScrollView>
-      <Button
-        isIconOnly
-        variant="primary"
-        accessibilityLabel={group ? t("Save changes") : t("Create group")}
+
+      <FloatingActions
+        label={group ? "Save changes" : "Create group"}
         testID="save-group-fab"
         onPress={save}
+        extraBottom={92}
         isDisabled={name.trim().length < 5 || groups.create.isPending || groups.update.isPending}
-        style={{
-          position: "absolute",
-          right: 20,
-          bottom: Math.max(24, insets.bottom + 12),
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        variant="primary"
       >
         <Save color="#fff" size={26} />
-      </Button>
+      </FloatingActions>
     </View>
   );
 }

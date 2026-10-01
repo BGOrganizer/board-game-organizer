@@ -59,6 +59,7 @@ async function getGoogleAccessToken(): Promise<string | null> {
 async function sendFcm(
   subscription: PushSubscription,
   notification: Notification,
+  unreadCount: number,
 ): Promise<"sent" | "invalid" | "skipped"> {
   const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
   const accessToken = await getGoogleAccessToken();
@@ -78,7 +79,10 @@ async function sendFcm(
           token: subscription.token,
           notification: { title: notification.title, body: notification.description },
           data,
-          android: { priority: "high" as const },
+          android: {
+            priority: "high" as const,
+            notification: { notification_count: unreadCount },
+          },
         };
   const response = await fetch(
     `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
@@ -122,6 +126,7 @@ function getApnsToken(): string | null {
 async function sendApns(
   subscription: PushSubscription,
   notification: Notification,
+  unreadCount: number,
 ): Promise<"sent" | "invalid" | "skipped"> {
   const token = getApnsToken();
   const topic = process.env.APNS_BUNDLE_ID?.trim();
@@ -183,6 +188,7 @@ async function sendApns(
         aps: {
           alert: { title: notification.title, body: notification.description },
           sound: "default",
+          badge: unreadCount,
         },
         notificationId: notification._id.toHexString(),
         kind: notification.kind,
@@ -200,15 +206,25 @@ export async function dispatchNotifications(ids: ObjectId[]): Promise<void> {
     .find({ _id: { $in: ids } })
     .toArray();
   const subscriptions = new PushSubscriptionsRepository(db);
+  const unreadCounts = new Map<string, number>();
 
   for (const notification of notifications) {
     const targets = await subscriptions.listByUser(notification.recipientUserId);
+    if (targets.length === 0) continue;
+    let unreadCount = unreadCounts.get(notification.recipientUserId);
+    if (unreadCount === undefined) {
+      unreadCount = await db.collection<Notification>(COLLECTIONS.NOTIFICATIONS).countDocuments({
+        recipientUserId: notification.recipientUserId,
+        readAt: { $exists: false },
+      });
+      unreadCounts.set(notification.recipientUserId, unreadCount);
+    }
     for (const target of targets) {
       try {
         const result =
           target.provider === "apns"
-            ? await sendApns(target, notification)
-            : await sendFcm(target, notification);
+            ? await sendApns(target, notification, unreadCount)
+            : await sendFcm(target, notification, unreadCount);
         if (result === "invalid") await subscriptions.removeToken(target.token);
       } catch (error) {
         console.error("Push notification delivery failed", {

@@ -240,29 +240,26 @@ export function Contacts() {
   const searchResults = contacts.search.data?.users ?? [];
 
   const connections = contactConnections(friendsRows, followingRows, followersRows, suggestions);
+  const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
   const connectionLabels = {
     friends: t`Friends`,
     following: t`Following`,
     followers: t`Followers`,
-    device: t`Contacts on BGO`,
   };
   const connectionEmpty = {
     friends: t`No friends yet`,
     following: t`Not following anyone yet`,
     followers: t`No followers yet`,
-    device: t`No contacts on BGO yet`,
   };
   const connectionIcons = {
     friends: UsersRound,
     following: UserRoundPlus,
     followers: UserRoundCheck,
-    device: BookUser,
   };
   const connectionQueries = {
     friends: contacts.friends,
     following: contacts.following,
     followers: contacts.followers,
-    device: contacts.suggestions,
   };
   const contactCard = (user: ContactUser, friendRequest?: "incoming" | "outgoing") => (
     <ContactCard
@@ -356,6 +353,27 @@ export function Contacts() {
             <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
           ) : null}
           <GroupedList>{searchResults.map((user) => contactCard(user))}</GroupedList>
+          <section className="space-y-2" aria-labelledby="device-contacts-title">
+            <h2
+              id="device-contacts-title"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
+              <BookUser className="size-4" aria-hidden="true" />
+              {t`Device Contacts`}
+            </h2>
+            {contacts.suggestions.isLoading ? <ContactListSkeleton count={2} /> : null}
+            {contacts.suggestions.isError ? (
+              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+            ) : null}
+            {!contacts.suggestions.isLoading &&
+            !contacts.suggestions.isError &&
+            bgoContacts.length === 0 ? (
+              <EmptyList icon={<BookUser className="size-7" />}>
+                {t`No contacts to invite`}
+              </EmptyList>
+            ) : null}
+            <GroupedList>{bgoContacts.map((user) => contactCard(user))}</GroupedList>
+          </section>
         </Tabs.Panel>
 
         <Tabs.Panel id="requests" className="space-y-5 pt-4">
@@ -430,35 +448,37 @@ export function Contacts() {
         </Tabs.Panel>
 
         <Tabs.Panel id="connections" className="space-y-5 pt-4">
-          {connections.map((section) => {
-            const state = connectionQueries[section.key];
-            const Icon = connectionIcons[section.key];
-            return (
-              <section
-                key={section.key}
-                className="space-y-2"
-                aria-labelledby={`connections-${section.key}`}
-              >
-                <h2
-                  id={`connections-${section.key}`}
-                  className="flex items-center gap-2 text-sm font-semibold"
+          {connections
+            .filter((section) => section.key !== "device")
+            .map((section) => {
+              const state = connectionQueries[section.key];
+              const Icon = connectionIcons[section.key];
+              return (
+                <section
+                  key={section.key}
+                  className="space-y-2"
+                  aria-labelledby={`connections-${section.key}`}
                 >
-                  <Icon className="size-4" aria-hidden="true" />
-                  {connectionLabels[section.key]}
-                </h2>
-                {state.isLoading ? <ContactListSkeleton count={2} /> : null}
-                {state.isError ? (
-                  <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-                ) : null}
-                {!state.isLoading && !state.isError && section.users.length === 0 && (
-                  <EmptyList icon={<Icon className="size-7" />}>
-                    {connectionEmpty[section.key]}
-                  </EmptyList>
-                )}
-                <GroupedList>{section.users.map((user) => contactCard(user))}</GroupedList>
-              </section>
-            );
-          })}
+                  <h2
+                    id={`connections-${section.key}`}
+                    className="flex items-center gap-2 text-sm font-semibold"
+                  >
+                    <Icon className="size-4" aria-hidden="true" />
+                    {connectionLabels[section.key]}
+                  </h2>
+                  {state.isLoading ? <ContactListSkeleton count={2} /> : null}
+                  {state.isError ? (
+                    <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+                  ) : null}
+                  {!state.isLoading && !state.isError && section.users.length === 0 && (
+                    <EmptyList icon={<Icon className="size-7" />}>
+                      {connectionEmpty[section.key]}
+                    </EmptyList>
+                  )}
+                  <GroupedList>{section.users.map((user) => contactCard(user))}</GroupedList>
+                </section>
+              );
+            })}
         </Tabs.Panel>
       </Tabs>
 

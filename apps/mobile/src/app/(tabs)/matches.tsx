@@ -18,7 +18,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, Clock3, Crown, Dices, Medal, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, View } from "react-native";
+import { FlatList, View } from "react-native";
 import Animated, {
   cancelAnimation,
   ReduceMotion,
@@ -28,9 +28,9 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
 import { EmptyList } from "@/components/EmptyList";
+import { FloatingActions } from "@/components/FloatingActions";
 import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { ListSearchFilters } from "@/components/ListSearchFilters";
@@ -95,7 +95,6 @@ function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string 
 export default function MatchesScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
-  const insets = useSafeAreaInsets();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
   const filters = useListFilters();
@@ -258,9 +257,9 @@ export default function MatchesScreen() {
                     <Typography className="text-sm text-muted">{dateLabel.date}</Typography>
                     <Clock3 size={14} color="#6b7280" />
                     <Typography className="text-sm text-muted">{dateLabel.time}</Typography>
-                    {extraDates && (
+                    {extraDates ? (
                       <Typography className="text-sm text-muted">{extraDates}</Typography>
-                    )}
+                    ) : null}
                   </View>
                 )}
                 <View
@@ -343,30 +342,15 @@ export default function MatchesScreen() {
           </View>
         }
       />
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("Create a match")}
-        onPress={() => router.push("/match/wizard")}
-        style={{
-          position: "absolute",
-          right: 20,
-          bottom: Math.max(24, insets.bottom + 12),
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: "#006fee",
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#000",
-          shadowOpacity: 0.2,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 6,
-        }}
+      <FloatingActions
+        label="Create a match"
+        testID="create-match-fab"
+        onPress={() => void router.push("/match/wizard")}
+        extraBottom={16}
+        variant="primary"
       >
         <Plus color="#fff" size={26} />
-      </Pressable>
+      </FloatingActions>
     </View>
   );
 }

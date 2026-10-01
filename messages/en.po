@@ -108,8 +108,8 @@ msgid "Administrator"
 msgstr "Administrator"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-msgid "Allow address book access to find your friends here."
-msgstr "Allow address book access to find your friends here."
+#~ msgid "Allow address book access to find your friends here."
+#~ msgstr "Allow address book access to find your friends here."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
@@ -329,8 +329,8 @@ msgid "Contacts"
 msgstr "Contacts"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "Contacts on BGO"
-msgstr "Contacts on BGO"
+#~ msgid "Contacts on BGO"
+#~ msgstr "Contacts on BGO"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Contacts synchronized"
@@ -694,6 +694,10 @@ msgstr "Delete notification"
 msgid "Delete notification?"
 msgstr "Delete notification?"
 
+#: apps/web/src/components/Contacts.tsx
+msgid "Device Contacts"
+msgstr "Device Contacts"
+
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Did not participate"
 msgstr "Did not participate"
@@ -876,6 +880,9 @@ msgstr "Group created"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Group deleted"
 msgstr "Group deleted"
+
+#~ msgid "Group details"
+#~ msgstr "Group details"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Group invitation accepted"
@@ -1207,9 +1214,10 @@ msgstr "No blocked users"
 #~ msgstr "No contacts found in your address book."
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No contacts on BGO yet"
-msgstr "No contacts on BGO yet"
+#~ msgid "No contacts on BGO yet"
+#~ msgstr "No contacts on BGO yet"
 
+#: apps/web/src/components/Contacts.tsx
 msgid "No contacts to invite"
 msgstr "No contacts to invite"
 

@@ -31,6 +31,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FloatingActions } from "@/components/FloatingActions";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
@@ -274,69 +275,6 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
     else if (step === 3 && step3Valid) void save();
   };
   const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s));
-
-  const fabNext = (
-    <Pressable
-      onPress={next}
-      accessibilityRole="button"
-      accessibilityLabel={
-        step === 3 ? (initialData ? t("Save changes") : t("Create match")) : t("Next step")
-      }
-      testID={step === 3 ? "save-match-fab" : "next-step-fab"}
-      disabled={
-        matches.create.isPending ||
-        matches.update.isPending ||
-        (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
-      }
-      style={{
-        position: "absolute",
-        right: 20,
-        bottom: 20,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor:
-          matches.create.isPending ||
-          matches.update.isPending ||
-          (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
-            ? "#9ca3af"
-            : "#006fee",
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 6,
-      }}
-    >
-      {step === 3 ? <Save color="#fff" size={26} /> : <ArrowRight color="#fff" size={26} />}
-    </Pressable>
-  );
-  const fabBack =
-    step > 1 ? (
-      <Pressable
-        onPress={back}
-        style={{
-          position: "absolute",
-          left: 20,
-          bottom: 20,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: "#e5e7eb",
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#000",
-          shadowOpacity: 0.2,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 6,
-        }}
-      >
-        <ArrowLeft color="#111" size={26} />
-      </Pressable>
-    ) : null;
 
   return (
     <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
@@ -717,8 +655,33 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
         )}
       </ScrollView>
 
-      {fabBack}
-      {fabNext}
+      {step > 1 ? (
+        <FloatingActions
+          label="Back"
+          testID="previous-step-fab"
+          onPress={back}
+          extraBottom={92}
+          left={true}
+          variant="secondary"
+        >
+          <ArrowLeft color="#111" size={26} />
+        </FloatingActions>
+      ) : null}
+
+      <FloatingActions
+        label={step === 3 ? (initialData ? "Save changes" : "Create match") : "Next step"}
+        testID={step === 3 ? "save-match-fab" : "next-step-fab"}
+        onPress={next}
+        extraBottom={92}
+        variant={step === 3 ? "primary" : "secondary"}
+        isDisabled={
+          matches.create.isPending ||
+          matches.update.isPending ||
+          (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+        }
+      >
+        {step === 3 ? <Save color="#fff" size={26} /> : <ArrowRight color="#111" size={26} />}
+      </FloatingActions>
 
       {/* Native date/time picker: iOS renders an inline spinner (datetime
           mode exists on iOS); Android uses the imperative chained date →

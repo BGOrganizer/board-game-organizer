@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   actionError: false,
   searchError: false,
   searchResult: false,
+  suggestion: false,
 }));
 
 const target = {
@@ -90,7 +91,11 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
     },
     blocked: { data: [], isLoading: false, isError: false },
     suggestions: {
-      data: { users: [], nextCursor: null, hasContacts: false },
+      data: {
+        users: mocks.suggestion ? [{ ...target, isFollowing: false }] : [],
+        nextCursor: null,
+        hasContacts: mocks.suggestion,
+      },
       isLoading: false,
       isError: false,
     },
@@ -184,24 +189,37 @@ describe("Contacts tabs", () => {
       actionError: false,
       searchError: false,
       searchResult: false,
+      suggestion: false,
     });
   });
 
   it("shows empty connection sections and search guidance before typing", () => {
     mocks.following = false;
     renderWithI18n(<Contacts />);
-    for (const title of ["Friends", "Following", "Followers", "Contacts on BGO"])
+    for (const title of ["Friends", "Following", "Followers"])
       expect(screen.getByRole("heading", { name: title })).toBeTruthy();
-    for (const message of [
-      "No friends yet",
-      "Not following anyone yet",
-      "No followers yet",
-      "No contacts on BGO yet",
-    ])
+    for (const message of ["No friends yet", "Not following anyone yet", "No followers yet"])
       expect(screen.getByText(message)).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
     expect(screen.getByRole("heading", { name: "Search results" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Device Contacts" })).toBeTruthy();
     expect(screen.getByText("Type at least 4 characters to search")).toBeTruthy();
+    expect(screen.getByText("No contacts to invite")).toBeTruthy();
+  });
+
+  it("shows registered device contacts only in Search with their social actions", () => {
+    mocks.following = false;
+    mocks.suggestion = true;
+    renderWithI18n(<Contacts />);
+
+    expect(screen.queryByRole("heading", { name: "Contacts on BGO" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+    const device = screen.getByRole("heading", { name: "Device Contacts" }).closest("section");
+    expect(device).not.toBeNull();
+    expect(within(device as HTMLElement).getByText("Target User")).toBeTruthy();
+    expect(
+      within(device as HTMLElement).getByRole("button", { name: "Actions: Target User" }),
+    ).toBeTruthy();
   });
 
   it("groups each connection once and keeps social actions inside menu", () => {

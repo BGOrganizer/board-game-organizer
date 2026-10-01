@@ -28,6 +28,7 @@ export async function requestMobilePushPermission(): Promise<MobilePushPermissio
     await Notifications.setNotificationChannelAsync("default", {
       name: "Notifications",
       importance: Notifications.AndroidImportance.HIGH,
+      showBadge: true,
       vibrationPattern: [0, 250, 250, 250],
     });
   }

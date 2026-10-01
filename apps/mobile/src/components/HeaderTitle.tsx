@@ -9,6 +9,7 @@ export function HeaderTitle({ title, icon: Icon }: { title: string; icon: Lucide
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
       <Icon size={20} color={foreground} aria-hidden />
       <Typography
+        type="h4"
         accessibilityRole="header"
         className="font-semibold text-foreground"
         numberOfLines={1}

@@ -10,9 +10,9 @@ import { Typography } from "heroui-native/text";
 import { Crown, LockKeyhole, LockKeyholeOpen, Mail, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
 import { EmptyList } from "@/components/EmptyList";
+import { FloatingActions } from "@/components/FloatingActions";
 import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { ListSearchFilters } from "@/components/ListSearchFilters";
@@ -53,7 +53,6 @@ export default function GroupsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const router = useRouter();
   const t = useT();
-  const insets = useSafeAreaInsets();
   const { i18n } = useLingui();
   const feedback = useMutationFeedback();
   const filters = useListFilters();
@@ -220,30 +219,16 @@ export default function GroupsScreen() {
           </View>
         }
       />
-      <Button
-        isIconOnly
-        variant="primary"
-        accessibilityLabel={t("Create group")}
+
+      <FloatingActions
+        label="Create group"
         testID="create-group-fab"
-        onPress={() => router.push("/group/wizard")}
-        style={{
-          position: "absolute",
-          right: 20,
-          bottom: Math.max(24, insets.bottom + 12),
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#000",
-          shadowOpacity: 0.2,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 6,
-        }}
+        onPress={() => void router.push("/group/wizard")}
+        extraBottom={16}
+        variant="primary"
       >
         <Plus color="#fff" size={26} />
-      </Button>
+      </FloatingActions>
     </View>
   );
 }

@@ -9,6 +9,9 @@ export function useSessionAuth() {
   useLayoutEffect(() => {
     latestGetToken.current = currentGetToken;
   }, [currentGetToken]);
-  const getToken = useCallback(() => latestGetToken.current(), [userId, sessionId]);
+  const getToken = useCallback(
+    () => (userId && sessionId ? latestGetToken.current() : Promise.resolve(null)),
+    [userId, sessionId],
+  );
   return { getToken, isLoaded, isSignedIn, userId, sessionId };
 }

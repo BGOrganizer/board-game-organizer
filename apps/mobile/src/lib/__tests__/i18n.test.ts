@@ -74,6 +74,7 @@ describe("translate (runtime)", () => {
     expect(translate(it, "Following")).toBe("Following");
     expect(translate(it, "Remove player")).toBe("Rimuovi giocatore");
     expect(translate(it, "Members")).toBe("Membri");
+    expect(translate(it, "Group details")).toBe("Dettaglio Gruppo");
     expect(translate(it, "Invitations")).toBe("Inviti");
     expect(translate(it, "No invitations")).toBe("Nessun invito");
     expect(translate(it, "Game rating")).toBe("Rating del gioco");

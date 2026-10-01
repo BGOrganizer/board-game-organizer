@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   notifications: [] as Notification[],
   targets: [] as PushSubscription[],
+  unreadCount: 3,
   removeToken: vi.fn(async () => undefined),
   apns: { status: 200, body: "{}" },
   close: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock("@/app/lib/db", () => ({
   getDb: vi.fn(async () => ({
     collection: () => ({
       find: () => ({ toArray: async () => mocks.notifications }),
+      countDocuments: async () => mocks.unreadCount,
     }),
   })),
 }));
@@ -105,6 +107,7 @@ describe("push delivery", () => {
     vi.clearAllMocks();
     mocks.notifications = [notification];
     mocks.targets = [];
+    mocks.unreadCount = 3;
     mocks.apns.status = 200;
     mocks.apns.body = "{}";
     mocks.requestHeaders.length = 0;
@@ -167,6 +170,9 @@ describe("push delivery", () => {
     expect(
       platform === "web" ? payload.message.data.title : payload.message.notification.title,
     ).toBe("New friend request");
+    expect(payload.message.android?.notification?.notification_count).toBe(
+      platform === "android" ? 3 : undefined,
+    );
   });
 
   it("removes unregistered FCM tokens", async () => {
@@ -211,7 +217,7 @@ describe("push delivery", () => {
     });
     expect(JSON.parse(mocks.requestBodies[0] ?? "{}")).toMatchObject({
       href: "/contacts",
-      aps: { alert: { title: "New friend request" } },
+      aps: { alert: { title: "New friend request" }, badge: 3 },
     });
   });
 

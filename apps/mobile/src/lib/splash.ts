@@ -10,7 +10,11 @@ const failsafe = setTimeout(() => {
   void SplashScreen.hideAsync().catch(Sentry.captureException);
 }, STARTUP_SPLASH_LIMIT_MS);
 
+export function revealStartupSplash() {
+  void SplashScreen.hideAsync().catch(Sentry.captureException);
+}
+
 export function hideStartupSplash() {
   clearTimeout(failsafe);
-  void SplashScreen.hideAsync().catch(Sentry.captureException);
+  revealStartupSplash();
 }
