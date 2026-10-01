@@ -254,7 +254,13 @@ test("pending group invitation shows admin, then accepted members", async ({ pag
     createdAt: now,
     updatedAt: now,
   };
-  await page.route("**/api/groups**", (route) => route.fulfill({ json: { groups: [group] } }));
+  await page.route("**/api/groups**", (route) =>
+    route.fulfill({
+      json: new URL(route.request().url()).pathname.endsWith(`/groups/${id}`)
+        ? { group }
+        : { groups: [group] },
+    }),
+  );
   await page.route("**/api/group-invitations/**", (route) => {
     group = {
       ...group,
