@@ -167,9 +167,11 @@ test("admin confirms, reopens, and registers immutable results", async ({ page }
   await page.getByRole("tab", { name: "Overview" }).click();
   await expect(page.getByRole("img", { name: "Average: 7.91" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Rank: 11" })).toBeVisible();
-  await expect(
-    page.getByRole("img", { name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0" }),
-  ).toBeVisible();
+  const sharedVotes = page.getByRole("img", {
+    name: "Yes: 2, No: 0, If needed: 0, Not chosen: 0",
+  });
+  await expect(sharedVotes).toHaveCount(2);
+  await expect(sharedVotes.first()).toBeVisible();
   await page.getByRole("button", { name: "Vote count legend" }).hover();
   await expect(page.getByText("- Not chosen")).toBeVisible();
   await expect(page.getByRole("button", { name: "Vote count legend" })).toHaveCount(1);
