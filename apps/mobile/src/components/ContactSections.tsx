@@ -46,6 +46,7 @@ export function ContactSections<T>({
       contentContainerStyle={{ paddingBottom: 24 }}
       sections={sections.map((section) => ({ ...section, data: section.rows }))}
       keyExtractor={getRowKey}
+      ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
       renderSectionHeader={({ section }) => (
         <View style={{ gap: 8, paddingTop: 20 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
