@@ -105,9 +105,9 @@ function AvatarWithPresence({
   name: string;
   avatarUrl: string | null;
   online: boolean;
-  badge?: { icon: LucideIcon; label: string };
+  badge?: { icon: LucideIcon; label: string; color: "accent" | "success" | "warning" | "danger" };
 }) {
-  const foreground = useThemeColor("foreground");
+  const badgeColor = useThemeColor(badge?.color ?? "foreground");
   const BadgeIcon = badge?.icon;
   return (
     <View style={{ position: "relative" }}>
@@ -144,7 +144,7 @@ function AvatarWithPresence({
             justifyContent: "center",
           }}
         >
-          <BadgeIcon size={13} color={foreground} />
+          <BadgeIcon size={13} color={badgeColor} />
         </View>
       ) : null}
     </View>
@@ -604,6 +604,12 @@ export default function ContactsScreen() {
     followers: UserRoundCheck,
     blocked: Ban,
   };
+  const connectionColors = {
+    friends: "accent",
+    following: "warning",
+    followers: "success",
+    blocked: "danger",
+  } as const;
   const connectionQueries = [
     contacts.friends,
     contacts.following,
@@ -623,7 +629,7 @@ export default function ContactsScreen() {
   const contactRow = (
     user: ContactUser,
     friendRequest?: FriendRequestContext,
-    badge?: { icon: LucideIcon; label: string },
+    badge?: { icon: LucideIcon; label: string; color: "accent" | "success" | "warning" | "danger" },
   ) => (
     <GroupedRow key={user.id}>
       <AvatarWithPresence
@@ -916,6 +922,7 @@ export default function ContactsScreen() {
                 {contactRow(item.user, undefined, {
                   icon: connectionIcons[item.type],
                   label: connectionLabels[item.type],
+                  color: connectionColors[item.type],
                 })}
               </GroupedList>
             )}

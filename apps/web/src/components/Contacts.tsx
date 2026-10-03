@@ -53,7 +53,7 @@ function ContactCard({
   avatarUrl: string | null;
   online: boolean;
   menu?: React.ReactNode;
-  badge?: { icon: LucideIcon; label: string };
+  badge?: { icon: LucideIcon; label: string; color: string };
 }) {
   const BadgeIcon = badge?.icon;
   return (
@@ -74,7 +74,7 @@ function ContactCard({
             <span
               role="img"
               aria-label={badge.label}
-              className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-surface bg-surface text-foreground"
+              className={`absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-surface bg-surface ${badge.color}`}
             >
               <BadgeIcon className="size-3" aria-hidden="true" />
             </span>
@@ -300,10 +300,16 @@ export function Contacts() {
     followers: UserRoundCheck,
     blocked: Ban,
   };
+  const connectionColors = {
+    friends: "text-primary",
+    following: "text-warning",
+    followers: "text-success",
+    blocked: "text-danger",
+  };
   const contactCard = (
     user: ContactUser,
     friendRequest?: "incoming" | "outgoing",
-    badge?: { icon: LucideIcon; label: string },
+    badge?: { icon: LucideIcon; label: string; color: string },
   ) => (
     <ContactCard
       key={user.id}
@@ -516,6 +522,7 @@ export function Contacts() {
                   contactCard(user, undefined, {
                     icon: connectionIcons[section.key],
                     label: connectionLabels[section.key],
+                    color: connectionColors[section.key],
                   }),
                 ),
               )}
