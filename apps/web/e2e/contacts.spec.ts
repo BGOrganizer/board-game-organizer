@@ -183,10 +183,12 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   expect((await acceptResponse).ok()).toBe(true);
   await targetPage.getByRole("tab", { name: "Connections" }).click();
   await expect(targetPage.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+  await expect(targetPage.getByRole("img", { name: "Friends" })).toBeVisible();
 
   await page.reload();
   await page.getByRole("tab", { name: "Connections" }).click();
   await expect(page.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("img", { name: "Friends" })).toBeVisible();
   await targetContext.close();
 
   // One action removes friendship plus the actor's follow and refreshes every list.
@@ -195,7 +197,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const unfriendResponse = waitForRelationshipResponse(page, "DELETE", "friend");
   await page.getByRole("button", { name: "Remove friend", exact: true }).click();
   expect((await unfriendResponse).ok()).toBe(true);
-  await expect(page.getByText("No friends yet")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("img", { name: "Friends" })).toHaveCount(0);
   await findTarget(page);
   await page.getByRole("button", { name: "Actions" }).first().click();
   await expect(page.getByRole("menuitem", { name: "Follow", exact: true })).toBeVisible();
@@ -204,6 +206,9 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const followResponse = waitForRelationshipResponse(page, "POST", "follow");
   await page.getByRole("menuitem", { name: "Follow", exact: true }).click();
   expect((await followResponse).ok()).toBe(true);
+  await page.getByRole("tab", { name: "Connections" }).click();
+  await expect(page.getByRole("img", { name: "Following" })).toBeVisible();
+  await page.getByRole("tab", { name: "Search" }).click();
   await page.getByRole("button", { name: "Actions" }).first().click();
   await expect(page.getByRole("menuitem", { name: "Unfollow", exact: true })).toBeVisible();
 
@@ -232,15 +237,18 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   // Blocked user disappears from search results.
   await expect(page.getByText("E2E Target").first()).toBeHidden({ timeout: 30_000 });
 
-  // -- Blocked tab lists the target; unblock brings them back.
+  // Blocked user appears in Connections, never Requests.
   await page.getByRole("tab", { name: "Requests" }).click();
-  await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("E2E Target")).toHaveCount(0);
+  await page.getByRole("tab", { name: "Connections" }).click();
+  await expect(page.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("img", { name: "Blocked" })).toBeVisible();
   await page.getByRole("button", { name: "Actions" }).first().click();
   await page.getByRole("menuitem", { name: /unblock/i }).click();
   const unblockResponse = waitForRelationshipResponse(page, "DELETE", "block");
   await page.getByRole("button", { name: "Unblock", exact: true }).click();
   expect((await unblockResponse).ok()).toBe(true);
-  await expect(page.getByText("No blocked users")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("img", { name: "Blocked" })).toHaveCount(0);
 
   // Back to search: the target is findable again.
   await page.getByRole("tab", { name: "Search" }).click();

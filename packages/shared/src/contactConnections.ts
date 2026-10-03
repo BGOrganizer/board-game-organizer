@@ -6,11 +6,13 @@ export function contactConnections(
   following: RelationshipRow[],
   followers: RelationshipRow[],
   suggestions: ContactUser[],
+  blocked: RelationshipRow[],
 ) {
   const seen = new Set<string>();
-  const unique = (users: Array<ContactUser | null>) =>
+  const blockedIds = new Set(blocked.map((row) => row.profile?.id));
+  const unique = (users: Array<ContactUser | null>, allowBlocked = false) =>
     users.flatMap((user) => {
-      if (!user || seen.has(user.id)) return [];
+      if (!user || seen.has(user.id) || (!allowBlocked && blockedIds.has(user.id))) return [];
       seen.add(user.id);
       return [user];
     });
@@ -23,6 +25,13 @@ export function contactConnections(
     {
       key: "followers",
       users: unique(followers.map((row) => row.profile && { ...row.profile, isFollower: true })),
+    },
+    {
+      key: "blocked",
+      users: unique(
+        blocked.map((row) => row.profile),
+        true,
+      ),
     },
     {
       key: "device",

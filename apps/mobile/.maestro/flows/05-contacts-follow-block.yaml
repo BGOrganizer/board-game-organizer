@@ -22,9 +22,7 @@ appId: com.bgo.mobile
     timeout: 30000
 - tapOn: "Allow"
 - tapOn: "Connections"
-- assertVisible: "Friends"
-- assertVisible: "Following"
-- assertVisible: "Followers"
+- assertVisible: "No connections yet"
 - assertNotVisible: "Contacts on BGO"
 - assertNotVisible: "Action failed"
 - waitForAnimationToEnd:
@@ -34,7 +32,7 @@ appId: com.bgo.mobile
 - tapOn: "Requests"
 - assertVisible: "Received"
 - assertVisible: "Sent"
-- assertVisible: "Blocked"
+- assertNotVisible: "Blocked"
 - tapOn: "Search"
 - assertVisible: "Device Contacts"
 - extendedWaitUntil:
@@ -316,6 +314,11 @@ appId: com.bgo.mobile
     visible: "Follow"
     timeout: 30000
 - tapOn: "Follow"
+- tapOn: "Connections"
+- extendedWaitUntil:
+    visible: "Following"
+    timeout: 30000
+- tapOn: "Search"
 - tapOn: "Actions"
 - extendedWaitUntil:
     visible: "Unfollow"
@@ -337,9 +340,12 @@ appId: com.bgo.mobile
     notVisible: "E2E Target"
     timeout: 30000
 - tapOn: "Requests"
+- assertNotVisible: "E2E Target"
+- tapOn: "Connections"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
+- assertVisible: "Blocked"
 - tapOn: "Actions"
 - extendedWaitUntil:
     visible: "Unblock"

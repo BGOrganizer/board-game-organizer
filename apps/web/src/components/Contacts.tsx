@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Card, Chip, SearchField, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import type { LucideIcon } from "lucide-react";
 import {
   Ban,
   BookUser,
@@ -45,13 +46,16 @@ function ContactCard({
   avatarUrl,
   online,
   menu,
+  badge,
 }: {
   name: string;
   email: string | null;
   avatarUrl: string | null;
   online: boolean;
   menu?: React.ReactNode;
+  badge?: { icon: LucideIcon; label: string };
 }) {
+  const BadgeIcon = badge?.icon;
   return (
     <GroupedRow className="flex-col sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -66,6 +70,15 @@ function ContactCard({
             }`}
             title={online ? "online" : "offline"}
           />
+          {badge && BadgeIcon ? (
+            <span
+              role="img"
+              aria-label={badge.label}
+              className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-surface bg-surface text-foreground"
+            >
+              <BadgeIcon className="size-3" aria-hidden="true" />
+            </span>
+          ) : null}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{name}</p>
@@ -161,18 +174,19 @@ export function Contacts() {
     userId,
     mutationFeedback,
   );
+  const connectionPages = [
+    contacts.friends,
+    contacts.following,
+    contacts.followers,
+    contacts.blocked,
+  ];
+  const nextConnectionPage = connectionPages.find((page) => page.hasNextPage);
   const endRefs = {
-    friends: useInfiniteScroll({
-      ...contacts.friends,
-      fetchNextPage: () => contacts.friends.fetchNextPage(),
-    }),
-    following: useInfiniteScroll({
-      ...contacts.following,
-      fetchNextPage: () => contacts.following.fetchNextPage(),
-    }),
-    followers: useInfiniteScroll({
-      ...contacts.followers,
-      fetchNextPage: () => contacts.followers.fetchNextPage(),
+    connections: useInfiniteScroll({
+      hasNextPage: Boolean(nextConnectionPage),
+      isFetchingNextPage: nextConnectionPage?.isFetchingNextPage,
+      isFetchNextPageError: nextConnectionPage?.isFetchNextPageError,
+      fetchNextPage: () => nextConnectionPage?.fetchNextPage() ?? Promise.resolve(),
     }),
     pending: useInfiniteScroll({
       ...contacts.pending,
@@ -181,10 +195,6 @@ export function Contacts() {
     sent: useInfiniteScroll({
       ...contacts.sent,
       fetchNextPage: () => contacts.sent.fetchNextPage(),
-    }),
-    blocked: useInfiniteScroll({
-      ...contacts.blocked,
-      fetchNextPage: () => contacts.blocked.fetchNextPage(),
     }),
     suggestions: useInfiniteScroll({
       ...contacts.suggestions,
@@ -270,35 +280,38 @@ export function Contacts() {
   const suggestions = contacts.suggestions.data?.users ?? [];
   const searchResults = contacts.search.data?.users ?? [];
 
-  const connections = contactConnections(friendsRows, followingRows, followersRows, suggestions);
+  const connections = contactConnections(
+    friendsRows,
+    followingRows,
+    followersRows,
+    suggestions,
+    blockedRows,
+  );
   const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
   const connectionLabels = {
     friends: t`Friends`,
     following: t`Following`,
     followers: t`Followers`,
-  };
-  const connectionEmpty = {
-    friends: t`No friends yet`,
-    following: t`Not following anyone yet`,
-    followers: t`No followers yet`,
+    blocked: t`Blocked`,
   };
   const connectionIcons = {
     friends: UsersRound,
     following: UserRoundPlus,
     followers: UserRoundCheck,
+    blocked: Ban,
   };
-  const connectionQueries = {
-    friends: contacts.friends,
-    following: contacts.following,
-    followers: contacts.followers,
-  };
-  const contactCard = (user: ContactUser, friendRequest?: "incoming" | "outgoing") => (
+  const contactCard = (
+    user: ContactUser,
+    friendRequest?: "incoming" | "outgoing",
+    badge?: { icon: LucideIcon; label: string },
+  ) => (
     <ContactCard
       key={user.id}
       name={user.name}
       email={user.email}
       avatarUrl={user.avatarUrl}
       online={user.presence.online}
+      badge={badge}
       menu={
         <UserMenu
           user={user}
@@ -482,74 +495,43 @@ export function Contacts() {
               ) : null}
             </section>
           ))}
-          <section className="space-y-2" aria-labelledby="blocked-title">
-            <h2 id="blocked-title" className="flex items-center gap-2 text-sm font-semibold">
-              <Ban className="size-4" aria-hidden="true" />
-              {t`Blocked`}
-            </h2>
-            {contacts.blocked.isLoading ? <ContactListSkeleton count={2} /> : null}
-            {contacts.blocked.isError ? (
-              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-            ) : null}
-            {!contacts.blocked.isLoading &&
-            !contacts.blocked.isError &&
-            blockedRows.length === 0 ? (
-              <EmptyList icon={<Ban className="size-7" />}>{t`No blocked users`}</EmptyList>
-            ) : null}
-            <GroupedList>
-              {blockedRows.map((row) => (row.profile ? contactCard(row.profile) : null))}
-            </GroupedList>
-            <div ref={endRefs.blocked} aria-hidden="true" />
-            {contacts.blocked.isFetchNextPageError ? (
-              <button
-                type="button"
-                className="text-sm text-primary"
-                onClick={() => void contacts.blocked.fetchNextPage()}
-              >{t`Retry`}</button>
-            ) : null}
-          </section>
         </Tabs.Panel>
 
-        <Tabs.Panel id="connections" className="space-y-5 pt-4">
-          {connections
-            .filter((section) => section.key !== "device")
-            .map((section) => {
-              const state = connectionQueries[section.key];
-              const Icon = connectionIcons[section.key];
-              return (
-                <section
-                  key={section.key}
-                  className="space-y-2"
-                  aria-labelledby={`connections-${section.key}`}
-                >
-                  <h2
-                    id={`connections-${section.key}`}
-                    className="flex items-center gap-2 text-sm font-semibold"
-                  >
-                    <Icon className="size-4" aria-hidden="true" />
-                    {connectionLabels[section.key]}
-                  </h2>
-                  {state.isLoading ? <ContactListSkeleton count={2} /> : null}
-                  {state.isError ? (
-                    <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-                  ) : null}
-                  {!state.isLoading && !state.isError && section.users.length === 0 && (
-                    <EmptyList icon={<Icon className="size-7" />}>
-                      {connectionEmpty[section.key]}
-                    </EmptyList>
-                  )}
-                  <GroupedList>{section.users.map((user) => contactCard(user))}</GroupedList>
-                  <div ref={endRefs[section.key]} aria-hidden="true" />
-                  {state.isFetchNextPageError ? (
-                    <button
-                      type="button"
-                      className="text-sm text-primary"
-                      onClick={() => void state.fetchNextPage()}
-                    >{t`Retry`}</button>
-                  ) : null}
-                </section>
-              );
-            })}
+        <Tabs.Panel id="connections" className="space-y-3 pt-4">
+          {connectionPages.some((page) => page.isLoading) ? (
+            <ContactListSkeleton count={2} />
+          ) : null}
+          {connectionPages.some((page) => page.isError) ? (
+            <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+          ) : null}
+          {!connectionPages.some((page) => page.isLoading || page.isError) &&
+          connections.every((section) => section.key === "device" || section.users.length === 0) ? (
+            <EmptyList icon={<UsersRound className="size-7" />}>{t`No connections yet`}</EmptyList>
+          ) : null}
+          <GroupedList>
+            {connections
+              .filter((section) => section.key !== "device")
+              .flatMap((section) =>
+                section.users.map((user) =>
+                  contactCard(user, undefined, {
+                    icon: connectionIcons[section.key],
+                    label: connectionLabels[section.key],
+                  }),
+                ),
+              )}
+          </GroupedList>
+          <div ref={endRefs.connections} aria-hidden="true" />
+          {connectionPages.some((page) => page.isFetchNextPageError) ? (
+            <button
+              type="button"
+              className="text-sm text-primary"
+              onClick={() => {
+                for (const page of connectionPages) {
+                  if (page.isFetchNextPageError) void page.fetchNextPage();
+                }
+              }}
+            >{t`Retry`}</button>
+          ) : null}
         </Tabs.Panel>
       </Tabs>
 

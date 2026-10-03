@@ -131,6 +131,10 @@ msgid "Back"
 msgstr "Back"
 
 #: apps/web/src/components/MatchDetail.tsx
+msgid "Back matches"
+msgstr "Back matches"
+
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Back to match"
 msgstr "Back to match"
@@ -178,6 +182,7 @@ msgid "Blocked"
 msgstr "Blocked"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Board game"
 msgstr "Board game"
 
@@ -483,6 +488,7 @@ msgid "Could not load groups. Retry"
 msgstr "Could not load groups. Retry"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Could not load leaderboards. Retry"
 msgstr "Could not load leaderboards. Retry"
 
@@ -743,6 +749,7 @@ msgstr "Edit tie-break"
 #~ msgid "ELO ranking"
 #~ msgstr "ELO ranking"
 
+#: apps/web/src/components/MatchLeaderboard.tsx
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Email unavailable"
 msgstr "Email unavailable"
@@ -847,14 +854,16 @@ msgid "games"
 msgstr "games"
 
 #: apps/web/src/components/MatchDetail.tsx
-msgid "Games"
-msgstr "Games"
+#~ msgid "Games"
+#~ msgstr "Games"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Games played"
 msgstr "Games played"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Games won"
 msgstr "Games won"
 
@@ -1002,6 +1011,7 @@ msgid "Language:"
 msgstr "Language:"
 
 #: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchDetail.tsx
 msgid "Leaderboards"
 msgstr "Leaderboards"
 
@@ -1177,6 +1187,7 @@ msgid "Move up"
 msgstr "Move up"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "ND"
 msgstr "ND"
 
@@ -1206,12 +1217,13 @@ msgid "No"
 msgstr "No"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No blocked users"
-msgstr "No blocked users"
+#~ msgid "No blocked users"
+#~ msgstr "No blocked users"
 
 #: apps/web/src/components/Contacts.tsx
-#~ msgid "No connections yet"
-#~ msgstr "No connections yet"
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile runtime useT)
+msgid "No connections yet"
+msgstr "No connections yet"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No contacts found in your address book."
@@ -1230,8 +1242,8 @@ msgid "No countries found"
 msgstr "No countries found"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No followers yet"
-msgstr "No followers yet"
+#~ msgid "No followers yet"
+#~ msgstr "No followers yet"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No friends from your contacts are on Board Game Organizer yet."
@@ -1242,8 +1254,8 @@ msgstr "No followers yet"
 #~ msgstr "No friends to invite yet"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No friends yet"
-msgstr "No friends yet"
+#~ msgid "No friends yet"
+#~ msgstr "No friends yet"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
@@ -1291,6 +1303,10 @@ msgstr "No matches yet — create your first one!"
 msgid "No notifications yet"
 msgstr "No notifications yet"
 
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "No rankings available"
+msgstr "No rankings available"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No received friend requests"
 msgstr "No received friend requests"
@@ -1298,10 +1314,6 @@ msgstr "No received friend requests"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "No selected games"
 msgstr "No selected games"
-
-#: apps/web/src/components/MatchLeaderboard.tsx apps/mobile/src/components/MatchLeaderboard.tsx (mobile-only, runtime useT)
-msgid "No rankings available"
-msgstr "No rankings available"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No sent friend requests"
@@ -1337,8 +1349,8 @@ msgid "Not enough accepted players"
 msgstr "Not enough accepted players"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "Not following anyone yet"
-msgstr "Not following anyone yet"
+#~ msgid "Not following anyone yet"
+#~ msgstr "Not following anyone yet"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Not known"
@@ -1428,6 +1440,7 @@ msgstr "Planning"
 #~ msgstr "Played"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Player"
 msgstr "Player"
 
@@ -1478,6 +1491,7 @@ msgid "Provisional game rating"
 msgstr "Provisional game rating"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Provisional rating"
 msgstr "Provisional rating"
 
@@ -1498,6 +1512,7 @@ msgid "Rank"
 msgstr "Rank"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Ranking"
 msgstr "Ranking"
 
@@ -1594,6 +1609,10 @@ msgstr "Resolve tie"
 #~ msgid "Respond to friend request"
 #~ msgstr "Respond to friend request"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Results"
+msgstr "Results"
+
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Results and standings will become final and cannot be edited."
 msgstr "Results and standings will become final and cannot be edited."
@@ -1601,8 +1620,10 @@ msgstr "Results and standings will become final and cannot be edited."
 #~ msgid "Results can only be registered by the match administrator before termination."
 #~ msgstr "Results can only be registered by the match administrator before termination."
 
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/SearchUserPage.tsx
 msgid "Retry"
 msgstr "Retry"
 
@@ -1698,6 +1719,7 @@ msgid "Select"
 msgstr "Select"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Select a board game"
@@ -1783,12 +1805,8 @@ msgstr "Sign Up"
 #~ msgstr "Sign-in unavailable"
 
 #: apps/web/src/components/MatchDetail.tsx
-msgid "Standings"
-msgstr "Standings"
-
-#: apps/web/src/components/MatchDetail.tsx apps/mobile/src/app/match/[matchId].tsx (mobile-only, runtime useT)
-msgid "Results"
-msgstr "Results"
+#~ msgid "Standings"
+#~ msgstr "Standings"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "Suggestions"

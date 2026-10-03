@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   searchError: false,
   searchResult: false,
   suggestion: false,
+  mixed: false,
 }));
 
 const target = {
@@ -64,12 +65,33 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
                 blockedMe: mocks.blockedMe,
               },
             },
+            ...(mocks.mixed
+              ? [
+                  {
+                    fromUserId: "user_1",
+                    toUserId: "user_3",
+                    profile: { ...target, id: "user_3", name: "Following User" },
+                  },
+                ]
+              : []),
           ]
         : [],
       isLoading: false,
       isError: false,
     },
-    followers: { data: [], isLoading: false, isError: false },
+    followers: {
+      data: mocks.mixed
+        ? [
+            {
+              fromUserId: "user_4",
+              toUserId: "user_1",
+              profile: { ...target, id: "user_4", name: "Follower User" },
+            },
+          ]
+        : [],
+      isLoading: false,
+      isError: false,
+    },
     friends: {
       data: mocks.friends
         ? [{ fromUserId: "user_1", toUserId: "user_2", profile: { ...target, isFriend: true } }]
@@ -89,7 +111,27 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
       isSuccess: !mocks.loading,
       isError: mocks.requestsError,
     },
-    blocked: { data: [], isLoading: false, isError: false },
+    blocked: {
+      data: mocks.mixed
+        ? [
+            {
+              fromUserId: "user_1",
+              toUserId: "user_5",
+              profile: { ...target, id: "user_5", name: "Blocked User", blockedByMe: true },
+            },
+          ]
+        : mocks.blockedByMe
+          ? [
+              {
+                fromUserId: "user_1",
+                toUserId: "user_2",
+                profile: { ...target, blockedByMe: true },
+              },
+            ]
+          : [],
+      isLoading: false,
+      isError: false,
+    },
     suggestions: {
       data: {
         users: mocks.suggestion ? [{ ...target, isFollowing: false }] : [],
@@ -190,16 +232,15 @@ describe("Contacts tabs", () => {
       searchError: false,
       searchResult: false,
       suggestion: false,
+      mixed: false,
     });
   });
 
-  it("shows empty connection sections and search guidance before typing", () => {
+  it("shows one empty connections state and search guidance before typing", () => {
     mocks.following = false;
     renderWithI18n(<Contacts />);
-    for (const title of ["Friends", "Following", "Followers"])
-      expect(screen.getByRole("heading", { name: title })).toBeTruthy();
-    for (const message of ["No friends yet", "Not following anyone yet", "No followers yet"])
-      expect(screen.getByText(message)).toBeTruthy();
+    expect(screen.getByText("No connections yet")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Friends" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
     expect(screen.getByRole("heading", { name: "Search results" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Device Contacts" })).toBeTruthy();
@@ -226,7 +267,8 @@ describe("Contacts tabs", () => {
     mocks.friends = true;
     renderWithI18n(<Contacts />);
     expect(screen.getAllByText("Target User")).toHaveLength(1);
-    expect(screen.getByRole("heading", { name: "Friends" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Friends" })).toBeTruthy();
+    expect(screen.getAllByRole("list")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Remove friend" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Actions: Target User" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove friend" }));
@@ -234,6 +276,36 @@ describe("Contacts tabs", () => {
       targetUserId: "user_2",
       targetUser: expect.objectContaining({ id: "user_2" }),
     });
+  });
+
+  it("renders every connection type in one ordered list with labeled avatar badges", () => {
+    mocks.friends = true;
+    mocks.mixed = true;
+    renderWithI18n(<Contacts />);
+
+    const rows = screen.getAllByRole("listitem");
+    expect(rows).toHaveLength(4);
+    for (const [index, name, label] of [
+      [0, "Target User", "Friends"],
+      [1, "Following User", "Following"],
+      [2, "Follower User", "Followers"],
+      [3, "Blocked User", "Blocked"],
+    ] as const) {
+      expect(within(rows[index]).getByText(name)).toBeTruthy();
+      expect(within(rows[index]).getByRole("img", { name: label })).toBeTruthy();
+    }
+    expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("shows blocked users in connections, not requests, even with stale following data", () => {
+    mocks.blockedByMe = true;
+    renderWithI18n(<Contacts />);
+
+    expect(screen.getAllByText("Target User")).toHaveLength(1);
+    expect(screen.getByRole("img", { name: "Blocked" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
+    expect(screen.queryByRole("img", { name: "Blocked" })).toBeNull();
+    expect(screen.queryByText("Target User")).toBeNull();
   });
 
   it("sends request from connection menu when eligible", () => {

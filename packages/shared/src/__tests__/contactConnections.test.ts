@@ -16,7 +16,7 @@ const row = (profile: ContactUser | null): RelationshipRow => ({
   profile,
 });
 
-it("sorts friends, following, followers, then unconnected device matches without duplicates", () => {
+it("sorts friends, following, followers, blocked, then unconnected device matches without duplicates", () => {
   const sections = contactConnections(
     [row(user("friend")), row(null)],
     [row(user("friend")), row(user("following"))],
@@ -31,13 +31,32 @@ it("sorts friends, following, followers, then unconnected device matches without
       user("blocks-me", { blockedMe: true }),
       user("device"),
     ],
+    [row(user("blocked", { blockedByMe: true }))],
   );
   expect(sections.map(({ key, users }) => [key, users.map((item) => item.id)])).toEqual([
     ["friends", ["friend"]],
     ["following", ["following"]],
     ["followers", ["follower"]],
+    ["blocked", ["blocked"]],
     ["device", ["device"]],
   ]);
   expect(sections[1].users[0].isFollowing).toBe(true);
   expect(sections[2].users[0].isFollower).toBe(true);
+});
+
+it("keeps blocked users only in Blocked even when cached social lists still contain them", () => {
+  const sections = contactConnections(
+    [row(user("blocked"))],
+    [row(user("blocked"))],
+    [row(user("blocked"))],
+    [user("blocked")],
+    [row(user("blocked", { blockedByMe: true }))],
+  );
+  expect(sections.map(({ key, users }) => [key, users.map((item) => item.id)])).toEqual([
+    ["friends", []],
+    ["following", []],
+    ["followers", []],
+    ["blocked", ["blocked"]],
+    ["device", []],
+  ]);
 });

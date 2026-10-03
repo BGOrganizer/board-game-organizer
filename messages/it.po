@@ -131,6 +131,10 @@ msgid "Back"
 msgstr "Indietro"
 
 #: apps/web/src/components/MatchDetail.tsx
+msgid "Back matches"
+msgstr ""
+
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Back to match"
 msgstr "Torna alla partita"
@@ -178,6 +182,7 @@ msgid "Blocked"
 msgstr "Bloccati"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Board game"
 msgstr "Gioco da tavolo"
 
@@ -483,6 +488,7 @@ msgid "Could not load groups. Retry"
 msgstr "Impossibile caricare i gruppi. Riprova"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Could not load leaderboards. Retry"
 msgstr "Impossibile caricare le classifiche. Riprova"
 
@@ -743,6 +749,7 @@ msgstr "Modifica spareggio"
 #~ msgid "ELO ranking"
 #~ msgstr "Ranking ELO"
 
+#: apps/web/src/components/MatchLeaderboard.tsx
 #: apps/web/src/components/MatchStandingIdentity.tsx
 msgid "Email unavailable"
 msgstr "Email non disponibile"
@@ -847,14 +854,16 @@ msgid "games"
 msgstr "giochi"
 
 #: apps/web/src/components/MatchDetail.tsx
-msgid "Games"
-msgstr "Giochi"
+#~ msgid "Games"
+#~ msgstr "Giochi"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Games played"
 msgstr "Partite giocate"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Games won"
 msgstr "Partite vinte"
 
@@ -1002,6 +1011,7 @@ msgid "Language:"
 msgstr "Lingua:"
 
 #: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchDetail.tsx
 msgid "Leaderboards"
 msgstr "Classifiche"
 
@@ -1177,6 +1187,7 @@ msgid "Move up"
 msgstr "Sposta su"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "ND"
 msgstr "ND"
 
@@ -1206,12 +1217,13 @@ msgid "No"
 msgstr "No"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No blocked users"
-msgstr "Nessun utente bloccato"
+#~ msgid "No blocked users"
+#~ msgstr "Nessun utente bloccato"
 
 #: apps/web/src/components/Contacts.tsx
-#~ msgid "No connections yet"
-#~ msgstr "Nessuna connessione"
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile runtime useT)
+msgid "No connections yet"
+msgstr "Nessuna connessione"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No contacts found in your address book."
@@ -1230,8 +1242,8 @@ msgid "No countries found"
 msgstr "Nessun paese trovato"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No followers yet"
-msgstr "Nessun follower"
+#~ msgid "No followers yet"
+#~ msgstr "Nessun follower"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No friends from your contacts are on Board Game Organizer yet."
@@ -1242,8 +1254,8 @@ msgstr "Nessun follower"
 #~ msgstr "Non ci sono ancora amici da invitare"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No friends yet"
-msgstr "Nessun amico"
+#~ msgid "No friends yet"
+#~ msgstr "Nessun amico"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
@@ -1291,6 +1303,10 @@ msgstr "Nessuna partita — crea la prima!"
 msgid "No notifications yet"
 msgstr "Nessuna notifica"
 
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "No rankings available"
+msgstr "Nessuna classifica disponibile"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "No received friend requests"
 msgstr "Nessuna richiesta di amicizia ricevuta"
@@ -1298,10 +1314,6 @@ msgstr "Nessuna richiesta di amicizia ricevuta"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "No selected games"
 msgstr "Nessun gioco selezionato"
-
-#: apps/web/src/components/MatchLeaderboard.tsx apps/mobile/src/components/MatchLeaderboard.tsx (mobile-only, runtime useT)
-msgid "No rankings available"
-msgstr "Nessuna classifica disponibile"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "No sent friend requests"
@@ -1337,8 +1349,8 @@ msgid "Not enough accepted players"
 msgstr "Giocatori che hanno accettato insufficienti"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "Not following anyone yet"
-msgstr "Non segui ancora nessuno"
+#~ msgid "Not following anyone yet"
+#~ msgstr "Non segui ancora nessuno"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Not known"
@@ -1428,6 +1440,7 @@ msgstr "In pianificazione"
 #~ msgstr "Giocate"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Player"
 msgstr "Giocatore"
 
@@ -1478,6 +1491,7 @@ msgid "Provisional game rating"
 msgstr "Rating del gioco provvisorio"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Provisional rating"
 msgstr "Ranking provvisorio"
 
@@ -1498,6 +1512,7 @@ msgid "Rank"
 msgstr "Posizione"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 msgid "Ranking"
 msgstr "Ranking"
 
@@ -1594,6 +1609,10 @@ msgstr "Risolvi parità"
 #~ msgid "Respond to friend request"
 #~ msgstr "Rispondi alla richiesta di amicizia"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Results"
+msgstr "Risultati"
+
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Results and standings will become final and cannot be edited."
 msgstr "Risultati e classifica saranno definitivi e non potranno più essere modificati."
@@ -1601,8 +1620,10 @@ msgstr "Risultati e classifica saranno definitivi e non potranno più essere mod
 #~ msgid "Results can only be registered by the match administrator before termination."
 #~ msgstr "Solo l'amministratore può registrare i risultati prima che la partita sia terminata."
 
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/SearchUserPage.tsx
 msgid "Retry"
 msgstr "Riprova"
 
@@ -1698,6 +1719,7 @@ msgid "Select"
 msgstr "Seleziona"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Select a board game"
@@ -1783,12 +1805,8 @@ msgstr "Registrati"
 #~ msgstr "Accesso non disponibile"
 
 #: apps/web/src/components/MatchDetail.tsx
-msgid "Standings"
-msgstr "Classifica"
-
-#: apps/web/src/components/MatchDetail.tsx apps/mobile/src/app/match/[matchId].tsx (mobile-only, runtime useT)
-msgid "Results"
-msgstr "Risultati"
+#~ msgid "Standings"
+#~ msgstr "Classifica"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "Suggestions"

@@ -23,6 +23,7 @@ import { Typography } from "heroui-native/text";
 import {
   Ban,
   BookUser,
+  type LucideIcon,
   Mail,
   MoreVertical,
   Search,
@@ -99,11 +100,15 @@ function AvatarWithPresence({
   name,
   avatarUrl,
   online,
+  badge,
 }: {
   name: string;
   avatarUrl: string | null;
   online: boolean;
+  badge?: { icon: LucideIcon; label: string };
 }) {
+  const foreground = useThemeColor("foreground");
+  const BadgeIcon = badge?.icon;
   return (
     <View style={{ position: "relative" }}>
       <Avatar size="md">
@@ -123,6 +128,25 @@ function AvatarWithPresence({
           borderColor: "#fff",
         }}
       />
+      {badge && BadgeIcon ? (
+        <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={badge.label}
+          className="rounded-full border border-muted/20 bg-surface"
+          style={{
+            position: "absolute",
+            right: -4,
+            bottom: -4,
+            width: 22,
+            height: 22,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <BadgeIcon size={13} color={foreground} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -560,6 +584,7 @@ export default function ContactsScreen() {
     followingRows,
     followersRows,
     visibleSuggestions,
+    blockedRows,
   );
   const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
   const searchRows = contactSearchRows(
@@ -571,22 +596,23 @@ export default function ContactsScreen() {
     friends: t("Friends"),
     following: t("Following"),
     followers: t("Followers"),
-  };
-  const connectionEmpty = {
-    friends: t("No friends yet"),
-    following: t("Not following anyone yet"),
-    followers: t("No followers yet"),
+    blocked: t("Blocked"),
   };
   const connectionIcons = {
     friends: UsersRound,
     following: UserRoundPlus,
     followers: UserRoundCheck,
+    blocked: Ban,
   };
-  const connectionQueries = {
-    friends: contacts.friends,
-    following: contacts.following,
-    followers: contacts.followers,
-  };
+  const connectionQueries = [
+    contacts.friends,
+    contacts.following,
+    contacts.followers,
+    contacts.blocked,
+  ];
+  const connectionRows = connections
+    .filter((section) => section.key !== "device")
+    .flatMap((section) => section.users.map((user) => ({ user, type: section.key })));
   const canSendFriendRequest = (user: ContactUser) =>
     friendRequestsLoaded &&
     !user.isFriend &&
@@ -594,12 +620,17 @@ export default function ContactsScreen() {
     !user.blockedMe &&
     !pendingRequestIds.has(user.id) &&
     !sentRequestIds.has(user.id);
-  const contactRow = (user: ContactUser, friendRequest?: FriendRequestContext) => (
+  const contactRow = (
+    user: ContactUser,
+    friendRequest?: FriendRequestContext,
+    badge?: { icon: LucideIcon; label: string },
+  ) => (
     <GroupedRow key={user.id}>
       <AvatarWithPresence
         name={user.name}
         avatarUrl={user.avatarUrl}
         online={user.presence.online}
+        badge={badge}
       />
       <View style={{ flex: 1 }}>
         <Typography className="font-medium text-foreground" numberOfLines={1}>
@@ -864,51 +895,82 @@ export default function ContactsScreen() {
                 empty: t("No sent friend requests"),
                 query: contacts.sent,
               },
-              {
-                key: "blocked",
-                label: t("Blocked"),
-                icon: Ban,
-                rows: blockedRows,
-                isLoading: contacts.blocked.isLoading,
-                isError: contacts.blocked.isError,
-                empty: t("No blocked users"),
-                query: contacts.blocked,
-              },
             ]}
             getRowKey={(row) => row.profile?.id ?? `${row.fromUserId}-${row.toUserId}`}
             renderRow={(row, sectionKey) =>
               row.profile
-                ? contactRow(
-                    row.profile,
-                    sectionKey === "received"
-                      ? "incoming"
-                      : sectionKey === "sent"
-                        ? "outgoing"
-                        : undefined,
-                  )
+                ? contactRow(row.profile, sectionKey === "received" ? "incoming" : "outgoing")
                 : null
             }
           />
         </Tabs.Content>
 
         <Tabs.Content value="connections" style={{ flex: 1, marginTop: 12 }}>
-          <ContactSections
-            sections={connections
-              .filter((section) => section.key !== "device")
-              .map((section) => ({
-                key: section.key,
-                label: connectionLabels[section.key],
-                icon: connectionIcons[section.key],
-                rows: section.users,
-                isLoading: connectionQueries[section.key].isLoading,
-                isError: connectionQueries[section.key].isError,
-                empty: connectionEmpty[section.key],
-                query: connectionQueries[section.key],
-              }))}
-            getRowKey={(user) => user.id}
-            renderRow={(user) => contactRow(user)}
-            footer={
+          <FlatList
+            data={connectionRows}
+            keyExtractor={({ user }) => user.id}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
+            renderItem={({ item }) => (
+              <GroupedList>
+                {contactRow(item.user, undefined, {
+                  icon: connectionIcons[item.type],
+                  label: connectionLabels[item.type],
+                })}
+              </GroupedList>
+            )}
+            onEndReached={() => {
+              if (connectionQueries.some((query) => query.isError)) return;
+              const query = connectionQueries.find((page) => page.hasNextPage);
+              if (query && !query.isFetchingNextPage && !query.isFetchNextPageError)
+                void query.fetchNextPage();
+            }}
+            onEndReachedThreshold={0.5}
+            ListHeaderComponent={
               <>
+                {connectionQueries.some((query) => query.isLoading) ? (
+                  <ContactListSkeleton count={2} />
+                ) : null}
+                {connectionQueries.some((query) => query.isError) ? (
+                  <View style={{ gap: 4 }}>
+                    <Typography accessibilityRole="alert" className="text-sm text-danger">
+                      {t("Could not load contacts")}
+                    </Typography>
+                    <Button
+                      variant="ghost"
+                      onPress={() => {
+                        for (const query of connectionQueries) {
+                          if (query.isError) void query.refetch();
+                        }
+                      }}
+                    >
+                      <Typography>{t("Retry")}</Typography>
+                    </Button>
+                  </View>
+                ) : null}
+              </>
+            }
+            ListEmptyComponent={
+              connectionQueries.some((query) => query.isLoading || query.isError) ? null : (
+                <EmptyList icon={<UsersRound size={28} color="#737373" />}>
+                  {t("No connections yet")}
+                </EmptyList>
+              )
+            }
+            ListFooterComponent={
+              <View style={{ gap: 8 }}>
+                {connectionQueries.some((query) => query.isFetchNextPageError) ? (
+                  <Button
+                    variant="ghost"
+                    onPress={() => {
+                      for (const query of connectionQueries) {
+                        if (query.isFetchNextPageError) void query.fetchNextPage();
+                      }
+                    }}
+                  >
+                    <Typography>{t("Retry")}</Typography>
+                  </Button>
+                ) : null}
                 {syncingContacts || contactsPermission === "checking" ? (
                   <ContactListSkeleton count={2} />
                 ) : null}
@@ -918,7 +980,7 @@ export default function ContactsScreen() {
                     <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
                   </Button>
                 ) : null}
-              </>
+              </View>
             }
           />
         </Tabs.Content>

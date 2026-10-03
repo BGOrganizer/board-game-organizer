@@ -53,7 +53,7 @@ describe("matchCardData", () => {
     });
   });
   it("shows min/max, all dates, and game count while planning", () => {
-    expect(matchCardData(match)).toEqual({
+    expect(matchCardData(match, Date.parse("2026-09-01T00:00:00Z"))).toEqual({
       date: match.dates[0],
       additionalDates: 1,
       players: 2,
