@@ -242,6 +242,7 @@ describe("useMatchDetail", () => {
       ...detail.match,
       status: "CREATED",
       selectedDate: detail.match.dates[0],
+      selectedLocationId: "8b1f8d7e-b32b-4c56-b0de-190748935516",
       selectedGameId: 1,
       invitedUserIds: [],
       invitations: [],
@@ -252,9 +253,11 @@ describe("useMatchDetail", () => {
     await waitFor(() => expect(result.current.detail.data?.match.selectedGameId).toBe(1));
     act(() => result.current.setStatus.mutate("PLANNING"));
     await waitFor(() => expect(result.current.detail.data?.match.status).toBe("PLANNING"));
+    expect(result.current.detail.data?.match.selectedLocationId).toBeUndefined();
     finishPatch(new Response("error", { status: 409 }));
     await waitFor(() => expect(result.current.setStatus.isError).toBe(true));
     expect(result.current.detail.data?.match.status).toBe("CREATED");
+    expect(result.current.detail.data?.match.selectedLocationId).toBe(created.selectedLocationId);
     expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "replan_match");
   });
 
@@ -718,6 +721,15 @@ describe("useMatchDetail", () => {
       result.current.create.mutate({
         name: "Friday night games",
         dates: ["2026-09-12T18:00:00.000Z"],
+        locations: [
+          {
+            id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+            name: "Game cafe",
+            address: "123 Main St",
+            longitude: 12.5,
+            latitude: 41.9,
+          },
+        ],
         minPlayers: 2,
         maxPlayers: 4,
         invitedUserIds: [],

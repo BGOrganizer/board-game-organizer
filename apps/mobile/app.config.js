@@ -45,11 +45,17 @@ module.exports = {
       "@sentry/react-native",
       "expo-font",
       "expo-contacts",
+      [
+        "expo-location",
+        { locationWhenInUsePermission: "Show your position on the match location map." },
+      ],
+      "@rnmapbox/maps",
       ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#006fee" }],
       "@react-native-community/datetimepicker",
     ],
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL,
+      mapboxAccessToken: process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN,
       clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       router: {},
       eas: {

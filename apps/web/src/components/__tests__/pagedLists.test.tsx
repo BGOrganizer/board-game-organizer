@@ -160,6 +160,15 @@ describe("paginated lists", () => {
       result.current.create.mutate({
         name: "Catan weekend",
         dates: ["2026-10-01T00:00:00.000Z"],
+        locations: [
+          {
+            id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+            name: "Game cafe",
+            address: "123 Main St",
+            longitude: 12.5,
+            latitude: 41.9,
+          },
+        ],
         minPlayers: 2,
         maxPlayers: 4,
         gameIds: [1],

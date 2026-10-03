@@ -784,7 +784,11 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
               ...match,
               status,
               ...(status === "PLANNING"
-                ? { selectedDate: undefined, selectedGameId: undefined }
+                ? {
+                    selectedDate: undefined,
+                    selectedLocationId: undefined,
+                    selectedGameId: undefined,
+                  }
                 : {}),
               ...(status === "CREATED"
                 ? {

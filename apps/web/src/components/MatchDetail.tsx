@@ -27,6 +27,7 @@ import {
   Ellipsis,
   Gamepad2,
   LogOut,
+  MapPin,
   Medal,
   Minus,
   MoreVertical,
@@ -335,13 +336,16 @@ export function MatchDetail({ matchId }: { matchId: string }) {
       ? t`Not enough accepted players`
       : reason === "NO_SHARED_DATE"
         ? t`No shared date`
-        : t`No shared game`,
+        : reason === "NO_SHARED_LOCATION"
+          ? t`No shared location`
+          : t`No shared game`,
   ) ?? [t`Match readiness unavailable`];
   const canConfirm =
     match.status === "PLANNING" &&
     summary?.reasons.length === 0 &&
     Boolean(summary.selectedDate) &&
-    Boolean(summary.selectedGameId);
+    Boolean(summary.selectedGameId) &&
+    (!match.locations?.length || Boolean(summary.selectedLocationId));
   const chosenGame =
     games.find((game) => game.id === summary?.selectedGameId)?.name ??
     String(summary?.selectedGameId ?? "");
@@ -577,6 +581,43 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 ))}
               </GroupedList>
             </div>
+            {Boolean(match.locations?.length) && (
+              <div className="space-y-2">
+                <h2 className="flex items-center gap-2 text-sm font-semibold">
+                  <MapPin className="size-4" aria-hidden="true" />
+                  {match.status !== "PLANNING" ? t`Confirmed location` : t`Location selection`}
+                </h2>
+                <GroupedList>
+                  {match.locations
+                    ?.filter(
+                      (location) =>
+                        match.status === "PLANNING" || location.id === match.selectedLocationId,
+                    )
+                    .map((location) => (
+                      <GroupedRow key={location.id} className="flex-wrap">
+                        <MapPin className="size-4 shrink-0" aria-hidden="true" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">{location.name}</p>
+                          <p className="text-default-500">{location.address}</p>
+                        </div>
+                        {canChoose && (
+                          <ChoiceDropdown
+                            label={t`Choose location`}
+                            choice={matchData.choices?.locations?.[location.id] ?? "UNKNOWN"}
+                            pending={matches.setChoice.isPending}
+                            onChoose={(choice) =>
+                              choose({ kind: "locations", itemId: location.id, choice })
+                            }
+                          />
+                        )}
+                        {match.status === "PLANNING" && summary?.locations?.[location.id] && (
+                          <VoteCounts counts={summary.locations[location.id]} />
+                        )}
+                      </GroupedRow>
+                    ))}
+                </GroupedList>
+              </div>
+            )}
             <div className="space-y-2">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <Gamepad2 className="size-4" aria-hidden="true" />
@@ -818,7 +859,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           }
           description={
             confirmAction === "confirm"
-              ? i18n._("match.confirm.summary", { date: chosenDate, game: chosenGame })
+              ? `${i18n._("match.confirm.summary", { date: chosenDate, game: chosenGame })}${match.locations?.length ? ` · ${t`Location`}: ${match.locations.find((location) => location.id === summary?.selectedLocationId)?.name ?? ""}` : ""}`
               : confirmAction === "replan"
                 ? t`Reopen planning? Pending invitees will regain access and accepted players will be notified.`
                 : confirmAction === "delete"

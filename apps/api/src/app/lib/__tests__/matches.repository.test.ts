@@ -28,6 +28,15 @@ const input = {
   clerkId: "user_1",
   name: "Friday night games",
   dates: ["2026-09-05T20:00:00.000Z"],
+  locations: [
+    {
+      id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+      name: "Game cafe",
+      address: "123 Main St",
+      longitude: 12.5,
+      latitude: 41.9,
+    },
+  ],
   minPlayers: 2,
   maxPlayers: 5,
   gameIds: [342942],
@@ -303,7 +312,7 @@ describe("MatchesRepository", () => {
       { id: stored.id, clerkId: "user_1", status: "CREATED" },
       {
         $set: { status: "PLANNING", updatedAt: expect.any(String) },
-        $unset: { selectedDate: "", selectedGameId: "" },
+        $unset: { selectedDate: "", selectedLocationId: "", selectedGameId: "" },
       },
       { returnDocument: "after", projection: { _id: 0 } },
     );

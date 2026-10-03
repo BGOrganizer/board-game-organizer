@@ -1,4 +1,8 @@
-import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
+import type {
+  CreateMatchInput,
+  MatchDetailResponse,
+  MatchLocation,
+} from "@board-game-organizer/schemas";
 import {
   formatMatchDateTime,
   resolveApiUrl,
@@ -22,6 +26,7 @@ import {
   CalendarDays,
   Clock3,
   Gamepad2,
+  MapPin,
   Minus,
   Plus,
   Save,
@@ -43,6 +48,7 @@ function apiUrl(): string {
 }
 
 type DateSlot = { id: string; value: string | null };
+type LocationSlot = { id: string; location: MatchLocation | null };
 type UserSlot = {
   id: string;
   user: { id: string; name: string; email: string | null; avatarUrl: string | null } | null;
@@ -71,13 +77,18 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [name, setName] = useState(initialData?.match.name ?? "");
   const [groupId, setGroupId] = useState(initialData?.match.groupId ?? "");
   const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
     initialData
       ? initialData.match.dates.map((value) => ({ id: uid(), value }))
       : [{ id: uid(), value: null }],
+  );
+  const [locationSlots, setLocationSlots] = useState<LocationSlot[]>(() =>
+    initialData?.match.locations?.length
+      ? initialData.match.locations.map((location) => ({ id: uid(), location }))
+      : [{ id: uid(), location: null }],
   );
   const [minPlayers, setMinPlayers] = useState(initialData?.match.minPlayers ?? 2);
   const [maxPlayers, setMaxPlayers] = useState(initialData?.match.maxPlayers ?? 4);
@@ -131,6 +142,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   // Consume selections written by the search pages (user/game pickers).
   const pendingUser = useAppStore((s) => s.pendingUser);
   const pendingGame = useAppStore((s) => s.pendingGame);
+  const pendingLocation = useAppStore((s) => s.pendingLocation);
   const clearPending = useAppStore((s) => s.clearPending);
   useEffect(() => {
     if (pendingUser && userSlots.some((slot) => slot.id === pendingUser.slotId)) {
@@ -150,6 +162,15 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
       clearPending();
     }
   }, [pendingGame, clearPending]);
+  useEffect(() => {
+    if (!pendingLocation) return;
+    setLocationSlots((slots) =>
+      slots.map((slot) =>
+        slot.id === pendingLocation.slotId ? { ...slot, location: pendingLocation.location } : slot,
+      ),
+    );
+    clearPending();
+  }, [pendingLocation, clearPending]);
 
   const step1Valid = useMemo(
     // Every date slot must be filled: an added-but-empty slot blocks
@@ -160,6 +181,8 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
       (!groupId || Boolean(selectedGroup)),
     [name, dateSlots, groupId, selectedGroup],
   );
+  const locationsValid =
+    locationSlots.length > 0 && locationSlots.every((slot) => slot.location !== null);
   const step2Valid = useMemo(
     () =>
       minPlayers >= 2 &&
@@ -231,10 +254,11 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
     );
 
   const save = useCallback(async () => {
-    if (!step3Valid) return;
+    if (!step3Valid || !locationsValid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
       dates: dateSlots.flatMap((s) => (s.value ? [s.value] : [])),
+      locations: locationSlots.flatMap((s) => (s.location ? [s.location] : [])),
       minPlayers,
       maxPlayers,
       invitedUserIds: userSlots.flatMap((s) => (s.user ? [s.user.id] : [])),
@@ -258,6 +282,8 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   }, [
     initialData,
     step3Valid,
+    locationsValid,
+    locationSlots,
     name,
     dateSlots,
     minPlayers,
@@ -271,10 +297,11 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
 
   const next = () => {
     if (step === 1 && step1Valid) setStep(2);
-    else if (step === 2 && step2Valid) setStep(3);
-    else if (step === 3 && step3Valid) void save();
+    else if (step === 2 && locationsValid) setStep(3);
+    else if (step === 3 && step2Valid) setStep(4);
+    else if (step === 4 && step3Valid) void save();
   };
-  const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s));
+  const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s === 4 ? 3 : s));
 
   return (
     <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
@@ -285,7 +312,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
       >
         {/* Step indicator */}
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 16 }}>
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <View
               key={s}
               style={{
@@ -438,6 +465,63 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
 
         {step === 2 && (
           <View style={{ gap: 16 }}>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Locations")}</Typography>
+            <GroupedList>
+              {locationSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={slot.location?.name ?? t("Select location")}
+                    testID={`location-slot-${slot.id}`}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/match/search-location",
+                        params: {
+                          slotId: slot.id,
+                          ...(slot.location ? { initial: JSON.stringify(slot.location) } : {}),
+                        },
+                      })
+                    }
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: 12,
+                    }}
+                  >
+                    <MapPin size={20} color="#6b7280" />
+                    <Typography className="text-foreground" numberOfLines={2}>
+                      {slot.location
+                        ? `${slot.location.name} · ${slot.location.address}`
+                        : t("Select location")}
+                    </Typography>
+                  </Pressable>
+                  <Button
+                    variant="danger-soft"
+                    isIconOnly
+                    accessibilityLabel={t("Remove location")}
+                    onPress={() =>
+                      setLocationSlots((slots) => slots.filter((item) => item.id !== slot.id))
+                    }
+                  >
+                    <Trash2 size={18} color="#f31260" />
+                  </Button>
+                </GroupedRow>
+              ))}
+            </GroupedList>
+            <Button
+              variant="secondary"
+              onPress={() => setLocationSlots((slots) => [...slots, { id: uid(), location: null }])}
+            >
+              <Plus size={18} color="#6b7280" />
+              {t("Add location")}
+            </Button>
+          </View>
+        )}
+
+        {step === 3 && (
+          <View style={{ gap: 16 }}>
             <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Players")}</Typography>
             <View style={{ flexDirection: "row", gap: 24 }}>
               <Stepper
@@ -546,7 +630,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
           </View>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <View style={{ gap: 16 }}>
             <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Typography>
             <GroupedList>
@@ -669,18 +753,24 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
       ) : null}
 
       <FloatingActions
-        label={step === 3 ? (initialData ? "Save changes" : "Create match") : "Next step"}
-        testID={step === 3 ? "save-match-fab" : "next-step-fab"}
+        label={step === 4 ? (initialData ? "Save changes" : "Create match") : "Next step"}
+        testID={step === 4 ? "save-match-fab" : "next-step-fab"}
         onPress={next}
         extraBottom={92}
-        variant={step === 3 ? "primary" : "secondary"}
+        variant={step === 4 ? "primary" : "secondary"}
         isDisabled={
           matches.create.isPending ||
           matches.update.isPending ||
-          (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+          (step === 1
+            ? !step1Valid
+            : step === 2
+              ? !locationsValid
+              : step === 3
+                ? !step2Valid
+                : !step3Valid)
         }
       >
-        {step === 3 ? <Save color="#fff" size={26} /> : <ArrowRight color="#111" size={26} />}
+        {step === 4 ? <Save color="#fff" size={26} /> : <ArrowRight color="#111" size={26} />}
       </FloatingActions>
 
       {/* Native date/time picker: iOS renders an inline spinner (datetime

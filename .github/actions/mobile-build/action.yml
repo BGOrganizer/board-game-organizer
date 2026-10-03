@@ -26,6 +26,10 @@ inputs:
     description: EXPO_PUBLIC_SENTRY_DSN
     required: false
     default: ''
+  mapbox-download-token:
+    description: Mapbox Downloads:Read token for native SDK downloads (repository secret)
+    required: false
+    default: ''
   google-services-json:
     description: Optional google-services.json content from a GitHub Actions secret
     required: false
@@ -120,6 +124,8 @@ runs:
         EXPO_TOKEN: ${{ inputs.expo-token }}
         EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
+        EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN: ${{ vars.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN }}
+        RNMAPBOX_MAPS_DOWNLOAD_TOKEN: ${{ inputs.mapbox-download-token }}
         EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
         EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ inputs.protection-bypass }}
         GOOGLE_SERVICES_JSON_CONTENT: ${{ inputs.google-services-json }}

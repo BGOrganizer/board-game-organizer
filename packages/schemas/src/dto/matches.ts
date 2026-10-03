@@ -3,6 +3,7 @@ import {
   matchChoiceSchema,
   matchChoicesSchema,
   matchInvitationStatusSchema,
+  matchLocationSchema,
   matchResultsSchema,
   matchScoreSchema,
   matchStatusSchema,
@@ -27,6 +28,7 @@ export const matchResponseSchema = z.object({
   adminUserId: z.string(),
   name: z.string(),
   dates: z.array(z.string()),
+  locations: z.array(matchLocationSchema).optional(),
   minPlayers: z.number(),
   maxPlayers: z.number(),
   invitedUserIds: z.array(z.string()),
@@ -34,6 +36,7 @@ export const matchResponseSchema = z.object({
   groupId: z.uuid().optional(),
   status: matchStatusSchema,
   selectedDate: z.string().optional(),
+  selectedLocationId: z.uuid().optional(),
   selectedGameId: z.number().optional(),
   /** Included by match listings when the selected catalog game is available. */
   selectedGameName: z.string().optional(),
@@ -88,8 +91,12 @@ export type MatchVoteCounts = z.infer<typeof matchVoteCountsSchema>;
 export const matchVoteSummarySchema = z.object({
   dates: z.record(z.string(), matchVoteCountsSchema),
   games: z.record(z.string(), matchVoteCountsSchema),
-  reasons: z.array(z.enum(["NOT_ENOUGH_PLAYERS", "NO_SHARED_DATE", "NO_SHARED_GAME"])),
+  locations: z.record(z.string(), matchVoteCountsSchema).optional(),
+  reasons: z.array(
+    z.enum(["NOT_ENOUGH_PLAYERS", "NO_SHARED_DATE", "NO_SHARED_GAME", "NO_SHARED_LOCATION"]),
+  ),
   selectedDate: z.string().optional(),
+  selectedLocationId: z.uuid().optional(),
   selectedGameId: z.number().optional(),
 });
 export type MatchVoteSummary = z.infer<typeof matchVoteSummarySchema>;
@@ -138,6 +145,7 @@ export const setMatchChoiceSchema = z.discriminatedUnion("kind", [
     itemId: z.number().int().positive(),
     choice: matchChoiceSchema,
   }),
+  z.object({ kind: z.literal("locations"), itemId: z.uuid(), choice: matchChoiceSchema }),
 ]);
 export type SetMatchChoiceInput = z.infer<typeof setMatchChoiceSchema>;
 
@@ -184,6 +192,13 @@ export const updateMatchSchema = z
       .refine((gameIds) => new Set(gameIds).size === gameIds.length)
       .optional(),
     groupId: z.uuid().nullable().optional(),
+    locations: z
+      .array(matchLocationSchema)
+      .min(1)
+      .refine(
+        (locations) => new Set(locations.map((location) => location.id)).size === locations.length,
+      )
+      .optional(),
   })
   .strict()
   .refine((input) => Object.values(input).some((value) => value !== undefined), {

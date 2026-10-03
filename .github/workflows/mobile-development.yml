@@ -27,6 +27,7 @@ jobs:
           api-url: ${{ vars.EXPO_PUBLIC_API_URL }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          mapbox-download-token: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
 
       - name: 📦 Attach development APK to latest release
         env:

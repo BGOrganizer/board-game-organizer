@@ -179,6 +179,7 @@ jobs:
           api-url: https://api.board-game-organizer.com
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          mapbox-download-token: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
 
       - name: 📤 Upload APK artifact (shared with E2E + publish-release)
         uses: actions/upload-artifact@v4
@@ -210,6 +211,7 @@ jobs:
           api-url: ${{ needs.deploy-e2e-api.outputs.url }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          mapbox-download-token: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 📤 Upload isolated E2E APK

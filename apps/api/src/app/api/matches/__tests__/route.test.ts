@@ -33,6 +33,15 @@ const invitation = { id: invitationId, status: "PENDING" };
 const createBody = {
   name: "Friday games",
   dates: ["2026-10-01T20:00:00.000Z"],
+  locations: [
+    {
+      id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+      name: "Game cafe",
+      address: "123 Main St",
+      longitude: 12.5,
+      latitude: 41.9,
+    },
+  ],
   minPlayers: 2,
   maxPlayers: 4,
   invitedUserIds: [],
@@ -228,6 +237,27 @@ describe("match API routes", () => {
       ),
     );
     expect(overCapacity.status).toBe(400);
+    expect(
+      (
+        await matchesRoute.POST(
+          request("/api/matches", "POST", JSON.stringify({ ...createBody, locations: [] })),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await matchesRoute.POST(
+          request(
+            "/api/matches",
+            "POST",
+            JSON.stringify({
+              ...createBody,
+              locations: [{ ...createBody.locations[0], latitude: 91 }],
+            }),
+          ),
+        )
+      ).status,
+    ).toBe(400);
   });
 
   it("rejects invalid JSON, media type, and oversized bodies", async () => {

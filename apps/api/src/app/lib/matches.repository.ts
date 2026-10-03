@@ -38,6 +38,7 @@ export class MatchesRepository {
       clerkId: match.clerkId,
       name: match.name,
       dates: match.dates,
+      locations: match.locations ?? [],
       minPlayers: match.minPlayers,
       maxPlayers: match.maxPlayers,
       gameIds: match.gameIds,
@@ -45,6 +46,7 @@ export class MatchesRepository {
       ...(match.choices ? { choices: match.choices } : {}),
       status: match.status ?? "PLANNING",
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
+      ...(match.selectedLocationId ? { selectedLocationId: match.selectedLocationId } : {}),
       ...(match.selectedGameId ? { selectedGameId: match.selectedGameId } : {}),
       ...(match.results ? { results: match.results } : {}),
       createdAt: match.createdAt,
@@ -56,6 +58,7 @@ export class MatchesRepository {
     clerkId: string;
     name: string;
     dates: string[];
+    locations: NonNullable<Match["locations"]>;
     minPlayers: number;
     maxPlayers: number;
     gameIds: number[];
@@ -67,6 +70,7 @@ export class MatchesRepository {
       clerkId: input.clerkId,
       name: input.name,
       dates: input.dates,
+      locations: input.locations,
       minPlayers: input.minPlayers,
       maxPlayers: input.maxPlayers,
       gameIds: input.gameIds,
@@ -114,7 +118,9 @@ export class MatchesRepository {
   async updatePlanning(
     id: string,
     clerkId: string,
-    updates: Partial<Pick<Match, "name" | "dates" | "minPlayers" | "maxPlayers" | "gameIds">> & {
+    updates: Partial<
+      Pick<Match, "name" | "dates" | "locations" | "minPlayers" | "maxPlayers" | "gameIds">
+    > & {
       groupId?: string | null;
     },
   ): Promise<Match | null> {
@@ -136,7 +142,9 @@ export class MatchesRepository {
       {
         id,
         $or: [{ status: "PLANNING" }, { status: { $exists: false } }],
-        [input.kind === "dates" ? "dates" : "gameIds"]: input.itemId,
+        ...(input.kind === "locations"
+          ? { "locations.id": input.itemId }
+          : { [input.kind === "dates" ? "dates" : "gameIds"]: input.itemId }),
       },
       { $set: { [`choices.${userId}.${input.kind}.${key}`]: input.choice } },
       this.opts,
@@ -148,12 +156,18 @@ export class MatchesRepository {
     return this.col.updateOne({ id }, { $unset: { [`choices.${userId}`]: "" } }, this.opts);
   }
 
-  clearRemovedOptionChoices(match: Match, removedDates: string[], removedGames: number[]) {
+  clearRemovedOptionChoices(
+    match: Match,
+    removedDates: string[],
+    removedGames: number[],
+    removedLocations: string[] = [],
+  ) {
     const unset: Record<string, ""> = {};
     for (const userId of Object.keys(match.choices ?? {})) {
       if (!/^[A-Za-z0-9_-]+$/.test(userId)) throw new Error("Invalid user id");
       for (const date of removedDates) unset[`choices.${userId}.dates.${Date.parse(date)}`] = "";
       for (const id of removedGames) unset[`choices.${userId}.games.${id}`] = "";
+      for (const id of removedLocations) unset[`choices.${userId}.locations.${id}`] = "";
     }
     if (Object.keys(unset).length > 0) {
       return this.col.updateOne({ id: match.id }, { $unset: unset }, this.opts);
@@ -178,7 +192,7 @@ export class MatchesRepository {
     clerkId: string,
     previousStatus: MatchStatus,
     status: MatchStatus,
-    selected?: { date: string; gameId: number },
+    selected?: { date: string; locationId?: string; gameId: number },
   ): Promise<Match | null> {
     const updated = await this.col.findOneAndUpdate(
       {
@@ -193,13 +207,14 @@ export class MatchesRepository {
             $set: {
               status,
               selectedDate: selected.date,
+              ...(selected.locationId ? { selectedLocationId: selected.locationId } : {}),
               selectedGameId: selected.gameId,
               updatedAt: new Date().toISOString(),
             },
           }
         : {
             $set: { status, updatedAt: new Date().toISOString() },
-            $unset: { selectedDate: "", selectedGameId: "" },
+            $unset: { selectedDate: "", selectedLocationId: "", selectedGameId: "" },
           },
       { returnDocument: "after", projection: { _id: 0 }, ...this.opts },
     );

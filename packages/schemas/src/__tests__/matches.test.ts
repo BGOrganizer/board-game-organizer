@@ -46,6 +46,15 @@ it("accepts signed decimals and ND but never allows TERMINATED through the statu
 const valid = {
   name: "Friday games",
   dates: ["2026-10-01T20:00:00.000Z"],
+  locations: [
+    {
+      id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+      name: "Game cafe",
+      address: "123 Main St",
+      longitude: 12.5,
+      latitude: 41.9,
+    },
+  ],
   minPlayers: 2,
   maxPlayers: 4,
   invitedUserIds: ["user_guest"],
@@ -85,6 +94,11 @@ describe("createMatchSchema", () => {
     [{ ...valid, name: "four" }],
     [{ ...valid, name: "x".repeat(121) }],
     [{ ...valid, dates: [] }],
+    [{ ...valid, locations: [] }],
+    [{ ...valid, locations: [{ ...valid.locations[0], name: "abc" }] }],
+    [{ ...valid, locations: [{ ...valid.locations[0], address: "" }] }],
+    [{ ...valid, locations: [{ ...valid.locations[0], latitude: 100 }] }],
+    [{ ...valid, locations: [{ ...valid.locations[0], longitude: -181 }] }],
     [{ ...valid, dates: ["tomorrow"] }],
     [{ ...valid, minPlayers: 1 }],
     [{ ...valid, minPlayers: 2.5 }],
@@ -103,6 +117,7 @@ describe("createMatchSchema", () => {
     [{ ...valid, dates: [valid.dates[0], valid.dates[0]] }],
     [{ ...valid, invitedUserIds: ["user_guest", "user_guest"] }],
     [{ ...valid, gameIds: [1, 1] }],
+    [{ ...valid, locations: [valid.locations[0], valid.locations[0]] }],
   ])("rejects duplicate values %#", (input) => {
     expect(createMatchSchema.safeParse(input).success).toBe(false);
   });

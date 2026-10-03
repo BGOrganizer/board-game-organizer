@@ -28,6 +28,7 @@ import {
   Ellipsis,
   Gamepad2,
   LogOut,
+  MapPin,
   Medal,
   Minus,
   Pencil,
@@ -100,7 +101,8 @@ function choiceLabel(choice: MatchChoice, t: ReturnType<typeof useT>): string {
 
 type ActiveChoice =
   | { kind: "dates"; itemId: string; title: string }
-  | { kind: "games"; itemId: number; title: string };
+  | { kind: "games"; itemId: number; title: string }
+  | { kind: "locations"; itemId: string; title: string };
 
 export default function MatchDetailScreen() {
   const { matchId: matchIdParam, tab } = useLocalSearchParams<{
@@ -155,7 +157,10 @@ export default function MatchDetailScreen() {
   const summary = matches.detail.data?.voteSummary;
   const statusUnavailable =
     match?.status === "PLANNING" &&
-    (summary?.reasons.length !== 0 || !summary.selectedDate || !summary.selectedGameId);
+    (summary?.reasons.length !== 0 ||
+      !summary.selectedDate ||
+      !summary.selectedGameId ||
+      (Boolean(match.locations?.length) && !summary.selectedLocationId));
   const statusReason =
     summary?.reasons
       .map((reason) =>
@@ -163,7 +168,9 @@ export default function MatchDetailScreen() {
           ? t("Not enough accepted players")
           : reason === "NO_SHARED_DATE"
             ? t("No shared date")
-            : t("No shared game"),
+            : reason === "NO_SHARED_LOCATION"
+              ? t("No shared location")
+              : t("No shared game"),
       )
       .join(" · ") || t("Match readiness unavailable");
   const editableMatch =
@@ -187,7 +194,7 @@ export default function MatchDetailScreen() {
     Alert.alert(
       creating ? t("Confirm match?") : t("Back to planning?"),
       creating
-        ? `${t("Confirm match with")} ${date} · ${game}?`
+        ? `${t("Confirm match with")} ${date} · ${game}${match.locations?.length ? ` · ${t("Location")}: ${match.locations.find((item) => item.id === summary?.selectedLocationId)?.name ?? ""}` : ""}?`
         : t(
             "Reopen planning? Pending invitees will regain access and accepted players will be notified.",
           ),
@@ -499,6 +506,12 @@ export default function MatchDetailScreen() {
                         itemId: activeChoice.itemId,
                         choice,
                       });
+                    else if (activeChoice?.kind === "locations")
+                      matches.setChoice.mutate({
+                        kind: "locations",
+                        itemId: activeChoice.itemId,
+                        choice,
+                      });
                     else if (activeChoice)
                       matches.setChoice.mutate({
                         kind: "games",
@@ -794,6 +807,64 @@ function MatchDetailContent({
                 );
               })}
             </GroupedList>
+            {Boolean(match.locations?.length) && (
+              <>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <MapPin size={18} color={muted} />
+                  <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                    {match.status !== "PLANNING"
+                      ? t("Confirmed location")
+                      : t("Location selection")}
+                  </Typography>
+                </View>
+                <GroupedList>
+                  {match.locations
+                    ?.filter(
+                      (location) =>
+                        match.status === "PLANNING" || location.id === match.selectedLocationId,
+                    )
+                    .map((location) => {
+                      const choice = data.choices?.locations?.[location.id] ?? "UNKNOWN";
+                      return (
+                        <GroupedRow key={location.id}>
+                          <MapPin size={16} color={muted} />
+                          <View style={{ flex: 1, gap: 3 }}>
+                            <Typography className="font-medium text-foreground">
+                              {location.name}
+                            </Typography>
+                            <Typography className="text-sm text-muted">
+                              {location.address}
+                            </Typography>
+                            {match.status === "PLANNING" &&
+                              data.voteSummary?.locations?.[location.id] && (
+                                <VoteCounts counts={data.voteSummary.locations[location.id]} />
+                              )}
+                          </View>
+                          {canChoose && (
+                            <Button
+                              variant="outline"
+                              isIconOnly
+                              size="sm"
+                              isDisabled={choicePending}
+                              testID="choose-location"
+                              accessibilityLabel={`${t("Choose location")}: ${choiceLabel(choice, t)}`}
+                              onPress={() =>
+                                openChoice({
+                                  kind: "locations",
+                                  itemId: location.id,
+                                  title: t("Choose location"),
+                                })
+                              }
+                            >
+                              <ChoiceIcon choice={choice} color={iconColors[choice]} />
+                            </Button>
+                          )}
+                        </GroupedRow>
+                      );
+                    })}
+                </GroupedList>
+              </>
+            )}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Gamepad2 size={18} color={muted} />
               <Typography accessibilityRole="header" className="font-semibold text-foreground">

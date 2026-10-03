@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 
 nodeLinker: hoisted
+virtualStoreDirMaxLength: 32
 
 overrides:
   react: "19.2.3"

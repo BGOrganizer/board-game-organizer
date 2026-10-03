@@ -1997,3 +1997,66 @@ msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rim
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Your invitation is waiting for a response."
 msgstr "Il tuo invito è in attesa di una risposta."
+
+msgid "Locations"
+msgstr "Luoghi"
+
+msgid "Location"
+msgstr "Luogo"
+
+msgid "Select location"
+msgstr "Seleziona luogo"
+
+msgid "Location name"
+msgstr "Nome del luogo"
+
+msgid "Search address"
+msgstr "Cerca indirizzo"
+
+msgid "Address results"
+msgstr "Risultati indirizzi"
+
+msgid "Location map"
+msgstr "Mappa del luogo"
+
+msgid "Add location"
+msgstr "Aggiungi luogo"
+
+msgid "Remove location"
+msgstr "Rimuovi luogo"
+
+msgid "Confirm location"
+msgstr "Conferma luogo"
+
+msgid "Use my location"
+msgstr "Usa la mia posizione"
+
+msgid "Open settings"
+msgstr "Apri impostazioni"
+
+msgid "Location unavailable"
+msgstr "Posizione non disponibile"
+
+msgid "Location permission denied"
+msgstr "Accesso alla posizione negato"
+
+msgid "Could not load map"
+msgstr "Impossibile caricare la mappa"
+
+msgid "Map unavailable"
+msgstr "Mappa non disponibile"
+
+msgid "Could not search addresses"
+msgstr "Impossibile cercare gli indirizzi"
+
+msgid "No shared location"
+msgstr "Nessun luogo condiviso"
+
+msgid "Confirmed location"
+msgstr "Luogo confermato"
+
+msgid "Location selection"
+msgstr "Scelta del luogo"
+
+msgid "Choose location"
+msgstr "Scegli luogo"

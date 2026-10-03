@@ -60,9 +60,39 @@ appId: com.bgo.mobile
 - tapOn:
     id: "next-step-fab"
 - extendedWaitUntil:
+    visible: "Locations"
+    timeout: 60000
+# Step 2: select at least one complete location.
+- assertVisible: "Locations"
+- tapOn: "Select location"
+- extendedWaitUntil:
+    visible: "Search address"
+    timeout: 30000
+- tapOn: "Location name"
+- inputText: "Game cafe"
+- tapOn: "Search address"
+- inputText: "Piazza del Colosseo 1 Roma"
+- extendedWaitUntil:
+    visible:
+      id: "address-result-0"
+    timeout: 30000
+- tapOn:
+    id: "address-result-0"
+- tapOn: "Confirm location"
+- extendedWaitUntil:
+    visible: "Game cafe.*"
+    timeout: 30000
+- tapOn: "Add location"
+- assertVisible: "Select location"
+- tapOn:
+    text: "Remove location"
+    index: 1
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
     visible: "Players"
     timeout: 60000
-# Step 2: min/max steppers exist; max must stay >= min.
+# Step 3: min/max steppers exist; max must stay >= min.
 - assertVisible: "Min"
 - assertVisible: "Max"
 - tapOn: "Max"
@@ -74,7 +104,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Board games"
     timeout: 60000
-# Step 3: at least one game is required — empty state blocks the FAB.
+# Step 4: at least one game is required — empty state blocks the FAB.
 - assertVisible: "Select a board game"
 - tapOn: "Add game"
 - assertVisible:
@@ -181,6 +211,11 @@ appId: com.bgo.mobile
 - tapOn: "If I have to"
 - assertVisible: "Choice saved"
 - assertVisible: "Choose game: If I have to"
+- tapOn:
+    id: "choose-location"
+- assertVisible: "Choose location"
+- tapOn: "Yes"
+- assertVisible: "Choose location: Yes"
 - tapOn: "Leaderboards"
 - assertVisible: "Board game"
 - tapOn: "Select a board game"
@@ -214,6 +249,11 @@ appId: com.bgo.mobile
 - tapOn: "OK|Done|Confirm|Set"
 - assertVisible:
     id: "remove-date-slot"
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 30000
+- assertVisible: "Game cafe.*"
 - tapOn: "Next step"
 - extendedWaitUntil:
     visible: "Players"

@@ -33,7 +33,7 @@ export class MatchError extends Error {
 
 export function pickSharedOption<T extends string | number>(
   options: T[],
-  kind: "dates" | "games",
+  kind: "dates" | "games" | "locations",
   choices: Match["choices"],
   participants: string[],
   adminId: string,
@@ -58,7 +58,7 @@ export function summarizeMatchVotes(
 ): MatchVoteSummary {
   const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
   const participants = [match.clerkId, ...accepted.map((invitation) => invitation.inviteeUserId)];
-  const tally = (kind: "dates" | "games", options: (string | number)[]) =>
+  const tally = (kind: "dates" | "games" | "locations", options: (string | number)[]) =>
     Object.fromEntries(
       options.map((option) => {
         const key = kind === "dates" ? String(Date.parse(String(option))) : String(option);
@@ -80,6 +80,15 @@ export function summarizeMatchVotes(
     participants,
     match.clerkId,
   );
+  const selectedLocationId = match.locations?.length
+    ? pickSharedOption(
+        match.locations.map((location) => location.id),
+        "locations",
+        match.choices,
+        participants,
+        match.clerkId,
+      )
+    : undefined;
   const selectedGameId = pickSharedOption(
     match.gameIds,
     "games",
@@ -91,11 +100,14 @@ export function summarizeMatchVotes(
   if (participants.length < match.minPlayers) reasons.push("NOT_ENOUGH_PLAYERS");
   if (!selectedDate) reasons.push("NO_SHARED_DATE");
   if (!selectedGameId) reasons.push("NO_SHARED_GAME");
+  if (match.locations?.length && !selectedLocationId) reasons.push("NO_SHARED_LOCATION");
   return {
     dates: tally("dates", match.dates),
     games: tally("games", match.gameIds),
+    locations: tally("locations", match.locations?.map((location) => location.id) ?? []),
     reasons,
     ...(selectedDate ? { selectedDate } : {}),
+    ...(selectedLocationId ? { selectedLocationId } : {}),
     ...(selectedGameId ? { selectedGameId } : {}),
   };
 }
@@ -176,6 +188,7 @@ export class MatchService {
       adminUserId: match.clerkId,
       name: match.name,
       dates: match.dates,
+      locations: match.locations ?? [],
       minPlayers: match.minPlayers,
       maxPlayers: match.maxPlayers,
       invitedUserIds: invitations.map((invitation) => invitation.inviteeUserId),
@@ -183,6 +196,7 @@ export class MatchService {
       ...(match.groupId ? { groupId: match.groupId } : {}),
       status: match.status,
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
+      ...(match.selectedLocationId ? { selectedLocationId: match.selectedLocationId } : {}),
       ...(match.selectedGameId ? { selectedGameId: match.selectedGameId } : {}),
       ...(match.results ? { results: match.results } : {}),
       createdAt: match.createdAt,
@@ -209,6 +223,7 @@ export class MatchService {
       clerkId: userId,
       name: input.name,
       dates: input.dates,
+      locations: input.locations,
       minPlayers: input.minPlayers,
       maxPlayers: input.maxPlayers,
       gameIds: input.gameIds,
@@ -327,6 +342,7 @@ export class MatchService {
       choices: {
         dates: match.choices?.[userId]?.dates ?? {},
         games: match.choices?.[userId]?.games ?? {},
+        locations: match.choices?.[userId]?.locations ?? {},
       },
       ...(match.clerkId === userId ||
       invitations.some(
@@ -424,7 +440,9 @@ export class MatchService {
     if (
       input.kind === "dates"
         ? !match.dates.includes(input.itemId)
-        : !match.gameIds.includes(input.itemId)
+        : input.kind === "locations"
+          ? !match.locations?.some((location) => location.id === input.itemId)
+          : !match.gameIds.includes(input.itemId)
     )
       throw new MatchError(409, "Match option no longer exists");
     if (!/^[A-Za-z0-9_-]+$/.test(userId)) throw new MatchError(403, "Invalid user id");
@@ -455,10 +473,18 @@ export class MatchService {
       if (summary.reasons.includes("NOT_ENOUGH_PLAYERS")) {
         throw new MatchError(409, "Not enough accepted players");
       }
-      if (!summary.selectedDate || !summary.selectedGameId) {
+      if (
+        !summary.selectedDate ||
+        !summary.selectedGameId ||
+        (match.locations?.length && !summary.selectedLocationId)
+      ) {
         throw new MatchError(409, "No shared date and game choices");
       }
-      selected = { date: summary.selectedDate, gameId: summary.selectedGameId };
+      selected = {
+        date: summary.selectedDate,
+        gameId: summary.selectedGameId,
+        ...(summary.selectedLocationId ? { locationId: summary.selectedLocationId } : {}),
+      };
     }
     const updated = await this.matches.setStatus(matchId, userId, match.status, status, selected);
     if (!updated) throw new MatchError(409, "Match status changed concurrently");
@@ -613,11 +639,17 @@ export class MatchService {
     const { invitedUserIds: _invitedUserIds, ...updates } = input;
     const updated = await this.matches.updatePlanning(match.id, userId, updates);
     if (!updated) throw new MatchError(409, "Match changed concurrently");
-    if (match.choices && (input.dates || input.gameIds)) {
+    if (match.choices && (input.dates || input.gameIds || input.locations)) {
       await this.matches.clearRemovedOptionChoices(
         match,
         match.dates.filter((date) => input.dates && !input.dates.includes(date)),
         match.gameIds.filter((id) => input.gameIds && !input.gameIds.includes(id)),
+        (match.locations ?? [])
+          .filter(
+            (location) =>
+              input.locations && !input.locations.some((next) => next.id === location.id),
+          )
+          .map((location) => location.id),
       );
     }
 

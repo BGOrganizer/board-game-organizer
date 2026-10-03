@@ -431,9 +431,40 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   // becomes enabled (validation re-renders after the name+date fill).
   await expect(nextFab).toBeEnabled({ timeout: 10_000 });
   await nextFab.click();
+  await expect(page.getByRole("heading", { name: "Locations" })).toBeVisible();
+  await expect(nextFab).toBeDisabled();
+  await page.route("**/api/locations/search?*", (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            id: "test-place",
+            address: "123 Main St, Rome, Italy",
+            longitude: 12.5,
+            latitude: 41.9,
+          },
+        ],
+      },
+    }),
+  );
+  await page.getByRole("button", { name: "Select location" }).click();
+  await expect(page.locator(".mapboxgl-map")).toBeVisible();
+  await page.getByRole("textbox", { name: "Location name" }).fill("Gam");
+  await expect(page.getByRole("button", { name: "Confirm location" })).toBeDisabled();
+  await page.getByRole("textbox", { name: "Search address" }).fill("Main St Rome");
+  await page.getByRole("button", { name: "123 Main St, Rome, Italy" }).click();
+  await expect(page.getByRole("button", { name: "Confirm location" })).toBeDisabled();
+  await page.getByRole("textbox", { name: "Location name" }).fill("Game cafe");
+  await page.getByRole("button", { name: "Confirm location" }).click();
+  await expect(page.getByText("Game cafe · 123 Main St, Rome, Italy")).toBeVisible();
+  await page.getByRole("button", { name: "Add location" }).click();
+  await expect(nextFab).toBeDisabled();
+  await page.getByRole("button", { name: "Remove location" }).last().click();
+  await expect(nextFab).toBeEnabled();
+  await nextFab.click();
   await expect(page.getByText("Players")).toBeVisible();
 
-  // Step 2: player steppers — min cannot go below 1; max >= min enforced.
+  // Step 3: player steppers — min cannot go below 1; max >= min enforced.
   await expect(page.getByText("Min")).toBeVisible();
   await expect(page.getByText("Max")).toBeVisible();
   await page.getByLabel("Increase min players").click();
@@ -595,6 +626,11 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     page.getByRole("button", { name: "Choose game: If I have to" }).first(),
   ).toContainText("~");
 
+  await expect(page.getByText("Location selection")).toBeVisible();
+  await page.getByRole("button", { name: "Choose location: Not known" }).click();
+  await page.getByRole("menuitemradio", { name: "Yes" }).click();
+  await expect(page.getByRole("button", { name: "Choose location: Yes" })).toBeVisible();
+
   // Admin edits reuse the creation wizard and persist only on the final step.
   await page.getByRole("button", { name: "Edit match" }).click();
   await expect(page.getByRole("heading", { name: "Edit match" })).toBeVisible();
@@ -610,6 +646,9 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Next step" })).toBeDisabled();
   await editDates.first().fill("2026-09-05T20:00");
   await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Next step" }).click();
+  await expect(page.getByRole("heading", { name: "Locations" })).toBeVisible();
+  await expect(page.getByText("Game cafe · 123 Main St, Rome, Italy")).toBeVisible();
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
   if (pickedFriendLabel) {

@@ -1,16 +1,31 @@
 "use client";
 
-import type { CreateMatchInput, MatchDetailResponse } from "@board-game-organizer/schemas";
+import type {
+  CreateMatchInput,
+  MatchDetailResponse,
+  MatchLocation,
+} from "@board-game-organizer/schemas";
 import { resolveApiUrl, useGroups, useMatches } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Button, Label, ListBox, Select } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, ArrowRight, Gamepad2, Minus, Plus, Save, Trash2, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Gamepad2,
+  MapPin,
+  Minus,
+  Plus,
+  Save,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { SearchGamePage } from "./SearchGamePage";
+import { SearchLocationPage } from "./SearchLocationPage";
 import { SearchUserPage } from "./SearchUserPage";
 
 function apiUrl(): string {
@@ -23,6 +38,7 @@ function protectionBypass(): string | undefined {
 
 /** A slot (date or user/game item) in the wizard — filled or empty. */
 type DateSlot = { id: string; value: string | null };
+type LocationSlot = { id: string; location: MatchLocation | null };
 type UserSlot = {
   id: string;
   user: { id: string; name: string; email: string | null; avatarUrl: string | null } | null;
@@ -55,7 +71,7 @@ export function MatchWizard({
   const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Step 1: name + date slots.
   const [name, setName] = useState(initialData?.match.name ?? "");
@@ -66,7 +82,14 @@ export function MatchWizard({
       : [{ id: uid(), value: null }],
   );
 
-  // Step 2: player range + invite slots.
+  const [locationSlots, setLocationSlots] = useState<LocationSlot[]>(() =>
+    initialData?.match.locations?.length
+      ? initialData.match.locations.map((location) => ({ id: uid(), location }))
+      : [{ id: uid(), location: null }],
+  );
+  const [locationTarget, setLocationTarget] = useState<string | null>(null);
+
+  // Step 3: player range + invite slots.
   const [minPlayers, setMinPlayers] = useState(initialData?.match.minPlayers ?? 2);
   const [maxPlayers, setMaxPlayers] = useState(initialData?.match.maxPlayers ?? 4);
   const [userSlots, setUserSlots] = useState<UserSlot[]>(() => {
@@ -136,6 +159,8 @@ export function MatchWizard({
       (!groupId || Boolean(selectedGroup)),
     [name, dateSlots, groupId, selectedGroup],
   );
+  const locationsValid =
+    locationSlots.length > 0 && locationSlots.every((slot) => slot.location !== null);
   const step2Valid = useMemo(
     () =>
       minPlayers >= 2 &&
@@ -198,10 +223,11 @@ export function MatchWizard({
   }, []);
 
   const save = useCallback(async () => {
-    if (!step3Valid) return;
+    if (!step3Valid || !locationsValid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
       dates: dateSlots.flatMap((s) => (s.value ? [s.value] : [])),
+      locations: locationSlots.flatMap((s) => (s.location ? [s.location] : [])),
       minPlayers,
       maxPlayers,
       invitedUserIds: userSlots.map((s) => s.user?.id).filter((x): x is string => Boolean(x)),
@@ -224,6 +250,8 @@ export function MatchWizard({
   }, [
     initialData,
     step3Valid,
+    locationsValid,
+    locationSlots,
     name,
     dateSlots,
     minPlayers,
@@ -237,25 +265,32 @@ export function MatchWizard({
 
   const next = () => {
     if (step === 1 && step1Valid) setStep(2);
-    else if (step === 2 && step2Valid) setStep(3);
-    else if (step === 3 && step3Valid) void save();
+    else if (step === 2 && locationsValid) setStep(3);
+    else if (step === 3 && step2Valid) setStep(4);
+    else if (step === 4 && step3Valid) void save();
   };
-  const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s));
+  const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s === 4 ? 3 : s));
 
   const fabNext = (
     <Button
       isIconOnly
       variant="primary"
       className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg sm:bottom-6 sm:right-6 sm:h-14 sm:w-14"
-      aria-label={step === 3 ? (initialData ? t`Save changes` : t`Create match`) : t`Next step`}
+      aria-label={step === 4 ? (initialData ? t`Save changes` : t`Create match`) : t`Next step`}
       isDisabled={
         matches.create.isPending ||
         matches.update.isPending ||
-        (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
+        (step === 1
+          ? !step1Valid
+          : step === 2
+            ? !locationsValid
+            : step === 3
+              ? !step2Valid
+              : !step3Valid)
       }
       onPress={next}
     >
-      {step === 3 ? <Save className="h-6 w-6" /> : <ArrowRight className="h-6 w-6" />}
+      {step === 4 ? <Save className="h-6 w-6" /> : <ArrowRight className="h-6 w-6" />}
     </Button>
   );
   const fabBack = step > 1 && (
@@ -269,6 +304,24 @@ export function MatchWizard({
       <ArrowLeft className="h-6 w-6" />
     </Button>
   );
+
+  if (locationTarget) {
+    return (
+      <SearchLocationPage
+        apiUrl={apiUrl()}
+        getToken={getToken}
+        protectionBypass={protectionBypass()}
+        initial={locationSlots.find((slot) => slot.id === locationTarget)?.location ?? undefined}
+        onSelect={(location) => {
+          setLocationSlots((slots) =>
+            slots.map((slot) => (slot.id === locationTarget ? { ...slot, location } : slot)),
+          );
+          setLocationTarget(null);
+        }}
+        onClose={() => setLocationTarget(null)}
+      />
+    );
+  }
 
   if (searchTarget) {
     return (
@@ -322,7 +375,7 @@ export function MatchWizard({
     <div className="mx-auto w-full max-w-3xl pb-28">
       {/* Step indicator */}
       <div className="mb-4 flex items-center justify-center gap-2 text-sm">
-        {[1, 2, 3].map((s) => (
+        {[1, 2, 3, 4].map((s) => (
           <span
             key={s}
             className={`rounded-full px-3 py-1 ${
@@ -431,6 +484,45 @@ export function MatchWizard({
       )}
 
       {step === 2 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">{t`Locations`}</h2>
+          <div className="space-y-2">
+            {locationSlots.map((slot) => (
+              <div key={slot.id} className="flex items-center gap-2 rounded-lg border p-3">
+                <Button
+                  variant="secondary"
+                  className="flex-1 justify-start"
+                  onPress={() => setLocationTarget(slot.id)}
+                >
+                  <MapPin className="size-4" />{" "}
+                  {slot.location
+                    ? `${slot.location.name} · ${slot.location.address}`
+                    : t`Select location`}
+                </Button>
+                <Button
+                  isIconOnly
+                  variant="danger"
+                  aria-label={t`Remove location`}
+                  onPress={() =>
+                    setLocationSlots((slots) => slots.filter((item) => item.id !== slot.id))
+                  }
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="secondary"
+            onPress={() => setLocationSlots((slots) => [...slots, { id: uid(), location: null }])}
+          >
+            <Plus className="size-4" />
+            {t`Add location`}
+          </Button>
+        </div>
+      )}
+
+      {step === 3 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">{t`Players`}</h2>
           <div className="flex flex-wrap items-center gap-4 sm:gap-8">
@@ -547,7 +639,7 @@ export function MatchWizard({
         </div>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">{t`Board games`}</h2>
           <GroupedList>

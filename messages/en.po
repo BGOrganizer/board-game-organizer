@@ -1997,3 +1997,66 @@ msgstr "You will no longer see each other or find each other. Follow and friends
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Your invitation is waiting for a response."
 msgstr "Your invitation is waiting for a response."
+
+msgid "Locations"
+msgstr "Locations"
+
+msgid "Location"
+msgstr "Location"
+
+msgid "Select location"
+msgstr "Select location"
+
+msgid "Location name"
+msgstr "Location name"
+
+msgid "Search address"
+msgstr "Search address"
+
+msgid "Address results"
+msgstr "Address results"
+
+msgid "Location map"
+msgstr "Location map"
+
+msgid "Add location"
+msgstr "Add location"
+
+msgid "Remove location"
+msgstr "Remove location"
+
+msgid "Confirm location"
+msgstr "Confirm location"
+
+msgid "Use my location"
+msgstr "Use my location"
+
+msgid "Open settings"
+msgstr "Open settings"
+
+msgid "Location unavailable"
+msgstr "Location unavailable"
+
+msgid "Location permission denied"
+msgstr "Location permission denied"
+
+msgid "Could not load map"
+msgstr "Could not load map"
+
+msgid "Map unavailable"
+msgstr "Map unavailable"
+
+msgid "Could not search addresses"
+msgstr "Could not search addresses"
+
+msgid "No shared location"
+msgstr "No shared location"
+
+msgid "Confirmed location"
+msgstr "Confirmed location"
+
+msgid "Location selection"
+msgstr "Location selection"
+
+msgid "Choose location"
+msgstr "Choose location"

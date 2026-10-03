@@ -5,6 +5,31 @@ import { MatchWizard } from "@/components/MatchWizard";
 import { renderWithI18n } from "@/test-utils";
 
 const useMatchesMock = vi.fn();
+const testLocation = {
+  id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+  name: "Game cafe",
+  address: "123 Main St",
+  longitude: 12.5,
+  latitude: 41.9,
+};
+vi.mock("@/components/SearchLocationPage", () => ({
+  SearchLocationPage: ({ onSelect }: { onSelect: (location: typeof testLocation) => void }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onSelect({
+          id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+          name: "Game cafe",
+          address: "123 Main St",
+          longitude: 12.5,
+          latitude: 41.9,
+        })
+      }
+    >
+      Pick test location
+    </button>
+  ),
+}));
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
@@ -33,6 +58,7 @@ describe("Matches", () => {
           adminUserId: "user_admin",
           name: "Friday night games",
           dates: ["2026-09-05T20:00:00.000Z"],
+          locations: [testLocation],
           minPlayers: 3,
           maxPlayers: 5,
           invitedUserIds: [],
@@ -287,7 +313,14 @@ describe("Matches", () => {
     expect(dateInput).not.toBeNull();
     fireEvent.change(dateInput as HTMLInputElement, { target: { value: "2099-09-05T20:00" } });
 
-    const next = screen.getByLabelText("Next step") as HTMLButtonElement;
+    let next = screen.getByLabelText("Next step") as HTMLButtonElement;
+    expect(next.disabled).toBe(false);
+    fireEvent.click(next);
+    expect(await screen.findByText("Locations")).toBeTruthy();
+    expect(next.disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Select location" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pick test location" }));
+    next = screen.getByLabelText("Next step") as HTMLButtonElement;
     expect(next.disabled).toBe(false);
     fireEvent.click(next);
     expect(await screen.findByText("Players")).toBeTruthy();
@@ -380,6 +413,8 @@ describe("Matches", () => {
       "Friday night games",
     );
     fireEvent.click(screen.getByLabelText("Next step"));
+    expect(screen.getByText("Locations")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Next step"));
     expect(screen.getByText("Guest Player")).toBeTruthy();
     const removeInvite = screen.getByRole("button", { name: "Remove invite" });
     expect(removeInvite.className).toContain("button--danger-soft");
@@ -398,6 +433,7 @@ describe("Matches", () => {
         input: {
           name: "Friday night games",
           dates: ["2026-09-05T20:00:00.000Z"],
+          locations: [testLocation],
           minPlayers: 3,
           maxPlayers: 5,
           invitedUserIds: [],

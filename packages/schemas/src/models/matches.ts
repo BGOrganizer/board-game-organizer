@@ -13,7 +13,19 @@ export type MatchChoice = z.infer<typeof matchChoiceSchema>;
 export const matchChoicesSchema = z.object({
   dates: z.record(z.string(), matchChoiceSchema).optional(),
   games: z.record(z.string(), matchChoiceSchema).optional(),
+  locations: z.record(z.string(), matchChoiceSchema).optional(),
 });
+
+export const matchLocationSchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string().trim().min(4).max(120),
+    address: z.string().trim().min(1).max(500),
+    longitude: z.number().finite().min(-180).max(180),
+    latitude: z.number().finite().min(-90).max(90),
+  })
+  .strict();
+export type MatchLocation = z.infer<typeof matchLocationSchema>;
 
 export const matchScoreSchema = z
   .string()
@@ -49,6 +61,7 @@ export const matchModel = z.object({
   clerkId: targetUserIdSchema,
   name: z.string().min(5).max(120),
   dates: z.array(z.iso.datetime({ offset: true })).min(1),
+  locations: z.array(matchLocationSchema).optional(), // Older matches have no locations.
   minPlayers: z.number().int().min(2),
   maxPlayers: z.number().int().min(2),
   gameIds: z.array(z.number().int().positive()).min(1),
@@ -56,6 +69,7 @@ export const matchModel = z.object({
   choices: z.record(z.string(), matchChoicesSchema).optional(),
   status: matchStatusSchema,
   selectedDate: z.iso.datetime({ offset: true }).optional(),
+  selectedLocationId: z.uuid().optional(),
   selectedGameId: z.number().int().positive().optional(),
   results: matchResultsSchema.optional(),
   createdAt: z.iso.datetime({ offset: true }),
@@ -98,6 +112,12 @@ export const createMatchSchema = z
   .object({
     name: z.string().trim().min(5, "Name must be at least 5 characters").max(120),
     dates: z.array(z.iso.datetime({ offset: true })).min(1, "At least one date is required"),
+    locations: z
+      .array(matchLocationSchema)
+      .min(1, "At least one location is required")
+      .refine(
+        (locations) => new Set(locations.map((location) => location.id)).size === locations.length,
+      ),
     minPlayers: z.number().int().min(2, "Minimum players must be at least 2"),
     maxPlayers: z.number().int().min(2),
     invitedUserIds: z.array(targetUserIdSchema).default([]),

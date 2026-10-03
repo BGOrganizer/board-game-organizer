@@ -317,6 +317,15 @@ async function seedMatchDependencies() {
 const matchInput = {
   name: "Friday games",
   dates: ["2026-10-01T20:00:00.000Z"],
+  locations: [
+    {
+      id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+      name: "Game cafe",
+      address: "123 Main St",
+      longitude: 12.5,
+      latitude: 41.9,
+    },
+  ],
   minPlayers: 2,
   maxPlayers: 3,
   invitedUserIds: [] as string[],
@@ -598,7 +607,7 @@ describe("match repositories on MongoDB replica set", () => {
     );
     expect(
       (await withMatchTransaction(({ service }) => service.detail(TARGET, created.id))).choices,
-    ).toEqual({ dates: {}, games: { "342942": "YES" } });
+    ).toEqual({ dates: {}, games: { "342942": "YES" }, locations: {} });
     expect(
       (await withMatchTransaction(({ service }) => service.detail(ACTOR, created.id))).choices
         ?.dates?.[String(Date.parse(matchInput.dates[0]))],
@@ -637,6 +646,13 @@ describe("match repositories on MongoDB replica set", () => {
           choice: "IF_NEEDED",
         }),
       );
+      await withMatchTransaction(({ service }) =>
+        service.setChoice(userId, created.id, {
+          kind: "locations",
+          itemId: matchInput.locations[0].id,
+          choice: userId === ACTOR ? "YES" : "IF_NEEDED",
+        }),
+      );
     }
     const dateKey = String(Date.parse(matchInput.dates[0]));
     const adminDetail = await withMatchTransaction(({ service }) =>
@@ -645,8 +661,10 @@ describe("match repositories on MongoDB replica set", () => {
     expect(adminDetail.voteSummary).toMatchObject({
       dates: { [dateKey]: { yes: 2, no: 0, ifNeeded: 0, notChosen: 0 } },
       games: { [String(matchInput.gameIds[0])]: { yes: 0, no: 0, ifNeeded: 2, notChosen: 0 } },
+      locations: { [matchInput.locations[0].id]: { yes: 1, no: 0, ifNeeded: 1, notChosen: 0 } },
       reasons: [],
       selectedDate: matchInput.dates[0],
+      selectedLocationId: matchInput.locations[0].id,
       selectedGameId: matchInput.gameIds[0],
     });
     expect(
@@ -754,6 +772,7 @@ describe("match repositories on MongoDB replica set", () => {
           clerkId: ACTOR,
           name: matchInput.name,
           dates: matchInput.dates,
+          locations: matchInput.locations,
           minPlayers: matchInput.minPlayers,
           maxPlayers: matchInput.maxPlayers,
           gameIds: matchInput.gameIds,

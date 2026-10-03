@@ -38,6 +38,15 @@ const invitation: MatchInvitation = {
 const input = {
   name: match.name,
   dates: match.dates,
+  locations: [
+    {
+      id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
+      name: "Game cafe",
+      address: "123 Main St",
+      longitude: 12.5,
+      latitude: 41.9,
+    },
+  ],
   minPlayers: match.minPlayers,
   maxPlayers: match.maxPlayers,
   invitedUserIds: ["user_guest"],
@@ -427,6 +436,7 @@ describe("MatchService", () => {
     expect(summary).toEqual({
       dates: { [key]: { yes: 1, no: 1, ifNeeded: 0, notChosen: 0 } },
       games: { "1": { yes: 1, no: 0, ifNeeded: 1, notChosen: 0 } },
+      locations: {},
       reasons: ["NO_SHARED_DATE"],
       selectedGameId: 1,
     });
@@ -435,6 +445,102 @@ describe("MatchService", () => {
       reasons: ["NOT_ENOUGH_PLAYERS", "NO_SHARED_DATE", "NO_SHARED_GAME"],
     });
   });
+  it("requires a shared location and prefers admin YES on tied options", () => {
+    const first = input.locations[0];
+    const second = { ...first, id: "5f2c704d-52c8-496a-b7a6-ec1abacee011", name: "Other cafe" };
+    const dateKey = String(Date.parse(match.dates[0]));
+    const base = {
+      ...match,
+      locations: [first, second],
+      choices: {
+        user_admin: {
+          dates: { [dateKey]: "YES" as const },
+          games: { "1": "YES" as const },
+          locations: { [first.id]: "YES" as const, [second.id]: "IF_NEEDED" as const },
+        },
+        user_guest: {
+          dates: { [dateKey]: "YES" as const },
+          games: { "1": "YES" as const },
+          locations: { [first.id]: "IF_NEEDED" as const, [second.id]: "YES" as const },
+        },
+      },
+    };
+    const accepted = [{ ...invitation, status: "ACCEPTED" as const }];
+    expect(summarizeMatchVotes(base, accepted)).toMatchObject({
+      selectedLocationId: first.id,
+      reasons: [],
+      locations: {
+        [first.id]: { yes: 1, ifNeeded: 1 },
+        [second.id]: { yes: 1, ifNeeded: 1 },
+      },
+    });
+    expect(
+      summarizeMatchVotes({ ...base, choices: { user_admin: base.choices.user_admin } }, accepted)
+        .reasons,
+    ).toContain("NO_SHARED_LOCATION");
+  });
+
+  it("blocks confirmation until accepted participants agree on a location", async () => {
+    const { service, matches, invitations } = setup(true);
+    const place = input.locations[0];
+    const key = String(Date.parse(match.dates[0]));
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, status: "ACCEPTED" }]);
+    matches.findById.mockResolvedValue({
+      ...match,
+      locations: [place],
+      choices: {
+        user_admin: {
+          dates: { [key]: "YES" },
+          games: { "1": "YES" },
+          locations: { [place.id]: "YES" },
+        },
+        user_guest: { dates: { [key]: "YES" }, games: { "1": "YES" } },
+      },
+    });
+    await expectMatchError(
+      service.setStatus("user_admin", match.id, "CREATED"),
+      409,
+      "No shared date and game choices",
+    );
+    expect(matches.setStatus).not.toHaveBeenCalled();
+    await service.setChoice("user_guest", match.id, {
+      kind: "locations",
+      itemId: place.id,
+      choice: "IF_NEEDED",
+    });
+    await expectMatchError(
+      service.setChoice("user_guest", match.id, {
+        kind: "locations",
+        itemId: crypto.randomUUID(),
+        choice: "YES",
+      }),
+      409,
+      "Match option no longer exists",
+    );
+    matches.findById.mockResolvedValue({
+      ...match,
+      locations: [place],
+      choices: {
+        user_admin: {
+          dates: { [key]: "YES" },
+          games: { "1": "YES" },
+          locations: { [place.id]: "YES" },
+        },
+        user_guest: {
+          dates: { [key]: "YES" },
+          games: { "1": "YES" },
+          locations: { [place.id]: "IF_NEEDED" },
+        },
+      },
+    });
+    await service.setStatus("user_admin", match.id, "CREATED");
+    expect(matches.setStatus).toHaveBeenCalledWith(match.id, "user_admin", "PLANNING", "CREATED", {
+      date: match.dates[0],
+      gameId: 1,
+      locationId: place.id,
+    });
+  });
+
   it("confirms only with enough accepted participants and shared votes, then reopens and notifies only accepted invitees", async () => {
     const { service, matches, invitations, notifications } = setup(true);
     const accepted = { ...invitation, status: "ACCEPTED" as const };
@@ -673,6 +779,25 @@ describe("MatchService", () => {
       expect.objectContaining({ id: match.id }),
       match.dates,
       [],
+      [],
+    );
+  });
+
+  it("drops votes for removed locations while preserving retained location ids", async () => {
+    const { service, matches } = setup();
+    const place = input.locations[0];
+    const other = { ...place, id: "5f2c704d-52c8-496a-b7a6-ec1abacee011" };
+    matches.findById.mockResolvedValue({
+      ...match,
+      locations: [place],
+      choices: { user_admin: { locations: { [place.id]: "YES" } } },
+    });
+    await service.update("user_admin", match.id, { locations: [other] });
+    expect(matches.clearRemovedOptionChoices).toHaveBeenCalledWith(
+      expect.objectContaining({ id: match.id }),
+      [],
+      [],
+      [place.id],
     );
   });
 
@@ -690,6 +815,7 @@ describe("MatchService", () => {
       expect.objectContaining({ id: match.id }),
       [],
       [1],
+      [],
     );
   });
 
@@ -703,6 +829,7 @@ describe("MatchService", () => {
     expect((await service.detail("user_guest", match.id)).choices).toEqual({
       dates: { [key]: "YES" },
       games: {},
+      locations: {},
     });
     matches.findById.mockResolvedValue({
       ...match,
@@ -711,6 +838,7 @@ describe("MatchService", () => {
     expect((await service.detail("user_guest", match.id)).choices).toEqual({
       dates: {},
       games: { "1": "YES" },
+      locations: {},
     });
     invitations.listByMatch.mockResolvedValue([
       { ...invitation, inviteeUserId: "user.bad", status: "ACCEPTED" },
@@ -749,6 +877,7 @@ describe("MatchService", () => {
     expect((await service.detail("user_guest", match.id)).choices).toEqual({
       dates: {},
       games: {},
+      locations: {},
     });
 
     await expectMatchError(
@@ -802,6 +931,7 @@ describe("MatchService", () => {
       clerkId: "user_admin",
       name: input.name,
       dates: input.dates,
+      locations: input.locations,
       minPlayers: input.minPlayers,
       maxPlayers: input.maxPlayers,
       gameIds: input.gameIds,
@@ -812,6 +942,7 @@ describe("MatchService", () => {
       adminUserId: "user_admin",
       name: match.name,
       dates: match.dates,
+      locations: [],
       minPlayers: 2,
       maxPlayers: 3,
       invitedUserIds: ["user_guest"],
@@ -929,6 +1060,7 @@ describe("MatchService", () => {
     expect((await service.detail("user_guest", match.id)).choices).toEqual({
       dates: {},
       games: {},
+      locations: {},
     });
   });
 
