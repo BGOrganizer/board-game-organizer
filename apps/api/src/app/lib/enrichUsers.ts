@@ -1,55 +1,85 @@
 import type { User } from "@board-game-organizer/schemas";
-import type { Db } from "mongodb";
+import type { ClientSession, Db } from "mongodb";
 import { getBlockContext } from "@/app/lib/blocks";
 import { COLLECTIONS } from "@/app/lib/db";
 
-/**
- * Local enrichment of relationship rows with user data + presence from the
- * `users` collection (Phase 2). Replaces the Clerk API round-trip for list
- * endpoints so presence and avatars are cheap and always fresh.
- *
- * Block policy applied to the enriched profile (per user feedback):
- * - `blockedByMe` rows are already filtered out upstream (the blocker never
- *   sees the blocked user in lists).
- * - `blockedMe` (the viewer is blocked by the profile owner): the profile
- *   stays visible ONLY in the viewer's own following/friends lists, but its
- *   presence is hidden and interaction is disabled (the UI reads the flags).
- */
+/** Enrich relationship edges with local profiles and viewer-relative state. */
 export async function enrichRelationshipsWithUsers<
   T extends { fromUserId: string; toUserId: string },
->(db: Db, relationships: T[], viewerId: string) {
-  const otherIds = relationships.map((r) =>
-    r.fromUserId === viewerId ? r.toUserId : r.fromUserId,
-  );
+>(db: Db, relationships: T[], viewerId: string, session?: ClientSession) {
+  const otherIds = [
+    ...new Set(
+      relationships.map((row) => (row.fromUserId === viewerId ? row.toUserId : row.fromUserId)),
+    ),
+  ];
+  const opts = session ? { session } : {};
   const users = await db
     .collection<User>(COLLECTIONS.USERS)
-    .find({ clerkId: { $in: [...new Set(otherIds)] } }, { projection: { _id: 0 } })
+    .find({ clerkId: { $in: otherIds } }, { projection: { _id: 0 }, ...opts })
     .toArray();
-  const byId = new Map(users.map((u) => [u.clerkId, u]));
+  const follows = await db
+    .collection(COLLECTIONS.FOLLOWS)
+    .find(
+      {
+        $or: [
+          { fromUserId: viewerId, toUserId: { $in: otherIds } },
+          { toUserId: viewerId, fromUserId: { $in: otherIds } },
+        ],
+      },
+      opts,
+    )
+    .toArray();
+  const friendRequests = await db
+    .collection(COLLECTIONS.FRIEND_REQUESTS)
+    .find(
+      {
+        status: "accepted",
+        $or: [
+          { fromUserId: viewerId, toUserId: { $in: otherIds } },
+          { toUserId: viewerId, fromUserId: { $in: otherIds } },
+        ],
+      },
+      opts,
+    )
+    .toArray();
+  const { blockedByMe, blockedMe } = await getBlockContext(db, viewerId, session);
 
-  const { blockedByMe, blockedMe } = await getBlockContext(db, viewerId);
+  const usersById = new Map(users.map((user) => [user.clerkId, user]));
+  const following = new Set(
+    follows.filter((follow) => follow.fromUserId === viewerId).map((follow) => follow.toUserId),
+  );
+  const followers = new Set(
+    follows.filter((follow) => follow.toUserId === viewerId).map((follow) => follow.fromUserId),
+  );
+  const friendDirections = new Map<string, number>();
+  for (const request of friendRequests) {
+    const otherId = request.fromUserId === viewerId ? request.toUserId : request.fromUserId;
+    const direction = request.fromUserId === viewerId ? 1 : 2;
+    friendDirections.set(otherId, (friendDirections.get(otherId) ?? 0) | direction);
+  }
 
-  return relationships.map((r) => {
-    const otherId = r.fromUserId === viewerId ? r.toUserId : r.fromUserId;
-    const u = byId.get(otherId);
-    if (!u) return { ...r, profile: null };
-    const isBlockedMe = blockedMe.has(otherId);
+  return relationships.map((relationship) => {
+    const otherId =
+      relationship.fromUserId === viewerId ? relationship.toUserId : relationship.fromUserId;
+    const user = usersById.get(otherId);
+    if (!user) return { ...relationship, profile: null };
+
     const isBlockedByMe = blockedByMe.has(otherId);
+    const isBlockedMe = blockedMe.has(otherId);
     return {
-      ...r,
+      ...relationship,
       profile: {
-        id: u.clerkId,
-        name: u.name,
-        email: u.email,
-        avatarUrl: u.avatarUrl ?? null,
-        // Presence is hidden for blocked users in both directions: a blocked
-        // user must not see the blocker's presence, and the blocker must not
-        // track a blocked user (they only surface in the Blocked list).
-        presence: isBlockedMe || isBlockedByMe ? { online: false, lastActiveAt: "" } : u.presence,
+        id: user.clerkId,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl ?? null,
+        presence:
+          isBlockedMe || isBlockedByMe ? { online: false, lastActiveAt: "" } : user.presence,
         blockedByMe: isBlockedByMe,
         blockedMe: isBlockedMe,
-        // Follow state relative to the viewer (coherent across sections).
-        isFollowing: relationships.some((x) => x.fromUserId === viewerId && x.toUserId === otherId),
+        isFollowing: following.has(otherId),
+        isFollower: followers.has(otherId),
+        isFriend: friendDirections.get(otherId) === 3,
       },
     };
   });

@@ -1,5 +1,5 @@
-import type { User } from "@board-game-organizer/schemas";
-import type { Db } from "mongodb";
+import { normalizePhoneNumberForMatching, type User } from "@board-game-organizer/schemas";
+import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /**
@@ -10,7 +10,10 @@ import { COLLECTIONS } from "@/app/lib/db";
  * `auth()` in route handlers.
  */
 export class UsersRepository {
-  constructor(private db: Db) {}
+  constructor(
+    private db: Db,
+    private session?: ClientSession,
+  ) {}
 
   private get col() {
     return this.db.collection<User>(COLLECTIONS.USERS);
@@ -21,11 +24,13 @@ export class UsersRepository {
     email: string;
     name: string;
     avatarUrl?: string;
+    mobileNumber?: string | null;
     preferredLanguage: "en" | "it";
     plan?: string;
     e2e?: boolean;
   }) {
     const now = new Date();
+    const mobileNumberNormalized = normalizePhoneNumberForMatching(user.mobileNumber);
     return this.col.findOneAndUpdate(
       { clerkId: user.id },
       {
@@ -33,30 +38,50 @@ export class UsersRepository {
           email: user.email,
           name: user.name,
           ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
+          ...(typeof user.mobileNumber === "string" ? { mobileNumber: user.mobileNumber } : {}),
+          ...(mobileNumberNormalized ? { mobileNumberNormalized } : {}),
           preferredLanguage: user.preferredLanguage,
           plan: user.plan ?? "free",
           ...(user.e2e !== undefined ? { e2e: user.e2e } : {}),
           updatedAt: now,
         },
+        ...(user.mobileNumber === null
+          ? { $unset: { mobileNumber: "", mobileNumberNormalized: "" } }
+          : user.mobileNumber !== undefined && !mobileNumberNormalized
+            ? { $unset: { mobileNumberNormalized: "" } }
+            : {}),
         $setOnInsert: {
           clerkId: user.id,
           presence: { online: false, lastActiveAt: now },
           createdAt: now,
         },
       },
-      { upsert: true, returnDocument: "after" },
+      {
+        upsert: true,
+        returnDocument: "after",
+        ...(this.session ? { session: this.session } : {}),
+      },
     );
   }
 
   findById(clerkId: string) {
-    return this.col.findOne({ clerkId });
+    return this.col.findOne({ clerkId }, this.session ? { session: this.session } : {});
+  }
+
+  findByIds(clerkIds: string[]) {
+    return this.col
+      .find(
+        { clerkId: { $in: clerkIds } },
+        { projection: { _id: 0 }, ...(this.session ? { session: this.session } : {}) },
+      )
+      .toArray();
   }
 
   findByEmail(email: string) {
-    return this.col.findOne({ email });
+    return this.col.findOne({ email }, this.session ? { session: this.session } : {});
   }
 
   deleteByClerkId(clerkId: string) {
-    return this.col.deleteOne({ clerkId });
+    return this.col.deleteOne({ clerkId }, this.session ? { session: this.session } : {});
   }
 }

@@ -64,9 +64,13 @@ jobs:
       - name: 🧹 Biome check
         run: pnpm lint
 
+      - name: 🔒 Check Main CI E2E isolation
+        run: node --test .github/scripts/main-ci-isolation.test.mjs
+
   # ----------------------------------------------------------------- typecheck
   typecheck:
     name: 🧪 TypeScript typecheck
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -81,11 +85,12 @@ jobs:
   # --------------------------------------------------------------- unit tests
   unit-tests:
     name: 🧪 Unit tests (${{ matrix.app }})
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        app: [mobile, web, api, schemas]
+        app: [mobile, web, api, schemas, shared]
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -99,6 +104,7 @@ jobs:
   # ------------------------------------------------------- integration tests
   integration-tests:
     name: 🐳 API integration tests (testcontainers)
+    needs: [commitlint, lint]
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout

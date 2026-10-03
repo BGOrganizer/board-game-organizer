@@ -9,7 +9,7 @@ inputs:
   pnpm-version:
     description: pnpm version
     required: false
-    default: '11.6.0'
+    default: '11.25.0'
   install:
     description: Run pnpm install
     required: false

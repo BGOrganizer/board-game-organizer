@@ -1,17 +1,26 @@
 "use client";
 
-import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
-import { withProtectionBypass } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import {
+  type ContactUser,
+  useRelationshipList,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
+import { useAuth } from "@clerk/nextjs";
+import { Avatar, Button, SearchField, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
 interface Props {
   apiUrl: string;
   token: string | null;
   getToken?: () => Promise<string | null>;
   protectionBypass?: string | null;
+  excludeIds?: string[];
+  members?: Array<{ id: string; name: string; email: string | null; avatarUrl: string | null }>;
   onSelect: (user: {
     id: string;
     name: string;
@@ -31,54 +40,51 @@ export function SearchUserPage({
   token,
   getToken,
   protectionBypass,
+  excludeIds = [],
+  members,
   onSelect,
   onClose,
 }: Props) {
   const { t } = useLingui();
   const [query, setQuery] = useState("");
-  const [friends, setFriends] = useState<RelationshipRow[]>([]);
+  const { userId } = useAuth();
+  const friends = useRelationshipList(
+    apiUrl,
+    token,
+    getToken,
+    protectionBypass,
+    userId,
+    "friends",
+    !members,
+  );
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Load the full friends list once (invite picker) — reused as the empty
-  // query state and as the source the search narrows.
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const t = getToken ? ((await getToken()) ?? token) : token;
-        if (!t) return;
-        const res = await fetch(
-          withProtectionBypass(`${apiUrl}/api/relationships?type=friends`, protectionBypass),
-          { headers: { Authorization: `Bearer ${t}` } },
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { relationships: RelationshipRow[] };
-        if (active) setFriends(data.relationships);
-      } catch {
-        if (active) setError(t`Could not load friends`);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [apiUrl, token, getToken, protectionBypass, t]);
+  const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
+  const endRef = useInfiniteScroll({
+    hasNextPage: !members && query.trim().length < 4 && friends.hasNextPage,
+    isFetchingNextPage: friends.isFetchingNextPage,
+    isFetchNextPageError: friends.isFetchNextPageError,
+    fetchNextPage: friends.fetchNextPage,
+  });
 
   // Search fires only at >= 4 chars; below that we show the full friends
   // list so the user always has something to pick from.
   useEffect(() => {
+    if (members) return;
     if (query.trim().length < 4) {
       setResults([]);
       setLoading(false);
+      setError(null);
       return;
     }
     let active = true;
     setLoading(true);
+    setError(null);
     const timer = setTimeout(async () => {
       try {
-        const t = getToken ? ((await getToken()) ?? token) : token;
-        if (!t) return;
+        const t = getToken ? await getToken() : token;
+        if (!t) throw new Error("Authentication required");
         const res = await fetch(
           withProtectionBypass(
             `${apiUrl}/api/users/search?query=${encodeURIComponent(query.trim())}`,
@@ -88,7 +94,7 @@ export function SearchUserPage({
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users);
+        if (active) setResults(data.users.filter((user) => user.isFriend));
       } catch {
         if (active) setError(t`Search failed`);
       } finally {
@@ -99,32 +105,50 @@ export function SearchUserPage({
       active = false;
       clearTimeout(timer);
     };
-  }, [query, apiUrl, token, getToken, protectionBypass, t]);
+  }, [query, apiUrl, token, getToken, protectionBypass, t, members]);
 
-  const shown =
-    query.trim().length >= 4
-      ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
+  const shown = (
+    members
+      ? members.filter(
+          (user) =>
+            query.trim().length < 4 ||
+            `${user.name} ${user.email ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()),
+        )
+      : query.trim().length >= 4
+        ? results
+        : (friends.data ?? []).map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+  ).filter((user) => !excludeSet.has(user.id));
 
   return (
-    <div className="mx-auto w-full max-w-md pb-8">
+    <div className="mx-auto w-full max-w-5xl pb-8">
       <div className="mb-4 flex items-center gap-2">
         <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={onClose}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="text-lg font-semibold">{t`Invite friends`}</h2>
+        <h2 className="text-lg font-semibold">
+          {members ? t`Invite group members` : t`Invite friends`}
+        </h2>
       </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t`Search users (at least 4 characters)`}
-        aria-label={t`Search users by name or email`}
-        className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
-      />
+      <SearchField fullWidth value={query} onChange={setQuery}>
+        <SearchHelpLabel
+          label={t`Search users by name or email`}
+          help={t`Type at least 4 characters to search`}
+        />
+        <SearchField.Group>
+          <SearchField.SearchIcon />
+          <SearchField.Input placeholder={t`Search users`} />
+          <SearchField.ClearButton aria-label={t`Clear`} />
+        </SearchField.Group>
+      </SearchField>
 
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-      {loading && (
+      {(error || (!members && friends.isError)) && (
+        <p className="mt-2 text-sm text-danger">{error || t`Could not load friends`}</p>
+      )}
+      {!members && friends.isError && !friends.data && (
+        <Button variant="ghost" onPress={() => void friends.refetch()}>{t`Retry`}</Button>
+      )}
+      {(loading || (!members && friends.isPending)) && (
         <div className="mt-3 space-y-2">
           <Skeleton className="h-12 w-full rounded-lg" />
           <Skeleton className="h-12 w-full rounded-lg" />
@@ -133,36 +157,41 @@ export function SearchUserPage({
       {!loading && shown.length === 0 && query.trim().length >= 4 && (
         <p className="mt-3 text-sm text-default-500">{t`No users found`}</p>
       )}
-      <div className="mt-3 space-y-2">
+      <GroupedList className="mt-3">
         {shown.map((u) => (
-          <div
-            key={u.id}
-            className="flex items-center gap-3 rounded-xl border border-default-200 p-3"
-          >
-            {u.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={u.avatarUrl} alt="" className="h-10 w-10 rounded-full" />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-default-100 text-sm font-semibold">
-                {u.name?.charAt(0) ?? "?"}
-              </div>
-            )}
+          <GroupedRow key={u.id}>
+            <Avatar size="md" color="accent">
+              <Avatar.Image src={u.avatarUrl ?? undefined} alt={u.name} />
+              <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
+            </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{u.name}</p>
               <p className="truncate text-xs text-default-400">{u.email}</p>
             </div>
             <Button
+              isIconOnly
+              className="shrink-0"
               size="sm"
               variant="primary"
+              aria-label={`${t`Add`}: ${u.name}`}
               onPress={() =>
                 onSelect({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl })
               }
             >
-              {t`Add`}
+              <UserPlus className="h-4 w-4" />
             </Button>
-          </div>
+          </GroupedRow>
         ))}
-      </div>
+      </GroupedList>
+      {!members && query.trim().length < 4 && (
+        <>
+          <div ref={endRef} aria-hidden="true" />
+          {friends.isFetchingNextPage && <Skeleton className="mt-3 h-12 w-full rounded-lg" />}
+          {friends.isFetchNextPageError && (
+            <Button variant="ghost" onPress={() => void friends.fetchNextPage()}>{t`Retry`}</Button>
+          )}
+        </>
+      )}
     </div>
   );
 }

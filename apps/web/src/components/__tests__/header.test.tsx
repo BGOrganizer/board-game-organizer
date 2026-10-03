@@ -17,6 +17,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/matches",
 }));
 
+vi.mock("@/components/NotificationBell", () => ({
+  NotificationBell: () => <button type="button" aria-label="Notifications" />,
+}));
+
 vi.mock("@clerk/nextjs", () => ({
   Show: ({
     when,
@@ -49,8 +53,16 @@ describe("Header", () => {
   it("shows the brand and the main navigation for signed-in users", () => {
     renderWithI18n(<Header />);
     expect(screen.getByText("Board Game Organizer")).toBeTruthy();
-    for (const label of ["Matches", "Groups", "Organizations", "Contacts", "Profile"]) {
-      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    for (const [label, icon] of [
+      ["Matches", "lucide-dices"],
+      ["Groups", "lucide-users-round"],
+      ["Organizations", "lucide-building-2"],
+      ["Contacts", "lucide-contact-round"],
+      ["Profile", "lucide-user-round"],
+    ]) {
+      expect(
+        screen.getAllByText(label)[0]?.closest("a")?.querySelector(`svg.${icon}`),
+      ).toBeTruthy();
     }
     expect(screen.getByText("Alessandro")).toBeTruthy();
     // Signed-in: no Sign In / Sign Up CTAs in the desktop bar.

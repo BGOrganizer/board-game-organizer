@@ -1,17 +1,24 @@
-import type { ContactUser, RelationshipRow } from "@board-game-organizer/shared";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import {
+  type ContactUser,
+  useGroups,
+  useRelationshipList,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { Input } from "heroui-native/input";
+import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
-import { ArrowLeft, UserPlus } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Typography } from "heroui-native/text";
+import { UserPlus } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
+import { FlatList, View } from "react-native";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return (
@@ -20,17 +27,35 @@ function apiUrl(): string {
 }
 
 export default function SearchUserScreen() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const router = useRouter();
-  const { slotId } = useLocalSearchParams<{ slotId: string }>();
+  const { slotId, exclude, groupId } = useLocalSearchParams<{
+    slotId: string;
+    exclude?: string | string[];
+    groupId?: string;
+  }>();
+  const excludedIds = useMemo(() => {
+    const value = Array.isArray(exclude) ? exclude[0] : exclude;
+    return new Set((value ?? "").split(",").filter(Boolean));
+  }, [exclude]);
   const setPendingUser = useAppStore((s) => s.setPendingUser);
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [friends, setFriends] = useState<RelationshipRow[]>([]);
+  const friends = useRelationshipList(
+    apiUrl(),
+    token,
+    getToken,
+    undefined,
+    userId,
+    "friends",
+    !groupId,
+  );
   const [results, setResults] = useState<ContactUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const groups = useGroups({ apiUrl: apiUrl(), token, getToken, userId, groupId });
+  const members = groupId ? groups.detail.data?.group.memberProfiles : undefined;
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -44,50 +69,30 @@ export default function SearchUserScreen() {
   }, [isLoaded, isSignedIn, getToken]);
 
   useEffect(() => {
-    if (!token) return;
-    let active = true;
-    (async () => {
-      try {
-        const res = await fetch(
-          withProtectionBypass(`${apiUrl()}/api/relationships?type=friends`),
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        // The endpoint returns a bare array of RelationshipRow (not an
-        // envelope): mapping data.relationships would crash with
-        // "cannot read property map of undefined".
-        const data = (await res.json()) as RelationshipRow[] | { relationships: RelationshipRow[] };
-        const rows = Array.isArray(data) ? data : (data.relationships ?? []);
-        if (active) setFriends(rows);
-      } catch {
-        if (active) setError(t("Could not load friends"));
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [token, t]);
-
-  useEffect(() => {
+    if (groupId) return;
     if (query.trim().length < 4) {
       setResults([]);
       setLoading(false);
+      setError(null);
       return;
     }
     if (!token) return;
     let active = true;
     setLoading(true);
+    setError(null);
     const timer = setTimeout(async () => {
       try {
+        const fresh = await getToken();
+        if (!fresh) throw new Error("Authentication required");
         const res = await fetch(
           withProtectionBypass(
             `${apiUrl()}/api/users/search?query=${encodeURIComponent(query.trim())}`,
           ),
-          { headers: { Authorization: `Bearer ${token}` } },
+          { headers: { Authorization: `Bearer ${fresh}` } },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { users: ContactUser[] };
-        if (active) setResults(data.users);
+        if (active) setResults(data.users.filter((user) => user.isFriend));
       } catch {
         if (active) setError(t("Search failed"));
       } finally {
@@ -98,14 +103,26 @@ export default function SearchUserScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, token, t]);
+  }, [query, token, getToken, t, groupId]);
 
-  const shown =
-    query.trim().length >= 4
-      ? results
-      : friends.map((f) => f.profile).filter((p): p is ContactUser => Boolean(p));
+  const shown = (
+    groupId
+      ? (members ?? []).filter(
+          (user) =>
+            query.trim().length < 4 ||
+            `${user.name} ${user.email ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()),
+        )
+      : query.trim().length >= 4
+        ? results
+        : (friends.data ?? []).map((f) => f.profile).filter((p): p is ContactUser => Boolean(p))
+  ).filter((user) => user.id !== userId && !excludedIds.has(user.id));
 
-  const select = (u: ContactUser) => {
+  const select = (u: {
+    id: string;
+    name: string;
+    email: string | null;
+    avatarUrl: string | null;
+  }) => {
     if (!slotId) {
       // Route param missing (deep link / stale navigation): the selection
       // can't be routed back to a wizard slot — drop it instead of leaving
@@ -122,72 +139,124 @@ export default function SearchUserScreen() {
     router.back();
   };
 
+  const listError =
+    error ||
+    (groupId
+      ? groups.detail.isError
+        ? t("Could not load groups")
+        : null
+      : friends.isError
+        ? t("Could not load friends")
+        : null);
+
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 16 }}>
-        <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
-          <ArrowLeft color="#111" size={22} />
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Invite friends")}</Text>
-      </View>
-      <View style={{ paddingHorizontal: 16 }}>
-        <Input
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("Search users (at least 4 characters)")}
+      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+        <SearchHelpLabel
+          label={t("Search users by name or email")}
+          help={t("Type at least 4 characters to search")}
         />
+        <SearchField value={query} onChange={setQuery}>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              accessibilityLabel={t("Search users by name or email")}
+              placeholder={t("Search users")}
+            />
+            <SearchField.ClearButton accessibilityLabel={t("Clear")} />
+          </SearchField.Group>
+        </SearchField>
       </View>
-      {error && (
-        <Text style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
-          {error}
-        </Text>
+      {listError && (
+        <Typography
+          className="text-danger"
+          style={{ fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}
+        >
+          {listError}
+        </Typography>
       )}
-      {loading && (
+      {(groupId
+        ? groups.detail.isError && !groups.detail.data
+        : friends.isError && !friends.data) && (
+        <Button
+          variant="secondary"
+          onPress={() => void (groupId ? groups.detail.refetch() : friends.refetch())}
+        >
+          {t("Retry")}
+        </Button>
+      )}
+      {(loading || (groupId ? groups.detail.isPending : friends.isPending)) && (
         <View style={{ padding: 16, gap: 12 }}>
-          <Skeleton isLoading variant="pulse" style={{ height: 48, borderRadius: 12 }} />
-          <Skeleton isLoading variant="pulse" style={{ height: 48, borderRadius: 12 }} />
+          <Skeleton
+            isLoading
+            variant="pulse"
+            style={{ width: "100%", height: 48, borderRadius: 12 }}
+          />
+          <Skeleton
+            isLoading
+            variant="pulse"
+            style={{ width: "100%", height: 48, borderRadius: 12 }}
+          />
         </View>
       )}
-      {!loading && shown.length === 0 && query.trim().length >= 4 && (
-        <Text style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>{t("No users found")}</Text>
-      )}
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-        {shown.map((u) => (
-          <View
-            key={u.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              padding: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: "#e5e7eb",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ fontWeight: "600" }}>{u.name?.charAt(0) ?? "?"}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Text>
-              <Text style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Text>
-            </View>
-            <Button size="sm" onPress={() => select(u)}>
-              <UserPlus size={14} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add")}</Text>
-            </Button>
-          </View>
-        ))}
-      </ScrollView>
+      {!loading &&
+        !(groupId ? groups.detail.isPending : friends.isPending) &&
+        shown.length === 0 &&
+        (query.trim().length >= 4 || !friends.hasNextPage) &&
+        !listError && (
+          <Typography style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>
+            {t("No users found")}
+          </Typography>
+        )}
+      <FlatList
+        data={shown}
+        keyExtractor={(user) => user.id}
+        contentContainerStyle={{ padding: 16, gap: 8 }}
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          if (
+            !groupId &&
+            query.trim().length < 4 &&
+            friends.hasNextPage &&
+            !friends.isFetchingNextPage &&
+            !friends.isFetchNextPageError
+          )
+            void friends.fetchNextPage();
+        }}
+        ListFooterComponent={
+          !groupId && query.trim().length < 4 ? (
+            friends.isFetchingNextPage ? (
+              <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
+            ) : friends.isFetchNextPageError ? (
+              <Button variant="secondary" onPress={() => void friends.fetchNextPage()}>
+                {t("Retry")}
+              </Button>
+            ) : null
+          ) : null
+        }
+        renderItem={({ item: u }) => (
+          <GroupedList>
+            <GroupedRow>
+              <Avatar size="md">
+                {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
+                <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
+              </Avatar>
+              <View style={{ flex: 1 }}>
+                <Typography style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Typography>
+                <Typography style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Typography>
+              </View>
+              <Button
+                isIconOnly
+                size="sm"
+                accessibilityLabel={`${t("Add")}: ${u.name}`}
+                onPress={() => select(u)}
+              >
+                <UserPlus size={16} color="#fff" />
+              </Button>
+            </GroupedRow>
+          </GroupedList>
+        )}
+      />
     </View>
   );
 }

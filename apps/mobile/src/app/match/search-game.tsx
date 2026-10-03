@@ -1,26 +1,32 @@
-import type { BggSearchItem, BggThingResponse } from "@board-game-organizer/schemas";
-import { withProtectionBypass } from "@board-game-organizer/shared";
+import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/schemas";
+import {
+  resolveApiUrl,
+  useBggAccount,
+  useBggPicker,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { useAuth } from "@clerk/expo";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { Input } from "heroui-native/input";
+import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
-import { ArrowLeft, Gamepad2 } from "lucide-react-native";
+import { Typography } from "heroui-native/text";
+import { Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { FlatList, Image, View } from "react-native";
+import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
-  return (
-    (Constants.expoConfig?.extra?.apiUrl as string | undefined)?.trim() || "http://localhost:4000"
-  );
+  return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
 export default function SearchGameScreen() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
   const router = useRouter();
   const { slotId, exclude } = useLocalSearchParams<{ slotId: string; exclude?: string }>();
@@ -31,76 +37,62 @@ export default function SearchGameScreen() {
         (exclude ?? "")
           .split(",")
           .filter(Boolean)
-          .map((x) => Number(x)),
+          .map((id) => Number(id)),
       ),
     [exclude],
   );
-  const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<BggSearchItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [debounced, setDebounced] = useState("");
+  const [search, setSearch] = useState(true);
+  const [collection, setCollection] = useState(true);
   const [picking, setPicking] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-
+  const account = useBggAccount({
+    apiUrl: apiUrl(),
+    getToken,
+    userId,
+    enabled: isLoaded && isSignedIn,
+  });
+  const hasCollection = Boolean(account.account.data?.active);
+  const picker = useBggPicker({
+    apiUrl: apiUrl(),
+    getToken,
+    userId,
+    query: debounced,
+    search,
+    collection: collection && hasCollection,
+    snapshot: account.account.data?.active?.snapshot,
+  });
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    let active = true;
-    getToken()
-      .then((tok) => active && setToken(tok ?? null))
-      .catch(() => active && setToken(null));
-    return () => {
-      active = false;
-    };
-  }, [isLoaded, isSignedIn, getToken]);
+    const timer = setTimeout(() => setDebounced(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const items = (picker.data?.pages.flatMap((page) => page.items) ?? []).filter(
+    (item) => !excludedIds.has(item.id),
+  );
+  const active = (search && debounced.length >= 4) || (collection && hasCollection);
 
-  useEffect(() => {
-    if (query.trim().length < 4) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    if (!token) return;
-    let active = true;
-    setLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          withProtectionBypass(
-            `${apiUrl()}/api/bgg/search?query=${encodeURIComponent(query.trim())}`,
-          ),
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { items: BggSearchItem[] };
-        // Games already chosen in another wizard slot stay hidden: a game
-        // can only be played once in a match.
-        if (active) setItems(data.items.filter((i) => !excludedIds.has(i.id)));
-      } catch {
-        if (active) setError(t("Search failed"));
-      } finally {
-        if (active) setLoading(false);
-      }
-    }, 300);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [query, token, t, excludedIds]);
-
-  const select = async (item: BggSearchItem) => {
+  const select = async (item: BggPickerItem) => {
     setPicking(item.id);
     setError(null);
     try {
-      const res = await fetch(withProtectionBypass(`${apiUrl()}/api/bgg/thing?id=${item.id}`), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const details = (await res.json()) as BggThingResponse;
+      const token = await getToken();
+      if (!token) throw new Error("No session token");
+      const response = await fetch(
+        withProtectionBypass(`${apiUrl()}/api/bgg/thing?id=${item.id}`),
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const details = (await response.json()) as BggThingResponse;
       setPendingGame(slotId, {
         id: details.id,
         name: details.name,
         imageUrl: details.imageUrl,
         year: details.year,
+        average: details.average,
+        rank: details.rank,
       });
       router.back();
     } catch {
@@ -111,48 +103,123 @@ export default function SearchGameScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 16 }}>
-        <Pressable onPress={() => router.back()} style={{ padding: 4 }}>
-          <ArrowLeft color="#111" size={22} />
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Select a board game")}</Text>
-      </View>
-      <View style={{ paddingHorizontal: 16 }}>
-        <Input
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t("Search board games (at least 4 characters)")}
-        />
-      </View>
-      {error && (
-        <Text style={{ color: "#f31260", fontSize: 13, paddingHorizontal: 16, marginTop: 8 }}>
-          {error}
-        </Text>
-      )}
-      {loading && (
-        <View style={{ padding: 16, gap: 12 }}>
-          <Skeleton isLoading variant="pulse" style={{ height: 48, borderRadius: 12 }} />
-          <Skeleton isLoading variant="pulse" style={{ height: 48, borderRadius: 12 }} />
+    <FlatList
+      style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 8 }}
+      data={items}
+      keyExtractor={(item) => String(item.id)}
+      initialNumToRender={12}
+      maxToRenderPerBatch={12}
+      onEndReachedThreshold={0.4}
+      onEndReached={() => {
+        if (picker.hasNextPage && !picker.isFetchingNextPage) void picker.fetchNextPage();
+      }}
+      ListHeaderComponent={
+        <View style={{ gap: 12, marginBottom: 8 }}>
+          <SearchHelpLabel
+            label={t("Search board games")}
+            help={t("Type at least 4 characters to search")}
+          />
+          <SearchField value={query} onChange={setQuery}>
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input
+                testID="game-search-input"
+                accessibilityLabel={t("Search board games")}
+                placeholder={t("Search board games")}
+              />
+              <SearchField.ClearButton accessibilityLabel={t("Clear")} />
+            </SearchField.Group>
+          </SearchField>
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            <Button
+              size="sm"
+              variant="primary"
+              style={{
+                minHeight: 32,
+                height: 32,
+                paddingHorizontal: 8,
+                gap: 6,
+                ...(!search && { backgroundColor: "#52525b" }),
+              }}
+              accessibilityLabel={t("Search")}
+              accessibilityState={{ selected: search }}
+              onPress={() => setSearch((value) => !value)}
+            >
+              <Search size={14} color="#fff" />
+              <Typography className="text-white" style={{ fontSize: 12 }}>
+                {t("Search")}
+              </Typography>
+            </Button>
+            {hasCollection ? (
+              <Button
+                size="sm"
+                variant="primary"
+                style={{
+                  minHeight: 32,
+                  height: 32,
+                  paddingHorizontal: 8,
+                  gap: 6,
+                  ...(!collection && { backgroundColor: "#52525b" }),
+                }}
+                accessibilityLabel={t("Collection")}
+                accessibilityState={{ selected: collection }}
+                onPress={() => setCollection((value) => !value)}
+              >
+                <LibraryBig size={14} color="#fff" />
+                <Typography className="text-white" style={{ fontSize: 12 }}>
+                  {t("Collection")}
+                </Typography>
+              </Button>
+            ) : null}
+          </View>
+          {error ? <Typography className="text-danger">{error}</Typography> : null}
+          {picker.isError || account.account.isError ? (
+            <Button
+              variant="outline"
+              onPress={() => {
+                void account.account.refetch();
+                void picker.refetch();
+              }}
+            >
+              <Typography>{t("Search failed. Retry")}</Typography>
+            </Button>
+          ) : null}
+          {active && picker.isPending ? (
+            <View style={{ gap: 8 }}>
+              <Skeleton
+                isLoading
+                variant="pulse"
+                style={{ width: "100%", height: 48, borderRadius: 12 }}
+              />
+              <Skeleton
+                isLoading
+                variant="pulse"
+                style={{ width: "100%", height: 48, borderRadius: 12 }}
+              />
+            </View>
+          ) : null}
+          {active &&
+          !picker.isPending &&
+          !picker.isError &&
+          !picker.hasNextPage &&
+          items.length === 0 ? (
+            <Typography className="text-muted">{t("No games found")}</Typography>
+          ) : null}
         </View>
-      )}
-      {!loading && items.length === 0 && query.trim().length >= 4 && (
-        <Text style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>{t("No games found")}</Text>
-      )}
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-        {items.map((item) => (
-          <View
-            key={item.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              padding: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-            }}
-          >
+      }
+      ListFooterComponent={
+        picker.isFetchingNextPage ? (
+          <Skeleton
+            isLoading
+            variant="pulse"
+            style={{ width: "100%", height: 48, borderRadius: 12 }}
+          />
+        ) : null
+      }
+      renderItem={({ item }) => (
+        <GroupedList>
+          <GroupedRow>
             <View
               style={{
                 width: 40,
@@ -163,17 +230,35 @@ export default function SearchGameScreen() {
                 justifyContent: "center",
               }}
             >
-              <Gamepad2 size={18} color="#6b7280" />
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  accessible={false}
+                  style={{ width: 40, height: 40, borderRadius: 8 }}
+                />
+              ) : (
+                <Gamepad2 size={18} color="#6b7280" />
+              )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: "500" }}>{item.name}</Text>
+              <Typography className="font-medium text-foreground" numberOfLines={1}>
+                {item.name}
+              </Typography>
+              <GameCatalogMetadata year={item.year} average={item.average} rank={item.rank} />
             </View>
-            <Button size="sm" isDisabled={picking === item.id} onPress={() => void select(item)}>
-              <Text style={{ color: "#fff" }}>{t("Select")}</Text>
+            <Button
+              isIconOnly
+              size="sm"
+              style={{ minWidth: 44, minHeight: 44 }}
+              accessibilityLabel={`${t("Select")}: ${item.name}`}
+              isDisabled={picking === item.id}
+              onPress={() => void select(item)}
+            >
+              <Plus size={16} color="#fff" />
             </Button>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
+          </GroupedRow>
+        </GroupedList>
+      )}
+    />
   );
 }

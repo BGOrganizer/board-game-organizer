@@ -1,58 +1,118 @@
-import type { CreateMatchInput } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useMatches } from "@board-game-organizer/shared";
+import type {
+  CreateMatchInput,
+  MatchDetailResponse,
+  MatchLocation,
+} from "@board-game-organizer/schemas";
+import {
+  formatMatchDateTime,
+  resolveApiUrl,
+  useGroups,
+  useMatches,
+} from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
+import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
-import { Text } from "heroui-native/text";
+import { Select } from "heroui-native/select";
+import { Typography } from "heroui-native/text";
 import {
   ArrowLeft,
   ArrowRight,
   CalendarClock,
+  CalendarDays,
+  Clock3,
   Gamepad2,
+  MapPin,
   Minus,
   Plus,
+  Save,
+  Trash2,
   Users,
-  X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, ScrollView, View } from "react-native";
+import { Image, Platform, Pressable, ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { FloatingActions } from "@/components/FloatingActions";
+import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useT } from "@/lib/i18n";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
 type DateSlot = { id: string; value: string | null };
+type LocationSlot = { id: string; location: MatchLocation | null };
 type UserSlot = {
   id: string;
   user: { id: string; name: string; email: string | null; avatarUrl: string | null } | null;
 };
 type GameSlot = {
   id: string;
-  game: { id: number; name: string; imageUrl: string | null; year: number | null } | null;
+  game: {
+    id: number;
+    name: string;
+    imageUrl: string | null;
+    year: number | null;
+    average?: number | null;
+    rank?: number | null;
+  } | null;
 };
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function MatchWizard() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse }) {
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
+  const { i18n } = useLingui();
+  const mutationFeedback = useMutationFeedback();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [name, setName] = useState("");
-  const [dateSlots, setDateSlots] = useState<DateSlot[]>([{ id: uid(), value: null }]);
-  const [minPlayers, setMinPlayers] = useState(2);
-  const [maxPlayers, setMaxPlayers] = useState(4);
-  const [userSlots, setUserSlots] = useState<UserSlot[]>([{ id: uid(), user: null }]);
-  const [gameSlots, setGameSlots] = useState<GameSlot[]>([{ id: uid(), game: null }]);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [name, setName] = useState(initialData?.match.name ?? "");
+  const [groupId, setGroupId] = useState(initialData?.match.groupId ?? "");
+  const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
+    initialData
+      ? initialData.match.dates.map((value) => ({ id: uid(), value }))
+      : [{ id: uid(), value: null }],
+  );
+  const [locationSlots, setLocationSlots] = useState<LocationSlot[]>(() =>
+    initialData?.match.locations?.length
+      ? initialData.match.locations.map((location) => ({ id: uid(), location }))
+      : [{ id: uid(), location: null }],
+  );
+  const [minPlayers, setMinPlayers] = useState(initialData?.match.minPlayers ?? 2);
+  const [maxPlayers, setMaxPlayers] = useState(initialData?.match.maxPlayers ?? 4);
+  const [userSlots, setUserSlots] = useState<UserSlot[]>(() => {
+    const users = initialData?.invitedPlayers
+      .filter((player) => player.invitation.status !== "DECLINED")
+      .map((user) => ({ id: uid(), user })) ?? [{ id: uid(), user: null }];
+    return users.length > 0 ? users : [{ id: uid(), user: null }];
+  });
+  const [gameSlots, setGameSlots] = useState<GameSlot[]>(() => {
+    const games =
+      initialData?.games.map((game) => ({
+        id: uid(),
+        game: {
+          id: game.id,
+          name: game.name,
+          imageUrl: game.thumbnail,
+          year: game.yearPublished,
+          average: game.average,
+          rank: game.rank,
+        },
+      })) ?? [];
+    return games.length > 0 ? games : [{ id: uid(), game: null }];
+  });
 
   // Which slot is currently picking a date (native picker).
   const [pickingDate, setPickingDate] = useState<string | null>(null);
@@ -69,24 +129,31 @@ export function MatchWizard() {
     };
   }, [isLoaded, isSignedIn, getToken]);
 
+  const groups = useGroups({ apiUrl: apiUrl(), token, getToken, userId });
+  const selectedGroup = groups.list.data?.find((group) => group.id === groupId);
   const matches = useMatches({
     apiUrl: apiUrl(),
     token,
     getToken,
+    userId,
+    feedback: mutationFeedback,
   });
 
   // Consume selections written by the search pages (user/game pickers).
   const pendingUser = useAppStore((s) => s.pendingUser);
   const pendingGame = useAppStore((s) => s.pendingGame);
+  const pendingLocation = useAppStore((s) => s.pendingLocation);
   const clearPending = useAppStore((s) => s.clearPending);
   useEffect(() => {
-    if (pendingUser) {
+    if (pendingUser && userSlots.some((slot) => slot.id === pendingUser.slotId)) {
       setUserSlots((p) =>
-        p.map((s) => (s.id === pendingUser.slotId ? { ...s, user: pendingUser.user } : s)),
+        p.some((s) => s.id !== pendingUser.slotId && s.user?.id === pendingUser.user.id)
+          ? p
+          : p.map((s) => (s.id === pendingUser.slotId ? { ...s, user: pendingUser.user } : s)),
       );
       clearPending();
     }
-  }, [pendingUser, clearPending]);
+  }, [pendingUser, userSlots, clearPending]);
   useEffect(() => {
     if (pendingGame) {
       setGameSlots((p) =>
@@ -95,22 +162,38 @@ export function MatchWizard() {
       clearPending();
     }
   }, [pendingGame, clearPending]);
+  useEffect(() => {
+    if (!pendingLocation) return;
+    setLocationSlots((slots) =>
+      slots.map((slot) =>
+        slot.id === pendingLocation.slotId ? { ...slot, location: pendingLocation.location } : slot,
+      ),
+    );
+    clearPending();
+  }, [pendingLocation, clearPending]);
 
   const step1Valid = useMemo(
     // Every date slot must be filled: an added-but-empty slot blocks
     // progress (no "skip the second date" loophole).
-    () => name.trim().length >= 5 && dateSlots.every((s) => s.value !== null),
-    [name, dateSlots],
-  );
-  const step2Valid = useMemo(
-    // All required slots must be filled: the creator counts as one player,
-    // so with minPlayers=N there must be at least N-1 invited users. The
-    // range itself must be coherent too.
     () =>
-      minPlayers >= 1 &&
+      name.trim().length >= 5 &&
+      dateSlots.every((s) => s.value !== null) &&
+      (!groupId || Boolean(selectedGroup)),
+    [name, dateSlots, groupId, selectedGroup],
+  );
+  const locationsValid =
+    locationSlots.length > 0 && locationSlots.every((slot) => slot.location !== null);
+  const step2Valid = useMemo(
+    () =>
+      minPlayers >= 2 &&
       maxPlayers >= minPlayers &&
-      userSlots.filter((s) => s.user !== null).length >= minPlayers - 1,
-    [minPlayers, maxPlayers, userSlots],
+      (!groupId ||
+        userSlots.every(
+          (slot) =>
+            !slot.user ||
+            selectedGroup?.memberProfiles.some((member) => member.id === slot.user?.id),
+        )),
+    [minPlayers, maxPlayers, groupId, userSlots, selectedGroup],
   );
   const step3Valid = useMemo(
     // Every added game slot must hold a game (same rule as the dates).
@@ -120,7 +203,11 @@ export function MatchWizard() {
 
   const addDateSlot = () => setDateSlots((p) => [...p, { id: uid(), value: null }]);
   const removeDateSlot = (id: string) =>
-    setDateSlots((p) => (p.length <= 1 ? p : p.filter((s) => s.id !== id)));
+    setDateSlots((p) =>
+      p.length > 1
+        ? p.filter((slot) => slot.id !== id)
+        : p.map((slot) => (slot.id === id ? { ...slot, value: null } : slot)),
+    );
   const setDateSlot = (id: string, iso: string) =>
     setDateSlots((p) => p.map((s) => (s.id === id ? { ...s, value: iso } : s)));
 
@@ -155,95 +242,77 @@ export function MatchWizard() {
     });
   }, [slotCount]);
 
-  const bumpMin = (d: number) => setMinPlayers((v) => Math.max(1, Math.min(maxPlayers, v + d)));
+  const bumpMin = (d: number) => setMinPlayers((v) => Math.max(2, Math.min(maxPlayers, v + d)));
   const bumpMax = (d: number) => setMaxPlayers((v) => Math.max(minPlayers, v + d));
 
   const addGameSlot = () => setGameSlots((p) => [...p, { id: uid(), game: null }]);
   const removeGameSlot = (id: string) =>
-    setGameSlots((p) => (p.length <= 1 ? p : p.filter((s) => s.id !== id)));
+    setGameSlots((p) =>
+      p.length > 1
+        ? p.filter((s) => s.id !== id)
+        : p.map((s) => (s.id === id ? { ...s, game: null } : s)),
+    );
 
-  const create = useCallback(async () => {
-    if (!step3Valid) return;
+  const save = useCallback(async () => {
+    if (!step3Valid || !locationsValid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
       dates: dateSlots.flatMap((s) => (s.value ? [s.value] : [])),
+      locations: locationSlots.flatMap((s) => (s.location ? [s.location] : [])),
       minPlayers,
       maxPlayers,
       invitedUserIds: userSlots.flatMap((s) => (s.user ? [s.user.id] : [])),
       gameIds: gameSlots.flatMap((s) => (s.game ? [s.game.id] : [])),
+      ...(groupId ? { groupId } : {}),
     };
     try {
-      await matches.create.mutateAsync(input);
-      router.back();
+      if (initialData) {
+        await matches.update.mutateAsync({
+          matchId: initialData.match.id,
+          input: { ...input, groupId: groupId || null },
+        });
+        router.back();
+      } else {
+        await matches.create.mutateAsync(input);
+        router.back();
+      }
     } catch {
-      // surface error
+      // Mutation feedback surfaces the error.
     }
-  }, [step3Valid, name, dateSlots, minPlayers, maxPlayers, userSlots, gameSlots, matches, router]);
+  }, [
+    initialData,
+    step3Valid,
+    locationsValid,
+    locationSlots,
+    name,
+    dateSlots,
+    minPlayers,
+    maxPlayers,
+    userSlots,
+    gameSlots,
+    groupId,
+    matches,
+    router,
+  ]);
 
   const next = () => {
     if (step === 1 && step1Valid) setStep(2);
-    else if (step === 2 && step2Valid) setStep(3);
-    else if (step === 3 && step3Valid) void create();
+    else if (step === 2 && locationsValid) setStep(3);
+    else if (step === 3 && step2Valid) setStep(4);
+    else if (step === 4 && step3Valid) void save();
   };
-  const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s));
-
-  const fabNext = (
-    <Pressable
-      onPress={next}
-      disabled={step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid}
-      style={{
-        position: "absolute",
-        right: 20,
-        bottom: 24,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: (step === 1 ? !step1Valid : step === 2 ? !step2Valid : !step3Valid)
-          ? "#9ca3af"
-          : "#006fee",
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 6,
-      }}
-    >
-      <ArrowRight color="#fff" size={26} />
-    </Pressable>
-  );
-  const fabBack =
-    step > 1 ? (
-      <Pressable
-        onPress={back}
-        style={{
-          position: "absolute",
-          left: 20,
-          bottom: 24,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: "#e5e7eb",
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#000",
-          shadowOpacity: 0.2,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 6,
-        }}
-      >
-        <ArrowLeft color="#111" size={26} />
-      </Pressable>
-    ) : null;
+  const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s === 4 ? 3 : s));
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
+    <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
+      >
         {/* Step indicator */}
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 16 }}>
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <View
               key={s}
               style={{
@@ -253,66 +322,207 @@ export function MatchWizard() {
                 backgroundColor: step === s ? "#006fee" : "#e5e7eb",
               }}
             >
-              <Text style={{ color: step === s ? "#fff" : "#6b7280", fontSize: 13 }}>{s}</Text>
+              <Typography style={{ color: step === s ? "#fff" : "#6b7280", fontSize: 13 }}>
+                {s}
+              </Typography>
             </View>
           ))}
         </View>
 
         {step === 1 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("New match")}</Text>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>
+              {initialData ? t("Edit match") : t("New match")}
+            </Typography>
             <Input value={name} onChangeText={setName} placeholder={t("e.g. Friday night games")} />
             {name.trim().length > 0 && name.trim().length < 5 && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>{t("At least 5 characters")}</Text>
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
+                {t("At least 5 characters")}
+              </Typography>
             )}
-            <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("When could you play?")}</Text>
-            {dateSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Pressable
-                  onPress={() => {
-                    const base = slot.value ? new Date(slot.value) : new Date();
-                    if (Platform.OS === "android") {
-                      pickDateTimeOnAndroid(slot.id, base);
-                      return;
-                    }
-                    setPickingDate(slot.id);
-                    setDateValue(base);
-                  }}
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
-                  }}
-                >
-                  <CalendarClock color="#6b7280" size={18} />
-                  <Text style={{ color: slot.value ? "#111" : "#9ca3af" }}>
-                    {slot.value ? new Date(slot.value).toLocaleString() : t("Pick date and time")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => removeDateSlot(slot.id)}
-                  disabled={dateSlots.length <= 1}
-                  style={{ padding: 8 }}
-                >
-                  <X color={dateSlots.length <= 1 ? "#d1d5db" : "#6b7280"} size={18} />
-                </Pressable>
-              </View>
-            ))}
-            <Button onPress={addDateSlot}>
+            <Typography style={{ color: "#6b7280", fontSize: 14 }}>
+              {t("Group (optional)")}
+            </Typography>
+            {groups.list.isError ? (
+              <Typography className="text-danger">{t("Could not load groups")}</Typography>
+            ) : null}
+            <Select
+              presentation="bottom-sheet"
+              value={{
+                value: groupId || "none",
+                label: selectedGroup?.name ?? (groupId || t("No group")),
+              }}
+              onValueChange={(item) => {
+                if (!Array.isArray(item))
+                  setGroupId(item?.value === "none" ? "" : (item?.value ?? ""));
+              }}
+              isDisabled={groups.list.isPending || groups.list.isError}
+            >
+              <Select.Trigger accessibilityLabel={t("Group (optional)")}>
+                <Select.Value placeholder={t("No group")} />
+                <Select.TriggerIndicator />
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Overlay />
+                <Select.Content presentation="bottom-sheet">
+                  <Select.ListLabel>{t("Group (optional)")}</Select.ListLabel>
+                  <Select.Item value="none" label={t("No group")} />
+                  {groups.list.data
+                    ?.filter(
+                      (group) =>
+                        group.adminUserId === userId ||
+                        group.invitations.some(
+                          (invitation) =>
+                            invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+                        ),
+                    )
+                    .map((group) => (
+                      <Select.Item key={group.id} value={group.id} label={group.name} />
+                    ))}
+                </Select.Content>
+              </Select.Portal>
+            </Select>
+            {groupId && !selectedGroup && !groups.list.isPending ? (
+              <Typography className="text-danger">{t("Selected group is unavailable")}</Typography>
+            ) : null}
+            <Typography style={{ color: "#6b7280", fontSize: 14 }}>
+              {t("When could you play?")}
+            </Typography>
+            <GroupedList>
+              {dateSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
+                  <Pressable
+                    onPress={() => {
+                      const base = slot.value ? new Date(slot.value) : new Date();
+                      if (Platform.OS === "android") {
+                        pickDateTimeOnAndroid(slot.id, base);
+                        return;
+                      }
+                      setPickingDate(slot.id);
+                      setDateValue(base);
+                    }}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      minHeight: 44,
+                      paddingVertical: 4,
+                    }}
+                  >
+                    {slot.value ? (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 8,
+                        }}
+                      >
+                        <CalendarDays color="#6b7280" size={18} />
+                        <Typography className="text-foreground">
+                          {formatMatchDateTime(slot.value, i18n.locale).date}
+                        </Typography>
+                        <Clock3 color="#6b7280" size={18} />
+                        <Typography className="text-foreground">
+                          {formatMatchDateTime(slot.value, i18n.locale).time}
+                        </Typography>
+                      </View>
+                    ) : (
+                      <>
+                        <CalendarClock color="#6b7280" size={18} />
+                        <Typography className="text-muted">{t("Pick date and time")}</Typography>
+                      </>
+                    )}
+                  </Pressable>
+                  {(dateSlots.length > 1 || slot.value !== null) && (
+                    <Button
+                      variant="danger-soft"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                      accessibilityLabel={t("Remove slot")}
+                      testID="remove-date-slot"
+                      onPress={() => removeDateSlot(slot.id)}
+                    >
+                      <Trash2 color="#dc2626" size={16} />
+                    </Button>
+                  )}
+                </GroupedRow>
+              ))}
+            </GroupedList>
+            <Button
+              size="sm"
+              variant="primary"
+              style={{ alignSelf: "flex-start" }}
+              onPress={addDateSlot}
+            >
               <Plus size={16} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add another date")}</Text>
+              <Typography style={{ color: "#fff" }}>{t("Add date")}</Typography>
             </Button>
           </View>
         )}
 
         {step === 2 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Players")}</Text>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Locations")}</Typography>
+            <GroupedList>
+              {locationSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={slot.location?.name ?? t("Select location")}
+                    testID={`location-slot-${slot.id}`}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/match/search-location",
+                        params: {
+                          slotId: slot.id,
+                          ...(slot.location ? { initial: JSON.stringify(slot.location) } : {}),
+                        },
+                      })
+                    }
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: 12,
+                    }}
+                  >
+                    <MapPin size={20} color="#6b7280" />
+                    <Typography className="text-foreground" numberOfLines={2}>
+                      {slot.location
+                        ? `${slot.location.name} · ${slot.location.address}`
+                        : t("Select location")}
+                    </Typography>
+                  </Pressable>
+                  <Button
+                    variant="danger-soft"
+                    isIconOnly
+                    accessibilityLabel={t("Remove location")}
+                    onPress={() =>
+                      setLocationSlots((slots) => slots.filter((item) => item.id !== slot.id))
+                    }
+                  >
+                    <Trash2 size={18} color="#f31260" />
+                  </Button>
+                </GroupedRow>
+              ))}
+            </GroupedList>
+            <Button
+              variant="secondary"
+              onPress={() => setLocationSlots((slots) => [...slots, { id: uid(), location: null }])}
+            >
+              <Plus size={18} color="#6b7280" />
+              {t("Add location")}
+            </Button>
+          </View>
+        )}
+
+        {step === 3 && (
+          <View style={{ gap: 16 }}>
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Players")}</Typography>
             <View style={{ flexDirection: "row", gap: 24 }}>
               <Stepper
                 label={t("Min")}
@@ -328,132 +538,240 @@ export function MatchWizard() {
               />
             </View>
             {maxPlayers < minPlayers && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
                 {t("Max must be at least min")}
-              </Text>
+              </Typography>
             )}
-            <Text style={{ color: "#6b7280", fontSize: 14 }}>{t("Invite friends")}</Text>
-            {userSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Pressable
-                  onPress={() =>
-                    router.push({ pathname: "/match/search-user", params: { slotId: slot.id } })
-                  }
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
-                  }}
-                >
-                  <Users color="#6b7280" size={18} />
-                  <View style={{ flex: 1 }}>
-                    {slot.user ? (
-                      <>
-                        <Text style={{ fontSize: 14, fontWeight: "500" }}>{slot.user.name}</Text>
-                        <Text style={{ fontSize: 12, color: "#9ca3af" }}>{slot.user.email}</Text>
-                      </>
-                    ) : (
-                      <Text style={{ color: "#9ca3af" }}>{t("Select a friend")}</Text>
-                    )}
-                  </View>
-                </Pressable>
-                {slot.user && (
+            <Typography style={{ color: "#6b7280", fontSize: 14 }}>
+              {groupId ? t("Invite group members") : t("Invite friends")}
+            </Typography>
+            {groupId &&
+            userSlots.some(
+              (slot) =>
+                slot.user &&
+                !selectedGroup?.memberProfiles.some((member) => member.id === slot.user?.id),
+            ) ? (
+              <Typography className="text-danger">
+                {t("Remove players who are not members of the selected group")}
+              </Typography>
+            ) : null}
+            <GroupedList>
+              {userSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
                   <Pressable
                     onPress={() =>
-                      setUserSlots((p) =>
-                        p.map((s) => (s.id === slot.id ? { ...s, user: null } : s)),
-                      )
+                      router.push({
+                        pathname: "/match/search-user",
+                        params: {
+                          slotId: slot.id,
+                          ...(groupId ? { groupId } : {}),
+                          exclude: userSlots
+                            .flatMap((s) => (s.id !== slot.id && s.user ? [s.user.id] : []))
+                            .join(","),
+                        },
+                      })
                     }
-                    style={{ padding: 8 }}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      minHeight: 44,
+                      paddingVertical: 4,
+                    }}
                   >
-                    <X color="#6b7280" size={18} />
+                    {slot.user ? (
+                      <Avatar size="md">
+                        {slot.user.avatarUrl ? (
+                          <Avatar.Image source={{ uri: slot.user.avatarUrl }} />
+                        ) : null}
+                        <Avatar.Fallback>{slot.user.name.charAt(0) || "?"}</Avatar.Fallback>
+                      </Avatar>
+                    ) : (
+                      <Users color="#6b7280" size={18} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      {slot.user ? (
+                        <>
+                          <Typography style={{ fontSize: 14, fontWeight: "500" }}>
+                            {slot.user.name}
+                          </Typography>
+                          <Typography style={{ fontSize: 12, color: "#9ca3af" }}>
+                            {slot.user.email}
+                          </Typography>
+                        </>
+                      ) : (
+                        <Typography style={{ color: "#9ca3af" }}>
+                          {groupId ? t("Select group member") : t("Select a friend")}
+                        </Typography>
+                      )}
+                    </View>
                   </Pressable>
-                )}
-              </View>
-            ))}
+                  {slot.user && (
+                    <Button
+                      variant="danger-soft"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                      accessibilityLabel={t("Remove invite")}
+                      testID="remove-invite-slot"
+                      onPress={() =>
+                        setUserSlots((p) =>
+                          p.map((s) => (s.id === slot.id ? { ...s, user: null } : s)),
+                        )
+                      }
+                    >
+                      <Trash2 color="#dc2626" size={16} />
+                    </Button>
+                  )}
+                </GroupedRow>
+              ))}
+            </GroupedList>
           </View>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <View style={{ gap: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Text>
-            {gameSlots.map((slot) => (
-              <View key={slot.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/match/search-game",
-                      params: {
-                        slotId: slot.id,
-                        exclude: gameSlots
-                          .filter(
-                            (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
-                              s.id !== slot.id && s.game !== null,
-                          )
-                          .map((s) => s.game.id)
-                          .join(","),
-                      },
-                    })
-                  }
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#e5e7eb",
-                  }}
-                >
-                  <Gamepad2 color="#6b7280" size={18} />
-                  <View style={{ flex: 1 }}>
-                    {slot.game ? (
-                      <>
-                        <Text style={{ fontSize: 14, fontWeight: "500" }}>{slot.game.name}</Text>
-                        {slot.game.year ? (
-                          <Text style={{ fontSize: 12, color: "#9ca3af" }}>{slot.game.year}</Text>
-                        ) : null}
-                      </>
-                    ) : (
-                      <Text style={{ color: "#9ca3af" }}>{t("Select a board game")}</Text>
-                    )}
-                  </View>
-                </Pressable>
-                {slot.game && (
+            <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Typography>
+            <GroupedList>
+              {gameSlots.map((slot) => (
+                <GroupedRow key={slot.id}>
                   <Pressable
                     onPress={() =>
-                      setGameSlots((p) =>
-                        p.map((s) => (s.id === slot.id ? { ...s, game: null } : s)),
-                      )
+                      router.push({
+                        pathname: "/match/search-game",
+                        params: {
+                          slotId: slot.id,
+                          exclude: gameSlots
+                            .filter(
+                              (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
+                                s.id !== slot.id && s.game !== null,
+                            )
+                            .map((s) => s.game.id)
+                            .join(","),
+                        },
+                      })
                     }
-                    style={{ padding: 8 }}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      minHeight: 44,
+                      paddingVertical: 4,
+                    }}
                   >
-                    <X color="#6b7280" size={18} />
+                    <View
+                      className="bg-muted/20"
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 8,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {slot.game?.imageUrl ? (
+                        <Image
+                          source={{ uri: slot.game.imageUrl }}
+                          accessible={false}
+                          style={{ width: 40, height: 40 }}
+                        />
+                      ) : (
+                        <Gamepad2 color="#6b7280" size={18} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {slot.game ? (
+                        <>
+                          <Typography
+                            style={{ fontSize: 14, fontWeight: "500" }}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {slot.game.name}
+                          </Typography>
+                          <GameCatalogMetadata
+                            year={slot.game.year}
+                            average={slot.game.average}
+                            rank={slot.game.rank}
+                          />
+                        </>
+                      ) : (
+                        <Typography style={{ color: "#9ca3af" }}>
+                          {t("Select a board game")}
+                        </Typography>
+                      )}
+                    </View>
                   </Pressable>
-                )}
-              </View>
-            ))}
-            <Button onPress={addGameSlot}>
-              <Plus size={16} color="#fff" />
-              <Text style={{ color: "#fff" }}>{t("Add another game")}</Text>
+                  {(slot.game || gameSlots.length > 1) && (
+                    <Button
+                      variant="danger-soft"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                      accessibilityLabel={t("Remove game")}
+                      testID="remove-game-slot"
+                      onPress={() => removeGameSlot(slot.id)}
+                    >
+                      <Trash2 color="#dc2626" size={16} />
+                    </Button>
+                  )}
+                </GroupedRow>
+              ))}
+            </GroupedList>
+            <Button
+              size="sm"
+              variant="primary"
+              onPress={addGameSlot}
+              style={{ alignSelf: "flex-start" }}
+            >
+              <Plus size={14} color="#fff" />
+              <Typography style={{ color: "#fff", fontSize: 13 }}>{t("Add game")}</Typography>
             </Button>
-            {matches.create.isError && (
-              <Text style={{ color: "#f31260", fontSize: 13 }}>
-                {t("Could not create the match")}
-              </Text>
+            {(matches.create.isError || matches.update.isError) && (
+              <Typography style={{ color: "#f31260", fontSize: 13 }}>
+                {initialData ? t("Could not update the match") : t("Could not create the match")}
+              </Typography>
             )}
           </View>
         )}
       </ScrollView>
 
-      {fabBack}
-      {fabNext}
+      {step > 1 ? (
+        <FloatingActions
+          label="Back"
+          testID="previous-step-fab"
+          onPress={back}
+          extraBottom={92}
+          left={true}
+          variant="secondary"
+        >
+          <ArrowLeft color="#111" size={26} />
+        </FloatingActions>
+      ) : null}
+
+      <FloatingActions
+        label={step === 4 ? (initialData ? "Save changes" : "Create match") : "Next step"}
+        testID={step === 4 ? "save-match-fab" : "next-step-fab"}
+        onPress={next}
+        extraBottom={92}
+        variant={step === 4 ? "primary" : "secondary"}
+        isDisabled={
+          matches.create.isPending ||
+          matches.update.isPending ||
+          (step === 1
+            ? !step1Valid
+            : step === 2
+              ? !locationsValid
+              : step === 3
+                ? !step2Valid
+                : !step3Valid)
+        }
+      >
+        {step === 4 ? <Save color="#fff" size={26} /> : <ArrowRight color="#111" size={26} />}
+      </FloatingActions>
 
       {/* Native date/time picker: iOS renders an inline spinner (datetime
           mode exists on iOS); Android uses the imperative chained date →
@@ -468,7 +786,7 @@ export function MatchWizard() {
           }}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -485,12 +803,12 @@ function Stepper({
 }) {
   return (
     <View style={{ alignItems: "center", gap: 4 }}>
-      <Text style={{ fontSize: 12, color: "#6b7280" }}>{label}</Text>
+      <Typography style={{ fontSize: 12, color: "#6b7280" }}>{label}</Typography>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Pressable onPress={onDec} style={{ padding: 8 }}>
           <Minus color="#111" size={18} />
         </Pressable>
-        <Text style={{ fontSize: 20, fontWeight: "700" }}>{value}</Text>
+        <Typography style={{ fontSize: 20, fontWeight: "700" }}>{value}</Typography>
         <Pressable onPress={onInc} style={{ padding: 8 }}>
           <Plus color="#111" size={18} />
         </Pressable>

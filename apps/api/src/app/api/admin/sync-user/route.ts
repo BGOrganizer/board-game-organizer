@@ -20,16 +20,38 @@ const syncUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
   avatarUrl: z.string().url().optional(),
+  mobileNumber: z.string().trim().min(1).optional(),
 });
 
 export function OPTIONS(request: Request) {
   return corsOptions(request);
 }
 
-export async function POST(request: Request) {
+function isAuthorized(request: Request) {
   const secret = process.env.CLERK_SECRET_KEY;
-  const auth = request.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
+  return !!secret && request.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+/** CI checks the runtime DB override before provisioning users or running E2E. */
+export function GET(request: Request) {
+  if (!isAuthorized(request)) {
+    return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
+  }
+  return corsJson(
+    {
+      databaseName: process.env.MONGODB_DB_NAME,
+      webhookDbReady: Boolean(
+        process.env.CLERK_WEBHOOK_DB_NAME &&
+          !process.env.CLERK_WEBHOOK_DB_NAME.startsWith("bgo_ci_"),
+      ),
+    },
+    {},
+    request,
+  );
+}
+
+export async function POST(request: Request) {
+  if (!isAuthorized(request)) {
     return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   }
 
@@ -40,12 +62,13 @@ export async function POST(request: Request) {
 
   const db = await getDb();
   const repo = new UsersRepository(db);
-  const { clerkId, email, name, avatarUrl } = parsed.data;
+  const { clerkId, email, name, avatarUrl, mobileNumber } = parsed.data;
   await repo.upsertFromClerk({
     id: clerkId,
     email,
     name,
     avatarUrl,
+    mobileNumber,
     preferredLanguage: "en",
     e2e: true,
   });

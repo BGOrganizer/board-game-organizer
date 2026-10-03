@@ -13,7 +13,7 @@ web, API, and mobile, all in one TypeScript monorepo.
 | Monorepo | pnpm workspaces + Turborepo |
 | Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
 | API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
-| Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
+| Mobile | Expo SDK 57 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
 | Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) · `@board-game-organizer/schemas` (DB models + zod DTOs) |
 | i18n | **LinguiJS** (it + en catalogs, web + mobile) — see AGENTS.md |
 | Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage ≥ 50% per app) · commitlint · Maestro · Playwright |
@@ -26,7 +26,7 @@ web, API, and mobile, all in one TypeScript monorepo.
   Vercel) with **logout**; specular web/mobile implementation
 - Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
-- App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
+- Matches and Groups on web and mobile. Groups have friend invitations, accepted membership, public/private visibility metadata, and admin-only edits/archival. Public search and join requests are future work.
 - **Contacts tab** (web + mobile): Following/Followers/Blocked lists, follow/unfollow,
   address-book suggestions (mobile: permission-gated, matched registered users persisted
   in `contactLinks`; 'Add contacts' CTA re-prompts when denied), prefix search (with block
@@ -44,7 +44,7 @@ web, API, and mobile, all in one TypeScript monorepo.
 
 **Planned**
 - Collection management, session logging, player statistics, game catalog (BGG import)
-- Groups, match scheduling, venues, ELO rankings, marketplace
+- Venues, visual leaderboards, marketplace (and public group search/join requests)
 
 **Release 2 (deferred)** — see `plan.md`: friend requests UI + expired-invite
 cleanup job.
@@ -52,7 +52,7 @@ cleanup job.
 ## Prerequisites
 
 - **Node.js ≥ 22** (CI uses 26)
-- **pnpm ≥ 11.6** (`corepack enable && corepack prepare pnpm@11.6.0 --activate`, or `npm i -g pnpm`)
+- **pnpm 11.25** (`corepack enable && corepack prepare pnpm@11.25.0 --activate`, or `npm i -g pnpm@11.25.0`)
 - **MongoDB** running (transactions require a replica set: `mongod --replSet rs0` + `rs.initiate()`)
 - Accounts/keys: [Clerk](https://clerk.com) (publishable + secret keys); Sentry DSN only for mobile
 
@@ -74,6 +74,60 @@ pnpm dev              # run all apps
 - Mobile: `pnpm --filter mobile dev` (Expo dev client / emulator)
 
 Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile dev`.
+
+### Local MongoDB and BGG catalog
+
+Download and extract the authenticated BGG `bg_ranks` dump to
+`data/boardgames_ranks.csv`, then start the replica set:
+
+```bash
+docker compose up -d --wait --wait-timeout 600
+docker compose logs -f mongodb
+```
+
+Every MongoDB container start stages and validates the CSV, then upserts `boardGames`
+without deleting absent games. MongoDB becomes healthy only after replica-set initialization
+and import complete.
+Configure the API with:
+
+```env
+MONGODB_URI=mongodb://localhost:27017/?replicaSet=rs0&directConnection=true
+MONGODB_DB_NAME=board-game-organizer
+```
+
+Run `pnpm --filter api migrate` before deploying the group or ranking API: it creates unique membership/rating/event indexes. OpenSkill stores per-game GLOBAL and optional GROUP ratings when a match is terminated. One physical match increments `gamesPlayed` once per scope; ND shares last place unless fewer than two players scored (no rating). No older test matches are backfilled. Archived groups retain historical match/rating references. Leaderboard repository queries support both scopes; visual leaderboards and public group search remain future work.
+
+To refresh the local catalog from a CSV elsewhere, recreate the container (plain `up`
+may leave it running without re-importing):
+
+```bash
+BGG_CSV_PATH=/absolute/path/boardgames_ranks.csv docker compose up -d --force-recreate --wait
+```
+
+Remove containers with `docker compose down`; add `-v` only when the local database may be deleted.
+
+To refresh a deployed Preview or production catalog, use the manual
+`Import BoardGames (manual)` workflow with matching target, API URL, and downloadable
+CSV URL. Alternatively run `apps/api/scripts/import-boardgames.mjs` locally with
+`BGG_CSV`, `BGG_IMPORT_URL` (the complete import endpoint, including the Preview
+protection bypass query parameter), and `BGG_IMPORT_TOKEN` (the target API's
+`CLERK_SECRET_KEY`). Remote imports upsert by BGG ID; games missing from a newer CSV
+remain available to existing matches. Full imports also remove legacy database `thumbnail`
+fields; validated BGG covers are cached in `image`. Deploy the updated API before importing
+the CSV: search requires the imported `isExpansion` field.
+
+For a direct **Preview development MongoDB** import (no API/bypass), verify the URI belongs to
+the Preview cluster before running. The script restricts the database name and upserts without
+deleting games absent from the CSV:
+
+```bash
+export BGG_MONGODB_URI='<PREVIEW_MONGODB_URI>'
+export BGG_DATABASE_NAME=board-game-organizer
+export BGG_CSV="$PWD/boardgames_ranks.csv"
+pnpm --filter api exec tsx scripts/import-boardgames-direct.ts
+```
+
+Never use a production URI or commit it. Re-run after interruption to finish remaining games.
 
 ## Quality
 
@@ -98,10 +152,13 @@ pnpm release                        # semantic-release (version bump + changelog
 - **Branch pushes run `branch-ci.yml`** (fast subset: commitlint, Biome, typecheck, unit +
   integration tests) — quick feedback while implementing; **the PR is opened only when the
   whole feature is done** (on request) and runs the full `pr-ci.yml` below.
-- **PRs run `pr-ci.yml`**: commitlint → Biome → typecheck → unit tests with coverage → API
-  integration tests (testcontainers) → mobile APK build (internal) → api/web builds → Vercel
-  **preview** deploys → E2E **Maestro** (mobile) + **Playwright** (web).
-- If every gate passes, a **draft prerelease** (`v<version>-pr.<PR>`) is created/updated with
+- **PRs run `pr-ci.yml`**: quality checks and API/web builds run in parallel; only after
+  unit and API integration tests pass do isolated CI and development API **Previews** deploy.
+  Both mobile APK builds then overlap on separate runners with distinct API URLs. **Maestro**
+  tests only the isolated CI APK; **Playwright** tests Preview web against the isolated CI API.
+  A failed job cancels the entire run, with independent cleanup for CI users/database. A new PR
+  commit cancels the previous run; the development API Preview stays deployed on E2E failure.
+- If every gate and CI cleanup passes, a **draft prerelease** (`v<version>-pr.<PR>`) is created/updated with
   the PR **changelog** (from conventional commits), the internal APK and the preview links,
   and a **Telegram notification** is sent (changelog + preview links + PR APK).
 - Merging to main runs `main-ci.yml`: **semantic-release** bumps the **semver** version from

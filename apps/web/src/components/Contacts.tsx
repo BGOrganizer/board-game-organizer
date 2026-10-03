@@ -2,17 +2,33 @@
 
 import {
   type ContactUser,
+  contactConnections,
   reportPresence,
   resolveApiUrl,
   useContacts,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
+import { Avatar, Card, Chip, SearchField, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { UserMinus, UserPlus, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Ban,
+  BookUser,
+  Mail,
+  Search,
+  SearchX,
+  Send,
+  UserRoundCheck,
+  UserRoundPlus,
+  UsersRound,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { InviteCard } from "@/components/InviteCard";
+import { EmptyList } from "@/components/EmptyList";
+import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { SearchHelpLabel } from "@/components/SearchHelpLabel";
 import { type UserActionKey, UserMenu } from "@/components/UserMenu";
+import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
   return resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -24,44 +40,55 @@ function protectionBypass(): string | undefined {
   return process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 }
 
-type TabKey = "following" | "followers" | "blocked" | "suggestions" | "search";
-
 function ContactCard({
   name,
   email,
   avatarUrl,
   online,
-  action,
   menu,
+  badge,
 }: {
   name: string;
   email: string | null;
   avatarUrl: string | null;
   online: boolean;
-  action?: React.ReactNode;
   menu?: React.ReactNode;
+  badge?: { icon: LucideIcon; label: string; color: string };
 }) {
+  const BadgeIcon = badge?.icon;
   return (
-    <Card className="flex flex-row items-center gap-3 p-3">
-      <div className="relative">
-        <Avatar size="md" color="accent">
-          <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
-          <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
-        </Avatar>
-        <span
-          className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-white ${
-            online ? "bg-green-500" : "bg-gray-300"
-          }`}
-          title={online ? "online" : "offline"}
-        />
+    <GroupedRow className="flex-col sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="relative shrink-0">
+          <Avatar size="md" color="accent">
+            <Avatar.Image src={avatarUrl ?? undefined} alt={name} />
+            <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
+          </Avatar>
+          <span
+            className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-white ${
+              online ? "bg-green-500" : "bg-gray-300"
+            }`}
+            title={online ? "online" : "offline"}
+          />
+          {badge && BadgeIcon ? (
+            <span
+              role="img"
+              aria-label={badge.label}
+              className={`absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-surface bg-surface ${badge.color}`}
+            >
+              <BadgeIcon className="size-3" aria-hidden="true" />
+            </span>
+          ) : null}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{name}</p>
+          {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{name}</p>
-        {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
-      </div>
-      {action}
-      {menu}
-    </Card>
+      {menu ? (
+        <div className="flex shrink-0 items-center justify-end self-end sm:self-auto">{menu}</div>
+      ) : null}
+    </GroupedRow>
   );
 }
 
@@ -71,11 +98,15 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="space-y-2">
       {keys.map((key) => (
-        <Card key={key} className="flex flex-row items-center gap-3 p-3">
-          <Skeleton animationType="pulse" className="h-10 w-10 rounded-full" />
-          <div className="flex-1 space-y-1">
-            <Skeleton animationType="pulse" className="h-3 w-2/3 rounded" />
-            <Skeleton animationType="pulse" className="h-3 w-1/2 rounded" />
+        <Card
+          key={key}
+          data-testid="contact-skeleton-row"
+          className="flex w-full min-w-0 flex-row items-center gap-3 p-3"
+        >
+          <Skeleton animationType="pulse" className="h-10 w-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton animationType="pulse" className="h-3 w-48 max-w-full rounded" />
+            <Skeleton animationType="pulse" className="h-3 w-32 max-w-full rounded" />
           </div>
         </Card>
       ))}
@@ -84,10 +115,10 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
 }
 
 export function Contacts() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t } = useLingui();
+  const mutationFeedback = useMutationFeedback();
   const [token, setToken] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -117,8 +148,7 @@ export function Contacts() {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn]);
+  }, [getToken, isLoaded, isSignedIn]);
 
   // Presence heartbeat: keep the green-dot fresh while the tab is open.
   // Uses a fresh session token each beat so the JWT rotation never 401s.
@@ -136,18 +166,73 @@ export function Contacts() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken, protectionBypass());
+  const contacts = useContacts(
+    apiUrl(),
+    token,
+    getToken,
+    protectionBypass(),
+    userId,
+    mutationFeedback,
+  );
+  const connectionPages = [
+    contacts.friends,
+    contacts.following,
+    contacts.followers,
+    contacts.blocked,
+  ];
+  const nextConnectionPage = connectionPages.find((page) => page.hasNextPage);
+  const requestPages = [contacts.pending, contacts.sent];
+  const nextRequestPage = requestPages.find((page) => page.hasNextPage);
+  const endRefs = {
+    connections: useInfiniteScroll({
+      hasNextPage: Boolean(nextConnectionPage),
+      isFetchingNextPage: nextConnectionPage?.isFetchingNextPage,
+      isFetchNextPageError: nextConnectionPage?.isFetchNextPageError,
+      fetchNextPage: () => nextConnectionPage?.fetchNextPage() ?? Promise.resolve(),
+    }),
+    requests: useInfiniteScroll({
+      hasNextPage: Boolean(nextRequestPage),
+      isFetchingNextPage: nextRequestPage?.isFetchingNextPage,
+      isFetchNextPageError: nextRequestPage?.isFetchNextPageError,
+      fetchNextPage: () => nextRequestPage?.fetchNextPage() ?? Promise.resolve(),
+    }),
+    suggestions: useInfiniteScroll({
+      ...contacts.suggestions,
+      fetchNextPage: () => contacts.suggestions.fetchNextPage(),
+    }),
+  };
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
+    contacts.unfriend.isPending ||
+    contacts.friendRequest.isPending ||
+    contacts.cancelFriendRequest.isPending ||
+    contacts.acceptFriendRequest.isPending ||
+    contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
     contacts.unblock.isPending;
+  const actionFailed =
+    contacts.follow.isError ||
+    contacts.unfollow.isError ||
+    contacts.unfriend.isError ||
+    contacts.friendRequest.isError ||
+    contacts.cancelFriendRequest.isError ||
+    contacts.acceptFriendRequest.isError ||
+    contacts.rejectFriendRequest.isError ||
+    contacts.block.isError ||
+    contacts.unblock.isError;
 
-  const handleUserAction = (u: ContactUser) => (key: UserActionKey) => {
-    if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
-    else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
-    else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
-    else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
+  const handleUserAction = (user: ContactUser) => (key: UserActionKey) => {
+    const variables = { targetUserId: user.id, targetUser: user };
+    if (key === "follow") contacts.follow.mutate(variables);
+    else if (key === "unfollow") contacts.unfollow.mutate(variables);
+    else if (key === "unfriend") contacts.unfriend.mutate(variables);
+    else if (key === "friend_request") contacts.friendRequest.mutate(variables);
+    else if (key === "cancel_friend_request") contacts.cancelFriendRequest.mutate(variables);
+    else if (key === "accept_friend_request") contacts.acceptFriendRequest.mutate(variables);
+    else if (key === "reject_friend_request") contacts.rejectFriendRequest.mutate(variables);
+    else if (key === "block") contacts.block.mutate(variables);
+    else if (key === "unblock") contacts.unblock.mutate(variables);
     // profile: not implemented yet — no-op.
   };
 
@@ -169,247 +254,268 @@ export function Contacts() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
-
-  // Re-run a pending search as soon as the session token becomes available
-  // (the debounce above skipped it while getToken() was still null).
-  const hasPendingSearch = query.trim().length >= 4 && !token;
-  useEffect(() => {
-    if (token && hasPendingSearch) contacts.runSearch(query);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [contacts.runSearch, query, token]);
 
   const followingRows = contacts.following.data ?? [];
-  // Ids the viewer follows — used by the Followers tab to render the right
-  // icon (server-side isFollowing is always false for follower rows).
-  const followingIds = new Set(
-    followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
-  );
   const followersRows = contacts.followers.data ?? [];
+  const friendsRows = contacts.friends.data ?? [];
+  const pendingRows = contacts.pending.data ?? [];
+  const sentRows = contacts.sent.data ?? [];
+  const pendingRequestIds = new Set(
+    pendingRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const sentRequestIds = new Set(
+    sentRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
+  const canSendFriendRequest = (user: ContactUser) =>
+    friendRequestsLoaded &&
+    !user.isFriend &&
+    !user.blockedByMe &&
+    !user.blockedMe &&
+    !pendingRequestIds.has(user.id) &&
+    !sentRequestIds.has(user.id);
+
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
-  const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
   const searchResults = contacts.search.data?.users ?? [];
 
-  // List tabs: which query feeds each tab, plus the empty-state copy.
-  const listTabs: Array<{
-    key: TabKey;
-    label: string;
-    rows: typeof followingRows;
-    isLoading: boolean;
-    empty: string;
-  }> = [
-    {
-      key: "following",
-      label: t`Following`,
-      rows: followingRows,
-      isLoading: contacts.following.isLoading,
-      empty: t`You are not following anyone yet`,
-    },
-    {
-      key: "followers",
-      label: t`Followers`,
-      rows: followersRows,
-      isLoading: contacts.followers.isLoading,
-      empty: t`No followers yet`,
-    },
-    {
-      key: "blocked",
-      label: t`Blocked`,
-      rows: blockedRows,
-      isLoading: contacts.blocked.isLoading,
-      empty: t`No blocked users`,
-    },
-  ];
+  const connections = contactConnections(
+    friendsRows,
+    followingRows,
+    followersRows,
+    suggestions,
+    blockedRows,
+  );
+  const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
+  const connectionLabels = {
+    friends: t`Friends`,
+    following: t`Following`,
+    followers: t`Followers`,
+    blocked: t`Blocked`,
+  };
+  const connectionIcons = {
+    friends: UsersRound,
+    following: UserRoundPlus,
+    followers: UserRoundCheck,
+    blocked: Ban,
+  };
+  const connectionColors = {
+    friends: "text-primary",
+    following: "text-warning",
+    followers: "text-success",
+    blocked: "text-danger",
+  };
+  const contactCard = (
+    user: ContactUser,
+    friendRequest?: "incoming" | "outgoing",
+    badge?: { icon: LucideIcon; label: string; color: string },
+  ) => (
+    <ContactCard
+      key={`${friendRequest ?? "contact"}-${user.id}`}
+      name={user.name}
+      email={user.email}
+      avatarUrl={user.avatarUrl}
+      online={user.presence.online}
+      badge={badge}
+      menu={
+        <UserMenu
+          user={user}
+          busy={isBusy}
+          canSendFriendRequest={canSendFriendRequest(user)}
+          friendRequest={
+            friendRequest ??
+            (pendingRequestIds.has(user.id)
+              ? "incoming"
+              : sentRequestIds.has(user.id)
+                ? "outgoing"
+                : undefined)
+          }
+          onAction={handleUserAction(user)}
+        />
+      }
+    />
+  );
 
   return (
-    <div className="space-y-4">
-      <InviteCard apiUrl={apiUrl()} protectionBypass={protectionBypass()} />
+    <div className="min-w-0 space-y-4">
+      {actionFailed ? (
+        <p role="alert" className="text-sm text-danger">
+          {t`Could not complete the action. Try again.`}
+        </p>
+      ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["following", t`Following`],
-            ["followers", t`Followers`],
-            ["blocked", t`Blocked`],
-            ["suggestions", t`Suggestions`],
-            ["search", t`Search`],
-          ] as Array<[TabKey, string]>
-        ).map(([key, label]) => (
-          <Button
-            key={key}
-            size="sm"
-            variant={tab === key ? "primary" : "outline"}
-            onPress={() => setTab(key)}
+      <Tabs aria-label={t`Contacts`} defaultSelectedKey="connections">
+        <Tabs.ListContainer>
+          <Tabs.List>
+            <Tabs.Tab id="connections">
+              {t`Connections`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="requests">
+              {t`Requests`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="search">
+              {t`Search`}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs.ListContainer>
+
+        <Tabs.Panel id="search" className="space-y-3 pt-4">
+          <SearchField
+            fullWidth
+            value={query}
+            onChange={(value) => {
+              setQuery(value);
+              if (!value) contacts.runSearch("");
+            }}
           >
-            {label}
-          </Button>
-        ))}
-      </div>
-
-      {tab === "search" && (
-        <div className="space-y-3">
-          <div className="relative">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t`Search users (at least 4 characters)`}
-              aria-label={t`Search users by name or email`}
-              className="w-full rounded-lg border border-default-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary"
+            <SearchHelpLabel
+              label={t`Search users by name or email`}
+              help={t`Type at least 4 characters to search`}
             />
-            {query.length > 0 && (
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder={t`Search users`} />
+              <SearchField.ClearButton aria-label={t`Clear search`} />
+            </SearchField.Group>
+          </SearchField>
+
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <Search className="size-4" aria-hidden="true" />
+            {t`Search results`}
+          </h2>
+          {query.trim().length < 4 && (
+            <EmptyList icon={<Search className="size-7" />}>
+              {t`Type at least 4 characters to search`}
+            </EmptyList>
+          )}
+          {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+          {query.trim().length >= 4 &&
+            !contacts.search.isLoading &&
+            !contacts.search.isError &&
+            searchResults.length === 0 && (
+              <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
+            )}
+          {contacts.search.isError ? (
+            <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+          ) : null}
+          <GroupedList>{searchResults.map((user) => contactCard(user))}</GroupedList>
+          <section className="space-y-2" aria-labelledby="device-contacts-title">
+            <h2
+              id="device-contacts-title"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
+              <BookUser className="size-4" aria-hidden="true" />
+              {t`Device Contacts`}
+            </h2>
+            {contacts.suggestions.isLoading ? <ContactListSkeleton count={2} /> : null}
+            {contacts.suggestions.isError ? (
+              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+            ) : null}
+            {!contacts.suggestions.isLoading &&
+            !contacts.suggestions.isError &&
+            bgoContacts.length === 0 ? (
+              <EmptyList icon={<BookUser className="size-7" />}>
+                {t`No contacts to invite`}
+              </EmptyList>
+            ) : null}
+            <GroupedList>{bgoContacts.map((user) => contactCard(user))}</GroupedList>
+            <div ref={endRefs.suggestions} aria-hidden="true" />
+            {contacts.suggestions.isFetchNextPageError ? (
               <button
                 type="button"
-                aria-label={t`Clear search`}
-                onClick={() => {
-                  setQuery("");
-                  contacts.runSearch("");
-                }}
-                className="absolute inset-y-0 right-2 flex items-center text-default-400 hover:text-default-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
+                className="text-sm text-primary"
+                onClick={() => void contacts.suggestions.fetchNextPage()}
+              >{t`Retry`}</button>
+            ) : null}
+          </section>
+        </Tabs.Panel>
+
+        <Tabs.Panel id="requests" className="space-y-3 pt-4">
+          {requestPages.some((page) => page.isLoading) ? <ContactListSkeleton count={2} /> : null}
+          {requestPages.some((page) => page.isError) ? (
+            <p role="alert" className="text-sm text-danger">{t`Could not load friend requests`}</p>
+          ) : null}
+          {!requestPages.some((page) => page.isLoading || page.isError) &&
+          pendingRows.length === 0 &&
+          sentRows.length === 0 ? (
+            <EmptyList icon={<Mail className="size-7" />}>{t`No friend requests`}</EmptyList>
+          ) : null}
+          <GroupedList>
+            {pendingRows.map((row) =>
+              row.profile
+                ? contactCard(row.profile, "incoming", {
+                    icon: Mail,
+                    label: t`Received`,
+                    color: "text-primary",
+                  })
+                : null,
             )}
-          </div>
-
-          {query.trim().length > 0 && query.trim().length < 4 && (
-            <p className="text-sm text-default-500">{t`Type at least 4 characters to search`}</p>
-          )}
-          {contacts.search.isPending && <ContactListSkeleton count={2} />}
-          {query.trim().length >= 4 && !contacts.search.isPending && searchResults.length === 0 && (
-            <p className="text-sm text-default-500">{t`No users found`}</p>
-          )}
-          <div className="space-y-2">
-            {searchResults.map((u) => (
-              <ContactCard
-                key={u.id}
-                name={u.name}
-                email={u.email}
-                avatarUrl={u.avatarUrl}
-                online={u.presence.online}
-                action={
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="outline"
-                    isDisabled={isBusy}
-                    aria-label={u.isFollowing ? t`Unfollow` : t`Follow`}
-                    onPress={() =>
-                      u.isFollowing
-                        ? contacts.unfollow.mutate({ targetUserId: u.id })
-                        : contacts.follow.mutate({ targetUserId: u.id })
-                    }
-                  >
-                    {u.isFollowing ? (
-                      <UserMinus className="h-4 w-4" />
-                    ) : (
-                      <UserPlus className="h-4 w-4" />
-                    )}
-                  </Button>
+            {sentRows.map((row) =>
+              row.profile
+                ? contactCard(row.profile, "outgoing", {
+                    icon: Send,
+                    label: t`Sent`,
+                    color: "text-warning",
+                  })
+                : null,
+            )}
+          </GroupedList>
+          <div ref={endRefs.requests} aria-hidden="true" />
+          {requestPages.some((page) => page.isFetchNextPageError) ? (
+            <button
+              type="button"
+              className="text-sm text-primary"
+              onClick={() => {
+                for (const page of requestPages) {
+                  if (page.isFetchNextPageError) void page.fetchNextPage();
                 }
-                menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+              }}
+            >{t`Retry`}</button>
+          ) : null}
+        </Tabs.Panel>
 
-      {tab === "suggestions" && (
-        <div className="space-y-2">
-          {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
-          {suggestions.length === 0 && !contacts.suggestions.isLoading && (
-            <p className="text-sm text-default-500">
-              {hasContacts
-                ? t`No friends from your contacts are on Board Game Organizer yet.`
-                : t`Sync your address book from the mobile app to see friend suggestions here.`}
-            </p>
-          )}
-          {suggestions.map((u) => (
-            <ContactCard
-              key={u.id}
-              name={u.name}
-              email={u.email}
-              avatarUrl={u.avatarUrl}
-              online={u.presence.online}
-              action={
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="outline"
-                  isDisabled={isBusy}
-                  aria-label={t`Follow`}
-                  onPress={() => contacts.follow.mutate({ targetUserId: u.id })}
-                >
-                  <UserPlus className="h-4 w-4" />
-                </Button>
-              }
-              menu={<UserMenu user={u} busy={isBusy} onAction={handleUserAction(u)} />}
-            />
-          ))}
-        </div>
-      )}
-
-      {listTabs.some((t) => t.key === tab) &&
-        listTabs
-          .filter((t) => t.key === tab)
-          .map((listTab) => (
-            <div className="space-y-2" key={listTab.key}>
-              {listTab.isLoading && <ContactListSkeleton count={4} />}
-              {listTab.rows.length === 0 && !listTab.isLoading && (
-                <p className="text-sm text-default-500">{listTab.empty}</p>
+        <Tabs.Panel id="connections" className="space-y-3 pt-4">
+          {connectionPages.some((page) => page.isLoading) ? (
+            <ContactListSkeleton count={2} />
+          ) : null}
+          {connectionPages.some((page) => page.isError) ? (
+            <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+          ) : null}
+          {!connectionPages.some((page) => page.isLoading || page.isError) &&
+          connections.every((section) => section.key === "device" || section.users.length === 0) ? (
+            <EmptyList icon={<UsersRound className="size-7" />}>{t`No connections yet`}</EmptyList>
+          ) : null}
+          <GroupedList>
+            {connections
+              .filter((section) => section.key !== "device")
+              .flatMap((section) =>
+                section.users.map((user) =>
+                  contactCard(user, undefined, {
+                    icon: connectionIcons[section.key],
+                    label: connectionLabels[section.key],
+                    color: connectionColors[section.key],
+                  }),
+                ),
               )}
-              {listTab.rows.map((row) => {
-                const profile = row.profile;
-                if (!profile) return null;
-                return (
-                  <ContactCard
-                    key={profile.id}
-                    name={profile.name}
-                    email={profile.email}
-                    avatarUrl={profile.avatarUrl}
-                    online={profile.presence.online}
-                    action={
-                      listTab.key === "following" ? (
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="outline"
-                          isDisabled={isBusy}
-                          aria-label={t`Unfollow`}
-                          onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
-                        >
-                          <UserMinus className="h-4 w-4" />
-                        </Button>
-                      ) : listTab.key === "followers" ? (
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="outline"
-                          isDisabled={isBusy}
-                          aria-label={followingIds.has(profile.id) ? t`Unfollow` : t`Follow`}
-                          onPress={() =>
-                            followingIds.has(profile.id)
-                              ? contacts.unfollow.mutate({ targetUserId: profile.id })
-                              : contacts.follow.mutate({ targetUserId: profile.id })
-                          }
-                        >
-                          {followingIds.has(profile.id) ? (
-                            <UserMinus className="h-4 w-4" />
-                          ) : (
-                            <UserPlus className="h-4 w-4" />
-                          )}
-                        </Button>
-                      ) : undefined
-                    }
-                    menu={
-                      <UserMenu user={profile} busy={isBusy} onAction={handleUserAction(profile)} />
-                    }
-                  />
-                );
-              })}
-            </div>
-          ))}
+          </GroupedList>
+          <div ref={endRefs.connections} aria-hidden="true" />
+          {connectionPages.some((page) => page.isFetchNextPageError) ? (
+            <button
+              type="button"
+              className="text-sm text-primary"
+              onClick={() => {
+                for (const page of connectionPages) {
+                  if (page.isFetchNextPageError) void page.fetchNextPage();
+                }
+              }}
+            >{t`Retry`}</button>
+          ) : null}
+        </Tabs.Panel>
+      </Tabs>
 
       {!isSignedIn && (
         <Chip color="warning" variant="soft">

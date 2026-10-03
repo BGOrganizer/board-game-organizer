@@ -1,3 +1,4 @@
+import { boardGameCsvModel } from "@board-game-organizer/schemas";
 import { z } from "zod";
 import { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
@@ -6,23 +7,33 @@ import { getDb } from "@/app/lib/db";
 /**
  * POST /api/admin/import-games
  *
- * Service-to-service import of the BGG bg_ranks CSV dump (id, name, year,
- * thumbnail). Called by the import script in chunks. Auth: same pattern as
+ * Service-to-service import of all BGG rankings CSV columns in chunks.
+ * Auth: same pattern as
  * sync-user — `Authorization: Bearer <CLERK_SECRET_KEY>`.
  */
-const importGamesSchema = z.object({
-  games: z.array(
-    z.object({
-      id: z.number().int().positive(),
-      name: z.string().min(1),
-      yearPublished: z.number().int().nullable().optional(),
-      thumbnail: z.string().nullable().optional(),
-    }),
-  ),
-});
+const importGamesSchema = z.object({ games: z.array(boardGameCsvModel).min(1).max(500) });
 
 export function OPTIONS(request: Request) {
   return corsOptions(request);
+}
+
+export async function GET(request: Request) {
+  const secret = process.env.CLERK_SECRET_KEY;
+  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
+  }
+  const db = await getDb();
+  return corsJson({ schemaVersion: 2, databaseName: db.databaseName }, request);
+}
+
+export async function PATCH(request: Request) {
+  const secret = process.env.CLERK_SECRET_KEY;
+  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
+  }
+  const db = await getDb();
+  const removed = await new BoardGamesRepository(db).removeLegacyThumbnails();
+  return corsJson({ ok: true, removed }, request);
 }
 
 export async function POST(request: Request) {

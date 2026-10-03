@@ -1,0 +1,37 @@
+export type MutationFeedbackAction =
+  | "follow"
+  | "unfollow"
+  | "unfriend"
+  | "friend_request"
+  | "cancel_friend_request"
+  | "accept_friend_request"
+  | "reject_friend_request"
+  | "block"
+  | "unblock"
+  | "sync_contacts"
+  | "disconnect_bgg"
+  | "create_invite"
+  | "create_match"
+  | "update_match"
+  | "set_match_choice"
+  | "create_match_status"
+  | "replan_match"
+  | "register_match_results"
+  | "delete_match"
+  | "leave_match"
+  | "remove_match_player"
+  | "accept_match_invitation"
+  | "decline_match_invitation"
+  | "create_group"
+  | "update_group"
+  | "delete_group"
+  | "leave_group"
+  | "remove_group_invitation"
+  | "accept_group_invitation"
+  | "decline_group_invitation"
+  | "delete_notification";
+
+export interface MutationFeedback {
+  onOptimisticUpdate?: (action: MutationFeedbackAction) => void;
+  onError?: (error: Error, action: MutationFeedbackAction) => void;
+}

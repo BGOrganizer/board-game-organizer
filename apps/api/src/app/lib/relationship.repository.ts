@@ -1,23 +1,23 @@
+import type {
+  Block,
+  Follow,
+  FriendRequest,
+  FriendRequestStatus,
+  User,
+} from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
-import type { RelationshipStatus, RelationshipType } from "@/app/models/relationship";
 
-type Direction = "from" | "to";
+export interface RelationshipEdge {
+  fromUserId: string;
+  toUserId: string;
+  status?: FriendRequestStatus;
+  createdAt?: Date;
+  updatedAt?: Date;
+  respondedAt?: Date;
+}
 
-/**
- * Repository over the Phase 1 social collections (`follows`,
- * `friendRequests`, `blocks`).
- *
- * Public surface matches the pre-Phase-1 `RelationshipRepository` so the
- * actions/handler layers (and their tests) are unchanged. Internally:
- * - `follow`  → `follows` (directed edge, no status)
- * - `friend_request` → `friendRequests` (status pending/accepted/rejected)
- * - `block` → `blocks` (directed edge)
- * - `friend` → derived: a pair of accepted friend requests (both directions)
- *
- * The legacy single `relationships` collection is NOT used anymore
- * (`DROP_LEGACY_RELATIONSHIPS=true` removes it during the migration).
- */
+/** MongoDB operations for follows, friend requests, friendships, and blocks. */
 export class RelationshipRepository {
   constructor(
     private db: Db,
@@ -28,91 +28,136 @@ export class RelationshipRepository {
     return this.session ? { session: this.session } : {};
   }
 
-  private col(type: RelationshipType) {
-    switch (type) {
-      case "follow":
-        return this.db.collection(COLLECTIONS.FOLLOWS);
-      case "friend_request":
-        return this.db.collection(COLLECTIONS.FRIEND_REQUESTS);
-      default: // "block"
-        return this.db.collection(COLLECTIONS.BLOCKS);
-    }
+  async userExists(userId: string): Promise<boolean> {
+    return (
+      (await this.db
+        .collection<User>(COLLECTIONS.USERS)
+        .countDocuments({ clerkId: userId }, this.opts)) > 0
+    );
   }
 
-  private static toEdge(
-    type: RelationshipType,
-    from: string,
-    to: string,
-    status?: RelationshipStatus,
-  ) {
-    // follows/blocks have no status column; friend_requests do.
-    return type === "friend_request"
-      ? { fromUserId: from, toUserId: to, ...(status ? { status } : {}) }
-      : { fromUserId: from, toUserId: to };
+  follow(fromUserId: string, toUserId: string) {
+    const createdAt = new Date();
+    return this.db
+      .collection<Follow>(COLLECTIONS.FOLLOWS)
+      .updateOne(
+        { fromUserId, toUserId },
+        { $setOnInsert: { fromUserId, toUserId, createdAt } },
+        { upsert: true, ...this.opts },
+      );
   }
 
-  find = (
-    from: string,
-    to: string,
-    type: "follow" | "friend_request" | "block",
-  ): Promise<Record<string, unknown> | null> =>
-    this.col(type).findOne(
-      RelationshipRepository.toEdge(type, from, to),
-      this.opts,
-    ) as Promise<Record<string, unknown> | null>;
+  unfollow(fromUserId: string, toUserId: string) {
+    return this.db
+      .collection<Follow>(COLLECTIONS.FOLLOWS)
+      .deleteOne({ fromUserId, toUserId }, this.opts);
+  }
 
-  upsert = (
-    from: string,
-    to: string,
-    type: RelationshipType,
-    status: RelationshipStatus,
-  ): Promise<unknown> => {
-    if (type === "friend") {
-      // Derived — friendship is a pair of accepted friend requests.
-      return this.upsert(from, to, "friend_request", "accepted");
-    }
+  findFriendRequest(fromUserId: string, toUserId: string) {
+    return this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .findOne({ fromUserId, toUserId }, this.opts);
+  }
+
+  setFriendRequest(fromUserId: string, toUserId: string, status: FriendRequestStatus) {
     const now = new Date();
-    return this.col(type).findOneAndUpdate(
-      { fromUserId: from, toUserId: to },
+    return this.db.collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS).findOneAndUpdate(
+      { fromUserId, toUserId },
       {
         $set: {
-          ...(type === "friend_request" ? { status, updatedAt: now } : {}),
+          fromUserId,
+          toUserId,
+          status,
+          updatedAt: now,
+          ...(status === "pending" ? {} : { respondedAt: now }),
         },
+        ...(status === "pending" ? { $unset: { respondedAt: "" } } : {}),
         $setOnInsert: { createdAt: now },
       },
       { upsert: true, returnDocument: "after", ...this.opts },
-    ) as Promise<unknown>;
-  };
+    );
+  }
 
-  delete = (from: string, to: string, type: RelationshipType) => {
-    if (type === "friend") {
-      // Removing a friendship deletes both accepted requests.
-      return this.clearBidirectional(from, to, ["friend_request"]);
-    }
-    return this.col(type).deleteOne({ fromUserId: from, toUserId: to }, this.opts);
-  };
+  deleteFriendRequest(fromUserId: string, toUserId: string, status?: FriendRequestStatus) {
+    return this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .deleteOne({ fromUserId, toUserId, ...(status ? { status } : {}) }, this.opts);
+  }
 
-  async clearBidirectional(a: string, b: string, types: RelationshipType[]) {
-    // SERIALIZED on purpose: MongoDB sessions must not be used concurrently
-    // ("may not be used concurrently" error). Promise.all here would throw
-    // whenever this runs inside a transaction (which the handler always
-    // does), making block/remove silently fail with HTTP 500.
-    for (const t of types) {
-      await this.delete(a, b, t);
-      await this.delete(b, a, t);
-    }
+  clearFriendRequests(a: string, b: string) {
+    return this.db.collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS).deleteMany(
+      {
+        $or: [
+          { fromUserId: a, toUserId: b },
+          { fromUserId: b, toUserId: a },
+        ],
+      },
+      this.opts,
+    );
   }
 
   async becomeFriends(a: string, b: string) {
-    // Same rule: sequential upserts, never parallel on a shared session.
-    await this.upsert(a, b, "friend_request", "accepted");
-    await this.upsert(b, a, "friend_request", "accepted");
-    await this.upsert(a, b, "follow", "accepted");
-    await this.upsert(b, a, "follow", "accepted");
+    // MongoDB sessions cannot run concurrent operations.
+    await this.setFriendRequest(a, b, "accepted");
+    await this.setFriendRequest(b, a, "accepted");
+    await this.follow(a, b);
+    await this.follow(b, a);
   }
 
-  async isBlocked(a: string, b: string) {
-    const count = await this.db.collection(COLLECTIONS.BLOCKS).countDocuments(
+  unfriend(a: string, b: string) {
+    return this.db.collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS).deleteMany(
+      {
+        status: "accepted",
+        $or: [
+          { fromUserId: a, toUserId: b },
+          { fromUserId: b, toUserId: a },
+        ],
+      },
+      this.opts,
+    );
+  }
+
+  async isFriend(a: string, b: string): Promise<boolean> {
+    const count = await this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .countDocuments(
+        {
+          status: "accepted",
+          $or: [
+            { fromUserId: a, toUserId: b },
+            { fromUserId: b, toUserId: a },
+          ],
+        },
+        this.opts,
+      );
+    return count >= 2;
+  }
+
+  findBlock(fromUserId: string, toUserId: string) {
+    return this.db
+      .collection<Block>(COLLECTIONS.BLOCKS)
+      .findOne({ fromUserId, toUserId }, this.opts);
+  }
+
+  block(fromUserId: string, toUserId: string) {
+    const createdAt = new Date();
+    return this.db
+      .collection<Block>(COLLECTIONS.BLOCKS)
+      .updateOne(
+        { fromUserId, toUserId },
+        { $setOnInsert: { fromUserId, toUserId, createdAt } },
+        { upsert: true, ...this.opts },
+      );
+  }
+
+  unblock(fromUserId: string, toUserId: string) {
+    return this.db
+      .collection<Block>(COLLECTIONS.BLOCKS)
+      .deleteOne({ fromUserId, toUserId }, this.opts);
+  }
+
+  async isBlocked(a: string, b: string): Promise<boolean> {
+    const count = await this.db.collection<Block>(COLLECTIONS.BLOCKS).countDocuments(
       {
         $or: [
           { fromUserId: a, toUserId: b },
@@ -124,118 +169,94 @@ export class RelationshipRepository {
     return count > 0;
   }
 
-  async getBlockedUserIds(userId: string) {
-    const blocks = await this.db
-      .collection(COLLECTIONS.BLOCKS)
+  async getBlockedUserIds(userId: string): Promise<string[]> {
+    const rows = await this.db
+      .collection<Block>(COLLECTIONS.BLOCKS)
       .find({ $or: [{ fromUserId: userId }, { toUserId: userId }] }, this.opts)
       .toArray();
-    return blocks.map((b) => (b.fromUserId === userId ? b.toUserId : b.fromUserId));
+    return rows.map((row) => (row.fromUserId === userId ? row.toUserId : row.fromUserId));
   }
 
-  async isFriend(a: string, b: string) {
-    const count = await this.db.collection(COLLECTIONS.FRIEND_REQUESTS).countDocuments(
-      {
-        status: "accepted",
-        $or: [
-          { fromUserId: a, toUserId: b },
-          { fromUserId: b, toUserId: a },
-        ],
-      },
-      this.opts,
-    );
-    // Friendship = accepted in both directions.
-    return count >= 2;
+  async deleteAllForUser(userId: string) {
+    const eitherDirection = { $or: [{ fromUserId: userId }, { toUserId: userId }] };
+    await this.db.collection<Follow>(COLLECTIONS.FOLLOWS).deleteMany(eitherDirection, this.opts);
+    await this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .deleteMany(eitherDirection, this.opts);
+    await this.db.collection<Block>(COLLECTIONS.BLOCKS).deleteMany(eitherDirection, this.opts);
   }
 
-  async list(
-    userId: string,
-    type: RelationshipType,
-    status: RelationshipStatus,
-    direction: Direction,
-  ): Promise<Array<{ fromUserId: string; toUserId: string }>> {
-    const blocked = await this.getBlockedUserIds(userId);
-    const [selfField, otherField] =
-      direction === "from" ? ["fromUserId", "toUserId"] : ["toUserId", "fromUserId"];
-
-    if (type === "friend") {
-      // Derived: accepted requests where the other side accepted too.
-      const rows = await this.db
-        .collection(COLLECTIONS.FRIEND_REQUESTS)
-        .find({ [selfField]: userId, status, [otherField]: { $nin: blocked } }, this.opts)
-        .toArray();
-      const withReverse = await Promise.all(
-        rows.map((r) =>
-          this.db
-            .collection(COLLECTIONS.FRIEND_REQUESTS)
-            .countDocuments(
-              { [otherField]: userId, [selfField]: r[otherField as "toUserId"], status },
-              this.opts,
-            ),
-        ),
-      );
-      return rows.filter((_, i) => withReverse[i] > 0) as unknown as Array<{
-        fromUserId: string;
-        toUserId: string;
-      }>;
-    }
-
-    const filter: Record<string, unknown> = { [selfField]: userId };
-    if (type !== "block") {
-      // Only follow/friend lists hide blocked users. The BLOCKED list itself
-      // must NOT apply the $nin filter: getBlockedUserIds returns both
-      // directions, so excluding them would hide exactly the users we want to
-      // show (the ones the viewer blocked) → empty Blocked tab.
-      filter[otherField] = { $nin: blocked };
-    }
-    if (type === "friend_request") {
-      filter.status = status;
-    }
-    // block/follow live in their own collections (no status column);
-    // friend requests carry a status. "blocked" lists MUST read the blocks
-    // collection — falling through to friendRequests here made the Blocked
-    // tab list friend requests instead of blocked users.
-    const collection =
-      type === "follow"
-        ? COLLECTIONS.FOLLOWS
-        : type === "block"
-          ? COLLECTIONS.BLOCKS
-          : COLLECTIONS.FRIEND_REQUESTS;
-    return (await this.db
-      .collection(collection)
-      .find(filter, this.opts)
-      .toArray()) as unknown as Array<{ fromUserId: string; toUserId: string }>;
+  listFollowing(userId: string, excludedUserIds: string[] = []) {
+    return this.db
+      .collection<Follow>(COLLECTIONS.FOLLOWS)
+      .find(
+        { fromUserId: userId, toUserId: { $nin: excludedUserIds } },
+        { projection: { _id: 0 }, ...this.opts },
+      )
+      .toArray();
   }
 
-  async getRelationshipStatus(viewerId: string, targetId: string) {
-    const [blockedByViewer, blockedByTarget] = await Promise.all([
-      this.find(viewerId, targetId, "block"),
-      this.find(targetId, viewerId, "block"),
-    ]);
+  listFollowers(userId: string, excludedUserIds: string[] = []) {
+    return this.db
+      .collection<Follow>(COLLECTIONS.FOLLOWS)
+      .find(
+        { toUserId: userId, fromUserId: { $nin: excludedUserIds } },
+        { projection: { _id: 0 }, ...this.opts },
+      )
+      .toArray();
+  }
 
-    if (blockedByTarget) {
-      return {
-        isFollowing: false,
-        isFriend: false,
-        friendRequestSent: false,
-        friendRequestReceived: false,
-        hasBlocked: false,
-        isBlockedBy: true,
-      };
+  async listFriends(userId: string, excludedUserIds: string[] = []): Promise<RelationshipEdge[]> {
+    const rows = await this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .find(
+        {
+          status: "accepted",
+          $or: [{ fromUserId: userId }, { toUserId: userId }],
+        },
+        { projection: { _id: 0 }, ...this.opts },
+      )
+      .toArray();
+    const excluded = new Set(excludedUserIds);
+    const directions = new Map<string, number>();
+    for (const row of rows) {
+      const otherId = row.fromUserId === userId ? row.toUserId : row.fromUserId;
+      if (otherId === userId || excluded.has(otherId)) continue;
+      const direction = row.fromUserId === userId ? 1 : 2;
+      directions.set(otherId, (directions.get(otherId) ?? 0) | direction);
     }
+    return [...directions]
+      .filter(([, direction]) => direction === 3)
+      .map(([toUserId]) => ({ fromUserId: userId, toUserId, status: "accepted" }));
+  }
 
-    const [follows, sent, received, friend] = await Promise.all([
-      this.find(viewerId, targetId, "follow"),
-      this.find(viewerId, targetId, "friend_request"),
-      this.find(targetId, viewerId, "friend_request"),
-      this.isFriend(viewerId, targetId),
-    ]);
-    return {
-      isFollowing: !!follows,
-      isFriend: friend,
-      friendRequestSent: sent?.status === "pending",
-      friendRequestReceived: received?.status === "pending",
-      hasBlocked: !!blockedByViewer,
-      isBlockedBy: false,
-    };
+  listIncomingFriendRequests(userId: string, excludedUserIds: string[] = []) {
+    return this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .find(
+        { toUserId: userId, fromUserId: { $nin: excludedUserIds }, status: "pending" },
+        { projection: { _id: 0 }, ...this.opts },
+      )
+      .sort({ createdAt: -1 })
+      .toArray();
+  }
+
+  listOutgoingFriendRequests(userId: string, excludedUserIds: string[] = []) {
+    return this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .find(
+        { fromUserId: userId, toUserId: { $nin: excludedUserIds }, status: "pending" },
+        { projection: { _id: 0 }, ...this.opts },
+      )
+      .sort({ createdAt: -1 })
+      .toArray();
+  }
+
+  listBlocked(userId: string) {
+    return this.db
+      .collection<Block>(COLLECTIONS.BLOCKS)
+      .find({ fromUserId: userId }, { projection: { _id: 0 }, ...this.opts })
+      .sort({ createdAt: -1 })
+      .toArray();
   }
 }

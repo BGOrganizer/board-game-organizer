@@ -13,10 +13,51 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. js-lingui-explicit-id
+#: apps/web/src/components/MatchDetail.tsx
+msgid "match.confirm.summary"
+msgstr "Confirm {date} and {game}?"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/Matches.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Accept"
+msgstr "Accept"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Accept friend request"
+msgstr "Accept friend request"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Accept friend request?"
+msgstr "Accept friend request?"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Accept group invitation"
+msgstr "Accept group invitation"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Accept invitation"
+msgstr "Accept invitation"
+
+#~ msgid "Accept or decline this friend request."
+#~ msgstr "Accept or decline this friend request."
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Accepted"
+msgstr "Accepted"
+
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Access to contacts"
 #~ msgstr "Access to contacts"
 
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Action failed"
+#~ msgstr "Action failed"
+
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/UserMenu.tsx
 msgid "Actions"
 msgstr "Actions"
@@ -26,16 +67,45 @@ msgid "Add"
 msgstr "Add"
 
 #: apps/web/src/components/MatchWizard.tsx
-msgid "Add another date"
-msgstr "Add another date"
+#~ msgid "Add another date"
+#~ msgstr "Add another date"
 
 #: apps/web/src/components/MatchWizard.tsx
-msgid "Add another game"
-msgstr "Add another game"
+#~ msgid "Add another game"
+#~ msgstr "Add another game"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Add contacts"
 #~ msgstr "Add contacts"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Add date"
+msgstr "Add date"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Add friend"
+msgstr "Add friend"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Add game"
+msgstr "Add game"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Add your mobile number to continue."
+msgstr "Add your mobile number to continue."
+
+#: apps/web/src/components/ListSearchFilters.tsx
+msgid "Admin"
+msgstr "Admin"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Admin groups"
+msgstr "Admin groups"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/Matches.tsx
+msgid "Administrator"
+msgstr "Administrator"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "Allow address book access to find your friends here."
@@ -45,14 +115,54 @@ msgstr "Add another game"
 #~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
 #~ msgstr "Allow Board Game Organizer to access your contacts to find your friends?"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "At least 5 characters"
 msgstr "At least 5 characters"
 
+#: apps/web/src/components/GameCatalogMetadata.tsx
+msgid "Average"
+msgstr "Average"
+
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Back"
 msgstr "Back"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Back matches"
+msgstr "Back matches"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Back to match"
+msgstr "Back to match"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Back to matches"
+msgstr "Back to matches"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Back to planning"
+msgstr "Back to planning"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Back to planning?"
+msgstr "Back to planning?"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/SearchGamePage.tsx
+#~ msgid "Bayesian average"
+#~ msgstr "Bayesian average"
+
+#: apps/web/src/components/Profile.tsx
+msgid "BGG user not found"
+msgstr "BGG user not found"
+
+#: apps/web/src/components/Profile.tsx
+msgid "BGG username"
+msgstr "BGG username"
 
 #: apps/web/src/components/UserMenu.tsx
 msgid "Block"
@@ -71,13 +181,68 @@ msgstr "Block contact"
 msgid "Blocked"
 msgstr "Blocked"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Board game"
+msgstr "Board game"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Board games"
 msgstr "Board games"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek disconnected"
+msgstr "BoardGameGeek disconnected"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "BoardGameGeek sync started"
+#~ msgstr "BoardGameGeek sync started"
+
+#: apps/web/src/components/ContactConfirmDialog.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+#: apps/web/src/components/Profile.tsx
 msgid "Cancel"
 msgstr "Cancel"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Cancel friend request"
+msgstr "Cancel friend request"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Cancel friend request?"
+msgstr "Cancel friend request?"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Cancel request"
+msgstr "Cancel request"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Cancelled"
+msgstr "Cancelled"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+#~ msgid "Cannot confirm match"
+#~ msgstr "Cannot confirm match"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "Changes applied"
+#~ msgstr "Changes applied"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Choice saved"
+msgstr "Choice saved"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Choose date"
+msgstr "Choose date"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Choose game"
+msgstr "Choose game"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+#~ msgid "Choose preference"
+#~ msgstr "Choose preference"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
@@ -96,13 +261,89 @@ msgstr "Cancel"
 msgid "Clear"
 msgstr "Clear"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Clear board game selection"
+msgstr "Clear board game selection"
+
+#: apps/web/src/app/mobile-number/page.tsx
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
 msgid "Clear search"
 msgstr "Clear search"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Close"
+msgstr "Close"
+
+#: apps/web/src/components/SearchGamePage.tsx
+msgid "Collection"
+msgstr "Collection"
+
+#: apps/web/src/app/(tabs)/organizations/page.tsx
+msgid "Coming soon"
+msgstr "Coming soon"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Complete your profile"
+msgstr "Complete your profile"
+
+#: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
+#~ msgid "Configure match"
+#~ msgstr "Configure match"
+
+#: apps/web/src/components/MatchDetail.tsx
+#~ msgid "Confirm after enough players accept and everyone chooses a shared date and game."
+#~ msgstr "Confirm after enough players accept and everyone chooses a shared date and game."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirm match"
+msgstr "Confirm match"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+#~ msgid "Confirm match with"
+#~ msgstr "Confirm match with"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirm match?"
+msgstr "Confirm match?"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Confirm tie-break"
+msgstr "Confirm tie-break"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Confirmed"
+msgstr "Confirmed"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirmed date"
+msgstr "Confirmed date"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirmed game"
+msgstr "Confirmed game"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Connections"
+msgstr "Connections"
+
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/Header.tsx
 msgid "Contacts"
 msgstr "Contacts"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "Contacts on BGO"
+#~ msgstr "Contacts on BGO"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Contacts synchronized"
+msgstr "Contacts synchronized"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Continue"
+msgstr "Continue"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Copied!"
@@ -112,6 +353,26 @@ msgstr "Copied!"
 msgid "Copy"
 msgstr "Copy"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept friend request"
+msgstr "Could not accept friend request"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept group invitation"
+msgstr "Could not accept group invitation"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept match invitation"
+msgstr "Could not accept match invitation"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not block user"
+msgstr "Could not block user"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not cancel friend request"
+msgstr "Could not cancel friend request"
+
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Could not claim this invite."
 #~ msgstr "Could not claim this invite."
@@ -120,9 +381,29 @@ msgstr "Copy"
 #~ msgid "Could not claim."
 #~ msgstr "Could not claim."
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Could not complete the action. Try again."
-#~ msgstr "Could not complete the action. Try again."
+#: apps/web/src/components/Contacts.tsx
+msgid "Could not complete the action. Try again."
+msgstr "Could not complete the action. Try again."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not confirm match"
+msgstr "Could not confirm match"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Could not connect to BoardGameGeek. Try again."
+msgstr "Could not connect to BoardGameGeek. Try again."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create group"
+msgstr "Could not create group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create invite link"
+msgstr "Could not create invite link"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create match"
+msgstr "Could not create match"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Could not create the invite. Try again."
@@ -132,6 +413,59 @@ msgstr "Could not create the invite. Try again."
 msgid "Could not create the match"
 msgstr "Could not create the match"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not decline group invitation"
+msgstr "Could not decline group invitation"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not decline match invitation"
+msgstr "Could not decline match invitation"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete group"
+msgstr "Could not delete group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete match"
+msgstr "Could not delete match"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete notification"
+msgstr "Could not delete notification"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not disconnect BoardGameGeek"
+msgstr "Could not disconnect BoardGameGeek"
+
+#: apps/web/src/components/NotificationBell.tsx
+msgid "Could not enable push notifications"
+msgstr "Could not enable push notifications"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not follow user"
+msgstr "Could not follow user"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not leave group"
+msgstr "Could not leave group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not leave match"
+msgstr "Could not leave match"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Could not load BoardGameGeek connection. Retry"
+msgstr "Could not load BoardGameGeek connection. Retry"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Could not load contacts"
+msgstr "Could not load contacts"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Could not load friend requests"
+msgstr "Could not load friend requests"
+
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Could not load friends"
 msgstr "Could not load friends"
@@ -140,21 +474,199 @@ msgstr "Could not load friends"
 msgid "Could not load game details"
 msgstr "Could not load game details"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Could not load group details"
+msgstr "Could not load group details"
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Could not load groups"
+msgstr "Could not load groups"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Could not load groups. Retry"
+msgstr "Could not load groups. Retry"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Could not load leaderboards. Retry"
+msgstr "Could not load leaderboards. Retry"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Could not load match details"
+msgstr "Could not load match details"
+
 #: apps/web/src/components/Matches.tsx
 msgid "Could not load matches"
 msgstr "Could not load matches"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Could not load matches. Retry"
+msgstr "Could not load matches. Retry"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Could not load notifications"
+msgstr "Could not load notifications"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Could not load notifications. Retry"
+msgstr "Could not load notifications. Retry"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Could not load social actions"
+msgstr "Could not load social actions"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Could not load social actions. Retry"
+msgstr "Could not load social actions. Retry"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not register match"
+msgstr "Could not register match"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not reject friend request"
+msgstr "Could not reject friend request"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove friend"
+msgstr "Could not remove friend"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove person from group"
+msgstr "Could not remove person from group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove player from match"
+msgstr "Could not remove player from match"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not reopen match"
+msgstr "Could not reopen match"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not save choice"
+msgstr "Could not save choice"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Could not save mobile number"
+msgstr "Could not save mobile number"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not send friend request"
+msgstr "Could not send friend request"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Could not sync contacts. Try again."
+#~ msgstr "Could not sync contacts. Try again."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "Could not synchronize BoardGameGeek"
+#~ msgstr "Could not synchronize BoardGameGeek"
+
+#: apps/web/src/components/Profile.tsx
+#~ msgid "Could not synchronize BoardGameGeek collection"
+#~ msgstr "Could not synchronize BoardGameGeek collection"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not synchronize contacts"
+msgstr "Could not synchronize contacts"
+
+#~ msgid "Could not synchronize contacts. Retry"
+#~ msgstr "Could not synchronize contacts. Retry"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not unblock user"
+msgstr "Could not unblock user"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not unfollow user"
+msgstr "Could not unfollow user"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not update group"
+msgstr "Could not update group"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not update match"
+msgstr "Could not update match"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/Matches.tsx
+msgid "Could not update the invitation"
+msgstr "Could not update the invitation"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Could not update the match"
+msgstr "Could not update the match"
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
 #~ msgstr "Counter (Zustand)"
 
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Country calling code"
+msgstr "Country calling code"
+
 #: apps/web/src/components/Matches.tsx
 msgid "Create a match"
 msgstr "Create a match"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Create group"
+msgstr "Create group"
+
 #: apps/web/src/components/InviteCard.tsx
 msgid "Create invite"
 msgstr "Create invite"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Create match"
+msgstr "Create match"
+
+#: apps/web/src/components/InviteCard.tsx
+msgid "Creating invite"
+msgstr "Creating invite"
+
+#: apps/web/src/components/Matches.tsx
+msgid "date"
+msgstr "date"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Date selection"
+msgstr "Date selection"
+
+#: apps/web/src/components/Matches.tsx
+msgid "dates"
+msgstr "dates"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/Matches.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Decline"
+msgstr "Decline"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Decline friend request"
+msgstr "Decline friend request"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Decline friend request?"
+msgstr "Decline friend request?"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Decline group invitation"
+msgstr "Decline group invitation"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Decline invitation"
+msgstr "Decline invitation"
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Declined"
+msgstr "Declined"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Decrease max players"
@@ -164,9 +676,99 @@ msgstr "Decrease max players"
 msgid "Decrease min players"
 msgstr "Decrease min players"
 
+#: apps/web/src/components/Groups.tsx
+msgid "Delete group"
+msgstr "Delete group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Delete group?"
+msgstr "Delete group?"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Delete match"
+msgstr "Delete match"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Delete match?"
+msgstr "Delete match?"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Delete notification"
+msgstr "Delete notification"
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Delete notification?"
+msgstr "Delete notification?"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Device Contacts"
+msgstr "Device Contacts"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Did not participate"
+msgstr "Did not participate"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Disconnect"
+msgstr "Disconnect"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Disconnect BoardGameGeek"
+msgstr "Disconnect BoardGameGeek"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Disconnect BoardGameGeek?"
+msgstr "Disconnect BoardGameGeek?"
+
+#: apps/web/src/components/LinguiClientProvider.tsx
+msgid "Dismiss notification"
+msgstr "Dismiss notification"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "e.g. Friday night games"
+
+#: apps/web/src/components/Groups.tsx
+#~ msgid "Edit"
+#~ msgstr "Edit"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Edit group"
+msgstr "Edit group"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Edit match"
+msgstr "Edit match"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Edit tie-break"
+msgstr "Edit tie-break"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#~ msgid "ELO ranking"
+#~ msgstr "ELO ranking"
+
+#: apps/web/src/components/MatchLeaderboard.tsx
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Email unavailable"
+msgstr "Email unavailable"
+
+#: apps/web/src/components/NotificationBell.tsx
+msgid "Enable push notifications"
+msgstr "Enable push notifications"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Enter a score for each participant or mark them as not participating. At least one must participate."
+msgstr "Enter a score for each participant or mark them as not participating. At least one must participate."
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Enter a valid score"
+msgstr "Enter a valid score"
+
+#: apps/web/src/components/ListSearchFilters.tsx
+msgid "Enter at least 4 characters to search"
+msgstr "Enter at least 4 characters to search"
 
 #: apps/web/src/components/Profile.tsx
 msgid "Error while loading the profile:"
@@ -176,34 +778,168 @@ msgstr "Error while loading the profile:"
 #~ msgid "expires"
 #~ msgstr "expires"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Matches.tsx
+#~ msgid "Finished"
+#~ msgstr "Finished"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Follow"
 msgstr "Follow"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Profile.tsx
 msgid "Followers"
 msgstr "Followers"
 
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/Profile.tsx
 msgid "Following"
 msgstr "Following"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Former group member"
+msgstr "Former group member"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend removed"
+msgstr "Friend removed"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request accepted"
+msgstr "Friend request accepted"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request cancelled"
+msgstr "Friend request cancelled"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request rejected"
+msgstr "Friend request rejected"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request sent"
+msgstr "Friend request sent"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "Friend requests"
+#~ msgstr "Friend requests"
+
+#: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/Profile.tsx
 msgid "Friends"
 msgstr "Friends"
 
 #: apps/web/src/components/Matches.tsx
+msgid "game"
+msgstr "game"
+
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Game rating"
+msgstr "Game rating"
+
+#: apps/web/src/components/SearchGamePage.tsx
+msgid "Game results pages"
+msgstr "Game results pages"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Game selection"
+msgstr "Game selection"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Game unavailable"
+msgstr "Game unavailable"
+
+#: apps/web/src/components/Matches.tsx
 msgid "games"
 msgstr "games"
+
+#: apps/web/src/components/MatchDetail.tsx
+#~ msgid "Games"
+#~ msgstr "Games"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Games played"
+msgstr "Games played"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Games won"
+msgstr "Games won"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Generate a link to connect with someone."
 msgstr "Generate a link to connect with someone."
 
+#~ msgid "Group"
+#~ msgstr "Group"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Group (optional)"
+msgstr "Group (optional)"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group admin"
+msgstr "Group admin"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group created"
+msgstr "Group created"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group deleted"
+msgstr "Group deleted"
+
+#~ msgid "Group details"
+#~ msgstr "Group details"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation accepted"
+msgstr "Group invitation accepted"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation declined"
+msgstr "Group invitation declined"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "Group leaderboard"
+msgstr "Group leaderboard"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group name"
+msgstr "Group name"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group sections"
+msgstr "Group sections"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group updated"
+msgstr "Group updated"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Group will be archived. Existing confirmed match results and ratings remain."
+msgstr "Group will be archived. Existing confirmed match results and ratings remain."
+
 #: apps/web/src/components/Header.tsx
 msgid "Groups"
 msgstr "Groups"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Highest score wins"
+msgstr "Highest score wins"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "If I have to"
+msgstr "If I have to"
+
+#: apps/web/src/components/VoteCounts.tsx
+msgid "If needed"
+msgstr "If needed"
+
+#: apps/web/src/components/Matches.tsx
+msgid "In progress"
+msgstr "In progress"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase max players"
@@ -212,6 +948,10 @@ msgstr "Increase max players"
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Increase min players"
 msgstr "Increase min players"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Invitations"
+msgstr "Invitations"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "Invite a friend"
@@ -230,18 +970,91 @@ msgstr "Invite a friend"
 #~ msgid "Invite claimed — you now follow the inviter."
 #~ msgstr "Invite claimed — you now follow the inviter."
 
+#. Mobile runtime-only strings; keep after Lingui extraction.
+#~ msgid "Invite device contacts"
+#~ msgstr "Invite device contacts"
+
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Invite friends"
 msgstr "Invite friends"
+
+#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/SearchUserPage.tsx
+msgid "Invite group members"
+msgstr "Invite group members"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Invite link created"
+msgstr "Invite link created"
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
+msgid "Invited"
+msgstr "Invited"
+
+#: apps/web/src/components/MatchDetail.tsx
+#~ msgid "Invited players"
+#~ msgstr "Invited players"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "Invites"
 #~ msgstr "Invites"
 
 #: apps/web/src/components/Profile.tsx
+msgid "Joined groups"
+msgstr "Joined groups"
+
+#: apps/web/src/components/Profile.tsx
 msgid "Language:"
 msgstr "Language:"
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Leaderboards"
+msgstr "Leaderboards"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Leave group"
+msgstr "Leave group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Leave group?"
+msgstr "Leave group?"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Leave match"
+msgstr "Leave match"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Leave match?"
+msgstr "Leave match?"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Left group"
+msgstr "Left group"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Live standings"
+msgstr "Live standings"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/Matches.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Load more"
+msgstr "Load more"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Loading notifications"
+msgstr "Loading notifications"
+
+#: apps/web/src/app/mobile-number/page.tsx
+#: apps/web/src/components/MobileNumberGate.tsx
+msgid "Loading profile"
+msgstr "Loading profile"
 
 #: apps/web/src/components/Profile.tsx
 #~ msgid "Loading..."
@@ -251,14 +1064,71 @@ msgstr "Language:"
 msgid "Logout"
 msgstr "Logout"
 
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Lowest score wins"
+msgstr "Lowest score wins"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Mark all as read"
+msgstr "Mark all as read"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match back in planning"
+msgstr "Match back in planning"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match confirmed"
+msgstr "Match confirmed"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match created"
+msgstr "Match created"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match deleted"
+msgstr "Match deleted"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Match details"
+msgstr "Match details"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match invitation accepted"
+msgstr "Match invitation accepted"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match invitation declined"
+msgstr "Match invitation declined"
+
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Match leaderboard"
+msgstr "Match leaderboard"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Match name"
 msgstr "Match name"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Match readiness unavailable"
+msgstr "Match readiness unavailable"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match registered"
+msgstr "Match registered"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match updated"
+msgstr "Match updated"
+
 #: apps/web/src/components/Header.tsx
-#: apps/web/src/components/Matches.tsx
 msgid "Matches"
 msgstr "Matches"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Matches played"
+msgstr "Matches played"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Max"
@@ -268,9 +1138,62 @@ msgstr "Max"
 msgid "Max must be at least min"
 msgstr "Max must be at least min"
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Maximum players"
+msgstr "Maximum players"
+
+#: apps/web/src/components/Groups.tsx
+msgid "member"
+msgstr "member"
+
+#: apps/web/src/components/Groups.tsx
+msgid "members"
+msgstr "members"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Members"
+msgstr "Members"
+
+#: apps/web/src/components/Groups.tsx
+#~ msgid "Members are visible after accepting the invitation"
+#~ msgstr "Members are visible after accepting the invitation"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Min"
 msgstr "Min"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Minimum players"
+msgstr "Minimum players"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Mobile number"
+msgstr "Mobile number"
+
+#: apps/web/src/components/Groups.tsx
+msgid "More group actions"
+msgstr "More group actions"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "More match actions"
+msgstr "More match actions"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Move down"
+msgstr "Move down"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Move up"
+msgstr "Move up"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "ND"
+msgstr "ND"
+
+#: apps/web/src/components/Groups.tsx
+msgid "New group"
+msgstr "New group"
 
 #: apps/web/src/components/InviteCard.tsx
 msgid "New invite"
@@ -280,45 +1203,133 @@ msgstr "New invite"
 msgid "New match"
 msgstr "New match"
 
+#: apps/web/src/components/SearchGamePage.tsx
+msgid "Next"
+msgstr "Next"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Next step"
 msgstr "Next step"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "No"
-#~ msgstr "No"
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/VoteCounts.tsx
+msgid "No"
+msgstr "No"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No blocked users"
-msgstr "No blocked users"
+#~ msgid "No blocked users"
+#~ msgstr "No blocked users"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "No connections yet"
+msgstr "No connections yet"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No contacts found in your address book."
 #~ msgstr "No contacts found in your address book."
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No followers yet"
-msgstr "No followers yet"
+#~ msgid "No contacts on BGO yet"
+#~ msgstr "No contacts on BGO yet"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No friends from your contacts are on Board Game Organizer yet."
-msgstr "No friends from your contacts are on Board Game Organizer yet."
+msgid "No contacts to invite"
+msgstr "No contacts to invite"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "No countries found"
+msgstr "No countries found"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "No followers yet"
+#~ msgstr "No followers yet"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile runtime useT)
+msgid "No friend requests"
+msgstr "No friend requests"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "No friends from your contacts are on Board Game Organizer yet."
+#~ msgstr "No friends from your contacts are on Board Game Organizer yet."
+
+#: apps/web/src/components/Groups.tsx
+#~ msgid "No friends to invite yet"
+#~ msgstr "No friends to invite yet"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No friends yet"
 #~ msgstr "No friends yet"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "No games found"
 msgstr "No games found"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "No group"
+msgstr "No group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "No groups match your filters"
+msgstr "No groups match your filters"
+
+#: apps/web/src/components/Groups.tsx
+msgid "No groups yet"
+msgstr "No groups yet"
+
+#: apps/web/src/components/Groups.tsx
+msgid "No invitations"
+msgstr "No invitations"
+
+#: apps/web/src/components/MatchDetail.tsx
+#~ msgid "No invited players"
+#~ msgstr "No invited players"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
 #~ msgstr "No invites yet — create one to share."
 
 #: apps/web/src/components/Matches.tsx
+msgid "No matches match your filters"
+msgstr "No matches match your filters"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+msgid "No matches played in this group yet"
+msgstr "No matches played in this group yet"
+
+#: apps/web/src/components/Matches.tsx
 msgid "No matches yet — create your first one!"
 msgstr "No matches yet — create your first one!"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "No notifications yet"
+msgstr "No notifications yet"
+
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "No rankings available"
+msgstr "No rankings available"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "No received friend requests"
+#~ msgstr "No received friend requests"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No selected games"
+msgstr "No selected games"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "No sent friend requests"
+#~ msgstr "No sent friend requests"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No shared date"
+msgstr "No shared date"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No shared game"
+msgstr "No shared game"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No suggestions right now"
@@ -333,6 +1344,52 @@ msgstr "No matches yet — create your first one!"
 msgid "No users found"
 msgstr "No users found"
 
+#: apps/web/src/components/VoteCounts.tsx
+msgid "Not chosen"
+msgstr "Not chosen"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Not enough accepted players"
+msgstr "Not enough accepted players"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "Not following anyone yet"
+#~ msgstr "Not following anyone yet"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Not known"
+msgstr "Not known"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Not rated"
+msgstr "Not rated"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Notification deleted"
+msgstr "Notification deleted"
+
+#: apps/web/src/components/NotificationBell.tsx
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Notifications"
+msgstr "Notifications"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Open group"
+msgstr "Open group"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Open match"
+msgstr "Open match"
+
+#. Mobile runtime-only message; Lingui extraction does not inspect useT().
+#~ msgid "Open notification settings"
+#~ msgstr "Open notification settings"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "Operation failed"
+#~ msgstr "Operation failed"
+
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Optional email (auto-connect on claim)"
 #~ msgstr "Optional email (auto-connect on claim)"
@@ -345,74 +1402,319 @@ msgstr "Organizations"
 msgid "Organize your board game collection, track your matches and connect with other players."
 msgstr "Organize your board game collection, track your matches and connect with other players."
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Overview"
+msgstr "Overview"
+
 #: apps/web/src/components/Profile.tsx
-msgid "Owned"
-msgstr "Owned"
+#~ msgid "Owned"
+#~ msgstr "Owned"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Participants"
+msgstr "Participants"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Paste an invite link or token to claim it"
 #~ msgstr "Paste an invite link or token to claim it"
 
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Pending"
+msgstr "Pending"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Person removed from group"
+msgstr "Person removed from group"
+
+#: apps/mobile/src/app/(tabs)/matches.tsx (mobile-only, runtime useT)
+#~ msgid "Pick date and time"
+#~ msgstr "Pick date and time"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Plan:"
 msgstr "Plan:"
 
-#: apps/web/src/components/Profile.tsx
-msgid "Played"
-msgstr "Played"
+#: apps/web/src/components/Matches.tsx
+msgid "Planning"
+msgstr "Planning"
 
+#: apps/web/src/components/Profile.tsx
+#~ msgid "Played"
+#~ msgstr "Played"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Player"
+msgstr "Player"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Player removed from match"
+msgstr "Player removed from match"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+#~ msgid "Player scores"
+#~ msgstr "Player scores"
+
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Matches.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Players"
 msgstr "Players"
 
+#: apps/web/src/components/UserMenu.tsx
+msgid "Players remain in this match until they leave or are removed."
+msgstr "Players remain in this match until they leave or are removed."
+
+#: apps/web/src/components/MatchDetail.tsx
+#~ msgid "Possible dates"
+#~ msgstr "Possible dates"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Powered by BoardGameGeek"
+msgstr "Powered by BoardGameGeek"
+
+#: apps/web/src/components/SearchGamePage.tsx
+msgid "Previous"
+msgstr "Previous"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Previous step"
 msgstr "Previous step"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Private"
+msgstr "Private"
 
 #: apps/web/src/components/Header.tsx
 msgid "Profile"
 msgstr "Profile"
 
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Provisional game rating"
+msgstr "Provisional game rating"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Provisional rating"
+msgstr "Provisional rating"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public"
+msgstr "Public"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public group"
+msgstr "Public group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Public group search and join requests will be available later. Only the admin can invite friends now."
+msgstr "Public group search and join requests will be available later. Only the admin can invite friends now."
+
+#: apps/web/src/components/GameCatalogMetadata.tsx
+msgid "Rank"
+msgstr "Rank"
+
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
+msgid "Ranking"
+msgstr "Ranking"
+
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Rating decreased"
+msgstr "Rating decreased"
+
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Rating increased"
+msgstr "Rating increased"
+
+#: apps/web/src/components/MatchStandingIdentity.tsx
+msgid "Rating unchanged"
+msgstr "Rating unchanged"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Received"
+msgstr "Received"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register match"
+msgstr "Register match"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register match?"
+msgstr "Register match?"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Register results"
+msgstr "Register results"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Remove friend"
+msgstr "Remove friend"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Remove friend?"
+msgstr "Remove friend?"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Remove from group"
+msgstr "Remove from group"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Remove from group?"
+msgstr "Remove from group?"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove game"
 msgstr "Remove game"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove invite"
 msgstr "Remove invite"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Remove player"
+msgstr "Remove player"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Remove player?"
+msgstr "Remove player?"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Remove players who are not members of the selected group"
+msgstr "Remove players who are not members of the selected group"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Remove slot"
 msgstr "Remove slot"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Remove tie-break"
+msgstr "Remove tie-break"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Reopen planning? Pending invitees will regain access and accepted players will be notified."
+msgstr "Reopen planning? Pending invitees will regain access and accepted players will be notified."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Requests"
+msgstr "Requests"
+
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Reset"
 #~ msgstr "Reset"
 
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Resolve tie"
+msgstr "Resolve tie"
+
+#~ msgid "Respond to friend request"
+#~ msgstr "Respond to friend request"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Results"
+msgstr "Results"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Results and standings will become final and cannot be edited."
+msgstr "Results and standings will become final and cannot be edited."
+
+#~ msgid "Results can only be registered by the match administrator before termination."
+#~ msgstr "Results can only be registered by the match administrator before termination."
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/SearchUserPage.tsx
 msgid "Retry"
 msgstr "Retry"
 
+#: apps/web/src/components/Groups.tsx
+#~ msgid "Save"
+#~ msgstr "Save"
+
+#: apps/web/src/components/Groups.tsx
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Save changes"
+msgstr "Save changes"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Saving…"
+msgstr "Saving…"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Score"
+msgstr "Score"
+
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/SearchGamePage.tsx
 msgid "Search"
 msgstr "Search"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
-msgid "Search board games (at least 4 characters)"
-msgstr "Search board games (at least 4 characters)"
+msgid "Search board games"
+msgstr "Search board games"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
+#~ msgid "Search board games (at least 4 characters)"
+#~ msgstr "Search board games (at least 4 characters)"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Search countries"
+msgstr "Search countries"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Search countries by name or code"
+msgstr "Search countries by name or code"
+
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Search failed"
 msgstr "Search failed"
 
-#: apps/web/src/components/Contacts.tsx
-#: apps/web/src/components/SearchUserPage.tsx
-msgid "Search users (at least 4 characters)"
-msgstr "Search users (at least 4 characters)"
+#: apps/web/src/components/SearchGamePage.tsx
+msgid "Search failed. Retry"
+msgstr "Search failed. Retry"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Search groups"
+msgstr "Search groups"
+
+#: apps/web/src/components/Groups.tsx
+#~ msgid "Search groups (at least 4 characters)"
+#~ msgstr "Search groups (at least 4 characters)"
+
+#: apps/web/src/components/SearchHelpLabel.tsx
+msgid "Search help"
+msgstr "Search help"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Search matches"
+msgstr "Search matches"
+
+#: apps/web/src/components/Matches.tsx
+#~ msgid "Search matches (at least 4 characters)"
+#~ msgstr "Search matches (at least 4 characters)"
 
 #: apps/web/src/components/Contacts.tsx
+msgid "Search results"
+msgstr "Search results"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/SearchUserPage.tsx
+msgid "Search users"
+msgstr "Search users"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/SearchUserPage.tsx
+#~ msgid "Search users (at least 4 characters)"
+#~ msgstr "Search users (at least 4 characters)"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/SearchUserPage.tsx
 msgid "Search users by name or email"
 msgstr "Search users by name or email"
 
@@ -420,14 +1722,51 @@ msgstr "Search users by name or email"
 msgid "Select"
 msgstr "Select"
 
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/MatchLeaderboard.tsx
 #: apps/web/src/components/MatchWizard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Select a board game"
 msgstr "Select a board game"
 
+#: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Select a friend"
 msgstr "Select a friend"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Select group member"
+msgstr "Select group member"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Selected group is unavailable"
+msgstr "Selected group is unavailable"
+
+#~ msgid "Send"
+#~ msgstr "Send"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Send friend request"
+msgstr "Send friend request"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Send friend request?"
+msgstr "Send friend request?"
+
+#~ msgid "Send invite"
+#~ msgstr "Send invite"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "Send request"
+msgstr "Send request"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Sent"
+msgstr "Sent"
+
+#: apps/web/src/components/Groups.tsx
+msgid "Settings"
+msgstr "Settings"
 
 #~ msgid "Share"
 #~ msgstr "Share"
@@ -435,7 +1774,7 @@ msgstr "Select a friend"
 #~ msgid "Share link"
 #~ msgstr "Share link"
 
-#: apps/mobile/src/app/_layout.tsx
+#: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
 #~ msgid "Sign in"
 #~ msgstr "Sign in"
 
@@ -444,7 +1783,7 @@ msgstr "Select a friend"
 msgid "Sign In"
 msgstr "Sign In"
 
-#: apps/mobile/src/components/LoginFallback.tsx
+#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
 #~ msgid "Sign in / Register"
 #~ msgstr "Sign in / Register"
 
@@ -465,23 +1804,99 @@ msgstr "Sign in to see your contacts"
 msgid "Sign Up"
 msgstr "Sign Up"
 
-#: apps/mobile/src/components/Profile.tsx
+#: apps/mobile/src/components/LoginFallback.tsx (mobile-only, runtime useT)
 #~ msgid "Sign-in unavailable"
 #~ msgstr "Sign-in unavailable"
 
-#: apps/web/src/components/Contacts.tsx
-msgid "Suggestions"
-msgstr "Suggestions"
+#: apps/web/src/components/MatchDetail.tsx
+#~ msgid "Standings"
+#~ msgstr "Standings"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "Sync your address book from the mobile app to see friend suggestions here."
-msgstr "Sync your address book from the mobile app to see friend suggestions here."
+#~ msgid "Suggestions"
+#~ msgstr "Suggestions"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Sync"
+msgstr "Sync"
+
+#: apps/web/src/components/Profile.tsx
+msgid "Sync with BoardGameGeek"
+msgstr "Sync with BoardGameGeek"
+
+#: apps/web/src/components/Contacts.tsx
+#~ msgid "Sync your address book from the mobile app to see friend suggestions here."
+#~ msgstr "Sync your address book from the mobile app to see friend suggestions here."
+
+#: apps/web/src/components/Profile.tsx
+msgid "Synced collection games will be removed from your profile. Existing matches remain unchanged."
+msgstr "Synced collection games will be removed from your profile. Existing matches remain unchanged."
+
+#: apps/web/src/components/Profile.tsx
+msgid "Syncing BoardGameGeek collection"
+msgstr "Syncing BoardGameGeek collection"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Terminated"
+msgstr "Terminated"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "The friend request will be declined."
+msgstr "The friend request will be declined."
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "The friendship and your follow will be removed."
+msgstr "The friendship and your follow will be removed."
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "The sent friend request will be removed."
+msgstr "The sent friend request will be removed."
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "They can accept or decline your request."
+msgstr "They can accept or decline your request."
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "This contact will no longer be blocked."
+msgstr "This contact will no longer be blocked."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "This deletes the match and all invitations. This action cannot be undone."
+msgstr "This deletes the match and all invitations. This action cannot be undone."
+
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "This notification will be permanently deleted."
+msgstr "This notification will be permanently deleted."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."
+msgstr "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."
+
+#: apps/web/src/components/Groups.tsx
+msgid "This removes the invitation or member from the group. You can invite them again."
+msgstr "This removes the invitation or member from the group. You can invite them again."
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Tie-break applied"
+msgstr "Tie-break applied"
+
+#: apps/web/src/components/MatchResultsEditor.tsx
+msgid "Tied score"
+msgstr "Tied score"
 
 #: apps/web/src/components/Header.tsx
 msgid "Toggle menu"
 msgstr "Toggle menu"
 
+#: apps/web/src/components/NotificationsPage.tsx
+msgid "Try again"
+msgstr "Try again"
+
 #: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/GroupLeaderboard.tsx
+#: apps/web/src/components/ListSearchFilters.tsx
+#: apps/web/src/components/SearchGamePage.tsx
+#: apps/web/src/components/SearchUserPage.tsx
 msgid "Type at least 4 characters to search"
 msgstr "Type at least 4 characters to search"
 
@@ -489,14 +1904,45 @@ msgstr "Type at least 4 characters to search"
 msgid "Unblock"
 msgstr "Unblock"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/UserMenu.tsx
+msgid "Unblock contact?"
+msgstr "Unblock contact?"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "Unfollow"
 msgstr "Unfollow"
 
+#: apps/web/src/components/GameCatalogMetadata.tsx
+msgid "Unranked"
+msgstr "Unranked"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User blocked"
+msgstr "User blocked"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User followed"
+msgstr "User followed"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User unblocked"
+msgstr "User unblocked"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User unfollowed"
+msgstr "User unfollowed"
+
+#: apps/web/src/components/NotificationBell.tsx
+msgid "View all notifications"
+msgstr "View all notifications"
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "View profile"
 msgstr "View profile"
+
+#: apps/web/src/components/VoteCounts.tsx
+msgid "Vote count legend"
+msgstr "Vote count legend"
 
 #: apps/web/src/components/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"
@@ -506,18 +1952,111 @@ msgstr "Welcome to Board Game Organizer"
 msgid "When could you play?"
 msgstr "When could you play?"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Yes"
-#~ msgstr "Yes"
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/Matches.tsx
+msgid "Winner"
+msgstr "Winner"
+
+#: apps/web/src/components/Matches.tsx
+msgid "Winners"
+msgstr "Winners"
+
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/VoteCounts.tsx
+msgid "Yes"
+msgstr "Yes"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "You are not following anyone yet"
-msgstr "You are not following anyone yet"
+#~ msgid "You are not following anyone yet"
+#~ msgstr "You are not following anyone yet"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
 #~ msgid "You have been invited"
 #~ msgstr "You have been invited"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "You left the match"
+msgstr "You left the match"
+
+#: apps/web/src/components/UserMenu.tsx
+msgid "You will become friends and follow each other."
+msgstr "You will become friends and follow each other."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "You will leave this match. The administrator can invite you again."
+msgstr "You will leave this match. The administrator can invite you again."
+
+#: apps/web/src/components/Groups.tsx
+msgid "You will need a new invitation to rejoin."
+msgstr "You will need a new invitation to rejoin."
+
 #: apps/web/src/components/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."
 msgstr "You will no longer see each other or find each other. Follow and friendships will be removed."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Your invitation is waiting for a response."
+msgstr "Your invitation is waiting for a response."
+
+msgid "Locations"
+msgstr "Locations"
+
+msgid "Location"
+msgstr "Location"
+
+msgid "Select location"
+msgstr "Select location"
+
+msgid "Location name"
+msgstr "Location name"
+
+msgid "Search address"
+msgstr "Search address"
+
+msgid "Address results"
+msgstr "Address results"
+
+msgid "Location map"
+msgstr "Location map"
+
+msgid "Add location"
+msgstr "Add location"
+
+msgid "Remove location"
+msgstr "Remove location"
+
+msgid "Confirm location"
+msgstr "Confirm location"
+
+msgid "Use my location"
+msgstr "Use my location"
+
+msgid "Open settings"
+msgstr "Open settings"
+
+msgid "Location unavailable"
+msgstr "Location unavailable"
+
+msgid "Location permission denied"
+msgstr "Location permission denied"
+
+msgid "Could not load map"
+msgstr "Could not load map"
+
+msgid "Map unavailable"
+msgstr "Map unavailable"
+
+msgid "Could not search addresses"
+msgstr "Could not search addresses"
+
+msgid "No shared location"
+msgstr "No shared location"
+
+msgid "Confirmed location"
+msgstr "Confirmed location"
+
+msgid "Location selection"
+msgstr "Location selection"
+
+msgid "Choose location"
+msgstr "Choose location"

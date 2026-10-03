@@ -1,61 +1,263 @@
 import { z } from "zod";
+import {
+  matchChoiceSchema,
+  matchChoicesSchema,
+  matchInvitationStatusSchema,
+  matchLocationSchema,
+  matchResultsSchema,
+  matchScoreSchema,
+  matchStatusSchema,
+  matchTieBreakSchema,
+} from "../models/matches";
+import { targetUserIdSchema } from "./common";
 
-/** GET /api/matches — list of matches owned by the caller. */
+export const matchInvitationResponseSchema = z.object({
+  id: z.uuid(),
+  matchId: z.uuid(),
+  inviterUserId: z.string(),
+  inviteeUserId: z.string(),
+  status: matchInvitationStatusSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  respondedAt: z.string().optional(),
+});
+export type MatchInvitationResponse = z.infer<typeof matchInvitationResponseSchema>;
+
+export const matchResponseSchema = z.object({
+  id: z.uuid(),
+  adminUserId: z.string(),
+  name: z.string(),
+  dates: z.array(z.string()),
+  locations: z.array(matchLocationSchema).optional(),
+  minPlayers: z.number(),
+  maxPlayers: z.number(),
+  invitedUserIds: z.array(z.string()),
+  gameIds: z.array(z.number()),
+  groupId: z.uuid().optional(),
+  status: matchStatusSchema,
+  selectedDate: z.string().optional(),
+  selectedLocationId: z.uuid().optional(),
+  selectedGameId: z.number().optional(),
+  /** Included by match listings when the selected catalog game is available. */
+  selectedGameName: z.string().optional(),
+  /** Rank-one player names, enriched for terminated match cards. */
+  winnerNames: z.array(z.string()).optional(),
+  results: matchResultsSchema.optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  invitations: z.array(matchInvitationResponseSchema),
+});
+export type MatchResponse = z.infer<typeof matchResponseSchema>;
+
+/** GET /api/matches — matches created by or inviting caller. */
 export const listMatchesResponseSchema = z.object({
-  matches: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      dates: z.array(z.string()),
-      minPlayers: z.number(),
-      maxPlayers: z.number(),
-      invitedUserIds: z.array(z.string()),
-      gameIds: z.array(z.number()),
-      createdAt: z.string(),
+  matches: z.array(matchResponseSchema),
+  nextCursor: z.string().nullable().optional(),
+});
+export type ListMatchesResponse = z.infer<typeof listMatchesResponseSchema>;
+
+export const matchPlayerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+export type MatchPlayer = z.infer<typeof matchPlayerSchema>;
+
+export const matchInvitedPlayerSchema = matchPlayerSchema.extend({
+  invitation: matchInvitationResponseSchema,
+});
+export type MatchInvitedPlayer = z.infer<typeof matchInvitedPlayerSchema>;
+
+export const matchGameResponseSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  yearPublished: z.number().nullable(),
+  bayesAverage: z.number().nullable().optional(),
+  average: z.number().nullable().optional(),
+  rank: z.number().nullable().optional(),
+  thumbnail: z.string().nullable(),
+});
+export type MatchGameResponse = z.infer<typeof matchGameResponseSchema>;
+
+export const matchVoteCountsSchema = z.object({
+  yes: z.number().int().nonnegative(),
+  no: z.number().int().nonnegative(),
+  ifNeeded: z.number().int().nonnegative(),
+  notChosen: z.number().int().nonnegative(),
+});
+export type MatchVoteCounts = z.infer<typeof matchVoteCountsSchema>;
+
+export const matchVoteSummarySchema = z.object({
+  dates: z.record(z.string(), matchVoteCountsSchema),
+  games: z.record(z.string(), matchVoteCountsSchema),
+  locations: z.record(z.string(), matchVoteCountsSchema).optional(),
+  reasons: z.array(
+    z.enum(["NOT_ENOUGH_PLAYERS", "NO_SHARED_DATE", "NO_SHARED_GAME", "NO_SHARED_LOCATION"]),
+  ),
+  selectedDate: z.string().optional(),
+  selectedLocationId: z.uuid().optional(),
+  selectedGameId: z.number().optional(),
+});
+export type MatchVoteSummary = z.infer<typeof matchVoteSummarySchema>;
+
+export const matchGameRatingSchema = z.object({
+  userId: targetUserIdSchema,
+  score: z.number().finite(),
+  delta: z.number().finite(),
+  provisional: z.boolean(),
+});
+export type MatchGameRating = z.infer<typeof matchGameRatingSchema>;
+export const matchCurrentGameRatingSchema = matchGameRatingSchema.omit({ delta: true });
+export type MatchCurrentGameRating = z.infer<typeof matchCurrentGameRatingSchema>;
+
+export const matchLeaderboardResponseSchema = z.object({
+  gameId: z.number().int().positive(),
+  ratings: z.array(
+    matchCurrentGameRatingSchema.extend({
+      gamesPlayed: z.number().int().nonnegative(),
+      gamesWon: z.number().int().nonnegative(),
+      nd: z.number().int().nonnegative(),
     }),
   ),
 });
+export type MatchLeaderboardResponse = z.infer<typeof matchLeaderboardResponseSchema>;
 
-export type ListMatchesResponse = z.infer<typeof listMatchesResponseSchema>;
+export const matchDetailResponseSchema = z.object({
+  match: matchResponseSchema,
+  administrator: matchPlayerSchema,
+  invitedPlayers: z.array(matchInvitedPlayerSchema),
+  games: z.array(matchGameResponseSchema),
+  choices: matchChoicesSchema.optional(),
+  voteSummary: matchVoteSummarySchema.optional(),
+  gameRatings: z.array(matchGameRatingSchema).optional(),
+});
+export type MatchDetailResponse = z.infer<typeof matchDetailResponseSchema>;
 
-/**
- * BGG game search result — intentionally minimal (id + name only).
- * Avatar/image and year are fetched via `thing` when a game is selected,
- * per product decision (search stays fast under BGG rate limits).
- */
+export const setMatchChoiceSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("dates"),
+    itemId: z.iso.datetime({ offset: true }),
+    choice: matchChoiceSchema,
+  }),
+  z.object({
+    kind: z.literal("games"),
+    itemId: z.number().int().positive(),
+    choice: matchChoiceSchema,
+  }),
+  z.object({ kind: z.literal("locations"), itemId: z.uuid(), choice: matchChoiceSchema }),
+]);
+export type SetMatchChoiceInput = z.infer<typeof setMatchChoiceSchema>;
+
+export const setMatchStatusSchema = z.object({ status: z.enum(["PLANNING", "CREATED"]) }).strict();
+export const registerMatchResultsSchema = z
+  .object({
+    lowerWins: z.boolean(),
+    entries: z
+      .array(
+        z
+          .object({
+            userId: targetUserIdSchema,
+            score: matchScoreSchema.nullable(),
+          })
+          .strict(),
+      )
+      .min(1),
+    tieBreaks: z.array(matchTieBreakSchema),
+  })
+  .strict();
+export type RegisterMatchResultsInput = z.infer<typeof registerMatchResultsSchema>;
+export type SetMatchStatusInput = z.infer<typeof setMatchStatusSchema>;
+
+export const inviteMatchUserSchema = z.object({ inviteeUserId: targetUserIdSchema }).strict();
+export type InviteMatchUserInput = z.infer<typeof inviteMatchUserSchema>;
+
+export const updateMatchSchema = z
+  .object({
+    name: z.string().trim().min(5).max(120).optional(),
+    dates: z
+      .array(z.iso.datetime({ offset: true }))
+      .min(1)
+      .refine((dates) => new Set(dates).size === dates.length)
+      .optional(),
+    minPlayers: z.number().int().min(2).optional(),
+    maxPlayers: z.number().int().min(2).optional(),
+    invitedUserIds: z
+      .array(targetUserIdSchema)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
+    gameIds: z
+      .array(z.number().int().positive())
+      .min(1)
+      .refine((gameIds) => new Set(gameIds).size === gameIds.length)
+      .optional(),
+    groupId: z.uuid().nullable().optional(),
+    locations: z
+      .array(matchLocationSchema)
+      .min(1)
+      .refine(
+        (locations) => new Set(locations.map((location) => location.id)).size === locations.length,
+      )
+      .optional(),
+  })
+  .strict()
+  .refine((input) => Object.values(input).some((value) => value !== undefined), {
+    message: "At least one field is required",
+  })
+  .refine(
+    (input) =>
+      input.minPlayers === undefined ||
+      input.maxPlayers === undefined ||
+      input.maxPlayers >= input.minPlayers,
+    { path: ["maxPlayers"], message: "maxPlayers must be greater than or equal to minPlayers" },
+  )
+  .refine(
+    (input) =>
+      input.invitedUserIds === undefined ||
+      input.maxPlayers === undefined ||
+      input.invitedUserIds.length <= input.maxPlayers - 1,
+    { path: ["invitedUserIds"], message: "Invitations exceed available player positions" },
+  );
+export type UpdateMatchInput = z.infer<typeof updateMatchSchema>;
+
+export const respondMatchInvitationSchema = z
+  .object({ decision: z.enum(["accept", "decline"]) })
+  .strict();
+export type RespondMatchInvitationInput = z.infer<typeof respondMatchInvitationSchema>;
+
+/** BGG game search result — intentionally minimal. */
 export const bggSearchItemSchema = z.object({
   id: z.number(),
   name: z.string(),
+  year: z.number().nullable(),
+  bayesAverage: z.number().nullable().optional(),
+  average: z.number().nullable().optional(),
+  rank: z.number().nullable().optional(),
+  imageUrl: z.string().nullable(),
 });
-
-export const bggSearchResponseSchema = z.object({
-  items: z.array(bggSearchItemSchema),
-});
-
+export const bggSearchResponseSchema = z.object({ items: z.array(bggSearchItemSchema) });
 export type BggSearchItem = z.infer<typeof bggSearchItemSchema>;
 export type BggSearchResponse = z.infer<typeof bggSearchResponseSchema>;
 
-/** BGG thing details (image + year) fetched on selection. */
+/** BGG thing details fetched on selection. */
 export const bggThingResponseSchema = z.object({
   id: z.number(),
   name: z.string(),
   imageUrl: z.string().nullable(),
   year: z.number().nullable(),
+  bayesAverage: z.number().nullable().optional(),
+  average: z.number().nullable().optional(),
+  rank: z.number().nullable().optional(),
 });
-
 export type BggThingResponse = z.infer<typeof bggThingResponseSchema>;
 
-/** A friend the match creator can invite (mutual follow). */
+/** A friend match creator can invite. */
 export const inviteableUserSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().nullable(),
   avatarUrl: z.string().nullable(),
 });
-
-export const friendsResponseSchema = z.object({
-  users: z.array(inviteableUserSchema),
-});
-
+export const friendsResponseSchema = z.object({ users: z.array(inviteableUserSchema) });
 export type InviteableUser = z.infer<typeof inviteableUserSchema>;
 export type FriendsResponse = z.infer<typeof friendsResponseSchema>;

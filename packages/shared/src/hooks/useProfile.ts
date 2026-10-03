@@ -5,8 +5,9 @@ import type { UserProfile } from "../types";
 export interface UseProfileOptions {
   /** API base URL (injected by the calling app). */
   apiUrl: string;
-  /** Clerk session token; the query stays disabled until it's available. */
-  token: string | null | undefined;
+  /** Resolve the current Clerk session JWT before every request. */
+  getToken: () => Promise<string | null>;
+  userId: string | null | undefined;
   /** Extra gate for the query (e.g. only when the user is signed in). */
   enabled?: boolean;
   /** Vercel preview protection-bypass token (passed by the web app). */
@@ -18,17 +19,27 @@ export interface UseProfileOptions {
  * API. Mutations live in `queryClient.invalidateQueries(["profile"])`
  * callers — Zustand never stores this server data.
  */
-export function useProfileQuery({
+export function profileQueryOptions({
   apiUrl,
-  token,
-  enabled = true,
+  getToken,
+  userId,
   protectionBypass,
 }: UseProfileOptions) {
-  return useQuery<UserProfile>({
-    queryKey: ["profile", apiUrl, token],
-    queryFn: () => fetchProfile(apiUrl, token as string, protectionBypass),
-    enabled: enabled && Boolean(token) && Boolean(apiUrl),
+  return {
+    queryKey: ["profile", apiUrl, userId] as const,
+    queryFn: async (): Promise<UserProfile> => {
+      const token = await getToken();
+      if (!token) throw new Error("Missing session token");
+      return fetchProfile(apiUrl, token, protectionBypass);
+    },
     staleTime: 60_000,
     retry: 1,
+  };
+}
+
+export function useProfileQuery(options: UseProfileOptions) {
+  return useQuery<UserProfile>({
+    ...profileQueryOptions(options),
+    enabled: (options.enabled ?? true) && Boolean(options.userId) && Boolean(options.apiUrl),
   });
 }

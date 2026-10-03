@@ -1,19 +1,27 @@
 module.exports = {
   expo: {
-    name: "board-game-organizer",
+    name: "Board Game Organizer",
     slug: "board-game-organizer",
     version: "1.3.2",
     orientation: "portrait",
     scheme: "bgo",
     userInterfaceStyle: "automatic",
+    icon: "./assets/icon.png",
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.bgo.mobile",
     },
     android: {
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : {}),
+      icon: "./assets/icon.png",
       adaptiveIcon: {
-        backgroundColor: "#ffffff",
+        foregroundImage: "./assets/adaptive-icon-foreground.png",
+        backgroundImage: "./assets/adaptive-icon-background.png",
+        monochromeImage: "./assets/adaptive-icon-monochrome.png",
+        backgroundColor: "#4c2482",
       },
       package: "com.bgo.mobile",
     },
@@ -24,14 +32,30 @@ module.exports = {
     },
     plugins: [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/icon.png",
+          imageWidth: 200,
+          backgroundColor: "#ffffff",
+        },
+      ],
       "@clerk/expo",
       "expo-secure-store",
       "@sentry/react-native",
       "expo-font",
       "expo-contacts",
+      [
+        "expo-location",
+        { locationWhenInUsePermission: "Show your position on the match location map." },
+      ],
+      "@rnmapbox/maps",
+      ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#006fee" }],
+      "@react-native-community/datetimepicker",
     ],
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL,
+      mapboxAccessToken: process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN,
       clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       router: {},
       eas: {

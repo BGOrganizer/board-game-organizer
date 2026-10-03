@@ -3,30 +3,54 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Contacts from "@/app/(tabs)/contacts/page";
 import Groups from "@/app/(tabs)/groups/page";
 import Matches from "@/app/(tabs)/matches/page";
+import Notifications from "@/app/(tabs)/notifications/page";
 import Organizations from "@/app/(tabs)/organizations/page";
 import ProfilePage from "@/app/(tabs)/profile/page";
 import { renderWithI18n } from "@/test-utils";
 
+vi.mock("@/components/NotificationsPage", () => ({
+  NotificationsPage: () => <p>notification inbox</p>,
+}));
+
 vi.mock("next/headers", () => ({
   headers: () => ({ get: () => null }),
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
     isLoaded: true,
     isSignedIn: true,
+    userId: "user_1",
     getToken: vi.fn().mockResolvedValue("token"),
   }),
   useClerk: () => ({ signOut: vi.fn() }),
 }));
 
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
+  useGroups: () => ({
+    list: { data: [], isPending: false, isError: false },
+    create: { mutateAsync: vi.fn(), isPending: false },
+    update: { mutateAsync: vi.fn(), isPending: false },
+    archive: { mutateAsync: vi.fn(), isPending: false },
+    leave: { mutateAsync: vi.fn(), isPending: false },
+    respond: { mutate: vi.fn(), isPending: false },
+  }),
   useMatches: () => ({
     list: { isPending: false, isError: false, data: [] },
     create: { isError: false, mutateAsync: vi.fn(), isPending: false },
+    update: { isError: false, mutateAsync: vi.fn(), isPending: false },
     search: { isPending: false, isError: false, mutate: vi.fn(), data: null },
     thing: { isPending: false, isError: false, mutate: vi.fn(), data: null },
+    respondInvitation: { isPending: false, isError: false, mutate: vi.fn() },
+  }),
+  useBggAccount: () => ({
+    account: { data: { active: null, pending: null }, isError: false, refetch: vi.fn() },
+    link: { mutateAsync: vi.fn(), isPending: false },
+    sync: { mutate: vi.fn(), isPending: false },
+    unlink: { mutate: vi.fn(), isPending: false },
   }),
   useProfileQuery: () => ({
     data: {
@@ -36,7 +60,14 @@ vi.mock("@board-game-organizer/shared", () => ({
       avatarUrl: "",
       preferredLanguage: "en",
       plan: "free",
-      stats: { gamesOwned: 1, gamesPlayed: 2, friends: 3 },
+      stats: {
+        friends: 3,
+        followers: 4,
+        following: 2,
+        playedMatches: 1,
+        adminGroups: 0,
+        joinedGroups: 0,
+      },
     },
     isLoading: false,
     isError: false,
@@ -47,14 +78,21 @@ vi.mock("@board-game-organizer/shared", () => ({
     following: { data: [], isLoading: false },
     followers: { data: [], isLoading: false },
     friends: { data: [], isLoading: false },
+    pending: { data: [], isLoading: false, isSuccess: true },
+    sent: { data: [], isLoading: false, isSuccess: true },
     blocked: { data: [], isLoading: false },
     suggestions: { data: { users: [], hasContacts: false }, isLoading: false },
     follow: { mutate: vi.fn(), isPending: false },
     unfollow: { mutate: vi.fn(), isPending: false },
+    unfriend: { mutate: vi.fn(), isPending: false, isError: false },
+    friendRequest: { mutate: vi.fn(), isPending: false, isError: false },
+    cancelFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
+    acceptFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
+    rejectFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
     block: { mutate: vi.fn(), isPending: false },
     unblock: { mutate: vi.fn(), isPending: false },
     syncContacts: { mutateAsync: vi.fn(), mutate: vi.fn(), isPending: false },
-    search: { mutate: vi.fn(), data: undefined, isPending: false },
+    search: { mutate: vi.fn(), data: undefined, isLoading: false },
     runSearch: vi.fn(),
     refreshContacts: vi.fn(),
   }),
@@ -73,12 +111,12 @@ describe("tab pages", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the placeholder pages without a page title (tab bar shows it)", async () => {
+  it("renders groups and remaining placeholder without repeating tab titles", async () => {
     renderWithI18n(await Contacts());
-    expect(screen.getByText("Following")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Connections" })).toBeTruthy();
 
     const { unmount: unmountGroups } = renderWithI18n(await Groups());
-    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    expect(screen.getByText("No groups yet")).toBeTruthy();
     unmountGroups();
 
     const { unmount: unmountOrgs } = renderWithI18n(await Organizations());
@@ -89,6 +127,11 @@ describe("tab pages", () => {
   it("renders the matches page with the create button", async () => {
     const { getByLabelText } = renderWithI18n(await Matches());
     expect(getByLabelText(/create a match/i)).toBeTruthy();
+  });
+
+  it("renders the notification inbox page", () => {
+    renderWithI18n(<Notifications />);
+    expect(screen.getByText("notification inbox")).toBeTruthy();
   });
 
   it("renders the profile page with the profile card", async () => {

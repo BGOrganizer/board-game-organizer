@@ -1,2 +1,25 @@
 @import "tailwindcss";
 @import "@heroui/styles";
+
+.match-waves {
+  animation: match-waves 3s ease-in-out infinite alternate;
+}
+
+@keyframes match-waves {
+  from {
+    transform: translate(-2px, -2px);
+  }
+  to {
+    transform: translate(2px, 2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-waves {
+    animation: none;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms;
+  }
+}

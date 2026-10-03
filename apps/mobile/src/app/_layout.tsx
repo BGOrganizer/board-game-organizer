@@ -7,14 +7,30 @@ import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { HeroUINativeProvider } from "heroui-native";
-import { useEffect } from "react";
+import {
+  Bell,
+  Dices,
+  Gamepad2,
+  LogIn,
+  type LucideIcon,
+  Phone,
+  Trophy,
+  UserRound,
+  UsersRound,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { Uniwind } from "uniwind";
 import "../../global.css";
 
+import { HeaderTitle } from "@/components/HeaderTitle";
+import { PushNotificationRouter } from "@/components/PushNotificationRouter";
 import { RuntimeError } from "@/components/RuntimeError";
+import { Startup } from "@/components/Startup";
 import { defaultI18n, useT } from "@/lib/i18n";
+import { configureNotificationHandler } from "@/lib/push-notifications";
+import { startupStartedAt } from "@/lib/splash";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
@@ -44,6 +60,7 @@ Sentry.init({
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
 });
+configureNotificationHandler();
 
 if (!publishableKey) {
   console.error("[Clerk] Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
@@ -88,18 +105,60 @@ function ThemeSync() {
   return null;
 }
 
+function titleOptions(title: string, icon: LucideIcon) {
+  return {
+    title,
+    headerTitle: ({ children }: { children: string }) => (
+      <HeaderTitle title={children} icon={icon} />
+    ),
+  };
+}
+
 function RootNavigator() {
   const t = useT();
+  const [initialNotificationHref, setInitialNotificationHref] = useState<
+    string | null | undefined
+  >();
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <QueryProvider>
         <ThemeSync />
+        <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
         <StatusBar style="auto" />
         <Stack>
-          <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
-          <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
+          <Stack.Screen name="index" options={titleOptions("Board Game Organizer", Dices)} />
+          <Stack.Screen
+            name="sign-in"
+            options={{ ...titleOptions(t("Sign in"), LogIn), presentation: "modal" }}
+          />
+          <Stack.Screen
+            name="mobile-number"
+            options={titleOptions(t("Complete your profile"), Phone)}
+          />
+          <Stack.Screen name="notifications" options={titleOptions(t("Notifications"), Bell)} />
+          <Stack.Screen name="profile" options={titleOptions(t("Profile"), UserRound)} />
+          <Stack.Screen name="group/wizard" options={titleOptions(t("New group"), UsersRound)} />
+          <Stack.Screen
+            name="group/[groupId]"
+            options={titleOptions(t("Group details"), UsersRound)}
+          />
+          <Stack.Screen name="match/[matchId]" options={titleOptions(t("Match details"), Dices)} />
+          <Stack.Screen name="match/wizard" options={titleOptions(t("Configure match"), Dices)} />
+          <Stack.Screen
+            name="match/results"
+            options={titleOptions(t("Register results"), Trophy)}
+          />
+          <Stack.Screen
+            name="match/search-user"
+            options={titleOptions(t("Invite friends"), UsersRound)}
+          />
+          <Stack.Screen
+            name="match/search-game"
+            options={titleOptions(t("Select a board game"), Gamepad2)}
+          />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
+        <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
       </QueryProvider>
     </ClerkProvider>
   );

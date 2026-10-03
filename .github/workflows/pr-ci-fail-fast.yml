@@ -1,0 +1,40 @@
+name: PR CI fail-fast watchdog
+
+# workflow_job is a webhook, not an Actions workflow trigger. Watch the run
+# from trusted default-branch code, including workflow re-runs.
+on:
+  workflow_run:
+    workflows: ["🚦 PR CI/CD (quality gates → draft prerelease + Telegram)"]
+    types: [in_progress]
+
+permissions:
+  actions: write
+
+jobs:
+  cancel-failed-run:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Cancel all running and queued PR jobs after first failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          while true; do
+            run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")
+            [ "$(jq -r '.status' <<< "$run")" != 'completed' ] || exit 0
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/jobs?per_page=100" |
+              jq -e '[.jobs[] | select(.conclusion == "failure")] | length > 0' > /dev/null; then
+              echo "Cancelling PR run $RUN_ID after a job failure"
+              gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/cancel" > /dev/null || {
+                # The final failing job may have completed the run during polling.
+                [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.status')" = completed ]
+              }
+              exit 0
+            fi
+            sleep 15
+          done
