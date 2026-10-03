@@ -118,8 +118,8 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await findTarget(page);
   await sendFriendRequest(page);
   await page.getByRole("tab", { name: "Requests" }).click();
-  const sent = page.getByRole("heading", { name: "Sent" }).locator("..");
-  await expect(sent.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
+  const sent = page.getByRole("listitem").filter({ hasText: "E2E Target" });
+  await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible({ timeout: 30_000 });
 
   // Outgoing requests can be cancelled from the contextual menu and sent again.
   await sent.getByRole("button", { name: "Actions" }).click();
@@ -127,11 +127,11 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const cancelResponse = waitForRelationshipResponse(page, "DELETE", "friend_request");
   await page.getByRole("button", { name: "Cancel request" }).click();
   expect((await cancelResponse).ok()).toBe(true);
-  await expect(sent.getByText("No sent friend requests")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("No friend requests")).toBeVisible({ timeout: 30_000 });
   await findTarget(page);
   await sendFriendRequest(page);
   await page.getByRole("tab", { name: "Requests" }).click();
-  await expect(sent.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
+  await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible({ timeout: 30_000 });
 
   // The target sees both request sections and can reject the incoming request.
   const targetContext = await browser.newContext({ baseURL: new URL(page.url()).origin });
@@ -153,8 +153,8 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await targetPage.getByText("New friend request").first().click();
   expect((await markNotificationRead).ok()).toBe(true);
   await targetPage.getByRole("tab", { name: "Requests" }).click();
-  const received = targetPage.getByRole("heading", { name: "Received" }).locator("..");
-  await expect(received.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+  const received = targetPage.getByRole("listitem").filter({ hasText: "E2E Test" });
+  await expect(received.getByRole("img", { name: "Received" })).toBeVisible({ timeout: 30_000 });
   await received.getByRole("button", { name: "Actions" }).click();
   await targetPage.getByRole("menuitem", { name: "Decline friend request" }).click();
   const declineResponse = targetPage.waitForResponse(
@@ -163,7 +163,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   );
   await targetPage.getByRole("button", { name: "Decline", exact: true }).click();
   expect((await declineResponse).ok()).toBe(true);
-  await expect(received.getByText("No received friend requests")).toBeVisible({ timeout: 30_000 });
+  await expect(targetPage.getByText("No friend requests")).toBeVisible({ timeout: 30_000 });
 
   // A rejected request can be sent again from the contextual action, then accepted.
   await page.reload();
@@ -171,8 +171,10 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await sendFriendRequest(page);
   await targetPage.reload();
   await targetPage.getByRole("tab", { name: "Requests" }).click();
-  const receivedAgain = targetPage.getByRole("heading", { name: "Received" }).locator("..");
-  await expect(receivedAgain.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
+  const receivedAgain = targetPage.getByRole("listitem").filter({ hasText: "E2E Test" });
+  await expect(receivedAgain.getByRole("img", { name: "Received" })).toBeVisible({
+    timeout: 30_000,
+  });
   await receivedAgain.getByRole("button", { name: "Actions" }).click();
   await targetPage.getByRole("menuitem", { name: "Accept friend request" }).click();
   const acceptResponse = targetPage.waitForResponse(

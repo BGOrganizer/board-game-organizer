@@ -324,9 +324,13 @@ describe("Contacts tabs", () => {
     mocks.sent = true;
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
-    const received = screen.getByRole("heading", { name: "Received" }).closest("section");
-    const sent = screen.getByRole("heading", { name: "Sent" }).closest("section");
-    if (!received || !sent) throw new Error("Request sections missing");
+    const [received, sent] = screen.getAllByRole("listitem");
+    expect(screen.getAllByRole("list")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: /Request details/i })).toBeNull();
+    expect(within(received).getByRole("img", { name: "Received" }).className).toContain(
+      "text-primary",
+    );
+    expect(within(sent).getByRole("img", { name: "Sent" }).className).toContain("text-warning");
     fireEvent.click(within(received).getByRole("button", { name: "Actions: Target User" }));
     fireEvent.click(within(received).getByRole("button", { name: "Accept friend request" }));
     fireEvent.click(within(received).getByRole("button", { name: "Decline friend request" }));
@@ -344,18 +348,22 @@ describe("Contacts tabs", () => {
     }
   });
 
-  it("shows request loading, empty, and failure states", () => {
+  it("shows request empty, loading, and failure states", () => {
     mocks.following = false;
-    mocks.loading = true;
-    const view = renderWithI18n(<Contacts />);
+    const empty = renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
-    expect(screen.getAllByTestId("contact-skeleton-row")).toHaveLength(4);
-    view.unmount();
+    expect(screen.getByText("No friend requests")).toBeTruthy();
+    empty.unmount();
+    mocks.loading = true;
+    const loading = renderWithI18n(<Contacts />);
+    fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
+    expect(screen.getAllByTestId("contact-skeleton-row")).toHaveLength(2);
+    loading.unmount();
     mocks.loading = false;
     mocks.requestsError = true;
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
-    expect(screen.getAllByText("Could not load friend requests")).toHaveLength(2);
+    expect(screen.getAllByText("Could not load friend requests")).toHaveLength(1);
   });
 
   it("shows connection and action errors without empty-list success", () => {

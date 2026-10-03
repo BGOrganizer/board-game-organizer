@@ -320,7 +320,8 @@ The current `RelationshipRepository` writes only `follows`, `friendRequests`, an
   their own follow state.
 - Blocked users are hidden from normal lists and search. Connections shows friends, following,
   followers, then blocked users in one list with a connection-type badge on each avatar; blocked
-  users remain visible there so unblock is possible. Requests shows only received and sent requests.
+  users remain visible there so unblock is possible. Requests shows received then sent in one list,
+  with type badges on avatars and no section header.
 - MongoDB operations sharing one session must run sequentially. Never use `Promise.all` on operations
   using the same transaction session.
 - DELETE relationship requests include `targetUserId`. Parse DELETE bodies defensively with

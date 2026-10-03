@@ -132,7 +132,7 @@ msgstr "Indietro"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Back matches"
-msgstr ""
+msgstr "Torna alle partite"
 
 #: apps/web/src/components/MatchDetail.tsx
 #: apps/web/src/components/MatchResultsEditor.tsx
@@ -1221,7 +1221,6 @@ msgstr "No"
 #~ msgstr "Nessun utente bloccato"
 
 #: apps/web/src/components/Contacts.tsx
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile runtime useT)
 msgid "No connections yet"
 msgstr "Nessuna connessione"
 
@@ -1244,6 +1243,11 @@ msgstr "Nessun paese trovato"
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No followers yet"
 #~ msgstr "Nessun follower"
+
+#: apps/web/src/components/Contacts.tsx
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile runtime useT)
+msgid "No friend requests"
+msgstr "Nessuna richiesta di amicizia"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No friends from your contacts are on Board Game Organizer yet."
@@ -1308,16 +1312,16 @@ msgid "No rankings available"
 msgstr "Nessuna classifica disponibile"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No received friend requests"
-msgstr "Nessuna richiesta di amicizia ricevuta"
+#~ msgid "No received friend requests"
+#~ msgstr "Nessuna richiesta di amicizia ricevuta"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "No selected games"
 msgstr "Nessun gioco selezionato"
 
 #: apps/web/src/components/Contacts.tsx
-msgid "No sent friend requests"
-msgstr "Nessuna richiesta di amicizia inviata"
+#~ msgid "No sent friend requests"
+#~ msgstr "Nessuna richiesta di amicizia inviata"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "No shared date"

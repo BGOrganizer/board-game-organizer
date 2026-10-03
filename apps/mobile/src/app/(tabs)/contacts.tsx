@@ -36,7 +36,7 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
-import { ContactSections } from "@/components/ContactSections";
+import { ContactList } from "@/components/ContactList";
 import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
@@ -567,6 +567,11 @@ export default function ContactsScreen() {
   const friendsRows = contacts.friends.data ?? [];
   const pendingRows = contacts.pending.data ?? [];
   const sentRows = contacts.sent.data ?? [];
+  const requestRows = [
+    ...pendingRows.map((row) => ({ row, type: "received" as const })),
+    ...sentRows.map((row) => ({ row, type: "sent" as const })),
+  ].filter(({ row }) => row.profile);
+  const requestPages = [contacts.pending, contacts.sent];
   const pendingRequestIds = new Set(
     pendingRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
   );
@@ -877,107 +882,46 @@ export default function ContactsScreen() {
         </Tabs.Content>
 
         <Tabs.Content value="requests" style={{ flex: 1, marginTop: 12 }}>
-          <ContactSections
-            sections={[
-              {
-                key: "received",
-                label: t("Received"),
-                icon: Mail,
-                rows: pendingRows,
-                isLoading: contacts.pending.isLoading,
-                isError: contacts.pending.isError,
-                error: t("Could not load friend requests"),
-                empty: t("No received friend requests"),
-                query: contacts.pending,
-              },
-              {
-                key: "sent",
-                label: t("Sent"),
-                icon: Send,
-                rows: sentRows,
-                isLoading: contacts.sent.isLoading,
-                isError: contacts.sent.isError,
-                error: t("Could not load friend requests"),
-                empty: t("No sent friend requests"),
-                query: contacts.sent,
-              },
-            ]}
-            getRowKey={(row) => row.profile?.id ?? `${row.fromUserId}-${row.toUserId}`}
-            renderRow={(row, sectionKey) =>
+          <ContactList
+            data={requestRows}
+            pages={requestPages}
+            keyExtractor={({ row, type }) =>
+              `${type}-${row.profile?.id ?? `${row.fromUserId}-${row.toUserId}`}`
+            }
+            renderRow={({ row, type }) =>
               row.profile
-                ? contactRow(row.profile, sectionKey === "received" ? "incoming" : "outgoing")
+                ? contactRow(row.profile, type === "received" ? "incoming" : "outgoing", {
+                    icon: type === "received" ? Mail : Send,
+                    label: type === "received" ? t("Received") : t("Sent"),
+                    color: type === "received" ? "accent" : "warning",
+                  })
                 : null
             }
+            empty={t("No friend requests")}
+            emptyIcon={<Mail size={28} color="#737373" />}
+            error={t("Could not load friend requests")}
+            skeleton={<ContactListSkeleton count={2} />}
           />
         </Tabs.Content>
 
         <Tabs.Content value="connections" style={{ flex: 1, marginTop: 12 }}>
-          <FlatList
+          <ContactList
             data={connectionRows}
+            pages={connectionQueries}
             keyExtractor={({ user }) => user.id}
-            style={{ flex: 1 }}
-            contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
-            renderItem={({ item }) => (
-              <GroupedList>
-                {contactRow(item.user, undefined, {
-                  icon: connectionIcons[item.type],
-                  label: connectionLabels[item.type],
-                  color: connectionColors[item.type],
-                })}
-              </GroupedList>
-            )}
-            onEndReached={() => {
-              if (connectionQueries.some((query) => query.isError)) return;
-              const query = connectionQueries.find((page) => page.hasNextPage);
-              if (query && !query.isFetchingNextPage && !query.isFetchNextPageError)
-                void query.fetchNextPage();
-            }}
-            onEndReachedThreshold={0.5}
-            ListHeaderComponent={
+            renderRow={({ user, type }) =>
+              contactRow(user, undefined, {
+                icon: connectionIcons[type],
+                label: connectionLabels[type],
+                color: connectionColors[type],
+              })
+            }
+            empty={t("No connections yet")}
+            emptyIcon={<UsersRound size={28} color="#737373" />}
+            error={t("Could not load contacts")}
+            skeleton={<ContactListSkeleton count={2} />}
+            footer={
               <>
-                {connectionQueries.some((query) => query.isLoading) ? (
-                  <ContactListSkeleton count={2} />
-                ) : null}
-                {connectionQueries.some((query) => query.isError) ? (
-                  <View style={{ gap: 4 }}>
-                    <Typography accessibilityRole="alert" className="text-sm text-danger">
-                      {t("Could not load contacts")}
-                    </Typography>
-                    <Button
-                      variant="ghost"
-                      onPress={() => {
-                        for (const query of connectionQueries) {
-                          if (query.isError) void query.refetch();
-                        }
-                      }}
-                    >
-                      <Typography>{t("Retry")}</Typography>
-                    </Button>
-                  </View>
-                ) : null}
-              </>
-            }
-            ListEmptyComponent={
-              connectionQueries.some((query) => query.isLoading || query.isError) ? null : (
-                <EmptyList icon={<UsersRound size={28} color="#737373" />}>
-                  {t("No connections yet")}
-                </EmptyList>
-              )
-            }
-            ListFooterComponent={
-              <View style={{ gap: 8 }}>
-                {connectionQueries.some((query) => query.isFetchNextPageError) ? (
-                  <Button
-                    variant="ghost"
-                    onPress={() => {
-                      for (const query of connectionQueries) {
-                        if (query.isFetchNextPageError) void query.fetchNextPage();
-                      }
-                    }}
-                  >
-                    <Typography>{t("Retry")}</Typography>
-                  </Button>
-                ) : null}
                 {syncingContacts || contactsPermission === "checking" ? (
                   <ContactListSkeleton count={2} />
                 ) : null}
@@ -987,7 +931,7 @@ export default function ContactsScreen() {
                     <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
                   </Button>
                 ) : null}
-              </View>
+              </>
             }
           />
         </Tabs.Content>

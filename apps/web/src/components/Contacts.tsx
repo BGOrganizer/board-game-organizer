@@ -181,6 +181,8 @@ export function Contacts() {
     contacts.blocked,
   ];
   const nextConnectionPage = connectionPages.find((page) => page.hasNextPage);
+  const requestPages = [contacts.pending, contacts.sent];
+  const nextRequestPage = requestPages.find((page) => page.hasNextPage);
   const endRefs = {
     connections: useInfiniteScroll({
       hasNextPage: Boolean(nextConnectionPage),
@@ -188,13 +190,11 @@ export function Contacts() {
       isFetchNextPageError: nextConnectionPage?.isFetchNextPageError,
       fetchNextPage: () => nextConnectionPage?.fetchNextPage() ?? Promise.resolve(),
     }),
-    pending: useInfiniteScroll({
-      ...contacts.pending,
-      fetchNextPage: () => contacts.pending.fetchNextPage(),
-    }),
-    sent: useInfiniteScroll({
-      ...contacts.sent,
-      fetchNextPage: () => contacts.sent.fetchNextPage(),
+    requests: useInfiniteScroll({
+      hasNextPage: Boolean(nextRequestPage),
+      isFetchingNextPage: nextRequestPage?.isFetchingNextPage,
+      isFetchNextPageError: nextRequestPage?.isFetchNextPageError,
+      fetchNextPage: () => nextRequestPage?.fetchNextPage() ?? Promise.resolve(),
     }),
     suggestions: useInfiniteScroll({
       ...contacts.suggestions,
@@ -312,7 +312,7 @@ export function Contacts() {
     badge?: { icon: LucideIcon; label: string; color: string },
   ) => (
     <ContactCard
-      key={user.id}
+      key={`${friendRequest ?? "contact"}-${user.id}`}
       name={user.name}
       email={user.email}
       avatarUrl={user.avatarUrl}
@@ -434,73 +434,48 @@ export function Contacts() {
           </section>
         </Tabs.Panel>
 
-        <Tabs.Panel id="requests" className="space-y-5 pt-4">
-          {[
-            {
-              key: "received",
-              label: t`Received`,
-              icon: Mail,
-              rows: pendingRows,
-              isLoading: contacts.pending.isLoading,
-              isError: contacts.pending.isError,
-              empty: t`No received friend requests`,
-            },
-            {
-              key: "sent",
-              label: t`Sent`,
-              icon: Send,
-              rows: sentRows,
-              isLoading: contacts.sent.isLoading,
-              isError: contacts.sent.isError,
-              empty: t`No sent friend requests`,
-            },
-          ].map((section) => (
-            <section
-              className="space-y-2"
-              key={section.key}
-              aria-labelledby={`${section.key}-title`}
-            >
-              <h2
-                id={`${section.key}-title`}
-                className="flex items-center gap-2 text-sm font-semibold"
-              >
-                <section.icon className="size-4" aria-hidden="true" />
-                {section.label}
-              </h2>
-              {section.isLoading && <ContactListSkeleton count={2} />}
-              {section.isError && (
-                <p role="alert" className="text-sm text-danger">
-                  {t`Could not load friend requests`}
-                </p>
-              )}
-              {!section.isLoading && !section.isError && section.rows.length === 0 && (
-                <EmptyList icon={<section.icon className="size-7" />}>{section.empty}</EmptyList>
-              )}
-              <GroupedList>
-                {section.rows.map((row) =>
-                  row.profile
-                    ? contactCard(row.profile, section.key === "received" ? "incoming" : "outgoing")
-                    : null,
-                )}
-              </GroupedList>
-              <div
-                ref={section.key === "received" ? endRefs.pending : endRefs.sent}
-                aria-hidden="true"
-              />
-              {(section.key === "received" ? contacts.pending : contacts.sent)
-                .isFetchNextPageError ? (
-                <button
-                  type="button"
-                  className="text-sm text-primary"
-                  onClick={() =>
-                    void (
-                      section.key === "received" ? contacts.pending : contacts.sent
-                    ).fetchNextPage()
-                  }
-                >{t`Retry`}</button>
-              ) : null}
-            </section>
-          ))}
+        <Tabs.Panel id="requests" className="space-y-3 pt-4">
+          {requestPages.some((page) => page.isLoading) ? <ContactListSkeleton count={2} /> : null}
+          {requestPages.some((page) => page.isError) ? (
+            <p role="alert" className="text-sm text-danger">{t`Could not load friend requests`}</p>
+          ) : null}
+          {!requestPages.some((page) => page.isLoading || page.isError) &&
+          pendingRows.length === 0 &&
+          sentRows.length === 0 ? (
+            <EmptyList icon={<Mail className="size-7" />}>{t`No friend requests`}</EmptyList>
+          ) : null}
+          <GroupedList>
+            {pendingRows.map((row) =>
+              row.profile
+                ? contactCard(row.profile, "incoming", {
+                    icon: Mail,
+                    label: t`Received`,
+                    color: "text-primary",
+                  })
+                : null,
+            )}
+            {sentRows.map((row) =>
+              row.profile
+                ? contactCard(row.profile, "outgoing", {
+                    icon: Send,
+                    label: t`Sent`,
+                    color: "text-warning",
+                  })
+                : null,
+            )}
+          </GroupedList>
+          <div ref={endRefs.requests} aria-hidden="true" />
+          {requestPages.some((page) => page.isFetchNextPageError) ? (
+            <button
+              type="button"
+              className="text-sm text-primary"
+              onClick={() => {
+                for (const page of requestPages) {
+                  if (page.isFetchNextPageError) void page.fetchNextPage();
+                }
+              }}
+            >{t`Retry`}</button>
+          ) : null}
         </Tabs.Panel>
 
         <Tabs.Panel id="connections" className="space-y-3 pt-4">

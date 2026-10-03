@@ -30,8 +30,7 @@ appId: com.bgo.mobile
 - assertNotVisible: "Add contacts"
 - assertNotVisible: "Allow address book access to find your friends here."
 - tapOn: "Requests"
-- assertVisible: "Received"
-- assertVisible: "Sent"
+- assertVisible: "No friend requests"
 - assertNotVisible: "Blocked"
 - tapOn: "Search"
 - assertVisible: "Device Contacts"
@@ -99,7 +98,7 @@ appId: com.bgo.mobile
 - tapOn:
     id: "confirm-cancel_friend_request-btn"
 - extendedWaitUntil:
-    visible: "No sent friend requests"
+    visible: "No friend requests"
     timeout: 30000
 - tapOn: "Search"
 - extendedWaitUntil:
