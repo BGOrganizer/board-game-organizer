@@ -632,7 +632,8 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(card.getByText(/^\d+\/\d+$/)).toBeVisible();
   await expect(card.locator("time")).toHaveCount(2);
   await expect(card.getByText("+1 date")).toBeVisible();
-  await expect(card.locator("time").first()).toContainText(/\b\d{4}\b/);
+  await expect(card.locator("time").first()).toHaveText(/^\d{2}\/\d{2}\/\d{2}$/);
+  await expect(card.locator("time").first()).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}T/);
   await expect(card.locator("time").first()).not.toContainText(":");
   await expect(card.locator("time").last()).toContainText(":");
   await expect(card.locator("img.match-waves")).toBeVisible();
