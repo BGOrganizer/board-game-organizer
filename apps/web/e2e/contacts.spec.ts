@@ -199,16 +199,15 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const followingGate = new Promise<void>((resolve) => {
     releaseFollowing = resolve;
   });
-  await page.route("**/api/relationships?*", async (route) => {
-    if (
-      !followingDelayed &&
-      new URL(route.request().url()).searchParams.get("type") === "following"
-    ) {
+  await page.route(
+    (url) => url.pathname === "/api/relationships" && url.searchParams.get("type") === "following",
+    async (route) => {
       followingDelayed = true;
       await followingGate;
-    }
-    await route.continue();
-  });
+      await route.continue();
+    },
+    { times: 1 },
+  );
   await page.reload();
   await expect.poll(() => followingDelayed).toBe(true);
   await page.getByRole("tab", { name: "Connections" }).click();
@@ -246,7 +245,6 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await page.getByRole("menuitem", { name: "Follow", exact: true }).click();
   expect((await followResponse).ok()).toBe(true);
   releaseFollowing();
-  await page.unroute("**/api/relationships?*");
   await page.getByRole("tab", { name: "Connections" }).click();
   await expect(page.getByRole("img", { name: "Following" })).toBeVisible();
   await page.getByRole("tab", { name: "Search" }).click();
