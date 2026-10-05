@@ -118,6 +118,12 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await findTarget(page);
   await sendFriendRequest(page);
   await page.getByRole("tab", { name: "Requests" }).click();
+  await page.getByRole("button", { name: "Requests: Icon legend" }).click();
+  const requestLegend = page.getByRole("dialog");
+  await expect(requestLegend.getByText("Requests awaiting your reply.")).toBeVisible();
+  await expect(requestLegend.getByText("Requests awaiting their reply.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(requestLegend).toBeHidden();
   const sent = page.getByRole("listitem").filter({ hasText: "E2E Target" });
   await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible({ timeout: 30_000 });
 
@@ -189,6 +195,20 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
 
   await page.reload();
   await page.getByRole("tab", { name: "Connections" }).click();
+  await page.getByRole("button", { name: "Connections: Icon legend" }).click();
+  const connectionLegend = page.getByRole("dialog");
+  for (const description of [
+    "Friendship accepted.",
+    "People you follow.",
+    "People who follow you.",
+    "People you have blocked.",
+    "Online",
+    "Offline",
+  ]) {
+    await expect(connectionLegend.getByText(description, { exact: true })).toBeVisible();
+  }
+  await page.keyboard.press("Escape");
+  await expect(connectionLegend).toBeHidden();
   await expect(page.getByText("E2E Target")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("img", { name: "Friends" })).toBeVisible();
   await targetContext.close();

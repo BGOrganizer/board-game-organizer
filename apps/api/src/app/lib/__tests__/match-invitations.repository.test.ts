@@ -95,12 +95,31 @@ describe("MatchInvitationsRepository", () => {
     expect(cursor.sort).toHaveBeenNthCalledWith(3, { createdAt: -1 });
   });
 
-  it("counts every occupied invitation position", async () => {
+  it("persists the origin of pending self-requests", async () => {
+    const { db, collection } = setup();
+    const record = await new MatchInvitationsRepository(db as never).create(
+      "match-id",
+      "admin",
+      "requester",
+      "REQUEST",
+    );
+    expect(record.kind).toBe("REQUEST");
+    expect(record.status).toBe("PENDING");
+    expect(collection.insertOne).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "REQUEST", inviteeUserId: "requester" }),
+      {},
+    );
+  });
+
+  it("counts pending and confirmed positions, excluding declined records", async () => {
     const { db, collection } = setup();
     await expect(
       new MatchInvitationsRepository(db as never).countByMatch("match-id"),
     ).resolves.toBe(2);
-    expect(collection.countDocuments).toHaveBeenCalledWith({ matchId: "match-id" }, {});
+    expect(collection.countDocuments).toHaveBeenCalledWith(
+      { matchId: "match-id", status: { $in: ["PENDING", "ACCEPTED"] } },
+      {},
+    );
   });
 
   it("accepts and declines pending invitations", async () => {

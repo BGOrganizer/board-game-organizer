@@ -18,7 +18,7 @@ export class MatchInvitationsRepository {
     return this.session ? { session: this.session } : {};
   }
 
-  async create(matchId: string, inviterUserId: string, inviteeUserId: string) {
+  async create(matchId: string, inviterUserId: string, inviteeUserId: string, kind?: "REQUEST") {
     const now = new Date().toISOString();
     const invitation: MatchInvitation = {
       id: randomUUID(),
@@ -26,6 +26,7 @@ export class MatchInvitationsRepository {
       inviterUserId,
       inviteeUserId,
       status: "PENDING",
+      ...(kind ? { kind } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -71,7 +72,10 @@ export class MatchInvitationsRepository {
   }
 
   countByMatch(matchId: string) {
-    return this.col.countDocuments({ matchId }, this.opts);
+    return this.col.countDocuments(
+      { matchId, status: { $in: ["PENDING", "ACCEPTED"] } },
+      this.opts,
+    );
   }
 
   respond(id: string, status: Extract<MatchInvitationStatus, "ACCEPTED" | "DECLINED">) {

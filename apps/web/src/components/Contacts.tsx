@@ -23,6 +23,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ContactLegend } from "@/components/ContactLegend";
 import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { SearchHelpLabel } from "@/components/SearchHelpLabel";
@@ -294,6 +295,12 @@ export function Contacts() {
     followers: t`Followers`,
     blocked: t`Blocked`,
   };
+  const connectionDescriptions = {
+    friends: t`Friendship accepted.`,
+    following: t`People you follow.`,
+    followers: t`People who follow you.`,
+    blocked: t`People you have blocked.`,
+  };
   const connectionIcons = {
     friends: UsersRound,
     following: UserRoundPlus,
@@ -435,6 +442,24 @@ export function Contacts() {
         </Tabs.Panel>
 
         <Tabs.Panel id="requests" className="space-y-3 pt-4">
+          <ContactLegend
+            title={t`Requests`}
+            icon={Mail}
+            entries={[
+              {
+                icon: Mail,
+                label: t`Received`,
+                color: "text-primary",
+                description: t`Requests awaiting your reply.`,
+              },
+              {
+                icon: Send,
+                label: t`Sent`,
+                color: "text-warning",
+                description: t`Requests awaiting their reply.`,
+              },
+            ]}
+          />
           {requestPages.some((page) => page.isLoading) ? <ContactListSkeleton count={2} /> : null}
           {requestPages.some((page) => page.isError) ? (
             <p role="alert" className="text-sm text-danger">{t`Could not load friend requests`}</p>
@@ -479,6 +504,16 @@ export function Contacts() {
         </Tabs.Panel>
 
         <Tabs.Panel id="connections" className="space-y-3 pt-4">
+          <ContactLegend
+            title={t`Connections`}
+            icon={UsersRound}
+            entries={(["friends", "following", "followers", "blocked"] as const).map((type) => ({
+              icon: connectionIcons[type],
+              label: connectionLabels[type],
+              color: connectionColors[type],
+              description: connectionDescriptions[type],
+            }))}
+          />
           {connectionPages.some((page) => page.isLoading) ? (
             <ContactListSkeleton count={2} />
           ) : null}

@@ -23,6 +23,11 @@ appId: com.bgo.mobile
 - tapOn: "Match name"
 - eraseText: 3
 - inputText: "Friday night games"
+- hideKeyboard
+- assertVisible: "Private match"
+- tapOn:
+    id: "match-public-switch"
+- assertVisible: "Public match"
 - assertNotVisible:
     id: "remove-date-slot"
 # Remove one date from inside its row, then fill the remaining slot.
@@ -68,6 +73,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Search address"
     timeout: 30000
+- assertVisible: "Map by MapTiler"
 - tapOn: "Location name"
 - inputText: "Game cafe"
 - tapOn: "Search address"
@@ -78,9 +84,26 @@ appId: com.bgo.mobile
     timeout: 30000
 - tapOn:
     id: "address-result-0"
+- scrollUntilVisible:
+    element: "Confirm location"
+    direction: DOWN
+    timeout: 30000
 - tapOn: "Confirm location"
 - extendedWaitUntil:
     visible: "Game cafe.*"
+    timeout: 30000
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
+    timeout: 30000
+- assertVisible: "Game cafe"
+- tapOn: "Remove location from favorites"
+- extendedWaitUntil:
+    visible: "Add location to favorites"
+    timeout: 30000
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
     timeout: 30000
 - tapOn: "Add location"
 - assertVisible: "Select location"
@@ -144,6 +167,8 @@ appId: com.bgo.mobile
     visible: "Friday night games"
     timeout: 60000
 - assertVisible: "Planning"
+- assertVisible: "Game cafe"
+- assertVisible: ".*[Rr]oma.*"
 - assertVisible: "2/4"
 - assertVisible: "1 game"
 - assertVisible:
@@ -216,6 +241,16 @@ appId: com.bgo.mobile
 - assertVisible: "Choose location"
 - tapOn: "Yes"
 - assertVisible: "Choose location: Yes"
+- tapOn: "Remove location from favorites"
+- extendedWaitUntil:
+    visible: "Add location to favorites"
+    timeout: 30000
+- assertVisible: "Choose location: Yes"
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
+    timeout: 30000
+- assertVisible: "Choose location: Yes"
 - tapOn: "Leaderboards"
 - assertVisible: "Board game"
 - tapOn: "Select a board game"
@@ -254,6 +289,32 @@ appId: com.bgo.mobile
     visible: "Locations"
     timeout: 30000
 - assertVisible: "Game cafe.*"
+- tapOn: "Select location"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-select"
+    timeout: 30000
+- tapOn: "Location name"
+- inputText: "Temporary name"
+- scrollUntilVisible:
+    element:
+      id: "favorite-location-select"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-select"
+- assertVisible: "Favorite locations"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-0"
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-0"
+- scrollUntilVisible:
+    element: "Confirm location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Confirm location"
 - tapOn: "Next step"
 - extendedWaitUntil:
     visible: "Players"

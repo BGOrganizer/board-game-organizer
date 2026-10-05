@@ -228,6 +228,23 @@ async function leaveMatchRequest(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+async function matchJoinRequest(
+  apiUrl: string,
+  token: string,
+  matchId: string,
+  protectionBypass?: string | null,
+  invitationId?: string,
+): Promise<{ invitation: MatchInvitationResponse }> {
+  const path = `${apiUrl}/api/matches/${encodeURIComponent(matchId)}/join-requests${invitationId ? `/${encodeURIComponent(invitationId)}` : ""}`;
+  const response = await fetch(withProtectionBypass(path, protectionBypass), {
+    method: invitationId ? "PATCH" : "POST",
+    headers: apiHeaders(token),
+    body: JSON.stringify(invitationId ? { action: "accept" } : {}),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
 async function removeMatchPlayerRequest(
   apiUrl: string,
   token: string,
@@ -343,6 +360,9 @@ function patchMatch(match: MatchSummary, input: UpdateMatchInput): MatchSummary 
     ...match,
     ...input,
     groupId: input.groupId === undefined ? match.groupId : (input.groupId ?? undefined),
+    isPublic: (input.groupId === undefined ? match.groupId : input.groupId)
+      ? false
+      : (input.isPublic ?? match.isPublic ?? false),
     invitedUserIds,
     invitations: invitedUserIds.map(
       (inviteeUserId, index) =>
@@ -452,6 +472,7 @@ function optimisticMatch(input: CreateMatchInput, userId?: string | null): Match
     maxPlayers: input.maxPlayers,
     invitedUserIds: input.invitedUserIds,
     gameIds: input.gameIds,
+    isPublic: !input.groupId && (input.isPublic ?? false),
     ...(input.groupId ? { groupId: input.groupId } : {}),
     status: "PLANNING",
     createdAt: now,
@@ -942,6 +963,54 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       }),
   });
 
+  const joinToken = async () => {
+    const fresh = getToken ? await getToken() : token;
+    if (!fresh) throw new Error("No session token");
+    return fresh;
+  };
+  const requestJoin = useMutation({
+    mutationFn: async () => matchJoinRequest(apiUrl, await joinToken(), matchId, protectionBypass),
+    onMutate: async () => {
+      const queryKey = matchDetailQuery(options).queryKey;
+      await queryClient.cancelQueries({ queryKey });
+      const snapshot = queryClient.getQueryData<MatchDetailResponse>(queryKey);
+      if (snapshot) queryClient.setQueryData(queryKey, { ...snapshot, canRequestJoin: false });
+      feedback?.onOptimisticUpdate?.("request_match_join");
+      return { queryKey, snapshot };
+    },
+    onError: (error: Error, _variables, context) => {
+      if (context?.snapshot) queryClient.setQueryData(context.queryKey, context.snapshot);
+      feedback?.onError?.(error, "request_match_join");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches"] }),
+  });
+  const approveJoinRequest = useMutation({
+    mutationFn: async (invitationId: string) =>
+      matchJoinRequest(apiUrl, await joinToken(), matchId, protectionBypass, invitationId),
+    onMutate: async (invitationId) => {
+      const filter = {
+        predicate: (query: { queryKey: readonly unknown[] }) =>
+          query.queryKey[0] === "matches" &&
+          query.queryKey.includes(apiUrl) &&
+          query.queryKey.includes(userId),
+      };
+      await queryClient.cancelQueries(filter);
+      const snapshots = queryClient.getQueriesData(filter);
+      for (const [key, data] of snapshots)
+        queryClient.setQueryData(
+          key,
+          patchFilteredInvitation(data, invitationId, "ACCEPTED", key, userId),
+        );
+      feedback?.onOptimisticUpdate?.("approve_match_join");
+      return snapshots;
+    },
+    onError: (error: Error, _invitationId, snapshots) => {
+      for (const [key, data] of snapshots ?? []) queryClient.setQueryData(key, data);
+      feedback?.onError?.(error, "approve_match_join");
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["matches"] }),
+  });
+
   const removePlayer = useMutation({
     mutationFn: async (invitationId: string) =>
       removeMatchPlayerRequest(
@@ -1003,6 +1072,8 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       deleteMatch,
       leaveMatch,
       removePlayer,
+      requestJoin,
+      approveJoinRequest,
     }),
     [
       detail,
@@ -1014,6 +1085,8 @@ export function useMatchDetail(options: MatchDetailApiOptions) {
       deleteMatch,
       leaveMatch,
       removePlayer,
+      requestJoin,
+      approveJoinRequest,
     ],
   );
 }

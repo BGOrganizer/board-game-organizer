@@ -53,6 +53,19 @@ describe("createAppI18n", () => {
 });
 
 describe("translate (runtime)", () => {
+  it.each([
+    ["Favorite locations", "Location preferite"],
+    ["Select a favorite location", "Seleziona una location preferita"],
+    ["No favorite locations", "Nessuna location preferita"],
+    ["Could not load favorite locations", "Impossibile caricare le location preferite"],
+    ["Add location to favorites", "Aggiungi location ai preferiti"],
+    ["Remove location from favorites", "Rimuovi location dai preferiti"],
+    ["Center map on my location", "Centra la mappa sulla mia posizione"],
+    ["Location name", "Nome del luogo"],
+  ])("translates location control %s on both clients", (english, italian) => {
+    expect(translate(createAppI18n("en"), english)).toBe(english);
+    expect(translate(createAppI18n("it"), english)).toBe(italian);
+  });
   it("resolves the shared catalog id from the English source", () => {
     const it = createAppI18n("it");
     expect(translate(it, "Sign in")).toBe("Accedi");
@@ -68,6 +81,8 @@ describe("translate (runtime)", () => {
     expect(translate(it, "Dismiss notification")).toBe("Chiudi notifica");
     expect(translate(it, "Add date")).toBe("Aggiungi data");
     expect(translate(it, "Add game")).toBe("Aggiungi gioco");
+    expect(translate(it, "Select location")).toBe("Seleziona Location");
+    expect(translate(it, "Recent locations")).toBe("Luoghi recenti");
     expect(translate(it, "Create match")).toBe("Crea partita");
     expect(translate(it, "Matches played")).toBe("Partite giocate");
     expect(translate(it, "Powered by BoardGameGeek")).toBe("Con il supporto di BoardGameGeek");

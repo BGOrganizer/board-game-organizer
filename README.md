@@ -26,7 +26,9 @@ web, API, and mobile, all in one TypeScript monorepo.
   Vercel) with **logout**; specular web/mobile implementation
 - Light/dark theme follows the device (HeroUI + uniwind)
 - Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
-- Matches and Groups on web and mobile. Groups have friend invitations, accepted membership, public/private visibility metadata, and admin-only edits/archival. Public search and join requests are future work.
+- Matches and Groups on web and mobile. Groups have friend invitations, accepted membership, public/private visibility metadata, and admin-only edits/archival. Public group search and group join requests are future work.
+- Matches default to private. Ungrouped matches may be public; authenticated users with a detail link can reserve a free planning slot with a pending join request. Only the admin approves or removes requests/players while planning. Admin plus accepted/pending players occupy slots; declined invitations do not. Admin invitations retain contact/group eligibility checks. Group matches are always private, but accepted group members can request participation. Existing lists do not discover public matches.
+- Location rows use compact name/address text; full verified addresses remain stored. Personal location favorites are independent of votes. Maps use MapTiler on web and MapLibre Native with MapTiler tiles on mobile.
 - **Contacts tab** (web + mobile): Following/Followers/Blocked lists, follow/unfollow,
   address-book suggestions (mobile: permission-gated, matched registered users persisted
   in `contactLinks`; 'Add contacts' CTA re-prompts when denied), prefix search (with block
@@ -178,6 +180,19 @@ implementation in worktrees → PR per plan → CI fixes → Telegram): the conf
  (gitignored) and the runtime in a separate Docker container.
 See  → *Board automation* for the full config + the gh token permissions
 needed to initialize the project ().
+
+## Link-based mobile join-request acceptance
+
+The dedicated scenario has explicit fixture requirements; missing values fail rather than skip. Prepare an ungrouped public planning match owned by the primary test user with a free slot, and no invitation for the secondary user. Run:
+
+```bash
+maestro test -e USERNAME="$USERNAME" -e PASSWORD="$PASSWORD" \
+  -e USERNAME_2="$USERNAME_2" -e PASSWORD_2="$PASSWORD_2" \
+  -e PUBLIC_MATCH_LINK="bgo://match/$PUBLIC_MATCH_ID" \
+  apps/mobile/.maestro/flows/11-match-join-requests.yaml
+```
+
+Use only isolated test API/Clerk deployments, never production. Unit and MongoDB replica-set tests cover private/public/group authorization, membership revalidation, slot races, approval and rollback. Public discovery remains out of scope.
 
 ## License
 

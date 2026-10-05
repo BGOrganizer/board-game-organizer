@@ -51,6 +51,52 @@ const stored = {
 };
 
 describe("MatchesRepository", () => {
+  it("keeps legacy locations compatible and persists location choices and confirmation", async () => {
+    const locationId = input.locations[0].id;
+    const selected = {
+      ...stored,
+      selectedLocationId: locationId,
+      choices: { user_1: { locations: { [locationId]: "YES" } } },
+    };
+    const { db, collection } = setup([], selected);
+    const repository = new MatchesRepository(db as never);
+    expect((await repository.findById(stored.id))?.selectedLocationId).toBe(locationId);
+    expect(
+      (
+        await new MatchesRepository(
+          setup([], { ...stored, locations: undefined }).db as never,
+        ).findById(stored.id)
+      )?.locations,
+    ).toEqual([]);
+    await repository.setChoice(stored.id, "user_1", {
+      kind: "locations",
+      itemId: locationId,
+      choice: "YES",
+    });
+    expect(collection.updateOne).toHaveBeenLastCalledWith(
+      expect.objectContaining({ "locations.id": locationId }),
+      { $set: { [`choices.user_1.locations.${locationId}`]: "YES" } },
+      {},
+    );
+    await repository.clearRemovedOptionChoices(selected as never, [], [], [locationId]);
+    expect(collection.updateOne).toHaveBeenLastCalledWith(
+      { id: stored.id },
+      { $unset: { [`choices.user_1.locations.${locationId}`]: "" } },
+      {},
+    );
+    await repository.setStatus(stored.id, stored.clerkId, "PLANNING", "CREATED", {
+      date: stored.dates[0],
+      gameId: stored.gameIds[0],
+      locationId,
+    });
+    expect(collection.findOneAndUpdate).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        $set: expect.objectContaining({ selectedLocationId: locationId }),
+      }),
+      expect.any(Object),
+    );
+  });
   it("creates a PLANNING match with generated id and timestamps", async () => {
     const { db, collection } = setup();
     const match = await new MatchesRepository(db as never).create(input);
@@ -234,7 +280,7 @@ describe("MatchesRepository", () => {
     const { db, collection } = setup([], updated);
     await expect(
       new MatchesRepository(db as never).updatePlanning(stored.id, "user_1", changes),
-    ).resolves.toEqual(updated);
+    ).resolves.toEqual({ ...updated, isPublic: false });
     expect(collection.findOneAndUpdate).toHaveBeenCalledWith(
       { id: stored.id, clerkId: "user_1", status: "PLANNING" },
       { $set: { ...changes, updatedAt: expect.any(String) } },

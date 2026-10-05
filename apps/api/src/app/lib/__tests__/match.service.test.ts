@@ -7,6 +7,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import { MongoServerError } from "mongodb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GroupError } from "@/app/lib/group.service";
 import {
   MatchError,
   MatchService,
@@ -175,6 +176,142 @@ function setup(withNotifications = false) {
 async function expectMatchError(promise: Promise<unknown>, status: number, message: string) {
   await expect(promise).rejects.toEqual(expect.objectContaining({ status, message }));
 }
+
+describe("admin-reviewed match join requests", () => {
+  it("keeps legacy/private matches closed and validates public group input", async () => {
+    const { service } = setup();
+    await expectMatchError(
+      service.requestJoin("outsider", match.id),
+      409,
+      "Match is not available for join requests",
+    );
+    await expectMatchError(
+      service.create("user_admin", { ...input, groupId: match.id, isPublic: true }),
+      400,
+      "Group matches must be private",
+    );
+    await expectMatchError(
+      service.update("user_admin", match.id, { groupId: match.id, isPublic: true }),
+      400,
+      "Group matches must be private",
+    );
+  });
+  it("reserves pending slots without friendship, exposes only authorized players, keeps discovery unchanged", async () => {
+    const { service, matches, invitations, relationships, notifications } = setup(true);
+    matches.findById.mockResolvedValue({ ...match, isPublic: true });
+    relationships.isFriend.mockResolvedValue(false);
+    invitations.create.mockResolvedValue({
+      ...invitation,
+      inviteeUserId: "outsider",
+      kind: "REQUEST",
+    });
+    expect((await service.detail("outsider", match.id)).canRequestJoin).toBe(true);
+    const request = await service.requestJoin("outsider", match.id);
+    expect(request.kind).toBe("REQUEST");
+    expect(invitations.create).toHaveBeenCalledWith(match.id, match.clerkId, "outsider", "REQUEST");
+    expect(relationships.isFriend).not.toHaveBeenCalled();
+    expect(notifications.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ recipientUserId: match.clerkId, kind: "match_updated" }),
+    );
+    await service.list("outsider");
+    expect(matches.listAccessible).toHaveBeenCalledWith("outsider", expect.any(Array));
+  });
+  it.each(["CREATED", "TERMINATED"] as const)("blocks requests after %s", async (status) => {
+    const { service, matches } = setup();
+    matches.findById.mockResolvedValue({ ...match, isPublic: true, status });
+    await expect(service.requestJoin("outsider", match.id)).rejects.toMatchObject({ status: 409 });
+  });
+  it("denies full, duplicate, admin and blocked requests; declined records do not reserve capacity", async () => {
+    const { service, matches, invitations, relationships } = setup();
+    matches.findById.mockResolvedValue({ ...match, isPublic: true, maxPlayers: 2 });
+    await expect(service.requestJoin("outsider", match.id)).rejects.toMatchObject({ status: 409 });
+    await expect(service.requestJoin(match.clerkId, match.id)).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(service.requestJoin(invitation.inviteeUserId, match.id)).rejects.toMatchObject({
+      status: 409,
+    });
+    invitations.listByMatch.mockResolvedValue([
+      { ...invitation, status: "DECLINED", inviteeUserId: "outsider" },
+    ]);
+    await service.requestJoin("outsider", match.id);
+    expect(invitations.deleteByIdForMatch).toHaveBeenCalledWith(invitation.id, match.id);
+    relationships.isBlocked.mockResolvedValue(true);
+    await expect(service.requestJoin("outsider", match.id)).rejects.toMatchObject({ status: 409 });
+  });
+  it("allows only accepted group members, hides membership failures and propagates infrastructure failures", async () => {
+    const { service, matches, groups } = setup();
+    matches.findById.mockResolvedValue({ ...match, groupId: match.id });
+    await service.requestJoin("outsider", match.id);
+    expect(groups.requireMembers).toHaveBeenCalledWith(match.id, [match.clerkId, "outsider"], true);
+    for (const status of [403, 404, 409]) {
+      groups.requireMembers.mockRejectedValue(new GroupError(status, "Not allowed"));
+      await expect(service.requestJoin("outsider", match.id)).rejects.toMatchObject({
+        status: 409,
+      });
+    }
+    groups.requireMembers.mockRejectedValue(new Error("Database unavailable"));
+    await expect(service.requestJoin("outsider", match.id)).rejects.toThrow("Database unavailable");
+  });
+  it("admin approves requests only, rechecks group membership and block state, and requester cannot self-approve", async () => {
+    const { service, matches, invitations, relationships, groups, notifications } = setup(true);
+    invitations.findById.mockResolvedValue({ ...invitation, kind: "REQUEST" });
+    relationships.isFriend.mockResolvedValue(false);
+    const approved = await service.approveJoinRequest(match.clerkId, match.id, invitation.id);
+    expect(approved.status).toBe("ACCEPTED");
+    expect(notifications.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ recipientUserId: invitation.inviteeUserId }),
+    );
+    await expect(
+      service.respond(invitation.inviteeUserId, invitation.id, "accept"),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      service.approveJoinRequest("outsider", match.id, invitation.id),
+    ).rejects.toMatchObject({ status: 403 });
+    matches.findById.mockResolvedValue({ ...match, groupId: match.id });
+    await service.approveJoinRequest(match.clerkId, match.id, invitation.id);
+    expect(groups.requireMembers).toHaveBeenCalled();
+    relationships.isBlocked.mockResolvedValue(true);
+    await expect(
+      service.approveJoinRequest(match.clerkId, match.id, invitation.id),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+  it("rejects mismatched, answered, missing invitations and concurrent approvals", async () => {
+    const { service, invitations, matches } = setup();
+    for (const item of [
+      null,
+      invitation,
+      { ...invitation, kind: "REQUEST", status: "ACCEPTED" },
+      { ...invitation, kind: "REQUEST", matchId: "other" },
+    ]) {
+      invitations.findById.mockResolvedValue(item as MatchInvitation | null);
+      await expect(
+        service.approveJoinRequest(match.clerkId, match.id, invitation.id),
+      ).rejects.toMatchObject({ status: 409 });
+    }
+    invitations.findById.mockResolvedValue({ ...invitation, kind: "REQUEST" });
+    invitations.respond.mockResolvedValue(null);
+    await expect(
+      service.approveJoinRequest(match.clerkId, match.id, invitation.id),
+    ).rejects.toMatchObject({ status: 409 });
+    matches.findById.mockResolvedValue({ ...match, status: "CREATED" });
+    await expect(
+      service.approveJoinRequest(match.clerkId, match.id, invitation.id),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it("keeps requested strangers in planning edits and forces group matches private", async () => {
+    const { service, invitations, relationships, matches } = setup();
+    invitations.listByMatch.mockResolvedValue([{ ...invitation, kind: "REQUEST" }]);
+    relationships.isFriend.mockResolvedValue(false);
+    await service.update(match.clerkId, match.id, { invitedUserIds: [invitation.inviteeUserId] });
+    await service.update(match.clerkId, match.id, { groupId: match.id });
+    expect(matches.updatePlanning).toHaveBeenLastCalledWith(
+      match.id,
+      match.clerkId,
+      expect.objectContaining({ isPublic: false }),
+    );
+  });
+});
 
 describe("planning group authorization", () => {
   const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
@@ -417,6 +554,21 @@ describe("shared match choices", () => {
 });
 
 describe("MatchService", () => {
+  it("exposes confirmed location identity alongside immutable address fields", async () => {
+    const { service, matches } = setup();
+    const location = input.locations[0];
+    matches.findById.mockResolvedValue({
+      ...match,
+      status: "CREATED",
+      locations: [location],
+      selectedLocationId: location.id,
+      selectedDate: match.dates[0],
+      selectedGameId: 1,
+    });
+    const detail = await service.detail("user_admin", match.id);
+    expect(detail.match.selectedLocationId).toBe(location.id);
+    expect(detail.match.locations).toEqual([location]);
+  });
   it("counts eligible votes per option without exposing pending invitees or identities", () => {
     const key = String(Date.parse(match.dates[0]));
     const summary = summarizeMatchVotes(
@@ -929,6 +1081,7 @@ describe("MatchService", () => {
     const result = await service.create("user_admin", input);
     expect(matches.create).toHaveBeenCalledWith({
       clerkId: "user_admin",
+      isPublic: false,
       name: input.name,
       dates: input.dates,
       locations: input.locations,
@@ -940,6 +1093,7 @@ describe("MatchService", () => {
     expect(result).toEqual({
       id: match.id,
       adminUserId: "user_admin",
+      isPublic: false,
       name: match.name,
       dates: match.dates,
       locations: [],
@@ -1661,6 +1815,18 @@ describe("MatchService", () => {
     }
   });
 
+  it("retains declined records without reserving their positions when changing planning limits", async () => {
+    const current = setup();
+    current.invitations.listByMatch.mockResolvedValue([
+      invitation,
+      { ...invitation, id: "declined", inviteeUserId: "user_other", status: "DECLINED" },
+    ]);
+    await current.service.update("user_admin", match.id, {
+      maxPlayers: 2,
+    });
+    expect(current.invitations.deleteByIdForMatch).not.toHaveBeenCalled();
+    expect(current.invitations.create).not.toHaveBeenCalled();
+  });
   it("rejects non-admin and finalized match updates", async () => {
     await expectMatchError(
       setup().service.update("user_guest", match.id, { name: "Updated match" }),

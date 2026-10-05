@@ -37,10 +37,32 @@ const match: MatchResponse = {
 };
 
 describe("matchCardData", () => {
-  it("formats a full, human-readable date and separate local time", () => {
+  it("uses first proposed location, then confirmed location, with planning-only counts", () => {
+    const first = {
+      id: "a",
+      name: "Game café",
+      address: "Via Roma 12, Milano, Italy",
+      longitude: 9,
+      latitude: 45,
+    };
+    const second = { ...first, id: "b", name: "Other café" };
+    const planned = { ...match, locations: [first, second] };
+    expect(matchCardData(planned)).toMatchObject({ location: first, additionalLocations: 1 });
+    expect(matchCardData({ ...planned, status: "CREATED", selectedLocationId: "b" })).toMatchObject(
+      { location: second, additionalLocations: 0 },
+    );
+    expect(
+      matchCardData({ ...planned, status: "CREATED", selectedLocationId: "missing" }).location,
+    ).toBe(first);
+    expect(matchCardData({ ...planned, locations: [] }).location).toBeUndefined();
+    expect(
+      matchCardData({ ...planned, status: "TERMINATED", locations: [] }).location,
+    ).toBeUndefined();
+  });
+  it("formats a compact localized date and separate local time", () => {
     const value = "2026-10-01T12:00:00.000Z";
     const formatted = formatMatchDateTime(value, "it");
-    expect(formatted.date).toMatch(/ottobre 2026/);
+    expect(formatted.date).toMatch(/01\/10\/26/);
     expect(formatted.time).toMatch(/^\d{2}:\d{2}$/);
   });
   it("keeps semantic colors ready for future match states", () => {
@@ -56,6 +78,8 @@ describe("matchCardData", () => {
     expect(matchCardData(match, Date.parse("2026-09-01T00:00:00Z"))).toEqual({
       date: match.dates[0],
       additionalDates: 1,
+      location: undefined,
+      additionalLocations: 0,
       players: 2,
       maxPlayers: 5,
       gameCount: 2,
@@ -76,6 +100,8 @@ describe("matchCardData", () => {
     ).toEqual({
       date: match.dates[1],
       additionalDates: 0,
+      location: undefined,
+      additionalLocations: 0,
       players: 2,
       maxPlayers: 5,
       gameCount: undefined,

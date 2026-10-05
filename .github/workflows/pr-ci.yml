@@ -296,7 +296,6 @@ jobs:
           api-url: ${{ needs.deploy-preview-api.outputs.branch-url }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          mapbox-download-token: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 🏷️ Record API URL embedded in new APK
@@ -765,7 +764,6 @@ jobs:
           api-url: ${{ needs.deploy-development-api.outputs.url }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          mapbox-download-token: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
       - name: 🏷️ Record development API URL in APK artifact

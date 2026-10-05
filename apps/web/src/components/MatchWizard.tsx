@@ -5,9 +5,16 @@ import type {
   MatchDetailResponse,
   MatchLocation,
 } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useGroups, useMatches } from "@board-game-organizer/shared";
+import {
+  formatLocationAddress,
+  listRoles,
+  resolveApiUrl,
+  useFavoriteLocations,
+  useGroups,
+  useMatches,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, Label, ListBox, Select } from "@heroui/react";
+import { Avatar, Button, Label, ListBox, Select, Switch } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
@@ -24,6 +31,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { LocationFavoriteButton } from "./LocationFavoriteButton";
 import { SearchGamePage } from "./SearchGamePage";
 import { SearchLocationPage } from "./SearchLocationPage";
 import { SearchUserPage } from "./SearchUserPage";
@@ -76,6 +84,9 @@ export function MatchWizard({
   // Step 1: name + date slots.
   const [name, setName] = useState(initialData?.match.name ?? "");
   const [groupId, setGroupId] = useState(initialData?.match.groupId ?? "");
+  const [isPublic, setIsPublic] = useState(
+    !initialData?.match.groupId && (initialData?.match.isPublic ?? false),
+  );
   const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
     initialData
       ? initialData.match.dates.map((value) => ({ id: uid(), value }))
@@ -123,11 +134,22 @@ export function MatchWizard({
   );
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded || !isSignedIn) {
+      setToken(null);
+      return;
+    }
     let active = true;
     getToken()
-      .then((tok) => active && setToken(tok ?? null))
-      .catch(() => active && setToken(null));
+      .then((tok) => {
+        if (active) {
+          setToken(tok ?? null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setToken(null);
+        }
+      });
     return () => {
       active = false;
     };
@@ -148,8 +170,19 @@ export function MatchWizard({
     protectionBypass: protectionBypass(),
     userId,
     feedback: mutationFeedback,
+    listFilters: { query: "", roles: listRoles, limit: 20 },
   });
 
+  const favorites = useFavoriteLocations(
+    {
+      apiUrl: apiUrl(),
+      getToken,
+      userId,
+      protectionBypass: protectionBypass(),
+      feedback: mutationFeedback,
+    },
+    locationSlots.flatMap((slot) => (slot.location ? [slot.location] : [])),
+  );
   const step1Valid = useMemo(
     // Every date slot must be filled: an added-but-empty slot blocks
     // progress (no "skip the second date" loophole).
@@ -226,6 +259,7 @@ export function MatchWizard({
     if (!step3Valid || !locationsValid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
+      isPublic: !groupId && isPublic,
       dates: dateSlots.flatMap((s) => (s.value ? [s.value] : [])),
       locations: locationSlots.flatMap((s) => (s.location ? [s.location] : [])),
       minPlayers,
@@ -259,6 +293,7 @@ export function MatchWizard({
     userSlots,
     gameSlots,
     groupId,
+    isPublic,
     matches,
     onCreated,
   ]);
@@ -312,6 +347,7 @@ export function MatchWizard({
         getToken={getToken}
         protectionBypass={protectionBypass()}
         initial={locationSlots.find((slot) => slot.id === locationTarget)?.location ?? undefined}
+        favorites={favorites}
         onSelect={(location) => {
           setLocationSlots((slots) =>
             slots.map((slot) => (slot.id === locationTarget ? { ...slot, location } : slot)),
@@ -404,7 +440,11 @@ export function MatchWizard({
           <Select
             fullWidth
             value={groupId || "none"}
-            onChange={(value) => setGroupId(value === "none" ? "" : String(value ?? ""))}
+            onChange={(value) => {
+              const next = value === "none" ? "" : String(value ?? "");
+              setGroupId(next);
+              if (next) setIsPublic(false);
+            }}
             isDisabled={groups.list.isPending || groups.list.isError}
           >
             <Label>{t`Group (optional)`}</Label>
@@ -442,6 +482,27 @@ export function MatchWizard({
           {groupId && !selectedGroup && !groups.list.isPending ? (
             <p role="alert" className="text-danger">{t`Selected group is unavailable`}</p>
           ) : null}
+          <Switch
+            isSelected={!groupId && isPublic}
+            onChange={setIsPublic}
+            isDisabled={Boolean(groupId)}
+            aria-label={t`Public match`}
+            aria-describedby="match-visibility-help"
+          >
+            <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+              {!groupId && isPublic ? t`Public match` : t`Private match`}
+            </Switch.Content>
+          </Switch>
+          <p id="match-visibility-help" className="text-sm text-default-500">
+            {groupId
+              ? t`Group matches are private. Only group members can request to join, with admin approval.`
+              : !groupId && isPublic
+                ? t`Anyone with the match link can request to join while planning and with free slots. The admin approves requests.`
+                : t`Only the admin can invite players to a private match.`}
+          </p>
           <p className="text-sm text-default-500">{t`When could you play?`}</p>
           <GroupedList>
             {dateSlots.map((slot) => (
@@ -489,15 +550,36 @@ export function MatchWizard({
           <div className="space-y-2">
             {locationSlots.map((slot) => (
               <div key={slot.id} className="flex items-center gap-2 rounded-lg border p-3">
+                {slot.location ? (
+                  <LocationFavoriteButton
+                    location={slot.location}
+                    favorites={favorites}
+                    matchId={initialData?.match.id}
+                  />
+                ) : (
+                  <MapPin className="size-5 shrink-0" aria-hidden="true" />
+                )}
                 <Button
-                  variant="secondary"
-                  className="flex-1 justify-start"
+                  variant="tertiary"
+                  className="h-auto min-h-11 min-w-0 flex-1 justify-start px-2 py-1 text-left"
+                  aria-label={t`Select location`}
                   onPress={() => setLocationTarget(slot.id)}
                 >
-                  <MapPin className="size-4" />{" "}
-                  {slot.location
-                    ? `${slot.location.name} · ${slot.location.address}`
-                    : t`Select location`}
+                  {slot.location ? (
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">
+                        {slot.location.name}
+                      </span>
+                      <span
+                        className="block truncate text-xs text-default-500"
+                        title={slot.location.address}
+                      >
+                        {formatLocationAddress(slot.location.address)}
+                      </span>
+                    </span>
+                  ) : (
+                    t`Select location`
+                  )}
                 </Button>
                 <Button
                   isIconOnly
@@ -512,8 +594,13 @@ export function MatchWizard({
               </div>
             ))}
           </div>
+          {favorites.status.isError && (
+            <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
+          )}
           <Button
-            variant="secondary"
+            variant="primary"
+            size="sm"
+            className="w-fit"
             onPress={() => setLocationSlots((slots) => [...slots, { id: uid(), location: null }])}
           >
             <Plus className="size-4" />

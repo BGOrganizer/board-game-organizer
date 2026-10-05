@@ -7,6 +7,7 @@ export * from "./dto/friendRequests";
 export * from "./dto/groupLeaderboard";
 export * from "./dto/groups";
 export * from "./dto/invites";
+export * from "./dto/locationFavorites";
 export * from "./dto/matches";
 export * from "./dto/notifications";
 export * from "./dto/presence";

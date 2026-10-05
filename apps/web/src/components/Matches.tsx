@@ -2,6 +2,7 @@
 
 import type { MatchCardStatus } from "@board-game-organizer/shared";
 import {
+  formatLocationAddress,
   formatMatchDateTime,
   matchCardData,
   matchCardStatusColor,
@@ -17,9 +18,9 @@ import { useLingui } from "@lingui/react/macro";
 import {
   CalendarDays,
   Check,
-  Clock3,
   Crown,
   Dices,
+  MapPin,
   Medal,
   Plus,
   UsersRound,
@@ -162,6 +163,9 @@ export function Matches() {
             match.status === "PLANNING"
               ? `${card.players}/${card.maxPlayers}`
               : String(card.players);
+          const extraLocations = card.additionalLocations
+            ? `+${card.additionalLocations} ${card.additionalLocations === 1 ? t`location` : t`locations`}`
+            : "";
           const extraDates = card.additionalDates
             ? `+${card.additionalDates} ${card.additionalDates === 1 ? t`date` : t`dates`}`
             : "";
@@ -227,12 +231,39 @@ export function Matches() {
                   </Chip>
                 </div>
                 {card.date && dateLabel && (
-                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-default-600">
-                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                    <time dateTime={card.date}>{dateLabel.date}</time>
-                    <Clock3 className="h-4 w-4" aria-hidden="true" />
-                    <time dateTime={card.date}>{dateLabel.time}</time>
-                    {extraDates && <span>{extraDates}</span>}
+                  <div className="mt-2 flex min-w-0 items-center gap-1 whitespace-nowrap text-xs text-default-600">
+                    <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <time className="min-w-0 truncate" dateTime={card.date}>
+                      {dateLabel.date}
+                    </time>
+                    <time className="shrink-0" dateTime={card.date}>
+                      {dateLabel.time}
+                    </time>
+                    {extraDates && <span className="ml-auto shrink-0">{extraDates}</span>}
+                  </div>
+                )}
+                {card.location && (
+                  <div
+                    className="mt-2 flex min-w-0 items-start gap-1 text-xs text-default-600"
+                    data-testid="match-location"
+                  >
+                    <MapPin className="size-4 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-1">
+                        <span
+                          className="min-w-0 flex-1 truncate font-medium"
+                          title={card.location.name}
+                        >
+                          {card.location.name}
+                        </span>
+                        {extraLocations && (
+                          <span className="shrink-0 whitespace-nowrap">{extraLocations}</span>
+                        )}
+                      </div>
+                      <p className="truncate text-default-500" title={card.location.address}>
+                        {formatLocationAddress(card.location.address)}
+                      </p>
+                    </div>
                   </div>
                 )}
                 <div

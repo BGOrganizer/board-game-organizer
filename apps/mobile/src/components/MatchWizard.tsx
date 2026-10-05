@@ -4,8 +4,11 @@ import type {
   MatchLocation,
 } from "@board-game-organizer/schemas";
 import {
+  formatLocationAddress,
   formatMatchDateTime,
+  listRoles,
   resolveApiUrl,
+  useFavoriteLocations,
   useGroups,
   useMatches,
 } from "@board-game-organizer/shared";
@@ -18,6 +21,7 @@ import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Select } from "heroui-native/select";
+import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import {
   ArrowLeft,
@@ -39,6 +43,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FloatingActions } from "@/components/FloatingActions";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { LocationFavoriteButton } from "@/components/LocationFavoriteButton";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -80,6 +85,9 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [name, setName] = useState(initialData?.match.name ?? "");
   const [groupId, setGroupId] = useState(initialData?.match.groupId ?? "");
+  const [isPublic, setIsPublic] = useState(
+    !initialData?.match.groupId && (initialData?.match.isPublic ?? false),
+  );
   const [dateSlots, setDateSlots] = useState<DateSlot[]>(() =>
     initialData
       ? initialData.match.dates.map((value) => ({ id: uid(), value }))
@@ -137,8 +145,13 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
     getToken,
     userId,
     feedback: mutationFeedback,
+    listFilters: { query: "", roles: listRoles, limit: 20 },
   });
 
+  const favorites = useFavoriteLocations(
+    { apiUrl: apiUrl(), getToken, userId, feedback: mutationFeedback },
+    locationSlots.flatMap((slot) => (slot.location ? [slot.location] : [])),
+  );
   // Consume selections written by the search pages (user/game pickers).
   const pendingUser = useAppStore((s) => s.pendingUser);
   const pendingGame = useAppStore((s) => s.pendingGame);
@@ -257,6 +270,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
     if (!step3Valid || !locationsValid) return;
     const input: CreateMatchInput = {
       name: name.trim(),
+      isPublic: !groupId && isPublic,
       dates: dateSlots.flatMap((s) => (s.value ? [s.value] : [])),
       locations: locationSlots.flatMap((s) => (s.location ? [s.location] : [])),
       minPlayers,
@@ -353,8 +367,11 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                 label: selectedGroup?.name ?? (groupId || t("No group")),
               }}
               onValueChange={(item) => {
-                if (!Array.isArray(item))
-                  setGroupId(item?.value === "none" ? "" : (item?.value ?? ""));
+                if (!Array.isArray(item)) {
+                  const next = item?.value === "none" ? "" : (item?.value ?? "");
+                  setGroupId(next);
+                  if (next) setIsPublic(false);
+                }
               }}
               isDisabled={groups.list.isPending || groups.list.isError}
             >
@@ -385,6 +402,36 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             {groupId && !selectedGroup && !groups.list.isPending ? (
               <Typography className="text-danger">{t("Selected group is unavailable")}</Typography>
             ) : null}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <Typography>
+                {!groupId && isPublic ? t("Public match") : t("Private match")}
+              </Typography>
+              <Switch
+                testID="match-public-switch"
+                accessibilityLabel={t("Public match")}
+                isSelected={!groupId && isPublic}
+                isDisabled={Boolean(groupId)}
+                onSelectedChange={setIsPublic}
+              />
+            </View>
+            <Typography className="text-muted" style={{ fontSize: 13 }}>
+              {groupId
+                ? t(
+                    "Group matches are private. Only group members can request to join, with admin approval.",
+                  )
+                : isPublic
+                  ? t(
+                      "Anyone with the match link can request to join while planning and with free slots. The admin approves requests.",
+                    )
+                  : t("Only the admin can invite players to a private match.")}
+            </Typography>
             <Typography style={{ color: "#6b7280", fontSize: 14 }}>
               {t("When could you play?")}
             </Typography>
@@ -469,6 +516,15 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             <GroupedList>
               {locationSlots.map((slot) => (
                 <GroupedRow key={slot.id}>
+                  {slot.location ? (
+                    <LocationFavoriteButton
+                      location={slot.location}
+                      favorites={favorites}
+                      matchId={initialData?.match.id}
+                    />
+                  ) : (
+                    <MapPin size={20} color="#6b7280" />
+                  )}
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={slot.location?.name ?? t("Select location")}
@@ -487,19 +543,36 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                       flexDirection: "row",
                       alignItems: "center",
                       gap: 8,
-                      padding: 12,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      minHeight: 44,
                     }}
                   >
-                    <MapPin size={20} color="#6b7280" />
-                    <Typography className="text-foreground" numberOfLines={2}>
-                      {slot.location
-                        ? `${slot.location.name} · ${slot.location.address}`
-                        : t("Select location")}
-                    </Typography>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Typography
+                        className="font-medium text-foreground"
+                        style={{ fontSize: 14, lineHeight: 20 }}
+                        numberOfLines={1}
+                      >
+                        {slot.location?.name ?? t("Select location")}
+                      </Typography>
+                      {slot.location && (
+                        <Typography
+                          className="text-xs text-muted"
+                          style={{ fontSize: 12, lineHeight: 16 }}
+                          numberOfLines={1}
+                          accessibilityLabel={slot.location.address}
+                        >
+                          {formatLocationAddress(slot.location.address)}
+                        </Typography>
+                      )}
+                    </View>
                   </Pressable>
                   <Button
                     variant="danger-soft"
                     isIconOnly
+                    size="sm"
+                    style={{ minHeight: 44, minWidth: 44, marginRight: 8 }}
                     accessibilityLabel={t("Remove location")}
                     onPress={() =>
                       setLocationSlots((slots) => slots.filter((item) => item.id !== slot.id))
@@ -510,12 +583,19 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                 </GroupedRow>
               ))}
             </GroupedList>
+            {favorites.status.isError && (
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t("Could not load favorite locations")}
+              </Typography>
+            )}
             <Button
-              variant="secondary"
+              variant="primary"
+              size="sm"
+              style={{ alignSelf: "flex-start" }}
               onPress={() => setLocationSlots((slots) => [...slots, { id: uid(), location: null }])}
             >
-              <Plus size={18} color="#6b7280" />
-              {t("Add location")}
+              <Plus size={18} color="#fff" />
+              <Button.Label>{t("Add location")}</Button.Label>
             </Button>
           </View>
         )}
@@ -710,7 +790,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                       variant="danger-soft"
                       isIconOnly
                       size="sm"
-                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
+                      style={{ minHeight: 44, minWidth: 44, marginRight: 8 }}
                       accessibilityLabel={t("Remove game")}
                       testID="remove-game-slot"
                       onPress={() => removeGameSlot(slot.id)}

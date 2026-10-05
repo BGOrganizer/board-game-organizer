@@ -40,6 +40,7 @@ export const COLLECTIONS = {
   RELATIONSHIPS: "relationships",
   CONTACT_LINKS: "contactLinks",
   MATCHES: "matches",
+  FAVORITE_LOCATIONS: "favoriteLocations",
   MATCH_INVITATIONS: "matchInvitations",
   GROUPS: "groups",
   GROUP_INVITATIONS: "groupInvitations",

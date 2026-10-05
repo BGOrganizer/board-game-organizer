@@ -22,6 +22,14 @@ appId: com.bgo.mobile
     timeout: 30000
 - tapOn: "Allow"
 - tapOn: "Connections"
+- tapOn: "Connections: Icon legend"
+- assertVisible: "Friendship accepted."
+- assertVisible: "People you follow."
+- assertVisible: "People who follow you."
+- assertVisible: "People you have blocked."
+- assertVisible: "Online"
+- assertVisible: "Offline"
+- back
 - assertVisible: "No connections yet"
 - assertNotVisible: "Contacts on BGO"
 - assertNotVisible: "Action failed"
@@ -30,6 +38,10 @@ appId: com.bgo.mobile
 - assertNotVisible: "Add contacts"
 - assertNotVisible: "Allow address book access to find your friends here."
 - tapOn: "Requests"
+- tapOn: "Requests: Icon legend"
+- assertVisible: "Requests awaiting your reply."
+- assertVisible: "Requests awaiting their reply."
+- back
 - assertVisible: "No friend requests"
 - assertNotVisible: "Blocked"
 - tapOn: "Search"

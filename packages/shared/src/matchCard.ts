@@ -16,7 +16,7 @@ export const matchCardStatusColor: Record<
 export function formatMatchDateTime(iso: string, locale: string) {
   const date = new Date(iso);
   return {
-    date: date.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }),
+    date: date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "2-digit" }),
     time: date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
   };
 }
@@ -28,9 +28,15 @@ export function matchCardData(match: MatchResponse, now = Date.now()) {
   const date = (future.length ? future : dates)
     .slice()
     .sort((a, b) => (future.length ? 1 : -1) * (Date.parse(a) - Date.parse(b)))[0];
+  const locations = match.locations ?? [];
+  const location = planning
+    ? locations[0]
+    : (locations.find((candidate) => candidate.id === match.selectedLocationId) ?? locations[0]);
   return {
     date,
     additionalDates: Math.max(0, dates.length - 1),
+    location,
+    additionalLocations: planning ? Math.max(0, locations.length - 1) : 0,
     players: planning
       ? match.minPlayers
       : 1 + match.invitations.filter((invitation) => invitation.status === "ACCEPTED").length,

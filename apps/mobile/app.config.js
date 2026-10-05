@@ -49,13 +49,13 @@ module.exports = {
         "expo-location",
         { locationWhenInUsePermission: "Show your position on the match location map." },
       ],
-      "@rnmapbox/maps",
+      "@maplibre/maplibre-react-native",
       ["expo-notifications", { icon: "./assets/notification-icon.png", color: "#006fee" }],
       "@react-native-community/datetimepicker",
     ],
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL,
-      mapboxAccessToken: process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN,
+      maptilerApiKey: process.env.EXPO_PUBLIC_MAPTILER_API_KEY,
       clerkPublishableKey: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
       router: {},
       eas: {

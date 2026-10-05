@@ -5,6 +5,14 @@ import { MatchWizard } from "@/components/MatchWizard";
 import { renderWithI18n } from "@/test-utils";
 
 const useMatchesMock = vi.fn();
+const favoriteMutate = vi.fn();
+const favoriteState = {
+  items: [],
+  list: { isPending: false, isError: false },
+  status: { isPending: false, isError: false },
+  toggle: { isPending: false, mutate: favoriteMutate },
+  isFavorite: () => false,
+};
 const testLocation = {
   id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
   name: "Game cafe",
@@ -44,6 +52,7 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useMatches: (opts: unknown) => useMatchesMock(opts),
+  useFavoriteLocations: () => favoriteState,
   useGroups: () => ({ list: { data: [], isPending: false, isError: false } }),
 }));
 
@@ -120,14 +129,64 @@ describe("Matches", () => {
     expect(
       screen.getByText(
         new Date(baseMock.list.data[0].dates[0]).toLocaleDateString("en", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
         }),
       ),
     ).toBeTruthy();
     expect(screen.queryByLabelText("Player")).toBeNull();
     expect(screen.getByRole("searchbox", { name: "Search matches" })).toBeTruthy();
+  });
+
+  it.each([2, 3])("shows first location and remaining count for %i proposed locations", (count) => {
+    const location = { ...testLocation, address: "Via Roma 12, Milano, Italy" };
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: {
+        ...baseMock.list,
+        data: [
+          {
+            ...baseMock.list.data[0],
+            locations: Array.from({ length: count }, (_, i) => ({ ...location, id: String(i) })),
+          },
+        ],
+      },
+    });
+    renderWithI18n(<Matches />);
+    const row = screen.getByTestId("match-location");
+    expect(row.textContent).toContain("Via Roma 12, Milano");
+    expect(row.textContent).not.toContain("Italy");
+    expect(screen.getByText(count === 2 ? "+1 location" : "+2 locations")).toBeTruthy();
+    expect(row.querySelector("[title]")?.getAttribute("title")).toBe(location.name);
+  });
+
+  it("shows confirmed location only and hides legacy missing locations", () => {
+    const other = { ...testLocation, id: "other", name: "Confirmed café" };
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: {
+        ...baseMock.list,
+        data: [
+          {
+            ...baseMock.list.data[0],
+            status: "CREATED",
+            selectedLocationId: other.id,
+            locations: [testLocation, other],
+          },
+        ],
+      },
+    });
+    const view = renderWithI18n(<Matches />);
+    expect(screen.getByTestId("match-location").textContent).toContain(other.name);
+    expect(screen.queryByText("+1 location")).toBeNull();
+    view.unmount();
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: { ...baseMock.list, data: [{ ...baseMock.list.data[0], locations: undefined }] },
+    });
+    renderWithI18n(<Matches />);
+    expect(screen.queryByTestId("match-location")).toBeNull();
   });
 
   it("lists only the confirmed date for a created match", () => {
@@ -157,18 +216,18 @@ describe("Matches", () => {
     expect(
       screen.getByText(
         new Date(selectedDate).toLocaleDateString("en", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
         }),
       ),
     ).toBeTruthy();
     expect(
       screen.queryByText(
         new Date(listedMatch.dates[0]).toLocaleDateString("en", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
         }),
       ),
     ).toBeNull();
@@ -204,9 +263,9 @@ describe("Matches", () => {
     expect(
       screen.getByText(
         new Date("2099-10-10T20:00:00Z").toLocaleDateString("en", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit",
         }),
       ),
     ).toBeTruthy();
@@ -357,6 +416,48 @@ describe("Matches", () => {
     expect(screen.getAllByRole("button", { name: "Select a board game" })).toHaveLength(1);
   });
 
+  it("starts private and permits public requests only for ungrouped matches", () => {
+    const view = renderWithI18n(<MatchWizard />);
+    const visibility = screen.getByRole("switch", { name: "Public match" });
+    expect((visibility as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(visibility);
+    expect(screen.getByText("Public match")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Anyone with the match link can request to join while planning and with free slots. The admin approves requests.",
+      ),
+    ).toBeTruthy();
+    view.unmount();
+    renderWithI18n(
+      <MatchWizard
+        initialData={{
+          match: {
+            ...baseMock.list.data[0],
+            status: "PLANNING",
+            groupId: "group-id",
+            isPublic: true,
+          },
+          administrator: {
+            id: "user_1",
+            name: "Admin",
+            email: "admin@example.com",
+            avatarUrl: null,
+          },
+          invitedPlayers: [],
+          games: [],
+        }}
+      />,
+    );
+    const grouped = screen.getByRole("switch", { name: "Public match" });
+    expect((grouped as HTMLInputElement).disabled).toBe(true);
+    expect(
+      screen.getByText(
+        "Group matches are private. Only group members can request to join, with admin approval.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText("Private match")).toBeTruthy();
+  });
+
   it("prefills the edit wizard and defers invitation removal until final save", async () => {
     const update = { isError: false, mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
     useMatchesMock.mockReturnValue({ ...baseMock, update });
@@ -439,6 +540,7 @@ describe("Matches", () => {
           invitedUserIds: [],
           gameIds: [342942],
           groupId: null,
+          isPublic: false,
         },
       }),
     );

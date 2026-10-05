@@ -1,9 +1,11 @@
 import type { MatchChoice, MatchDetailResponse } from "@board-game-organizer/schemas";
 import {
+  formatLocationAddress,
   formatMatchDateTime,
   matchContactState,
   resolveApiUrl,
   useContacts,
+  useFavoriteLocations,
   useMatchDetail,
 } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
@@ -45,6 +47,7 @@ import { FloatingActions } from "@/components/FloatingActions";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { InvitationActions } from "@/components/InvitationActions";
+import { LocationFavoriteButton } from "@/components/LocationFavoriteButton";
 import { MatchLeaderboard } from "@/components/MatchLeaderboard";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
@@ -453,7 +456,11 @@ export default function MatchDetailScreen() {
             userId={userId}
             contacts={contacts}
             removePlayer={confirmRemovePlayer}
-            isRemoving={matches.removePlayer.isPending}
+            isRemoving={matches.removePlayer.isPending || matches.approveJoinRequest.isPending}
+            requestJoin={() => matches.requestJoin.mutate()}
+            joinPending={matches.requestJoin.isPending}
+            joinError={matches.requestJoin.isError}
+            approveJoinRequest={(id) => matches.approveJoinRequest.mutate(id)}
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             isResponding={matches.respondInvitation.isPending}
@@ -571,6 +578,10 @@ function MatchDetailContent({
   setActiveTab,
   isResponding,
   responseError,
+  requestJoin,
+  joinPending,
+  joinError,
+  approveJoinRequest,
   choicePending,
   openChoice,
   respond,
@@ -587,6 +598,10 @@ function MatchDetailContent({
   setActiveTab: (value: string) => void;
   isResponding: boolean;
   responseError: boolean;
+  requestJoin: () => void;
+  joinPending: boolean;
+  joinError: boolean;
+  approveJoinRequest: (id: string) => void;
   choicePending: boolean;
   openChoice: (choice: ActiveChoice) => void;
   respond: (invitationId: string, decision: "accept" | "decline") => void;
@@ -594,6 +609,11 @@ function MatchDetailContent({
   const t = useT();
   const { i18n } = useLingui();
   const [menuUserId, setMenuUserId] = useState<string | null>(null);
+  const favoriteFeedback = useMutationFeedback();
+  const favorites = useFavoriteLocations(
+    { apiUrl, getToken, userId, feedback: favoriteFeedback },
+    data.match.locations ?? [],
+  );
   const [muted, success, danger, warning] = useThemeColor([
     "muted",
     "success",
@@ -692,7 +712,23 @@ function MatchDetailContent({
 
   return (
     <View style={{ gap: 16 }}>
-      {ownInvitation?.status === "PENDING" && (
+      {data.canRequestJoin && (
+        <Button testID="request-match-join" isDisabled={joinPending} onPress={requestJoin}>
+          <UsersRound size={18} color="white" />
+          <Button.Label>{t("Request to join")}</Button.Label>
+        </Button>
+      )}
+      {joinError && (
+        <Typography className="text-sm text-danger">
+          {t("Could not request to join match")}
+        </Typography>
+      )}
+      {ownInvitation?.kind === "REQUEST" && ownInvitation.status === "PENDING" && (
+        <Card style={{ padding: 12 }}>
+          <Typography>{t("Your join request is waiting for admin approval.")}</Typography>
+        </Card>
+      )}
+      {ownInvitation?.status === "PENDING" && ownInvitation.kind !== "REQUEST" && (
         <Card
           style={{
             padding: 12,
@@ -817,6 +853,11 @@ function MatchDetailContent({
                       : t("Location selection")}
                   </Typography>
                 </View>
+                {favorites.status.isError && (
+                  <Typography accessibilityRole="alert" className="text-danger">
+                    {t("Could not load favorite locations")}
+                  </Typography>
+                )}
                 <GroupedList>
                   {match.locations
                     ?.filter(
@@ -827,13 +868,26 @@ function MatchDetailContent({
                       const choice = data.choices?.locations?.[location.id] ?? "UNKNOWN";
                       return (
                         <GroupedRow key={location.id}>
-                          <MapPin size={16} color={muted} />
+                          <LocationFavoriteButton
+                            location={location}
+                            favorites={favorites}
+                            matchId={match.id}
+                          />
                           <View style={{ flex: 1, gap: 3 }}>
-                            <Typography className="font-medium text-foreground">
+                            <Typography
+                              className="font-medium text-foreground"
+                              numberOfLines={1}
+                              style={{ fontSize: 14, lineHeight: 20 }}
+                            >
                               {location.name}
                             </Typography>
-                            <Typography className="text-sm text-muted">
-                              {location.address}
+                            <Typography
+                              className="text-xs text-muted"
+                              style={{ fontSize: 12, lineHeight: 16 }}
+                              numberOfLines={1}
+                              accessibilityLabel={location.address}
+                            >
+                              {formatLocationAddress(location.address)}
                             </Typography>
                             {match.status === "PLANNING" &&
                               data.voteSummary?.locations?.[location.id] && (
@@ -903,7 +957,11 @@ function MatchDetailContent({
                         )}
                       </View>
                       <View style={{ flex: 1, gap: 3 }}>
-                        <Typography className="font-medium text-foreground" numberOfLines={1}>
+                        <Typography
+                          className="font-medium text-foreground"
+                          numberOfLines={1}
+                          style={{ fontSize: 14, lineHeight: 20 }}
+                        >
                           {game.name}
                         </Typography>
                         <GameCatalogMetadata
@@ -1044,6 +1102,23 @@ function MatchDetailContent({
                           </Typography>
                         ) : null}
                       </View>
+                      {match.adminUserId === userId &&
+                        match.status === "PLANNING" &&
+                        !player.isAdministrator &&
+                        player.invitation.kind === "REQUEST" &&
+                        player.invitation.status === "PENDING" && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            isDisabled={isRemoving}
+                            accessibilityLabel={`${t("Approve join request")}: ${player.name}`}
+                            testID={`approve-match-join-${player.id}`}
+                            style={{ minHeight: 44, minWidth: 44 }}
+                            onPress={() => approveJoinRequest(player.invitation.id)}
+                          >
+                            <CircleCheck size={18} color="white" />
+                          </Button>
+                        )}
                       {match.adminUserId === userId &&
                         match.status === "PLANNING" &&
                         !player.isAdministrator && (

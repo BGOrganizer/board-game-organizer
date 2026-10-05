@@ -1,13 +1,26 @@
 "use client";
 
 import type { MatchLocation } from "@board-game-organizer/schemas";
-import { withProtectionBypass } from "@board-game-organizer/shared";
-import { Button, Skeleton } from "@heroui/react";
+import {
+  type FavoriteLocationsState,
+  formatLocationAddress,
+  withProtectionBypass,
+} from "@board-game-organizer/shared";
+import {
+  Button,
+  Input,
+  Label,
+  ListBox,
+  SearchField,
+  Select,
+  Skeleton,
+  TextField,
+} from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, MapPin } from "lucide-react";
-import type mapboxgl from "mapbox-gl";
+import type { Map as MapTilerMap, Marker as MapTilerMarker } from "@maptiler/sdk";
+import { ArrowLeft, Check, Heart, LocateFixed, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import "mapbox-gl/dist/mapbox-gl.css";
+import "@maptiler/sdk/dist/maptiler-sdk.css";
 
 type Result = Pick<MatchLocation, "address" | "longitude" | "latitude"> & { id: string };
 
@@ -16,6 +29,7 @@ export function SearchLocationPage({
   getToken,
   protectionBypass,
   initial,
+  favorites,
   onSelect,
   onClose,
 }: {
@@ -23,6 +37,12 @@ export function SearchLocationPage({
   getToken: () => Promise<string | null>;
   protectionBypass?: string;
   initial?: MatchLocation;
+  favorites: Pick<FavoriteLocationsState, "items"> & {
+    list: Pick<
+      FavoriteLocationsState["list"],
+      "isPending" | "isError" | "hasNextPage" | "isFetchingNextPage" | "fetchNextPage"
+    >;
+  };
   onSelect: (location: MatchLocation) => void;
   onClose: () => void;
 }) {
@@ -30,31 +50,33 @@ export function SearchLocationPage({
   const [name, setName] = useState(initial?.name ?? "");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Result | null>(initial ? { ...initial } : null);
+  const selectedRef = useRef<Result | null>(selected);
+  const [favoriteKey, setFavoriteKey] = useState<string | null>(null);
   const [results, setResults] = useState<Result[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const mapNode = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const marker = useRef<mapboxgl.Marker | null>(null);
+  const map = useRef<MapTilerMap | null>(null);
+  const marker = useRef<MapTilerMarker | null>(null);
 
   useEffect(() => {
-    const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-    if (!token || !mapNode.current) return;
+    const key = process.env.NEXT_PUBLIC_MAPTILER_API_KEY;
+    if (!key || !mapNode.current) return;
     let alive = true;
-    void import("mapbox-gl")
-      .then(({ default: mapbox }) => {
+    void import("@maptiler/sdk")
+      .then((maptiler) => {
         if (!alive || !mapNode.current) return;
-        mapbox.accessToken = token;
-        const instance = new mapbox.Map({
+        maptiler.config.apiKey = key;
+        const instance = new maptiler.Map({
           container: mapNode.current,
-          style: "mapbox://styles/mapbox/streets-v12",
+          style: maptiler.MapStyle.STREETS,
           center: initial ? [initial.longitude, initial.latitude] : [0, 20],
           zoom: initial ? 13 : 1.5,
         });
         map.current = instance;
-        if (initial)
-          marker.current = new mapbox.Marker()
-            .setLngLat([initial.longitude, initial.latitude])
+        if (selectedRef.current)
+          marker.current = new maptiler.Marker()
+            .setLngLat([selectedRef.current.longitude, selectedRef.current.latitude])
             .addTo(instance);
       })
       .catch(() => setError(t`Could not load map`));
@@ -106,14 +128,16 @@ export function SearchLocationPage({
   }, [query, selected?.address, apiUrl, getToken, protectionBypass, t]);
 
   const choose = (result: Result) => {
+    selectedRef.current = result;
     setSelected(result);
+    setFavoriteKey(null);
     setResults([]);
     setQuery(result.address);
     map.current?.flyTo({ center: [result.longitude, result.latitude], zoom: 14 });
-    void import("mapbox-gl").then(({ default: mapbox }) => {
+    void import("@maptiler/sdk").then((maptiler) => {
       if (!map.current) return;
       marker.current?.remove();
-      marker.current = new mapbox.Marker()
+      marker.current = new maptiler.Marker()
         .setLngLat([result.longitude, result.latitude])
         .addTo(map.current);
     });
@@ -133,31 +157,145 @@ export function SearchLocationPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 pb-24">
-      <Button isIconOnly variant="secondary" aria-label={t`Back`} onPress={onClose}>
-        <ArrowLeft />
-      </Button>
-      <h2 className="text-lg font-semibold">{t`Select location`}</h2>
-      <label className="block">
-        {t`Location name`}
-        <input
-          className="mt-1 w-full rounded-lg border p-3"
-          value={name}
-          maxLength={120}
-          onChange={(event) => setName(event.target.value)}
-        />
-      </label>
-      <label className="block">
-        {t`Search address`}
-        <input
-          className="mt-1 w-full rounded-lg border p-3"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setSelected(null);
-            setResults([]);
+      <div className="flex items-center gap-3">
+        <Button isIconOnly variant="secondary" aria-label={t`Back`} onPress={onClose}>
+          <ArrowLeft />
+        </Button>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <MapPin aria-hidden="true" className="h-5 w-5" />
+          {t`Select location`}
+        </h2>
+      </div>
+      <div
+        ref={mapNode}
+        role="img"
+        aria-label={t`Location map`}
+        className="h-72 w-full rounded-lg bg-default-100"
+      />
+      {!process.env.NEXT_PUBLIC_MAPTILER_API_KEY && <p role="alert">{t`Map unavailable`}</p>}
+      <TextField fullWidth value={name} onChange={setName}>
+        <Label className="flex items-center gap-2">
+          <MapPin aria-hidden="true" className="size-4" />
+          {t`Location name`}
+        </Label>
+        <Input name="locationName" autoComplete="off" maxLength={120} />
+      </TextField>
+      {favorites.list.isPending ? (
+        <Skeleton className="h-12 w-full rounded-lg" />
+      ) : (
+        <Select
+          fullWidth
+          placeholder={
+            favorites.list.isError || favorites.items.length
+              ? t`Select a favorite location`
+              : t`No favorite locations`
+          }
+          value={favoriteKey}
+          isDisabled={!favorites.items.length}
+          onChange={(value) => {
+            const item = favorites.items.find((item) => item.key === value);
+            if (!item) return;
+            choose(item.location);
+            setFavoriteKey(item.key);
+            setName(item.location.name);
           }}
-        />
-      </label>
+        >
+          <Label className="flex items-center gap-2">
+            <Heart className="size-4" aria-hidden="true" />
+            {t`Favorite locations`}
+          </Label>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox
+              aria-label={t`Favorite locations`}
+              className="max-h-64 overflow-y-auto"
+              onScroll={(event) => {
+                const list = event.currentTarget;
+                if (
+                  list.scrollHeight - list.scrollTop - list.clientHeight < 64 &&
+                  favorites.list.hasNextPage &&
+                  !favorites.list.isFetchingNextPage &&
+                  !favorites.list.isError
+                )
+                  void favorites.list.fetchNextPage();
+              }}
+            >
+              {favorites.items.map(({ key, location }) => (
+                <ListBox.Item
+                  key={key}
+                  id={key}
+                  textValue={`${location.name} · ${location.address}`}
+                  className="[content-visibility:auto] [contain-intrinsic-size:4rem]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words font-semibold">{location.name}</p>
+                    <p
+                      className="line-clamp-2 break-words text-sm text-default-500"
+                      title={location.address}
+                    >
+                      {formatLocationAddress(location.address)}
+                    </p>
+                  </div>
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+            {favorites.list.isFetchingNextPage && <Skeleton className="h-12 w-full rounded-xl" />}
+            {favorites.list.isError && (
+              <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
+            )}
+          </Select.Popover>
+        </Select>
+      )}
+      {favorites.list.hasNextPage && (
+        <Button
+          size="sm"
+          variant="secondary"
+          isDisabled={favorites.list.isFetchingNextPage}
+          onPress={() => void favorites.list.fetchNextPage()}
+        >{t`Load more favorite locations`}</Button>
+      )}
+      {favorites.list.isError && (
+        <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
+      )}
+      <SearchField
+        fullWidth
+        value={query}
+        onChange={(value) => {
+          setQuery(value);
+          selectedRef.current = null;
+          marker.current?.remove();
+          marker.current = null;
+          setSelected(null);
+          setFavoriteKey(null);
+          setResults([]);
+        }}
+      >
+        <Label>{t`Search address`}</Label>
+        <SearchField.Group>
+          <SearchField.SearchIcon />
+          <SearchField.Input
+            className="min-w-0"
+            name="address"
+            autoComplete="off"
+            placeholder={t`Search address`}
+          />
+          <SearchField.ClearButton aria-label={t`Clear search`} />
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={t`Center map on my location`}
+            className="mr-1 shrink-0"
+            onPress={locate}
+          >
+            <LocateFixed className="size-5" aria-hidden="true" />
+          </Button>
+        </SearchField.Group>
+      </SearchField>
       {searching && <Skeleton className="h-12 w-full rounded-lg" />}
       {results.length > 0 && (
         <ul aria-label={t`Address results`} className="rounded-lg border">
@@ -165,10 +303,11 @@ export function SearchLocationPage({
             <li key={result.id}>
               <Button
                 variant="tertiary"
-                className="w-full justify-start"
+                className="h-auto w-full justify-start whitespace-normal text-left"
+                aria-label={result.address}
                 onPress={() => choose(result)}
               >
-                {result.address}
+                {formatLocationAddress(result.address)}
               </Button>
             </li>
           ))}
@@ -179,22 +318,10 @@ export function SearchLocationPage({
           {error}
         </p>
       )}
-      <div
-        ref={mapNode}
-        role="img"
-        aria-label={t`Location map`}
-        className="h-72 w-full rounded-lg bg-default-100"
-      />
-      {!process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN && <p role="alert">{t`Map unavailable`}</p>}
-      <Button variant="secondary" onPress={locate}>
-        <MapPin />
-        {t`Use my location`}
-      </Button>
-      {selected && <p>{selected.address}</p>}
       <Button
         variant="primary"
         isDisabled={
-          !process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || !selected || name.trim().length < 4
+          !process.env.NEXT_PUBLIC_MAPTILER_API_KEY || !selected || name.trim().length < 4
         }
         onPress={() => {
           if (selected && name.trim().length >= 4)
@@ -206,7 +333,10 @@ export function SearchLocationPage({
               latitude: selected.latitude,
             });
         }}
-      >{t`Confirm location`}</Button>
+      >
+        <Check aria-hidden="true" className="size-5" />
+        {t`Confirm location`}
+      </Button>
     </div>
   );
 }

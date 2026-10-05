@@ -14,7 +14,7 @@ import { normalizeMatchScore, rankMatchResults } from "@board-game-organizer/sha
 import { MongoServerError } from "mongodb";
 import { gameThumbnail } from "@/app/lib/bgg";
 import type { BoardGamesRepository } from "@/app/lib/boardGames.repository";
-import type { GroupService } from "@/app/lib/group.service";
+import { GroupError, type GroupService } from "@/app/lib/group.service";
 import type { MatchInvitationsRepository } from "@/app/lib/match-invitations.repository";
 import type { MatchesRepository } from "@/app/lib/matches.repository";
 import type { NotificationsRepository } from "@/app/lib/notifications.repository";
@@ -148,7 +148,12 @@ export class MatchService {
     }
   }
 
-  private async validateInvitee(adminUserId: string, inviteeUserId: string, groupId?: string) {
+  private async validateInvitee(
+    adminUserId: string,
+    inviteeUserId: string,
+    groupId?: string,
+    isRequest = false,
+  ) {
     if (adminUserId === inviteeUserId) {
       throw new MatchError(400, "Match admin cannot invite themselves");
     }
@@ -158,7 +163,11 @@ export class MatchService {
     if (await this.relationships.isBlocked(adminUserId, inviteeUserId)) {
       throw new MatchError(404, "User not found");
     }
-    if (!groupId && !(await this.relationships.isFriend(adminUserId, inviteeUserId))) {
+    if (
+      !groupId &&
+      !isRequest &&
+      !(await this.relationships.isFriend(adminUserId, inviteeUserId))
+    ) {
       throw new MatchError(400, "Invited users must be friends of match admin");
     }
   }
@@ -194,6 +203,7 @@ export class MatchService {
       invitedUserIds: invitations.map((invitation) => invitation.inviteeUserId),
       gameIds: match.gameIds,
       ...(match.groupId ? { groupId: match.groupId } : {}),
+      isPublic: !match.groupId && (match.isPublic ?? false),
       status: match.status,
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
       ...(match.selectedLocationId ? { selectedLocationId: match.selectedLocationId } : {}),
@@ -206,6 +216,7 @@ export class MatchService {
   }
 
   async create(userId: string, input: CreateMatchInput): Promise<MatchResponse> {
+    if (input.groupId && input.isPublic) throw new MatchError(400, "Group matches must be private");
     if (input.invitedUserIds.length > input.maxPlayers - 1) {
       throw new MatchError(400, "Invitations exceed available player positions");
     }
@@ -228,6 +239,7 @@ export class MatchService {
       maxPlayers: input.maxPlayers,
       gameIds: input.gameIds,
       groupId: input.groupId,
+      isPublic: input.isPublic ?? false,
     });
     const invitations = await this.invitations.createMany(match.id, userId, input.invitedUserIds);
     await this.notifications?.notifyMany(
@@ -301,10 +313,87 @@ export class MatchService {
     });
   }
 
+  private async canRequestJoin(
+    match: Match,
+    userId: string,
+    invitations: MatchInvitation[],
+    lock = false,
+  ) {
+    if (
+      match.status !== "PLANNING" ||
+      match.clerkId === userId ||
+      invitations.some((entry) => entry.inviteeUserId === userId && entry.status !== "DECLINED") ||
+      1 + invitations.filter((entry) => entry.status !== "DECLINED").length >= match.maxPlayers
+    )
+      return false;
+    if (match.groupId) {
+      try {
+        await this.requireGroupMembers(match.groupId, [match.clerkId, userId], lock);
+      } catch (error) {
+        if (
+          error instanceof GroupError &&
+          (error.status === 403 || error.status === 404 || error.status === 409)
+        )
+          return false;
+        throw error;
+      }
+    } else if (!match.isPublic) return false;
+    return !(await this.relationships.isBlocked(match.clerkId, userId));
+  }
+
+  async requestJoin(userId: string, matchId: string) {
+    await this.matches.serializeInvitationChange(matchId);
+    const match = await this.requireMatch(matchId);
+    const invitations = await this.invitations.listByMatch(matchId);
+    if (!(await this.canRequestJoin(match, userId, invitations, true)))
+      throw new MatchError(409, "Match is not available for join requests");
+    const declined = invitations.find((entry) => entry.inviteeUserId === userId);
+    if (declined) await this.invitations.deleteByIdForMatch(declined.id, matchId);
+    const invitation = await this.invitations.create(matchId, match.clerkId, userId, "REQUEST");
+    await this.notifications?.notify({
+      kind: "match_updated",
+      recipientUserId: match.clerkId,
+      actorUserId: userId,
+      matchName: match.name,
+      matchId,
+    });
+    return invitation;
+  }
+
+  async approveJoinRequest(userId: string, matchId: string, invitationId: string) {
+    await this.matches.serializeInvitationChange(matchId);
+    const match = await this.requireMatch(matchId);
+    this.requireAdmin(match, userId);
+    this.requirePlanning(match);
+    const invitation = await this.invitations.findById(invitationId);
+    if (
+      !invitation ||
+      invitation.matchId !== matchId ||
+      invitation.kind !== "REQUEST" ||
+      invitation.status !== "PENDING"
+    )
+      throw new MatchError(409, "Pending join request not found");
+    await this.validateInvitee(userId, invitation.inviteeUserId, match.groupId, true);
+    if (match.groupId)
+      await this.requireGroupMembers(match.groupId, [userId, invitation.inviteeUserId], true);
+    const updated = await this.invitations.respond(invitationId, "ACCEPTED");
+    if (!updated) throw new MatchError(409, "Invitation changed concurrently");
+    await this.notifications?.notify({
+      kind: "match_updated",
+      recipientUserId: invitation.inviteeUserId,
+      actorUserId: userId,
+      matchName: match.name,
+      matchId,
+    });
+    return updated;
+  }
+
   async detail(userId: string, matchId: string): Promise<MatchDetailResponse> {
     const match = await this.requireMatch(matchId);
     const invitations = await this.invitations.listByMatch(matchId);
+    const canRequestJoin = await this.canRequestJoin(match, userId, invitations);
     if (
+      !canRequestJoin &&
       match.clerkId !== userId &&
       !invitations.some(
         (invitation) =>
@@ -338,6 +427,7 @@ export class MatchService {
 
     return {
       match: this.toResponse(match, visibleInvitations),
+      canRequestJoin,
       ...(gameRatings ? { gameRatings } : {}),
       choices: {
         dates: match.choices?.[userId]?.dates ?? {},
@@ -547,7 +637,7 @@ export class MatchService {
     }
     const match = await this.requireMatch(invitation.matchId);
     this.requirePlanning(match);
-    if (invitation.status !== "PENDING") {
+    if (invitation.status !== "PENDING" || invitation.kind === "REQUEST") {
       throw new MatchError(409, "Invitation already answered");
     }
     await this.matches.serializeInvitationChange(match.id);
@@ -618,7 +708,10 @@ export class MatchService {
     }
     let invitations = await this.invitations.listByMatch(match.id);
     const finalInviteeIds =
-      input.invitedUserIds ?? invitations.map((invitation) => invitation.inviteeUserId);
+      input.invitedUserIds ??
+      invitations
+        .filter((entry) => entry.status !== "DECLINED")
+        .map((invitation) => invitation.inviteeUserId);
     if (finalInviteeIds.length > maxPlayers - 1) {
       throw new MatchError(
         input.invitedUserIds ? 400 : 409,
@@ -628,16 +721,30 @@ export class MatchService {
       );
     }
     const nextGroupId = input.groupId === undefined ? match.groupId : (input.groupId ?? undefined);
+    if (nextGroupId && input.isPublic) throw new MatchError(400, "Group matches must be private");
     if (nextGroupId)
       await this.requireGroupMembers(nextGroupId, [userId, ...finalInviteeIds], true);
     if (input.invitedUserIds || input.groupId !== undefined) {
       for (const inviteeUserId of finalInviteeIds) {
-        await this.validateInvitee(userId, inviteeUserId, nextGroupId);
+        await this.validateInvitee(
+          userId,
+          inviteeUserId,
+          nextGroupId,
+          invitations.some(
+            (entry) =>
+              entry.inviteeUserId === inviteeUserId &&
+              entry.kind === "REQUEST" &&
+              entry.status !== "DECLINED",
+          ),
+        );
       }
     }
 
     const { invitedUserIds: _invitedUserIds, ...updates } = input;
-    const updated = await this.matches.updatePlanning(match.id, userId, updates);
+    const updated = await this.matches.updatePlanning(match.id, userId, {
+      ...updates,
+      ...(nextGroupId ? { isPublic: false } : {}),
+    });
     if (!updated) throw new MatchError(409, "Match changed concurrently");
     if (match.choices && (input.dates || input.gameIds || input.locations)) {
       await this.matches.clearRemovedOptionChoices(

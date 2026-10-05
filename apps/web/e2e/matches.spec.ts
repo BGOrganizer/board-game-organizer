@@ -433,6 +433,42 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await nextFab.click();
   await expect(page.getByRole("heading", { name: "Locations" })).toBeVisible();
   await expect(nextFab).toBeDisabled();
+  const savedFavorites = new Map<
+    string,
+    { id: string; name: string; address: string; longitude: number; latitude: number }
+  >();
+  let failFavoriteSave = true;
+  await page.route("**/api/locations/favorites**", async (route) => {
+    const request = route.request();
+    if (request.method() === "POST") {
+      if (failFavoriteSave) {
+        failFavoriteSave = false;
+        await route.fulfill({ status: 500, json: { error: "Test favorite failure" } });
+        return;
+      }
+      const { location } = request.postDataJSON();
+      const key = JSON.stringify([
+        location.address.trim().toLowerCase(),
+        location.longitude,
+        location.latitude,
+      ]);
+      savedFavorites.set(key, location);
+      await route.fulfill({ status: 201, json: { item: { key, location } } });
+    } else if (request.method() === "DELETE") {
+      savedFavorites.delete(request.postDataJSON().key);
+      await route.fulfill({ json: { success: true } });
+    } else {
+      const keys = new URL(request.url()).searchParams.get("keys");
+      await route.fulfill({
+        json: keys
+          ? { keys: (JSON.parse(keys) as string[]).filter((key) => savedFavorites.has(key)) }
+          : {
+              items: [...savedFavorites].map(([key, location]) => ({ key, location })),
+              nextCursor: null,
+            },
+      });
+    }
+  });
   await page.route("**/api/locations/search?*", (route) =>
     route.fulfill({
       json: {
@@ -448,15 +484,31 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     }),
   );
   await page.getByRole("button", { name: "Select location" }).click();
-  await expect(page.locator(".mapboxgl-map")).toBeVisible();
+  await expect(page.locator(".maplibregl-map")).toBeVisible();
   await page.getByRole("textbox", { name: "Location name" }).fill("Gam");
   await expect(page.getByRole("button", { name: "Confirm location" })).toBeDisabled();
-  await page.getByRole("textbox", { name: "Search address" }).fill("Main St Rome");
+  await page.getByRole("searchbox", { name: "Search address" }).fill("Main St Rome");
   await page.getByRole("button", { name: "123 Main St, Rome, Italy" }).click();
   await expect(page.getByRole("button", { name: "Confirm location" })).toBeDisabled();
   await page.getByRole("textbox", { name: "Location name" }).fill("Game cafe");
   await page.getByRole("button", { name: "Confirm location" }).click();
-  await expect(page.getByText("Game cafe · 123 Main St, Rome, Italy")).toBeVisible();
+  await expect(page.getByText("Game cafe", { exact: true })).toBeVisible();
+  await expect(page.getByText("123 Main St, Rome", { exact: true })).toBeVisible();
+  const addFavorite = page.getByRole("button", { name: "Add location to favorites" });
+  await expect(addFavorite).toBeEnabled();
+  await addFavorite.click();
+  await expect(
+    page.getByText("Could not add location to favorites", { exact: true }),
+  ).toBeVisible();
+  await expect(addFavorite).toBeEnabled();
+  await addFavorite.click();
+  const removeFavorite = page.getByRole("button", { name: "Remove location from favorites" });
+  await expect(removeFavorite).toBeEnabled();
+  await removeFavorite.click();
+  await expect(addFavorite).toBeEnabled();
+  await addFavorite.click();
+  await expect(removeFavorite).toBeEnabled();
+  await expect(page.getByText("Game cafe", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add location" }).click();
   await expect(nextFab).toBeDisabled();
   await page.getByRole("button", { name: "Remove location" }).last().click();
@@ -572,6 +624,8 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByText("Match created")).toBeHidden();
   expect((await createResponse).ok()).toBe(true);
   const card = page.getByRole("link", { name: /^Open match: Friday night games/ });
+  await expect(card.getByTestId("match-location")).toContainText("Game cafe");
+  await expect(card.getByTestId("match-location")).toContainText("123 Main");
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(card.locator('img[src^="data:image/svg+xml,"]')).toBeVisible();
   await expect(card.locator('[data-slot="chip"]')).toHaveText("Planning");
@@ -648,7 +702,17 @@ test("match wizard: name → players → game → create", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Remove slot" })).toHaveCount(1);
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Locations" })).toBeVisible();
-  await expect(page.getByText("Game cafe · 123 Main St, Rome, Italy")).toBeVisible();
+  await expect(page.getByText("Game cafe", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Select location" }).click();
+  const favoriteLocations = page.getByRole("button", { name: /Favorite locations/ });
+  await expect(favoriteLocations).toBeEnabled();
+  await favoriteLocations.click();
+  await page.getByRole("option", { name: /Game cafe/ }).click();
+  await expect(page.getByRole("textbox", { name: "Location name" })).toHaveValue("Game cafe");
+  await expect(page.getByRole("searchbox", { name: "Search address" })).toHaveValue(
+    "123 Main St, Rome, Italy",
+  );
+  await page.getByRole("button", { name: "Confirm location" }).click();
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { name: "Players" })).toBeVisible();
   if (pickedFriendLabel) {

@@ -17,6 +17,7 @@ export const matchInvitationResponseSchema = z.object({
   inviterUserId: z.string(),
   inviteeUserId: z.string(),
   status: matchInvitationStatusSchema,
+  kind: z.enum(["INVITATION", "REQUEST"]).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   respondedAt: z.string().optional(),
@@ -34,6 +35,7 @@ export const matchResponseSchema = z.object({
   invitedUserIds: z.array(z.string()),
   gameIds: z.array(z.number()),
   groupId: z.uuid().optional(),
+  isPublic: z.boolean().optional(),
   status: matchStatusSchema,
   selectedDate: z.string().optional(),
   selectedLocationId: z.uuid().optional(),
@@ -131,6 +133,7 @@ export const matchDetailResponseSchema = z.object({
   choices: matchChoicesSchema.optional(),
   voteSummary: matchVoteSummarySchema.optional(),
   gameRatings: z.array(matchGameRatingSchema).optional(),
+  canRequestJoin: z.boolean().optional(),
 });
 export type MatchDetailResponse = z.infer<typeof matchDetailResponseSchema>;
 
@@ -192,6 +195,7 @@ export const updateMatchSchema = z
       .refine((gameIds) => new Set(gameIds).size === gameIds.length)
       .optional(),
     groupId: z.uuid().nullable().optional(),
+    isPublic: z.boolean().optional(),
     locations: z
       .array(matchLocationSchema)
       .min(1)
@@ -201,6 +205,10 @@ export const updateMatchSchema = z
       .optional(),
   })
   .strict()
+  .refine((input) => !(input.groupId && input.isPublic), {
+    message: "Group matches must be private",
+    path: ["isPublic"],
+  })
   .refine((input) => Object.values(input).some((value) => value !== undefined), {
     message: "At least one field is required",
   })

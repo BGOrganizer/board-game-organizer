@@ -146,6 +146,8 @@ Copy examples; never commit generated environment files.
 
 `MONGODB_URI` is mandatory. Transactions require a replica set.
 
+Match location search uses MapTiler address geocoding; persist only returned address results, not unverified input. Set `NEXT_PUBLIC_MAPTILER_API_KEY` for web, `EXPO_PUBLIC_MAPTILER_API_KEY` for mobile (and GitHub Actions APK builds), and server-only `MAPTILER_GEOCODING_KEY` for API deployments. Configure the public web key on Vercel web Preview/Production and the geocoding key on Vercel API Preview/Production. Keep MapTiler/OpenStreetMap attribution visible. MapTiler Free terms limit commercial use; review plan and storage terms before production. Native MapLibre requires a development build, not Expo Go. Never commit token values.
+
 Mobile reads public variables through `apps/mobile/app.config.js` and
 `Constants.expoConfig.extra`. Android FCM builds optionally read `GOOGLE_SERVICES_JSON`: EAS may provide a file secret, while
 GitHub Actions expects the JSON document as a repository secret. Never commit `google-services.json`. API push delivery optionally uses Firebase service-account and APNs token credentials; web
@@ -241,6 +243,10 @@ Current route surface:
 | `/api/groups/[groupId]/leaderboard` | GET | List played games and paginated group rankings for members |
 | `/api/group-invitations/[invitationId]` | PATCH | Accept or decline a group invitation |
 | `/api/matches` | GET, POST | List accessible matches and create planning matches |
+| `/api/locations/search` | GET | Authenticated MapTiler address search (up to five results) |
+| `/api/locations/favorites` | GET, POST, DELETE | Private paginated location favorites and bounded status lookup; save verified addresses or authorized match locations |
+| `/api/matches/[matchId]/join-requests` | POST | Request a free planning slot on a public match or as an accepted group member |
+| `/api/matches/[matchId]/join-requests/[invitationId]` | PATCH | Approve a pending request as admin while planning |
 | `/api/matches/[matchId]` | GET, PATCH, DELETE | Get detail, atomically update planning fields/invitations, or delete match as admin |
 | `/api/matches/[matchId]/choices` | PATCH | Save caller's choice for a match date or game as admin or accepted invitee while planning |
 | `/api/matches/[matchId]/status` | PATCH | Admin confirms a shared date/game or reopens planning |
@@ -296,6 +302,7 @@ Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 - `contactLinks`
 - `matches`
 - `matchInvitations`
+- `favoriteLocations`
 - `groups`
 - `groupInvitations`
 - `playerRatings`
@@ -307,7 +314,7 @@ Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
 - `bggCollectionGames`
 - legacy `relationships`, retained only as a migration constant
 
-`pnpm --filter api migrate` creates indexed social, group, and rating collections and drops legacy `relationships`. Run migrations before deploying routes that write groups or ratings.
+`pnpm --filter api migrate` creates indexed social, group, and rating collections and drops legacy `relationships`. Run migrations before deploying routes that write groups, ratings, or favorite locations.
 The current `RelationshipRepository` writes only `follows`, `friendRequests`, and `blocks`.
 
 ### Relationship invariants
@@ -350,9 +357,19 @@ incompatible players. Once `CREATED`, an accepted player leaving the group canno
 registering the result or updating both GLOBAL and GROUP ratings. Archiving a group retains its ID
 and historical matches and ratings; archived groups cannot be selected or confirmed for new matches.
 
-Match invitations live in `matchInvitations`, not on the match document. Admin counts as one player,
-so invitation records cannot exceed `maxPlayers - 1`; declined invitations still occupy their slot
-until removed. Only admin can invite, and duplicate invitation records are rejected. While planning, admin can
+Matches are private by default, including legacy records. Ungrouped matches may be public, but no
+public discovery/search is exposed yet. An authenticated user with a match detail link may request
+participation only while `PLANNING`, with a free slot and no block or active invitation/request.
+Group matches are always private regardless of group visibility; accepted group members may request
+participation. Requests use `kind: REQUEST` and start `PENDING`; only the match admin can approve
+or remove them. The requester cannot accept their own request. Admins can still invite eligible
+contacts/group members and remove accepted participants while planning. Serialize requests and
+invitations through the same transaction lock, and revalidate membership on approval. Group selection
+disables the public/private wizard switch with an explanation on both clients.
+
+Match invitations live in `matchInvitations`, not on the match document. Admin counts as one player.
+Only `PENDING` and `ACCEPTED` records reserve positions within `maxPlayers - 1`; declined invitations
+do not reserve a slot. Only admin can invite, and duplicate invitation records are rejected. While planning, admin can
 replace title, dates, games, `minPlayers`, `maxPlayers`, and selected invitees through the same wizard used
 for creation. Updated values retain creation constraints. Field changes, new invitations, and invitation
 removals are submitted only on the final wizard step and committed in one transaction; `maxPlayers` cannot
@@ -643,6 +660,7 @@ Repository variables used by workflows:
 - `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION`
 - `EXPO_PUBLIC_SENTRY_DSN`
+- `EXPO_PUBLIC_MAPTILER_API_KEY`
 - `EXPO_PUBLIC_API_URL`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION`

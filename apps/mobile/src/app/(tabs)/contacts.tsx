@@ -36,6 +36,7 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
+import { ContactLegend } from "@/components/ContactLegend";
 import { ContactList } from "@/components/ContactList";
 import { EmptyList } from "@/components/EmptyList";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
@@ -603,6 +604,12 @@ export default function ContactsScreen() {
     followers: t("Followers"),
     blocked: t("Blocked"),
   };
+  const connectionDescriptions = {
+    friends: t("Friendship accepted."),
+    following: t("People you follow."),
+    followers: t("People who follow you."),
+    blocked: t("People you have blocked."),
+  };
   const connectionIcons = {
     friends: UsersRound,
     following: UserRoundPlus,
@@ -882,6 +889,24 @@ export default function ContactsScreen() {
         </Tabs.Content>
 
         <Tabs.Content value="requests" style={{ flex: 1, marginTop: 12 }}>
+          <ContactLegend
+            title={t("Requests")}
+            icon={Mail}
+            entries={[
+              {
+                icon: Mail,
+                label: t("Received"),
+                color: "accent",
+                description: t("Requests awaiting your reply."),
+              },
+              {
+                icon: Send,
+                label: t("Sent"),
+                color: "warning",
+                description: t("Requests awaiting their reply."),
+              },
+            ]}
+          />
           <ContactList
             data={requestRows}
             pages={requestPages}
@@ -905,6 +930,16 @@ export default function ContactsScreen() {
         </Tabs.Content>
 
         <Tabs.Content value="connections" style={{ flex: 1, marginTop: 12 }}>
+          <ContactLegend
+            title={t("Connections")}
+            icon={UsersRound}
+            entries={(["friends", "following", "followers", "blocked"] as const).map((type) => ({
+              icon: connectionIcons[type],
+              label: connectionLabels[type],
+              color: connectionColors[type],
+              description: connectionDescriptions[type],
+            }))}
+          />
           <ContactList
             data={connectionRows}
             pages={connectionQueries}

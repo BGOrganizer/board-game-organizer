@@ -8,6 +8,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/dto/locationFavorites.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         lines: 50,
         functions: 50,
         branches: 50,

@@ -96,6 +96,110 @@ describe("useMatchLeaderboard", () => {
   });
 });
 
+describe("useMatchDetail join requests", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  it.each(["request", "approve"] as const)(
+    "optimistically handles %s, restores snapshots on failure and uses fresh tokens",
+    async (mode) => {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      const options = {
+        apiUrl: "https://api.example.com",
+        token: "old",
+        getToken: vi.fn().mockResolvedValue("fresh"),
+        userId: "user_admin",
+        matchId: invitation.matchId,
+        protectionBypass: "bypass",
+        feedback: { onOptimisticUpdate: vi.fn(), onError: vi.fn() },
+      };
+      let rejectWrite = () => {};
+      const data = { ...detail, canRequestJoin: true };
+      const fetchMock = vi.fn((_url: unknown, init?: RequestInit) =>
+        init?.method
+          ? new Promise<Response>((resolve) => {
+              rejectWrite = () => resolve(new Response("error", { status: 409 }));
+            })
+          : Promise.resolve(new Response(JSON.stringify(data))),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const { result } = renderHook(() => useMatchDetail(options), { wrapper: wrapper(client) });
+      await waitFor(() => expect(result.current.detail.isSuccess).toBe(true));
+      const foreignKey = [
+        "matches",
+        "detail",
+        "https://other.example.com",
+        "user_other",
+        invitation.matchId,
+      ];
+      client.setQueryData(foreignKey, data);
+      act(() => {
+        if (mode === "request") result.current.requestJoin.mutate();
+        else result.current.approveJoinRequest.mutate(invitation.id);
+      });
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringContaining("/join-requests"),
+          expect.objectContaining({
+            method: mode === "request" ? "POST" : "PATCH",
+            headers: expect.objectContaining({ Authorization: "Bearer fresh" }),
+          }),
+        ),
+      );
+      if (mode === "request") expect(result.current.detail.data?.canRequestJoin).toBe(false);
+      else expect(result.current.detail.data?.match.invitations[0]?.status).toBe("ACCEPTED");
+      expect(client.getQueryData(foreignKey)).toEqual(data);
+      rejectWrite();
+      await waitFor(() =>
+        expect(
+          mode === "request"
+            ? result.current.requestJoin.isError
+            : result.current.approveJoinRequest.isError,
+        ).toBe(true),
+      );
+      expect(result.current.detail.data?.match.invitations[0]?.status).toBe("PENDING");
+      expect(result.current.detail.data?.canRequestJoin).toBe(true);
+      expect(options.feedback.onError).toHaveBeenCalledWith(
+        expect.any(Error),
+        mode === "request" ? "request_match_join" : "approve_match_join",
+      );
+    },
+  );
+  it("does not fall back to a stale JWT when fresh authentication fails", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { result } = renderHook(
+      () =>
+        useMatchDetail({
+          apiUrl: "",
+          token: "snapshot",
+          getToken: async () => null,
+          matchId: invitation.matchId,
+        }),
+      { wrapper: wrapper() },
+    );
+    await act(async () => {
+      await expect(result.current.requestJoin.mutateAsync()).rejects.toThrow("No session token");
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("supports legacy token callers and successful writes without cached detail", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response(JSON.stringify({ invitation })));
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(
+      () => useMatchDetail({ apiUrl: "", token: "token", matchId: invitation.matchId }),
+      { wrapper: wrapper() },
+    );
+    await act(async () => {
+      await result.current.requestJoin.mutateAsync();
+      await result.current.approveJoinRequest.mutateAsync(invitation.id);
+    });
+    await waitFor(() => expect(result.current.approveJoinRequest.isSuccess).toBe(true));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("useMatchDetail", () => {
   afterEach(() => vi.unstubAllGlobals());
 

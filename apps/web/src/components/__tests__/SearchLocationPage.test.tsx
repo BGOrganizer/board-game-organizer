@@ -1,135 +1,247 @@
+import { locationFavoriteKey, type MatchLocation } from "@board-game-organizer/schemas";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
-import { SearchLocationPage } from "@/components/SearchLocationPage";
-import { renderWithI18n } from "@/test-utils";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { renderWithI18n } from "../../test-utils";
+import { SearchLocationPage } from "../SearchLocationPage";
 
-vi.mock("mapbox-gl", () => ({
-  default: {
-    Map: class {
-      remove() {}
-      flyTo() {}
-    },
-    Marker: class {
-      setLngLat() {
-        return this;
-      }
-      addTo() {
-        return this;
-      }
-      remove() {}
-    },
+const mapMocks = vi.hoisted(() => ({ created: vi.fn(), remove: vi.fn(), flyTo: vi.fn() }));
+vi.mock("@maptiler/sdk", () => ({
+  config: { apiKey: "" },
+  MapStyle: { STREETS: "streets" },
+  Map: class {
+    constructor() {
+      mapMocks.created();
+    }
+    on(_event: string, callback: () => void) {
+      queueMicrotask(callback);
+    }
+    remove = mapMocks.remove;
+    flyTo = mapMocks.flyTo;
+  },
+  Marker: class {
+    setLngLat() {
+      return this;
+    }
+    addTo() {
+      return this;
+    }
+    remove() {}
   },
 }));
-const originalToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+const originalKey = process.env.NEXT_PUBLIC_MAPTILER_API_KEY;
+const originalGeolocation = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+const location: MatchLocation = {
+  id: "11111111-1111-4111-8111-111111111111",
+  name: "Game cafe",
+  address: "123 Main St, Rome",
+  longitude: 12.5,
+  latitude: 41.9,
+};
+const favorites = (locations: MatchLocation[] = [], isError = false) => ({
+  items: locations.map((location) => ({ key: locationFavoriteKey(location), location })),
+  list: {
+    isPending: false,
+    isError,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+  },
+});
+beforeEach(() => {
+  vi.clearAllMocks();
+  process.env.NEXT_PUBLIC_MAPTILER_API_KEY = "test-key";
+});
 afterEach(() => {
   vi.unstubAllGlobals();
-  if (originalToken === undefined) delete process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-  else process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN = originalToken;
+  if (originalGeolocation) Object.defineProperty(navigator, "geolocation", originalGeolocation);
+  else Reflect.deleteProperty(navigator, "geolocation");
+  if (originalKey === undefined) delete process.env.NEXT_PUBLIC_MAPTILER_API_KEY;
+  else process.env.NEXT_PUBLIC_MAPTILER_API_KEY = originalKey;
 });
 
-it("requires a chosen address and four-character name, with five search results at most", async () => {
-  process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN = "pk.test";
-  const getToken = vi.fn().mockResolvedValue("fresh-session-token");
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({
-      items: Array.from({ length: 6 }, (_, i) => ({
-        id: `place.${i}`,
-        address: `${i} Main St`,
+it("requires a chosen address and four-character name, caps results and hides the selected summary", async () => {
+  const getToken = vi.fn().mockResolvedValue("fresh-token");
+  const fetchMock = vi.fn().mockResolvedValue(
+    Response.json({
+      items: Array.from({ length: 6 }, (_, index) => ({
+        id: `address.${index}`,
+        address: `Main Street ${index}`,
         longitude: 12.5,
         latitude: 41.9,
       })),
     }),
-  });
+  );
   vi.stubGlobal("fetch", fetchMock);
   const onSelect = vi.fn();
   renderWithI18n(
     <SearchLocationPage
       apiUrl="https://api.example.com"
       getToken={getToken}
+      favorites={favorites()}
       onSelect={onSelect}
       onClose={vi.fn()}
     />,
   );
-  const confirm = screen.getByRole("button", { name: "Confirm location" }) as HTMLButtonElement;
-  expect(confirm.disabled).toBe(true);
+  const confirm = screen.getByRole("button", { name: "Confirm location" });
+  expect(confirm.hasAttribute("disabled")).toBe(true);
   fireEvent.change(screen.getByRole("textbox", { name: "Location name" }), {
-    target: { value: "abc" },
+    target: { value: "Gam" },
   });
-  fireEvent.change(screen.getByRole("textbox", { name: "Search address" }), {
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search address" }), {
     target: { value: "Main St" },
   });
-  await waitFor(() =>
-    expect(
-      screen.getByRole("list", { name: "Address results" }).querySelectorAll("li"),
-    ).toHaveLength(5),
-  );
-  expect(getToken).toHaveBeenCalled();
-  expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer fresh-session-token");
-  fireEvent.click(screen.getByRole("button", { name: "0 Main St" }));
-  expect(confirm.disabled).toBe(true);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Main Street 0" })).toBeTruthy());
+  expect(screen.queryByRole("button", { name: "Main Street 5" })).toBeNull();
+  expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer fresh-token");
+  fireEvent.click(screen.getByRole("button", { name: "Main Street 0" }));
+  expect(confirm.hasAttribute("disabled")).toBe(true);
+  expect(screen.queryByText("Main Street 0")).toBeNull();
   fireEvent.change(screen.getByRole("textbox", { name: "Location name" }), {
     target: { value: "Game cafe" },
   });
-  await waitFor(() => expect(confirm.disabled).toBe(false));
   fireEvent.click(confirm);
   expect(onSelect).toHaveBeenCalledWith(
     expect.objectContaining({
       name: "Game cafe",
-      address: "0 Main St",
+      address: "Main Street 0",
       longitude: 12.5,
       latitude: 41.9,
     }),
   );
-  expect(onSelect.mock.calls[0][0].id).toMatch(/^[a-f0-9-]{36}$/);
 });
 
-it("fails closed when Mapbox public token is missing", () => {
-  delete process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-  renderWithI18n(
+it("preserves edited slot ID, puts map before fields and reuses a favorite", async () => {
+  const onSelect = vi.fn();
+  const edited = { ...location, id: "22222222-2222-4222-8222-222222222222" };
+  const { container } = renderWithI18n(
     <SearchLocationPage
       apiUrl="https://api.example.com"
-      getToken={async () => "token"}
-      initial={{
-        id: "8b1f8d7e-b32b-4c56-b0de-190748935516",
-        name: "Game cafe",
-        address: "123 Main St",
-        longitude: 12.5,
-        latitude: 41.9,
-      }}
+      getToken={async () => "fresh"}
+      initial={edited}
+      favorites={favorites([location])}
+      onSelect={onSelect}
+      onClose={vi.fn()}
+    />,
+  );
+  const name = screen.getByRole("textbox", { name: "Location name" });
+  expect(container.querySelector('[role="img"]')?.compareDocumentPosition(name)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Favorite locations/ }));
+  fireEvent.click(await screen.findByRole("option", { name: /Game cafe/ }));
+  expect((name as HTMLInputElement).value).toBe(location.name);
+  expect(mapMocks.flyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [12.5, 41.9] }));
+  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  expect(onSelect).toHaveBeenCalledWith({ ...location, id: edited.id });
+});
+
+it("shows empty, loading and failed favorites without hiding search", () => {
+  const state = favorites([], true);
+  const { unmount } = renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      favorites={state}
       onSelect={vi.fn()}
       onClose={vi.fn()}
     />,
   );
-  expect(screen.getByRole("alert").textContent).toContain("Map unavailable");
+  expect(screen.getByRole("alert").textContent).toContain("Could not load favorite locations");
+  expect(screen.getByRole("searchbox", { name: "Search address" })).toBeTruthy();
+  unmount();
+  const { unmount: unmountEmpty } = renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      favorites={favorites()}
+      onSelect={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
   expect(
-    (screen.getByRole("button", { name: "Confirm location" }) as HTMLButtonElement).disabled,
+    screen.getByRole("button", { name: /No favorite locations/ }).hasAttribute("disabled"),
   ).toBe(true);
+  unmountEmpty();
+  state.list.isPending = true;
+  renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      favorites={state}
+      onSelect={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: /No favorite locations/ })).toBeNull();
 });
 
-it("does not search short queries and reports upstream failures without pretending results are empty", async () => {
-  process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN = "pk.test";
-  const fetchMock = vi.fn().mockResolvedValue({ ok: false });
+it("requests further favorite pages and centers map without saving an unverified address", async () => {
+  const state = favorites([location], true);
+  state.list.hasNextPage = true;
+  const position = vi.fn((success: PositionCallback) =>
+    success({ coords: { longitude: 13, latitude: 42 } } as GeolocationPosition),
+  );
+  Object.defineProperty(navigator, "geolocation", {
+    configurable: true,
+    value: { getCurrentPosition: position },
+  });
+  const onSelect = vi.fn();
+  renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      favorites={state}
+      onSelect={onSelect}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Load more favorite locations" }));
+  expect(state.list.fetchNextPage).toHaveBeenCalledOnce();
+  await waitFor(() => expect(mapMocks.created).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole("button", { name: "Center map on my location" }));
+  expect(position).toHaveBeenCalledOnce();
+  expect(mapMocks.flyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [13, 42] }));
+  expect(onSelect).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Confirm location" }).hasAttribute("disabled")).toBe(
+    true,
+  );
+});
+
+it("does not search short queries and surfaces network failures", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 502 }));
   vi.stubGlobal("fetch", fetchMock);
   renderWithI18n(
     <SearchLocationPage
       apiUrl="https://api.example.com"
-      getToken={async () => "token"}
+      getToken={async () => "fresh"}
+      favorites={favorites()}
       onSelect={vi.fn()}
       onClose={vi.fn()}
     />,
   );
-  fireEvent.change(screen.getByRole("textbox", { name: "Search address" }), {
-    target: { value: "abc" },
-  });
+  const input = screen.getByRole("searchbox", { name: "Search address" });
+  fireEvent.change(input, { target: { value: "Mai" } });
+  await new Promise((resolve) => setTimeout(resolve, 350));
   expect(fetchMock).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByRole("textbox", { name: "Search address" }), {
-    target: { value: "Rome" },
-  });
+  fireEvent.change(input, { target: { value: "Main Street" } });
   await waitFor(() =>
     expect(screen.getByRole("alert").textContent).toContain("Could not search addresses"),
   );
-  expect(
-    (screen.getByRole("button", { name: "Confirm location" }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+  expect((input as HTMLInputElement).value).toBe("");
+});
+
+it("keeps address search usable when map key is missing", () => {
+  delete process.env.NEXT_PUBLIC_MAPTILER_API_KEY;
+  renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      favorites={favorites()}
+      onSelect={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Map unavailable")).toBeTruthy();
+  expect(screen.getByRole("searchbox", { name: "Search address" })).toBeTruthy();
 });

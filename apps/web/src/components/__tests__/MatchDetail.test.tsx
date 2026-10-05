@@ -36,7 +36,17 @@ const mutate = vi.fn();
 const deleteMutate = vi.fn();
 const leaveMutate = vi.fn();
 const removeMutate = vi.fn();
+const requestJoinMutate = vi.fn();
+const approveJoinMutate = vi.fn();
 const setChoiceMutate = vi.fn();
+const favoriteMutate = vi.fn();
+const favoriteState = {
+  items: [],
+  list: { isPending: false, isError: false },
+  status: { isPending: false, isError: false, data: undefined as string[] | undefined },
+  toggle: { isPending: false, mutate: favoriteMutate },
+  isFavorite: vi.fn(() => false),
+};
 const setStatusMutate = vi.fn();
 
 beforeAll(() => {
@@ -58,6 +68,7 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: () => "http://localhost:4000",
   useMatchDetail: (options: unknown) => useMatchDetailMock(options),
+  useFavoriteLocations: () => favoriteState,
   useMatchLeaderboard: (options: unknown, gameId: number | null) =>
     useMatchLeaderboardMock(options, gameId),
   useContacts: () => useContactsMock(),
@@ -136,6 +147,8 @@ function result(data: typeof detail | undefined = detail) {
     deleteMatch: { mutate: deleteMutate, isPending: false, isError: false },
     leaveMatch: { mutate: leaveMutate, isPending: false, isError: false },
     removePlayer: { mutate: removeMutate, isPending: false, isError: false },
+    requestJoin: { mutate: requestJoinMutate, isPending: false, isError: false },
+    approveJoinRequest: { mutate: approveJoinMutate, isPending: false, isError: false },
     setChoice: { mutate: setChoiceMutate, isPending: false },
     setStatus: { mutate: setStatusMutate, isPending: false },
     registerResults: { mutate: vi.fn(), isPending: false },
@@ -143,8 +156,125 @@ function result(data: typeof detail | undefined = detail) {
 }
 
 describe("MatchDetail", () => {
+  it("offers a join request to eligible viewers and shows network failures", () => {
+    useMatchDetailMock.mockReturnValue({
+      ...result({
+        ...detail,
+        canRequestJoin: true,
+        match: { ...detail.match, isPublic: true, invitations: [], invitedUserIds: [] },
+        invitedPlayers: [],
+      }),
+      requestJoin: { mutate: requestJoinMutate, isPending: false, isError: true },
+    });
+    renderWithI18n(<MatchDetail matchId={detail.match.id} />);
+    fireEvent.click(screen.getByRole("button", { name: "Request to join" }));
+    expect(requestJoinMutate).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alert").textContent).toBe("Could not request to join match");
+  });
+  it("requested viewers cannot self-approve or vote while waiting", () => {
+    const requested = { ...invitation, kind: "REQUEST" as const };
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, invitations: [requested] },
+        invitedPlayers: [{ ...detail.invitedPlayers[0], invitation: requested }],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={detail.match.id} />);
+    expect(screen.getByText("Your join request is waiting for admin approval.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Accept" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Request to join" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Leaderboards" })).toBeNull();
+  });
+  it("admin approves pending requests; other invitations retain response lifecycle", () => {
+    authMock.userId = "user_admin";
+    const requested = { ...invitation, kind: "REQUEST" as const };
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, invitations: [requested] },
+        invitedPlayers: [{ ...detail.invitedPlayers[0], invitation: requested }],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={detail.match.id} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve join request: Guest Player" }));
+    expect(approveJoinMutate).toHaveBeenCalledWith(invitation.id);
+    expect(screen.getByRole("button", { name: "Remove player: Guest Player" })).toBeTruthy();
+  });
+  it("keeps cached hearts usable after refetch errors but blocks missing or pending status", () => {
+    authMock.userId = "user_admin";
+    const location = {
+      id: "33333333-3333-4333-8333-333333333333",
+      name: "Game cafe",
+      address: "Main Street 10",
+      longitude: 12.5,
+      latitude: 41.9,
+    };
+    useMatchDetailMock.mockReturnValue(
+      result({ ...detail, match: { ...detail.match, locations: [location] } }),
+    );
+    for (const state of [
+      { isPending: true, isError: false, data: undefined, disabled: true },
+      { isPending: false, isError: true, data: undefined, disabled: true },
+      { isPending: false, isError: true, data: [], disabled: false },
+    ]) {
+      favoriteState.status.isPending = state.isPending;
+      favoriteState.status.isError = state.isError;
+      favoriteState.status.data = state.data;
+      const { unmount } = renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+      expect(
+        screen.getByRole("button", { name: "Add location to favorites" }).hasAttribute("disabled"),
+      ).toBe(state.disabled);
+      if (state.isError)
+        expect(screen.getByRole("alert").textContent).toContain(
+          "Could not load favorite locations",
+        );
+      unmount();
+    }
+  });
+
+  it("toggles location hearts independently of votes and blocks repeated pending actions", () => {
+    authMock.userId = "user_admin";
+    const location = {
+      id: "33333333-3333-4333-8333-333333333333",
+      name: "Game cafe",
+      address: "Main Street 10",
+      longitude: 12.5,
+      latitude: 41.9,
+    };
+    useMatchDetailMock.mockReturnValue(
+      result({ ...detail, match: { ...detail.match, locations: [location] } }),
+    );
+    const { unmount } = renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    const add = screen.getByRole("button", { name: "Add location to favorites" });
+    expect(add.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByText(location.name).className).toContain("text-sm font-medium");
+    expect(screen.getByText(location.address).className).toContain("text-xs");
+    fireEvent.click(add);
+    expect(favoriteMutate).toHaveBeenCalledWith({
+      location,
+      favorite: false,
+      matchId: invitation.matchId,
+    });
+    expect(setChoiceMutate).not.toHaveBeenCalled();
+    favoriteState.isFavorite.mockReturnValue(true);
+    favoriteState.toggle.isPending = true;
+    unmount();
+    renderWithI18n(<MatchDetail matchId={invitation.matchId} />);
+    const remove = screen.getByRole("button", { name: "Remove location from favorites" });
+    expect(remove.getAttribute("aria-pressed")).toBe("true");
+    expect(remove.hasAttribute("disabled")).toBe(true);
+    favoriteState.toggle.isPending = false;
+    favoriteState.isFavorite.mockReturnValue(false);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
+    favoriteState.isFavorite.mockReturnValue(false);
+    favoriteState.toggle.isPending = false;
+    favoriteState.status.isPending = false;
+    favoriteState.status.isError = false;
+    favoriteState.status.data = undefined;
     authMock.userId = "user_guest";
     useMatchDetailMock.mockReturnValue(result());
     useMatchLeaderboardMock.mockReturnValue({

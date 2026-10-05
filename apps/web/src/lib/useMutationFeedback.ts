@@ -38,6 +38,14 @@ export function useMutationFeedback(): MutationFeedback {
         error: t`Could not disconnect BoardGameGeek`,
       },
       create_invite: { success: t`Invite link created`, error: t`Could not create invite link` },
+      add_favorite_location: {
+        success: t`Location added to favorites`,
+        error: t`Could not add location to favorites`,
+      },
+      remove_favorite_location: {
+        success: t`Location removed from favorites`,
+        error: t`Could not remove location from favorites`,
+      },
       create_match: { success: t`Match created`, error: t`Could not create match` },
       update_match: { success: t`Match updated`, error: t`Could not update match` },
       set_match_choice: { success: t`Choice saved`, error: t`Could not save choice` },
@@ -46,6 +54,14 @@ export function useMutationFeedback(): MutationFeedback {
       register_match_results: { success: t`Match registered`, error: t`Could not register match` },
       delete_match: { success: t`Match deleted`, error: t`Could not delete match` },
       leave_match: { success: t`You left the match`, error: t`Could not leave match` },
+      request_match_join: {
+        success: t`Join request sent`,
+        error: t`Could not request to join match`,
+      },
+      approve_match_join: {
+        success: t`Join request approved`,
+        error: t`Could not approve join request`,
+      },
       remove_match_player: {
         success: t`Player removed from match`,
         error: t`Could not remove player from match`,

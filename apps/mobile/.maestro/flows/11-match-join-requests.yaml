@@ -1,0 +1,92 @@
+appId: com.bgo.mobile
+---
+# Explicit link-based scenario: no public search/list is introduced.
+# Preparation: primary user owns an ungrouped PUBLIC PLANNING match with one free
+# slot; secondary user has no invitation. PUBLIC_MATCH_LINK is bgo://match/<id>.
+# Run with USERNAME/PASSWORD, USERNAME_2/PASSWORD_2 and PUBLIC_MATCH_LINK.
+# Missing fixture/environment must fail, never silently skip.
+- assertTrue: ${PUBLIC_MATCH_LINK.startsWith("bgo://match/")}
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Sign in / Register"
+    timeout: 120000
+- runFlow:
+    file: "02-login.yaml"
+    env:
+      USERNAME: ${USERNAME_2}
+      PASSWORD: ${PASSWORD_2}
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Request to join"
+    timeout: 60000
+- tapOn: "Request to join"
+- extendedWaitUntil:
+    visible: "Your join request is waiting for admin approval."
+    timeout: 30000
+- assertNotVisible: "Accept"
+- assertNotVisible: "Leaderboards"
+- assertNotVisible: "Request to join"
+- back
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Sign in / Register"
+    timeout: 120000
+- runFlow: "02-login.yaml"
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 60000
+- tapOn: "Players"
+- tapOn: "Approve join request: E2E Target"
+- extendedWaitUntil:
+    visible: "Join request approved"
+    timeout: 30000
+- assertNotVisible: "Approve join request: E2E Target"
+- tapOn: "Remove player: E2E Target"
+- assertVisible: "Remove player?"
+- tapOn: "Remove player"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+# The removed participant can request again; rejecting removes the reservation.
+- back
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Sign in / Register"
+    timeout: 120000
+- runFlow:
+    file: "02-login.yaml"
+    env:
+      USERNAME: ${USERNAME_2}
+      PASSWORD: ${PASSWORD_2}
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Request to join"
+    timeout: 60000
+- tapOn: "Request to join"
+- extendedWaitUntil:
+    visible: "Your join request is waiting for admin approval."
+    timeout: 30000
+- back
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Sign in / Register"
+    timeout: 120000
+- runFlow: "02-login.yaml"
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 60000
+- tapOn: "Players"
+- assertVisible: "Approve join request: E2E Target"
+- tapOn: "Remove player: E2E Target"
+- assertVisible: "Remove player?"
+- tapOn: "Remove player"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+- back

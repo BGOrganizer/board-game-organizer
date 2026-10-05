@@ -90,9 +90,21 @@ msgstr "Aggiungi amico"
 msgid "Add game"
 msgstr "Aggiungi gioco"
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Add location"
+msgstr "Aggiungi luogo"
+
+#: apps/web/src/components/LocationFavoriteButton.tsx
+msgid "Add location to favorites"
+msgstr "Aggiungi location ai preferiti"
+
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Add your mobile number to continue."
 msgstr "Inserisci il tuo numero di cellulare per continuare."
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Address results"
+msgstr "Risultati indirizzi"
 
 #: apps/web/src/components/ListSearchFilters.tsx
 msgid "Admin"
@@ -115,6 +127,14 @@ msgstr "Amministratore"
 #~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
 #~ msgstr "Consentire a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
+msgstr "Chiunque abbia il link al match può chiedere di partecipare durante la pianificazione, se ci sono posti liberi. L'admin approva le richieste."
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Approve join request"
+msgstr "Approva richiesta di partecipazione"
+
 #: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "At least 5 characters"
@@ -126,6 +146,7 @@ msgstr "Media"
 
 #: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/SearchGamePage.tsx
+#: apps/web/src/components/SearchLocationPage.tsx
 #: apps/web/src/components/SearchUserPage.tsx
 msgid "Back"
 msgstr "Indietro"
@@ -224,6 +245,10 @@ msgstr "Annullato"
 #~ msgid "Cannot confirm match"
 #~ msgstr "Impossibile confermare la partita"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Center map on my location"
+msgstr "Centra la mappa sulla mia posizione"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Changes applied"
 #~ msgstr "Modifiche applicate"
@@ -239,6 +264,10 @@ msgstr "Scegli la data"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Choose game"
 msgstr "Scegli il gioco"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Choose location"
+msgstr "Scegli luogo"
 
 #: apps/mobile/src/app/match/[matchId].tsx
 #~ msgid "Choose preference"
@@ -269,6 +298,7 @@ msgstr "Deseleziona gioco"
 #: apps/web/src/components/Contacts.tsx
 #: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/ListSearchFilters.tsx
+#: apps/web/src/components/SearchLocationPage.tsx
 msgid "Clear search"
 msgstr "Pulisci ricerca"
 
@@ -295,6 +325,10 @@ msgstr "Completa il tuo profilo"
 #: apps/web/src/components/MatchDetail.tsx
 #~ msgid "Confirm after enough players accept and everyone chooses a shared date and game."
 #~ msgstr "Conferma quando ci sono abbastanza giocatori e tutti hanno scelto una data e un gioco condivisi."
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Confirm location"
+msgstr "Conferma luogo"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirm match"
@@ -323,6 +357,10 @@ msgstr "Data confermata"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Confirmed game"
 msgstr "Gioco confermato"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Confirmed location"
+msgstr "Luogo confermato"
 
 #: apps/web/src/components/Contacts.tsx
 msgid "Connections"
@@ -364,6 +402,14 @@ msgstr "Impossibile accettare l'invito al gruppo"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not accept match invitation"
 msgstr "Impossibile accettare l'invito alla partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not add location to favorites"
+msgstr "Impossibile aggiungere la location ai preferiti"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not approve join request"
+msgstr "Impossibile approvare la richiesta di partecipazione"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not block user"
@@ -461,6 +507,12 @@ msgstr "Impossibile caricare il collegamento a BoardGameGeek. Riprova"
 msgid "Could not load contacts"
 msgstr "Impossibile caricare i contatti"
 
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Could not load favorite locations"
+msgstr "Impossibile caricare le location preferite"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Could not load friend requests"
 msgstr "Impossibile caricare le richieste di amicizia"
@@ -492,6 +544,10 @@ msgstr "Impossibile caricare i gruppi. Riprova"
 msgid "Could not load leaderboards. Retry"
 msgstr "Impossibile caricare le classifiche. Riprova"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Could not load map"
+msgstr "Impossibile caricare la mappa"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load match details"
 msgstr "Impossibile caricare i dettagli della partita"
@@ -512,6 +568,10 @@ msgstr "Impossibile caricare le notifiche"
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Could not load notifications. Retry"
 msgstr "Impossibile caricare le notifiche. Riprova"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+#~ msgid "Could not load recent locations"
+#~ msgstr "Impossibile caricare i luoghi recenti"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Could not load social actions"
@@ -534,6 +594,10 @@ msgid "Could not remove friend"
 msgstr "Impossibile rimuovere l'amico"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove location from favorites"
+msgstr "Impossibile rimuovere la location dai preferiti"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not remove person from group"
 msgstr "Impossibile rimuovere la persona dal gruppo"
 
@@ -545,6 +609,11 @@ msgstr "Impossibile rimuovere il giocatore dalla partita"
 msgid "Could not reopen match"
 msgstr "Impossibile riaprire la partita"
 
+#: apps/web/src/components/MatchDetail.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not request to join match"
+msgstr "Impossibile richiedere la partecipazione al match"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not save choice"
 msgstr "Impossibile salvare la scelta"
@@ -552,6 +621,10 @@ msgstr "Impossibile salvare la scelta"
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Could not save mobile number"
 msgstr "Impossibile salvare il numero di cellulare"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Could not search addresses"
+msgstr "Impossibile cercare gli indirizzi"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not send friend request"
@@ -778,6 +851,10 @@ msgstr "Errore durante il caricamento del profilo:"
 #~ msgid "expires"
 #~ msgstr "scade"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Favorite locations"
+msgstr "Location preferite"
+
 #: apps/web/src/components/Matches.tsx
 #~ msgid "Finished"
 #~ msgstr "Terminato"
@@ -828,6 +905,10 @@ msgstr "Richiesta di amicizia inviata"
 #: apps/web/src/components/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Friendship accepted."
+msgstr "Amicizia confermata."
 
 #: apps/web/src/components/Matches.tsx
 msgid "game"
@@ -905,6 +986,10 @@ msgstr "Invito al gruppo rifiutato"
 msgid "Group leaderboard"
 msgstr "Classifica del gruppo"
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Group matches are private. Only group members can request to join, with admin approval."
+msgstr "I match di gruppo sono privati. Solo i membri del gruppo possono chiedere di partecipare, con approvazione dell'admin."
+
 #: apps/web/src/components/Groups.tsx
 msgid "Group name"
 msgstr "Nome del gruppo"
@@ -928,6 +1013,10 @@ msgstr "Gruppi"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Highest score wins"
 msgstr "Vince il punteggio più alto"
+
+#: apps/web/src/components/ContactLegend.tsx
+msgid "Icon legend"
+msgstr "Legenda delle icone"
 
 #: apps/web/src/components/MatchDetail.tsx
 msgid "If I have to"
@@ -1002,6 +1091,14 @@ msgstr "Invitati"
 #~ msgid "Invites"
 #~ msgstr "Inviti"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Join request approved"
+msgstr "Richiesta di partecipazione approvata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Join request sent"
+msgstr "Richiesta di partecipazione inviata"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Joined groups"
 msgstr "Gruppi accettati"
@@ -1046,6 +1143,10 @@ msgstr "Classifica provvisoria"
 msgid "Load more"
 msgstr "Carica altro"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Load more favorite locations"
+msgstr "Carica altre location preferite"
+
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
 msgid "Loading notifications"
@@ -1060,6 +1161,50 @@ msgstr "Caricamento profilo"
 #~ msgid "Loading..."
 #~ msgstr "Caricamento..."
 
+#: apps/web/src/components/Matches.tsx
+msgid "location"
+msgstr "location"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Location"
+msgstr "Luogo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Location added to favorites"
+msgstr "Location aggiunta ai preferiti"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Location map"
+msgstr "Mappa del luogo"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Location name"
+msgstr "Nome del luogo"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Location permission denied"
+msgstr "Accesso alla posizione negato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Location removed from favorites"
+msgstr "Location rimossa dai preferiti"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Location selection"
+msgstr "Scelta del luogo"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Location unavailable"
+msgstr "Posizione non disponibile"
+
+#: apps/web/src/components/Matches.tsx
+msgid "locations"
+msgstr "location"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Locations"
+msgstr "Luoghi"
+
 #: apps/web/src/components/Profile.tsx
 msgid "Logout"
 msgstr "Esci"
@@ -1068,6 +1213,13 @@ msgstr "Esci"
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Lowest score wins"
 msgstr "Vince il punteggio più basso"
+
+#~ msgid "Map by MapTiler"
+#~ msgstr "Mappa di MapTiler"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Map unavailable"
+msgstr "Mappa non disponibile"
 
 #: apps/web/src/components/NotificationBell.tsx
 #: apps/web/src/components/NotificationsPage.tsx
@@ -1240,12 +1392,15 @@ msgstr "Nessun contatto da invitare"
 msgid "No countries found"
 msgstr "Nessun paese trovato"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "No favorite locations"
+msgstr "Nessuna location preferita"
+
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No followers yet"
 #~ msgstr "Nessun follower"
 
 #: apps/web/src/components/Contacts.tsx
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile runtime useT)
 msgid "No friend requests"
 msgstr "Nessuna richiesta di amicizia"
 
@@ -1315,6 +1470,10 @@ msgstr "Nessuna classifica disponibile"
 #~ msgid "No received friend requests"
 #~ msgstr "Nessuna richiesta di amicizia ricevuta"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+#~ msgid "No recent locations"
+#~ msgstr "Nessun luogo recente"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "No selected games"
 msgstr "Nessun gioco selezionato"
@@ -1330,6 +1489,10 @@ msgstr "Nessuna data condivisa"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "No shared game"
 msgstr "Nessun gioco condiviso"
+
+#: apps/web/src/components/MatchDetail.tsx
+msgid "No shared location"
+msgstr "Nessun luogo condiviso"
 
 #: apps/web/src/components/Contacts.tsx
 #~ msgid "No suggestions right now"
@@ -1374,6 +1537,18 @@ msgstr "Notifica eliminata"
 msgid "Notifications"
 msgstr "Notifiche"
 
+#: apps/web/src/components/ContactLegend.tsx
+msgid "Offline"
+msgstr "Offline"
+
+#: apps/web/src/components/ContactLegend.tsx
+msgid "Online"
+msgstr "Online"
+
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Only the admin can invite players to a private match."
+msgstr "Solo l'admin può invitare giocatori a un match privato."
+
 #: apps/web/src/components/Groups.tsx
 msgid "Open group"
 msgstr "Apri gruppo"
@@ -1385,6 +1560,9 @@ msgstr "Apri partita"
 #. Mobile runtime-only message; Lingui extraction does not inspect useT().
 #~ msgid "Open notification settings"
 #~ msgstr "Apri impostazioni notifiche"
+
+#~ msgid "Open settings"
+#~ msgstr "Apri impostazioni"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "Operation failed"
@@ -1422,6 +1600,18 @@ msgstr "Partecipanti"
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Pending"
 msgstr "In attesa"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "People who follow you."
+msgstr "Persone che ti seguono."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "People you follow."
+msgstr "Persone che segui."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "People you have blocked."
+msgstr "Persone che hai bloccato."
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Person removed from group"
@@ -1486,6 +1676,10 @@ msgstr "Passaggio precedente"
 msgid "Private"
 msgstr "Privato"
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Private match"
+msgstr "Match privato"
+
 #: apps/web/src/components/Header.tsx
 msgid "Profile"
 msgstr "Profilo"
@@ -1511,6 +1705,10 @@ msgstr "Gruppo pubblico"
 msgid "Public group search and join requests will be available later. Only the admin can invite friends now."
 msgstr "La ricerca dei gruppi pubblici e le richieste di accesso arriveranno più avanti. Per ora solo l'amministratore può invitare amici."
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Public match"
+msgstr "Match pubblico"
+
 #: apps/web/src/components/GameCatalogMetadata.tsx
 msgid "Rank"
 msgstr "Posizione"
@@ -1535,6 +1733,10 @@ msgstr "Rating invariato"
 #: apps/web/src/components/Contacts.tsx
 msgid "Received"
 msgstr "Ricevute"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+#~ msgid "Recent locations"
+#~ msgstr "Luoghi recenti"
 
 #: apps/web/src/components/MatchResultsEditor.tsx
 msgid "Register match"
@@ -1574,6 +1776,14 @@ msgstr "Rimuovi gioco"
 msgid "Remove invite"
 msgstr "Rimuovi invito"
 
+#: apps/web/src/components/MatchWizard.tsx
+msgid "Remove location"
+msgstr "Rimuovi luogo"
+
+#: apps/web/src/components/LocationFavoriteButton.tsx
+msgid "Remove location from favorites"
+msgstr "Rimuovi location dai preferiti"
+
 #: apps/web/src/components/MatchDetail.tsx
 msgid "Remove player"
 msgstr "Rimuovi giocatore"
@@ -1598,9 +1808,21 @@ msgstr "Rimuovi spareggio"
 msgid "Reopen planning? Pending invitees will regain access and accepted players will be notified."
 msgstr "Riaprire la pianificazione? Gli invitati in attesa riavranno accesso e i giocatori che hanno accettato riceveranno una notifica."
 
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Request to join"
+msgstr "Richiedi partecipazione"
+
 #: apps/web/src/components/Contacts.tsx
 msgid "Requests"
 msgstr "Richieste"
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Requests awaiting their reply."
+msgstr "Richieste in attesa della loro risposta."
+
+#: apps/web/src/components/Contacts.tsx
+msgid "Requests awaiting your reply."
+msgstr "Richieste in attesa della tua risposta."
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Reset"
@@ -1652,6 +1874,10 @@ msgstr "Punteggio"
 #: apps/web/src/components/SearchGamePage.tsx
 msgid "Search"
 msgstr "Ricerca"
+
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Search address"
+msgstr "Cerca indirizzo"
 
 #: apps/web/src/components/GroupLeaderboard.tsx
 #: apps/web/src/components/SearchGamePage.tsx
@@ -1729,14 +1955,27 @@ msgstr "Seleziona"
 msgid "Select a board game"
 msgstr "Seleziona un gioco da tavolo"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Select a favorite location"
+msgstr "Seleziona una location preferita"
+
 #: apps/web/src/components/Groups.tsx
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Select a friend"
 msgstr "Seleziona un amico"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+#~ msgid "Select a recent location"
+#~ msgstr "Seleziona un luogo recente"
+
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Select group member"
 msgstr "Seleziona un membro del gruppo"
+
+#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/SearchLocationPage.tsx
+msgid "Select location"
+msgstr "Seleziona Location"
 
 #: apps/web/src/components/MatchWizard.tsx
 msgid "Selected group is unavailable"
@@ -1916,6 +2155,10 @@ msgstr "Non seguire più"
 msgid "Unranked"
 msgstr "Non classificato"
 
+#: apps/web/src/components/SearchLocationPage.tsx
+#~ msgid "Use my location"
+#~ msgstr "Usa la mia posizione"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "User blocked"
 msgstr "Utente bloccato"
@@ -1998,65 +2241,6 @@ msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rim
 msgid "Your invitation is waiting for a response."
 msgstr "Il tuo invito è in attesa di una risposta."
 
-msgid "Locations"
-msgstr "Luoghi"
-
-msgid "Location"
-msgstr "Luogo"
-
-msgid "Select location"
-msgstr "Seleziona luogo"
-
-msgid "Location name"
-msgstr "Nome del luogo"
-
-msgid "Search address"
-msgstr "Cerca indirizzo"
-
-msgid "Address results"
-msgstr "Risultati indirizzi"
-
-msgid "Location map"
-msgstr "Mappa del luogo"
-
-msgid "Add location"
-msgstr "Aggiungi luogo"
-
-msgid "Remove location"
-msgstr "Rimuovi luogo"
-
-msgid "Confirm location"
-msgstr "Conferma luogo"
-
-msgid "Use my location"
-msgstr "Usa la mia posizione"
-
-msgid "Open settings"
-msgstr "Apri impostazioni"
-
-msgid "Location unavailable"
-msgstr "Posizione non disponibile"
-
-msgid "Location permission denied"
-msgstr "Accesso alla posizione negato"
-
-msgid "Could not load map"
-msgstr "Impossibile caricare la mappa"
-
-msgid "Map unavailable"
-msgstr "Mappa non disponibile"
-
-msgid "Could not search addresses"
-msgstr "Impossibile cercare gli indirizzi"
-
-msgid "No shared location"
-msgstr "Nessun luogo condiviso"
-
-msgid "Confirmed location"
-msgstr "Luogo confermato"
-
-msgid "Location selection"
-msgstr "Scelta del luogo"
-
-msgid "Choose location"
-msgstr "Scegli luogo"
+#: apps/web/src/components/MatchDetail.tsx
+msgid "Your join request is waiting for admin approval."
+msgstr "La tua richiesta di partecipazione è in attesa dell'approvazione dell'admin."

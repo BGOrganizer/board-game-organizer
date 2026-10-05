@@ -10,6 +10,7 @@ export default defineConfig({
         "src/contactConnections.ts",
         "src/hooks/contactOptimistic.ts",
         "src/matchCard.ts",
+        "src/locationAddress.ts",
         "src/matchContactState.ts",
         "src/matchResults.ts",
         "src/phoneCountries.ts",
@@ -44,6 +45,12 @@ export default defineConfig({
           statements: 100,
         },
         "src/matchResults.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/locationAddress.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

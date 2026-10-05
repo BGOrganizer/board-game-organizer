@@ -66,6 +66,7 @@ export const matchModel = z.object({
   maxPlayers: z.number().int().min(2),
   gameIds: z.array(z.number().int().positive()).min(1),
   groupId: z.uuid().optional(),
+  isPublic: z.boolean().optional(), // Legacy matches are private.
   choices: z.record(z.string(), matchChoicesSchema).optional(),
   status: matchStatusSchema,
   selectedDate: z.iso.datetime({ offset: true }).optional(),
@@ -84,6 +85,7 @@ export const matchInvitationModel = z.object({
   inviterUserId: targetUserIdSchema,
   inviteeUserId: targetUserIdSchema,
   status: matchInvitationStatusSchema,
+  kind: z.enum(["INVITATION", "REQUEST"]).optional(), // Legacy records are invitations.
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
   respondedAt: z.iso.datetime({ offset: true }).optional(),
@@ -123,9 +125,17 @@ export const createMatchSchema = z
     invitedUserIds: z.array(targetUserIdSchema).default([]),
     gameIds: z.array(z.number().int().positive()).min(1, "At least one game is required"),
     groupId: z.uuid().optional(),
+    isPublic: z.boolean().optional(),
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.groupId && value.isPublic) {
+      context.addIssue({
+        code: "custom",
+        path: ["isPublic"],
+        message: "Group matches must be private",
+      });
+    }
     if (value.maxPlayers < value.minPlayers) {
       context.addIssue({
         code: "custom",

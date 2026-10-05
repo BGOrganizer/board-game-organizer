@@ -34,6 +34,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["lcov", "html", "text"],
+      allowExternal: true,
+      include: [
+        fileURLToPath(new URL("./src/**/*.{ts,tsx}", import.meta.url)).replaceAll("\\", "/"),
+        fileURLToPath(
+          new URL("../../packages/shared/src/hooks/useFavoriteLocations.ts", import.meta.url),
+        ).replaceAll("\\", "/"),
+      ],
       // Entry points / tooling files are not unit-tested (configs, E2E setup).
       exclude: [
         "e2e/**",
@@ -47,6 +54,24 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/hooks/useFavoriteLocations.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/ContactLegend.tsx": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/components/LocationFavoriteButton.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         lines: 50,
         functions: 50,
         branches: 50,

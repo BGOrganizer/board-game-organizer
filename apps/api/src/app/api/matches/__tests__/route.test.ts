@@ -7,6 +7,8 @@ import * as invitationRoute from "../../match-invitations/[invitationId]/route";
 import * as choiceRoute from "../[matchId]/choices/route";
 import * as adminInvitationRoute from "../[matchId]/invitations/[invitationId]/route";
 import * as invitationsRoute from "../[matchId]/invitations/route";
+import * as approveJoinRoute from "../[matchId]/join-requests/[invitationId]/route";
+import * as joinRoute from "../[matchId]/join-requests/route";
 import * as leaderboardRoute from "../[matchId]/leaderboard/route";
 import * as resultsRoute from "../[matchId]/results/route";
 import * as detailRoute from "../[matchId]/route";
@@ -73,6 +75,7 @@ async function json(response: Response) {
 }
 
 describe("match API routes", () => {
+  const context = matchContext;
   beforeEach(() => {
     vi.mocked(auth).mockResolvedValue({ userId: "user_admin" } as never);
     vi.mocked(withTransaction).mockImplementation(async (operation) =>
@@ -97,6 +100,8 @@ describe("match API routes", () => {
     vi.spyOn(MatchService.prototype, "registerResults").mockResolvedValue(match as never);
     vi.spyOn(MatchService.prototype, "invite").mockResolvedValue(invitation as never);
     vi.spyOn(MatchService.prototype, "respond").mockResolvedValue(invitation as never);
+    vi.spyOn(MatchService.prototype, "requestJoin").mockResolvedValue(invitation as never);
+    vi.spyOn(MatchService.prototype, "approveJoinRequest").mockResolvedValue(invitation as never);
     vi.spyOn(MatchService.prototype, "leave").mockResolvedValue();
     vi.spyOn(MatchService.prototype, "removeInvitation").mockResolvedValue();
     vi.spyOn(MatchService.prototype, "update").mockResolvedValue(match as never);
@@ -106,6 +111,100 @@ describe("match API routes", () => {
   });
 
   afterEach(() => vi.restoreAllMocks());
+
+  it("creates and approves join requests through authenticated transactional handlers", async () => {
+    const submitted = await joinRoute.POST(
+      request(`/api/matches/${matchId}/join-requests`, "POST", "{}"),
+      context(),
+    );
+    expect(submitted.status).toBe(201);
+    expect(await json(submitted)).toEqual({ invitation });
+    expect(MatchService.prototype.requestJoin).toHaveBeenCalledWith("user_admin", matchId);
+    const approved = await approveJoinRoute.PATCH(
+      request(
+        `/api/matches/${matchId}/join-requests/${invitationId}`,
+        "PATCH",
+        JSON.stringify({ action: "accept" }),
+      ),
+      adminInvitationContext(),
+    );
+    expect(approved.status).toBe(200);
+    expect(MatchService.prototype.approveJoinRequest).toHaveBeenCalledWith(
+      "user_admin",
+      matchId,
+      invitationId,
+    );
+    expect(joinRoute.OPTIONS(request("/api/matches")).status).toBe(204);
+    expect(approveJoinRoute.OPTIONS(request("/api/matches")).status).toBe(204);
+  });
+  it.each(["bad", "null", "[]", '{"adminUserId":"attacker"}'])(
+    "rejects invalid join body %s",
+    async (body) => {
+      expect(
+        (
+          await joinRoute.POST(
+            request(`/api/matches/${matchId}/join-requests`, "POST", body),
+            context(),
+          )
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await approveJoinRoute.PATCH(
+            request(`/api/matches/${matchId}/join-requests/${invitationId}`, "PATCH", body),
+            adminInvitationContext(),
+          )
+        ).status,
+      ).toBe(400);
+    },
+  );
+  it("rejects malformed ids, invalid approval, auth and unavailable match", async () => {
+    expect(
+      (await joinRoute.POST(request("/api/matches/x/join-requests", "POST", "{}"), context("x")))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await approveJoinRoute.PATCH(
+          request("/api/matches/x/join-requests/y", "PATCH", "{}"),
+          adminInvitationContext("x", "y"),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await approveJoinRoute.PATCH(
+          request(
+            `/api/matches/${matchId}/join-requests/${invitationId}`,
+            "PATCH",
+            JSON.stringify({ action: "decline" }),
+          ),
+          adminInvitationContext(),
+        )
+      ).status,
+    ).toBe(400);
+    vi.mocked(auth).mockResolvedValue({ userId: null } as never);
+    expect(
+      (
+        await joinRoute.POST(
+          request(`/api/matches/${matchId}/join-requests`, "POST", "{}"),
+          context(),
+        )
+      ).status,
+    ).toBe(401);
+    vi.mocked(auth).mockResolvedValue({ userId: "user_admin" } as never);
+    vi.mocked(MatchService.prototype.requestJoin).mockRejectedValue(
+      new MatchError(409, "No free slots"),
+    );
+    expect(
+      (
+        await joinRoute.POST(
+          request(`/api/matches/${matchId}/join-requests`, "POST", "{}"),
+          context(),
+        )
+      ).status,
+    ).toBe(409);
+  });
 
   it("creates a match with status 201", async () => {
     const response = await matchesRoute.POST(

@@ -6,10 +6,12 @@ import type {
   SetMatchChoiceInput,
 } from "@board-game-organizer/schemas";
 import {
+  formatLocationAddress,
   formatMatchDateTime,
   matchContactState,
   resolveApiUrl,
   useContacts,
+  useFavoriteLocations,
   useMatchDetail,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
@@ -46,6 +48,7 @@ import { ContactConfirmDialog } from "@/components/ContactConfirmDialog";
 import { EmptyList } from "@/components/EmptyList";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { LocationFavoriteButton } from "@/components/LocationFavoriteButton";
 import { MatchLeaderboard } from "@/components/MatchLeaderboard";
 import { MatchResultsEditor } from "@/components/MatchResultsEditor";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
@@ -172,6 +175,16 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     feedback: mutationFeedback,
     matchId,
   });
+  const favorites = useFavoriteLocations(
+    {
+      apiUrl: apiUrl(),
+      getToken,
+      userId,
+      protectionBypass: protectionBypass(),
+      feedback: mutationFeedback,
+    },
+    matches.detail.data?.match.locations ?? [],
+  );
   const contacts = useContacts(
     apiUrl(),
     token,
@@ -265,7 +278,8 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     matches.leaveMatch.isPending ||
     matches.setStatus.isPending ||
     matches.registerResults.isPending ||
-    matches.removePlayer.isPending;
+    matches.removePlayer.isPending ||
+    Boolean(matches.approveJoinRequest?.isPending);
   const socialQueries = [
     contacts.following,
     contacts.followers,
@@ -468,7 +482,24 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         </Link>
       </div>
 
-      {ownInvitation?.status === "PENDING" && (
+      {matchData.canRequestJoin && (
+        <Button
+          isDisabled={matches.requestJoin.isPending}
+          onPress={() => matches.requestJoin.mutate()}
+        >
+          <UsersRound className="size-4" aria-hidden="true" />
+          {t`Request to join`}
+        </Button>
+      )}
+      {matches.requestJoin?.isError && (
+        <p role="alert" className="text-sm text-danger">{t`Could not request to join match`}</p>
+      )}
+      {ownInvitation?.kind === "REQUEST" && ownInvitation.status === "PENDING" && (
+        <Card className="rounded-xl p-3">
+          <p className="text-sm">{t`Your join request is waiting for admin approval.`}</p>
+        </Card>
+      )}
+      {ownInvitation?.status === "PENDING" && ownInvitation.kind !== "REQUEST" && (
         <Card className="relative min-h-14 rounded-xl p-3 pr-24">
           <p className="text-sm font-medium">{t`Your invitation is waiting for a response.`}</p>
           <div className="absolute right-2 bottom-2 flex gap-1">
@@ -587,6 +618,9 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                   <MapPin className="size-4" aria-hidden="true" />
                   {match.status !== "PLANNING" ? t`Confirmed location` : t`Location selection`}
                 </h2>
+                {favorites.status.isError && (
+                  <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
+                )}
                 <GroupedList>
                   {match.locations
                     ?.filter(
@@ -595,10 +629,18 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                     )
                     .map((location) => (
                       <GroupedRow key={location.id} className="flex-wrap">
-                        <MapPin className="size-4 shrink-0" aria-hidden="true" />
+                        <LocationFavoriteButton
+                          location={location}
+                          favorites={favorites}
+                          matchId={match.id}
+                        />
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium">{location.name}</p>
-                          <p className="text-default-500">{location.address}</p>
+                          <p className="truncate text-sm font-medium" title={location.name}>
+                            {location.name}
+                          </p>
+                          <p className="truncate text-xs text-default-500" title={location.address}>
+                            {formatLocationAddress(location.address)}
+                          </p>
                         </div>
                         {canChoose && (
                           <ChoiceDropdown
@@ -750,6 +792,21 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                           <p className="truncate text-sm text-default-500">{player.email}</p>
                         ) : null}
                       </div>
+                      {isAdmin &&
+                        match.status === "PLANNING" &&
+                        !player.isAdministrator &&
+                        player.invitation.kind === "REQUEST" &&
+                        player.invitation.status === "PENDING" && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            isDisabled={actionBusy || matches.approveJoinRequest.isPending}
+                            aria-label={`${t`Approve join request`}: ${player.name}`}
+                            onPress={() => matches.approveJoinRequest.mutate(player.invitation.id)}
+                          >
+                            <Check className="size-4" aria-hidden="true" />
+                          </Button>
+                        )}
                       {isAdmin && match.status === "PLANNING" && !player.isAdministrator && (
                         <Button
                           isIconOnly

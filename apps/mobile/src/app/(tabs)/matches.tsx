@@ -1,5 +1,6 @@
 import type { MatchCardStatus } from "@board-game-organizer/shared";
 import {
+  formatLocationAddress,
   formatMatchDateTime,
   matchCardData,
   matchCardStatusColor,
@@ -16,7 +17,7 @@ import { Button } from "heroui-native/button";
 import { Chip } from "heroui-native/chip";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarDays, Clock3, Crown, Dices, Medal, Plus, UsersRound } from "lucide-react-native";
+import { CalendarDays, Crown, Dices, MapPin, Medal, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
 import Animated, {
@@ -195,6 +196,9 @@ export default function MatchesScreen() {
             match.status === "PLANNING"
               ? `${card.players}/${card.maxPlayers}`
               : String(card.players);
+          const extraLocations = card.additionalLocations
+            ? `+${card.additionalLocations} ${card.additionalLocations === 1 ? t("location") : t("locations")}`
+            : "";
           const extraDates = card.additionalDates
             ? `+${card.additionalDates} ${card.additionalDates === 1 ? t("date") : t("dates")}`
             : "";
@@ -249,17 +253,60 @@ export default function MatchesScreen() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      flexWrap: "wrap",
+                      minWidth: 0,
                       gap: 6,
                     }}
                   >
                     <CalendarDays size={14} color="#6b7280" />
-                    <Typography className="text-sm text-muted">{dateLabel.date}</Typography>
-                    <Clock3 size={14} color="#6b7280" />
-                    <Typography className="text-sm text-muted">{dateLabel.time}</Typography>
+                    <Typography
+                      className="text-xs text-muted"
+                      style={{ flexShrink: 1 }}
+                      numberOfLines={1}
+                    >
+                      {dateLabel.date}
+                    </Typography>
+                    <Typography className="text-xs text-muted" style={{ flexShrink: 0 }}>
+                      {dateLabel.time}
+                    </Typography>
                     {extraDates ? (
-                      <Typography className="text-sm text-muted">{extraDates}</Typography>
+                      <Typography
+                        className="text-xs text-muted"
+                        style={{ flexShrink: 0, marginLeft: "auto" }}
+                      >
+                        {extraDates}
+                      </Typography>
                     ) : null}
+                  </View>
+                )}
+                {card.location && (
+                  <View
+                    testID="match-location"
+                    style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}
+                  >
+                    <MapPin size={14} color="#6b7280" />
+                    <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Typography
+                          className="text-xs font-medium text-foreground"
+                          style={{ flex: 1 }}
+                          numberOfLines={1}
+                        >
+                          {card.location.name}
+                        </Typography>
+                        {extraLocations ? (
+                          <Typography className="text-xs text-muted" style={{ flexShrink: 0 }}>
+                            {extraLocations}
+                          </Typography>
+                        ) : null}
+                      </View>
+                      <Typography
+                        className="text-xs text-muted"
+                        numberOfLines={1}
+                        accessibilityLabel={card.location.address}
+                      >
+                        {formatLocationAddress(card.location.address)}
+                      </Typography>
+                    </View>
                   </View>
                 )}
                 <View

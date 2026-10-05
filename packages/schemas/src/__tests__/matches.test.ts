@@ -18,6 +18,23 @@ import {
   updateMatchSchema,
 } from "../index";
 
+it("validates public/private matches, group restrictions and request origins", () => {
+  expect(createMatchSchema.parse({ ...valid, isPublic: true }).isPublic).toBe(true);
+  expect(createMatchSchema.safeParse({ ...valid, groupId: match.id, isPublic: true }).success).toBe(
+    false,
+  );
+  expect(
+    createMatchSchema.safeParse({ ...valid, groupId: match.id, isPublic: false }).success,
+  ).toBe(true);
+  expect(updateMatchSchema.safeParse({ isPublic: false }).success).toBe(true);
+  expect(updateMatchSchema.safeParse({ groupId: match.id, isPublic: true }).success).toBe(false);
+  expect(updateMatchSchema.safeParse({ groupId: null, isPublic: true }).success).toBe(true);
+  expect(matchInvitationModel.parse({ ...invitation, kind: "REQUEST" }).kind).toBe("REQUEST");
+  expect(matchInvitationResponseSchema.safeParse({ ...invitation, kind: "UNKNOWN" }).success).toBe(
+    false,
+  );
+});
+
 it("accepts signed decimals and ND but never allows TERMINATED through the status route", () => {
   const input = {
     lowerWins: true,

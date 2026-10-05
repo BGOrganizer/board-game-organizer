@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { locationFavoriteKey } from "@board-game-organizer/schemas";
 import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +11,7 @@ import { BggAccountRepository } from "../../src/app/lib/bgg-account.repository";
 import { parseBggCollection } from "../../src/app/lib/bgg-collection";
 import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
+import { FavoriteLocationsRepository } from "../../src/app/lib/favorite-locations.repository";
 import { GroupService } from "../../src/app/lib/group.service";
 import { GroupLeaderboardRepository } from "../../src/app/lib/group-leaderboard.repository";
 import { GroupsRepository } from "../../src/app/lib/groups.repository";
@@ -106,6 +108,54 @@ beforeEach(async () => {
 });
 
 describe("API repositories on a MongoDB replica set", () => {
+  it("persists private favorites with pagination, idempotency and transaction rollback", async () => {
+    const repository = new FavoriteLocationsRepository(db);
+    expect(await db.collection("favoriteLocations").indexes()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: { userId: 1, _id: 1 } }),
+        expect.objectContaining({ key: { userId: 1, key: 1 }, unique: true }),
+      ]),
+    );
+    const location = {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Game club",
+      address: "Main Street 10",
+      longitude: 12.5,
+      latitude: 41.9,
+    };
+    const key = locationFavoriteKey(location);
+    await repository.save(ACTOR, location);
+    await repository.save(ACTOR, { ...location, name: "Renamed club" });
+    await repository.save(TARGET, location);
+    await repository.save(ACTOR, { ...location, address: "Second Street 20" });
+    const first = await repository.list(ACTOR, 1);
+    expect(first.items).toHaveLength(1);
+    expect(first.nextCursor).toMatch(/^[a-f0-9]{64}$/);
+    const second = await repository.list(ACTOR, 1, first.nextCursor ?? undefined);
+    expect(second.items).toHaveLength(1);
+    expect(second.nextCursor).toBeNull();
+    expect(first.items[0].key).not.toBe(second.items[0].key);
+    expect(
+      (await repository.list(ACTOR, 20)).items.find((item) => item.key === key)?.location.name,
+    ).toBe("Renamed club");
+    expect((await repository.list(TARGET, 20)).items[0].location.name).toBe("Game club");
+    const session = client.startSession();
+    try {
+      await expect(
+        session.withTransaction(async () => {
+          await new FavoriteLocationsRepository(db, session).remove(ACTOR, key);
+          throw new Error("abort favorite transaction");
+        }),
+      ).rejects.toThrow("abort favorite transaction");
+    } finally {
+      await session.endSession();
+    }
+    expect(await repository.statuses(ACTOR, [key, "missing"])).toEqual([key]);
+    await repository.remove(ACTOR, key);
+    await repository.remove(ACTOR, key);
+    expect(await repository.statuses(ACTOR, [key])).toEqual([]);
+    expect(await repository.statuses(TARGET, [key])).toEqual([key]);
+  });
   it("persists and retrieves users through UsersRepository", async () => {
     expect(await relationships.userExists(ACTOR)).toBe(true);
     await expect(users.findById(ACTOR)).resolves.toMatchObject({
@@ -484,6 +534,106 @@ describe("BGG covers on MongoDB replica set", () => {
 });
 
 describe("match repositories on MongoDB replica set", () => {
+  it("serializes public requests, reservations, admin approvals and removals without public discovery", async () => {
+    await seedMatchDependencies();
+    const match = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, isPublic: true, maxPlayers: 2 }),
+    );
+    const results = await Promise.allSettled(
+      [TARGET, THIRD].map((userId) =>
+        withMatchTransaction(({ service }) => service.requestJoin(userId, match.id), true),
+      ),
+    );
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    const repository = new MatchInvitationsRepository(db);
+    const [request] = await repository.listByMatch(match.id);
+    expect(request).toMatchObject({ kind: "REQUEST", status: "PENDING" });
+    expect(await repository.countByMatch(match.id)).toBe(1);
+    const outsider = request.inviteeUserId === TARGET ? THIRD : TARGET;
+    await expect(
+      withMatchTransaction(({ service }) => service.detail(outsider, match.id)),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(await withMatchTransaction(({ service }) => service.list(outsider))).toEqual([]);
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.respond(request.inviteeUserId, request.id, "accept"),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.approveJoinRequest(outsider, match.id, request.id),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    await withMatchTransaction(({ service }) =>
+      service.approveJoinRequest(ACTOR, match.id, request.id),
+    );
+    expect(await repository.findById(request.id)).toMatchObject({ status: "ACCEPTED" });
+    await withMatchTransaction(({ service }) =>
+      service.removeInvitation(ACTOR, match.id, request.id),
+    );
+    await withMatchTransaction(({ service }) => service.requestJoin(outsider, match.id));
+    expect(await repository.countByMatch(match.id)).toBe(1);
+    const [next] = await repository.listByMatch(match.id);
+    await withMatchTransaction(({ service }) => service.removeInvitation(ACTOR, match.id, next.id));
+    expect(await repository.countByMatch(match.id)).toBe(0);
+  });
+  it("a duplicate request or competing admin invitation cannot consume the last slot twice; aborted requests roll back", async () => {
+    await seedMatchDependencies();
+    const match = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, isPublic: true, maxPlayers: 2 }),
+    );
+    await expect(
+      withMatchTransaction(async ({ service }) => {
+        await service.requestJoin(THIRD, match.id);
+        throw new Error("abort join");
+      }, true),
+    ).rejects.toThrow("abort join");
+    expect(await new MatchInvitationsRepository(db).countByMatch(match.id)).toBe(0);
+    const results = await Promise.allSettled([
+      withMatchTransaction(({ service }) => service.invite(ACTOR, match.id, TARGET)),
+      withMatchTransaction(({ service }) => service.requestJoin(THIRD, match.id)),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(await new MatchInvitationsRepository(db).countByMatch(match.id)).toBe(1);
+    const [record] = await new MatchInvitationsRepository(db).listByMatch(match.id);
+    await expect(
+      withMatchTransaction(({ service }) => service.requestJoin(record.inviteeUserId, match.id)),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it("group matches stay private and only accepted group members may request or be approved", async () => {
+    await seedMatchDependencies();
+    const group = await withMatchTransaction(({ groups }) =>
+      groups.create(ACTOR, { name: "Public club", isPublic: true, invitedUserIds: [TARGET] }),
+    );
+    await withMatchTransaction(({ groups }) =>
+      groups.respond(TARGET, group.invitations[0].id, "accept"),
+    );
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.create(ACTOR, { ...matchInput, groupId: group.id, isPublic: true }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    const match = await withMatchTransaction(({ service }) =>
+      service.create(ACTOR, { ...matchInput, groupId: group.id }),
+    );
+    expect(match.isPublic).toBe(false);
+    await expect(
+      withMatchTransaction(({ service }) => service.requestJoin(THIRD, match.id)),
+    ).rejects.toMatchObject({ status: 409 });
+    const request = await withMatchTransaction(({ service }) =>
+      service.requestJoin(TARGET, match.id),
+    );
+    await withMatchTransaction(({ groups }) => groups.leave(TARGET, group.id));
+    await expect(
+      withMatchTransaction(({ service }) =>
+        service.approveJoinRequest(ACTOR, match.id, request.id),
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    await withMatchTransaction(({ service }) =>
+      service.removeInvitation(ACTOR, match.id, request.id),
+    );
+  });
   it("registers exact results once and makes a terminated match immutable and visible to accepted players", async () => {
     await seedMatchDependencies();
     const created = await withMatchTransaction(({ service }) =>

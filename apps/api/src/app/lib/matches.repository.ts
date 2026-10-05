@@ -39,6 +39,7 @@ export class MatchesRepository {
       name: match.name,
       dates: match.dates,
       locations: match.locations ?? [],
+      isPublic: !match.groupId && (match.isPublic ?? false),
       minPlayers: match.minPlayers,
       maxPlayers: match.maxPlayers,
       gameIds: match.gameIds,
@@ -63,6 +64,7 @@ export class MatchesRepository {
     maxPlayers: number;
     gameIds: number[];
     groupId?: string;
+    isPublic?: boolean;
   }): Promise<Match> {
     const now = new Date().toISOString();
     const match: Match = {
@@ -71,6 +73,7 @@ export class MatchesRepository {
       name: input.name,
       dates: input.dates,
       locations: input.locations,
+      isPublic: !input.groupId && (input.isPublic ?? false),
       minPlayers: input.minPlayers,
       maxPlayers: input.maxPlayers,
       gameIds: input.gameIds,
@@ -119,7 +122,10 @@ export class MatchesRepository {
     id: string,
     clerkId: string,
     updates: Partial<
-      Pick<Match, "name" | "dates" | "locations" | "minPlayers" | "maxPlayers" | "gameIds">
+      Pick<
+        Match,
+        "name" | "dates" | "locations" | "minPlayers" | "maxPlayers" | "gameIds" | "isPublic"
+      >
     > & {
       groupId?: string | null;
     },
