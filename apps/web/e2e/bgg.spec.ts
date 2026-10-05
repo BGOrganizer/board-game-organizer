@@ -1,6 +1,7 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
+import { selectMatchLocation } from "./select-match-location";
 
 const email = process.env.E2E_EMAIL ?? "";
 
@@ -133,6 +134,7 @@ test("BGG link failure, complete sync, picker filters and confirmed unlink", asy
   await page.getByPlaceholder("e.g. Friday night games").fill("Friday night games");
   await page.locator('input[type="datetime-local"]').first().fill("2026-09-05T20:00");
   await page.getByRole("button", { name: "Next step" }).click();
+  await selectMatchLocation(page);
   await page.getByRole("button", { name: "Next step" }).click();
   await page.getByRole("button", { name: "Select a board game" }).click();
   await expect(page.getByRole("button", { name: "Collection", exact: true })).toBeVisible();

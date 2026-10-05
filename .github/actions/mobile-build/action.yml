@@ -22,6 +22,9 @@ inputs:
     description: EXPO_PUBLIC_API_URL
     required: false
     default: ''
+  maptiler-api-key:
+    description: Public MapTiler map key supplied by the calling workflow
+    required: true
   sentry-dsn:
     description: EXPO_PUBLIC_SENTRY_DSN
     required: false
@@ -55,7 +58,7 @@ runs:
     - name: 🗺️ Verify MapTiler key
       shell: bash
       env:
-        EXPO_PUBLIC_MAPTILER_API_KEY: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+        EXPO_PUBLIC_MAPTILER_API_KEY: ${{ inputs.maptiler-api-key }}
       run: |
         if [ -z "$EXPO_PUBLIC_MAPTILER_API_KEY" ]; then
           echo "::error::Set EXPO_PUBLIC_MAPTILER_API_KEY repository variable before building mobile maps"
@@ -129,7 +132,7 @@ runs:
         EXPO_TOKEN: ${{ inputs.expo-token }}
         EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
-        EXPO_PUBLIC_MAPTILER_API_KEY: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+        EXPO_PUBLIC_MAPTILER_API_KEY: ${{ inputs.maptiler-api-key }}
         EXPO_PUBLIC_SENTRY_DSN: ${{ inputs.sentry-dsn }}
         EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ inputs.protection-bypass }}
         GOOGLE_SERVICES_JSON_CONTENT: ${{ inputs.google-services-json }}

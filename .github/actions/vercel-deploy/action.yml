@@ -152,6 +152,22 @@ runs:
           console.log("Injected:", overrides.map(l => l.split("=")[0]).join(", "));
         ' "$env_file" "$EXTRA_ENV"
 
+    - name: 🗺️ Verify public MapTiler web build key
+      if: ${{ inputs.app-path == 'apps/web' }}
+      shell: bash
+      env:
+        VERCEL_ENVIRONMENT: ${{ inputs.vercel-environment }}
+      run: |
+        node <<'NODE'
+        const fs = require('node:fs');
+        const { parseEnv } = require('node:util');
+        const file = `.vercel/.env.${process.env.VERCEL_ENVIRONMENT}.local`;
+        const env = parseEnv(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '');
+        if (!env.NEXT_PUBLIC_MAPTILER_API_KEY?.trim()) {
+          throw new Error('Set NEXT_PUBLIC_MAPTILER_API_KEY on the Vercel web project for this environment; it must be available to vercel pull before the prebuilt web build.');
+        }
+        NODE
+
     - name: 🔨 Build
       shell: bash
       env:

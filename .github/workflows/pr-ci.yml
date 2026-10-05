@@ -49,8 +49,8 @@ jobs:
       - name: 🧹 Biome check
         run: pnpm lint
 
-      - name: 🔒 Check Main CI E2E isolation
-        run: node --test .github/scripts/main-ci-isolation.test.mjs
+      - name: 🔒 Check CI isolation and MapTiler build configuration
+        run: node --test .github/scripts/main-ci-isolation.test.mjs .github/scripts/maptiler-build-config.test.mjs
 
   # ----------------------------------------------------------------- typecheck
   typecheck:
@@ -294,6 +294,7 @@ jobs:
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
@@ -762,6 +763,7 @@ jobs:
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ needs.deploy-development-api.outputs.url }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}

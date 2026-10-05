@@ -1,6 +1,7 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
+import { selectMatchLocation } from "./select-match-location";
 
 const E2E_EMAIL = process.env.E2E_EMAIL ?? "";
 const id = "1f454adb-43e3-47ad-8c29-57b97a55a211";
@@ -325,7 +326,9 @@ test("match wizard selects optional group and picks an accepted non-friend membe
   await page.getByRole("button", { name: /Group \(optional\)/ }).click();
   await page.getByRole("option", { name: "Tabletop Club" }).click();
   await page.locator('input[type="datetime-local"]').first().fill("2026-10-01T20:00");
+  await expect(page.getByRole("switch", { name: "Public match" })).toBeDisabled();
   await page.getByRole("button", { name: "Next step" }).click();
+  await selectMatchLocation(page);
   await expect(page.getByText("Invite group members")).toBeVisible();
   await page
     .getByRole("button", { name: /Select group member/ })

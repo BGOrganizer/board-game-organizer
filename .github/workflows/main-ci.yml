@@ -28,7 +28,7 @@ jobs:
         run: pnpm typecheck
 
       - name: 🔒 CI isolation contract
-        run: node --test .github/scripts/main-ci-isolation.test.mjs
+        run: node --test .github/scripts/main-ci-isolation.test.mjs .github/scripts/maptiler-build-config.test.mjs
 
   # Release bump/tag only after merged-code E2E succeeds.
   release:
@@ -177,6 +177,7 @@ jobs:
           # (pr-ci / mobile-e2e / mobile-development).
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY_PRODUCTION }}
           api-url: https://api.board-game-organizer.com
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
@@ -208,6 +209,7 @@ jobs:
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           api-url: ${{ needs.deploy-e2e-api.outputs.url }}
+          maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
           protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
