@@ -75,3 +75,96 @@ it("loads social and BGO contacts one page at a time with a fresh JWT", async ()
     fetchMock.mock.calls.filter(([url]) => String(url).includes("cursor=user_a")),
   ).toHaveLength(2);
 });
+
+it("reloads cancelled first pages after a mutation without refetching loaded or foreign lists", async () => {
+  const apiUrl = "https://api.example.test";
+  const foreignApi = "https://foreign.example.test";
+  const target = {
+    id: "target",
+    name: "Target",
+    email: null,
+    avatarUrl: null,
+    presence: { online: false, lastActiveAt: "" },
+  };
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  for (const [api, user] of [
+    [apiUrl, "viewer"],
+    [apiUrl, "other-viewer"],
+    [foreignApi, "viewer"],
+  ]) {
+    for (const view of ["followers", "friends", "pending", "sent", "blocked"]) {
+      client.setQueryData(["contacts", view, api, user], {
+        pages: [{ rows: [], nextCursor: null }],
+        pageParams: [""],
+      });
+    }
+    client.setQueryData(["contacts", "suggestions", api, user], {
+      pages: [{ users: [], hasContacts: false, nextCursor: null }],
+      pageParams: [""],
+    });
+  }
+  const calls = new Map<string, number>();
+  let searches = 0;
+  const fetchMock = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const auth = new Headers(init?.headers).get("Authorization");
+    if (init?.method === "POST") {
+      expect(auth).toBe("Bearer fresh-viewer");
+      return Promise.resolve(new Response(JSON.stringify({ success: true })));
+    }
+    if (url.pathname.endsWith("/search")) {
+      searches++;
+      if (searches === 1) return new Promise<Response>(() => {});
+      return Promise.resolve(new Response(JSON.stringify({ users: [target] })));
+    }
+    expect(url.searchParams.get("type")).toBe("following");
+    const key = `${url.origin}:${auth}`;
+    const count = (calls.get(key) ?? 0) + 1;
+    calls.set(key, count);
+    if (count === 1) return new Promise<Response>(() => {});
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          rows: [{ fromUserId: "viewer", toUserId: "target", profile: target }],
+          nextCursor: null,
+        }),
+      ),
+    );
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const getToken = vi.fn(async () => "fresh-viewer");
+  const { result, unmount } = renderHook(
+    () => ({
+      owned: useContacts(apiUrl, "stale", getToken, undefined, "viewer"),
+      otherUser: useContacts(apiUrl, "other-viewer", undefined, undefined, "other-viewer"),
+      otherApi: useContacts(foreignApi, "foreign", undefined, undefined, "viewer"),
+    }),
+    { wrapper },
+  );
+  try {
+    await waitFor(() => expect(calls.size).toBe(3));
+    act(() => result.current.owned.runSearch("Target"));
+    await waitFor(() => expect(searches).toBe(1));
+    await act(async () => {
+      await result.current.owned.follow.mutateAsync({
+        targetUserId: target.id,
+        targetUser: target,
+      });
+    });
+    await waitFor(() =>
+      expect(result.current.owned.following.data?.map((row) => row.profile?.id)).toEqual([
+        "target",
+      ]),
+    );
+    expect(calls.get(`${apiUrl}:Bearer fresh-viewer`)).toBe(2);
+    expect(calls.get(`${apiUrl}:Bearer other-viewer`)).toBe(1);
+    expect(calls.get(`${foreignApi}:Bearer foreign`)).toBe(1);
+    expect(searches).toBe(2);
+  } finally {
+    unmount();
+    client.clear();
+  }
+});

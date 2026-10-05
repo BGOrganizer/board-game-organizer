@@ -460,6 +460,17 @@ export function useContacts(
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
+      // A cancelled first page has no data to update optimistically. Resume it,
+      // without refetching loaded lists or another API/user's private cache.
+      void queryClient.refetchQueries({
+        queryKey: ["contacts"],
+        type: "active",
+        predicate: ({ queryKey, state }) =>
+          state.data === undefined &&
+          queryKey[2] === apiUrl &&
+          queryKey[3] === (currentUserId ?? token) &&
+          !String(queryKey[1]).startsWith("search:"),
+      });
       if (searchQuery.length >= 4)
         void queryClient.invalidateQueries({
           queryKey: ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token],

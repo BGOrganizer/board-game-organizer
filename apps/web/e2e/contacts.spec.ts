@@ -193,7 +193,24 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(targetPage.getByText("E2E Test")).toBeVisible({ timeout: 30_000 });
   await expect(targetPage.getByRole("img", { name: "Friends" })).toBeVisible();
 
+  // A slow, uncached following page must recover if an action cancels it.
+  let followingDelayed = false;
+  let releaseFollowing = () => {};
+  const followingGate = new Promise<void>((resolve) => {
+    releaseFollowing = resolve;
+  });
+  await page.route("**/api/relationships?*", async (route) => {
+    if (
+      !followingDelayed &&
+      new URL(route.request().url()).searchParams.get("type") === "following"
+    ) {
+      followingDelayed = true;
+      await followingGate;
+    }
+    await route.continue();
+  });
   await page.reload();
+  await expect.poll(() => followingDelayed).toBe(true);
   await page.getByRole("tab", { name: "Connections" }).click();
   await page.getByRole("button", { name: "Connections: Icon legend" }).click();
   const connectionLegend = page.getByRole("dialog");
@@ -228,6 +245,8 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   const followResponse = waitForRelationshipResponse(page, "POST", "follow");
   await page.getByRole("menuitem", { name: "Follow", exact: true }).click();
   expect((await followResponse).ok()).toBe(true);
+  releaseFollowing();
+  await page.unroute("**/api/relationships?*");
   await page.getByRole("tab", { name: "Connections" }).click();
   await expect(page.getByRole("img", { name: "Following" })).toBeVisible();
   await page.getByRole("tab", { name: "Search" }).click();
