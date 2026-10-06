@@ -43,6 +43,9 @@ outputs:
   deployment-url:
     description: Deployment URL
     value: ${{ steps.deploy.outputs.url }}
+  ci-db-name:
+    description: Isolated database tied to this deployment, including on partial reruns
+    value: ${{ inputs.ci-db-name }}
 
 runs:
   using: composite

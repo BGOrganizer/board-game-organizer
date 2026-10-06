@@ -9,6 +9,35 @@ const prJobs = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8")).jobs;
 const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
 const outputUrl = (job) => `\${{ needs.${job}.outputs.url }}`;
 
+test("partial reruns seed and clean the database from the successful deployment", () => {
+  const action = parse(readFileSync(".github/actions/vercel-deploy/action.yml", "utf8"));
+  assert.equal(action.outputs["ci-db-name"].value, `\${{ inputs.ci-db-name }}`);
+  const storedDeploymentDb = "bgo_ci_37380874646_1";
+  for (const [file, deploy, cleanup] of [
+    ["pr-ci", "deploy-preview-api", "cleanup-e2e-db"],
+    ["main-ci", "deploy-e2e-api", "cleanup-e2e"],
+    ["mobile-e2e", "deploy-preview-api", "cleanup-e2e-db"],
+  ]) {
+    const { jobs } = parse(readFileSync(`.github/workflows/${file}.yml`, "utf8"));
+    assert.equal(jobs[deploy].outputs["db-name"], `\${{ steps.deploy.outputs.ci-db-name }}`);
+    const expression = `\${{ needs.${deploy}.outputs.db-name }}`;
+    const consumers = Object.values(jobs)
+      .flatMap((job) => job.steps)
+      .filter((step) => /action:"(?:cleanup|seed-bgg)"/.test(step.run ?? ""));
+    assert.equal(consumers.length, 2, `${file} must cover fixtures and cleanup`);
+    for (const consumer of consumers) {
+      assert.equal(consumer.env.DB_NAME, expression);
+      assert.doesNotMatch(consumer.run, /github\.run_attempt/);
+      assert.match(consumer.run, /databaseName:\$name/);
+      // A failed-job rerun advances the attempt, not the cached deployment output.
+      const resolved = consumer.env.DB_NAME.replace(expression, storedDeploymentDb);
+      assert.equal(resolved, storedDeploymentDb);
+      assert.notEqual(resolved, "bgo_ci_37380874646_5");
+    }
+    assert.match(jobs[cleanup].steps.find((step) => step.env?.DB_NAME).run, /test -n "\$DB_NAME"/);
+  }
+});
+
 test("Main E2E never targets production data or Clerk", () => {
   for (const name of [
     "deploy-e2e-api",

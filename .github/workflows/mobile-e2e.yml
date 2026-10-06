@@ -22,6 +22,7 @@ jobs:
     environment: development
     outputs:
       url: ${{ steps.deploy.outputs.deployment-url }}
+      db-name: ${{ steps.deploy.outputs.ci-db-name }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -253,6 +254,7 @@ jobs:
           USER_ID_2: ${{ needs.provision.outputs.user_id_2 }}
           USER_EMAIL_2: ${{ needs.provision.outputs.email_2 }}
           USER_PHONE_2: ${{ needs.provision.outputs.phone_2 }}
+          DB_NAME: ${{ needs.deploy-preview-api.outputs.db-name }}
         run: |
           set -euo pipefail
           for role in actor target; do
@@ -266,7 +268,7 @@ jobs:
               curl -fsS -X POST "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
                 -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' -d @- > /dev/null
           done
-          jq -cn --arg userId "$USER_ID" '{action:"seed-bgg",databaseName:"bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}",userId:$userId}' |
+          jq -cn --arg userId "$USER_ID" --arg name "$DB_NAME" '{action:"seed-bgg",databaseName:$name,userId:$userId}' |
             curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
               -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' -d @- > /dev/null
 
@@ -366,10 +368,10 @@ jobs:
           API_URL: ${{ needs.deploy-preview-api.outputs.url }}
           BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
+          DB_NAME: ${{ needs.deploy-preview-api.outputs.db-name }}
         run: |
           set -euo pipefail
-          test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
+          test -n "$DB_NAME" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
           curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
             -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
             -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
