@@ -345,6 +345,7 @@ export function MatchWizard({
       <SearchLocationPage
         apiUrl={apiUrl()}
         getToken={getToken}
+        userId={userId}
         protectionBypass={protectionBypass()}
         initial={locationSlots.find((slot) => slot.id === locationTarget)?.location ?? undefined}
         favorites={favorites}

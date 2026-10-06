@@ -15,6 +15,7 @@ import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingActions } from "@/components/FloatingActions";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
+import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -93,10 +94,12 @@ function Editor({
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
+        style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           padding: 20,
-          paddingBottom: Math.max(120, insets.bottom + 100),
+          paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
           gap: 16,
         }}
       >

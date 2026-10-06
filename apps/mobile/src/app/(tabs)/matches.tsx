@@ -29,12 +29,14 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
 import { EmptyList } from "@/components/EmptyList";
 import { FloatingActions } from "@/components/FloatingActions";
 import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { ListSearchFilters } from "@/components/ListSearchFilters";
+import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -100,6 +102,7 @@ export default function MatchesScreen() {
   const mutationFeedback = useMutationFeedback();
   const filters = useListFilters();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -125,9 +128,16 @@ export default function MatchesScreen() {
   return (
     <View style={{ flex: 1 }}>
       <FlatList
+        testID="matches-scroll"
+        style={{ flex: 1 }}
         data={matches.list.data ?? []}
         keyExtractor={(match) => match.id}
-        contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 12, flexGrow: 1 }}
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
+          gap: 12,
+          flexGrow: 1,
+        }}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
         onEndReached={() => {

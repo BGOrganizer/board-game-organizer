@@ -1,8 +1,15 @@
 import { locationFavoriteKey, type MatchLocation } from "@board-game-organizer/schemas";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { renderWithI18n } from "../../test-utils";
+import { renderWithI18n as renderI18n } from "../../test-utils";
 import { SearchLocationPage } from "../SearchLocationPage";
+
+function renderWithI18n(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return renderI18n(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 const mapMocks = vi.hoisted(() => ({ created: vi.fn(), remove: vi.fn(), flyTo: vi.fn() }));
 vi.mock("@maptiler/sdk", () => ({
@@ -175,7 +182,15 @@ it("shows empty, loading and failed favorites without hiding search", () => {
   expect(screen.queryByRole("button", { name: /No favorite locations/ })).toBeNull();
 });
 
-it("requests further favorite pages and centers map without saving an unverified address", async () => {
+it("pages favorites and fills the search field with the verified current-position address", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(
+    Response.json({
+      items: [
+        { id: "address.gps", address: "Verified current address", longitude: 13, latitude: 42 },
+      ],
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
   const state = favorites([location], true);
   state.list.hasNextPage = true;
   const position = vi.fn((success: PositionCallback) =>
@@ -201,10 +216,143 @@ it("requests further favorite pages and centers map without saving an unverified
   fireEvent.click(screen.getByRole("button", { name: "Center map on my location" }));
   expect(position).toHaveBeenCalledOnce();
   expect(mapMocks.flyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [13, 42] }));
+  await waitFor(() =>
+    expect(
+      (screen.getByRole("searchbox", { name: "Search address" }) as HTMLInputElement).value,
+    ).toBe("Verified current address"),
+  );
+  expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get("query")).toBe(
+    "13.0000000,42.0000000",
+  );
+  expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer fresh");
   expect(onSelect).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "Confirm location" }).hasAttribute("disabled")).toBe(
     true,
   );
+  fireEvent.change(screen.getByRole("textbox", { name: "Location name" }), {
+    target: { value: "Game cafe" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  expect(onSelect).toHaveBeenCalledWith(
+    expect.objectContaining({
+      name: "Game cafe",
+      address: "Verified current address",
+      longitude: 13,
+      latitude: 42,
+    }),
+  );
+});
+
+it.each([502, 200])(
+  "keeps an unavailable or empty GPS address unconfirmed (%i)",
+  async (status) => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        status === 200 ? Response.json({ items: [] }) : new Response(null, { status }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success: PositionCallback) =>
+          success({ coords: { longitude: 12.5, latitude: 41.9 } } as GeolocationPosition),
+      },
+    });
+    renderWithI18n(
+      <SearchLocationPage
+        apiUrl="https://api.example.com"
+        getToken={async () => "fresh"}
+        favorites={favorites()}
+        initial={location}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Center map on my location" }));
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain("Could not search addresses"),
+    );
+    expect(screen.getByRole("button", { name: "Confirm location" }).hasAttribute("disabled")).toBe(
+      true,
+    );
+    expect(
+      (screen.getByRole("searchbox", { name: "Search address" }) as HTMLInputElement).value,
+    ).toBe("");
+    expect(
+      screen.getByRole("button", { name: "Center map on my location" }).hasAttribute("disabled"),
+    ).toBe(false);
+  },
+);
+
+it("does not overwrite manual input with a late GPS lookup", async () => {
+  let finishLookup: (value: Response) => void = () => {};
+  const fetchMock = vi.fn((url: string) => {
+    if (new URL(url).searchParams.get("query")?.includes(","))
+      return new Promise<Response>((resolve) => {
+        finishLookup = resolve;
+      });
+    return Promise.resolve(Response.json({ items: [] }));
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  Object.defineProperty(navigator, "geolocation", {
+    configurable: true,
+    value: {
+      getCurrentPosition: (success: PositionCallback) =>
+        success({ coords: { longitude: 12.5, latitude: 41.9 } } as GeolocationPosition),
+    },
+  });
+  renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      favorites={favorites()}
+      onSelect={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Center map on my location" }));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+  const input = screen.getByRole("searchbox", { name: "Search address" }) as HTMLInputElement;
+  fireEvent.change(input, { target: { value: "Manual address" } });
+  finishLookup(
+    Response.json({
+      items: [{ id: "late", address: "Old GPS address", longitude: 12.5, latitude: 41.9 }],
+    }),
+  );
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  expect(input.value).toBe("Manual address");
+  expect(screen.getByRole("button", { name: "Confirm location" }).hasAttribute("disabled")).toBe(
+    true,
+  );
+});
+
+it("ignores a GPS callback after leaving the picker", async () => {
+  let position: PositionCallback = () => {};
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  Object.defineProperty(navigator, "geolocation", {
+    configurable: true,
+    value: {
+      getCurrentPosition: (callback: PositionCallback) => {
+        position = callback;
+      },
+    },
+  });
+  const { unmount } = renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      favorites={favorites()}
+      onSelect={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Center map on my location" }));
+  unmount();
+  position({ coords: { longitude: 12.5, latitude: 41.9 } } as GeolocationPosition);
+  await Promise.resolve();
+  expect(fetchMock).not.toHaveBeenCalled();
 });
 
 it("does not search short queries and surfaces network failures", async () => {

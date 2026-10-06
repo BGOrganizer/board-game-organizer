@@ -29,6 +29,12 @@ export default defineConfig({
       include: ["src/lib/**", "src/hooks/**", "src/store/**"],
       thresholds: {
         "src/lib/user-location.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/lib/floating-actions.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         lines: 50,
         functions: 50,
         branches: 50,

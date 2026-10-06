@@ -42,6 +42,7 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/EmptyList";
 import { FloatingActions } from "@/components/FloatingActions";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
@@ -52,6 +53,7 @@ import { MatchLeaderboard } from "@/components/MatchLeaderboard";
 import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
 import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
+import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { UserActionKey } from "@/lib/user-actions";
@@ -118,6 +120,7 @@ export default function MatchDetailScreen() {
   const t = useT();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
+  const insets = useSafeAreaInsets();
   const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(
     tab === "results" || tab === "standings" ? "results" : "overview",
@@ -416,7 +419,15 @@ export default function MatchDetailScreen() {
             : undefined,
         }}
       />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+      <ScrollView
+        testID="match-detail-scroll"
+        style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
+        }}
+      >
         {matches.detail.isPending && (
           <View style={{ gap: 12, width: "100%" }}>
             {matches.summary ? (

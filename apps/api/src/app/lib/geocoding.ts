@@ -24,7 +24,9 @@ export class GeocodingError extends Error {
 export async function geocodeAddresses(query: string) {
   const key = process.env.MAPTILER_GEOCODING_KEY;
   if (!key) throw new GeocodingError("Geocoding unavailable", 503);
-  const url = new URL(`https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json`);
+  // MapTiler's reverse endpoint needs a literal comma between coordinates.
+  const path = /^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(query) ? query : encodeURIComponent(query);
+  const url = new URL(`https://api.maptiler.com/geocoding/${path}.json`);
   url.searchParams.set("key", key);
   url.searchParams.set("limit", "5");
   url.searchParams.set("types", "address");

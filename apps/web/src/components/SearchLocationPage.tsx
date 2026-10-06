@@ -4,6 +4,7 @@ import type { MatchLocation } from "@board-game-organizer/schemas";
 import {
   type FavoriteLocationsState,
   formatLocationAddress,
+  useCurrentLocationAddress,
   withProtectionBypass,
 } from "@board-game-organizer/shared";
 import {
@@ -27,6 +28,7 @@ type Result = Pick<MatchLocation, "address" | "longitude" | "latitude"> & { id: 
 export function SearchLocationPage({
   apiUrl,
   getToken,
+  userId,
   protectionBypass,
   initial,
   favorites,
@@ -35,6 +37,7 @@ export function SearchLocationPage({
 }: {
   apiUrl: string;
   getToken: () => Promise<string | null>;
+  userId?: string | null;
   protectionBypass?: string;
   initial?: MatchLocation;
   favorites: Pick<FavoriteLocationsState, "items"> & {
@@ -55,6 +58,25 @@ export function SearchLocationPage({
   const [results, setResults] = useState<Result[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
+  const [locating, setLocating] = useState(false);
+  const locationRequest = useRef(0);
+  const { lookup, cancel } = useCurrentLocationAddress({
+    apiUrl,
+    getToken,
+    userId,
+    protectionBypass,
+  });
+  useEffect(
+    () => () => {
+      locationRequest.current++;
+    },
+    [],
+  );
+  const cancelLocate = () => {
+    locationRequest.current++;
+    cancel();
+    setLocating(false);
+  };
   const mapNode = useRef<HTMLDivElement>(null);
   const map = useRef<MapTilerMap | null>(null);
   const marker = useRef<MapTilerMarker | null>(null);
@@ -110,8 +132,10 @@ export function SearchLocationPage({
         });
         if (!response.ok) throw new Error("Geocoding unavailable");
         const body = (await response.json()) as { items: Result[] };
-        setResults(body.items.slice(0, 5));
-        setError("");
+        if (!controller.signal.aborted) {
+          setResults(body.items.slice(0, 5));
+          setError("");
+        }
       } catch {
         if (!controller.signal.aborted) {
           setResults([]);
@@ -128,6 +152,7 @@ export function SearchLocationPage({
   }, [query, selected?.address, apiUrl, getToken, protectionBypass, t]);
 
   const choose = (result: Result) => {
+    cancelLocate();
     selectedRef.current = result;
     setSelected(result);
     setFavoriteKey(null);
@@ -135,7 +160,7 @@ export function SearchLocationPage({
     setQuery(result.address);
     map.current?.flyTo({ center: [result.longitude, result.latitude], zoom: 14 });
     void import("@maptiler/sdk").then((maptiler) => {
-      if (!map.current) return;
+      if (!map.current || selectedRef.current !== result) return;
       marker.current?.remove();
       marker.current = new maptiler.Marker()
         .setLngLat([result.longitude, result.latitude])
@@ -148,9 +173,35 @@ export function SearchLocationPage({
       setError(t`Location unavailable`);
       return;
     }
+    cancelLocate();
+    const requestId = locationRequest.current;
+    setLocating(true);
+    setError("");
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => map.current?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 14 }),
-      () => setError(t`Location permission denied`),
+      async ({ coords }) => {
+        if (requestId !== locationRequest.current) return;
+        try {
+          map.current?.flyTo({ center: [coords.longitude, coords.latitude], zoom: 14 });
+          selectedRef.current = null;
+          marker.current?.remove();
+          marker.current = null;
+          setSelected(null);
+          setFavoriteKey(null);
+          setResults([]);
+          setQuery("");
+          const address = await lookup(coords.longitude, coords.latitude);
+          if (requestId === locationRequest.current) choose(address);
+        } catch {
+          if (requestId === locationRequest.current) setError(t`Could not search addresses`);
+        } finally {
+          if (requestId === locationRequest.current) setLocating(false);
+        }
+      },
+      () => {
+        if (requestId !== locationRequest.current) return;
+        setError(t`Location permission denied`);
+        setLocating(false);
+      },
       { enableHighAccuracy: false, timeout: 10000 },
     );
   };
@@ -265,6 +316,7 @@ export function SearchLocationPage({
         fullWidth
         value={query}
         onChange={(value) => {
+          cancelLocate();
           setQuery(value);
           selectedRef.current = null;
           marker.current?.remove();
@@ -290,13 +342,14 @@ export function SearchLocationPage({
             variant="ghost"
             aria-label={t`Center map on my location`}
             className="mr-1 shrink-0"
+            isDisabled={locating}
             onPress={locate}
           >
             <LocateFixed className="size-5" aria-hidden="true" />
           </Button>
         </SearchField.Group>
       </SearchField>
-      {searching && <Skeleton className="h-12 w-full rounded-lg" />}
+      {(searching || locating) && <Skeleton className="h-12 w-full rounded-lg" />}
       {results.length > 0 && (
         <ul aria-label={t`Address results`} className="rounded-lg border">
           {results.map((result) => (
@@ -321,7 +374,10 @@ export function SearchLocationPage({
       <Button
         variant="primary"
         isDisabled={
-          !process.env.NEXT_PUBLIC_MAPTILER_API_KEY || !selected || name.trim().length < 4
+          locating ||
+          !process.env.NEXT_PUBLIC_MAPTILER_API_KEY ||
+          !selected ||
+          name.trim().length < 4
         }
         onPress={() => {
           if (selected && name.trim().length >= 4)

@@ -10,12 +10,14 @@ import { Typography } from "heroui-native/text";
 import { Crown, LockKeyhole, LockKeyholeOpen, Mail, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
 import { EmptyList } from "@/components/EmptyList";
 import { FloatingActions } from "@/components/FloatingActions";
 import { InvitationActions } from "@/components/InvitationActions";
 import { LinkedListCard } from "@/components/LinkedListCard";
 import { ListSearchFilters } from "@/components/ListSearchFilters";
+import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -52,6 +54,7 @@ function GroupArtwork({ name, admin }: { name: string; admin: boolean }) {
 export default function GroupsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const t = useT();
   const { i18n } = useLingui();
   const feedback = useMutationFeedback();
@@ -83,9 +86,16 @@ export default function GroupsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <FlatList
+        testID="groups-scroll"
+        style={{ flex: 1 }}
         data={groups.list.data ?? []}
         keyExtractor={(group) => group.id}
-        contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 12, flexGrow: 1 }}
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
+          gap: 12,
+          flexGrow: 1,
+        }}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
         onEndReached={() => {

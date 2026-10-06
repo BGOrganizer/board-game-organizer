@@ -40,6 +40,9 @@ export default defineConfig({
         fileURLToPath(
           new URL("../../packages/shared/src/hooks/useFavoriteLocations.ts", import.meta.url),
         ).replaceAll("\\", "/"),
+        fileURLToPath(
+          new URL("../../packages/shared/src/hooks/useCurrentLocationAddress.ts", import.meta.url),
+        ).replaceAll("\\", "/"),
       ],
       // Entry points / tooling files are not unit-tested (configs, E2E setup).
       exclude: [
@@ -54,6 +57,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/hooks/useCurrentLocationAddress.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/hooks/useFavoriteLocations.ts": {
           lines: 100,
           functions: 100,

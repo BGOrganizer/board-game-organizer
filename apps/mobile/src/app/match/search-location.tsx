@@ -2,6 +2,7 @@ import { type MatchLocation, matchLocationSchema } from "@board-game-organizer/s
 import {
   formatLocationAddress,
   resolveApiUrl,
+  useCurrentLocationAddress,
   useFavoriteLocations,
   withProtectionBypass,
 } from "@board-game-organizer/shared";
@@ -67,6 +68,23 @@ export default function SearchLocationScreen() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [permission, setPermission] = useState({ granted: false, canAskAgain: true });
+  const locationRequest = useRef(0);
+  const { lookup, cancel } = useCurrentLocationAddress({
+    apiUrl: resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined),
+    getToken,
+    userId,
+  });
+  useEffect(
+    () => () => {
+      locationRequest.current++;
+    },
+    [],
+  );
+  const cancelLocate = () => {
+    locationRequest.current++;
+    cancel();
+    setLocating(false);
+  };
   const camera = useRef<CameraRef>(null);
   const favorites = useFavoriteLocations({
     apiUrl: resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined),
@@ -101,8 +119,10 @@ export default function SearchLocationScreen() {
         });
         if (!response.ok) throw new Error("Geocoding unavailable");
         const body = (await response.json()) as { items: Result[] };
-        setResults(body.items.slice(0, 5));
-        setError("");
+        if (!controller.signal.aborted) {
+          setResults(body.items.slice(0, 5));
+          setError("");
+        }
       } catch {
         if (!controller.signal.aborted) {
           setResults([]);
@@ -147,6 +167,7 @@ export default function SearchLocationScreen() {
     camera.current?.easeTo({ center: [longitude, latitude], zoom: 14, duration: 500 });
   };
   const chooseFavorite = (key: string, location: MatchLocation) => {
+    cancelLocate();
     setSelected(location);
     setFavoriteKey(key);
     setName(location.name);
@@ -155,19 +176,36 @@ export default function SearchLocationScreen() {
     moveTo(location.longitude, location.latitude);
   };
   const locate = async () => {
+    cancelLocate();
+    const requestId = locationRequest.current;
     setLocating(true);
+    setError("");
+    let resolvingAddress = false;
     try {
-      const position = await requestUserPosition(Location, Linking.openSettings, setPermission);
+      const position = await requestUserPosition(Location, Linking.openSettings, (permission) => {
+        if (requestId === locationRequest.current) setPermission(permission);
+      });
+      if (requestId !== locationRequest.current) return;
       if (!position) {
         setError(t("Location permission denied"));
         return;
       }
-      setError("");
       moveTo(position.coords.longitude, position.coords.latitude);
+      setSelected(null);
+      setFavoriteKey(null);
+      setResults([]);
+      setQuery("");
+      resolvingAddress = true;
+      const address = await lookup(position.coords.longitude, position.coords.latitude);
+      if (requestId !== locationRequest.current) return;
+      setSelected(address);
+      setQuery(address.address);
+      moveTo(address.longitude, address.latitude);
     } catch {
-      setError(t("Location unavailable"));
+      if (requestId === locationRequest.current)
+        setError(t(resolvingAddress ? "Could not search addresses" : "Location unavailable"));
     } finally {
-      setLocating(false);
+      if (requestId === locationRequest.current) setLocating(false);
     }
   };
 
@@ -364,6 +402,7 @@ export default function SearchLocationScreen() {
       <SearchField
         value={query}
         onChange={(text) => {
+          cancelLocate();
           setQuery(text);
           setSelected(null);
           setFavoriteKey(null);
@@ -373,6 +412,7 @@ export default function SearchLocationScreen() {
         <SearchField.Group>
           <SearchField.SearchIcon />
           <SearchField.Input
+            testID="location-address-input"
             accessibilityLabel={t("Search address")}
             placeholder={t("Search address")}
             style={{ paddingRight: 100 }}
@@ -396,7 +436,7 @@ export default function SearchLocationScreen() {
           </Button>
         </SearchField.Group>
       </SearchField>
-      {searching && (
+      {(searching || locating) && (
         <Skeleton
           isLoading
           variant="pulse"
@@ -412,6 +452,7 @@ export default function SearchLocationScreen() {
               accessibilityRole="button"
               accessibilityLabel={item.address}
               onPress={() => {
+                cancelLocate();
                 setSelected(item);
                 setFavoriteKey(null);
                 setResults([]);
@@ -434,7 +475,7 @@ export default function SearchLocationScreen() {
       ) : null}
       <Button
         variant="primary"
-        isDisabled={!mapStyle || !selected || name.trim().length < 4}
+        isDisabled={locating || !mapStyle || !selected || name.trim().length < 4}
         onPress={() => {
           if (!selected || name.trim().length < 4) return;
           setPendingLocation(slotId, {

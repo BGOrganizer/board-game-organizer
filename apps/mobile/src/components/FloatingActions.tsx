@@ -1,6 +1,7 @@
 import { Button, type ButtonVariant } from "heroui-native/button";
 import type { ReactNode } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FLOATING_ACTION_SIZE, floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 
 interface FloatingActionsProps {
@@ -39,9 +40,9 @@ export function FloatingActions({
         position: "absolute",
         right: left ? undefined : 20,
         left: left ? 20 : undefined,
-        bottom: Math.max(24, insets.bottom + extraBottom),
-        width: 56,
-        height: 56,
+        bottom: floatingActionLayout(insets.bottom, extraBottom).bottom,
+        width: FLOATING_ACTION_SIZE,
+        height: FLOATING_ACTION_SIZE,
         borderRadius: 28,
         alignItems: "center",
         justifyContent: "center",

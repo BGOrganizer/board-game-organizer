@@ -76,6 +76,24 @@ appId: com.bgo.mobile
 - assertVisible: "Map by MapTiler"
 - tapOn: "Location name"
 - inputText: "Game cafe"
+- hideKeyboard
+# GPS is an explicit action: resolve a verified address without saving the slot yet.
+- setLocation:
+    latitude: 41.8902
+    longitude: 12.4922
+- scrollUntilVisible:
+    element: "Center map on my location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Center map on my location"
+- extendedWaitUntil:
+    visible:
+      id: "location-address-input"
+      text: ".*(Roma|Rome).*"
+    timeout: 30000
+- assertVisible: "Confirm location"
+- assertVisible: "Select location"
+- tapOn: "Clear search"
 - tapOn: "Search address"
 - inputText: "Piazza del Colosseo 1 Roma"
 - extendedWaitUntil:
@@ -219,6 +237,12 @@ appId: com.bgo.mobile
 - assertVisible: "Not chosen"
 - tapOn: "Date selection"
 - tapOn: "Players"
+- assertVisible:
+    id: "match-detail-scroll"
+- scrollUntilVisible:
+    element: "Participants"
+    direction: DOWN
+    timeout: 30000
 - assertVisible: "Minimum players"
 - assertVisible: "Maximum players"
 - assertVisible: "Participants"
@@ -257,6 +281,10 @@ appId: com.bgo.mobile
 - tapOn: "Cascadia"
 - extendedWaitUntil:
     visible: "500.00"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Games played"
+    direction: DOWN
     timeout: 30000
 - assertVisible: "Games played"
 - assertVisible: "Games won"

@@ -50,6 +50,42 @@ it("requests at most five MapTiler addresses and returns only match location fie
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
+it.each(["12.5000000,41.9000000", "0.0000000,0.0000000", "-73.9850000,40.7480000"])(
+  "resolves authenticated reverse coordinates %s through MapTiler's reverse endpoint",
+  async (coordinates) => {
+    mocks.auth.mockResolvedValue({ userId: "user_admin" });
+    process.env.MAPTILER_GEOCODING_KEY = "test-key";
+    const fetchMock = vi.fn().mockImplementation(async (url: URL) => {
+      expect(url.pathname).toBe(`/geocoding/${coordinates}.json`);
+      expect(url.searchParams.get("types")).toBe("address");
+      return Response.json({
+        features: [
+          {
+            id: "address.gps",
+            place_name: "Verified address",
+            place_type: ["address"],
+            center: [12.5, 41.9],
+          },
+        ],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await GET(request(coordinates));
+    expect(response.status).toBe(200);
+    expect((await response.json()).items).toEqual([
+      { id: "address.gps", address: "Verified address", longitude: 12.5, latitude: 41.9 },
+    ]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  },
+);
+
+it("returns an observable empty lookup when there is no verified address", async () => {
+  mocks.auth.mockResolvedValue({ userId: "user_admin" });
+  process.env.MAPTILER_GEOCODING_KEY = "test-key";
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ features: [] })));
+  expect(await (await GET(request("12.5000000,41.9000000"))).json()).toEqual({ items: [] });
+});
+
 it("filters non-address results and caps even an over-delivering provider", async () => {
   mocks.auth.mockResolvedValue({ userId: "user_admin" });
   process.env.MAPTILER_GEOCODING_KEY = "test-key";

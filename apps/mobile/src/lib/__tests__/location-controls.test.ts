@@ -42,6 +42,55 @@ it("anchors favorite sheets above system bars with viewport sizing", () => {
   expect(found).toBe(true);
 });
 
+it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB clearance", () => {
+  for (const [path, component, offset] of [
+    ["../../app/match/[matchId].tsx", "ScrollView", 100],
+    ["../../app/group/[groupId].tsx", "ScrollView", 100],
+    ["../../app/(tabs)/matches.tsx", "FlatList", 16],
+    ["../../app/(tabs)/groups.tsx", "FlatList", 16],
+    ["../../components/MatchWizard.tsx", "ScrollView", 100],
+    ["../../components/GroupWizard.tsx", "ScrollView", 100],
+  ] as const) {
+    const source = ts.createSourceFile(
+      path,
+      readFileSync(new URL(path, import.meta.url), "utf8"),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    let found = false;
+    function visit(node: ts.Node) {
+      if (
+        (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+        node.tagName.getText(source) === component
+      ) {
+        const props = new Map(
+          node.attributes.properties
+            .filter(ts.isJsxAttribute)
+            .map((attr) => [attr.name.getText(source), attr.initializer?.getText(source)]),
+        );
+        expect(props.get("style"), path).toMatch(/flex:\s*1/);
+        expect(props.get("contentContainerStyle"), path).toContain(
+          `floatingActionLayout(insets.bottom, ${offset}).paddingBottom`,
+        );
+        found = true;
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+    expect(found, path).toBe(true);
+  }
+  const match = readFileSync(new URL("../../app/match/[matchId].tsx", import.meta.url), "utf8");
+  for (const tab of ["overview", "players", "leaderboard", "results"])
+    expect(match).toContain(`<Tabs.Content value="${tab}"`);
+  const leaderboard = readFileSync(
+    new URL("../../components/GroupLeaderboard.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(leaderboard).toContain("<FlatList");
+  expect(leaderboard).toMatch(/style=\{\{ flex: 1, marginTop: 16 \}\}/);
+});
+
 it("keeps text inside explicit labels when native location buttons contain icons", () => {
   for (const path of [
     "../../components/MatchWizard.tsx",

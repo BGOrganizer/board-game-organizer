@@ -5,6 +5,7 @@ export * from "./hooks/listFilters";
 export * from "./hooks/useBggAccount";
 export * from "./hooks/useBggPicker";
 export * from "./hooks/useContacts";
+export * from "./hooks/useCurrentLocationAddress";
 export * from "./hooks/useFavoriteLocations";
 export * from "./hooks/useGroupLeaderboard";
 export * from "./hooks/useGroups";

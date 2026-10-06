@@ -60,8 +60,14 @@ appId: com.bgo.mobile
 - assertVisible: "No matches played in this group yet"
 - assertNotVisible: "Board game"
 - tapOn: "Settings"
+- assertVisible:
+    id: "group-detail-scroll"
 - assertVisible: "Members"
 - assertVisible: "Invitations"
+- scrollUntilVisible:
+    element: "No invitations"
+    direction: DOWN
+    timeout: 30000
 - assertVisible: "No invitations"
 - assertVisible: "Group admin"
 - tapOn: "Edit group"

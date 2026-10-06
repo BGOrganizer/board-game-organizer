@@ -28,12 +28,14 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/EmptyList";
 import { FloatingActions } from "@/components/FloatingActions";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { GroupLeaderboard } from "@/components/GroupLeaderboard";
 import { InvitationActions } from "@/components/InvitationActions";
 import { UserActionsSheet } from "@/components/UserActionsSheet";
+import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import type { UserActionKey } from "@/lib/user-actions";
@@ -48,6 +50,7 @@ export default function GroupDetailScreen() {
   const router = useRouter();
   const t = useT();
   const feedback = useMutationFeedback();
+  const insets = useSafeAreaInsets();
   const [token, setToken] = useState<string | null>(null);
   const [menuUserId, setMenuUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("settings");
@@ -239,7 +242,15 @@ export default function GroupDetailScreen() {
             ) : null}
           </Tabs.List>
           <Tabs.Content value="settings" style={{ flex: 1, marginTop: 12 }}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 110, gap: 16 }}>
+            <ScrollView
+              testID="group-detail-scroll"
+              style={{ flex: 1 }}
+              contentInsetAdjustmentBehavior="automatic"
+              contentContainerStyle={{
+                paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
+                gap: 16,
+              }}
+            >
               {groups.detail.isPending || (exiting && !group) ? (
                 <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
               ) : null}

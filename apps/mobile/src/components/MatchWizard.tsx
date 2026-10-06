@@ -39,11 +39,12 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Platform, Pressable, ScrollView, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { FloatingActions } from "@/components/FloatingActions";
 import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
 import { GroupedList, GroupedRow } from "@/components/GroupedList";
 import { LocationFavoriteButton } from "@/components/LocationFavoriteButton";
+import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -79,6 +80,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   const t = useT();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
@@ -321,8 +323,12 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
     <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
       <ScrollView
         style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
+        }}
       >
         {/* Step indicator */}
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 16 }}>
