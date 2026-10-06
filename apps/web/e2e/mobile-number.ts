@@ -5,8 +5,7 @@ export async function completeMobileNumberIfNeeded(page: Page) {
   const input = page.getByLabel("Mobile number");
   const destination = await Promise.race([
     page
-      .getByRole("link", { name: "Matches", exact: true })
-      .first()
+      .locator("#tab-content-scroll")
       .waitFor({ state: "visible", timeout: 60_000 })
       .then(() => "matches" as const),
     input.waitFor({ state: "visible", timeout: 60_000 }).then(() => "mobile-number" as const),

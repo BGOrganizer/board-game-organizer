@@ -31,7 +31,9 @@ async function signIn(page: Page) {
 }
 
 for (const width of [390, 1280]) {
-  test(`navigation gate uses visible responsive Matches link at ${width}px`, async ({ page }) => {
+  test(`navigation gate accepts authenticated content with closed mobile menu at ${width}px`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 650 });
     await page.setContent(`
       <style>
@@ -39,12 +41,17 @@ for (const width of [390, 1280]) {
         @media (min-width: 768px) { .desktop { display: block; } .mobile { display: none; } }
       </style>
       <nav class="desktop"><a href="/matches">Matches</a></nav>
-      <nav class="mobile"><a href="/matches">Matches</a></nav>
+      <nav class="mobile"><button aria-label="Toggle menu">Menu</button></nav>
+      <main id="tab-content-scroll" style="display: none">Authenticated content</main>
     `);
     if (width === 390)
-      await expect(page.getByText("Matches", { exact: true }).first()).toBeHidden();
-    await completeMobileNumberIfNeeded(page);
-    await expect(page.getByRole("link", { name: "Matches", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Matches", exact: true })).toHaveCount(0);
+    const ready = completeMobileNumberIfNeeded(page);
+    await page.locator("#tab-content-scroll").evaluate((element) => {
+      element.style.display = "block";
+    });
+    await ready;
+    await expect(page.locator("#tab-content-scroll")).toBeVisible();
   });
 }
 
