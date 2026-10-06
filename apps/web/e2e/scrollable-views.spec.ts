@@ -30,6 +30,24 @@ async function signIn(page: Page) {
   return userId;
 }
 
+for (const width of [390, 1280]) {
+  test(`navigation gate uses visible responsive Matches link at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 650 });
+    await page.setContent(`
+      <style>
+        .desktop { display: none; }
+        @media (min-width: 768px) { .desktop { display: block; } .mobile { display: none; } }
+      </style>
+      <nav class="desktop"><a href="/matches">Matches</a></nav>
+      <nav class="mobile"><a href="/matches">Matches</a></nav>
+    `);
+    if (width === 390)
+      await expect(page.getByText("Matches", { exact: true }).first()).toBeHidden();
+    await completeMobileNumberIfNeeded(page);
+    await expect(page.getByRole("link", { name: "Matches", exact: true })).toBeVisible();
+  });
+}
+
 async function assertScrollableEnd(page: Page, last: Locator, fabLabel?: string) {
   const region = page.locator("#tab-content-scroll");
   await last.scrollIntoViewIfNeeded();
