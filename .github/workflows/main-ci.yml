@@ -28,7 +28,7 @@ jobs:
         run: pnpm typecheck
 
       - name: 🔒 CI isolation contract
-        run: node --test .github/scripts/main-ci-isolation.test.mjs .github/scripts/maptiler-build-config.test.mjs
+        run: node --test .github/scripts/main-ci-isolation.test.mjs .github/scripts/maptiler-build-config.test.mjs .github/scripts/mobile-sdk-policy.test.mjs
 
   # Release bump/tag only after merged-code E2E succeeds.
   release:

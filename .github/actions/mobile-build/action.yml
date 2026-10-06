@@ -91,10 +91,20 @@ runs:
       shell: bash
       run: eas --version
 
+    - name: 🩺 Check locked Expo SDK compatibility
+      shell: bash
+      working-directory: apps/mobile
+      env:
+        EXPO_OFFLINE: '1'
+      run: pnpm exec expo install --check
+
     - name: 🩺 Expo doctor
       shell: bash
       working-directory: apps/mobile
-      run: pnpm dlx expo-doctor
+      env:
+        # Compatibility was checked against the installed SDK above, not a moving remote matrix.
+        EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'
+      run: pnpm exec expo-doctor
 
     - name: 📦 Cache EAS local build
       uses: actions/cache@v4
@@ -138,6 +148,8 @@ runs:
         GOOGLE_SERVICES_JSON_CONTENT: ${{ inputs.google-services-json }}
         NODE_ENV: ${{ inputs.profile == 'development' && 'development' || 'production' }}
         NODE_OPTIONS: --openssl-legacy-provider --max_old_space_size=4096
+        # EAS repeats Doctor; keep the same mandatory installed-SDK compatibility gate above.
+        EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'
       run: |
         if [ -n "$GOOGLE_SERVICES_JSON_CONTENT" ]; then
           GOOGLE_SERVICES_PATH="$RUNNER_TEMP/google-services.json"

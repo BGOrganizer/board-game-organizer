@@ -69,6 +69,7 @@
     "@board-game-organizer/typescript-config": "workspace:*",
     "@types/react": "^19.2.18",
     "@vitest/coverage-v8": "^3.2.7",
+    "expo-doctor": "1.20.4",
     "typescript": "~6.0.3",
     "vitest": "^3.2.7"
   }
