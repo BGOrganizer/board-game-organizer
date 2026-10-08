@@ -10,6 +10,9 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+.mcp.json
 google-services.json
 service-account.json
 *.log
@@ -19,7 +22,6 @@ coverage/
 .specify/
 .clinerules/
 .agents
-skills-lock.json
 
 apps/mobile/android/
 apps/mobile/build-output/
@@ -36,3 +38,4 @@ core.*
 
 data/*
 !data/README.md
+boardgames_ranks.csv
