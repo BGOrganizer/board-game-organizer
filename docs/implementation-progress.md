@@ -1,7 +1,7 @@
 # Organizations/events implementation checkpoint
 
-Status: **IMPLEMENTED; VERIFICATION INCOMPLETE**. Local quality gates pass; remote CI and full
-acceptance remain pending. Do not describe the feature as production-ready or claim full acceptance
+Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
+pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance
 coverage. The operator requested local feasible checks followed by signed commits/push and CI
 iteration instead of further local-emulator cycles. Real Inngest provisioning/delivery is excluded.
 
@@ -60,6 +60,10 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 ## Latest verified automated gates
 
+- Signed feature commit `9ea1502` is pushed on `feat/organizations-events`. [Branch CI run
+  37758173173](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37758173173)
+  completed successfully: all **9/9 jobs**, including commitlint, Biome, typecheck, five unit suites
+  and real MongoDB integration. This branch has no PR, so APK/deployment/E2E jobs did not run.
 - Five workspace coverage suites pass: API **525**, schemas **78**, shared **91**, web **302**,
   mobile **77** tests: **1,073 unit tests**. All five suites were rerun successfully; existing
   thresholds were not lowered. The 25 CI-script checks also pass.
@@ -68,8 +72,9 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 - Historical real MongoDB replica-set integration run: **54 passed**, **zero skipped**, status **0**,
   including private-draft cutoff behavior. The latest Windows rerun after a PC restart did not
   produce a terminal result before the host execution deadline; this is not a new passing run.
-  Remote Linux CI must rerun it. Clerk moderator/location/provider boundaries are controlled in
-  integration tests; they are not external-provider evidence.
+  Linux Branch CI subsequently verified **3 files / 54 tests passed**, with no test skips, on
+  `9ea1502`. Clerk moderator/location/provider boundaries are controlled in integration tests;
+  they are not external-provider evidence.
 - Repository typecheck passes (4/4). Latest full lint passes (4/4); generated export metadata was moved outside app source rather than weakening lint.
 - API production build passes. Latest web production rebuild passes, including singular semantic header links and the accessible
   community tab panel.
@@ -138,9 +143,9 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
    scripts/reports/APKs/exports/coverage and downloaded tools from any eventual commit. Owned
    community containers are stopped; baseline restoration is pending because the emulator is
    offline. Do not boot it merely to restart acceptance or clear its data.
-6. After local checks and source review, selectively stage a signed Conventional Commit and push
-   `feat/organizations-events`; inspect Branch CI and fix failures until green. **No new PR.**
-   Full PR APK/E2E gates require explicit authorization to update PR #22's head branch or open a PR.
+6. Feature commit is signed/pushed and Branch CI is green. Keep subsequent documentation/fix
+   commits green too. **No new PR.** Full PR APK/E2E gates require explicit authorization to update
+   PR #22's head branch or open a PR; passing Branch CI does not establish native acceptance.
 
 Historical PR #22 gates are foundation evidence, not acceptance for this new feature.
 
