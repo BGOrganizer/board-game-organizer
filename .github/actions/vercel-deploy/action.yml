@@ -6,7 +6,7 @@ inputs:
     description: Human-readable app name for comments
     required: true
   app-path:
-    description: App root inside the monorepo (Vercel rootDirectory)
+    description: App workspace to build and publish inside the monorepo
     required: true
   vercel-environment:
     description: Vercel deployment environment (preview or production)
@@ -80,7 +80,14 @@ runs:
           },
         };
         fs.writeFileSync(path, JSON.stringify(next, null, 2));
-        console.log(`Vercel rootDirectory=${next.settings.rootDirectory}`);
+        const app = { 'apps/api': 'api', 'apps/web': 'web' }[process.env.VERCEL_APP_PATH];
+        if (!app) throw new Error('Unsupported Vercel app workspace');
+        fs.writeFileSync('.vercel/deploy.json', JSON.stringify({
+          framework: 'nextjs',
+          buildCommand: `pnpm --filter ${app} build`,
+          outputDirectory: `${process.env.VERCEL_APP_PATH}/.next`,
+        }, null, 2));
+        console.log(`Vercel workspace=${app}`);
         NODE
 
     - name: 🚀 Deploy
@@ -95,7 +102,7 @@ runs:
         EXTRA_ENV: ${{ inputs.extra-env }}
       run: |
         set -euo pipefail
-        flags=(--yes --token "$VERCEL_TOKEN")
+        flags=(--yes --local-config .vercel/deploy.json --token "$VERCEL_TOKEN")
         if [ "$PRODUCTION" = 'true' ]; then
           test "$VERCEL_ENVIRONMENT" = 'production'
           flags+=(--prod)

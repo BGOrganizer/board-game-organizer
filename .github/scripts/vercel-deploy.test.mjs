@@ -46,6 +46,8 @@ test("remote deployment preserves quoted build/runtime overrides without changin
     assert.deepEqual(args, [
       "deploy",
       "--yes",
+      "--local-config",
+      ".vercel/deploy.json",
       "--token",
       "test-token",
       "--build-env",
@@ -102,6 +104,41 @@ test("remote deployment preserves quoted build/runtime overrides without changin
       }).status,
       0,
       "Remote build/deploy failure must propagate",
+    );
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("remote configuration builds and publishes only the selected monorepo app", () => {
+  const stage = action.runs.steps.find((step) => step.name === "🔗 Stage Vercel project link");
+  const script = stage.run.match(/node <<'NODE'\n([\s\S]*?)\nNODE/)[1];
+  const folder = mkdtempSync(join(tmpdir(), "bgo-vercel-workspace-"));
+  try {
+    for (const app of ["api", "web"]) {
+      const result = spawnSync(process.execPath, ["-e", script], {
+        cwd: folder,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          VERCEL_APP_PATH: `apps/${app}`,
+          VERCEL_ORG_ID: "team-test",
+          VERCEL_PROJECT_ID: `project-${app}`,
+        },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(readFileSync(join(folder, ".vercel/deploy.json"), "utf8")), {
+        framework: "nextjs",
+        buildCommand: `pnpm --filter ${app} build`,
+        outputDirectory: `apps/${app}/.next`,
+      });
+    }
+    assert.notEqual(
+      spawnSync(process.execPath, ["-e", script], {
+        cwd: folder,
+        env: { ...process.env, VERCEL_APP_PATH: "apps/mobile" },
+      }).status,
+      0,
     );
   } finally {
     rmSync(folder, { recursive: true, force: true });

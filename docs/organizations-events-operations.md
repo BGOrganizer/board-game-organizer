@@ -44,7 +44,9 @@ No production-provider success is currently attested. Real registration/credenti
 Infisical remains the source of project environment values. The shared deployment action uploads
 source and builds on Vercel, where synced Secrets are available; it does not export them with
 `vercel pull` or require Secret-to-Config conversions. `NEXT_PUBLIC_*` values remain browser-public
-regardless of their Vercel type.
+regardless of their Vercel type. Generated per-deployment build configuration explicitly selects
+`pnpm --filter api build` or `pnpm --filter web build` and the corresponding app's `.next` output;
+API deployments must not build Web with API-only environment values. Project settings are not changed.
 
 Per-deployment overrides never update project variables. For isolated API Previews, build-only
 `BGO_CI_DB_NAME=bgo_ci_<run>_<attempt>` first validates that Infisical's base `MONGODB_DB_NAME` equals

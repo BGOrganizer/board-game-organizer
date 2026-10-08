@@ -82,7 +82,7 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
   `11-match-join-requests` still requires a separately prepared `PUBLIC_MATCH_LINK`.
 - Five workspace coverage suites pass: API **525**, schemas **78**, shared **91**, web **302**,
   mobile **77** tests: **1,073 unit tests**. All five suites were rerun successfully; existing
-  thresholds were not lowered. The **29** CI-script checks pass, including executable shell
+  thresholds were not lowered. The **30** CI-script checks pass, including executable shell
   quote/exit/pipefail tests, remote build/runtime override guards, real remote-build configuration
   checks and fail-closed real-JUnit validation. All are invoked by CI lint.
 - PR run [37770204625](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37770204625)
@@ -91,10 +91,20 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
   interception query-independent. Maestro genuinely passed launch, login and startup deep-link;
   contacts flow then failed waiting for the native contacts permission prompt. Remaining flows
   were not executed. The run finished failed; no native green or remote-build acceptance is claimed.
-- Remote-build migration local checks pass: full lint/typecheck, **525 API tests**, **29 CI-script
+- First remote-build PR run [37779918729](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37779918729)
+  passed quality gates but both API builds invoked the repository-wide Turbo build, which also
+  tried building Web with API-project environment values. Per-deployment configuration now selects
+  only the API or Web workspace and its `.next` output; project settings/Secrets remain unchanged.
+  Remote deployment acceptance is still pending.
+- Remote-build migration local checks pass: full lint/typecheck, **525 API tests**, **30 CI-script
   tests**, and API/web production compilation. A local browser retry using the old private runner
   account could not authenticate: that CI user no longer exists (**24 failed / 1 passed**, before
   the authenticated acceptance assertions). No Clerk user was recreated or changed locally.
+- Native development Lingui crash: HeroUI's sibling portal host was outside `I18nProvider`;
+  a search-help consumer mounted in a Select overlay lost its context. Lingui now wraps HeroUI;
+  dependencies/hooks were not changed. Root-provider contract regression, mobile lint/typecheck
+  and all mobile logic tests pass (original checkout **60**, feature checkout **78**). Debug-device
+  reload/runtime confirmation remains with the operator; no emulator was booted for this fix.
 - Added 100% deterministic gates include event form/roster/logo helpers, event queries/window,
   public-group queries and deadline delivery/workers. Native push-routing gate is retained.
 - Historical real MongoDB replica-set integration run: **54 passed**, **zero skipped**, status **0**,
