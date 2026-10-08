@@ -85,9 +85,13 @@ src/
   lib/                  Platform adapters and local helpers
 ```
 
-Feature folders are the component structure convention, not a universal web/native renderer.
-Existing flat components migrate within requested feature work; this documentation change does not
-move application files or create empty folders. See [AGENTS.md](AGENTS.md) for ownership rules.
+Components and their tests are organized by feature on both clients, without a universal web/native
+renderer. Shared logic/hooks and schema models/DTOs also live in domain folders. API HTTP helpers,
+services and repositories are grouped inside `apps/api/src/app/lib/<domain>`; route handlers remain
+the controllers and keep their existing URLs. Query/configuration packages stay flat and Zustand
+retains its slices. See [AGENTS.md](AGENTS.md) for ownership rules and
+[the refactoring evidence](docs/skills-and-component-architecture-plan.md#9-feature-organization-execution)
+for verification and acceptance limits.
 
 ## Local setup
 

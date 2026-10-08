@@ -211,10 +211,24 @@ src/
   lib/                  Platform adapters and local helpers
 ```
 
-Feature-folder layout applies to both clients; do not share their UI components. Existing flat
-component files move only within an explicitly requested feature change/refactor. Do not create
-empty feature directories. API scripts live in `apps/api/scripts`; web E2E lives in `apps/web/e2e`,
-and native E2E in `apps/mobile/.maestro/flows`.
+Feature-folder layout applies to both clients; do not share their UI components. Auth, games,
+locations, notifications, invites and ratings have their own feature folders too; cross-feature
+providers, navigation/layout and startup components live under `common`. Colocate component tests
+under the owning feature. Platform-specific contact/location/push helpers stay in each app's `lib`
+domain folders; shared platform adapters remain at its root.
+
+`packages/shared/src/<domain>` owns pure logic and Query hooks; `packages/schemas/src/<domain>` owns
+its `models`, `dto` and nearby tests. Keep shared cross-domain infrastructure at the package root or
+in `common`. `packages/store` retains slices; Query/configuration packages remain small and flat.
+
+API HTTP helpers, services, repositories and nearby tests live in
+`apps/api/src/app/lib/<domain>`. Existing route handlers are controllers: keep their paths/URLs and
+thin responsibilities; do not add controller classes, global layer silos, dependency injection or
+base repositories. General infrastructure such as database, CORS and Clerk helpers stays at the
+library root.
+
+Do not create empty feature directories. API scripts live in `apps/api/scripts`; web E2E lives in
+`apps/web/e2e`, and native E2E in `apps/mobile/.maestro/flows`.
 
 Current dependency baselines:
 

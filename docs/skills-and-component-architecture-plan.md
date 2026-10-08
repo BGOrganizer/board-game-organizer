@@ -1,9 +1,9 @@
 # Skills and component architecture plan
 
-Status: **implemented for skill curation and agent instructions** after user authorization.
-Application behavior/components, secrets, global skills/Pi packages, and the existing OpenSandbox
-integration remain unchanged. Original planning decisions below are followed by execution evidence
-in Section 8; candidate selections and operational deviations are recorded there.
+Status: **implemented for skill curation, agent instructions and the subsequently authorized
+feature-folder refactor**. Application behavior, secrets, global skills/Pi packages and the existing
+OpenSandbox integration remain unchanged. Original skill-curation planning decisions below are
+followed by execution evidence in Section 8; Section 9 records the separate application refactor.
 
 Branch: `feat/organizations-events`. Commit locally with the configured SSH signature; do not push,
 open a PR, merge, or include unrelated staged changes.
@@ -419,3 +419,63 @@ authorizes a push. Earlier documentation revisions contained the plan only; the 
   or altered and no containers, emulators, SDK provisioning, or secret operations were run.
 - Validation is instruction/resource discovery and diff/ignore/signature checking, not a claim of
   newly passed application E2E. Existing feature acceptance remains incomplete.
+
+## 9. Feature organization execution
+
+The user separately authorized a whole-project structural refactor on the same branch, retaining
+behavior, validating unit/integration tests, Biome and typecheck, and making coherent signed local
+commits. The previously existing history was pushed once through `ed923df`; **the refactor remains
+local**, with no further push, PR, merge, delegation, device operation or external provisioning.
+Sections 2–8 describe the earlier skill-curation task, not additional runtime authorization.
+
+### Applied structure
+
+- Web/native components and nearby tests now live under `src/components/<feature>`, including
+  contacts, matches, groups, organizations, events, profile, auth, games, locations, notifications,
+  invites and ratings. Actual cross-feature layout, providers, startup and UI live under `common`.
+  UI remains platform-specific. Contact/location/push platform helpers stay in each app's `lib`
+  domain folders; platform-wide adapters remain at its root.
+- Shared pure logic, hooks and tests are grouped by domain in `packages/shared/src`; schema domains
+  contain their models, DTOs and tests in `packages/schemas/src`. Existing public exports remain
+  stable. No dependency declarations or lockfile changed.
+- API HTTP helpers, services, repositories and nearby tests are grouped by domain within
+  `apps/api/src/app/lib`. Database/CORS/Clerk and other cross-domain infrastructure remain at the
+  root. Existing route handlers remain controllers; routing files and URLs did not move. No new
+  controller classes, base classes, dependency injection or global layer silos were introduced.
+- Zustand slices and the small Query/configuration packages retain their existing structure.
+- Sixteen multi-component client modules were separated into files named for their public component.
+  All 34 extracted component declarations were compared as TypeScript syntax trees and retained
+  identical bodies/signatures. Private, single-owner helpers may remain in their owning module;
+  the 400-line signal was not converted into a mandatory split or CI rule.
+- Updated imports, mocks, source-inspecting tests, asset paths, public export targets, coverage paths
+  and Lingui source references together. EN/IT compiled catalogs are byte-identical after extraction
+  and compilation. Existing runtime-only messages and translations were preserved.
+- Baseline Biome failure came from tracked CRLF sources. Normalized 195 source/configuration files
+  and declared LF text checkout in `.gitattributes`, without changing global Git settings or rules.
+  Recoverable relocation maps, backups and verification logs are local Git-directory artifacts,
+  not another committed framework. Private/generated files, including `.mcp.json` and the existing
+  `apps/api/next-env.d.ts` change, remain preserved and excluded.
+
+### Local commits and verification
+
+| Commit | Scope |
+| --- | --- |
+| `53167b7` | LF normalization compatible with Biome |
+| `9d80991` | Shared logic and schemas by feature; 83 relocations |
+| `b75ebb7` | API services/repositories by domain; 67 relocations |
+| `10f1203` | Client feature components/helpers/tests; 144 relocations and component extraction |
+
+Final checks passed:
+
+- `pnpm lint` and `pnpm typecheck`;
+- unit coverage: mobile **78**, web **302**, API **525**, schemas **78**, shared **91** tests:
+  **1,074 passed**, with coverage thresholds preserved; measured schema/shared logic remains 100%;
+- API MongoDB replica-set integration: **54 passed, zero skips**, repeated after the API migration
+  and at the final verification barrier;
+- API/web production builds, Android Expo export (5,460 modules), and **30** CI-script tests;
+- Lingui extraction/compilation, whitespace/staged-scope checks and local SSH signature verification.
+
+Android export is a JavaScript/asset bundle, **not** an APK/device/production acceptance run.
+Playwright/Maestro were not rerun against provisioned actors or devices. The existing
+organizations/events feature acceptance remains incomplete; these structural checks do not satisfy
+its outstanding authenticated E2E, native release or external Inngest delivery gates.
