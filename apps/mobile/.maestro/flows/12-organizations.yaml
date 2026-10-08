@@ -1,0 +1,98 @@
+appId: com.bgo.mobile
+---
+# Preserve the authenticated account while making permission denial deterministic.
+- launchApp:
+    permissions:
+      camera: deny
+- tapOn: "Groups and organizations"
+- tapOn:
+    id: "community-tab-organizations"
+- tapOn: "New organization"
+- assertVisible: "New organization"
+- tapOn: "Organization name"
+- inputText: "Maestro community club"
+- hideKeyboard
+- tapOn: "Camera"
+- runFlow:
+    when:
+      visible:
+        id: ".*:id/permission_deny.*button"
+    commands:
+      - tapOn:
+          id: ".*:id/permission_deny.*button"
+- assertVisible: "Photo permission is required"
+- tapOn: "Photo library"
+- tapOn:
+    id: ".*:id/permission_allow_all_button"
+    optional: true
+- tapOn:
+    id: ".*:id/permission_allow_button"
+    optional: true
+- extendedWaitUntil:
+    visible: "Photo taken.*"
+    timeout: 30000
+- tapOn:
+    text: "Photo taken.*"
+    index: 0
+# Android can first ask for a limited photo grant, then launch the actual picker.
+- tapOn:
+    text: "Done"
+    optional: true
+- tapOn:
+    text: "Photo taken.*"
+    index: 0
+    optional: true
+- tapOn:
+    text: "Done"
+    optional: true
+- extendedWaitUntil:
+    visible: "Organization logo"
+    timeout: 30000
+- tapOn: "Choose a verified address"
+- tapOn: "Location name"
+- inputText: "Community club"
+- tapOn: "Search address"
+- inputText: "Via Roma Milano"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "address-result-0"
+    timeout: 30000
+- tapOn:
+    id: "address-result-0"
+- tapOn: "Confirm location"
+- scrollUntilVisible:
+    element:
+      text: "Submit for review"
+    direction: DOWN
+- tapOn: "Submit for review"
+- extendedWaitUntil:
+    visible: "Edit organization"
+    timeout: 30000
+- assertVisible: "Maestro community club"
+- assertVisible: "Awaiting review"
+# Updating a pending proposal still requires a versioned final submission.
+- tapOn: "Edit organization"
+- tapOn: "Organization name"
+- eraseText
+- inputText: "Maestro community club updated"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Submit for review"
+    direction: DOWN
+- tapOn: "Submit for review"
+- extendedWaitUntil:
+    visible: "Edit organization"
+    timeout: 30000
+- assertVisible: "Maestro community club updated"
+- back
+- extendedWaitUntil:
+    visible:
+      id: "new-organization-fab"
+    timeout: 30000
+- tapOn:
+    id: "community-tab-search"
+- extendedWaitUntil:
+    visible: "Search groups and organizations"
+    timeout: 30000

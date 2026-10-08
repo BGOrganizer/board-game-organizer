@@ -1,16 +1,21 @@
 "use client";
 
-import type { MutationFeedback, MutationFeedbackAction } from "@board-game-organizer/shared";
+import {
+  communityFeedbackMessages,
+  type MutationFeedback,
+  type MutationFeedbackAction,
+} from "@board-game-organizer/shared";
 import { toast } from "@heroui/react/toast";
 import { useLingui } from "@lingui/react/macro";
 import { CircleCheck, CircleX } from "lucide-react";
 import { createElement, useMemo } from "react";
 
 export function useMutationFeedback(): MutationFeedback {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
   return useMemo(() => {
     const messages: Record<MutationFeedbackAction, { success: string; error: string }> = {
+      ...communityFeedbackMessages((id, message) => i18n._({ id, message })),
       follow: { success: t`User followed`, error: t`Could not follow user` },
       unfollow: { success: t`User unfollowed`, error: t`Could not unfollow user` },
       unfriend: { success: t`Friend removed`, error: t`Could not remove friend` },
@@ -106,5 +111,5 @@ export function useMutationFeedback(): MutationFeedback {
           indicator: createElement(CircleX, { className: "h-5 w-5" }),
         }),
     };
-  }, [t]);
+  }, [t, i18n]);
 }

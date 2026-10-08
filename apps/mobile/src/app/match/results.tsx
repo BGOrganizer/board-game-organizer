@@ -1,5 +1,7 @@
 import type { MatchDetailResponse, RegisterMatchResultsInput } from "@board-game-organizer/schemas";
 import {
+  canRegisterMatchResults,
+  matchParticipants,
   normalizeMatchScore,
   previewMatchResults,
   resolveApiUrl,
@@ -62,8 +64,7 @@ export default function MatchResultsScreen() {
   useEffect(() => {
     if (
       data?.match.id === matchId &&
-      data.match.status === "CREATED" &&
-      data.match.adminUserId === userId &&
+      canRegisterMatchResults(data.match, userId) &&
       draftData?.match.id !== matchId
     ) {
       setDraftData(data);
@@ -86,16 +87,14 @@ export default function MatchResultsScreen() {
         <Typography className="text-danger">{t("Could not load match details")}</Typography>
       </View>
     );
-  if (
-    !editorData ||
-    editorData.match.adminUserId !== userId ||
-    editorData.match.status !== "CREATED"
-  )
+  if (!editorData || !canRegisterMatchResults(editorData.match, userId))
     return (
       <View style={{ padding: 20 }}>
         <Stack.Screen options={{ title: t("Register results") }} />
         <Typography className="text-danger">
-          {t("Results can only be registered by the match administrator before termination.")}
+          {t(
+            "Only the administrator or assigned demonstrator can register results before termination.",
+          )}
         </Typography>
       </View>
     );
@@ -174,10 +173,7 @@ function ResultsForm({
   const accentForeground = useThemeColor("accent-foreground");
   const foreground = useThemeColor("foreground");
   const danger = useThemeColor("danger");
-  const players = [
-    data.administrator,
-    ...data.invitedPlayers.filter((player) => player.invitation.status === "ACCEPTED"),
-  ];
+  const players = matchParticipants(data).filter((player) => player.status === "ACCEPTED");
   const playerById = new Map(players.map((player) => [player.id, player]));
   const [rows, setRows] = useState<ScoreDraftRow[]>(() =>
     players.map((player) => ({ userId: player.id, rawScore: "", notParticipated: false })),

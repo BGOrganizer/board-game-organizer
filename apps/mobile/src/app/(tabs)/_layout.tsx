@@ -1,9 +1,16 @@
-import { getMobileNumber } from "@board-game-organizer/schemas";
+import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, Tabs, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
-import { Building2, ContactRound, Dices, UserRound, UsersRound } from "lucide-react-native";
+import {
+  CalendarDays,
+  ContactRound,
+  Dices,
+  ShieldCheck,
+  UserRound,
+  UsersRound,
+} from "lucide-react-native";
 import { Platform, View } from "react-native";
 
 import { HeaderTitle } from "@/components/HeaderTitle";
@@ -44,6 +51,18 @@ export default function TabLayout() {
         headerRight: () => (
           <View style={{ marginRight: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
             <NotificationBell />
+            {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={t("Organization moderation")}
+                style={{ minHeight: 44, minWidth: 44 }}
+                onPress={() => router.push("/moderation")}
+              >
+                <ShieldCheck size={20} color="#737373" />
+              </Button>
+            ) : null}
             <Button
               isIconOnly
               size="sm"
@@ -70,19 +89,22 @@ export default function TabLayout() {
       <Tabs.Screen
         name="groups"
         options={{
-          title: t("Groups"),
-          headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
+          title: t("Groups and organizations"),
+          headerTitle: () => (
+            <HeaderTitle title={t("Groups and organizations")} icon={UsersRound} />
+          ),
           tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="organizations"
+        name="events"
         options={{
-          title: t("Organizations"),
-          headerTitle: () => <HeaderTitle title={t("Organizations")} icon={Building2} />,
-          tabBarIcon: ({ color }) => <Building2 size={26} color={color} />,
+          title: t("Events"),
+          headerTitle: () => <HeaderTitle title={t("Events")} icon={CalendarDays} />,
+          tabBarIcon: ({ color }) => <CalendarDays size={26} color={color} />,
         }}
       />
+      <Tabs.Screen name="organizations" options={{ href: null }} />
       <Tabs.Screen
         name="contacts"
         options={{

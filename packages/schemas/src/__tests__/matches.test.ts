@@ -266,7 +266,12 @@ describe("match models and DTOs", () => {
   });
 
   it("exports match indexes", () => {
-    expect(MATCH_INDEXES).toHaveLength(4);
+    expect(MATCH_INDEXES).toHaveLength(5);
+    expect(MATCH_INDEXES).toContainEqual({
+      key: { "eventTable.tableId": 1 },
+      unique: true,
+      partialFilterExpression: { "eventTable.tableId": { $exists: true } },
+    });
     expect(MATCH_INDEXES).toContainEqual({ key: { groupId: 1, status: 1, selectedGameId: 1 } });
     expect(MATCH_INDEXES).toContainEqual({ key: { status: 1, selectedGameId: 1 } });
     expect(MATCH_INVITATION_INDEXES).toHaveLength(3);

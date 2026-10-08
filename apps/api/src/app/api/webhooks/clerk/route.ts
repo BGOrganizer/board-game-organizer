@@ -1,4 +1,4 @@
-import { getMobileNumber } from "@board-game-organizer/schemas";
+import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
@@ -89,6 +89,8 @@ export async function POST(request: Request) {
         email,
         name: [firstName, lastName].filter(Boolean).join(" ") || email,
         avatarUrl: (data.image_url as string | undefined) ?? undefined,
+        username: typeof data.username === "string" ? data.username : null,
+        bgoRole: getBgoRole(data.public_metadata) ?? null,
         mobileNumber: getMobileNumber(data.unsafe_metadata) ?? null,
         preferredLanguage: normalizeLocale(data.preferred_language as string | undefined),
         plan: (data.plan as string | undefined) ?? undefined,

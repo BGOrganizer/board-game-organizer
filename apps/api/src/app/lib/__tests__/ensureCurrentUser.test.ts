@@ -36,7 +36,7 @@ describe("ensureCurrentUser", () => {
   });
 
   it("skips Clerk when mirror is complete", async () => {
-    mocks.findById.mockResolvedValue({ email: "actor@example.com", name: "Alex" });
+    mocks.findById.mockResolvedValue({ email: "actor@example.com", name: "Alex", username: null });
     await ensureCurrentUser("user_actor", db);
     expect(mocks.getUser).not.toHaveBeenCalled();
     expect(mocks.upsertFromClerk).not.toHaveBeenCalled();
@@ -50,10 +50,30 @@ describe("ensureCurrentUser", () => {
       email: "actor@example.com",
       name: "Alex Smith",
       avatarUrl: "https://example.com/avatar.png",
+      username: null,
+      bgoRole: null,
       mobileNumber: "+39123456789",
       preferredLanguage: "en",
       e2e: true,
     });
+  });
+
+  it("repairs legacy usernames and mirrors server-owned moderator metadata", async () => {
+    mocks.findById.mockResolvedValue({ name: "Legacy", email: "actor@example.com" });
+    mocks.getUser.mockResolvedValue({
+      id: "user_actor",
+      username: "alex",
+      firstName: "Alex",
+      lastName: null,
+      emailAddresses: [],
+      imageUrl: "",
+      unsafeMetadata: { bgoRole: "ADMIN" },
+      publicMetadata: { bgoRole: "ADMIN" },
+    });
+    await ensureCurrentUser("user_actor", db);
+    expect(mocks.upsertFromClerk).toHaveBeenCalledWith(
+      expect.objectContaining({ username: "alex", bgoRole: "ADMIN" }),
+    );
   });
 
   it("repairs incomplete presence-only mirror and handles empty names", async () => {

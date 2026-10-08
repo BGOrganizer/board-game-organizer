@@ -1,10 +1,19 @@
 "use client";
 
+import { getBgoRole } from "@board-game-organizer/schemas";
+
 import { Show, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
-import { Button, cn, Link as HeroUILink } from "@heroui/react";
+import { Button, cn } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
-import { Building2, ContactRound, Dices, UserRound, UsersRound } from "lucide-react";
+import {
+  CalendarDays,
+  ContactRound,
+  Dices,
+  ShieldCheck,
+  UserRound,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -20,22 +29,23 @@ type NavLinkProps = {
 
 function NavLink({ href, label, icon: Icon, exact = false, onClick }: NavLinkProps) {
   const pathname = usePathname();
-  const isActive = exact ? pathname === href : pathname.startsWith(href);
+  const isActive = exact
+    ? pathname === href
+    : pathname.startsWith(href) || (href === "/groups" && pathname.startsWith("/organizations"));
 
   return (
-    <HeroUILink>
-      <Link
-        href={href}
-        onClick={onClick}
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-md transition-colors",
-          isActive ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-600 hover:bg-gray-100",
-        )}
-      >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-        {label}
-      </Link>
-    </HeroUILink>
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+        isActive ? "bg-surface text-accent font-medium" : "text-foreground hover:bg-surface",
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      {label}
+    </Link>
   );
 }
 
@@ -46,8 +56,8 @@ export function Header() {
 
   const navLinks = [
     { href: "/matches", label: t`Matches`, icon: Dices },
-    { href: "/groups", label: t`Groups`, icon: UsersRound },
-    { href: "/organizations", label: t`Organizations`, icon: Building2 },
+    { href: "/groups", label: t`Groups and organizations`, icon: UsersRound },
+    { href: "/events", label: t`Events`, icon: CalendarDays },
     { href: "/contacts", label: t`Contacts`, icon: ContactRound },
     { href: "/profile", label: t`Profile`, icon: UserRound },
   ];
@@ -116,6 +126,15 @@ export function Header() {
               {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
             </p>
             <NotificationBell />
+            {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
+              <Link
+                href="/moderation"
+                aria-label={t`Organization moderation`}
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-foreground hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <ShieldCheck className="size-5" aria-hidden="true" />
+              </Link>
+            ) : null}
             <UserButton />
           </div>
         </Show>

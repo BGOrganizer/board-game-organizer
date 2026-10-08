@@ -138,7 +138,8 @@ describe("POST /api/webhooks/clerk", () => {
         email_addresses: [{ email_address: "a@b.it" }],
         image_url: "https://img/a.png",
         preferred_language: "it",
-        public_metadata: { e2e: false },
+        public_metadata: { e2e: false, bgoRole: "ADMIN" },
+        username: "alexemancio",
         unsafe_metadata: { mobileNumber: " +39 123 " },
       },
     };
@@ -157,6 +158,8 @@ describe("POST /api/webhooks/clerk", () => {
         id: "user_1",
         email: "a@b.it",
         name: "Alessandro Mancini",
+        username: "alexemancio",
+        bgoRole: "ADMIN",
         preferredLanguage: "it",
         mobileNumber: "+39 123",
         e2e: undefined,

@@ -39,6 +39,24 @@ describe("mobile push notifications", () => {
     mocks.getDevicePushTokenAsync.mockResolvedValue({ data: "native-token" });
   });
 
+  it("routes community links to authenticated native destinations and rejects unsafe paths", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    expect(
+      notificationHref({ href: `/organizations/${id}`, kind: "organization_invitation" }),
+    ).toBe(`/organization/${id}`);
+    expect(notificationHref({ href: "/moderation", kind: "organization_review_requested" })).toBe(
+      "/moderation",
+    );
+    expect(notificationHref({ href: 123 })).toBe("/notifications");
+    for (const href of [
+      `https://evil.test/organizations/${id}`,
+      "/organizations/invalid",
+      `/organizations/${id}/edit`,
+      `/organizations/${id}?redirect=evil`,
+    ])
+      expect(notificationHref({ href })).toBe("/notifications");
+  });
+
   it("configures foreground notification behavior", async () => {
     configureNotificationHandler();
     const handler = mocks.setNotificationHandler.mock.calls[0]?.[0];

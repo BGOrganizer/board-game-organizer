@@ -25,6 +25,7 @@ describe("enrichRelationshipsWithUsers", () => {
         {
           clerkId: "user_b",
           name: "Bob",
+          username: "bob-community",
           email: "bob@example.com",
           avatarUrl: "avatar",
           presence: { online: true, lastActiveAt: "now" },
@@ -60,6 +61,7 @@ describe("enrichRelationshipsWithUsers", () => {
 
     expect(rows[0].profile).toMatchObject({
       id: "user_b",
+      username: "bob-community",
       avatarUrl: "avatar",
       blockedByMe: false,
       blockedMe: false,

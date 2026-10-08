@@ -48,7 +48,8 @@ const { useProfileQueryMock, useBggAccountMock } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useProfileQuery: () => useProfileQueryMock(),
   useBggAccount: () => useBggAccountMock(),

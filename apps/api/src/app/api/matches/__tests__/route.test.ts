@@ -16,6 +16,11 @@ import * as statusRoute from "../[matchId]/status/route";
 import * as matchesRoute from "../route";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
+vi.mock("@/app/lib/events.repository", () => ({ EventsRepository: class {} }));
+vi.mock("@/app/lib/organizations.repository", () => ({ OrganizationsRepository: class {} }));
+vi.mock("@/app/lib/organization-assets.repository", () => ({
+  OrganizationAssetsRepository: class {},
+}));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
 vi.mock("@/app/lib/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/app/lib/db")>();

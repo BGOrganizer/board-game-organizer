@@ -1,4 +1,8 @@
-import type { MutationFeedback, MutationFeedbackAction } from "@board-game-organizer/shared";
+import {
+  communityFeedbackMessages,
+  type MutationFeedback,
+  type MutationFeedbackAction,
+} from "@board-game-organizer/shared";
 import { Toast, useToast } from "heroui-native/toast";
 import { CircleAlert, CircleCheck } from "lucide-react-native";
 import { createElement, useMemo } from "react";
@@ -10,6 +14,7 @@ export function useMutationFeedback(): MutationFeedback {
 
   return useMemo(() => {
     const messages: Record<MutationFeedbackAction, { success: string; error: string }> = {
+      ...communityFeedbackMessages(t),
       follow: { success: t("User followed"), error: t("Could not follow user") },
       unfollow: { success: t("User unfollowed"), error: t("Could not unfollow user") },
       unfriend: { success: t("Friend removed"), error: t("Could not remove friend") },

@@ -30,6 +30,16 @@ vi.mock("@clerk/nextjs", () => ({
 vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
+  useOrganizationList: () => ({
+    items: [],
+    isPending: false,
+    isError: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    isFetchNextPageError: false,
+    fetchNextPage: vi.fn(),
+    refetch: vi.fn(),
+  }),
   useGroups: () => ({
     list: { data: [], isPending: false, isError: false },
     create: { mutateAsync: vi.fn(), isPending: false },
@@ -111,7 +121,7 @@ describe("tab pages", () => {
     vi.clearAllMocks();
   });
 
-  it("renders groups and remaining placeholder without repeating tab titles", async () => {
+  it("renders group and organization lists without repeating tab titles", async () => {
     renderWithI18n(await Contacts());
     expect(screen.getByRole("tab", { name: "Connections" })).toBeTruthy();
 
@@ -120,7 +130,7 @@ describe("tab pages", () => {
     unmountGroups();
 
     const { unmount: unmountOrgs } = renderWithI18n(await Organizations());
-    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    expect(screen.getByText("No organizations found")).toBeTruthy();
     unmountOrgs();
   });
 

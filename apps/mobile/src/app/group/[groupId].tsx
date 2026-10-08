@@ -196,7 +196,7 @@ export default function GroupDetailScreen() {
     <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
-          title: t("Group details"),
+          title: group?.name ?? t("Group details"),
           headerRight: admin
             ? () => (
                 <Button

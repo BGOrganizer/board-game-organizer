@@ -1,4 +1,7 @@
+import type { CommunityFeedbackAction } from "./communityFeedback";
+
 export type MutationFeedbackAction =
+  | CommunityFeedbackAction
   | "follow"
   | "unfollow"
   | "unfriend"

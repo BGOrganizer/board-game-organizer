@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   matchChoiceSchema,
   matchChoicesSchema,
+  matchEventTableSchema,
   matchInvitationStatusSchema,
   matchLocationSchema,
   matchResultsSchema,
@@ -35,6 +36,7 @@ export const matchResponseSchema = z.object({
   invitedUserIds: z.array(z.string()),
   gameIds: z.array(z.number()),
   groupId: z.uuid().optional(),
+  eventTable: matchEventTableSchema.optional(),
   isPublic: z.boolean().optional(),
   status: matchStatusSchema,
   selectedDate: z.string().optional(),

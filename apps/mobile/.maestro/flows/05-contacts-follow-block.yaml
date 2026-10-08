@@ -147,6 +147,7 @@ appId: com.bgo.mobile
 - tapOn: ".*[Ee]nter [Pp]assword.*"
 - inputText: ${PASSWORD_2}
 - tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
@@ -219,6 +220,7 @@ appId: com.bgo.mobile
 - tapOn: ".*[Ee]nter [Pp]assword.*"
 - inputText: ${PASSWORD}
 - tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
@@ -257,6 +259,7 @@ appId: com.bgo.mobile
 - tapOn: ".*[Ee]nter [Pp]assword.*"
 - inputText: ${PASSWORD_2}
 - tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
@@ -293,6 +296,7 @@ appId: com.bgo.mobile
 - tapOn: ".*[Ee]nter [Pp]assword.*"
 - inputText: ${PASSWORD}
 - tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000

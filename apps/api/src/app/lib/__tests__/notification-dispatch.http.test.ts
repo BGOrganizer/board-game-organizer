@@ -29,6 +29,11 @@ vi.mock("@/app/lib/relationship.service", () => ({
   RelationshipService: vi.fn(() => ({ requireCurrentUser: mocks.requireCurrentUser })),
 }));
 vi.mock("@/app/lib/matches.repository", () => ({ MatchesRepository: vi.fn() }));
+vi.mock("@/app/lib/events.repository", () => ({ EventsRepository: class {} }));
+vi.mock("@/app/lib/organizations.repository", () => ({ OrganizationsRepository: class {} }));
+vi.mock("@/app/lib/organization-assets.repository", () => ({
+  OrganizationAssetsRepository: class {},
+}));
 vi.mock("@/app/lib/match-invitations.repository", () => ({ MatchInvitationsRepository: vi.fn() }));
 vi.mock("@/app/lib/users.repository", () => ({ UsersRepository: vi.fn() }));
 vi.mock("@/app/lib/boardGames.repository", () => ({ BoardGamesRepository: vi.fn() }));

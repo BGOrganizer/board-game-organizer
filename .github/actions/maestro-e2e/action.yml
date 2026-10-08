@@ -158,6 +158,20 @@ runs:
             --debug-output /tmp/maestro-debug \
             apps/mobile/.maestro/flows/10-bgg-collection.yaml \
             || { capture; exit 1; }
+          # Native community acceptance uses a real media-picker image.
+          adb shell mkdir -p /sdcard/Pictures
+          adb push apps/mobile/assets/icon.png /sdcard/Pictures/bgo-organization-logo.png
+          adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
+            -d file:///sdcard/Pictures/bgo-organization-logo.png >/dev/null
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            apps/mobile/.maestro/flows/12-organizations.yaml \
+            || { capture; exit 1; }
+          maestro test --format junit --output /tmp/maestro-reports \
+            --debug-output /tmp/maestro-debug \
+            apps/mobile/.maestro/flows/13-event-draft.yaml \
+            || { capture; exit 1; }
+
           # Dark mode: switch the emulator to dark, relaunch and verify the UI still renders
           adb shell cmd uimode night yes || true
           maestro test --format junit --output /tmp/maestro-reports \

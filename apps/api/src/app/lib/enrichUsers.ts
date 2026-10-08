@@ -71,6 +71,7 @@ export async function enrichRelationshipsWithUsers<
       profile: {
         id: user.clerkId,
         name: user.name,
+        ...(user.username !== undefined ? { username: user.username } : {}),
         email: user.email,
         avatarUrl: user.avatarUrl ?? null,
         presence:

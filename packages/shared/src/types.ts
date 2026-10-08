@@ -14,6 +14,8 @@ export interface UserStats {
 export interface UserProfile {
   id: string;
   name: string;
+  username?: string | null;
+  bgoRole?: "ADMIN";
   email: string;
   avatarUrl: string;
   preferredLanguage: string;

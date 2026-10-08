@@ -17,7 +17,8 @@ vi.mock("@clerk/nextjs", () => ({
   }),
 }));
 
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   useInvites: () => ({
     data: null,
     error: null,

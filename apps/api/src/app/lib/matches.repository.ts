@@ -44,6 +44,7 @@ export class MatchesRepository {
       maxPlayers: match.maxPlayers,
       gameIds: match.gameIds,
       ...(match.groupId ? { groupId: match.groupId } : {}),
+      ...(match.eventTable ? { eventTable: match.eventTable } : {}),
       ...(match.choices ? { choices: match.choices } : {}),
       status: match.status ?? "PLANNING",
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
@@ -90,7 +91,13 @@ export class MatchesRepository {
   async listAccessible(userId: string, invitedMatchIds: string[]): Promise<Match[]> {
     const rows = await this.col
       .find(
-        { $or: [{ clerkId: userId }, { id: { $in: invitedMatchIds } }] },
+        {
+          $or: [
+            { clerkId: userId },
+            { id: { $in: invitedMatchIds } },
+            { "eventTable.demonstratorUserId": userId },
+          ],
+        },
         { projection: { _id: 0 }, ...this.opts },
       )
       .sort({ createdAt: -1 })

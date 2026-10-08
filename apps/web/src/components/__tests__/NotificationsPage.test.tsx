@@ -20,7 +20,8 @@ vi.mock("@clerk/nextjs", () => ({
     userId: "user_1",
   }),
 }));
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (value?: string) => value || "http://localhost:4000",
   useNotifications: () => mocks.state,
 }));

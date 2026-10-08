@@ -17,6 +17,10 @@ import { dispatchNotifications } from "@/app/lib/push";
 import { RatingsRepository } from "@/app/lib/ratings.repository";
 import { RelationshipRepository } from "@/app/lib/relationship.repository";
 import { UsersRepository } from "@/app/lib/users.repository";
+import { EventsRepository } from "./events.repository";
+import { EventsService } from "./events.service";
+import { OrganizationAssetsRepository } from "./organization-assets.repository";
+import { OrganizationsRepository } from "./organizations.repository";
 
 export type MatchRouteContext = { params: Promise<{ matchId: string }> };
 export type MatchInvitationRouteContext = { params: Promise<{ invitationId: string }> };
@@ -124,19 +128,29 @@ export async function runMatchOperation<T>(
       try {
         result = await withTransaction(async (session, db) => {
           createdNotificationIds.length = 0;
+          const notifications = new NotificationsRepository(db, session, createdNotificationIds);
           const service = new MatchService(
             new MatchesRepository(db, session),
             new MatchInvitationsRepository(db, session),
             new UsersRepository(db, session),
             new RelationshipRepository(db, session),
             new BoardGamesRepository(db, session),
-            new NotificationsRepository(db, session, createdNotificationIds),
+            notifications,
             new GroupService(
               new GroupsRepository(db, session),
               new UsersRepository(db, session),
               new RelationshipRepository(db, session),
             ),
             new RatingsRepository(db, session),
+            new EventsService(
+              new EventsRepository(db, session),
+              new OrganizationsRepository(db, session),
+              new OrganizationAssetsRepository(db, session),
+              new UsersRepository(db, session),
+              new BoardGamesRepository(db, session),
+              notifications,
+            ),
+            new EventsRepository(db, session),
           );
           await service.requireCurrentUser(userId);
           return operation({ userId, db, session, service });

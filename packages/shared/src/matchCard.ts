@@ -37,9 +37,11 @@ export function matchCardData(match: MatchResponse, now = Date.now()) {
     additionalDates: Math.max(0, dates.length - 1),
     location,
     additionalLocations: planning ? Math.max(0, locations.length - 1) : 0,
-    players: planning
-      ? match.minPlayers
-      : 1 + match.invitations.filter((invitation) => invitation.status === "ACCEPTED").length,
+    players: match.eventTable
+      ? match.invitations.filter((invitation) => invitation.status === "ACCEPTED").length
+      : planning
+        ? match.minPlayers
+        : 1 + match.invitations.filter((invitation) => invitation.status === "ACCEPTED").length,
     maxPlayers: match.maxPlayers,
     gameCount: planning ? match.gameIds.length : undefined,
     selectedGameName: planning ? undefined : match.selectedGameName,

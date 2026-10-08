@@ -43,6 +43,31 @@ export class GroupsRepository {
     );
   }
 
+  listPublic(page: { query?: string; cursor?: string; limit: number }) {
+    const [createdAt, id] = page.cursor?.split("|") ?? [];
+    return this.groups
+      .find(
+        {
+          isPublic: true,
+          archivedAt: { $exists: false },
+          name: {
+            $regex: (page.query ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            $options: "i",
+          },
+          ...(createdAt && id
+            ? { $or: [{ createdAt: { $lt: createdAt } }, { createdAt, id: { $lt: id } }] }
+            : {}),
+        },
+        { projection: { _id: 0, membershipRevision: 0 }, ...this.opts },
+      )
+      .sort({ createdAt: -1, id: -1 })
+      .limit(page.limit + 1)
+      .toArray();
+  }
+  countAccepted(groupId: string) {
+    return this.invitations.countDocuments({ groupId, status: "ACCEPTED" }, this.opts);
+  }
+
   listForUser(adminUserId: string, invitedGroupIds: string[]) {
     return this.groups
       .find(

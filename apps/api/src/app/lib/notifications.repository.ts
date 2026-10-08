@@ -1,4 +1,5 @@
 import type {
+  CommunityNotificationKind,
   Notification,
   NotificationDto,
   NotificationKind,
@@ -7,8 +8,16 @@ import type {
 } from "@board-game-organizer/schemas";
 import { type ClientSession, type Db, ObjectId } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
+import { communityNotificationCopy } from "./community-notifications";
 
 export type NotificationEvent =
+  | {
+      kind: CommunityNotificationKind;
+      recipientUserId: string;
+      actorUserId: string;
+      resourceName: string;
+      resourceHref: string;
+    }
   | {
       kind: "friend_request" | "friend_request_accepted";
       recipientUserId: string;
@@ -42,6 +51,8 @@ export function notificationCopy(
   actorName: string,
   matchName?: string,
 ): { title: string; description: string; href: string } {
+  const community = communityNotificationCopy(kind, locale, actorName, matchName);
+  if (community) return community;
   if (locale === "it") {
     switch (kind) {
       case "friend_request":
@@ -181,6 +192,7 @@ export function notificationCopy(
         href: "/matches",
       };
   }
+  throw new Error("Unsupported notification kind");
 }
 
 function toDto(notification: Notification): NotificationDto {
@@ -233,18 +245,22 @@ export class NotificationsRepository {
           ...notificationCopy(
             event.kind,
             recipient.preferredLanguage,
-            actor.name,
-            "matchName" in event
-              ? event.matchName
-              : "groupName" in event
-                ? event.groupName
-                : undefined,
+            "resourceName" in event ? (actor.username ?? actor.name) : actor.name,
+            "resourceName" in event
+              ? event.resourceName
+              : "matchName" in event
+                ? event.matchName
+                : "groupName" in event
+                  ? event.groupName
+                  : undefined,
           ),
-          ...("matchId" in event
-            ? { href: `/matches/${event.matchId}` }
-            : "groupId" in event
-              ? { href: `/groups/${event.groupId}` }
-              : {}),
+          ...("resourceHref" in event
+            ? { href: event.resourceHref }
+            : "matchId" in event
+              ? { href: `/matches/${event.matchId}` }
+              : "groupId" in event
+                ? { href: `/groups/${event.groupId}` }
+                : {}),
           createdAt,
         } as Notification,
       ];

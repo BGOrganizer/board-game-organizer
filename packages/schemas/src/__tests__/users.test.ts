@@ -1,10 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
+  getBgoRole,
   getMobileNumber,
   MOBILE_NUMBER_METADATA_KEY,
   normalizePhoneNumberForMatching,
   USER_INDEXES,
 } from "../index";
+
+describe("moderator role metadata", () => {
+  it("requires an exact ADMIN value in server-owned public metadata", () => {
+    expect(getBgoRole({ bgoRole: "ADMIN" })).toBe("ADMIN");
+    for (const metadata of [
+      null,
+      undefined,
+      "ADMIN",
+      [],
+      {},
+      { bgoRole: "admin" },
+      { bgoRole: 1 },
+      { unsafeMetadata: { bgoRole: "ADMIN" } },
+    ]) {
+      expect(getBgoRole(metadata)).toBeUndefined();
+    }
+  });
+});
 
 describe("mobile number metadata", () => {
   it("reads and trims a non-empty custom value", () => {
@@ -32,7 +51,9 @@ describe("mobile number metadata", () => {
   });
 
   it("indexes normalized phone lookups", () => {
-    expect(USER_INDEXES).toHaveLength(4);
+    expect(USER_INDEXES).toHaveLength(6);
+    expect(USER_INDEXES).toContainEqual({ key: { username: 1 } });
+    expect(USER_INDEXES).toContainEqual({ key: { bgoRole: 1 } });
     expect(USER_INDEXES).toContainEqual({ key: { mobileNumberNormalized: 1 } });
   });
 });

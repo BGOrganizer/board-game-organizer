@@ -19,6 +19,7 @@ const syncUserSchema = z.object({
   clerkId: z.string().min(1),
   email: z.string().email(),
   name: z.string().min(1),
+  username: z.string().min(1).max(256).nullable().optional(),
   avatarUrl: z.string().url().optional(),
   mobileNumber: z.string().trim().min(1).optional(),
 });
@@ -62,11 +63,12 @@ export async function POST(request: Request) {
 
   const db = await getDb();
   const repo = new UsersRepository(db);
-  const { clerkId, email, name, avatarUrl, mobileNumber } = parsed.data;
+  const { clerkId, email, name, username, avatarUrl, mobileNumber } = parsed.data;
   await repo.upsertFromClerk({
     id: clerkId,
     email,
     name,
+    username,
     avatarUrl,
     mobileNumber,
     preferredLanguage: "en",

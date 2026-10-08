@@ -9,6 +9,7 @@ function createFakeCol(overrides: Record<string, unknown> = {}) {
     find: vi.fn(() => ({ toArray: vi.fn(async () => [{ clerkId: "user_1" }]) })),
     findOneAndUpdate: vi.fn(async () => ({ value: null })),
     deleteOne: vi.fn(async () => ({ deletedCount: 0 })),
+    updateOne: vi.fn(async () => ({ matchedCount: 1 })),
     ...overrides,
   };
   return { col, calls };
@@ -19,6 +20,64 @@ function createRepo(col: ReturnType<typeof createFakeCol>["col"], session?: unkn
 }
 
 describe("UsersRepository", () => {
+  it.each([undefined, { transaction: true }])(
+    "loads mirrored moderator notification targets with session %j",
+    async (session) => {
+      const { col } = createFakeCol();
+      expect(await createRepo(col, session).moderatorIds()).toEqual(["user_1"]);
+      expect(col.find).toHaveBeenCalledWith(
+        { bgoRole: "ADMIN" },
+        { projection: { clerkId: 1 }, ...(session ? { session } : {}) },
+      );
+    },
+  );
+  it("mirrors usernames and moderator notification targets, including explicit revocation", async () => {
+    const { col } = createFakeCol();
+    const repo = createRepo(col);
+    await repo.upsertFromClerk({
+      id: "user_role",
+      email: "x@y.it",
+      name: "X",
+      preferredLanguage: "en",
+      username: "alex",
+      bgoRole: "ADMIN",
+    });
+    expect(col.findOneAndUpdate).toHaveBeenLastCalledWith(
+      { clerkId: "user_role" },
+      expect.objectContaining({
+        $set: expect.objectContaining({ username: "alex", bgoRole: "ADMIN" }),
+      }),
+      expect.anything(),
+    );
+    await repo.upsertFromClerk({
+      id: "user_role",
+      email: "x@y.it",
+      name: "X",
+      preferredLanguage: "en",
+      username: null,
+      bgoRole: null,
+    });
+    expect(col.findOneAndUpdate).toHaveBeenLastCalledWith(
+      { clerkId: "user_role" },
+      expect.objectContaining({
+        $set: expect.objectContaining({ username: null }),
+        $unset: { bgoRole: "" },
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("serializes community uploads on the caller document, retaining the transaction session", async () => {
+    for (const session of [undefined, { id: "session" }]) {
+      const { col } = createFakeCol();
+      await createRepo(col, session).lock("user_role");
+      expect(col.updateOne).toHaveBeenCalledWith(
+        { clerkId: "user_role" },
+        { $inc: { "community.uploadLock": 1 } },
+        session ? { session } : {},
+      );
+    }
+  });
   it("upsertFromClerk upserts on clerkId and returns the updated document", async () => {
     const doc = { _id: "1", clerkId: "user_1" };
     const { col } = createFakeCol({ findOneAndUpdate: vi.fn(async () => ({ value: doc })) });

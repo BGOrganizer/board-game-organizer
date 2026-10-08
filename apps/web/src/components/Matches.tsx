@@ -176,7 +176,7 @@ export function Matches() {
               label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
               disabled={match.optimistic}
               actions={
-                invitation?.status === "PENDING" ? (
+                !match.eventTable && invitation?.status === "PENDING" ? (
                   <>
                     <Button
                       isIconOnly
@@ -220,7 +220,12 @@ export function Matches() {
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="min-w-0 font-semibold">{match.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold">{match.name}</p>
+                    {match.eventTable ? (
+                      <span className="text-sm text-muted">{t`Event table`}</span>
+                    ) : null}
+                  </div>
                   <Chip
                     size="sm"
                     variant="soft"

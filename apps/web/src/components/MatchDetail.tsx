@@ -6,9 +6,11 @@ import type {
   SetMatchChoiceInput,
 } from "@board-game-organizer/schemas";
 import {
+  canRegisterMatchResults,
   formatLocationAddress,
   formatMatchDateTime,
   matchContactState,
+  matchParticipants,
   resolveApiUrl,
   useContacts,
   useFavoriteLocations,
@@ -198,7 +200,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   if (
     registeringMatch?.match.id === matchId &&
     isSignedIn &&
-    registeringMatch.match.adminUserId === userId
+    canRegisterMatchResults(registeringMatch.match, userId)
   ) {
     return (
       <MatchResultsEditor
@@ -257,22 +259,18 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   }
 
   const matchData = matches.detail.data;
-  const { match, administrator, invitedPlayers, games } = matchData;
+  const { match, administrator, games } = matchData;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const isAdmin = match.adminUserId === userId;
-  const canViewLeaderboard = isAdmin || ownInvitation?.status === "ACCEPTED";
-  const canLeave = match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
+  const canViewLeaderboard = (!match.eventTable && isAdmin) || ownInvitation?.status === "ACCEPTED";
+  const canLeave =
+    !match.eventTable && match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
   const canChoose =
-    match.status === "PLANNING" && (isAdmin || ownInvitation?.status === "ACCEPTED");
+    !match.eventTable &&
+    match.status === "PLANNING" &&
+    (isAdmin || ownInvitation?.status === "ACCEPTED");
   const choose = (input: SetMatchChoiceInput) => matches.setChoice.mutate(input);
-  const participants = [
-    { ...administrator, status: "ACCEPTED" as const, isAdministrator: true as const },
-    ...invitedPlayers.map((player) => ({
-      ...player,
-      status: player.invitation.status,
-      isAdministrator: false as const,
-    })),
-  ];
+  const participants = matchParticipants(matchData);
   const actionBusy =
     matches.deleteMatch.isPending ||
     matches.leaveMatch.isPending ||
@@ -344,7 +342,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
       />
     );
   };
-  const summary = matchData.voteSummary;
+  const summary = match.eventTable ? undefined : matchData.voteSummary;
   const reasons = summary?.reasons.map((reason) =>
     reason === "NOT_ENOUGH_PLAYERS"
       ? t`Not enough accepted players`
@@ -380,7 +378,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <div className="flex flex-row-reverse items-center justify-between gap-3">
-        {isAdmin ? (
+        {isAdmin || canRegisterMatchResults(match, userId) ? (
           <div className="flex flex-wrap gap-2">
             {match.status === "CREATED" ? (
               <Button
@@ -391,7 +389,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 <Trophy className="h-4 w-4" />
                 {t`Register results`}
               </Button>
-            ) : match.status === "PLANNING" && !canConfirm ? (
+            ) : !match.eventTable && match.status === "PLANNING" && !canConfirm ? (
               <Tooltip delay={0} isOpen={showBlockedReason}>
                 <Tooltip.Trigger
                   onFocus={() => setShowBlockedReason(true)}
@@ -407,7 +405,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 </Tooltip.Trigger>
                 <Tooltip.Content>{reasons.join(" · ")}</Tooltip.Content>
               </Tooltip>
-            ) : match.status === "PLANNING" ? (
+            ) : !match.eventTable && match.status === "PLANNING" ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -418,7 +416,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                 {t`Confirm match`}
               </Button>
             ) : null}
-            {match.status !== "TERMINATED" && (
+            {!match.eventTable && match.status !== "TERMINATED" && (
               <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
                 <Popover.Trigger
                   aria-label={t`More match actions`}
@@ -499,44 +497,46 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           <p className="text-sm">{t`Your join request is waiting for admin approval.`}</p>
         </Card>
       )}
-      {ownInvitation?.status === "PENDING" && ownInvitation.kind !== "REQUEST" && (
-        <Card className="relative min-h-14 rounded-xl p-3 pr-24">
-          <p className="text-sm font-medium">{t`Your invitation is waiting for a response.`}</p>
-          <div className="absolute right-2 bottom-2 flex gap-1">
-            <Button
-              isIconOnly
-              size="sm"
-              className="h-8 min-h-8 w-8 min-w-8"
-              aria-label={t`Decline`}
-              variant="outline"
-              isDisabled={matches.respondInvitation.isPending}
-              onPress={() =>
-                matches.respondInvitation.mutate({
-                  invitationId: ownInvitation.id,
-                  decision: "decline",
-                })
-              }
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              className="h-8 min-h-8 w-8 min-w-8"
-              aria-label={t`Accept`}
-              isDisabled={matches.respondInvitation.isPending}
-              onPress={() =>
-                matches.respondInvitation.mutate({
-                  invitationId: ownInvitation.id,
-                  decision: "accept",
-                })
-              }
-            >
-              <Check className="h-4 w-4" />
-            </Button>
-          </div>
-        </Card>
-      )}
+      {!match.eventTable &&
+        ownInvitation?.status === "PENDING" &&
+        ownInvitation.kind !== "REQUEST" && (
+          <Card className="relative min-h-14 rounded-xl p-3 pr-24">
+            <p className="text-sm font-medium">{t`Your invitation is waiting for a response.`}</p>
+            <div className="absolute right-2 bottom-2 flex gap-1">
+              <Button
+                isIconOnly
+                size="sm"
+                className="h-8 min-h-8 w-8 min-w-8"
+                aria-label={t`Decline`}
+                variant="outline"
+                isDisabled={matches.respondInvitation.isPending}
+                onPress={() =>
+                  matches.respondInvitation.mutate({
+                    invitationId: ownInvitation.id,
+                    decision: "decline",
+                  })
+                }
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                className="h-8 min-h-8 w-8 min-w-8"
+                aria-label={t`Accept`}
+                isDisabled={matches.respondInvitation.isPending}
+                onPress={() =>
+                  matches.respondInvitation.mutate({
+                    invitationId: ownInvitation.id,
+                    decision: "accept",
+                  })
+                }
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+            </div>
+          </Card>
+        )}
 
       {matches.respondInvitation.isError && (
         <p className="text-sm text-danger">{t`Could not update the invitation`}</p>
@@ -576,7 +576,18 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-semibold">{match.name}</h1>
-              {match.status === "PLANNING" && summary && <VoteLegend />}
+              {match.eventTable ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() =>
+                    router.push(
+                      `/events/${match.eventTable!.eventId}/tables/${match.eventTable!.tableId}`,
+                    )
+                  }
+                >{t`Event table`}</Button>
+              ) : null}
+              {!match.eventTable && match.status === "PLANNING" && summary && <VoteLegend />}
             </div>
             <div>
               <div className="mb-2 flex items-center gap-1">
@@ -793,6 +804,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                         ) : null}
                       </div>
                       {isAdmin &&
+                        !match.eventTable &&
                         match.status === "PLANNING" &&
                         !player.isAdministrator &&
                         player.invitation.kind === "REQUEST" &&
@@ -807,18 +819,21 @@ export function MatchDetail({ matchId }: { matchId: string }) {
                             <Check className="size-4" aria-hidden="true" />
                           </Button>
                         )}
-                      {isAdmin && match.status === "PLANNING" && !player.isAdministrator && (
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="danger-soft"
-                          isDisabled={actionBusy}
-                          aria-label={`${t`Remove player`}: ${player.name}`}
-                          onPress={() => setRemovePlayerId(player.invitation.id)}
-                        >
-                          <UserRoundX className="h-4 w-4" />
-                        </Button>
-                      )}
+                      {isAdmin &&
+                        !match.eventTable &&
+                        match.status === "PLANNING" &&
+                        !player.isAdministrator && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="danger-soft"
+                            isDisabled={actionBusy}
+                            aria-label={`${t`Remove player`}: ${player.name}`}
+                            onPress={() => setRemovePlayerId(player.invitation.id)}
+                          >
+                            <UserRoundX className="h-4 w-4" />
+                          </Button>
+                        )}
                       {socialMenu(player)}
                     </GroupedRow>
                   ))}
@@ -872,7 +887,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         )}
       </Tabs>
 
-      {isAdmin && match.status === "PLANNING" ? (
+      {isAdmin && !match.eventTable && match.status === "PLANNING" ? (
         <Button
           isIconOnly
           aria-label={t`Edit match`}

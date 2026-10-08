@@ -69,6 +69,8 @@ export async function GET(request: NextRequest) {
   const profile = {
     id: clerkProfile.id,
     name: clerkProfile.fullName ?? clerkProfile.emailAddress ?? "Unknown",
+    username: clerkProfile.username ?? null,
+    ...(clerkProfile.bgoRole ? { bgoRole: clerkProfile.bgoRole } : {}),
     email: clerkProfile.emailAddress ?? "",
     avatarUrl: clerkProfile.imageUrl ?? "",
     preferredLanguage: "it",

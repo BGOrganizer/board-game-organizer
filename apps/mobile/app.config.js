@@ -8,6 +8,7 @@ module.exports = {
     userInterfaceStyle: "automatic",
     icon: "./assets/icon.png",
     newArchEnabled: true,
+    locales: { en: "./assets/locales/en.json", it: "./assets/locales/it.json" },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.bgo.mobile",
@@ -45,6 +46,14 @@ module.exports = {
       "@sentry/react-native",
       "expo-font",
       "expo-contacts",
+      [
+        "expo-image-picker",
+        {
+          photosPermission: "Choose an organization logo from your photo library.",
+          cameraPermission: "Take a photo for your organization logo.",
+          microphonePermission: false,
+        },
+      ],
       [
         "expo-location",
         { locationWhenInUsePermission: "Show your position on the match location map." },

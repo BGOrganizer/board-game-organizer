@@ -2,6 +2,12 @@ import type { ObjectId } from "mongodb";
 
 export const MOBILE_NUMBER_METADATA_KEY = "mobileNumber";
 
+/** Only server-owned Clerk public metadata may be passed by authorization callers. */
+export function getBgoRole(metadata: unknown): "ADMIN" | undefined {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return undefined;
+  return (metadata as Record<string, unknown>).bgoRole === "ADMIN" ? "ADMIN" : undefined;
+}
+
 /** Reads required custom signup value without applying phone-format validation. */
 export function getMobileNumber(metadata: unknown): string | undefined {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return undefined;
@@ -31,6 +37,10 @@ export interface User {
   clerkId: string;
   email: string;
   name: string;
+  /** Undefined on legacy mirrors, null when Clerk has no username. */
+  username?: string | null;
+  /** Notification targeting only. Authorization always checks fresh Clerk public metadata. */
+  bgoRole?: "ADMIN";
   avatarUrl?: string;
   /** Custom signup value. Intentionally stored without phone-format validation. */
   mobileNumber?: string;
@@ -57,4 +67,6 @@ export const USER_INDEXES = [
   // Prefix (autocomplete) search over name: the search route uses an
   // anchored ^$regex with $options "i", which needs a plain index.
   { key: { name: 1 } },
+  { key: { username: 1 } },
+  { key: { bgoRole: 1 } },
 ] as const;

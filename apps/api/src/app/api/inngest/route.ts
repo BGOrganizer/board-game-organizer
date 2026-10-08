@@ -1,0 +1,9 @@
+import { serve } from "inngest/next";
+import { inngest } from "@/app/lib/event-deadlines";
+import { closeEventAtDeadline, recoverEventDeadlines } from "@/app/lib/event-workers";
+
+// Inngest validates signed execution requests; never add an unsigned execution endpoint.
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: [closeEventAtDeadline, recoverEventDeadlines],
+});

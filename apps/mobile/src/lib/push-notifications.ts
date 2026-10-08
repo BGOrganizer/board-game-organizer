@@ -63,7 +63,12 @@ export function notificationHref(
   | "/groups"
   | "/notifications"
   | `/match/${string}`
-  | `/group/${string}` {
+  | `/group/${string}`
+  | `/organization/${string}`
+  | `/event/${string}`
+  | `/event/table?eventId=${string}&tableId=${string}`
+  | "/events"
+  | "/moderation" {
   if (!data || typeof data !== "object") return "/notifications";
   const { href, kind } = data as { href?: unknown; kind?: unknown };
   if (typeof href === "string") {
@@ -71,6 +76,23 @@ export function notificationHref(
       /^\/(matches|groups)\/([a-f\d]{24}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href);
     if (detail) return detail[1] === "matches" ? `/match/${detail[2]}` : `/group/${detail[2]}`;
   }
+  const organization =
+    typeof href === "string"
+      ? /^\/organizations\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href)
+      : null;
+  if (organization) return `/organization/${organization[1]}`;
+  if (typeof href === "string") {
+    const event =
+      /^\/events\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})(?:\/tables\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}))?$/i.exec(
+        href,
+      );
+    if (event)
+      return event[2]
+        ? `/event/table?eventId=${event[1]}&tableId=${event[2]}`
+        : `/event/${event[1]}`;
+  }
+  if (href === "/events") return "/events";
+  if (href === "/moderation") return "/moderation";
   if (href === "/contacts" && kind === "friend_request") return "/contacts?tab=requests";
   if (href === "/contacts" && kind === "friend_request_accepted") {
     return "/contacts?tab=connections";

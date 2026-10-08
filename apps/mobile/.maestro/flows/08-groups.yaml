@@ -1,7 +1,9 @@
 appId: com.bgo.mobile
 ---
 # Group flow mirrors match list -> wizard -> detail -> edit and invite-picker navigation.
-- tapOn: "Groups"
+- tapOn: "Groups and organizations"
+- tapOn:
+    id: "community-tab-groups"
 - extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000
@@ -21,6 +23,7 @@ appId: com.bgo.mobile
 - tapOn: "Group name"
 - eraseText: 3
 - inputText: "Tabletop Friends"
+- hideKeyboard
 - tapOn:
     id: "group-public-switch"
 - assertVisible: "Select a friend"
@@ -79,34 +82,46 @@ appId: com.bgo.mobile
 - tapOn: "Group name"
 - eraseText: 16
 - inputText: "Weekend Games"
+- hideKeyboard
 - tapOn:
     id: "group-public-switch"
 - tapOn:
     id: "save-group-fab"
 - extendedWaitUntil:
-    visible: "Weekend Games"
+    visible:
+      id: "group-detail-scroll"
     timeout: 30000
+- assertVisible: "Weekend Games"
 - assertVisible: "Private"
 - back
 # Optional group appears on first match-wizard step; leave draft unsaved.
 - tapOn: "Matches"
 - tapOn:
-    point: "90%,92%"
+    id: "create-match-fab"
 - extendedWaitUntil:
     visible: "New match"
     timeout: 30000
 - assertVisible: "Group (optional)"
 - assertVisible: "No group"
+- tapOn: "No group"
 - tapOn: "Weekend Games"
 - assertVisible: "Weekend Games"
 - back
-- tapOn: "Groups"
+- tapOn: "Groups and organizations"
+- tapOn:
+    id: "community-tab-groups"
 - tapOn: "Open group: Weekend Games"
 - tapOn: "Delete group"
 - assertVisible: "Delete group?"
 - tapOn: "Delete group"
 - extendedWaitUntil:
+    notVisible: "Delete group?"
+    timeout: 30000
+- extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000
-- tapOn: "Organizations"
-- assertVisible: "Coming soon"
+- tapOn:
+    id: "community-tab-organizations"
+- extendedWaitUntil:
+    visible: "No organizations yet"
+    timeout: 30000

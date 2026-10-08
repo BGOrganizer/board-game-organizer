@@ -54,6 +54,18 @@ export const matchResultsSchema = z
   .strict();
 export type MatchResults = z.infer<typeof matchResultsSchema>;
 
+export const matchEventTableSchema = z.object({
+  organizationId: z.uuid(),
+  eventId: z.uuid(),
+  tableId: z.uuid(),
+  eventName: z.string(),
+  tableName: z.string(),
+  demonstratorUserId: targetUserIdSchema.optional(),
+  openSkill: z.boolean(),
+  bookingClosesAt: z.iso.datetime({ offset: true }),
+  endsAt: z.iso.datetime({ offset: true }),
+});
+
 /** Match persisted independently from invitation lifecycle. */
 export const matchModel = z.object({
   id: z.uuid(),
@@ -66,6 +78,7 @@ export const matchModel = z.object({
   maxPlayers: z.number().int().min(2),
   gameIds: z.array(z.number().int().positive()).min(1),
   groupId: z.uuid().optional(),
+  eventTable: matchEventTableSchema.optional(),
   isPublic: z.boolean().optional(), // Legacy matches are private.
   choices: z.record(z.string(), matchChoicesSchema).optional(),
   status: matchStatusSchema,
@@ -97,6 +110,11 @@ export const MATCH_INDEXES = [
   { key: { clerkId: 1, createdAt: -1 } },
   { key: { groupId: 1, status: 1, selectedGameId: 1 } },
   { key: { status: 1, selectedGameId: 1 } },
+  {
+    key: { "eventTable.tableId": 1 },
+    unique: true,
+    partialFilterExpression: { "eventTable.tableId": { $exists: true } },
+  },
 ] as const;
 
 function hasDuplicates(values: readonly unknown[]) {

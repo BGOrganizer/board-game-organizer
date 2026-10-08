@@ -17,7 +17,26 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/app/lib/{event-deadlines,event-workers}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/{community-role,community.error,organization-logo,organization-assets.service,organization-assets.http}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/app/lib/{favorite-locations.repository,geocoding}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/api/organization-assets/**/route.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

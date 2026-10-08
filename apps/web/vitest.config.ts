@@ -36,6 +36,14 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       allowExternal: true,
       include: [
+        ...["useEvents", "useEventWindow", "usePublicGroups"].map((name) =>
+          fileURLToPath(
+            new URL(`../../packages/shared/src/hooks/${name}.ts`, import.meta.url),
+          ).replaceAll("\\", "/"),
+        ),
+        fileURLToPath(
+          new URL("../../packages/shared/src/hooks/useOrganizations.ts", import.meta.url),
+        ).replaceAll("\\", "/"),
         fileURLToPath(new URL("./src/**/*.{ts,tsx}", import.meta.url)).replaceAll("\\", "/"),
         fileURLToPath(
           new URL("../../packages/shared/src/hooks/useFavoriteLocations.ts", import.meta.url),
@@ -57,6 +65,18 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/hooks/{useEvents,useEventWindow,usePublicGroups}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/hooks/useOrganizations.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/hooks/useCurrentLocationAddress.ts": {
           lines: 100,
           functions: 100,

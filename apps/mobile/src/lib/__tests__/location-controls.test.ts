@@ -6,7 +6,7 @@ import { expect, it } from "vitest";
 it("anchors favorite sheets above system bars with viewport sizing", () => {
   const source = ts.createSourceFile(
     "search-location.tsx",
-    readFileSync(new URL("../../app/match/search-location.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../../components/LocationPicker.tsx", import.meta.url), "utf8"),
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TSX,
@@ -47,7 +47,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
     ["../../app/match/[matchId].tsx", "ScrollView", 100],
     ["../../app/group/[groupId].tsx", "ScrollView", 100],
     ["../../app/(tabs)/matches.tsx", "FlatList", 16],
-    ["../../app/(tabs)/groups.tsx", "FlatList", 16],
+    ["../../components/Groups.tsx", "FlatList", 16],
     ["../../components/MatchWizard.tsx", "ScrollView", 100],
     ["../../components/GroupWizard.tsx", "ScrollView", 100],
   ] as const) {
@@ -94,7 +94,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
 it("keeps text inside explicit labels when native location buttons contain icons", () => {
   for (const path of [
     "../../components/MatchWizard.tsx",
-    "../../app/match/search-location.tsx",
+    "../../components/LocationPicker.tsx",
     "../../app/match/[matchId].tsx",
     "../../components/ContactLegend.tsx",
   ]) {

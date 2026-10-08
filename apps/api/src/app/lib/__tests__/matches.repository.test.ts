@@ -51,6 +51,37 @@ const stored = {
 };
 
 describe("MatchesRepository", () => {
+  it("retains event-table authorization and fixed-selection metadata on reads", async () => {
+    const eventTable = {
+      organizationId: "org",
+      eventId: "event",
+      tableId: "table",
+      eventName: "Event",
+      tableName: "Table",
+      demonstratorUserId: "demo",
+      openSkill: false,
+      bookingClosesAt: "2026-10-10T12:00:00.000Z",
+      endsAt: "2026-10-11T12:00:00.000Z",
+    };
+    const db = {
+      collection: () => ({
+        findOne: vi.fn(async () => ({
+          id: "match",
+          clerkId: "admin",
+          name: "Event table",
+          dates: [],
+          gameIds: [],
+          minPlayers: 2,
+          maxPlayers: 4,
+          eventTable,
+          createdAt: eventTable.bookingClosesAt,
+        })),
+      }),
+    };
+    expect((await new MatchesRepository(db as never).findById("match"))?.eventTable).toEqual(
+      eventTable,
+    );
+  });
   it("keeps legacy locations compatible and persists location choices and confirmation", async () => {
     const locationId = input.locations[0].id;
     const selected = {
@@ -128,7 +159,13 @@ describe("MatchesRepository", () => {
     const { db, collection, cursor } = setup([stored, legacy]);
     const matches = await new MatchesRepository(db as never).listAccessible("user_1", ["match_2"]);
     expect(collection.find).toHaveBeenCalledWith(
-      { $or: [{ clerkId: "user_1" }, { id: { $in: ["match_2"] } }] },
+      {
+        $or: [
+          { clerkId: "user_1" },
+          { id: { $in: ["match_2"] } },
+          { "eventTable.demonstratorUserId": "user_1" },
+        ],
+      },
       { projection: { _id: 0 } },
     );
     expect(cursor.sort).toHaveBeenCalledWith({ createdAt: -1 });

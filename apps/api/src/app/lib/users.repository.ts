@@ -23,6 +23,8 @@ export class UsersRepository {
     id: string;
     email: string;
     name: string;
+    username?: string | null;
+    bgoRole?: "ADMIN" | null;
     avatarUrl?: string;
     mobileNumber?: string | null;
     preferredLanguage: "en" | "it";
@@ -31,12 +33,19 @@ export class UsersRepository {
   }) {
     const now = new Date();
     const mobileNumberNormalized = normalizePhoneNumberForMatching(user.mobileNumber);
+    const unset: Record<string, ""> = {};
+    if (user.mobileNumber === null) unset.mobileNumber = "";
+    if (user.mobileNumber !== undefined && !mobileNumberNormalized)
+      unset.mobileNumberNormalized = "";
+    if (user.bgoRole === null) unset.bgoRole = "";
     return this.col.findOneAndUpdate(
       { clerkId: user.id },
       {
         $set: {
           email: user.email,
           name: user.name,
+          ...(user.username !== undefined ? { username: user.username } : {}),
+          ...(user.bgoRole ? { bgoRole: user.bgoRole } : {}),
           ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
           ...(typeof user.mobileNumber === "string" ? { mobileNumber: user.mobileNumber } : {}),
           ...(mobileNumberNormalized ? { mobileNumberNormalized } : {}),
@@ -45,11 +54,7 @@ export class UsersRepository {
           ...(user.e2e !== undefined ? { e2e: user.e2e } : {}),
           updatedAt: now,
         },
-        ...(user.mobileNumber === null
-          ? { $unset: { mobileNumber: "", mobileNumberNormalized: "" } }
-          : user.mobileNumber !== undefined && !mobileNumberNormalized
-            ? { $unset: { mobileNumberNormalized: "" } }
-            : {}),
+        ...(Object.keys(unset).length ? { $unset: unset } : {}),
         $setOnInsert: {
           clerkId: user.id,
           presence: { online: false, lastActiveAt: now },
@@ -62,6 +67,24 @@ export class UsersRepository {
         ...(this.session ? { session: this.session } : {}),
       },
     );
+  }
+
+  lock(clerkId: string) {
+    return this.col.updateOne(
+      { clerkId },
+      { $inc: { "community.uploadLock": 1 } },
+      this.session ? { session: this.session } : {},
+    );
+  }
+
+  async moderatorIds() {
+    const users = await this.col
+      .find(
+        { bgoRole: "ADMIN" },
+        { projection: { clerkId: 1 }, ...(this.session ? { session: this.session } : {}) },
+      )
+      .toArray();
+    return users.map((user) => user.clerkId);
   }
 
   findById(clerkId: string) {

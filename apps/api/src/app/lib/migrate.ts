@@ -2,6 +2,10 @@ import {
   BGG_ACCOUNT_INDEXES,
   BGG_COLLECTION_INDEXES,
   BLOCK_INDEXES,
+  EVENT_BOOKING_INDEXES,
+  EVENT_DEADLINE_DELIVERY_INDEXES,
+  EVENT_INDEXES,
+  EVENT_TABLE_INDEXES,
   FOLLOW_INDEXES,
   FRIEND_REQUEST_INDEXES,
   GROUP_INDEXES,
@@ -11,6 +15,9 @@ import {
   MATCH_INVITATION_INDEXES,
   NOTIFICATION_INDEXES,
   normalizePhoneNumberForMatching,
+  ORGANIZATION_ASSET_INDEXES,
+  ORGANIZATION_INDEXES,
+  ORGANIZATION_MEMBERSHIP_INDEXES,
   PLAYER_RATING_INDEXES,
   PUSH_SUBSCRIPTION_INDEXES,
   RATING_EVENT_INDEXES,
@@ -32,6 +39,7 @@ interface IndexDef {
   key: Record<string, number | string>;
   unique?: boolean;
   partialFilterExpression?: object;
+  expireAfterSeconds?: number;
 }
 
 export async function migrate(db: Db) {
@@ -51,6 +59,13 @@ export async function migrate(db: Db) {
     [COLLECTIONS.MATCH_INVITATIONS, MATCH_INVITATION_INDEXES],
     [COLLECTIONS.GROUPS, GROUP_INDEXES],
     [COLLECTIONS.GROUP_INVITATIONS, GROUP_INVITATION_INDEXES],
+    [COLLECTIONS.ORGANIZATIONS, ORGANIZATION_INDEXES],
+    [COLLECTIONS.ORGANIZATION_MEMBERSHIPS, ORGANIZATION_MEMBERSHIP_INDEXES],
+    [COLLECTIONS.ORGANIZATION_ASSETS, ORGANIZATION_ASSET_INDEXES],
+    [COLLECTIONS.EVENTS, EVENT_INDEXES],
+    [COLLECTIONS.EVENT_TABLES, EVENT_TABLE_INDEXES],
+    [COLLECTIONS.EVENT_BOOKINGS, EVENT_BOOKING_INDEXES],
+    [COLLECTIONS.EVENT_DEADLINE_DELIVERIES, EVENT_DEADLINE_DELIVERY_INDEXES],
     [COLLECTIONS.PLAYER_RATINGS, PLAYER_RATING_INDEXES],
     [COLLECTIONS.RATING_EVENTS, RATING_EVENT_INDEXES],
     [COLLECTIONS.NOTIFICATIONS, NOTIFICATION_INDEXES],
@@ -63,6 +78,9 @@ export async function migrate(db: Db) {
     for (const index of indexes) {
       await db.collection(name).createIndex(index.key as IndexSpecification, {
         ...(index.unique ? { unique: index.unique } : {}),
+        ...(index.expireAfterSeconds !== undefined
+          ? { expireAfterSeconds: index.expireAfterSeconds }
+          : {}),
         ...(index.partialFilterExpression
           ? { partialFilterExpression: index.partialFilterExpression }
           : {}),

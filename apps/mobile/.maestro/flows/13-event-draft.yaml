@@ -1,0 +1,102 @@
+appId: com.bgo.mobile
+---
+# Run after 12-organizations. No provider bypass: pending organizations cannot publish.
+- launchApp
+- tapOn: "Events"
+- tapOn: "New event"
+- tapOn: "Maestro community club updated"
+- assertVisible: "Event information"
+- tapOn: "Event name"
+- inputText: "Maestro summer event"
+- tapOn: "Time zone"
+- eraseText
+- inputText: "UTC"
+- tapOn: "Starts at"
+- eraseText
+- inputText: "2030-06-12T14:00"
+- tapOn: "Ends at"
+- eraseText
+- inputText: "2030-06-12T18:00"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Choose a verified address"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Choose a verified address"
+- tapOn: "Location name"
+- inputText: "Event club"
+- tapOn: "Search address"
+- inputText: "Via Roma Milano"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "address-result-0"
+    timeout: 30000
+- tapOn:
+    id: "address-result-0"
+- tapOn: "Confirm location"
+- assertVisible: "New event"
+- scrollUntilVisible:
+    element:
+      text: "Next"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Next"
+- tapOn: "Add table"
+- tapOn: "Table name"
+- eraseText
+- inputText: "Cascadia event table"
+- hideKeyboard
+- tapOn: "Choose a game"
+- tapOn: "Search board games"
+- inputText: "Cascadia"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Select: Cascadia"
+    timeout: 30000
+- tapOn: "Select: Cascadia"
+- assertVisible: "Configure table"
+- scrollUntilVisible:
+    element:
+      text: "Save table"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Save table"
+- assertVisible: "Cascadia event table"
+- tapOn: "Next"
+- assertVisible: "Review event"
+- tapOn: "Publish event"
+- extendedWaitUntil:
+    visible: "Could not save event. Publication requires an approved organization and configured deadline service."
+    timeout: 30000
+- assertVisible: "Maestro summer event.*"
+- tapOn: "Save draft"
+- extendedWaitUntil:
+    visible: "Maestro summer event"
+    timeout: 30000
+- tapOn: "Cascadia event table"
+- assertVisible: "Minimum players.*2"
+- assertNotVisible: "Request a place"
+- back
+- tapOn: "Edit event"
+- scrollUntilVisible:
+    element:
+      text: "Next"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Next"
+- tapOn: "Remove table: Cascadia event table"
+- tapOn: "Next"
+- tapOn: "Save draft"
+- assertVisible: "Reset reservations"
+- tapOn: "Cancel"
+- assertVisible: "Review event"
+- tapOn: "Save draft"
+# The destructive action and dialog heading share this label.
+- tapOn:
+    text: "Reset reservations"
+    index: 1
+- extendedWaitUntil:
+    visible: "Maestro summer event"
+    timeout: 30000

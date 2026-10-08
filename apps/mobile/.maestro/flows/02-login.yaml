@@ -15,6 +15,7 @@ appId: com.bgo.mobile
 - tapOn: ".*[Ee]nter your [Pp]assword.*"
 - inputText: ${PASSWORD}
 - tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
 - extendedWaitUntil:
     visible: "Mobile number|Matches"
     timeout: 120000

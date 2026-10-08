@@ -21,6 +21,8 @@ import type { NotificationsRepository } from "@/app/lib/notifications.repository
 import type { RatingsRepository } from "@/app/lib/ratings.repository";
 import type { RelationshipRepository } from "@/app/lib/relationship.repository";
 import type { UsersRepository } from "@/app/lib/users.repository";
+import type { EventsRepository } from "./events.repository";
+import type { EventsService } from "./events.service";
 
 export class MatchError extends Error {
   constructor(
@@ -122,6 +124,8 @@ export class MatchService {
     private notifications?: NotificationsRepository,
     private groups?: GroupService,
     private ratings?: RatingsRepository,
+    private events?: EventsService,
+    private eventTables?: EventsRepository,
   ) {}
 
   async requireCurrentUser(userId: string) {
@@ -136,7 +140,13 @@ export class MatchService {
     return match;
   }
 
+  private requireOrdinaryMatch(match: Match) {
+    if (match.eventTable)
+      throw new MatchError(409, "Event tables must be managed through event bookings");
+  }
+
   private requirePlanning(match: Match) {
+    this.requireOrdinaryMatch(match);
     if (match.status !== "PLANNING") {
       throw new MatchError(409, "Match is no longer in planning");
     }
@@ -203,6 +213,7 @@ export class MatchService {
       invitedUserIds: invitations.map((invitation) => invitation.inviteeUserId),
       gameIds: match.gameIds,
       ...(match.groupId ? { groupId: match.groupId } : {}),
+      ...(match.eventTable ? { eventTable: match.eventTable } : {}),
       isPublic: !match.groupId && (match.isPublic ?? false),
       status: match.status,
       ...(match.selectedDate ? { selectedDate: match.selectedDate } : {}),
@@ -320,6 +331,7 @@ export class MatchService {
     lock = false,
   ) {
     if (
+      match.eventTable ||
       match.status !== "PLANNING" ||
       match.clerkId === userId ||
       invitations.some((entry) => entry.inviteeUserId === userId && entry.status !== "DECLINED") ||
@@ -389,12 +401,22 @@ export class MatchService {
   }
 
   async detail(userId: string, matchId: string): Promise<MatchDetailResponse> {
-    const match = await this.requireMatch(matchId);
+    let match = await this.requireMatch(matchId);
+    if (
+      match.eventTable &&
+      match.status === "PLANNING" &&
+      Date.now() >= Date.parse(match.eventTable.bookingClosesAt)
+    ) {
+      if (!this.events) throw new MatchError(503, "Event service unavailable");
+      await this.events.close(match.eventTable.eventId);
+      match = await this.requireMatch(matchId);
+    }
     const invitations = await this.invitations.listByMatch(matchId);
     const canRequestJoin = await this.canRequestJoin(match, userId, invitations);
     if (
       !canRequestJoin &&
       match.clerkId !== userId &&
+      match.eventTable?.demonstratorUserId !== userId &&
       !invitations.some(
         (invitation) =>
           invitation.inviteeUserId === userId &&
@@ -406,7 +428,7 @@ export class MatchService {
 
     const visibleInvitations = this.visibleInvitations(match, userId, invitations);
     const playerInvitations =
-      match.clerkId === userId
+      !match.eventTable && match.clerkId === userId
         ? visibleInvitations
         : visibleInvitations.filter((invitation) => invitation.status === "ACCEPTED");
 
@@ -434,10 +456,11 @@ export class MatchService {
         games: match.choices?.[userId]?.games ?? {},
         locations: match.choices?.[userId]?.locations ?? {},
       },
-      ...(match.clerkId === userId ||
-      invitations.some(
-        (invitation) => invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
-      )
+      ...(!match.eventTable &&
+      (match.clerkId === userId ||
+        invitations.some(
+          (invitation) => invitation.inviteeUserId === userId && invitation.status === "ACCEPTED",
+        ))
         ? { voteSummary: summarizeMatchVotes(match, invitations) }
         : {}),
       administrator: {
@@ -493,7 +516,7 @@ export class MatchService {
     }
     if (!this.ratings) throw new MatchError(500, "Ratings repository unavailable");
     const userIds = [
-      match.adminUserId,
+      ...(match.eventTable ? [] : [match.adminUserId]),
       ...invitedPlayers
         .filter((player) => player.invitation.status === "ACCEPTED")
         .map((player) => player.id),
@@ -548,6 +571,7 @@ export class MatchService {
     const match = await this.requireMatch(matchId);
     this.requireAdmin(match, userId);
     if (match.status === "TERMINATED") throw new MatchError(409, "Match is terminated");
+    this.requireOrdinaryMatch(match);
     if (match.status === status) throw new MatchError(409, "Match already has this status");
     const invitations = await this.invitations.listByMatch(matchId);
     const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
@@ -810,16 +834,29 @@ export class MatchService {
   }
 
   async registerResults(userId: string, matchId: string, input: RegisterMatchResultsInput) {
+    const initial = await this.requireMatch(matchId);
+    if (initial.eventTable) {
+      if (initial.clerkId !== userId && initial.eventTable.demonstratorUserId !== userId)
+        throw new MatchError(403, "Only match admin or demonstrator can register results");
+      if (
+        initial.status === "PLANNING" &&
+        Date.now() >= Date.parse(initial.eventTable.bookingClosesAt)
+      ) {
+        if (!this.events) throw new MatchError(503, "Event service unavailable");
+        await this.events.close(initial.eventTable.eventId);
+      }
+    }
     if ((await this.matches.serializeInvitationChange(matchId)).matchedCount === 0) {
       throw new MatchError(404, "Match not found");
     }
     const match = await this.requireMatch(matchId);
-    this.requireAdmin(match, userId);
+    if (!match.eventTable || match.eventTable.demonstratorUserId !== userId)
+      this.requireAdmin(match, userId);
     if (match.status !== "CREATED") throw new MatchError(409, "Match is not ready for results");
     const invitations = await this.invitations.listByMatch(matchId);
     const accepted = invitations.filter((invitation) => invitation.status === "ACCEPTED");
     const participantIds = new Set([
-      userId,
+      ...(match.eventTable ? [] : [match.clerkId]),
       ...accepted.map((invitation) => invitation.inviteeUserId),
     ]);
     if (
@@ -863,10 +900,16 @@ export class MatchService {
       entries: rankMatchResults(input),
       finalizedAt: new Date().toISOString(),
     };
-    const updated = await this.matches.registerResults(matchId, userId, results);
+    const updated = await this.matches.registerResults(matchId, match.clerkId, results);
     if (!updated) throw new MatchError(409, "Match changed concurrently");
-    if (!this.ratings) throw new Error("Ratings repository unavailable");
-    await this.ratings.applyMatch(updated, results);
+    if (!match.eventTable || match.eventTable.openSkill) {
+      if (!this.ratings) throw new Error("Ratings repository unavailable");
+      await this.ratings.applyMatch(updated, results);
+    }
+    if (match.eventTable) {
+      if (!this.eventTables) throw new MatchError(503, "Event service unavailable");
+      await this.eventTables.markTerminated(match.eventTable.tableId);
+    }
     await this.notifications?.notifyMany(
       accepted.map((invitation) => ({
         kind: "match_terminated" as const,
@@ -881,6 +924,7 @@ export class MatchService {
 
   async deleteMatch(userId: string, matchId: string) {
     const match = await this.requireMatch(matchId);
+    this.requireOrdinaryMatch(match);
     this.requireAdmin(match, userId);
     if (match.status === "TERMINATED") throw new MatchError(409, "Match is terminated");
     await this.matches.serializeInvitationChange(match.id);

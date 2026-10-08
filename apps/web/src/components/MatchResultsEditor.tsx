@@ -2,6 +2,7 @@
 
 import type { MatchDetailResponse, RegisterMatchResultsInput } from "@board-game-organizer/schemas";
 import {
+  matchParticipants,
   normalizeMatchScore,
   previewMatchResults,
   type ScoreDraftRow,
@@ -32,10 +33,7 @@ export function MatchResultsEditor({
   onSubmit: (input: RegisterMatchResultsInput) => void;
 }) {
   const { t } = useLingui();
-  const players = [
-    data.administrator,
-    ...data.invitedPlayers.filter((p) => p.invitation.status === "ACCEPTED"),
-  ];
+  const players = matchParticipants(data).filter((player) => player.status === "ACCEPTED");
   const playerById = new Map(players.map((player) => [player.id, player]));
   const [rows, setRows] = useState<ScoreDraftRow[]>(() =>
     players.map((player) => ({ userId: player.id, rawScore: "", notParticipated: false })),

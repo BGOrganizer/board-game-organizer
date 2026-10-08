@@ -6,7 +6,11 @@ import { renderWithI18n } from "@/test-utils";
 const { useUserMock } = vi.hoisted(() => ({
   useUserMock: vi.fn<
     () => {
-      user: { firstName: string; emailAddresses: { emailAddress: string }[] } | null;
+      user: {
+        firstName: string;
+        publicMetadata?: Record<string, unknown>;
+        emailAddresses: { emailAddress: string }[];
+      } | null;
     }
   >(() => ({
     user: { firstName: "Alessandro", emailAddresses: [{ emailAddress: "a@b.it" }] },
@@ -53,10 +57,13 @@ describe("Header", () => {
   it("shows the brand and the main navigation for signed-in users", () => {
     renderWithI18n(<Header />);
     expect(screen.getByText("Board Game Organizer")).toBeTruthy();
+    const activeLink = screen.getByRole("link", { name: "Matches" });
+    expect(activeLink.getAttribute("aria-current")).toBe("page");
+    expect(activeLink.querySelector('a, [role="link"]')).toBeNull();
     for (const [label, icon] of [
       ["Matches", "lucide-dices"],
-      ["Groups", "lucide-users-round"],
-      ["Organizations", "lucide-building-2"],
+      ["Groups and organizations", "lucide-users-round"],
+      ["Events", "lucide-calendar-days"],
       ["Contacts", "lucide-contact-round"],
       ["Profile", "lucide-user-round"],
     ]) {
@@ -65,10 +72,27 @@ describe("Header", () => {
       ).toBeTruthy();
     }
     expect(screen.getByText("Alessandro")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Organization moderation" })).toBeNull();
     // Signed-in: no Sign In / Sign Up CTAs in the desktop bar.
     expect(screen.queryByText("Sign In")).toBeNull();
   });
 
+  it("shows moderator link between notifications and profile only for server-owned ADMIN role", () => {
+    useUserMock.mockReturnValue({
+      user: { firstName: "Moderator", publicMetadata: { bgoRole: "ADMIN" }, emailAddresses: [] },
+    });
+    renderWithI18n(<Header />);
+    const link = screen.getByRole("link", { name: "Organization moderation" });
+    expect(link.getAttribute("href")).toBe("/moderation");
+    expect(
+      screen.getByRole("button", { name: "Notifications" }).compareDocumentPosition(link) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      link.compareDocumentPosition(screen.getByRole("button", { name: "User menu" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
   it("shows auth CTAs for signed-out users", () => {
     useUserMock.mockReturnValue({ user: null });
     renderWithI18n(<Header />);

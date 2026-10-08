@@ -1,8 +1,10 @@
 import type { MatchChoice, MatchDetailResponse } from "@board-game-organizer/schemas";
 import {
+  canRegisterMatchResults,
   formatLocationAddress,
   formatMatchDateTime,
   matchContactState,
+  matchParticipants,
   resolveApiUrl,
   useContacts,
   useFavoriteLocations,
@@ -152,8 +154,9 @@ export default function MatchDetailScreen() {
   const ownInvitation = match?.invitations.find(
     (invitation) => invitation.inviteeUserId === userId,
   );
-  const matchAction =
-    match?.adminUserId === userId && match?.status !== "TERMINATED"
+  const matchAction = match?.eventTable
+    ? null
+    : match?.adminUserId === userId && match?.status !== "TERMINATED"
       ? "delete"
       : match?.status === "PLANNING" && ownInvitation?.status === "ACCEPTED"
         ? "leave"
@@ -272,40 +275,85 @@ export default function MatchDetailScreen() {
       <Stack.Screen
         options={{
           title: t("Match details"),
-          headerRight: matchAction
-            ? () => (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  {match?.adminUserId === userId &&
-                    match?.status !== "TERMINATED" &&
-                    (match?.status === "CREATED" ? (
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="outline"
-                        accessibilityLabel={t("Register results")}
-                        testID="open-match-results"
-                        style={{ minHeight: 44, minWidth: 44 }}
-                        onPress={() =>
-                          router.push({ pathname: "/match/results", params: { matchId } })
-                        }
-                      >
-                        <Trophy size={18} color="#17c964" />
-                      </Button>
-                    ) : statusUnavailable ? (
-                      <Popover>
+          headerRight:
+            matchAction || (match && canRegisterMatchResults(match, userId))
+              ? () => (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    {match &&
+                      (canRegisterMatchResults(match, userId) ||
+                        (!match.eventTable &&
+                          match.adminUserId === userId &&
+                          match.status !== "TERMINATED")) &&
+                      (match?.status === "CREATED" ? (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="outline"
+                          accessibilityLabel={t("Register results")}
+                          testID="open-match-results"
+                          style={{ minHeight: 44, minWidth: 44 }}
+                          onPress={() =>
+                            router.push({ pathname: "/match/results", params: { matchId } })
+                          }
+                        >
+                          <Trophy size={18} color="#17c964" />
+                        </Button>
+                      ) : statusUnavailable ? (
+                        <Popover>
+                          <Popover.Trigger asChild>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="outline"
+                              className="opacity-50"
+                              accessibilityLabel={t("Confirm match")}
+                              accessibilityHint={statusReason}
+                              accessibilityState={{ disabled: true }}
+                              style={{ minHeight: 44, minWidth: 44 }}
+                              testID="confirm-match-unavailable"
+                            >
+                              <CalendarCheck2 size={18} color="#737373" />
+                            </Button>
+                          </Popover.Trigger>
+                          <Popover.Portal>
+                            <Popover.Overlay />
+                            <Popover.Content
+                              presentation="popover"
+                              placement="bottom"
+                              align="end"
+                              width={260}
+                            >
+                              <Popover.Title>{t("Cannot confirm match")}</Popover.Title>
+                              <Popover.Description>{statusReason}</Popover.Description>
+                            </Popover.Content>
+                          </Popover.Portal>
+                        </Popover>
+                      ) : (
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="outline"
+                          isDisabled={matches.setStatus.isPending || matches.setChoice.isPending}
+                          accessibilityLabel={t("Confirm match")}
+                          style={{ minHeight: 44, minWidth: 44 }}
+                          testID="change-match-status"
+                          onPress={confirmStatusAction}
+                        >
+                          <CalendarCheck2 size={18} color="#17c964" />
+                        </Button>
+                      ))}
+                    {matchAction === "delete" ? (
+                      <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
                         <Popover.Trigger asChild>
                           <Button
                             isIconOnly
                             size="sm"
                             variant="outline"
-                            className="opacity-50"
-                            accessibilityLabel={t("Confirm match")}
-                            accessibilityHint={statusReason}
-                            accessibilityState={{ disabled: true }}
+                            accessibilityLabel={t("More match actions")}
+                            testID="more-match-actions"
                             style={{ minHeight: 44, minWidth: 44 }}
-                            testID="confirm-match-unavailable"
                           >
-                            <CalendarCheck2 size={18} color="#737373" />
+                            <Ellipsis size={18} color="#737373" />
                           </Button>
                         </Popover.Trigger>
                         <Popover.Portal>
@@ -314,10 +362,49 @@ export default function MatchDetailScreen() {
                             presentation="popover"
                             placement="bottom"
                             align="end"
-                            width={260}
+                            width={230}
+                            style={{ gap: 12, padding: 8 }}
                           >
-                            <Popover.Title>{t("Cannot confirm match")}</Popover.Title>
-                            <Popover.Description>{statusReason}</Popover.Description>
+                            {match?.status === "CREATED" && (
+                              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <Button
+                                  isIconOnly
+                                  size="sm"
+                                  variant="outline"
+                                  accessibilityLabel={t("Back to planning")}
+                                  testID="replan-match-action"
+                                  style={{ minWidth: 44, minHeight: 44 }}
+                                  onPress={() => {
+                                    setMoreActionsOpen(false);
+                                    confirmStatusAction();
+                                  }}
+                                >
+                                  <RotateCcw size={17} color="#737373" />
+                                </Button>
+                                <Typography className="text-sm text-foreground">
+                                  {t("Back to planning")}
+                                </Typography>
+                              </View>
+                            )}
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="danger-soft"
+                                accessibilityLabel={t("Delete match")}
+                                testID="delete-match-action"
+                                style={{ minWidth: 44, minHeight: 44 }}
+                                onPress={() => {
+                                  setMoreActionsOpen(false);
+                                  confirmMatchAction();
+                                }}
+                              >
+                                <Trash2 size={17} color="#f31260" />
+                              </Button>
+                              <Typography className="text-sm text-danger">
+                                {t("Delete match")}
+                              </Typography>
+                            </View>
                           </Popover.Content>
                         </Popover.Portal>
                       </Popover>
@@ -325,98 +412,18 @@ export default function MatchDetailScreen() {
                       <Button
                         isIconOnly
                         size="sm"
-                        variant="outline"
-                        isDisabled={matches.setStatus.isPending || matches.setChoice.isPending}
-                        accessibilityLabel={t("Confirm match")}
+                        variant="danger-soft"
+                        isDisabled={matchActionPending}
+                        accessibilityLabel={t("Leave match")}
+                        onPress={confirmMatchAction}
                         style={{ minHeight: 44, minWidth: 44 }}
-                        testID="change-match-status"
-                        onPress={confirmStatusAction}
                       >
-                        <CalendarCheck2 size={18} color="#17c964" />
+                        <LogOut size={17} color="#f31260" />
                       </Button>
-                    ))}
-                  {matchAction === "delete" ? (
-                    <Popover isOpen={moreActionsOpen} onOpenChange={setMoreActionsOpen}>
-                      <Popover.Trigger asChild>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="outline"
-                          accessibilityLabel={t("More match actions")}
-                          testID="more-match-actions"
-                          style={{ minHeight: 44, minWidth: 44 }}
-                        >
-                          <Ellipsis size={18} color="#737373" />
-                        </Button>
-                      </Popover.Trigger>
-                      <Popover.Portal>
-                        <Popover.Overlay />
-                        <Popover.Content
-                          presentation="popover"
-                          placement="bottom"
-                          align="end"
-                          width={230}
-                          style={{ gap: 12, padding: 8 }}
-                        >
-                          {match?.status === "CREATED" && (
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="outline"
-                                accessibilityLabel={t("Back to planning")}
-                                testID="replan-match-action"
-                                style={{ minWidth: 44, minHeight: 44 }}
-                                onPress={() => {
-                                  setMoreActionsOpen(false);
-                                  confirmStatusAction();
-                                }}
-                              >
-                                <RotateCcw size={17} color="#737373" />
-                              </Button>
-                              <Typography className="text-sm text-foreground">
-                                {t("Back to planning")}
-                              </Typography>
-                            </View>
-                          )}
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="danger-soft"
-                              accessibilityLabel={t("Delete match")}
-                              testID="delete-match-action"
-                              style={{ minWidth: 44, minHeight: 44 }}
-                              onPress={() => {
-                                setMoreActionsOpen(false);
-                                confirmMatchAction();
-                              }}
-                            >
-                              <Trash2 size={17} color="#f31260" />
-                            </Button>
-                            <Typography className="text-sm text-danger">
-                              {t("Delete match")}
-                            </Typography>
-                          </View>
-                        </Popover.Content>
-                      </Popover.Portal>
-                    </Popover>
-                  ) : (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      isDisabled={matchActionPending}
-                      accessibilityLabel={t("Leave match")}
-                      onPress={confirmMatchAction}
-                      style={{ minHeight: 44, minWidth: 44 }}
-                    >
-                      <LogOut size={17} color="#f31260" />
-                    </Button>
-                  )}
-                </View>
-              )
-            : undefined,
+                    )}
+                  </View>
+                )
+              : undefined,
         }}
       />
       <ScrollView
@@ -637,20 +644,16 @@ function MatchDetailContent({
     NO: danger,
     IF_NEEDED: warning,
   };
-  const { match, administrator, invitedPlayers, games } = data;
+  const { match, administrator, games } = data;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
-  const canViewLeaderboard = match.adminUserId === userId || ownInvitation?.status === "ACCEPTED";
+  const canViewLeaderboard =
+    (!match.eventTable && match.adminUserId === userId) || ownInvitation?.status === "ACCEPTED";
   const canChoose =
+    !match.eventTable &&
     match.status === "PLANNING" &&
     (match.adminUserId === userId || ownInvitation?.status === "ACCEPTED");
-  const participants = [
-    { ...administrator, status: "ACCEPTED" as const, isAdministrator: true as const },
-    ...invitedPlayers.map((player) => ({
-      ...player,
-      status: player.invitation.status,
-      isAdministrator: false as const,
-    })),
-  ];
+  const router = useRouter();
+  const participants = matchParticipants(data);
   const winnerNames = match.results?.entries
     .filter((entry) => entry.rank === 1)
     .map((entry) => participants.find((player) => player.id === entry.userId)?.name ?? entry.userId)
@@ -739,27 +742,29 @@ function MatchDetailContent({
           <Typography>{t("Your join request is waiting for admin approval.")}</Typography>
         </Card>
       )}
-      {ownInvitation?.status === "PENDING" && ownInvitation.kind !== "REQUEST" && (
-        <Card
-          style={{
-            padding: 12,
-            paddingRight: 100,
-            minHeight: 56,
-            borderRadius: 12,
-            position: "relative",
-          }}
-        >
-          <Typography className="font-medium text-foreground">
-            {t("Your invitation is waiting for a response.")}
-          </Typography>
-          <InvitationActions
-            placement="detail"
-            pending={isResponding}
-            onDecline={() => respond(ownInvitation.id, "decline")}
-            onAccept={() => respond(ownInvitation.id, "accept")}
-          />
-        </Card>
-      )}
+      {!match.eventTable &&
+        ownInvitation?.status === "PENDING" &&
+        ownInvitation.kind !== "REQUEST" && (
+          <Card
+            style={{
+              padding: 12,
+              paddingRight: 100,
+              minHeight: 56,
+              borderRadius: 12,
+              position: "relative",
+            }}
+          >
+            <Typography className="font-medium text-foreground">
+              {t("Your invitation is waiting for a response.")}
+            </Typography>
+            <InvitationActions
+              placement="detail"
+              pending={isResponding}
+              onDecline={() => respond(ownInvitation.id, "decline")}
+              onAccept={() => respond(ownInvitation.id, "accept")}
+            />
+          </Card>
+        )}
 
       {responseError && (
         <Typography className="text-sm text-danger">
@@ -796,8 +801,27 @@ function MatchDetailContent({
               >
                 {match.name}
               </Typography>
-              {match.status === "PLANNING" && data.voteSummary && <VoteLegend />}
+              {!match.eventTable && match.status === "PLANNING" && data.voteSummary && (
+                <VoteLegend />
+              )}
             </View>
+            {match.eventTable ? (
+              <Button
+                variant="secondary"
+                accessibilityLabel={t("Open event table")}
+                onPress={() =>
+                  router.push({
+                    pathname: "/event/table",
+                    params: {
+                      eventId: match.eventTable?.eventId,
+                      tableId: match.eventTable?.tableId,
+                    },
+                  })
+                }
+              >
+                {t("Open event table")}
+              </Button>
+            ) : null}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <CalendarDays size={18} color={muted} />
               <Typography accessibilityRole="header" className="font-semibold text-foreground">
@@ -1113,7 +1137,8 @@ function MatchDetailContent({
                           </Typography>
                         ) : null}
                       </View>
-                      {match.adminUserId === userId &&
+                      {!match.eventTable &&
+                        match.adminUserId === userId &&
                         match.status === "PLANNING" &&
                         !player.isAdministrator &&
                         player.invitation.kind === "REQUEST" &&
@@ -1130,7 +1155,8 @@ function MatchDetailContent({
                             <CircleCheck size={18} color="white" />
                           </Button>
                         )}
-                      {match.adminUserId === userId &&
+                      {!match.eventTable &&
+                        match.adminUserId === userId &&
                         match.status === "PLANNING" &&
                         !player.isAdministrator && (
                           <Button

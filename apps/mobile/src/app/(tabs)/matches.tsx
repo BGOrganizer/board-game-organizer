@@ -221,7 +221,7 @@ export default function MatchesScreen() {
                 router.push({ pathname: "/match/[matchId]", params: { matchId: match.id } })
               }
               actions={
-                invitation?.status === "PENDING" ? (
+                !match.eventTable && invitation?.status === "PENDING" ? (
                   <InvitationActions
                     placement="card"
                     name={match.name}
@@ -254,6 +254,9 @@ export default function MatchesScreen() {
                   >
                     {match.name}
                   </Typography>
+                  {match.eventTable ? (
+                    <Typography className="text-sm text-muted">{t("Event table")}</Typography>
+                  ) : null}
                   <Chip size="sm" variant="soft" color={matchCardStatusColor[match.status]}>
                     {statusLabels[match.status]}
                   </Chip>
@@ -324,7 +327,7 @@ export default function MatchesScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     gap: 12,
-                    paddingRight: invitation?.status === "PENDING" ? 88 : 0,
+                    paddingRight: !match.eventTable && invitation?.status === "PENDING" ? 88 : 0,
                   }}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

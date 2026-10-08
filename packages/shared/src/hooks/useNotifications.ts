@@ -1,3 +1,5 @@
+"use client";
+
 import type { NotificationListResponse, PushPlatform } from "@board-game-organizer/schemas";
 import {
   type InfiniteData,
@@ -133,8 +135,23 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
       for (const prefix of ["contacts", "groups", "matches"])
         void queryClient.invalidateQueries({ queryKey: [prefix], refetchType: "none" });
     }
+    if (
+      lastSeen.current?.userId === options.userId &&
+      lastSeen.current.id !== latest.id &&
+      (latest.kind.startsWith("organization_") || latest.kind.startsWith("event_"))
+    ) {
+      if (latest.kind.startsWith("organization_"))
+        void queryClient.invalidateQueries({
+          queryKey: ["organizations", options.apiUrl, options.userId],
+          refetchType: "none",
+        });
+      void queryClient.invalidateQueries({
+        queryKey: ["events", options.apiUrl, options.userId],
+        refetchType: "none",
+      });
+    }
     lastSeen.current = { userId: options.userId, id: latest.id };
-  }, [list.data, options.userId, queryClient]);
+  }, [list.data, options.userId, options.apiUrl, queryClient]);
 
   const optimisticRead = (notificationId?: string) => ({
     onMutate: async () => {

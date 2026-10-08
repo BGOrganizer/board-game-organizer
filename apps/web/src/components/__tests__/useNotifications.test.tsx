@@ -54,6 +54,35 @@ describe("useNotifications", () => {
     );
   });
 
+  it("marks only owning organization and event caches stale when remote membership changes", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const current = ["organizations", options.apiUrl, options.userId, "detail", "org"];
+    const foreign = ["organizations", options.apiUrl, "other", "detail", "org"];
+    const events = ["events", options.apiUrl, options.userId, "mine"];
+    for (const key of [current, foreign, events]) client.setQueryData(key, { name: "Cached" });
+    const { result } = renderHook(() => useNotifications(options), { wrapper: wrapper(client) });
+    await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              notifications: [
+                { ...item("new-community"), kind: "organization_membership_changed" },
+              ],
+              unreadCount: 1,
+              nextCursor: null,
+            }),
+          ),
+      ),
+    );
+    await act(() => result.current.list.refetch());
+    await waitFor(() => expect(client.getQueryState(current)?.isInvalidated).toBe(true));
+    expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);
+    expect(client.getQueryState(events)?.isInvalidated).toBe(true);
+  });
+
   it("loads and paginates notifications with fresh auth and preview bypass", async () => {
     const { result } = renderHook(() => useNotifications(options, 1), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.notifications).toHaveLength(1));

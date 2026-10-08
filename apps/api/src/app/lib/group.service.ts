@@ -27,6 +27,23 @@ export class GroupService {
     private notifications?: NotificationsRepository,
   ) {}
 
+  async discover(page: { query?: string; cursor?: string; limit: number }) {
+    const rows = await this.groups.listPublic(page);
+    const items = [];
+    for (const group of rows.slice(0, page.limit))
+      items.push({
+        id: group.id,
+        name: group.name,
+        memberCount: 1 + (await this.groups.countAccepted(group.id)),
+        createdAt: group.createdAt,
+      });
+    const last = items.at(-1);
+    return {
+      items,
+      nextCursor: rows.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
+    };
+  }
+
   private async requireGroup(groupId: string): Promise<Group> {
     const group = await this.groups.findById(groupId);
     if (!group || group.archivedAt) throw new GroupError(404, "Group not found");

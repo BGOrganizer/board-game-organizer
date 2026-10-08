@@ -1,3 +1,5 @@
+"use client";
+
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
@@ -17,6 +19,7 @@ export interface ContactPresence {
 /** A user surfaced in contacts/search/suggestions. */
 export interface ContactUser {
   id: string;
+  username?: string | null;
   name: string;
   email: string | null;
   avatarUrl: string | null;
@@ -311,7 +314,7 @@ export function useRelationshipList(
       fetchRelationshipPageWithToken(apiUrl, token, getToken, type, pageParam, protectionBypass),
     initialPageParam: "",
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled: enabled && Boolean(apiUrl && token),
+    enabled: enabled && Boolean(apiUrl && (token || (getToken && currentUserId))),
     staleTime: 5 * 60_000,
   });
   return {
