@@ -623,8 +623,9 @@ function communityAcceptance() {
     await page.route(/\/api\/events(?:\?|$)/, (route) =>
       route.fulfill({ json: { items: [], nextCursor: null } }),
     );
-    await page.route(`**/api/events/${eventId}`, (route) =>
-      route.fulfill({ status: 404, json: { error: "EVENT_NOT_FOUND" } }),
+    await page.route(
+      (url) => url.pathname === `/api/events/${eventId}`,
+      (route) => route.fulfill({ status: 404, json: { error: "EVENT_NOT_FOUND" } }),
     );
     page.on("request", (request) => {
       if (new URL(request.url()).pathname.endsWith(`/tables/${tableId}`)) tableRequests++;

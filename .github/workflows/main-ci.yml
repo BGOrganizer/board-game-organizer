@@ -317,7 +317,6 @@ jobs:
           ci-db-name: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-            MONGODB_DB_NAME=bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
 
       - name: 🔒 Attest isolated runtime database
         env:
@@ -330,7 +329,7 @@ jobs:
           test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
           curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
             -H "Authorization: Bearer $CLERK_SECRET_KEY" |
-            jq -e --arg expected "$DB_NAME" '.databaseName == $expected and .webhookDbReady == true' > /dev/null
+            jq -e --arg expected "$DB_NAME" '.databaseName == $expected and .webhookDbReady == true and (.webhookDatabaseName | startswith("bgo_ci_") | not)' > /dev/null
 
       - name: 🌱 Seed isolated Main E2E database
         env:

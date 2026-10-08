@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const mobileAction = readFileSync(".github/actions/mobile-build/action.yml", "utf8").replace(
@@ -46,56 +44,38 @@ test("every mobile-build caller explicitly supplies the repository MapTiler vari
   assert.ok(callers > 0);
 });
 
-test("web deployment validates the pulled public key before building and only on web", () => {
-  const start = deployAction.indexOf("- name: 🗺️ Verify public MapTiler web build key");
-  const build = deployAction.indexOf("- name: 🔨 Build");
-  assert.ok(start >= 0 && start < build);
-  const step = deployAction.slice(start, build);
-  assert.match(step, /inputs\.app-path == 'apps\/web'/);
-  assert.match(step, /VERCEL_ENVIRONMENT: \$\{\{ inputs\.vercel-environment \}\}/);
-  const match = step.match(/node <<'NODE'\n([\s\S]*?)\n\s*NODE/);
-  assert.ok(match);
-  const script = match[1];
-  const folder = mkdtempSync(join(tmpdir(), "bgo-maptiler-build-"));
-  try {
-    const run = () =>
-      spawnSync(process.execPath, ["-e", script], {
-        cwd: folder,
-        env: { ...process.env, VERCEL_ENVIRONMENT: "preview" },
-        encoding: "utf8",
-      });
-    assert.notEqual(run().status, 0);
-    mkdirSync(join(folder, ".vercel"));
-    const file = join(folder, ".vercel", ".env.preview.local");
-    for (const value of [
-      "",
-      'NEXT_PUBLIC_MAPTILER_API_KEY="   "\n',
-      'NEXT_PUBLIC_MAPTILER_API_KEY="[SENSITIVE]"\n',
-    ]) {
-      writeFileSync(file, value);
-      const result = run();
-      assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /Set NEXT_PUBLIC_MAPTILER_API_KEY/);
-    }
-    for (const clerk of ["", "[SENSITIVE]", "invalid"]) {
-      writeFileSync(
-        file,
-        `NEXT_PUBLIC_MAPTILER_API_KEY="test-public-key"\nNEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${clerk}"\n`,
-      );
-      const result = run();
-      assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY as Config/);
-    }
-    for (const clerk of ["pk_test_test", "pk_live_test"]) {
-      writeFileSync(
-        file,
-        `NEXT_PUBLIC_MAPTILER_API_KEY="test-public-key"\nNEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${clerk}"\n`,
-      );
-      const result = run();
-      assert.equal(result.status, 0, result.stderr);
-      assert.equal(result.stdout, "", "Never print key values");
-    }
-  } finally {
-    rmSync(folder, { recursive: true, force: true });
+test("web validates real public keys inside the remote build, not a Secret-masked pull", () => {
+  assert.doesNotMatch(deployAction, /vercel pull|vercel build|--prebuilt/);
+  const url = new URL("../../apps/web/next.config.ts", import.meta.url).href;
+  const run = (overrides = {}) =>
+    spawnSync(process.execPath, ["-e", `import(${JSON.stringify(url)})`], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        VERCEL: "1",
+        NEXT_PUBLIC_MAPTILER_API_KEY: "public-map-key",
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_test",
+        ...overrides,
+      },
+    });
+  for (const value of ["", "   ", "[SENSITIVE]"]) {
+    const result = run({ NEXT_PUBLIC_MAPTILER_API_KEY: value });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Set NEXT_PUBLIC_MAPTILER_API_KEY/);
   }
+  for (const value of ["", "[SENSITIVE]", "invalid"]) {
+    const result = run({ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: value });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY/);
+  }
+  for (const clerk of ["pk_test_test", "pk_live_test"]) {
+    const result = run({ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: clerk });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "", "Never print key values");
+  }
+  assert.equal(
+    run({ VERCEL: "", NEXT_PUBLIC_MAPTILER_API_KEY: "", NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "" })
+      .status,
+    0,
+  );
 });

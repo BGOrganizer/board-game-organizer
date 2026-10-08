@@ -68,9 +68,12 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 - PR run [37760031018](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37760031018)
   passes quality/coverage/integration/build gates. Attempt 1 failed on Preview configuration;
   attempt 2 verifies API deployment, isolated DB seeding, user provisioning and both APK builds.
-  API Preview now keeps its Clerk development key Secret, with matching non-CI DB/webhook names
-  as Config. Web Preview publishable Clerk/MapTiler keys are Config, not inaccessible Secret
-  placeholders. Production and CORS were not changed.
+  Preview-only Config corrections temporarily unblocked the old prebuilt deployment. They are
+  not durable with Infisical's Secret-only sync. Deployment now uploads source for Vercel's
+  remote build; no environment pull, local Vercel build or prebuilt output is used. Remote build
+  validates real public keys and the base non-CI DB/webhook pair before applying the CI database
+  override. Runtime attestation still precedes seeding. No Infisical sync, Production or CORS
+  settings were changed.
 - Attempt 2's nominally green Maestro job is **not runtime acceptance**: direct script interpolation
   inside double-quoted `bash -c` truncated execution at `echo "APK found..."`; synthetic JUnit
   hid missing tests. Shared wrapper now transports script through an environment variable,
@@ -79,8 +82,19 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
   `11-match-join-requests` still requires a separately prepared `PUBLIC_MATCH_LINK`.
 - Five workspace coverage suites pass: API **525**, schemas **78**, shared **91**, web **302**,
   mobile **77** tests: **1,073 unit tests**. All five suites were rerun successfully; existing
-  thresholds were not lowered. The **27** CI-script checks pass, including executable shell
-  quote/exit/pipefail tests and fail-closed real-JUnit validation. All are now invoked by CI lint.
+  thresholds were not lowered. The **29** CI-script checks pass, including executable shell
+  quote/exit/pipefail tests, remote build/runtime override guards, real remote-build configuration
+  checks and fail-closed real-JUnit validation. All are invoked by CI lint.
+- PR run [37770204625](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37770204625)
+  passed quality/deployment/provisioning gates; Playwright reported **43 passed / 3 failed**.
+  Fixes replace the obsolete Organizations placeholder assertion and make the inaccessible-event
+  interception query-independent. Maestro genuinely passed launch, login and startup deep-link;
+  contacts flow then failed waiting for the native contacts permission prompt. Remaining flows
+  were not executed. The run finished failed; no native green or remote-build acceptance is claimed.
+- Remote-build migration local checks pass: full lint/typecheck, **525 API tests**, **29 CI-script
+  tests**, and API/web production compilation. A local browser retry using the old private runner
+  account could not authenticate: that CI user no longer exists (**24 failed / 1 passed**, before
+  the authenticated acceptance assertions). No Clerk user was recreated or changed locally.
 - Added 100% deterministic gates include event form/roster/logo helpers, event queries/window,
   public-group queries and deadline delivery/workers. Native push-routing gate is retained.
 - Historical real MongoDB replica-set integration run: **54 passed**, **zero skipped**, status **0**,

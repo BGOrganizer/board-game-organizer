@@ -18,7 +18,11 @@ describe("GET /api/admin/sync-user", () => {
     expect((await GET(new Request(url))).status).toBe(401);
     const res = GET(new Request(url, { headers: { authorization: "Bearer sk_test_sync" } }));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ databaseName: "bgo_ci_12_1", webhookDbReady: true });
+    expect(await res.json()).toEqual({
+      databaseName: "bgo_ci_12_1",
+      webhookDatabaseName: "bgo_dev",
+      webhookDbReady: true,
+    });
   });
 
   it("reports when webhook routing is not isolated", async () => {

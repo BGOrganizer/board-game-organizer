@@ -41,6 +41,7 @@ export function GET(request: Request) {
   return corsJson(
     {
       databaseName: process.env.MONGODB_DB_NAME,
+      webhookDatabaseName: process.env.CLERK_WEBHOOK_DB_NAME,
       webhookDbReady: Boolean(
         process.env.CLERK_WEBHOOK_DB_NAME &&
           !process.env.CLERK_WEBHOOK_DB_NAME.startsWith("bgo_ci_"),

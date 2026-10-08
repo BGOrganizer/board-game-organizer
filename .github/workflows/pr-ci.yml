@@ -381,7 +381,6 @@ jobs:
           # Clerk publishable key baked at build time.
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-            MONGODB_DB_NAME=bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
 
       # Persist immutable URL before any CI DB write; cancellation cleanup needs it.
       - name: 📋 Record isolated API deployment URL
@@ -409,7 +408,7 @@ jobs:
           test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
           curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
             -H "Authorization: Bearer $CLERK_SECRET_KEY" |
-            jq -e --arg expected "$EXPECTED_DB" '.databaseName == $expected and .webhookDbReady == true' > /dev/null
+            jq -e --arg expected "$EXPECTED_DB" '.databaseName == $expected and .webhookDbReady == true and (.webhookDatabaseName | startswith("bgo_ci_") | not)' > /dev/null
 
       - name: 🌱 Seed isolated CI database
         env:
@@ -743,7 +742,7 @@ jobs:
           test -n "$API_URL" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
           curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
             -H "Authorization: Bearer $CLERK_SECRET_KEY" | \
-            jq -e '.webhookDbReady == true and (.databaseName | type) == "string" and (.databaseName | length) > 0 and (.databaseName | startswith("bgo_ci_") | not)' > /dev/null
+            jq -e '.webhookDbReady == true and .webhookDatabaseName == .databaseName and (.databaseName | type) == "string" and (.databaseName | length) > 0 and (.databaseName | startswith("bgo_ci_") | not)' > /dev/null
 
   build-mobile-development:
     name: 📱 Build PR APK for development (parallel build)

@@ -41,7 +41,7 @@ test("sign-in page renders the Clerk form", async ({ page }) => {
 
 test("sign-in (testing token + ticket), profile and logout", async ({ page }) => {
   test.setTimeout(300_000);
-  test.skip(!E2E_EMAIL, "E2E_EMAIL not set (CI provisions the user)");
+  expect(E2E_EMAIL, "E2E_EMAIL is required for authenticated acceptance").not.toBe("");
 
   // Bypass bot detection for this test's browser context.
   await setupClerkTestingToken({ page });
@@ -93,8 +93,12 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
       await page.goto(path);
       await expectNoHorizontalOverflow(page);
       if (path === "/organizations") {
-        await expect(page.getByText("Coming soon")).toBeVisible();
-        await expect(page.locator("main svg.lucide-building-2")).toBeVisible();
+        await expect(page).toHaveURL((url) => url.pathname === "/groups/organizations");
+        await expect(page.getByRole("tab", { name: "Organizations", exact: true })).toHaveAttribute(
+          "aria-selected",
+          "true",
+        );
+        await expect(page.getByRole("textbox", { name: "Search organizations" })).toBeVisible();
       }
     }
   }

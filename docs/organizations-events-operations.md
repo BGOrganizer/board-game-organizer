@@ -39,6 +39,36 @@ Use an isolated database and test Clerk users, never production fixtures:
 
 No production-provider success is currently attested. Real registration/credentials and delivery traces are an external release gate.
 
+## Infisical and deployment isolation
+
+Infisical remains the source of project environment values. The shared deployment action uploads
+source and builds on Vercel, where synced Secrets are available; it does not export them with
+`vercel pull` or require Secret-to-Config conversions. `NEXT_PUBLIC_*` values remain browser-public
+regardless of their Vercel type.
+
+Per-deployment overrides never update project variables. For isolated API Previews, build-only
+`BGO_CI_DB_NAME=bgo_ci_<run>_<attempt>` first validates that Infisical's base `MONGODB_DB_NAME` equals
+its non-CI `CLERK_WEBHOOK_DB_NAME`, then sets the build process's database to the CI name and consumes
+the flag before child workers. `--env MONGODB_DB_NAME=...` sets the same isolated runtime database.
+Webhook routing stays non-CI. Development API deployments receive no CI override. Authenticated
+runtime attestation must pass before seeding; cleanup uses the successful deployment's recorded
+DB name, including partial reruns. Web public-key validation runs inside the actual Vercel build.
+
+The current 13 GitHub repository Secrets all remain used:
+
+- Vercel: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_API_PROJECT_ID`, `VERCEL_WEB_PROJECT_ID`,
+  `VERCEL_PROTECTION_BYPASS`.
+- Clerk: `CLERK_SECRET_KEY` for development E2E provisioning/attestation/cleanup/import;
+  `CLERK_SECRET_KEY_PRODUCTION` for explicit production catalog import.
+- Mobile: `EXPO_TOKEN`; `GOOGLE_SERVICES_JSON` for optional push-enabled APKs.
+- Release/reporting: `RELEASE_PAT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `CODECOV_TOKEN`.
+
+No GitHub Secret needs deletion for this migration. MongoDB credentials, webhook secrets and other
+server-only app configuration stay in Infisical/Vercel, not GitHub. Keep existing public GitHub
+Variables used by native builds and E2E; they are not credentials. GitHub `development` and
+`production` environments currently contain no additional Secrets. No credentials were deleted,
+rotated or synchronized as part of this code change.
+
 ## Location and native gates
 
 - API address verification uses server-only `MAPTILER_GEOCODING_KEY`; web/mobile use their documented public MapTiler keys. Preserve canonical returned addresses/coordinates and attribution.
