@@ -28,7 +28,7 @@ jobs:
         run: pnpm typecheck
 
       - name: 🔒 CI isolation contract
-        run: node --test .github/scripts/main-ci-isolation.test.mjs .github/scripts/maptiler-build-config.test.mjs .github/scripts/mobile-sdk-policy.test.mjs
+        run: node --test .github/scripts/*.test.mjs
 
   # Release bump/tag only after merged-code E2E succeeds.
   release:
@@ -491,9 +491,8 @@ jobs:
       - name: 📥 Collect Maestro reports (workspace)
         if: always()
         run: |
+          # Preserve only real reports; missing results must never become passing tests.
           mkdir -p maestro-reports maestro-debug
-          ls maestro-reports/*.xml 2>/dev/null | grep -q . || \
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="maestro-flows" tests="5" failures="0"><testcase name="no-junit-output"/></testsuite></testsuites>' > maestro-reports/summary.xml
           echo "---- maestro-reports ----"; ls -la maestro-reports || true
           echo "---- maestro-debug ----"; ls -la maestro-debug || true
 

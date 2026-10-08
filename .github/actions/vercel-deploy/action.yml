@@ -166,8 +166,12 @@ runs:
         const { parseEnv } = require('node:util');
         const file = `.vercel/.env.${process.env.VERCEL_ENVIRONMENT}.local`;
         const env = parseEnv(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '');
-        if (!env.NEXT_PUBLIC_MAPTILER_API_KEY?.trim()) {
-          throw new Error('Set NEXT_PUBLIC_MAPTILER_API_KEY on the Vercel web project for this environment; it must be available to vercel pull before the prebuilt web build.');
+        if (!env.NEXT_PUBLIC_MAPTILER_API_KEY?.trim() || env.NEXT_PUBLIC_MAPTILER_API_KEY.trim() === '[SENSITIVE]') {
+          throw new Error('Set NEXT_PUBLIC_MAPTILER_API_KEY as Config, not Secret, on the Vercel web project for this environment; it must be available to vercel pull before the prebuilt web build.');
+        }
+        const clerk = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
+        if (!clerk?.startsWith('pk_test_') && !clerk?.startsWith('pk_live_')) {
+          throw new Error('Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY as Config, not Secret, before the prebuilt web build.');
         }
         NODE
 

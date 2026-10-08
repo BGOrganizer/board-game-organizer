@@ -9,8 +9,9 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 - Branch `feat/organizations-events`, based on authorized PR #22 head `b83e30e`, not `main`.
 - Worktree `D:/git/board-game-organizer/.worktrees/organizations-events`.
-- Signed feature commits and push are explicitly authorized. No new PR or delegation is authorized.
-  Existing PR #22 uses `feat/social-api-refactor`; this feature branch initially has Branch CI only.
+- Signed commits/push and updating existing PR #22 are explicitly authorized. No new PR,
+  delegation or merge to `main` is authorized. PR #22's `feat/social-api-refactor` was fast-forwarded
+  to feature head `b264374`; keep subsequent fixes synchronized with `feat/organizations-events`.
 - Original worktree/index is preserved. Its generated API `next-env.d.ts` currently points to
   development types; do not reset that unrelated generated change or the user's other work.
 - Approved behavior: `docs/organizations-events.md`.
@@ -63,10 +64,23 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 - Signed feature commit `9ea1502` is pushed on `feat/organizations-events`. [Branch CI run
   37758173173](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37758173173)
   completed successfully: all **9/9 jobs**, including commitlint, Biome, typecheck, five unit suites
-  and real MongoDB integration. This branch has no PR, so APK/deployment/E2E jobs did not run.
+  and real MongoDB integration. That Branch CI run did not include APK/deployment/E2E jobs.
+- PR run [37760031018](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37760031018)
+  passes quality/coverage/integration/build gates. Attempt 1 failed on Preview configuration;
+  attempt 2 verifies API deployment, isolated DB seeding, user provisioning and both APK builds.
+  API Preview now keeps its Clerk development key Secret, with matching non-CI DB/webhook names
+  as Config. Web Preview publishable Clerk/MapTiler keys are Config, not inaccessible Secret
+  placeholders. Production and CORS were not changed.
+- Attempt 2's nominally green Maestro job is **not runtime acceptance**: direct script interpolation
+  inside double-quoted `bash -c` truncated execution at `echo "APK found..."`; synthetic JUnit
+  hid missing tests. Shared wrapper now transports script through an environment variable,
+  preserves failures/cleanup, writes per-flow real XML and rejects missing/skipped/fabricated
+  reports. Group/invitation/wizard/deep-link flows join the existing CI suite; fixture-dependent
+  `11-match-join-requests` still requires a separately prepared `PUBLIC_MATCH_LINK`.
 - Five workspace coverage suites pass: API **525**, schemas **78**, shared **91**, web **302**,
   mobile **77** tests: **1,073 unit tests**. All five suites were rerun successfully; existing
-  thresholds were not lowered. The 25 CI-script checks also pass.
+  thresholds were not lowered. The **27** CI-script checks pass, including executable shell
+  quote/exit/pipefail tests and fail-closed real-JUnit validation. All are now invoked by CI lint.
 - Added 100% deterministic gates include event form/roster/logo helpers, event queries/window,
   public-group queries and deadline delivery/workers. Native push-routing gate is retained.
 - Historical real MongoDB replica-set integration run: **54 passed**, **zero skipped**, status **0**,
@@ -143,9 +157,10 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
    scripts/reports/APKs/exports/coverage and downloaded tools from any eventual commit. Owned
    community containers are stopped; baseline restoration is pending because the emulator is
    offline. Do not boot it merely to restart acceptance or clear its data.
-6. Feature commit is signed/pushed and Branch CI is green. Keep subsequent documentation/fix
-   commits green too. **No new PR.** Full PR APK/E2E gates require explicit authorization to update
-   PR #22's head branch or open a PR; passing Branch CI does not establish native acceptance.
+6. Feature commit is signed/pushed and Branch CI is green. PR #22 updates are now authorized;
+   push subsequent fixes to both feature and PR head refs, monitor full PR gates through cleanup
+   and publication, and never treat synthetic or absent native reports as success. **No new PR
+   or merge to main.**
 
 Historical PR #22 gates are foundation evidence, not acceptance for this new feature.
 

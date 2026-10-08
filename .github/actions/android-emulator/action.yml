@@ -50,6 +50,8 @@ runs:
 
     - name: 📱 Boot emulator & run script
       shell: bash
+      env:
+        EMULATOR_SCRIPT: ${{ inputs.script }}
       run: |
         export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
         "$ANDROID_HOME/emulator/emulator" -avd test \
@@ -57,6 +59,7 @@ runs:
           -gpu swiftshader_indirect -memory 3072 -cores 4 -accel off \
           -port 5554 > /tmp/emulator.log 2>&1 &
         EMU_PID=$!
+        trap 'kill "$EMU_PID" 2>/dev/null || true' EXIT
         timeout 300 adb wait-for-device || { echo "NO DEVICE"; tail -20 /tmp/emulator.log; exit 1; }
         BOOTED=0
         for i in $(seq 1 150); do
@@ -78,10 +81,7 @@ runs:
         adb shell settings put global hide_error_dialogs 1 || true
         adb logcat -c
         echo "::group::Running workflow script"
-        # Caller scripts must avoid DOUBLE quotes (they break the -c wrapping);
-        # single quotes are fine.
-        bash -e -c "${{ inputs.script }}"
-        SCRIPT_EXIT=$?
+        SCRIPT_EXIT=0
+        bash -e -o pipefail -c "$EMULATOR_SCRIPT" || SCRIPT_EXIT=$?
         echo "::endgroup::"
-        kill $EMU_PID 2>/dev/null
-        exit $SCRIPT_EXIT
+        exit "$SCRIPT_EXIT"

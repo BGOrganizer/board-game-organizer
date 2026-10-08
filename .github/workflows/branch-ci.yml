@@ -65,7 +65,7 @@ jobs:
         run: pnpm lint
 
       - name: 🔒 Check CI isolation and MapTiler build configuration
-        run: node --test .github/scripts/main-ci-isolation.test.mjs .github/scripts/maptiler-build-config.test.mjs .github/scripts/mobile-sdk-policy.test.mjs
+        run: node --test .github/scripts/*.test.mjs
 
   # ----------------------------------------------------------------- typecheck
   typecheck:

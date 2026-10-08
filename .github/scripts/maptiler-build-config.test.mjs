@@ -67,16 +67,34 @@ test("web deployment validates the pulled public key before building and only on
     assert.notEqual(run().status, 0);
     mkdirSync(join(folder, ".vercel"));
     const file = join(folder, ".vercel", ".env.preview.local");
-    for (const value of ["", 'NEXT_PUBLIC_MAPTILER_API_KEY="   "\n']) {
+    for (const value of [
+      "",
+      'NEXT_PUBLIC_MAPTILER_API_KEY="   "\n',
+      'NEXT_PUBLIC_MAPTILER_API_KEY="[SENSITIVE]"\n',
+    ]) {
       writeFileSync(file, value);
       const result = run();
       assert.notEqual(result.status, 0);
       assert.match(result.stderr, /Set NEXT_PUBLIC_MAPTILER_API_KEY/);
     }
-    writeFileSync(file, 'NEXT_PUBLIC_MAPTILER_API_KEY="test-public-key"\n');
-    const result = run();
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, "", "Never print key values");
+    for (const clerk of ["", "[SENSITIVE]", "invalid"]) {
+      writeFileSync(
+        file,
+        `NEXT_PUBLIC_MAPTILER_API_KEY="test-public-key"\nNEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${clerk}"\n`,
+      );
+      const result = run();
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY as Config/);
+    }
+    for (const clerk of ["pk_test_test", "pk_live_test"]) {
+      writeFileSync(
+        file,
+        `NEXT_PUBLIC_MAPTILER_API_KEY="test-public-key"\nNEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${clerk}"\n`,
+      );
+      const result = run();
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, "", "Never print key values");
+    }
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
