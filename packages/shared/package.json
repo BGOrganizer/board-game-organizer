@@ -13,8 +13,8 @@
       "default": "./src/index.ts"
     },
     "./matchResults": {
-      "types": "./src/matchResults.ts",
-      "default": "./src/matchResults.ts"
+      "types": "./src/matches/matchResults.ts",
+      "default": "./src/matches/matchResults.ts"
     }
   },
   "dependencies": {

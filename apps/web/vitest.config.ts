@@ -36,20 +36,34 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       allowExternal: true,
       include: [
-        ...["useEvents", "useEventWindow", "usePublicGroups"].map((name) =>
-          fileURLToPath(
-            new URL(`../../packages/shared/src/hooks/${name}.ts`, import.meta.url),
-          ).replaceAll("\\", "/"),
+        ...[
+          "events/hooks/useEvents.ts",
+          "events/hooks/useEventWindow.ts",
+          "groups/hooks/usePublicGroups.ts",
+        ].map((file) =>
+          fileURLToPath(new URL(`../../packages/shared/src/${file}`, import.meta.url)).replaceAll(
+            "\\",
+            "/",
+          ),
         ),
         fileURLToPath(
-          new URL("../../packages/shared/src/hooks/useOrganizations.ts", import.meta.url),
+          new URL(
+            "../../packages/shared/src/organizations/hooks/useOrganizations.ts",
+            import.meta.url,
+          ),
         ).replaceAll("\\", "/"),
         fileURLToPath(new URL("./src/**/*.{ts,tsx}", import.meta.url)).replaceAll("\\", "/"),
         fileURLToPath(
-          new URL("../../packages/shared/src/hooks/useFavoriteLocations.ts", import.meta.url),
+          new URL(
+            "../../packages/shared/src/locations/hooks/useFavoriteLocations.ts",
+            import.meta.url,
+          ),
         ).replaceAll("\\", "/"),
         fileURLToPath(
-          new URL("../../packages/shared/src/hooks/useCurrentLocationAddress.ts", import.meta.url),
+          new URL(
+            "../../packages/shared/src/locations/hooks/useCurrentLocationAddress.ts",
+            import.meta.url,
+          ),
         ).replaceAll("\\", "/"),
       ],
       // Entry points / tooling files are not unit-tested (configs, E2E setup).
@@ -65,25 +79,37 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
-        "../../packages/shared/src/hooks/{useEvents,useEventWindow,usePublicGroups}.ts": {
+        "../../packages/shared/src/events/hooks/useEventWindow.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "../../packages/shared/src/hooks/useOrganizations.ts": {
+        "../../packages/shared/src/events/hooks/useEvents.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "../../packages/shared/src/hooks/useCurrentLocationAddress.ts": {
+        "../../packages/shared/src/groups/hooks/usePublicGroups.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "../../packages/shared/src/hooks/useFavoriteLocations.ts": {
+        "../../packages/shared/src/organizations/hooks/useOrganizations.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/locations/hooks/useCurrentLocationAddress.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/locations/hooks/useFavoriteLocations.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

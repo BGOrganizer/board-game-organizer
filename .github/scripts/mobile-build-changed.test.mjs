@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import YAML from "yaml";
-import { mobileBuildChanged, mobileBuildJob, mobileLockGraph, sourceAffectsMobile } from "./mobile-build-changed.mjs";
+import {
+  mobileBuildChanged,
+  mobileBuildJob,
+  mobileLockGraph,
+  sourceAffectsMobile,
+} from "./mobile-build-changed.mjs";
 
 const repo = mkdtempSync(join(tmpdir(), "mobile-build-changed-"));
 after(() => rmSync(repo, { recursive: true, force: true }));
@@ -38,7 +43,10 @@ const lock = {
   },
 };
 put("pnpm-lock.yaml", YAML.stringify(lock));
-put(".github/workflows/pr-ci.yml", "jobs:\n  build-mobile-internal:\n    api-url: preview\n  deploy-preview-api:\n    enabled: true\n");
+put(
+  ".github/workflows/pr-ci.yml",
+  "jobs:\n  build-mobile-internal:\n    api-url: preview\n  deploy-preview-api:\n    enabled: true\n",
+);
 put("apps/mobile/src/app/index.tsx", "initial");
 const base = commit("baseline");
 
@@ -54,10 +62,10 @@ test("only mobile runtime and linked packages rebuild APK", () => {
     "apps/mobile/src/app/profile.tsx",
     "apps/mobile/assets/icon.png",
     "apps/mobile/app.config.js",
-    "packages/shared/src/api.ts",
+    "packages/shared/src/common/api.ts",
     "packages/query/src/provider.tsx",
     "packages/store/src/index.ts",
-    "packages/schemas/src/dto/matches.ts",
+    "packages/schemas/src/matches/dto/matches.ts",
     "messages/it.js",
     ".github/actions/mobile-build/action.yml",
   ]) {
@@ -85,9 +93,13 @@ test("moving source out of mobile still rebuilds APK", () => {
 });
 
 test("only mobile build job wiring changes trigger rebuild", () => {
-  const initial = "jobs:\n  build-mobile-internal:\n    api-url: preview\n  other:\n    yes: true\n";
+  const initial =
+    "jobs:\n  build-mobile-internal:\n    api-url: preview\n  other:\n    yes: true\n";
   assert.equal(mobileBuildJob(initial), mobileBuildJob(initial.replace("yes: true", "yes: false")));
-  assert.notEqual(mobileBuildJob(initial), mobileBuildJob(initial.replace("api-url: preview", "api-url: production")));
+  assert.notEqual(
+    mobileBuildJob(initial),
+    mobileBuildJob(initial.replace("api-url: preview", "api-url: production")),
+  );
   put(".github/workflows/pr-ci.yml", initial.replace("yes: true", "yes: false"));
   assert.equal(mobileBuildChanged(base, commit("unrelated CI"), repo), false);
   git("reset", "--hard", base);

@@ -7,76 +7,105 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       include: [
-        "src/contactConnections.ts",
-        "src/eventPolicy.ts",
-        "src/communityApi.ts",
-        "src/communityFeedback.ts",
-        "src/organizationActions.ts",
-        "src/eventForm.ts",
-        "src/matchParticipants.ts",
-        "src/organizationLogoUpload.ts",
-        "src/hooks/contactOptimistic.ts",
-        "src/matchCard.ts",
-        "src/locationAddress.ts",
-        "src/matchContactState.ts",
-        "src/matchResults.ts",
-        "src/phoneCountries.ts",
+        "src/contacts/contactConnections.ts",
+        "src/events/eventPolicy.ts",
+        "src/community/communityApi.ts",
+        "src/community/communityFeedback.ts",
+        "src/organizations/organizationActions.ts",
+        "src/events/eventForm.ts",
+        "src/matches/matchParticipants.ts",
+        "src/organizations/organizationLogoUpload.ts",
+        "src/contacts/hooks/contactOptimistic.ts",
+        "src/matches/matchCard.ts",
+        "src/locations/locationAddress.ts",
+        "src/matches/matchContactState.ts",
+        "src/matches/matchResults.ts",
+        "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
         lines: 50,
         functions: 50,
         branches: 50,
         statements: 50,
-        "src/{communityApi,communityFeedback,organizationActions,eventForm,matchParticipants,organizationLogoUpload}.ts":
-          {
-            lines: 100,
-            functions: 100,
-            branches: 100,
-            statements: 100,
-          },
-        "src/eventPolicy.ts": {
+        "src/community/communityApi.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/contactConnections.ts": {
+        "src/community/communityFeedback.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/hooks/contactOptimistic.ts": {
+        "src/events/eventForm.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/matchCard.ts": {
+        "src/matches/matchParticipants.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/matchContactState.ts": {
+        "src/organizations/organizationActions.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/matchResults.ts": {
+        "src/organizations/organizationLogoUpload.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/locationAddress.ts": {
+        "src/events/eventPolicy.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/phoneCountries.ts": {
+        "src/contacts/contactConnections.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/contacts/hooks/contactOptimistic.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/matches/matchCard.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/matches/matchContactState.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/matches/matchResults.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/locations/locationAddress.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/contacts/phoneCountries.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

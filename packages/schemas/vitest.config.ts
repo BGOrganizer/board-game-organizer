@@ -8,13 +8,31 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
-        "src/{dto,models}/{organizations,events}.ts": {
+        "src/events/dto/events.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/dto/locationFavorites.ts": {
+        "src/organizations/dto/organizations.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/events/models/events.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/organizations/models/organizations.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/locations/dto/locationFavorites.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
@@ -24,25 +42,31 @@ export default defineConfig({
         functions: 50,
         branches: 50,
         statements: 50,
-        "src/dto/notifications.ts": {
+        "src/notifications/dto/notifications.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/{dto,models}/matches.ts": {
+        "src/matches/dto/matches.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/models/users.ts": {
+        "src/matches/models/matches.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/dto/contacts.ts": {
+        "src/profile/models/users.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/contacts/dto/contacts.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

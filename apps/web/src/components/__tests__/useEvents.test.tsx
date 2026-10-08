@@ -24,11 +24,11 @@ import {
   useEventList,
   useEventTable,
   useEventTables,
-} from "../../../../../packages/shared/src/hooks/useEvents";
+} from "../../../../../packages/shared/src/events/hooks/useEvents";
 import {
   publicGroupsQuery,
   usePublicGroups,
-} from "../../../../../packages/shared/src/hooks/usePublicGroups";
+} from "../../../../../packages/shared/src/groups/hooks/usePublicGroups";
 
 const event = {
   id: "event",
