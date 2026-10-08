@@ -1,7 +1,9 @@
 # Skills and component architecture plan
 
-Status: **plan only**. The local documentation commit does not remove/install skills, change
-application behavior, reorganize components, provision OpenSandbox, or change secrets.
+Status: **implemented for skill curation and agent instructions** after user authorization.
+Application behavior/components, secrets, global skills/Pi packages, and the existing OpenSandbox
+integration remain unchanged. Original planning decisions below are followed by execution evidence
+in Section 8; candidate selections and operational deviations are recorded there.
 
 Branch: `feat/organizations-events`. Commit locally with the configured SSH signature; do not push,
 open a PR, merge, or include unrelated staged changes.
@@ -73,7 +75,10 @@ mean retaining the already-installed copies. Do not install replacements.
 The resulting removal set is **41 installed project skills**. Reconcile the additional orphan
 `clerk-expo-patterns` lock entry using the skills CLI, not a hand-edited integrity record. Preserve
 links safely and verify actual Pi discovery; `Agents: not linked` alone does not prove absence.
-Use project scope and explicitly select `--agent pi`. Do not install entire vendor collections.
+Use project scope and explicitly select `--agent pi` on installation. On this CLI version,
+Pi-filtered removal prunes the lock but can leave canonical files/links: verify the filesystem and,
+if needed, remove the exact approved names without an agent filter in project scope. Never use
+`--global` or a blanket removal. Do not install entire vendor collections.
 
 ### Verified additions and research results
 
@@ -82,8 +87,8 @@ Use project scope and explicitly select `--agent pi`. Do not install entire vend
 | `maptiler` | [MapTiler official skills](https://github.com/maptiler/maptiler-skills) | Approved. Applicable to web SDK/geocoding. Its React Native reference discusses MapLibre GL JS, not a version-matched guide for our `@maplibre/maplibre-react-native`; do not replace native maps or add Expo web. |
 | `playwright-best-practices` | [Currents](https://github.com/currents-dev/playwright-best-practices-skill) | Approved. Review fixtures, multiuser auth, selectors, and debugging. No new testing architecture/dependencies, skipped acceptance, fake JUnit, or increased timeouts to hide failures. |
 | `infisical-user-setup-guide` | [Infisical official skills](https://github.com/infisical/ai-skills) | Meets the requested development-injection scope. File is `skills/infisical-setup/SKILL.md`, but declared skill name is `infisical-user-setup-guide`; verify CLI discovery before selection. |
-| `lingui-best-practices` | [Lingui official skills](https://github.com/lingui/skills) | Newly verified candidate, not an automatic full-suite install. Keep Lingui 6, EN/IT catalogs, web macros, and mobile runtime helpers. Do not add mobile Babel or the suggested ESLint plugin. |
-| `sentry-react-native-sdk` | [Sentry official agent skills](https://github.com/getsentry/sentry-agent-skills) | Candidate for the existing mobile SDK, not permission to add Sentry to web/API. Check installed SDK 7.11 APIs and Expo 57 before using examples. |
+| `lingui-best-practices` | [Lingui official skills](https://github.com/lingui/skills) | Selected and installed alone after execution approval. Keep Lingui 6, EN/IT catalogs, web macros, and mobile runtime helpers. Do not add mobile Babel or the suggested ESLint plugin. |
+| `sentry-react-native-sdk` | [Sentry official agent skills](https://github.com/getsentry/sentry-agent-skills) | Selected and installed alone after execution approval, for the existing mobile SDK. No permission to add Sentry to web/API or change PII/replay. Check installed SDK 7.11 APIs and Expo 57 before using examples. |
 | `tailwind-design-system` | [wshobson/agents](https://github.com/wshobson/agents/tree/main/plugins/frontend-mobile-development/skills/tailwind-design-system) | Evaluated community v4 guide. Defer: its fresh token/theme system overlaps HeroUI. Existing HeroUI/Uniwind skills and Tailwind v4 documentation cover the current need. |
 | `maestro-mobile-testing` | [tovimx community skill](https://github.com/tovimx/maestro-mobile-testing-skill) | Relevant candidate, not yet approved for installation. Review bundled references/scripts and validate commands against Maestro 2.11. Its adaptive auth and mock-API examples must not replace deterministic actor provisioning or real acceptance. |
 | `limrun-maestro-testing` | [Limrun](https://github.com/limrun-inc/skills) | Do not select: requires Limrun cloud iOS workflows, not our local/CI Android and planned OpenSandbox setup. |
@@ -385,5 +390,32 @@ Exit: one source of truth for loading and conflicts; no confusing future-feature
    open a PR, install infrastructure, or claim that unfinished feature acceptance is now green.
 
 All implementation commits remain local on `feat/organizations-events` until the user explicitly
-authorizes a push. Documentation revisions for this request contain the plan only; implementation
-of the plan is a separate step.
+authorizes a push. Earlier documentation revisions contained the plan only; the subsequent explicit
+"proceed" request authorized the execution recorded below.
+
+## 8. Execution evidence
+
+- Removed all 41 agreed project skills and the orphan lock entry. The first Pi-filtered CLI removal
+  reported success but left canonical files/links. Exact named project-scope removal without an
+  agent filter removed those files and links; no global removal or blanket deletion was used.
+- All 32 retained vendor `SKILL.md` contents and lock entries match the pre-task snapshot. No
+  incidental vendor upgrades or edits were performed.
+- Installed only `maptiler`, `playwright-best-practices`, `infisical-user-setup-guide`,
+  `lingui-best-practices`, and `sentry-react-native-sdk` with explicit `--agent pi` selection.
+- `skills-lock.json` contains 37 managed names. The tracked project-authored
+  `.pi/skills/bgo-component-architecture/SKILL.md` adds one, for **38 discovered project skills**.
+  It needs no fabricated vendor hash or machine-specific local-source lock entry.
+- The actual installed Pi `loadSkills` parser, with project `.pi/skills` defaults and canonical
+  `.agents/skills`, discovers all 38. CLI JSON lists 31 canonical names; six retained Pi-directory
+  guides and the custom guide account for the difference. CLI inventory alone is not discovery.
+- Pi reports two upstream description-length warnings: MapTiler 1243 characters and Infisical 1067,
+  against the recommended 1024. Both load. Vendor files were left unchanged; this is metadata
+  evidence, not a runtime failure or reason to fake integrity.
+- Updated AGENTS.md with task routing, future-only skill scope, Clerk/BGO separation, platform and
+  design-system boundaries, localization/telemetry/secret safeguards, component ownership and the
+  non-binding 400-line review signal. OpenSandbox remains diagnostic-only and unselected.
+- Added a narrow Git ignore exception for the custom guide only. Other `.pi` configuration,
+  generated/vendor skills, and `.agents` remain ignored. No app files/dependencies were refactored
+  or altered and no containers, emulators, SDK provisioning, or secret operations were run.
+- Validation is instruction/resource discovery and diff/ignore/signature checking, not a claim of
+  newly passed application E2E. Existing feature acceptance remains incomplete.
