@@ -66,9 +66,9 @@ This gives **32 existing project skills to retain**.
   `expo-skill-feedback`.
 - Alternative UI and completed migration: `expo-ui`, `heroui-migration`.
 
-`expo-native-ui`, `eas-workflows`, and `eas-simulator` are already installed despite the discussion
-phrasing "do not add". Interpret the user's rejection as removing them from the selected project
-set; call out this interpretation before execution.
+`expo-native-ui`, `eas-workflows`, and `eas-simulator` are already installed. Remove them from the
+selected project set under the user's rejection of these optional skills; "do not add" does not
+mean retaining the already-installed copies. Do not install replacements.
 
 The resulting removal set is **41 installed project skills**. Reconcile the additional orphan
 `clerk-expo-patterns` lock entry using the skills CLI, not a hand-edited integrity record. Preserve
@@ -171,6 +171,12 @@ state in module-level singletons and giant contexts that rerender unrelated scre
   redefining component identity can remount children and lose state.
 - Move a private helper to its own feature file when another module needs it. Promote to `common`
   only when multiple features share a real interaction/layout contract.
+- Keep component implementations focused and reasonably concise. Roughly 400 lines in a component
+  is a signal to review responsibilities, branching, repeated markup, and readability, not a hard
+  limit or an automatic CI failure. Use judgment: extract cohesive subcomponents/hooks/pure logic
+  when that improves understanding and testing. Do not split code mechanically, hide complexity
+  in indirection, or add abstractions merely to get below a line count. Count implementation
+  complexity, not just total file lines including comments, types, or private helpers.
 - Local hooks, types, and short helpers may be colocated. Extract substantial reusable business
   logic, not every five-line function. Avoid circular dependencies and overgrown public barrels.
 - Respect Next.js/Expo routing entry files, which have framework-mandated exports; the rule must
@@ -227,83 +233,157 @@ an actually shared primitive. Move existing flat shared helpers incrementally, n
 - HeroUI supplies the existing design language and accessible primitives. Tailwind/Uniwind provide
   styling, not justification for a second component library or native structural utility rewrite.
 
-## 6. OpenSandbox: separate infrastructure workstream
+## 6. OpenSandbox: skill evaluation only
 
-[OpenSandbox](https://github.com/opensandbox-group/OpenSandbox) provides Docker/Kubernetes-backed
-sandbox lifecycle APIs and an MCP server. The documented MCP interface offers sandbox creation,
-command execution, and file operations; it does not automatically expose domain-specific Maestro,
-Playwright, or MongoDB tools just because their binaries exist in an image.
+The user has already implemented the OpenSandbox integration. **No Docker images, MCP server,
+network/device setup, deployment, proof of concept, or infrastructure migration belongs to this
+plan.** Do not repeat that work or treat the earlier architecture notes as an implementation task.
 
-Start with a proof of concept using existing MCP/SDK capabilities before writing a custom server.
-Provide purpose-built images or controlled adapters only when a concrete operation needs them.
-Pin images, bound CPU/memory/PIDs/time, restrict mounts/egress, use authenticated transport, and
-clean resources by exact ownership/run ID. A sandbox is not unlimited authority to access host
-files, GitHub secrets, private accounts, or Production.
+The verified official candidate is
+[`troubleshoot-sandbox`](https://github.com/opensandbox-group/OpenSandbox/tree/main/skills/troubleshoot-sandbox).
+It covers diagnostics such as logs, inspect/events, OOM, crashes, image pulls, and networking via
+OpenSandbox CLI/HTTP API. It is a troubleshooting skill, not a general application architecture
+skill. Keep it task-scoped, review its referenced commands against the existing integration, and
+obtain explicit selection before installation. An installed diagnostic skill does not grant
+permission to create/delete sandboxes or reconfigure the running integration.
 
-| Workload | Feasibility and first check |
-| --- | --- |
-| Playwright | Good first candidate: pinned Node/Playwright/browser image, test-only actors, exact Preview URL, artifact retrieval and real exit/JUnit status. |
-| MongoDB | Isolated ephemeral replica set for transactions; private network, per-run database/user, seed/cleanup guards, never Production fallback. |
-| Maestro Android | CLI image alone is insufficient. Requires an emulator/device and ADB. Validate `/dev/kvm`/nested virtualization on the actual host, or use an owned external emulator through a restricted connection. Docker Desktop/Windows support is not assumed. |
-| Maestro iOS | Simulator requires a macOS host; not a normal Linux Docker image. |
+## 7. Detailed implementation plan and exit gates
 
-Do not expose Docker's socket or ADB unauthenticated. Do not mount the real host Docker socket
-inside an agent-controlled sandbox to make Testcontainers work. Use control-plane-created sibling
-services or a separately isolated trusted Docker runner; adapt tests only after proving the setup.
+This task covers the selected skill set, the project architecture skill, and agent instructions.
+**It does not move/refactor application components.** The folder convention applies to new work
+and later explicitly requested refactors; no pilot or repository-wide migration is required here.
 
-Keep CI database namespaces and user cleanup guarantees, protection bypass handling, artifact
-privacy, and real report validation. Missing, skipped, mocked, or fabricated acceptance must fail
-rather than become green. The image/provisioning task needs its own threat model and resource/
-cleanup tests; this documentation does not install or launch containers/emulators/MCP servers.
+### Phase 1 — preflight and protected baseline
 
-## 7. Ordered implementation plan and exit gates
+1. Stay on `feat/organizations-events`; do not rebase onto main, push, or open a PR.
+2. Record the project inventory, canonical paths/link targets, source lock, and Pi-discovered names.
+   Record global duplicates separately without changing them.
+3. Back up the Git index and both staged/unstaged patches. Preserve private environment/MCP files.
+   Separate task changes from existing changes to `.gitignore`, `AGENTS.md`, and `skills-lock.json`.
+4. Inspect skills CLI removal/selection behavior before modifying the project set. A CLI listing
+   alone is not the acceptance check for Pi discovery.
 
-### Phase 1 — deterministic skill set
+Exit: recoverable baseline and exact project-only scope; no runtime, secret, or global changes.
 
-1. Back up inventory, links, lock, Git index, and existing staged/unstaged work.
-2. Confirm removal of the three already-installed rejected optional skills, then apply the approved
-   project-only removal/retention set through the CLI. Reconcile the orphan entry.
-3. Install only MapTiler, Playwright, and the scoped Infisical setup guide with `--agent pi`.
-4. Decide on the reviewed Lingui/Sentry candidates; do not install Maestro or Tailwind blindly.
-5. Recheck CLI inventory, Pi startup diagnostics/discovery, sources/integrity, and global skills.
+### Phase 2 — curate the existing set
 
-Exit: agreed skill names and reproducible sources match discovery; no credentials/global package
-changes, app dependencies, or unrelated files in the local signed commit.
+1. Remove exactly the 41 installed project skills listed in Section 2, including the three rejected
+   optional skills. Safely reconcile Mapbox's canonical files and links, not unrelated directories.
+2. Reconcile the orphan `clerk-expo-patterns` lock entry through the CLI.
+3. Retain the 32 agreed skills, including future Clerk features, OTA, project structure, and the
+   guarded `expo-design-system`. Do not refresh every retained skill as an incidental upgrade.
+4. Use project scope and explicit `--agent pi`; verify no global Pi package/tool was removed.
 
-### Phase 2 — repository-specific architecture skill and rules
+Exit: 32 retained project names before additions, no stale removed links, and a consistent lock.
 
-1. Write a short `bgo-component-architecture` skill with the boundaries/ownership rules above.
-2. Add these rules and the Clerk/BGO domain distinction to `AGENTS.md`, including the design-system
-   and candidate-specific safeguards. Do not rewrite upstream installed skills.
-3. Make the custom skill reproducible/tracked. `.pi/` and `.agents` are currently ignored: use a
-   narrow custom-skill exception or a managed source, not force-add private `.pi` settings/tokens.
-4. Add no blanket lint/checker framework. Validate a small representative implementation first;
-   automate component ownership enforcement only if repeated violations justify it.
+### Phase 3 — install narrow, verified guides
 
-Exit: correct skill discovery, no routing/UI/state ownership conflicts, no new runtime dependencies.
+1. Install only the approved `maptiler` and `playwright-best-practices` selections.
+2. Select `infisical-user-setup-guide` because its local-development injection scope meets the
+   user's condition. Verify the declared name rather than selecting by its folder name.
+3. Recommend only `lingui-best-practices` and `sentry-react-native-sdk` from their verified official
+   collections. Obtain selection for these newly researched candidates; do not install all Lingui
+   setup/migration tools or all Sentry frameworks.
+4. Do not install the evaluated Tailwind guide or either Maestro candidate by default. Keep the
+   community Maestro guide pending a narrower compatibility/script review, not an invented claim
+   that no Maestro skill exists.
+5. Handle `troubleshoot-sandbox` only if explicitly selected, as a skill addition, never an
+   infrastructure workstream. Do not add Inngest setup or provision its external service.
 
-### Phase 3 — one feature pilot
+Exit: each selected name has the correct source, reproducible integrity, and actual Pi discovery;
+no application dependency, authentication, telemetry, secret, or environment changes.
 
-Choose a bounded existing feature with proven duplicated behavior. Inspect both clients and every
-caller. Move its platform components into feature folders; extract shared behavior only where
-contracts match. Keep platform adapters, query ownership, UI/accessibility, error/loading states,
-and navigation intact. Demonstrate a headless provider only if a hook alone is insufficient.
+### Phase 4 — write the small BGO architecture skill
 
-Exit: lint, typecheck, relevant unit/shared coverage, web Playwright and native Maestro acceptance
-for changed behavior. Update imports, tests, and per-file coverage paths without lowering thresholds.
-Do not use a static import/folder test as runtime UI acceptance.
+1. Create `bgo-component-architecture`, applying only to BGO component ownership, feature folders,
+   platform boundaries, and proven headless reuse. Reuse the existing Vercel composition guide.
+2. Encode one public component per file, private module-scope helper exceptions, feature ownership,
+   and promotion to `common/ui` only for real cross-feature reuse. Add a component concision review:
+   around 400 implementation lines is a warning to inspect complexity, never a hard line ceiling.
+3. Encode shared pure logic/hooks and optional headless providers without universal page layout,
+   native/browser/routing imports, duplicated Query state, or request-scoped module singletons.
+4. Give the custom source a narrow tracked exception or managed source. Do not expose the rest of
+   `.pi`, tokens, settings, generated skills, or caches in Git.
+5. Check the guide against representative current files without moving those files or creating
+   example components/providers. Do not introduce a linter, checker framework, or architecture
+   dependency just to enforce the convention.
 
-### Phase 4 — incremental rollout
+Exit: portable discovery and actionable rules that match the current repository and its invariants.
 
-Migrate one feature per focused commit, after the pilot. No repository-wide rename intertwined
-with behavior changes. Keep exports/imports bounded and tests colocated; delete obsolete duplicates
-only after callers and behavioral parity are verified.
+### Phase 5 — clarify AGENTS.md, not duplicate the skill bodies
 
-### Phase 5 — OpenSandbox proof of concept
+The existing `Agent skills` section already has precedence, loading rules, and a task-to-skill
+matrix. Extend that section rather than creating a second competing instruction system.
 
-Start with Playwright and an isolated MongoDB service, then prove Android device/KVM connectivity
-before promising Maestro in Docker. Validate authenticated MCP access, secret injection, resource
-limits, isolation, retries, artifact extraction, and guaranteed cleanup. Keep iOS separate.
+Add the following explicit safeguards:
+
+- Skills do not override the explicit request, repository invariants, installed versions, tests,
+  or current workflow requirements; retention for future use is not activation or scope approval.
+- Clerk Organizations are not BGO organizations. `clerk-orgs` may be loaded only for an explicitly
+  requested Clerk tenancy task, never because a BGO organization screen/API is being changed.
+- Next.js and Expo routing/UI stay in their apps. Not every non-JSX hook belongs in shared.
+  Shared headless behavior does not impose a universal page/container or accessibility contract.
+- One public component per file with private module-level helpers allowed; feature folders inside
+  each app's components directory; `common/ui` is not a dumping ground or replacement UI library.
+- Components should not become excessively verbose. Around 400 implementation lines merits a
+  responsibility/readability review, not a mandatory split or lint/CI limit. Extract coherent
+  behavior/UI pieces when useful; do not game line counts or replace clarity with abstractions.
+- HeroUI and Uniwind remain the design system. Generic Expo examples must not introduce `@expo/ui`,
+  NativeWind, another theme, custom replacements for available HeroUI controls, or spinners where
+  repository loading policy requires skeletons.
+- Generic Vercel recommendations for SWR, new native list libraries, or alternative styling do not
+  replace the installed TanStack Query/Uniwind/virtualized-list ownership conventions.
+- MapTiler's GL JS React Native tutorial does not replace installed native MapLibre APIs. Preserve
+  verified geocoding, attribution, current SDK versions, and the noncommercial product context.
+- Lingui's preferred macros apply on web, not to mobile's runtime helper exception. No mobile Babel
+  or suggested ESLint plugin. Preserve provider/portal context and EN/IT source/compiled catalogs.
+- Sentry examples do not authorize PII, additional tracing/replay/logging, production replay, SDK
+  upgrades, or instrumentation on other platforms. Preserve the current release/Fabric safeguards
+  and request explicit review for existing privacy settings.
+- Infisical development injection is scoped per app/environment; no secret changes, plaintext
+  committed exports, production changes, or public-prefix leakage from reading/installing a skill.
+- Mock API/auth-adaptive examples are not real E2E acceptance. Preserve deterministic actor setup,
+  device permission tests, real reports, errors/skips checks, and the current Vitest 3.2 baseline.
+- Generic routers may refer to removed/uninstalled sibling skills. Do not reinstall them or add
+  dependencies just because a retained router suggests them; use the selected set and official docs.
+- OpenSandbox troubleshooting remains diagnostic and subject to the user's runtime-operation
+  authorization; its integration is already implemented and outside this plan.
+
+Extend the existing task matrix with short routing references, not copies of upstream tutorials:
+
+| Task | Guide to load, once selected/installed | Repository guard |
+| --- | --- | --- |
+| Component architecture/feature ownership | `bgo-component-architecture`, then `vercel-composition-patterns` and the relevant platform guide | No routing/UI migration as a side effect |
+| Native design consistency audit | `expo-design-system`, `heroui-native`, `uniwind` | Extend existing tokens; no second system |
+| MapTiler web/geocoding | `maptiler` plus relevant web guide | Native MapLibre needs installed types/version-matched docs |
+| Playwright tests/debugging | `playwright-best-practices`; `clerk-testing` for authenticated flows | No fabricated/skipped/mocked acceptance |
+| Lingui/localization | `lingui-best-practices` | Web macros; mobile runtime helpers; EN/IT; Biome |
+| Existing native Sentry | `sentry-react-native-sdk` | Version/privacy/release safeguards; no auto-configuration |
+| Development secret injection | `infisical-user-setup-guide` | Explicit app/environment scope; never print secrets |
+| Existing OpenSandbox diagnostics | `troubleshoot-sandbox`, only if selected | No infrastructure provisioning or destructive operations by default |
+| Future Clerk billing/tenancy, OTA, new Expo project | Only the matching retained guide after an explicit task request | Installed does not mean implemented or enabled |
+| Native Maestro flows | Existing repository flows/CI rules and version-matched official docs | No unreviewed community skill substitution |
+
+Use portable skill names and references; `skills-lock.json` records managed sources. Do not put
+machine-specific paths or full skill contents into `AGENTS.md`. Load the smallest relevant set,
+read bundled references on demand, inspect scripts before execution, and report guides actually used.
+
+Exit: one source of truth for loading and conflicts; no confusing future-feature or platform routing.
+
+### Phase 6 — validate and commit locally
+
+1. Compare CLI inventory, actual Pi discovery, canonical paths, sources, and integrity. Verify the
+   retained future guides and all removals. Keep global settings/packages untouched.
+2. Validate custom frontmatter/name/description, skill references, tracked-source exceptions,
+   Markdown/whitespace, and the exact staged diff. Ensure private configuration remains excluded.
+3. Review AGENTS.md and the architecture guide against both platform adapters and representative
+   component files. No app tests/native builds are required for instruction-only changes; if scope
+   later includes behavior changes, run the relevant existing lint/typecheck/unit/E2E gates.
+4. Make focused signed local commits for curation and architecture/instructions. Include only task
+   changes, preserving unrelated staged/unstaged work. Verify signatures and show committed paths.
+5. Report the final selected/discovered set and any intentionally deferred candidates. Do not push,
+   open a PR, install infrastructure, or claim that unfinished feature acceptance is now green.
 
 All implementation commits remain local on `feat/organizations-events` until the user explicitly
-authorizes a push. The first commit for this request contains this plan only.
+authorizes a push. Documentation revisions for this request contain the plan only; implementation
+of the plan is a separate step.
