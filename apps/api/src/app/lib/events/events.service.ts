@@ -5,6 +5,7 @@ import type {
   EventBooking,
   EventBookingAction,
   EventBookingResponse,
+  EventPeriod,
   EventResponse,
   EventTable,
   EventTableInput,
@@ -128,7 +129,12 @@ export class EventsService {
     }
     return this.response(event, userId);
   }
-  async list(userId: string, page: CommunityPage, organizationId?: string) {
+  async list(
+    userId: string,
+    page: CommunityPage,
+    organizationId?: string,
+    periods?: readonly EventPeriod[],
+  ) {
     if (organizationId) {
       const organization = await this.organization(organizationId);
       if (!organization.approved && organization.adminUserId !== userId)
@@ -136,7 +142,7 @@ export class EventsService {
       if ((await this.organizations.findMembership(organizationId, userId))?.status === "EXCLUDED")
         throw new CommunityError(403, "ORGANIZATION_EXCLUDED");
     }
-    const rows = await this.events.list(userId, page, organizationId);
+    const rows = await this.events.list(userId, page, organizationId, periods);
     const items: EventResponse[] = [];
     for (const row of rows.slice(0, page.limit)) items.push(await this.detail(userId, row.id));
     const last = items.at(-1);

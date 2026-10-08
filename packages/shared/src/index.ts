@@ -1,5 +1,6 @@
 export * from "./common/api";
 export * from "./common/hooks/listFilters";
+export * from "./common/hooks/useListSearch";
 export * from "./common/mutationFeedback";
 export * from "./common/types";
 export * from "./community/communityApi";

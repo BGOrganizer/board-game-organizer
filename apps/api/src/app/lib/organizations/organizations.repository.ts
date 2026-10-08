@@ -1,6 +1,12 @@
-import type { Organization, OrganizationMembership } from "@board-game-organizer/schemas";
+import {
+  type Organization,
+  type OrganizationListRole,
+  type OrganizationMembership,
+  organizationListRoles,
+} from "@board-game-organizer/schemas";
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
+import { organizationRoleFilter } from "./organization-list-filter";
 
 export type CommunityPage = { limit: number; cursor?: string; query?: string };
 export type OrganizationListRow = Organization & {
@@ -51,7 +57,12 @@ export class OrganizationsRepository {
     return organization;
   }
 
-  async list(userId: string, scope: "mine" | "public" | "moderation", page: CommunityPage) {
+  async list(
+    userId: string,
+    scope: "mine" | "public" | "moderation",
+    page: CommunityPage,
+    roles: readonly OrganizationListRole[] = organizationListRoles,
+  ) {
     const pipeline: Record<string, unknown>[] = [];
     if (scope === "moderation")
       pipeline.push({ $match: { reviewStatus: "PENDING", proposal: { $exists: true } } });
@@ -94,15 +105,7 @@ export class OrganizationsRepository {
         },
       },
     );
-    if (scope === "mine")
-      pipeline.push({
-        $match: {
-          $or: [
-            { adminUserId: userId },
-            { "viewerMembershipRows.status": { $in: ["PENDING", "ACCEPTED"] } },
-          ],
-        },
-      });
+    if (scope === "mine") pipeline.push({ $match: organizationRoleFilter(userId, roles) });
     if (scope === "public")
       pipeline.push({
         $match: {

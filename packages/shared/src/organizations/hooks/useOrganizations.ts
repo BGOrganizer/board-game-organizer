@@ -1,5 +1,6 @@
 import type {
   CommunityPageResponse,
+  OrganizationListRole,
   OrganizationMemberResponse,
   OrganizationMembership,
   OrganizationMembershipAction,
@@ -8,6 +9,7 @@ import type {
   SaveOrganizationInput,
   UpdateOrganizationInput,
 } from "@board-game-organizer/schemas";
+import { organizationListRoles } from "@board-game-organizer/schemas";
 import {
   type InfiniteData,
   infiniteQueryOptions,
@@ -28,8 +30,23 @@ import {
 export const organizationKeys = {
   root: (options: CommunityApiOptions) =>
     ["organizations", options.apiUrl, options.userId] as const,
-  list: (options: CommunityApiOptions, scope: string, query: string) =>
-    [...organizationKeys.root(options), "list", scope, query] as const,
+  list: (
+    options: CommunityApiOptions,
+    scope: string,
+    query: string,
+    roles: readonly OrganizationListRole[] = organizationListRoles,
+  ) => {
+    const selected = organizationListRoles.filter((role) => roles.includes(role));
+    return [
+      ...organizationKeys.root(options),
+      "list",
+      scope,
+      query,
+      ...(scope === "mine" && selected.length !== organizationListRoles.length
+        ? [selected.join(",")]
+        : []),
+    ] as const;
+  },
   detail: (options: CommunityApiOptions, id: string) =>
     [...organizationKeys.root(options), "detail", id] as const,
   members: (options: CommunityApiOptions, id: string, mode: string, query: string) =>
@@ -41,13 +58,19 @@ export function organizationsPageQuery(
   options: CommunityApiOptions,
   scope: OrganizationScope = "mine",
   query = "",
+  roles: readonly OrganizationListRole[] = organizationListRoles,
 ) {
+  const selected = organizationListRoles.filter((role) => roles.includes(role));
   return infiniteQueryOptions({
-    queryKey: organizationKeys.list(options, scope, query),
+    queryKey: organizationKeys.list(options, scope, query, selected),
     queryFn: ({ pageParam, signal }) =>
       communityRequest<CommunityPageResponse<OrganizationResponse>>(
         options,
-        communityPagePath(`organizations?scope=${scope}`, query, pageParam),
+        communityPagePath(
+          `organizations?scope=${scope}${scope === "mine" && selected.length !== organizationListRoles.length ? `&roles=${selected.join(",")}` : ""}`,
+          query,
+          pageParam,
+        ),
         "GET",
         undefined,
         signal,
@@ -68,8 +91,9 @@ export function useOrganizationList(
   options: CommunityApiOptions,
   scope: OrganizationScope = "mine",
   query = "",
+  roles: readonly OrganizationListRole[] = organizationListRoles,
 ) {
-  const paging = useInfiniteQuery(organizationsPageQuery(options, scope, query));
+  const paging = useInfiniteQuery(organizationsPageQuery(options, scope, query, roles));
   return { ...paging, items: paging.data?.pages.flatMap((page) => page.items) ?? [] };
 }
 export function organizationDetailQuery(options: CommunityApiOptions, id: string) {
@@ -167,6 +191,14 @@ export function patchOrganizationData(
     })),
   };
 }
+export function organizationMatchesList(row: OrganizationResponse, key: readonly unknown[]) {
+  if (key[3] !== "list") return true;
+  if (key[4] === "mine") {
+    const roles = key[6] === undefined ? organizationListRoles : String(key[6]).split(",");
+    if (!roles.some((role) => role === row.role)) return false;
+  }
+  return row.name.toLocaleLowerCase().includes(String(key[5] ?? "").toLocaleLowerCase());
+}
 export function useOrganizationActions(options: CommunityApiOptions) {
   const client = useQueryClient();
   const root = organizationKeys.root(options);
@@ -181,7 +213,13 @@ export function useOrganizationActions(options: CommunityApiOptions) {
       .filter(([key]) => (key[3] === "detail" && key.length === 5) || key[3] === "list");
     if (patch)
       for (const [key, data] of snapshots)
-        client.setQueryData(key, patchOrganizationData(data, patch));
+        client.setQueryData(
+          key,
+          patchOrganizationData(data, (row) => {
+            const next = patch(row);
+            return next && organizationMatchesList(next, key) ? next : null;
+          }),
+        );
     options.feedback?.onOptimisticUpdate?.(action);
     return { snapshots, action };
   }
@@ -205,7 +243,10 @@ export function useOrganizationActions(options: CommunityApiOptions) {
       if (key[3] === "list") {
         client.setQueryData(
           key,
-          patchOrganizationData(data, (item) => (item.id === row.id ? row : item)),
+          patchOrganizationData(data, (item) => {
+            const next = item.id === row.id ? row : item;
+            return organizationMatchesList(next, key) ? next : null;
+          }),
         );
       }
     client.setQueryData(organizationKeys.detail(options, row.id), row);

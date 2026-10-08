@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useListSearch } from "./useListSearch";
 
 export type ListRole = "admin" | "invited" | "accepted";
 export const listRoles: ListRole[] = ["admin", "invited", "accepted"];
@@ -12,24 +12,13 @@ export interface ListFilters {
 }
 
 export function useListFilters() {
-  const [query, setQuery] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [roles, setRoles] = useState<ListRole[]>(listRoles);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query.trim().length >= 4 ? query.trim() : ""), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const filters = useListSearch(listRoles);
   return {
-    query,
-    setQuery,
-    roles,
-    toggleRole: (role: ListRole) =>
-      setRoles((current) =>
-        current.includes(role)
-          ? current.filter((item) => item !== role)
-          : listRoles.filter((item) => item === role || current.includes(item)),
-      ),
-    filters: { query: debounced, roles, limit: 20 },
+    query: filters.query,
+    setQuery: filters.setQuery,
+    roles: filters.selected,
+    toggleRole: filters.toggle,
+    filters: { query: filters.search, roles: filters.selected, limit: 20 },
   };
 }
 

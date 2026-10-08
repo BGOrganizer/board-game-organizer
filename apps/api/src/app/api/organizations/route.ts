@@ -1,4 +1,4 @@
-import { saveOrganizationSchema } from "@board-game-organizer/schemas";
+import { organizationListRolesSchema, saveOrganizationSchema } from "@board-game-organizer/schemas";
 import { z } from "zod";
 import { CommunityError } from "@/app/lib/community.error";
 import { communityBody, communityPage, runCommunityOperation } from "@/app/lib/community.http";
@@ -10,7 +10,11 @@ export function GET(request: Request) {
       .enum(["mine", "public", "moderation"])
       .safeParse(new URL(request.url).searchParams.get("scope") ?? "mine");
     if (!scope.success) throw new CommunityError(400, "INVALID_SCOPE");
-    return service.list(userId, scope.data, communityPage(request));
+    const roles = organizationListRolesSchema.safeParse(
+      new URL(request.url).searchParams.get("roles") ?? undefined,
+    );
+    if (!roles.success) throw new CommunityError(400, "INVALID_ROLES");
+    return service.list(userId, scope.data, communityPage(request), roles.data);
   });
 }
 export function POST(request: Request) {

@@ -2,13 +2,16 @@ import type {
   Event,
   EventBooking,
   EventDeadlineDelivery,
+  EventPeriod,
   EventTable,
   Match,
   MatchInvitation,
 } from "@board-game-organizer/schemas";
+import { eventPeriods } from "@board-game-organizer/schemas";
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
 import type { CommunityPage } from "../organizations/organizations.repository";
+import { eventPeriodFilter } from "./event-list-filter";
 
 export class EventsRepository {
   private events;
@@ -229,10 +232,43 @@ export class EventsRepository {
       this.opts,
     );
   }
-  list(userId: string, page: CommunityPage, organizationId?: string) {
+  list(
+    userId: string,
+    page: CommunityPage,
+    organizationId?: string,
+    periods: readonly EventPeriod[] = eventPeriods,
+  ) {
     const pipeline: Record<string, unknown>[] = [
       { $match: { status: { $ne: "CANCELLED" }, ...(organizationId ? { organizationId } : {}) } },
+      { $match: eventPeriodFilter(periods) },
     ];
+    if (!organizationId)
+      pipeline.push(
+        {
+          $lookup: {
+            from: COLLECTIONS.EVENT_BOOKINGS,
+            localField: "id",
+            foreignField: "eventId",
+            pipeline: [
+              { $match: { userId, status: { $in: ["PENDING", "CONFIRMED"] } } },
+              { $limit: 1 },
+            ],
+            as: "viewerBookings",
+          },
+        },
+        {
+          $lookup: {
+            from: COLLECTIONS.EVENT_TABLES,
+            localField: "id",
+            foreignField: "eventId",
+            pipeline: [
+              { $match: { demonstratorUserId: userId, status: { $ne: "CANCELLED" } } },
+              { $limit: 1 },
+            ],
+            as: "viewerDemonstrations",
+          },
+        },
+      );
     if (page.cursor) {
       const [createdAt, id] = page.cursor.split("|");
       pipeline.push({
@@ -270,13 +306,30 @@ export class EventsRepository {
             { $or: [{ adminUserId: userId }, { status: "PUBLISHED" }] },
             ...(organizationId
               ? []
-              : [{ $or: [{ adminUserId: userId }, { "membership.status": "ACCEPTED" }] }]),
+              : [
+                  {
+                    $or: [
+                      { adminUserId: userId },
+                      { "viewerBookings.0": { $exists: true } },
+                      { "viewerDemonstrations.0": { $exists: true } },
+                    ],
+                  },
+                ]),
             { "membership.status": { $ne: "EXCLUDED" } },
           ],
         },
       },
       { $limit: page.limit + 1 },
-      { $project: { _id: 0, transactionLock: 0, organization: 0, membership: 0 } },
+      {
+        $project: {
+          _id: 0,
+          transactionLock: 0,
+          organization: 0,
+          membership: 0,
+          viewerBookings: 0,
+          viewerDemonstrations: 0,
+        },
+      },
     );
     return this.events.aggregate<Event>(pipeline, this.opts).toArray();
   }

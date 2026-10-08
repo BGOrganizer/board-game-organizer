@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type {
   CommunityNotificationKind,
   Organization,
+  OrganizationListRole,
   OrganizationMemberResponse,
   OrganizationMembership,
   OrganizationMembershipAction,
@@ -121,9 +122,14 @@ export class OrganizationsService {
     await requireBgoModerator(userId);
     return this.response(await this.required(id), userId, true);
   }
-  async list(userId: string, scope: "mine" | "public" | "moderation", page: CommunityPage) {
+  async list(
+    userId: string,
+    scope: "mine" | "public" | "moderation",
+    page: CommunityPage,
+    roles?: readonly OrganizationListRole[],
+  ) {
     if (scope === "moderation") await requireBgoModerator(userId);
-    const rows = await this.organizations.list(userId, scope, page);
+    const rows = await this.organizations.list(userId, scope, page, roles);
     const items: OrganizationResponse[] = [];
     for (const row of rows.slice(0, page.limit))
       items.push(await this.response(row, userId, scope === "moderation"));

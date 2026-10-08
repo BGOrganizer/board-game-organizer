@@ -295,6 +295,7 @@ msgstr "Accetta invito"
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Accepted"
 msgstr "Accettato"
 
@@ -360,6 +361,7 @@ msgid "Address results"
 msgstr "Risultati indirizzi"
 
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Admin"
 msgstr "Amministratore"
 
@@ -634,9 +636,7 @@ msgstr "Scegli luogo"
 #~ msgid "Claiming this invite connects you with the inviter."
 #~ msgstr "Accettando questo invito ti connetterai con chi ti ha invitato."
 
-#: apps/web/src/components/community/CommunityDiscovery.tsx
 #: apps/web/src/components/contacts/SearchUserPage.tsx
-#: apps/web/src/components/events/Events.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx
 msgid "Clear"
 msgstr "Pulisci"
@@ -646,12 +646,10 @@ msgid "Clear board game selection"
 msgstr "Deseleziona gioco"
 
 #: apps/web/src/app/mobile-number/page.tsx
-#: apps/web/src/components/common/ui/ListSearchFilters.tsx
-#: apps/web/src/components/community/CommunityDiscovery.tsx
+#: apps/web/src/components/common/ui/ListSearch.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 #: apps/web/src/components/locations/SearchLocationPage.tsx
-#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Clear search"
 msgstr "Pulisci ricerca"
 
@@ -666,6 +664,11 @@ msgstr "Collezione"
 #: apps/web/src/app/(tabs)/organizations/page.tsx
 #~ msgid "Coming soon"
 #~ msgstr "Prossimamente"
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/community/CommunitySection.tsx
+msgid "Community"
+msgstr "Community"
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Complete your profile"
@@ -1338,7 +1341,7 @@ msgstr "Inserisci un punteggio per ogni giocatore o indica che non ha partecipat
 msgid "Enter a valid score"
 msgstr "Inserisci un punteggio valido"
 
-#: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/common/ui/ListSearch.tsx
 #: apps/web/src/components/community/CommunityDiscovery.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Enter at least 4 characters to search"
@@ -1439,6 +1442,10 @@ msgstr "Amici"
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Friendship accepted."
 msgstr "Amicizia confermata."
+
+#: apps/web/src/components/events/Events.tsx
+msgid "Future"
+msgstr "Futuri"
 
 #: apps/web/src/components/matches/Matches.tsx
 msgid "game"
@@ -1556,8 +1563,8 @@ msgstr "Gruppi"
 
 #: apps/web/src/components/common/layout/Header.tsx
 #: apps/web/src/components/community/CommunitySection.tsx
-msgid "Groups and organizations"
-msgstr "Gruppi ed organizzazioni"
+#~ msgid "Groups and organizations"
+#~ msgstr "Gruppi ed organizzazioni"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Highest score wins"
@@ -1645,6 +1652,7 @@ msgstr "Invita membri dell'organizzazione"
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Invited"
 msgstr "Invitati"
 
@@ -1938,7 +1946,6 @@ msgstr "Sposta su"
 msgid "ND"
 msgstr "ND"
 
-#: apps/web/src/components/events/Events.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
 msgid "New event"
@@ -2292,6 +2299,10 @@ msgstr "Riepilogo"
 msgid "Participants"
 msgstr "Partecipanti"
 
+#: apps/web/src/components/events/Events.tsx
+msgid "Past"
+msgstr "Passati"
+
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Paste an invite link or token to claim it"
 #~ msgstr "Incolla un link o un token di invito per accettarlo"
@@ -2553,6 +2564,10 @@ msgstr "Richiedi un posto"
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Request to join"
 msgstr "Richiedi partecipazione"
+
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Requested"
+msgstr "Richieste"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Requests"
@@ -2956,7 +2971,7 @@ msgstr "Attiva/disattiva menu"
 msgid "Try again"
 msgstr "Riprova"
 
-#: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/common/ui/ListSearch.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/contacts/SearchUserPage.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx

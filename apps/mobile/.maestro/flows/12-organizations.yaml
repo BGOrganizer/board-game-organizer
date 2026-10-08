@@ -4,9 +4,44 @@ appId: com.bgo.mobile
 - launchApp:
     permissions:
       camera: deny
-- tapOn: "Groups and organizations"
+- tapOn: "Community"
 - tapOn:
     id: "community-tab-organizations"
+- assertVisible:
+    id: "list-filter-requested"
+- tapOn:
+    id: "list-filter-admin"
+- tapOn:
+    id: "list-filter-invited"
+- tapOn:
+    id: "list-filter-accepted"
+- tapOn:
+    id: "list-filter-requested"
+- extendedWaitUntil:
+    visible: "No organizations found"
+    timeout: 30000
+- tapOn:
+    id: "list-filter-admin"
+- tapOn:
+    id: "list-filter-invited"
+- tapOn:
+    id: "list-filter-accepted"
+- tapOn:
+    id: "list-filter-requested"
+- assertNotVisible: "Clear search"
+- tapOn: "Search organizations: Search help"
+- assertVisible: "Type at least 4 characters to search"
+- back
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-organization"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No organizations found"
+    timeout: 30000
+- tapOn: "Clear search"
+- hideKeyboard
+- assertNotVisible: "Clear search"
 - tapOn: "New organization"
 - assertVisible: "New organization"
 - tapOn: "Organization name"
@@ -96,3 +131,18 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Search groups and organizations"
     timeout: 30000
+- assertVisible:
+    id: "list-filter-groups"
+- assertVisible:
+    id: "list-filter-organizations"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-community"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No results found"
+    timeout: 30000
+- tapOn: "Clear search"
+- hideKeyboard
+- assertNotVisible: "Clear search"

@@ -4,11 +4,13 @@ import type {
   CommunityPageResponse,
   EventBooking,
   EventBookingResponse,
+  EventPeriod,
   EventResponse,
   EventTableResponse,
   SaveEventInput,
   UpdateEventInput,
 } from "@board-game-organizer/schemas";
+import { eventPeriods } from "@board-game-organizer/schemas";
 import {
   type InfiniteData,
   infiniteQueryOptions,
@@ -26,14 +28,28 @@ import {
   communityPagePath,
   communityRequest,
 } from "../../community/communityApi";
+import { eventMatchesFilters } from "../eventList";
 import { useEventWindow } from "./useEventWindow";
 
 type EventOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
 export const eventKeys = {
   root: (o: EventOwner) => ["events", o.apiUrl, o.userId] as const,
   detail: (o: EventOwner, id: string) => [...eventKeys.root(o), "detail", id] as const,
-  list: (o: CommunityApiOptions, org: string, query: string) =>
-    [...eventKeys.root(o), "list", org, query] as const,
+  list: (
+    o: CommunityApiOptions,
+    org: string,
+    query: string,
+    periods: readonly EventPeriod[] = eventPeriods,
+  ) => {
+    const selected = eventPeriods.filter((period) => periods.includes(period));
+    return [
+      ...eventKeys.root(o),
+      "list",
+      org,
+      query,
+      ...(selected.length !== eventPeriods.length ? [selected.join(",")] : []),
+    ] as const;
+  },
   tables: (o: CommunityApiOptions, id: string, query: string) =>
     [...eventKeys.root(o), "tables", id, query] as const,
   table: (o: CommunityApiOptions, id: string, table: string) =>
@@ -42,14 +58,21 @@ export const eventKeys = {
     [...eventKeys.root(o), "bookings", id, table] as const,
 };
 const enabled = (o: CommunityApiOptions) => o.enabled !== false && Boolean(o.apiUrl && o.userId);
-export function eventsPageQuery(o: CommunityApiOptions, org = "", query = "") {
+export function eventsPageQuery(
+  o: CommunityApiOptions,
+  org = "",
+  query = "",
+  periods: readonly EventPeriod[] = eventPeriods,
+) {
+  const selected = eventPeriods.filter((period) => periods.includes(period));
+  const path = org ? `organizations/${encodeURIComponent(org)}/events` : "events";
   return infiniteQueryOptions({
-    queryKey: eventKeys.list(o, org, query),
+    queryKey: eventKeys.list(o, org, query, selected),
     queryFn: ({ pageParam, signal }) =>
       communityRequest<CommunityPageResponse<EventResponse>>(
         o,
         communityPagePath(
-          org ? `organizations/${encodeURIComponent(org)}/events` : "events",
+          selected.length === eventPeriods.length ? path : `${path}?periods=${selected.join(",")}`,
           query,
           pageParam,
         ),
@@ -64,8 +87,13 @@ export function eventsPageQuery(o: CommunityApiOptions, org = "", query = "") {
     gcTime: 30 * 60_000,
   });
 }
-export function useEventList(o: CommunityApiOptions, org = "", query = "") {
-  const list = useInfiniteQuery(eventsPageQuery(o, org, query));
+export function useEventList(
+  o: CommunityApiOptions,
+  org = "",
+  query = "",
+  periods: readonly EventPeriod[] = eventPeriods,
+) {
+  const list = useInfiniteQuery(eventsPageQuery(o, org, query, periods));
   const client = useQueryClient();
   const { apiUrl, userId } = o;
   useEffect(() => {
@@ -262,16 +290,17 @@ export function useEventActions(o: CommunityApiOptions) {
     const changesList = typeof variables === "string" || !variables.eventId;
     await client.invalidateQueries({
       queryKey: root,
-      predicate: (q) => q.queryKey[4] === eventId || (changesList && q.queryKey[3] === "list"),
+      predicate: (q) =>
+        q.queryKey[4] === eventId ||
+        (q.queryKey[3] === "list" && (changesList || q.queryKey[4] === "")),
       refetchType: "none",
     });
     await client.refetchQueries({
       queryKey: root,
       predicate: (q) =>
         q.queryKey[4] === eventId ||
-        (changesList &&
-          q.queryKey[3] === "list" &&
-          (q.queryKey[4] === "" || q.queryKey[4] === org)),
+        (q.queryKey[3] === "list" &&
+          (q.queryKey[4] === "" || (changesList && q.queryKey[4] === org))),
       type: "active",
     });
     await client.invalidateQueries({
@@ -311,13 +340,20 @@ export function useEventActions(o: CommunityApiOptions) {
     onError: (e, _v, c) => undo(e, c, "update_event"),
     onSuccess: (row) => {
       client.setQueryData(eventKeys.detail(o, row.id), row);
-      client.setQueriesData(
-        { queryKey: root, predicate: (q) => q.queryKey[3] === "list" },
-        (data) =>
-          patchEventCache<EventResponse>(data, (previous) =>
-            previous.id === row.id ? row : previous,
-          ),
-      );
+      for (const [key, data] of client.getQueriesData({ queryKey: root })) {
+        if (key[3] !== "list") continue;
+        client.setQueryData(
+          key,
+          patchEventCache<EventResponse>(data, (previous) => {
+            if (previous.id !== row.id) return previous;
+            const periods =
+              key[6] === undefined
+                ? eventPeriods
+                : eventPeriods.filter((period) => String(key[6]).split(",").includes(period));
+            return eventMatchesFilters(row, String(key[5] ?? ""), periods) ? row : null;
+          }),
+        );
+      }
     },
     onSettled: settle,
   });

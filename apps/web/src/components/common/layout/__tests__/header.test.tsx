@@ -62,7 +62,7 @@ describe("Header", () => {
     expect(activeLink.querySelector('a, [role="link"]')).toBeNull();
     for (const [label, icon] of [
       ["Matches", "lucide-dices"],
-      ["Groups and organizations", "lucide-users-round"],
+      ["Community", "lucide-users-round"],
       ["Events", "lucide-calendar-days"],
       ["Contacts", "lucide-contact-round"],
       ["Profile", "lucide-user-round"],

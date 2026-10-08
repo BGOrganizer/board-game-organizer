@@ -336,6 +336,151 @@ describe("community transactions on a MongoDB replica set", () => {
     await member(org.id, GUEST);
     expect((await services().events.bookingForUser(tables[0].id, GUEST))?.status).toBe("CANCELLED");
   });
+  it("source-filters organization administration, invitations, accepted membership and requests before pagination", async () => {
+    const invited = await organization(),
+      accepted = await organization(),
+      requested = await organization(),
+      hidden = await organization(false);
+    await db.collection(COLLECTIONS.FRIEND_REQUESTS).insertMany([
+      {
+        fromUserId: OWNER,
+        toUserId: GUEST,
+        status: "accepted",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        fromUserId: GUEST,
+        toUserId: OWNER,
+        status: "accepted",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    await transaction((s) => s.organizationService.invite(OWNER, invited.id, GUEST));
+    await member(accepted.id, GUEST);
+    await transaction((s) => s.organizationService.request(GUEST, requested.id));
+    for (const [role, id] of [
+      ["invited", invited.id],
+      ["accepted", accepted.id],
+      ["requested", requested.id],
+    ] as const) {
+      const result = await services().organizationService.list(GUEST, "mine", { limit: 1 }, [role]);
+      expect(result.items.map((row) => row.id)).toEqual([id]);
+      expect(result.items[0].role).toBe(role);
+      expect(result.nextCursor).toBeNull();
+    }
+    expect(
+      (await services().organizationService.list(GUEST, "mine", { limit: 20 }, ["admin"])).items,
+    ).toEqual([]);
+    expect(
+      (await services().organizationService.list(OWNER, "mine", { limit: 20 }, ["admin"])).items,
+    ).toHaveLength(4);
+    expect(
+      (await services().organizationService.list(OWNER, "mine", { limit: 20 }, ["accepted"])).items,
+    ).toEqual([]);
+    expect(
+      (await services().organizationService.list(GUEST, "mine", { limit: 20 }, [])).items,
+    ).toEqual([]);
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const result = await services().organizationService.list(GUEST, "mine", { limit: 1, cursor });
+      ids.push(...result.items.map((row) => row.id));
+      cursor = result.nextCursor ?? undefined;
+    } while (cursor);
+    expect(new Set(ids)).toEqual(new Set([invited.id, accepted.id, requested.id]));
+    expect(ids).not.toContain(hidden.id);
+    expect(
+      (await services().organizationService.list(GUEST, "public", { limit: 20, query: "Club" }, []))
+        .items,
+    ).toHaveLength(3);
+  });
+  it("lists personal participation and assigned demonstrations, not every membership event; role guards remain enforced", async () => {
+    const { org, event, tables } = await eventSetup();
+    await book(event.id, tables[0].id, GUEST);
+    const add = async (
+      name: string,
+      start: string,
+      end: string,
+      demonstratorUserId?: string,
+      status: "PUBLISHED" | "DRAFT" = "PUBLISHED",
+    ) => {
+      const row = await transaction((s) =>
+        s.eventService.create(
+          OWNER,
+          org.id,
+          eventInput({
+            name,
+            status,
+            tables: [
+              {
+                ...eventInput().tables[0],
+                startsAt: `2030-06-12T${start}:00.000Z`,
+                endsAt: `2030-06-12T${end}:00.000Z`,
+                demonstratorUserId,
+              },
+            ],
+          }),
+        ),
+      );
+      const table = (await services().events.listTables(row.id, { limit: 1 }))[0];
+      return { row, table };
+    };
+    const pending = await add("Pending own request", "16:00", "17:00");
+    await book(pending.row.id, pending.table.id, GUEST, false);
+    const invited = await add("Pending incoming invitation", "17:00", "18:00");
+    await transaction((s) => s.eventService.book(OWNER, invited.row.id, invited.table.id, GUEST));
+    const demonstration = await add("Assigned demonstration", "18:00", "19:00", GUEST);
+    const unrelated = await add("Unrelated member event", "19:00", "20:00");
+    const draft = await add("Private assigned draft", "18:00", "19:00", GUEST, "DRAFT");
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const result = await services().eventService.list(GUEST, { limit: 1, cursor });
+      expect(result.items.every((row) => row.role === "member" && !row.canModify)).toBe(true);
+      ids.push(...result.items.map((row) => row.id));
+      cursor = result.nextCursor ?? undefined;
+    } while (cursor);
+    expect(new Set(ids)).toEqual(
+      new Set([event.id, pending.row.id, invited.row.id, demonstration.row.id]),
+    );
+    expect(ids).not.toContain(unrelated.row.id);
+    expect(ids).not.toContain(draft.row.id);
+    expect((await services().eventService.list(OWNER, { limit: 20 })).items).toHaveLength(6);
+    expect((await services().eventService.list(OUTSIDER, { limit: 20 })).items).toEqual([]);
+    expect((await services().eventService.list(GUEST, { limit: 20 }, org.id)).items).toHaveLength(
+      5,
+    );
+    await expect(
+      transaction((s) => s.eventService.cancel(GUEST, demonstration.row.id)),
+    ).rejects.toMatchObject({ status: 403 });
+    const invitation = await services().events.bookingForUser(invited.table.id, GUEST);
+    await transaction((s) => s.eventService.bookingAction(GUEST, invitation?.id ?? "", "decline"));
+    expect(
+      (await services().eventService.list(GUEST, { limit: 20 })).items.map((row) => row.id),
+    ).not.toContain(invited.row.id);
+    await transaction((s) => s.organizationService.membershipAction(OWNER, org.id, GUEST, "ban"));
+    expect((await services().eventService.list(GUEST, { limit: 20 })).items).toEqual([]);
+  });
+  it("classifies ongoing and exactly ended events at source and retains paginated period selections", async () => {
+    const { org, event } = await eventSetup();
+    await transaction((s) =>
+      s.eventService.create(OWNER, org.id, eventInput({ name: "Another event" })),
+    );
+    vi.setSystemTime(new Date("2030-06-12T15:00:00.000Z"));
+    expect(await services().events.list(OWNER, { limit: 20 }, undefined, ["past"])).toEqual([]);
+    expect(await services().events.list(OWNER, { limit: 20 }, org.id, ["future"])).toHaveLength(2);
+    vi.setSystemTime(new Date(event.endsAt));
+    expect(await services().events.list(OWNER, { limit: 20 }, undefined, ["future"])).toEqual([]);
+    const rows = await services().events.list(OWNER, { limit: 1 }, undefined, ["past"]);
+    expect(rows).toHaveLength(2); // Repository fetches limit + 1 to establish the cursor.
+    const cursor = `${rows[0].createdAt}|${rows[0].id}`;
+    expect(
+      await services().events.list(OWNER, { limit: 1, cursor }, org.id, ["past"]),
+    ).toHaveLength(1);
+    expect(await services().events.list(OWNER, { limit: 20 }, undefined, [])).toEqual([]);
+  });
   it("keeps drafts private and source-pagination applies event and booking visibility", async () => {
     const { org, event, tables } = await eventSetup();
     const draft = await transaction((s) =>

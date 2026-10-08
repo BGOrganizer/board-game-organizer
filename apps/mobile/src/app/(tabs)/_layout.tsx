@@ -89,10 +89,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="groups"
         options={{
-          title: t("Groups and organizations"),
-          headerTitle: () => (
-            <HeaderTitle title={t("Groups and organizations")} icon={UsersRound} />
-          ),
+          title: t("Community"),
+          headerTitle: () => <HeaderTitle title={t("Community")} icon={UsersRound} />,
           tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
         }}
       />

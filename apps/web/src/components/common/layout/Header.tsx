@@ -56,7 +56,7 @@ export function Header() {
 
   const navLinks = [
     { href: "/matches", label: t`Matches`, icon: Dices },
-    { href: "/groups", label: t`Groups and organizations`, icon: UsersRound },
+    { href: "/groups", label: t`Community`, icon: UsersRound },
     { href: "/events", label: t`Events`, icon: CalendarDays },
     { href: "/contacts", label: t`Contacts`, icon: ContactRound },
     { href: "/profile", label: t`Profile`, icon: UserRound },

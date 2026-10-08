@@ -62,19 +62,56 @@ describe("community notification destinations", () => {
       expect(source).not.toContain("router.replace(`/" + resource + "/${row.id}`)");
     }
   });
-  it("exposes accessible creation actions in both native community lists", () => {
-    for (const [component, testId, route] of [
-      ["organizations/Organizations", "new-organization-fab", "/organization/wizard"],
-      ["events/Events", "new-event-fab", "/event/wizard"],
+  it("keeps organization creation accessible and event creation inside its owning organization", () => {
+    const organizations = readFileSync(
+      new URL("../../components/organizations/Organizations.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(organizations).toContain('testID="new-organization-fab"');
+    expect(organizations).toContain("/organization/wizard");
+    expect(organizations).toContain("FloatingActions");
+    const events = readFileSync(
+      new URL("../../components/events/Events.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(events).not.toContain("FloatingActions");
+    expect(events).not.toContain("/event/wizard");
+    const detail = readFileSync(
+      new URL("../../components/organizations/OrganizationDetail.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(detail).toContain('pathname: "/event/wizard", params: { organizationId }');
+    expect(detail).toContain('organization.role === "admin"');
+  });
+  it("shares native search, icon filters, and page spacing without nested virtual lists", () => {
+    for (const file of [
+      "groups/GroupsScreen",
+      "organizations/Organizations",
+      "events/Events",
+      "community/CommunityDiscovery",
     ]) {
-      const source = readFileSync(
-        new URL(`../../components/${component}.tsx`, import.meta.url),
-        "utf8",
-      );
-      expect(source).toContain(`testID="${testId}"`);
-      expect(source).toContain(route);
-      expect(source).toContain("FloatingActions");
+      const source = readFileSync(new URL(`../../components/${file}.tsx`, import.meta.url), "utf8");
+      expect(source).toContain("listPageContentStyle");
+      expect(source).toContain("<ListPage>");
+      expect(source).toContain("<FlatList");
+      expect(source).not.toContain("<ScrollView");
+      expect(source).toMatch(/<ListSearch(?:Filters)?/);
     }
+    const search = readFileSync(
+      new URL("../../components/common/ui/ListSearch.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(search).toContain("SearchHelpLabel");
+    expect(search).toContain("placeholder={placeholder}");
+    expect(search).toContain("{query ? <SearchField.ClearButton");
+    expect(search).toContain("accessibilityState={{ selected: active }}");
+    const tabs = readFileSync(
+      new URL("../../components/community/CommunitySection.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(tabs).toContain("listPageContentStyle");
+    const layout = readFileSync(new URL("../../app/(tabs)/_layout.tsx", import.meta.url), "utf8");
+    expect(layout).toContain('title={t("Community")}');
   });
   it("keeps the saved group name visible in its dedicated detail header", () => {
     const source = readFileSync(new URL("../../app/group/[groupId].tsx", import.meta.url), "utf8");

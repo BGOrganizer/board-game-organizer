@@ -51,6 +51,7 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
 import { SearchUserPage } from "@/components/contacts/SearchUserPage";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
@@ -729,7 +730,7 @@ export function Groups({
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl pb-24">
+    <ListPage>
       <ListSearchFilters
         query={filters.query}
         onQueryChange={filters.setQuery}
@@ -858,6 +859,6 @@ export function Groups({
       >
         <Plus className="size-6" />
       </Button>
-    </main>
+    </ListPage>
   );
 }

@@ -232,13 +232,25 @@ async function fixture(page: Page) {
         },
       });
     if (path === "/api/organizations") {
-      const mode = new URL(req.url()).searchParams.get("scope");
+      const params = new URL(req.url()).searchParams;
+      const mode = params.get("scope");
+      const roles = params.get("roles")?.split(",") ?? [
+        "admin",
+        "invited",
+        "accepted",
+        "requested",
+      ];
+      const query = (params.get("query") ?? "").toLowerCase();
       if (mode === "moderation" && denyReview)
         return route.fulfill({ status: 403, json: { error: "MODERATOR_REQUIRED" } });
       return route.fulfill({
         json: {
           items:
-            mode === "moderation" && organization.reviewStatus !== "PENDING" ? [] : [organization],
+            (mode === "moderation" && organization.reviewStatus !== "PENDING") ||
+            (mode === "mine" && !roles.includes(organization.role)) ||
+            !organization.name.toLowerCase().includes(query)
+              ? []
+              : [organization],
           nextCursor: null,
         },
       });
@@ -261,14 +273,18 @@ async function fixture(page: Page) {
     if (path === "/api/groups/discovery")
       return route.fulfill({
         json: {
-          items: [
-            {
-              id: "77777777-7777-4777-8777-777777777777",
-              name: "Public games group",
-              memberCount: 4,
-              createdAt: now,
-            },
-          ],
+          items: "Public games group"
+            .toLowerCase()
+            .includes((new URL(req.url()).searchParams.get("query") ?? "").toLowerCase())
+            ? [
+                {
+                  id: "77777777-7777-4777-8777-777777777777",
+                  name: "Public games group",
+                  memberCount: 4,
+                  createdAt: now,
+                },
+              ]
+            : [],
           nextCursor: null,
         },
       });
@@ -277,8 +293,21 @@ async function fixture(page: Page) {
       return route.fulfill({ json: { items: [table], nextCursor: "unloaded-table-cursor" } });
     if (path === `/api/events/${eventId}/tables/${tableId}`) return route.fulfill({ json: table });
     if (path.endsWith("/bookings")) return route.fulfill({ json: { items: [], nextCursor: null } });
-    if (path === "/api/events" || path.endsWith("/events"))
-      return route.fulfill({ json: { items: [event], nextCursor: null } });
+    if (path === "/api/events" || path.endsWith("/events")) {
+      const params = new URL(req.url()).searchParams;
+      const periods = params.get("periods")?.split(",") ?? ["future", "past"];
+      const period = Date.parse(event.endsAt) <= Date.now() ? "past" : "future";
+      return route.fulfill({
+        json: {
+          items:
+            periods.includes(period) &&
+            event.name.toLowerCase().includes((params.get("query") ?? "").toLowerCase())
+              ? [event]
+              : [],
+          nextCursor: null,
+        },
+      });
+    }
     if (path === "/api/locations/search")
       return route.fulfill({
         json: {
@@ -375,6 +404,65 @@ async function chooseLocation(page: Page) {
 }
 
 function communityAcceptance() {
+  test("organization role filters include own requests; search help and clear are consistent", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    state.organization({ role: "requested", adminUserId: "other" });
+    await page.goto("/groups/organizations");
+    const search = page.getByRole("searchbox", { name: "Search organizations", exact: true });
+    await expect(search).toHaveAttribute("placeholder", "Search organizations");
+    await expect(page.getByRole("button", { name: "Clear search", exact: true })).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Search organizations: Search help", exact: true })
+      .click();
+    await expect(
+      page.getByText("Type at least 4 characters to search", { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    for (const role of ["Admin", "Invited", "Accepted"])
+      await page.getByRole("button", { name: role, exact: true }).click();
+    await expect(page.getByText(baseOrganization.name, { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Requested", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.getByRole("button", { name: "Requested", exact: true }).click();
+    await expect(page.getByText("No organizations found", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Requested", exact: true }).click();
+    await search.fill("no-matching-club");
+    await expect(page.getByText("No organizations found", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Clear search", exact: true })).toHaveCount(0);
+    await expect(page.getByText(baseOrganization.name, { exact: true })).toBeVisible();
+  });
+  test("personal event period filters have inline search and no global creation action", async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.goto("/events");
+    const search = page.getByRole("searchbox", { name: "Search events", exact: true });
+    await expect(search).toHaveAttribute("placeholder", "Search events");
+    await expect(page.getByRole("link", { name: "New event", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Clear search", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Future", exact: true }).click();
+    await expect(page.getByText("No events found", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Past", exact: true }).click();
+    await expect(page.getByText("No events found", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Future", exact: true }).click();
+    await expect(page.getByText(baseEvent.name, { exact: true })).toBeVisible();
+    await search.fill("no-matching-event");
+    await expect(page.getByText("No events found", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(page.getByText(baseEvent.name, { exact: true })).toBeVisible();
+    await page.goto(`/organizations/${orgId}`);
+    await expect(page.getByRole("link", { name: "New event", exact: true })).toHaveAttribute(
+      "href",
+      `/events/new?organizationId=${orgId}`,
+    );
+  });
   test("community navigation and public discovery preserve separated sections", async ({
     page,
   }) => {
@@ -391,7 +479,7 @@ function communityAcceptance() {
     ).toBeVisible();
     await page
       .getByRole("navigation")
-      .getByRole("link", { name: "Groups and organizations", exact: true })
+      .getByRole("link", { name: "Community", exact: true })
       .click();
     await expect(page).toHaveURL(/\/groups$/);
     await page.getByRole("tab", { name: "Organizations", exact: true }).click();
@@ -400,14 +488,47 @@ function communityAcceptance() {
     await expect(page).toHaveURL(/\/groups\/search$/);
     await expect(page.getByRole("tabpanel", { name: "Search", exact: true })).toBeVisible();
     await page
-      .getByRole("textbox", { name: "Search groups and organizations", exact: true })
+      .getByRole("searchbox", { name: "Search groups and organizations", exact: true })
       .fill("games");
     await expect(page.getByText("Public games group", { exact: true })).toBeVisible();
     await expect(
       page.getByText("Group join requests will be available later", { exact: true }),
     ).toBeVisible();
+    const search = page.getByRole("searchbox", {
+      name: "Search groups and organizations",
+      exact: true,
+    });
+    await expect(search).toHaveAttribute("placeholder", "Search groups and organizations");
+    await page.getByRole("button", { name: "Groups", exact: true }).click();
+    await expect(page.getByText("No results found", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Groups", exact: true }).click();
+    await expect(page.getByText("Public games group", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Clear search", exact: true })).toHaveCount(0);
   });
 
+  test("list failures remain observable and retry recovers instead of reporting an empty success", async ({
+    page,
+  }) => {
+    await fixture(page);
+    let failed = true;
+    await page.route(
+      (url) => url.pathname === "/api/events",
+      (route) =>
+        failed
+          ? route.fulfill({ status: 503, json: { error: "UNAVAILABLE" } })
+          : route.fulfill({ json: { items: [baseEvent], nextCursor: null } }),
+    );
+    await page.goto("/events");
+    await page.reload();
+    await expect(page.getByText("Could not load events", { exact: true })).toBeVisible();
+    await expect(page.getByText("No events found", { exact: true })).toHaveCount(0);
+    failed = false;
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await expect(page.getByText(baseEvent.name, { exact: true })).toBeVisible();
+    await expect(page.getByText("Could not load events", { exact: true })).toHaveCount(0);
+  });
   test("organization logo, verified address, review submission and failed revision retain input", async ({
     page,
   }) => {

@@ -6,6 +6,7 @@ import {
   runCommunityOperation,
 } from "@/app/lib/community.http";
 import { corsOptions as corsPreflight } from "@/app/lib/cors";
+import { eventListPeriods } from "@/app/lib/events/event-list-filter";
 
 type Context = { params: Promise<{ organizationId: string }> };
 export const OPTIONS = corsPreflight;
@@ -15,6 +16,7 @@ export function GET(request: Request, context: Context) {
       userId,
       communityPage(request),
       communityId((await context.params).organizationId),
+      eventListPeriods(request),
     ),
   );
 }

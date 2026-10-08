@@ -123,6 +123,27 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe("event reads and public-group discovery", () => {
+  it("source-pages period filters with independent identity and explicit empty selections", async () => {
+    const { client, wrapper } = setup();
+    const fetch = vi.fn(async (_url: string) =>
+      response({ items: [event], nextCursor: fetch.mock.calls.length === 1 ? "next" : null }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(() => useEventList(options, "org", "even", ["future"]), { wrapper });
+    await waitFor(() => expect(hook.result.current.items).toHaveLength(1));
+    await act(() => hook.result.current.fetchNextPage());
+    for (const [url] of fetch.mock.calls)
+      expect(new URL(url).searchParams.get("periods")).toBe("future");
+    expect(eventKeys.list(options, "", "", ["past", "future"])).toEqual(
+      eventKeys.list(options, "", ""),
+    );
+    expect(eventKeys.list(options, "", "", [])).not.toEqual(eventKeys.list(options, "", ""));
+    expect(eventKeys.list(options, "", "", ["future", "future"])).toEqual(
+      eventKeys.list(options, "", "", ["future"]),
+    );
+    await client.fetchInfiniteQuery(eventsPageQuery(options, "", "", []));
+    expect(new URL(fetch.mock.calls.at(-1)?.[0] ?? "").searchParams.get("periods")).toBe("");
+  });
   it("source-pages lists, tables and bookings with fresh tokens, then seeds only owning event details", async () => {
     const { client, wrapper } = setup();
     const foreign = { ...options, userId: "other" };
@@ -475,6 +496,75 @@ describe("event mutations", () => {
       await h.result.current.cancel.mutateAsync(event.id);
     });
     expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);
+  });
+  it("reconciles changed event periods/search without changing unrelated cached rows", async () => {
+    const { client, wrapper } = setup();
+    const other = { ...event, id: "other" };
+    const future = eventKeys.list(options, "", "", ["future"]);
+    const empty = eventKeys.list(options, "", "", []);
+    const searched = eventKeys.list(options, "", "Community");
+    for (const key of [future, empty, searched])
+      client.setQueryData(key, {
+        pages: [{ items: [event, other], nextCursor: null }],
+        pageParams: [""],
+      });
+    const legacyKey = [...eventKeys.root(options), "list", "legacy-org"];
+    client.setQueryData(legacyKey, {
+      pages: [{ items: [event, other], nextCursor: null }],
+      pageParams: [""],
+    });
+    const expired = { ...event, name: "Renamed", endsAt: "2000-01-01T00:00:00.000Z", version: 3 };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response(expired)),
+    );
+    const hook = renderHook(() => useEventActions(options), { wrapper });
+    await act(() =>
+      hook.result.current.update.mutateAsync({
+        id: event.id,
+        input: { ...input, version: 2, removedTableIds: [] },
+      }),
+    );
+    for (const key of [future, empty, searched])
+      expect(client.getQueryData(key)).toEqual({
+        pages: [{ items: [other], nextCursor: null }],
+        pageParams: [""],
+      });
+    expect(client.getQueryData(legacyKey)).toEqual({
+      pages: [{ items: [expired, other], nextCursor: null }],
+      pageParams: [""],
+    });
+  });
+  it("refreshes personal participation after booking changes without fetching unrelated organization lists", async () => {
+    const { wrapper } = setup();
+    const fetch = vi.fn(async (url: string, init: RequestInit) =>
+      init.method === "POST" ? response(booking) : response({ items: [event], nextCursor: null }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(
+      () => ({
+        main: useEventList(options),
+        organization: useEventList(options, "other-org"),
+        actions: useEventActions(options),
+      }),
+      { wrapper },
+    );
+    await waitFor(() =>
+      expect(hook.result.current.main.isSuccess && hook.result.current.organization.isSuccess).toBe(
+        true,
+      ),
+    );
+    const before = fetch.mock.calls.filter(([url]) => url.includes("other-org")).length;
+    const mainReads = fetch.mock.calls.filter(
+      ([url]) => new URL(url).pathname === "/api/events",
+    ).length;
+    await act(() =>
+      hook.result.current.actions.request.mutateAsync({ eventId: event.id, tableId: table.id }),
+    );
+    expect(
+      fetch.mock.calls.filter(([url]) => new URL(url).pathname === "/api/events"),
+    ).toHaveLength(mainReads + 1);
+    expect(fetch.mock.calls.filter(([url]) => url.includes("other-org"))).toHaveLength(before);
   });
   it("refetches only affected active event data and marks only owning match caches stale", async () => {
     const { client, wrapper } = setup();

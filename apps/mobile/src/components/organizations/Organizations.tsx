@@ -1,21 +1,23 @@
+import { organizationListRoles } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   formatLocationAddress,
+  useListSearch,
   useOrganizationList,
 } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Building2, Plus, UsersRound } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { Building2, Check, Crown, Mail, Plus, Send, UsersRound } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
+import { ListSearch } from "@/components/common/ui/ListSearch";
 import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -28,15 +30,11 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
   const foreground = useThemeColor("foreground");
   const accentForeground = useThemeColor("accent-foreground");
   const insets = useSafeAreaInsets();
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  useEffect(() => {
-    const timeout = setTimeout(() => setSearch(query.trim().length >= 4 ? query.trim() : ""), 300);
-    return () => clearTimeout(timeout);
-  }, [query]);
-  const list = useOrganizationList(options, scope, search);
+  const filters = useListSearch(organizationListRoles);
+  const search = filters.search;
+  const list = useOrganizationList(options, scope, search, filters.selected);
   return (
-    <View style={{ flex: 1 }}>
+    <ListPage>
       <FlatList
         testID="organizations-scroll"
         style={{ flex: 1 }}
@@ -44,9 +42,7 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          padding: 20,
-          gap: 12,
-          flexGrow: 1,
+          ...listPageContentStyle,
           paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
         }}
         onEndReachedThreshold={0.5}
@@ -56,18 +52,25 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
         }}
         ListHeaderComponent={
           <View style={{ gap: 8 }}>
-            <SearchField value={query} onChange={setQuery}>
-              <SearchField.Group>
-                <SearchField.SearchIcon />
-                <SearchField.Input
-                  accessibilityLabel={t("Search organizations")}
-                  placeholder={t("Search organizations")}
-                  maxLength={120}
-                />
-                <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
-              </SearchField.Group>
-            </SearchField>
-            {scope === "public" && !search ? (
+            <ListSearch
+              query={filters.query}
+              onQueryChange={filters.setQuery}
+              label={t("Search organizations")}
+              placeholder={t("Search organizations")}
+              selected={filters.selected}
+              onToggle={filters.toggle}
+              options={
+                scope === "mine"
+                  ? [
+                      { key: "admin", label: t("Admin"), icon: Crown },
+                      { key: "invited", label: t("Invited"), icon: Mail },
+                      { key: "accepted", label: t("Accepted"), icon: Check },
+                      { key: "requested", label: t("Requested"), icon: Send },
+                    ]
+                  : []
+              }
+            />
+            {scope === "public" && !search && !filters.query.trim() ? (
               <Typography className="text-muted">
                 {t("Enter at least 4 characters to search")}
               </Typography>
@@ -166,6 +169,6 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
           <Plus size={26} color={accentForeground} />
         </FloatingActions>
       ) : null}
-    </View>
+    </ListPage>
   );
 }

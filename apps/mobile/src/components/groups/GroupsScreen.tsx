@@ -16,6 +16,7 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
 import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
@@ -84,17 +85,15 @@ export default function GroupsScreen() {
   });
 
   return (
-    <View style={{ flex: 1 }}>
+    <ListPage>
       <FlatList
         testID="groups-scroll"
         style={{ flex: 1 }}
         data={groups.list.data ?? []}
         keyExtractor={(group) => group.id}
         contentContainerStyle={{
-          padding: 20,
+          ...listPageContentStyle,
           paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
-          gap: 12,
-          flexGrow: 1,
         }}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
@@ -239,6 +238,6 @@ export default function GroupsScreen() {
       >
         <Plus color="#fff" size={26} />
       </FloatingActions>
-    </View>
+    </ListPage>
   );
 }

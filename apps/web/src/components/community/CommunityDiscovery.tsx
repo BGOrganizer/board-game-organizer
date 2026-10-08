@@ -1,27 +1,27 @@
 "use client";
 import {
   communityAccessDenied,
+  useListSearch,
   useOrganizationList,
   usePublicGroups,
 } from "@board-game-organizer/shared";
-import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 
-import { useEffect, useState } from "react";
+import { Building2, UsersRound } from "lucide-react";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListPage } from "@/components/common/ui/ListPage";
+import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
+const kinds = ["groups", "organizations"] as const;
 export function CommunityDiscovery() {
   const { t } = useLingui();
   const options = useCommunityApi();
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  const [groupsEnabled, setGroupsEnabled] = useState(true);
-  const [organizationsEnabled, setOrganizationsEnabled] = useState(true);
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(query.trim().length >= 4 ? query.trim() : ""), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const filters = useListSearch(kinds);
+  const search = filters.search;
+  const groupsEnabled = filters.selected.includes("groups");
+  const organizationsEnabled = filters.selected.includes("organizations");
   const groups = usePublicGroups(
     { ...options, enabled: options.enabled !== false && groupsEnabled },
     search,
@@ -37,33 +37,20 @@ export function CommunityDiscovery() {
       ? organizations.items
       : [];
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-28">
-      <TextField value={query} onChange={setQuery}>
-        <Label>{t`Search groups and organizations`}</Label>
-        <div className="flex gap-2">
-          <Input name="community-search" autoComplete="off" maxLength={120} />
-          <Button
-            variant="ghost"
-            aria-label={t`Clear search`}
-            onPress={() => setQuery("")}
-          >{t`Clear`}</Button>
-        </div>
-      </TextField>
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          aria-pressed={groupsEnabled}
-          variant={groupsEnabled ? "primary" : "outline"}
-          onPress={() => setGroupsEnabled(!groupsEnabled)}
-        >{t`Groups`}</Button>
-        <Button
-          size="sm"
-          aria-pressed={organizationsEnabled}
-          variant={organizationsEnabled ? "primary" : "outline"}
-          onPress={() => setOrganizationsEnabled(!organizationsEnabled)}
-        >{t`Organizations`}</Button>
-      </div>
-      {!search ? <p>{t`Enter at least 4 characters to search`}</p> : null}
+    <ListPage>
+      <ListSearch
+        query={filters.query}
+        onQueryChange={filters.setQuery}
+        label={t`Search groups and organizations`}
+        placeholder={t`Search groups and organizations`}
+        selected={filters.selected}
+        onToggle={filters.toggle}
+        options={[
+          { key: "groups", label: t`Groups`, icon: UsersRound },
+          { key: "organizations", label: t`Organizations`, icon: Building2 },
+        ]}
+      />
+      {!search && !filters.query.trim() ? <p>{t`Enter at least 4 characters to search`}</p> : null}
       {search &&
       ((groupsEnabled && groups.isPending) || (organizationsEnabled && organizations.isPending)) ? (
         <Skeleton className="h-24 w-full rounded-xl" />
@@ -91,8 +78,8 @@ export function CommunityDiscovery() {
       (!organizationsEnabled || !organizations.isPending) &&
       !g.length &&
       !o.length &&
-      !groups.isError &&
-      !organizations.isError ? (
+      (!groupsEnabled || !groups.isError) &&
+      (!organizationsEnabled || !organizations.isError) ? (
         <p>{t`No results found`}</p>
       ) : null}
       {[groupsEnabled ? groups : null, organizationsEnabled ? organizations : null].map((list) =>
@@ -114,6 +101,6 @@ export function CommunityDiscovery() {
           </div>
         ) : null,
       )}
-    </section>
+    </ListPage>
   );
 }

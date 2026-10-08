@@ -3,8 +3,38 @@ appId: com.bgo.mobile
 # Run after 12-organizations. No provider bypass: pending organizations cannot publish.
 - launchApp
 - tapOn: "Events"
-- tapOn: "New event"
+- assertNotVisible: "New event"
+- assertVisible:
+    id: "list-filter-future"
+- assertVisible:
+    id: "list-filter-past"
+- tapOn:
+    id: "list-filter-future"
+- tapOn:
+    id: "list-filter-past"
+- extendedWaitUntil:
+    visible: "No events found"
+    timeout: 30000
+- tapOn:
+    id: "list-filter-future"
+- tapOn:
+    id: "list-filter-past"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-event"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No events found"
+    timeout: 30000
+- tapOn: "Clear search"
+- hideKeyboard
+- assertNotVisible: "Clear search"
+- tapOn: "Community"
+- tapOn:
+    id: "community-tab-organizations"
 - tapOn: "Maestro community club updated"
+- tapOn: "New event"
 - assertVisible: "Event information"
 - tapOn: "Event name"
 - inputText: "Maestro summer event"

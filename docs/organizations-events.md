@@ -4,7 +4,8 @@ This feature branch is based on PR #22, as explicitly authorized. No new PR is o
 
 ## Organizations
 
-- Groups and organizations share a navigation section with Groups / Organizations / Search tabs. Events replace the old Organizations main navigation item. Creation uses separate contextual pages, never a conversion or radio selector.
+- Community contains Groups / Organizations / Search tabs with common page spacing, labeled search/help, placeholders, conditional inline clear controls, and compact icon filters on web/native. Organization lists filter Admin / Invited / Accepted / Requested (own pending requests); discovery filters Groups / Organizations. Search is debounced 300 ms and requires four characters. Filters apply before server pagination.
+- Events is a separate main navigation section; event creation is available only inside the owning organization to its administrator. Creation uses separate contextual pages, never a conversion or radio selector.
 - Unique normalized name, 5–120 characters; mandatory logo and authenticated, verified MapTiler address. JPEG/PNG/WebP, at most 5 MB (5,000,000 bytes); undistorted square preview. Native camera/gallery, replace but no remove. MongoDB base64 assets, bounded uploads below Vercel's request limit; expired incomplete uploads cleaned up.
 - One organization admin: creator, automatically confirmed member; no transfer. BGO moderators are verified freshly from Clerk `publicMetadata.bgoRole === ADMIN`, never client metadata or unverified claims. Moderator icon between notifications and profile.
 - Private proposals: PENDING -> CREATED; approved edits become MODIFIED proposals. The approved revision remains operational while modifications are pending/rejected. Reject with reason; creator corrects/resubmits. Names are reserved across approved and proposed revisions.
@@ -14,6 +15,8 @@ This feature branch is based on PR #22, as explicitly authorized. No new PR is o
 
 ## Events and tables
 
+- The main Events list contains the viewer's confirmed bookings, pending requests/invitations, administered events and assigned demonstrations, not every event of every joined organization. The organization's Events list retains its existing visibility. Draft privacy, exclusions and every role/action restriction remain unchanged.
+- Past/Future filters use the event end instant: ongoing events remain Future, and the exact end belongs to Past. Both periods start selected. Search/help/inline clear and compact icon filters follow the same platform-specific list pattern; filters are server-paginated.
 - Organization admin only: information -> table editors -> review; save DRAFT or PUBLISHED. Draft admin-only. Publishing requires approved organization and at least one table. No return from published to draft.
 - Event name, day, same-day start/end, explicit verified location (initially empty). Deadline defaults to 24 hours before event start.
 - No table-count limit; paginated/virtualized rendering. Each table has name, min/max (min >= 2), one game, contained start/end, optional confirmed-member demonstrator and optional per-table GLOBAL OpenSkill. Admin/demonstrator do not automatically occupy seats.

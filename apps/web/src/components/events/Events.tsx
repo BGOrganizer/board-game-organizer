@@ -1,30 +1,26 @@
 "use client";
+import { eventPeriods } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   formatLocationAddress,
   useEventList,
+  useListSearch,
 } from "@board-game-organizer/shared";
-import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarDays, Plus } from "lucide-react";
-import Link from "next/link";
-
-import { useEffect, useState } from "react";
+import { CalendarClock, CalendarDays, History } from "lucide-react";
 
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListPage } from "@/components/common/ui/ListPage";
+import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
 export function Events({ organizationId = "" }: { organizationId?: string }) {
   const { t, i18n } = useLingui();
   const options = useCommunityApi();
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(query.trim().length >= 4 ? query.trim() : ""), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-  const list = useEventList(options, organizationId, search);
+  const filters = useListSearch(eventPeriods);
+  const list = useEventList(options, organizationId, filters.search, filters.selected);
   const sentinel = useInfiniteScroll({
     hasNextPage: Boolean(list.hasNextPage),
     isFetchingNextPage: list.isFetchingNextPage,
@@ -32,14 +28,19 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
     fetchNextPage: list.fetchNextPage,
   });
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-28">
-      <TextField value={query} onChange={setQuery}>
-        <Label>{t`Search events`}</Label>
-        <div className="flex gap-2">
-          <Input name="events-search" autoComplete="off" maxLength={120} />
-          <Button variant="ghost" onPress={() => setQuery("")}>{t`Clear`}</Button>
-        </div>
-      </TextField>
+    <ListPage>
+      <ListSearch
+        query={filters.query}
+        onQueryChange={filters.setQuery}
+        label={t`Search events`}
+        placeholder={t`Search events`}
+        selected={filters.selected}
+        onToggle={filters.toggle}
+        options={[
+          { key: "future", label: t`Future`, icon: CalendarClock },
+          { key: "past", label: t`Past`, icon: History },
+        ]}
+      />
       {list.isPending ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
       {(communityAccessDenied(list.error) ? [] : list.items).map((event) => (
         <LinkedListCard
@@ -81,13 +82,6 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
           onPress={() => void list.fetchNextPage()}
         >{t`Load more`}</Button>
       ) : null}
-      <Link
-        href={`/events/new${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`}
-        className="fixed right-6 bottom-6 flex min-h-14 items-center gap-2 rounded-full bg-accent px-5 text-accent-foreground shadow-lg"
-      >
-        <Plus aria-hidden />
-        {t`New event`}
-      </Link>
-    </section>
+    </ListPage>
   );
 }

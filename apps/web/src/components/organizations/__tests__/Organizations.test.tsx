@@ -89,18 +89,59 @@ describe("organization screens", () => {
     vi.stubGlobal("fetch", fetch);
     render(<Organizations scope="public" />);
     expect(fetch).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Search organizations" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search organizations" }), {
       target: { value: "abc" },
     });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 350));
     });
     expect(fetch).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Search organizations" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search organizations" }), {
       target: { value: "club" },
     });
     await screen.findByText("No organizations found");
     expect(fetch).toHaveBeenCalledOnce();
+  });
+  it("source-filters organization roles, including requests, and keeps inline clear conditional", async () => {
+    const fetch = vi.fn(async (url: string) => {
+      const roles = new URL(url).searchParams.get("roles")?.split(",") ?? [
+        "admin",
+        "invited",
+        "accepted",
+        "requested",
+      ];
+      return new Response(
+        JSON.stringify({
+          items: roles.includes("requested") ? [{ ...row, role: "requested" }] : [],
+          nextCursor: null,
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+    render(<Organizations />);
+    await screen.findByText("Board Club");
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull();
+    for (const role of ["Admin", "Invited", "Accepted"])
+      fireEvent.click(screen.getByRole("button", { name: role }));
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("roles") === "requested"),
+      ).toBe(true),
+    );
+    expect(screen.getByRole("button", { name: "Requested" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Requested" }));
+    await screen.findByText("No organizations found");
+    expect(new URL(fetch.mock.calls.at(-1)?.[0] ?? "").searchParams.get("roles")).toBe("");
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search organizations" }), {
+      target: { value: "club" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(
+      (screen.getByRole("searchbox", { name: "Search organizations" }) as HTMLInputElement).value,
+    ).toBe("");
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull();
   });
   it("never fetches private members for outsiders and submits own membership request", async () => {
     let requested = false;

@@ -295,6 +295,7 @@ msgstr "Accept invitation"
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Accepted"
 msgstr "Accepted"
 
@@ -360,6 +361,7 @@ msgid "Address results"
 msgstr "Address results"
 
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Admin"
 msgstr "Admin"
 
@@ -634,9 +636,7 @@ msgstr "Choose location"
 #~ msgid "Claiming this invite connects you with the inviter."
 #~ msgstr "Claiming this invite connects you with the inviter."
 
-#: apps/web/src/components/community/CommunityDiscovery.tsx
 #: apps/web/src/components/contacts/SearchUserPage.tsx
-#: apps/web/src/components/events/Events.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx
 msgid "Clear"
 msgstr "Clear"
@@ -646,12 +646,10 @@ msgid "Clear board game selection"
 msgstr "Clear board game selection"
 
 #: apps/web/src/app/mobile-number/page.tsx
-#: apps/web/src/components/common/ui/ListSearchFilters.tsx
-#: apps/web/src/components/community/CommunityDiscovery.tsx
+#: apps/web/src/components/common/ui/ListSearch.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 #: apps/web/src/components/locations/SearchLocationPage.tsx
-#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -666,6 +664,11 @@ msgstr "Collection"
 #: apps/web/src/app/(tabs)/organizations/page.tsx
 #~ msgid "Coming soon"
 #~ msgstr "Coming soon"
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/community/CommunitySection.tsx
+msgid "Community"
+msgstr "Community"
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Complete your profile"
@@ -1338,7 +1341,7 @@ msgstr "Enter a score for each participant or mark them as not participating. At
 msgid "Enter a valid score"
 msgstr "Enter a valid score"
 
-#: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/common/ui/ListSearch.tsx
 #: apps/web/src/components/community/CommunityDiscovery.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Enter at least 4 characters to search"
@@ -1439,6 +1442,10 @@ msgstr "Friends"
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Friendship accepted."
 msgstr "Friendship accepted."
+
+#: apps/web/src/components/events/Events.tsx
+msgid "Future"
+msgstr "Future"
 
 #: apps/web/src/components/matches/Matches.tsx
 msgid "game"
@@ -1556,8 +1563,8 @@ msgstr "Groups"
 
 #: apps/web/src/components/common/layout/Header.tsx
 #: apps/web/src/components/community/CommunitySection.tsx
-msgid "Groups and organizations"
-msgstr "Groups and organizations"
+#~ msgid "Groups and organizations"
+#~ msgstr "Groups and organizations"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Highest score wins"
@@ -1645,6 +1652,7 @@ msgstr "Invite organization members"
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
 msgid "Invited"
 msgstr "Invited"
 
@@ -1938,7 +1946,6 @@ msgstr "Move up"
 msgid "ND"
 msgstr "ND"
 
-#: apps/web/src/components/events/Events.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
 msgid "New event"
@@ -2292,6 +2299,10 @@ msgstr "Overview"
 msgid "Participants"
 msgstr "Participants"
 
+#: apps/web/src/components/events/Events.tsx
+msgid "Past"
+msgstr "Past"
+
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Paste an invite link or token to claim it"
 #~ msgstr "Paste an invite link or token to claim it"
@@ -2553,6 +2564,10 @@ msgstr "Request a place"
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Request to join"
 msgstr "Request to join"
+
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Requested"
+msgstr "Requested"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Requests"
@@ -2956,7 +2971,7 @@ msgstr "Toggle menu"
 msgid "Try again"
 msgstr "Try again"
 
-#: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/common/ui/ListSearch.tsx
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/contacts/SearchUserPage.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx

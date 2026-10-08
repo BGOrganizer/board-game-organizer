@@ -37,6 +37,7 @@ export default defineConfig({
       allowExternal: true,
       include: [
         ...[
+          "common/hooks/useListSearch.ts",
           "events/hooks/useEvents.ts",
           "events/hooks/useEventWindow.ts",
           "groups/hooks/usePublicGroups.ts",
@@ -79,6 +80,18 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/common/hooks/useListSearch.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/ListSearch.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/events/hooks/useEventWindow.ts": {
           lines: 100,
           functions: 100,

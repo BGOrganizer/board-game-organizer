@@ -1,16 +1,19 @@
 "use client";
 
+import { organizationListRoles } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   formatLocationAddress,
+  useListSearch,
   useOrganizationList,
 } from "@board-game-organizer/shared";
-import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Building2, Search, UsersRound, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Building2, Check, Crown, Mail, Send, UsersRound } from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListPage } from "@/components/common/ui/ListPage";
+import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { OrganizationArtwork } from "./OrganizationArtwork";
@@ -18,13 +21,9 @@ import { OrganizationArtwork } from "./OrganizationArtwork";
 export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" }) {
   const { t } = useLingui();
   const options = useCommunityApi();
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  useEffect(() => {
-    const timeout = setTimeout(() => setSearch(query.trim().length >= 4 ? query.trim() : ""), 300);
-    return () => clearTimeout(timeout);
-  }, [query]);
-  const list = useOrganizationList(options, scope, search);
+  const filters = useListSearch(organizationListRoles);
+  const search = filters.search;
+  const list = useOrganizationList(options, scope, search, filters.selected);
   const sentinel = useInfiniteScroll({
     hasNextPage: Boolean(list.hasNextPage),
     isFetchingNextPage: list.isFetchingNextPage,
@@ -32,26 +31,29 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
     isFetchNextPageError: list.isFetchNextPageError,
   });
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-28">
-      <TextField value={query} onChange={setQuery} className="w-full">
-        <Label>{t`Search organizations`}</Label>
-        <div className="flex items-center gap-2">
-          <Search aria-hidden className="size-4" />
-          <Input name="organization-search" autoComplete="off" maxLength={120} />
-          {query ? (
-            <Button
-              isIconOnly
-              variant="ghost"
-              aria-label={t`Clear search`}
-              onPress={() => setQuery("")}
-            >
-              <X className="size-4" />
-            </Button>
-          ) : null}
-        </div>
-      </TextField>
+    <ListPage>
+      <ListSearch
+        query={filters.query}
+        onQueryChange={filters.setQuery}
+        label={t`Search organizations`}
+        placeholder={t`Search organizations`}
+        selected={filters.selected}
+        onToggle={filters.toggle}
+        options={
+          scope === "mine"
+            ? [
+                { key: "admin", label: t`Admin`, icon: Crown },
+                { key: "invited", label: t`Invited`, icon: Mail },
+                { key: "accepted", label: t`Accepted`, icon: Check },
+                { key: "requested", label: t`Requested`, icon: Send },
+              ]
+            : []
+        }
+      />
       {scope === "public" && !search ? (
-        <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
+        !filters.query.trim() ? (
+          <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
+        ) : null
       ) : list.isPending ? (
         <div className="space-y-3">
           {[1, 2, 3].map((id) => (
@@ -107,6 +109,6 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
           {list.isFetchNextPageError ? t`Could not load organizations. Retry` : t`Load more`}
         </Button>
       ) : null}
-    </section>
+    </ListPage>
   );
 }

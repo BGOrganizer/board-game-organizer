@@ -574,8 +574,10 @@ complete CSV before enabling the search filter on an older catalog without `isEx
 interactive state or browser APIs. Auth middleware leaves `/`, sign-in, and sign-up public and
 protects application routes.
 
-Navigation exposes Matches, Groups and organizations, Events, Contacts, and Profile. Organizations
-and discovery are sections of the community area. Do not repeat a page or section title inside tab
+Navigation exposes Matches, Community, Events, Contacts, and Profile. Groups, Organizations,
+and discovery are sections of Community. Its lists share platform-specific page/search/filter patterns.
+The main Events list contains own bookings (confirmed or pending), administration and demonstrations;
+event creation remains contextual to organizations. Past/Future uses the exact event end instant. Do not repeat a page or section title inside tab
 content; main navigation already identifies the section.
 
 Use `@heroui/react` and Tailwind CSS. When HeroUI provides an appropriate component, use it instead

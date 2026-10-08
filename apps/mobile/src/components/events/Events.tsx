@@ -1,22 +1,22 @@
+import { eventPeriods } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   formatLocationAddress,
   useEventList,
+  useListSearch,
 } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 
-import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Plus } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { CalendarClock, History } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
-import { floatingActionLayout } from "@/lib/floating-actions";
+import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
+import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -25,24 +25,19 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
   const o = useCommunityApi();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(query.trim().length >= 4 ? query.trim() : ""), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
-  const list = useEventList(o, organizationId, search);
+  const filters = useListSearch(eventPeriods);
+  const list = useEventList(o, organizationId, filters.search, filters.selected);
   return (
-    <View style={{ flex: 1 }}>
+    <ListPage>
       <FlatList
+        testID="events-scroll"
         style={{ flex: 1 }}
         data={communityAccessDenied(list.error) ? [] : list.items}
         keyExtractor={(row) => row.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          padding: 20,
-          gap: 12,
-          paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
+          ...listPageContentStyle,
+          paddingBottom: insets.bottom + 20,
         }}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage && !list.isFetchNextPageError)
@@ -50,15 +45,18 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
         }}
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
-            <Input
-              accessibilityLabel={t("Search events")}
-              value={query}
-              onChangeText={setQuery}
-              maxLength={120}
+            <ListSearch
+              query={filters.query}
+              onQueryChange={filters.setQuery}
+              label={t("Search events")}
+              placeholder={t("Search events")}
+              selected={filters.selected}
+              onToggle={filters.toggle}
+              options={[
+                { key: "future", label: t("Future"), icon: CalendarClock },
+                { key: "past", label: t("Past"), icon: History },
+              ]}
             />
-            <Button variant="ghost" onPress={() => setQuery("")}>
-              {t("Clear")}
-            </Button>
             {list.isPending ? (
               <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
             ) : null}
@@ -106,19 +104,6 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
           </LinkedListCard>
         )}
       />
-      <FloatingActions
-        label="New event"
-        testID="new-event-fab"
-        onPress={() =>
-          router.push({
-            pathname: "/event/wizard",
-            params: organizationId ? { organizationId } : {},
-          })
-        }
-        extraBottom={16}
-      >
-        <Plus color="#fff" size={26} />
-      </FloatingActions>
-    </View>
+    </ListPage>
   );
 }

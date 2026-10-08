@@ -1,6 +1,7 @@
 import type { OrganizationResponse } from "@board-game-organizer/schemas";
 import {
   organizationKeys,
+  organizationMatchesList,
   patchOrganizationData,
   useOrganization,
   useOrganizationActions,
@@ -41,6 +42,99 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("organization query ownership", () => {
+  it("isolates canonical role selections and sends filters on every page", async () => {
+    const { options, wrapper } = setup();
+    const fetch = vi.fn(
+      async (_url: string) =>
+        new Response(
+          JSON.stringify({
+            items: [{ ...row, role: "requested" }],
+            nextCursor: fetch.mock.calls.length === 1 ? "next" : null,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(() => useOrganizationList(options, "mine", "club", ["requested"]), {
+      wrapper,
+    });
+    await waitFor(() => expect(hook.result.current.items).toHaveLength(1));
+    await act(() => hook.result.current.fetchNextPage());
+    for (const [url] of fetch.mock.calls)
+      expect(new URL(url).searchParams.get("roles")).toBe("requested");
+    expect(organizationKeys.list(options, "mine", "", ["accepted", "requested"])).toEqual(
+      organizationKeys.list(options, "mine", "", ["requested", "accepted"]),
+    );
+    expect(organizationKeys.list(options, "mine", "", [])).not.toEqual(
+      organizationKeys.list(options, "mine", ""),
+    );
+    expect(
+      organizationKeys.list(options, "mine", "", [
+        "requested",
+        "requested",
+        "requested",
+        "requested",
+      ]),
+    ).toEqual(organizationKeys.list(options, "mine", "", ["requested"]));
+    expect(
+      organizationMatchesList(
+        { ...row, role: "requested" },
+        organizationKeys.list(options, "mine", "club", ["requested"]),
+      ),
+    ).toBe(true);
+    expect(
+      organizationMatchesList(row, organizationKeys.list(options, "mine", "club", ["requested"])),
+    ).toBe(false);
+    expect(organizationMatchesList(row, organizationKeys.list(options, "public", "Other"))).toBe(
+      false,
+    );
+    expect(
+      organizationMatchesList(row, [
+        "organizations",
+        options.apiUrl,
+        options.userId,
+        "list",
+        "public",
+      ]),
+    ).toBe(true);
+  });
+  it("removes optimistic and authoritative rows that no longer match a filtered list, restoring failures", async () => {
+    const { options, client, wrapper } = setup();
+    const key = organizationKeys.list(options, "mine", "", ["invited"]);
+    const invited = { ...row, role: "invited" } as OrganizationResponse;
+    const original = { pages: [{ items: [invited], nextCursor: null }], pageParams: [""] };
+    client.setQueryData(key, original);
+    const fetch = vi.fn(async () => new Response('{"error":"CONFLICT"}', { status: 409 }));
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(() => useOrganizationActions(options), { wrapper });
+    await act(async () => {
+      await expect(
+        hook.result.current.membership.mutateAsync({
+          id: row.id,
+          userId: options.userId,
+          action: "decline",
+        }),
+      ).rejects.toThrow();
+    });
+    expect(client.getQueryData(key)).toEqual(original);
+    fetch.mockImplementation(
+      async () => new Response(JSON.stringify({ ...row, role: "accepted" })),
+    );
+    await act(() =>
+      hook.result.current.update.mutateAsync({
+        id: row.id,
+        input: {
+          name: "Board Club",
+          location: row.location,
+          logoAssetId: row.logoAssetId,
+          version: 1,
+        },
+      }),
+    );
+    expect(client.getQueryData(key)).toEqual({
+      ...original,
+      pages: [{ items: [], nextCursor: null }],
+    });
+  });
   it("paginates at source and resolves a fresh token for each page", async () => {
     const { options, wrapper } = setup();
     const fetch = vi.fn(
