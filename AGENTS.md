@@ -449,8 +449,8 @@ Use `lucide-react` icons only.
 ```text
 Sentry initialization
 GestureHandlerRootView
-HeroUINativeProvider
 I18nProvider
+HeroUINativeProvider
 ClerkProvider
 QueryProvider
 Expo Router Stack
@@ -458,6 +458,9 @@ Expo Router Stack
 
 Keep `index.tsx` authentication navigation declarative with `<Redirect>`; an effect-driven
 `router.replace` raced cold-start navigation.
+
+Keep `I18nProvider` above `HeroUINativeProvider`: HeroUI's sibling portal host must inherit Lingui
+context, including search-help components rendered inside Select overlays.
 
 Use heroui-native components and Uniwind classes. When HeroUI Native provides an appropriate
 component, use it instead of a custom or React Native substitute. Use explicit React Native style objects for
