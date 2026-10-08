@@ -36,22 +36,26 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
-import { ContactLegend } from "@/components/ContactLegend";
-import { ContactList } from "@/components/ContactList";
-import { EmptyList } from "@/components/EmptyList";
-import { GroupedList, GroupedRow } from "@/components/GroupedList";
-import { SearchHelpLabel } from "@/components/SearchHelpLabel";
-import { type UserActionConfirmation, UserActionsSheet } from "@/components/UserActionsSheet";
-import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts";
-import { useT } from "@/lib/i18n";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { ContactLegend } from "@/components/contacts/ContactLegend";
+import { ContactList } from "@/components/contacts/ContactList";
+import {
+  type UserActionConfirmation,
+  UserActionsSheet,
+} from "@/components/contacts/UserActionsSheet";
+import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts/contacts";
 import {
   pendingRegisteredContacts,
   type SyncedContacts,
   scanContactIdentifiers,
-} from "@/lib/registeredContacts";
-import { unregisteredContacts } from "@/lib/unregisteredContacts";
+} from "@/lib/contacts/registeredContacts";
+import { unregisteredContacts } from "@/lib/contacts/unregisteredContacts";
+import type { FriendRequestContext, UserActionKey } from "@/lib/contacts/user-actions";
+import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
-import type { FriendRequestContext, UserActionKey } from "@/lib/user-actions";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const CONTACT_LIST_PAGE_SIZE = 40;

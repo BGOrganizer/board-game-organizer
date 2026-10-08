@@ -1,8 +1,8 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { LinguiClientProvider } from "@/components/LinguiClientProvider";
-import { SessionQueryProvider } from "@/components/SessionQueryProvider";
-import { ThemeScript } from "@/components/ThemeScript";
+import { LinguiClientProvider } from "@/components/common/providers/LinguiClientProvider";
+import { SessionQueryProvider } from "@/components/common/providers/SessionQueryProvider";
+import { ThemeScript } from "@/components/common/providers/ThemeScript";
 import { initServerI18n } from "@/lib/i18n";
 import "./globals.css";
 

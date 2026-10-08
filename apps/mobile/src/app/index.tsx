@@ -3,9 +3,8 @@ import { useAuth, useUser } from "@clerk/expo";
 import { Redirect } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
 import { View } from "react-native";
-
-import { Header } from "@/components/Header";
-import { LoginFallback } from "@/components/LoginFallback";
+import { LoginFallback } from "@/components/auth/LoginFallback";
+import { Header } from "@/components/common/layout/Header";
 
 export default function Index() {
   const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });

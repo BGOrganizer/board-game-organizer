@@ -1,4 +1,4 @@
-import { Groups } from "@/components/Groups";
+import { Groups } from "@/components/groups/Groups";
 
 export default async function EditGroupPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;

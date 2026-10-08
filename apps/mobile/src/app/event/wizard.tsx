@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { EventWizard } from "@/components/EventWizard";
+import { EventWizard } from "@/components/events/EventWizard";
 export default function WizardScreen() {
   const { eventId, organizationId } = useLocalSearchParams<{
     eventId?: string;

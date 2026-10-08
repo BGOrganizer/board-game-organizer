@@ -6,7 +6,7 @@ import { expect, it } from "vitest";
 it("anchors favorite sheets above system bars with viewport sizing", () => {
   const source = ts.createSourceFile(
     "search-location.tsx",
-    readFileSync(new URL("../../components/LocationPicker.tsx", import.meta.url), "utf8"),
+    readFileSync(new URL("../../components/locations/LocationPicker.tsx", import.meta.url), "utf8"),
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TSX,
@@ -47,9 +47,9 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
     ["../../app/match/[matchId].tsx", "ScrollView", 100],
     ["../../app/group/[groupId].tsx", "ScrollView", 100],
     ["../../app/(tabs)/matches.tsx", "FlatList", 16],
-    ["../../components/Groups.tsx", "FlatList", 16],
-    ["../../components/MatchWizard.tsx", "ScrollView", 100],
-    ["../../components/GroupWizard.tsx", "ScrollView", 100],
+    ["../../components/groups/GroupsScreen.tsx", "FlatList", 16],
+    ["../../components/matches/MatchWizard.tsx", "ScrollView", 100],
+    ["../../components/groups/GroupWizard.tsx", "ScrollView", 100],
   ] as const) {
     const source = ts.createSourceFile(
       path,
@@ -84,7 +84,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
   for (const tab of ["overview", "players", "leaderboard", "results"])
     expect(match).toContain(`<Tabs.Content value="${tab}"`);
   const leaderboard = readFileSync(
-    new URL("../../components/GroupLeaderboard.tsx", import.meta.url),
+    new URL("../../components/groups/GroupLeaderboard.tsx", import.meta.url),
     "utf8",
   );
   expect(leaderboard).toContain("<FlatList");
@@ -93,10 +93,10 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
 
 it("keeps text inside explicit labels when native location buttons contain icons", () => {
   for (const path of [
-    "../../components/MatchWizard.tsx",
-    "../../components/LocationPicker.tsx",
+    "../../components/matches/MatchWizard.tsx",
+    "../../components/locations/LocationPicker.tsx",
     "../../app/match/[matchId].tsx",
-    "../../components/ContactLegend.tsx",
+    "../../components/contacts/ContactLegend.tsx",
   ]) {
     const source = ts.createSourceFile(
       path,

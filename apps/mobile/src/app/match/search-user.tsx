@@ -15,8 +15,9 @@ import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
-import { GroupedList, GroupedRow } from "@/components/GroupedList";
-import { SearchHelpLabel } from "@/components/SearchHelpLabel";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 

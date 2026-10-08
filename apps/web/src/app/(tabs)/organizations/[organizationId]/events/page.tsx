@@ -1,4 +1,4 @@
-import { Events } from "@/components/Events";
+import { Events } from "@/components/events/Events";
 export default async function OrganizationEventsPage({
   params,
 }: {

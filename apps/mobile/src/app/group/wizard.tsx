@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
-import { GroupWizard } from "@/components/GroupWizard";
+import { GroupWizard } from "@/components/groups/GroupWizard";
 import { useT } from "@/lib/i18n";
 
 export default function GroupWizardScreen() {

@@ -45,20 +45,22 @@ import {
 import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EmptyList } from "@/components/EmptyList";
-import { FloatingActions } from "@/components/FloatingActions";
-import { GameCatalogMetadata } from "@/components/GameCatalogMetadata";
-import { GroupedList, GroupedRow } from "@/components/GroupedList";
-import { InvitationActions } from "@/components/InvitationActions";
-import { LocationFavoriteButton } from "@/components/LocationFavoriteButton";
-import { MatchLeaderboard } from "@/components/MatchLeaderboard";
-import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
-import { UserActionsSheet } from "@/components/UserActionsSheet";
-import { VoteCounts, VoteLegend } from "@/components/VoteCounts";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { InvitationActions } from "@/components/common/ui/InvitationActions";
+import { UserActionsSheet } from "@/components/contacts/UserActionsSheet";
+import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
+import { MatchLeaderboard } from "@/components/matches/MatchLeaderboard";
+import { MatchStandingIdentity } from "@/components/matches/MatchStandingIdentity";
+import { VoteCounts } from "@/components/matches/VoteCounts";
+import { VoteLegend } from "@/components/matches/VoteLegend";
+import type { UserActionKey } from "@/lib/contacts/user-actions";
 import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
-import type { UserActionKey } from "@/lib/user-actions";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 function apiUrl(): string {

@@ -115,13 +115,13 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/ContactLegend.tsx": {
+        "src/components/contacts/ContactLegend.tsx": {
           lines: 100,
           branches: 100,
           functions: 100,
           statements: 100,
         },
-        "src/components/LocationFavoriteButton.tsx": {
+        "src/components/locations/LocationFavoriteButton.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,
@@ -137,19 +137,19 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/MobileNumberGate.tsx": {
+        "src/components/auth/MobileNumberGate.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/lib/webPush.ts": {
+        "src/lib/notifications/webPush.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/components/UserMenu.tsx": {
+        "src/components/contacts/UserMenu.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,

@@ -1,4 +1,4 @@
-import { EventWizard } from "@/components/EventWizard";
+import { EventWizard } from "@/components/events/EventWizard";
 export default async function NewEventPage({
   searchParams,
 }: {

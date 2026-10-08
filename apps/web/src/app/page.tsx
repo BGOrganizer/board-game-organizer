@@ -1,8 +1,8 @@
 import { Show } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Header } from "@/components/Header";
-import { LoginFallback } from "@/components/LoginFallback";
+import { LoginFallback } from "@/components/auth/LoginFallback";
+import { Header } from "@/components/common/layout/Header";
 
 export const dynamic = "force-dynamic";
 

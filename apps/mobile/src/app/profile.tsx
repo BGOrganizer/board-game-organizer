@@ -3,7 +3,7 @@ import { useAuth, useUser } from "@clerk/expo";
 import { Redirect } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
 import { View } from "react-native";
-import { Profile } from "@/components/Profile";
+import { Profile } from "@/components/profile/Profile";
 
 export default function ProfileScreen() {
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });

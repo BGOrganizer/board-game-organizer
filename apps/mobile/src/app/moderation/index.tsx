@@ -1,4 +1,4 @@
-import { OrganizationModeration } from "@/components/OrganizationModeration";
+import { OrganizationModeration } from "@/components/organizations/OrganizationModeration";
 export default function ModerationScreen() {
   return <OrganizationModeration />;
 }

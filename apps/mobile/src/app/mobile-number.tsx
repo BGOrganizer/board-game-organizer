@@ -20,7 +20,7 @@ import { Typography } from "heroui-native/text";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
-import { SearchHelpLabel } from "@/components/SearchHelpLabel";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
 
 export default function MobileNumberScreen() {

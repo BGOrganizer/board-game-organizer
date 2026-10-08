@@ -31,11 +31,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
-import { EmptyList } from "@/components/EmptyList";
-import { FloatingActions } from "@/components/FloatingActions";
-import { InvitationActions } from "@/components/InvitationActions";
-import { LinkedListCard } from "@/components/LinkedListCard";
-import { ListSearchFilters } from "@/components/ListSearchFilters";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { InvitationActions } from "@/components/common/ui/InvitationActions";
+import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
 import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";

@@ -13,7 +13,7 @@ import { Button, Card, Input, Label, ListBox, SearchField, Select, TextField } f
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { SearchHelpLabel } from "@/components/SearchHelpLabel";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 
 export default function MobileNumberPage() {
   const { isLoaded, user } = useUser();

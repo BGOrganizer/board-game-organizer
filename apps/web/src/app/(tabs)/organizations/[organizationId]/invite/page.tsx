@@ -1,4 +1,4 @@
-import { OrganizationFriendPicker } from "@/components/OrganizationWizard";
+import { OrganizationFriendPicker } from "@/components/organizations/OrganizationFriendPicker";
 export default async function InvitePage({
   params,
 }: {

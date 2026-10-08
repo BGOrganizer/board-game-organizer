@@ -1,5 +1,5 @@
-import { CommunitySection } from "@/components/CommunitySection";
-import { Groups } from "@/components/Groups";
+import { CommunitySection } from "@/components/community/CommunitySection";
+import { Groups } from "@/components/groups/Groups";
 
 export default function GroupsPage() {
   return (

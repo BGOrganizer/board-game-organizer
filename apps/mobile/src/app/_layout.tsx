@@ -24,12 +24,12 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Uniwind } from "uniwind";
 import "../../global.css";
 
-import { HeaderTitle } from "@/components/HeaderTitle";
-import { PushNotificationRouter } from "@/components/PushNotificationRouter";
-import { RuntimeError } from "@/components/RuntimeError";
-import { Startup } from "@/components/Startup";
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { Startup } from "@/components/common/startup/Startup";
+import { RuntimeError } from "@/components/common/ui/RuntimeError";
+import { PushNotificationRouter } from "@/components/notifications/PushNotificationRouter";
 import { defaultI18n, useT } from "@/lib/i18n";
-import { configureNotificationHandler } from "@/lib/push-notifications";
+import { configureNotificationHandler } from "@/lib/notifications/push-notifications";
 import { startupStartedAt } from "@/lib/splash";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";

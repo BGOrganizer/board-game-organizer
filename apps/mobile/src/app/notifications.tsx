@@ -7,10 +7,10 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck, Trash2 } from "lucide-react-native";
 import { Alert, FlatList, Pressable, View } from "react-native";
-import { EmptyList } from "@/components/EmptyList";
-import { NotificationKindIcon } from "@/components/NotificationKindIcon";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { defaultI18n, useT } from "@/lib/i18n";
-import { notificationHref } from "@/lib/push-notifications";
+import { notificationHref } from "@/lib/notifications/push-notifications";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 export default function NotificationsScreen() {

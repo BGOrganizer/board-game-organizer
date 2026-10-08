@@ -13,8 +13,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
 }));
 
-vi.mock("@/components/WebDataWarmup", () => ({ WebDataWarmup: () => null }));
-vi.mock("@/components/NotificationBell", () => ({
+vi.mock("@/components/common/startup/WebDataWarmup", () => ({ WebDataWarmup: () => null }));
+vi.mock("@/components/notifications/NotificationBell", () => ({
   NotificationBell: () => <button type="button" aria-label="Notifications" />,
 }));
 
@@ -42,7 +42,7 @@ vi.mock("@clerk/nextjs", () => ({
   UserButton: () => null,
 }));
 
-vi.mock("@/components/SessionQueryProvider", () => ({
+vi.mock("@/components/common/providers/SessionQueryProvider", () => ({
   SessionQueryProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

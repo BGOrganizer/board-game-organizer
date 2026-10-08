@@ -1,4 +1,4 @@
-import { MatchDetail } from "@/components/MatchDetail";
+import { MatchDetail } from "@/components/matches/MatchDetail";
 
 export default async function MatchDetailPage({
   params,

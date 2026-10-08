@@ -1,4 +1,4 @@
-import { OrganizationDetail } from "@/components/OrganizationDetail";
+import { OrganizationDetail } from "@/components/organizations/OrganizationDetail";
 export default async function OrganizationPage({
   params,
 }: {

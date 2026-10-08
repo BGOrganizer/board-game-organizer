@@ -13,8 +13,8 @@ import {
 } from "lucide-react-native";
 import { Platform, View } from "react-native";
 
-import { HeaderTitle } from "@/components/HeaderTitle";
-import { NotificationBell } from "@/components/NotificationBell";
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useT } from "@/lib/i18n";
 
 export default function TabLayout() {

@@ -6,7 +6,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { MatchWizard } from "@/components/MatchWizard";
+import { MatchWizard } from "@/components/matches/MatchWizard";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";

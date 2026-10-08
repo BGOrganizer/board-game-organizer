@@ -6,7 +6,7 @@ vi.mock("expo-device", () => ({ isDevice: false }));
 vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
 vi.mock("expo-notifications", () => ({}));
 
-import { notificationHref } from "../push-notifications";
+import { notificationHref } from "../notifications/push-notifications";
 
 const eventId = "bf5946bb-8845-439e-ae46-d54e059c0e6a",
   tableId = "8b34c2c6-9afe-47e9-bc50-96cab4957376";
@@ -32,7 +32,7 @@ describe("community notification destinations", () => {
   );
   it("owns native tabs in route params and exposes unambiguous pressable targets", () => {
     const source = readFileSync(
-      new URL("../../components/CommunitySection.tsx", import.meta.url),
+      new URL("../../components/community/CommunitySection.tsx", import.meta.url),
       "utf8",
     );
     expect(source).toContain("router.setParams({ section })");
@@ -43,7 +43,7 @@ describe("community notification destinations", () => {
   });
   it("keeps the embedded address picker header responsive to the owning screen title", () => {
     const source = readFileSync(
-      new URL("../../components/LocationPicker.tsx", import.meta.url),
+      new URL("../../components/locations/LocationPicker.tsx", import.meta.url),
       "utf8",
     );
     expect(source).toContain("<HeaderTitle title={children} icon={MapPin} />");
@@ -51,8 +51,8 @@ describe("community notification destinations", () => {
   });
   it("returns community edits to the existing detail instead of duplicating its history entry", () => {
     for (const [component, resource] of [
-      ["OrganizationWizard", "organization"],
-      ["EventWizard", "event"],
+      ["organizations/OrganizationWizard", "organization"],
+      ["events/EventWizard", "event"],
     ]) {
       const source = readFileSync(
         new URL(`../../components/${component}.tsx`, import.meta.url),
@@ -64,8 +64,8 @@ describe("community notification destinations", () => {
   });
   it("exposes accessible creation actions in both native community lists", () => {
     for (const [component, testId, route] of [
-      ["Organizations", "new-organization-fab", "/organization/wizard"],
-      ["Events", "new-event-fab", "/event/wizard"],
+      ["organizations/Organizations", "new-organization-fab", "/organization/wizard"],
+      ["events/Events", "new-event-fab", "/event/wizard"],
     ]) {
       const source = readFileSync(
         new URL(`../../components/${component}.tsx`, import.meta.url),
@@ -81,12 +81,19 @@ describe("community notification destinations", () => {
     expect(source).toContain('title: group?.name ?? t("Group details")');
   });
   it("shows table errors instead of waiting forever for a disabled dependent query", () => {
-    const source = readFileSync(new URL("../../components/Events.tsx", import.meta.url), "utf8");
+    const source = readFileSync(
+      new URL("../../components/events/EventTableDetail.tsx", import.meta.url),
+      "utf8",
+    );
     expect(source).toContain("eq.isPending || (Boolean(event) && tq.isPending)");
     expect(source).toContain("if (event) void tq.refetch()");
   });
   it("resolves static assets after extracting reusable native pickers", () => {
-    for (const name of ["LocationPicker.tsx", "GamePicker.tsx", "Groups.tsx"]) {
+    for (const name of [
+      "locations/LocationPicker.tsx",
+      "games/GamePicker.tsx",
+      "groups/GroupsScreen.tsx",
+    ]) {
       const file = new URL(`../../components/${name}`, import.meta.url),
         source = readFileSync(file, "utf8");
       for (const match of source.matchAll(/require\("([^"]+)"\)/g))

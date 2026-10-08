@@ -22,7 +22,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MatchStandingIdentity } from "@/components/MatchStandingIdentity";
+import { MatchStandingIdentity } from "@/components/matches/MatchStandingIdentity";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";

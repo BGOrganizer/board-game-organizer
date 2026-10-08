@@ -8,7 +8,7 @@ import Organizations from "@/app/(tabs)/organizations/page";
 import ProfilePage from "@/app/(tabs)/profile/page";
 import { renderWithI18n } from "@/test-utils";
 
-vi.mock("@/components/NotificationsPage", () => ({
+vi.mock("@/components/notifications/NotificationsPage", () => ({
   NotificationsPage: () => <p>notification inbox</p>,
 }));
 

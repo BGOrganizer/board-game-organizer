@@ -1,4 +1,4 @@
-import { EventTableDetail } from "@/components/Events";
+import { EventTableDetail } from "@/components/events/EventTableDetail";
 export default async function TablePage({
   params,
 }: {

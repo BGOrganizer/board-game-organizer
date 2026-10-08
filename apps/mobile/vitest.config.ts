@@ -28,7 +28,12 @@ export default defineConfig({
       // targets the pure logic (i18n, and Phase 3: hooks/store/schemas).
       include: ["src/lib/**", "src/hooks/**", "src/store/**"],
       thresholds: {
-        "src/lib/user-location.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/lib/locations/user-location.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/lib/floating-actions.ts": {
           lines: 100,
           functions: 100,
@@ -45,25 +50,25 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/lib/unregisteredContacts.ts": {
+        "src/lib/contacts/unregisteredContacts.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/lib/contacts.ts": {
+        "src/lib/contacts/contacts.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/lib/push-notifications.ts": {
+        "src/lib/notifications/push-notifications.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/lib/user-actions.ts": {
+        "src/lib/contacts/user-actions.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

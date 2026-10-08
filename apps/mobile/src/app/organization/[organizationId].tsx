@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { OrganizationDetail } from "@/components/OrganizationDetail";
+import { OrganizationDetail } from "@/components/organizations/OrganizationDetail";
 export default function OrganizationDetailScreen() {
   const { organizationId } = useLocalSearchParams<{ organizationId: string | string[] }>();
   return (

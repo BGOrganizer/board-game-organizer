@@ -1,5 +1,5 @@
-import { CommunitySection } from "@/components/CommunitySection";
-import { Organizations } from "@/components/Organizations";
+import { CommunitySection } from "@/components/community/CommunitySection";
+import { Organizations } from "@/components/organizations/Organizations";
 export default function OrganizationsPage() {
   return (
     <CommunitySection selected="organizations">

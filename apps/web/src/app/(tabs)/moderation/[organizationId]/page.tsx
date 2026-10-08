@@ -1,4 +1,4 @@
-import { OrganizationReview } from "@/components/OrganizationModeration";
+import { OrganizationReview } from "@/components/organizations/OrganizationReview";
 export default async function OrganizationReviewPage({
   params,
 }: {

@@ -1,4 +1,4 @@
-import { Contacts } from "@/components/Contacts";
+import { Contacts } from "@/components/contacts/Contacts";
 import { initServerI18n } from "@/lib/i18n";
 
 export default async function ContactsPage() {

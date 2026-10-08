@@ -29,16 +29,17 @@ import {
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { EmptyList } from "@/components/EmptyList";
-import { FloatingActions } from "@/components/FloatingActions";
-import { GroupedList, GroupedRow } from "@/components/GroupedList";
-import { GroupLeaderboard } from "@/components/GroupLeaderboard";
-import { InvitationActions } from "@/components/InvitationActions";
-import { UserActionsSheet } from "@/components/UserActionsSheet";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { InvitationActions } from "@/components/common/ui/InvitationActions";
+import { UserActionsSheet } from "@/components/contacts/UserActionsSheet";
+import { GroupLeaderboard } from "@/components/groups/GroupLeaderboard";
+import type { UserActionKey } from "@/lib/contacts/user-actions";
 import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
-import type { UserActionKey } from "@/lib/user-actions";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);

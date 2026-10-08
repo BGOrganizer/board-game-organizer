@@ -1,4 +1,4 @@
-import { OrganizationWizard } from "@/components/OrganizationWizard";
+import { OrganizationWizard } from "@/components/organizations/OrganizationWizard";
 export default async function EditOrganizationPage({
   params,
 }: {

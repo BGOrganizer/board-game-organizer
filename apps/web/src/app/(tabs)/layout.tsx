@@ -1,6 +1,6 @@
-import { Header } from "@/components/Header";
-import { MobileNumberGate } from "@/components/MobileNumberGate";
-import { WebDataWarmup } from "@/components/WebDataWarmup";
+import { MobileNumberGate } from "@/components/auth/MobileNumberGate";
+import { Header } from "@/components/common/layout/Header";
+import { WebDataWarmup } from "@/components/common/startup/WebDataWarmup";
 
 export default function TabsLayout({
   children,
