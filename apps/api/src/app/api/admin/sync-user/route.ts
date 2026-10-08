@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
-import { UsersRepository } from "@/app/lib/users.repository";
+import { UsersRepository } from "@/app/lib/users/users.repository";
 
 const syncUserSchema = z.object({
   clerkId: z.string().min(1),

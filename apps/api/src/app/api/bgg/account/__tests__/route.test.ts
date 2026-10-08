@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BggRemoteError } from "@/app/lib/bgg-collection";
+import { BggRemoteError } from "@/app/lib/games/bgg-collection";
 import { DELETE, GET, POST } from "../route";
 import { POST as SYNC } from "../sync/route";
 
@@ -37,7 +37,7 @@ vi.mock("@/app/lib/db", () => ({
   withTransaction: (callback: (session: object, db: object) => Promise<unknown>) =>
     callback({ id: "session" }, {}),
 }));
-vi.mock("@/app/lib/bgg-account.repository", () => ({
+vi.mock("@/app/lib/games/bgg-account.repository", () => ({
   BggAccountRepository: vi.fn().mockImplementation(() => ({
     get: mocks.get,
     stage: mocks.stage,
@@ -50,8 +50,8 @@ vi.mock("@/app/lib/bgg-account.repository", () => ({
     failed: mocks.failed,
   })),
 }));
-vi.mock("@/app/lib/bgg-collection", async (load) => ({
-  ...(await load<typeof import("@/app/lib/bgg-collection")>()),
+vi.mock("@/app/lib/games/bgg-collection", async (load) => ({
+  ...(await load<typeof import("@/app/lib/games/bgg-collection")>()),
   fetchBggUser: mocks.fetchUser,
   fetchBggCollection: mocks.fetchCollection,
 }));

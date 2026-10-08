@@ -11,7 +11,7 @@ vi.mock("@/app/lib/db", () => ({
     BLOCKS: "blocks",
   },
 }));
-vi.mock("@/app/lib/blocks", () => ({
+vi.mock("@/app/lib/contacts/blocks", () => ({
   getBlockedUserIds: vi.fn(async () => []),
   getBlockedByUserIds: vi.fn(async () => []),
 }));
@@ -94,7 +94,7 @@ describe("GET /api/users/search", () => {
         find: name === "users" ? findMock : name === "friendRequests" ? friendFind : emptyFind,
       })),
     });
-    const { getBlockedByUserIds, getBlockedUserIds } = await import("@/app/lib/blocks");
+    const { getBlockedByUserIds, getBlockedUserIds } = await import("@/app/lib/contacts/blocks");
     vi.mocked(getBlockedUserIds as () => Promise<string[]>).mockResolvedValueOnce(["blocked_user"]);
     vi.mocked(getBlockedByUserIds as () => Promise<string[]>).mockResolvedValueOnce([
       "blocker_user",

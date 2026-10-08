@@ -1,6 +1,6 @@
 import type { User } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
-import { getBlockContext } from "@/app/lib/blocks";
+import { getBlockContext } from "@/app/lib/contacts/blocks";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /** Enrich relationship edges with local profiles and viewer-relative state. */

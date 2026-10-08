@@ -22,7 +22,7 @@ vi.mock("@/app/lib/db", () => ({
   },
 }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: mocks.ensure }));
-vi.mock("@/app/lib/organization-assets.service", () => ({
+vi.mock("@/app/lib/organizations/organization-assets.service", () => ({
   OrganizationAssetsService: class {
     start = mocks.start;
     append = mocks.append;

@@ -17,20 +17,55 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
-        "src/app/lib/{event-deadlines,event-workers}.ts": {
+        "src/app/lib/events/event-deadlines.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/app/lib/{community-role,community.error,organization-logo,organization-assets.service,organization-assets.http}.ts":
-          {
-            lines: 100,
-            functions: 100,
-            branches: 100,
-            statements: 100,
-          },
-        "src/app/lib/{favorite-locations.repository,geocoding}.ts": {
+        "src/app/lib/events/event-workers.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/organizations/community-role.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/community.error.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/organizations/organization-assets.http.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/organizations/organization-assets.service.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/organizations/organization-logo.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/locations/favorite-locations.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/locations/geocoding.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
@@ -82,31 +117,102 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/app/lib/bgg-collection.ts": {
+        "src/app/lib/games/bgg-collection.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/app/lib/boardGames.csv.ts": {
+        "src/app/lib/games/boardGames.csv.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/app/lib/{ensureCurrentUser,migrate,users.repository}.ts": {
+        "src/app/lib/ensureCurrentUser.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/app/lib/{bgg,blocks,boardGames.repository,enrichUsers,match-invitations.repository,match.http,match.service,matches.repository,relationship.http,relationship.repository,relationship.service}.ts":
-          {
-            lines: 100,
-            functions: 100,
-            branches: 100,
-            statements: 100,
-          },
+        "src/app/lib/migrate.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/users/users.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/games/bgg.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/contacts/blocks.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/games/boardGames.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/enrichUsers.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/matches/match-invitations.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/matches/match.http.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/matches/match.service.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/matches/matches.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/contacts/relationship.http.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/contacts/relationship.repository.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/app/lib/contacts/relationship.service.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
       },
     },
   },

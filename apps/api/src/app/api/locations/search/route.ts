@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { GeocodingError, geocodeAddresses } from "@/app/lib/geocoding";
+import { GeocodingError, geocodeAddresses } from "@/app/lib/locations/geocoding";
 
 const querySchema = z.string().trim().min(4).max(200);
 export function OPTIONS(request: Request) {

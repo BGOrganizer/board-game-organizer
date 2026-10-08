@@ -4,7 +4,7 @@ afterEach(() => {
   vi.doUnmock("../load-env");
   vi.doUnmock("@clerk/nextjs/server");
   vi.doUnmock("../../src/app/lib/db");
-  vi.doUnmock("../../src/app/lib/users.repository");
+  vi.doUnmock("../../src/app/lib/users/users.repository");
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.resetModules();
@@ -50,7 +50,7 @@ it("loads the secret before importing Clerk in the backfill entrypoint", async (
     };
   });
   vi.doMock("../../src/app/lib/db", () => ({ getDb: async () => ({}) }));
-  vi.doMock("../../src/app/lib/users.repository", () => ({
+  vi.doMock("../../src/app/lib/users/users.repository", () => ({
     UsersRepository: class UsersRepository {
       upsertFromClerk = upsertFromClerk;
     },

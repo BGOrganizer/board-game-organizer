@@ -1,7 +1,7 @@
 import type { User } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { ContactLinksRepository } from "@/app/lib/contacts.repository";
+import { ContactLinksRepository } from "@/app/lib/contacts/contacts.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import { getDb } from "@/app/lib/db";
+import { BoardGamesRepository } from "@/app/lib/games/boardGames.repository";
 import { migrate } from "@/app/lib/migrate";
 import { OPTIONS, POST } from "../route";
 
@@ -24,13 +24,13 @@ vi.mock("@/app/lib/db", () => ({
     }),
   })),
 }));
-vi.mock("@/app/lib/bgg-account.repository", () => ({
+vi.mock("@/app/lib/games/bgg-account.repository", () => ({
   BggAccountRepository: vi
     .fn()
     .mockImplementation(() => ({ stage: mocks.stageBgg, publish: mocks.publishBgg })),
 }));
 vi.mock("@/app/lib/migrate", () => ({ migrate: vi.fn(async () => ({})) }));
-vi.mock("@/app/lib/boardGames.repository", () => ({
+vi.mock("@/app/lib/games/boardGames.repository", () => ({
   BoardGamesRepository: vi.fn().mockImplementation(() => ({ bulkUpsert: mocks.bulkUpsert })),
 }));
 

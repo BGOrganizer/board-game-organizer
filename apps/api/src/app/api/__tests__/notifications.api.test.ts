@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/app/lib/db", () => ({ getDb: vi.fn(async () => ({})) }));
-vi.mock("@/app/lib/notifications.repository", () => ({
+vi.mock("@/app/lib/notifications/notifications.repository", () => ({
   NotificationsRepository: vi.fn(() => ({
     list: mocks.list,
     markRead: mocks.markRead,
@@ -20,7 +20,7 @@ vi.mock("@/app/lib/notifications.repository", () => ({
     markAllRead: mocks.markAllRead,
   })),
 }));
-vi.mock("@/app/lib/push-subscriptions.repository", () => ({
+vi.mock("@/app/lib/notifications/push-subscriptions.repository", () => ({
   PushSubscriptionsRepository: vi.fn(() => ({ upsert: mocks.upsert, remove: mocks.remove })),
 }));
 

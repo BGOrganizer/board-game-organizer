@@ -3,7 +3,7 @@ import {
   badRelationshipRequest,
   relationshipOptions,
   runRelationshipList,
-} from "@/app/lib/relationship.http";
+} from "@/app/lib/contacts/relationship.http";
 
 const querySchema = z
   .object({

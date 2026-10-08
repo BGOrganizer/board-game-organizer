@@ -1,7 +1,7 @@
 import type { User } from "@board-game-organizer/schemas";
 import { searchContactsParamsSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
-import { getBlockedByUserIds, getBlockedUserIds } from "@/app/lib/blocks";
+import { getBlockedByUserIds, getBlockedUserIds } from "@/app/lib/contacts/blocks";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 import { pruneRateLimitBuckets, rateLimit } from "@/app/lib/rateLimit";

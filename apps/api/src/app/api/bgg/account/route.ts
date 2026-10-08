@@ -1,10 +1,10 @@
 import { bggUsernameSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { BggAccountRepository } from "@/app/lib/bgg-account.repository";
-import { BggRemoteError, fetchBggUser } from "@/app/lib/bgg-collection";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
+import { BggAccountRepository } from "@/app/lib/games/bgg-account.repository";
+import { BggRemoteError, fetchBggUser } from "@/app/lib/games/bgg-collection";
 
 export const OPTIONS = corsOptions;
 

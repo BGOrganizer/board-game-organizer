@@ -1,7 +1,7 @@
 import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
 import { clerkClient } from "@clerk/nextjs/server";
 import type { Db } from "mongodb";
-import { UsersRepository } from "@/app/lib/users.repository";
+import { UsersRepository } from "@/app/lib/users/users.repository";
 
 /** Repair a missing Clerk mirror before authenticated requests need it. */
 export async function ensureCurrentUser(userId: string, db: Db) {

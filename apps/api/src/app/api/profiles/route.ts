@@ -1,11 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { enrichSingleUser } from "@/app/lib/clerk";
+import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
+import { RelationshipService } from "@/app/lib/contacts/relationship.service";
 import { getDb } from "@/app/lib/db";
-import { GroupsRepository } from "@/app/lib/groups.repository";
-import { MatchesRepository } from "@/app/lib/matches.repository";
-import { RelationshipRepository } from "@/app/lib/relationship.repository";
-import { RelationshipService } from "@/app/lib/relationship.service";
+import { GroupsRepository } from "@/app/lib/groups/groups.repository";
+import { MatchesRepository } from "@/app/lib/matches/matches.repository";
 
 function getCorsHeaders(request: NextRequest) {
   const origin = request.headers.get("origin") ?? "";

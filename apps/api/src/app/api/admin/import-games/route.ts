@@ -1,8 +1,8 @@
 import { boardGameCsvModel } from "@board-game-organizer/schemas";
 import { z } from "zod";
-import { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { BoardGamesRepository } from "@/app/lib/games/boardGames.repository";
 
 /**
  * POST /api/admin/import-games

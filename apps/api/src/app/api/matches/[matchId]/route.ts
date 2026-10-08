@@ -1,7 +1,7 @@
 import { type MatchDetailResponse, updateMatchSchema } from "@board-game-organizer/schemas";
-import { gameThumbnail, hydrateGames } from "@/app/lib/bgg";
 import { corsJson } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { gameThumbnail, hydrateGames } from "@/app/lib/games/bgg";
 import {
   badMatchRequest,
   type MatchRouteContext,
@@ -9,7 +9,7 @@ import {
   matchOptions,
   parseMatchJson,
   runMatchOperation,
-} from "@/app/lib/match.http";
+} from "@/app/lib/matches/match.http";
 
 export const OPTIONS = matchOptions;
 

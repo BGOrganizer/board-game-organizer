@@ -2,23 +2,23 @@ import { auth } from "@clerk/nextjs/server";
 import type { ObjectId } from "mongodb";
 import { after } from "next/server";
 import { z } from "zod";
-import { BoardGamesRepository } from "./boardGames.repository";
 import { CommunityError } from "./community.error";
+import { RelationshipRepository } from "./contacts/relationship.repository";
 import { corsJson } from "./cors";
 import { getDb, withTransaction } from "./db";
 import { ensureCurrentUser } from "./ensureCurrentUser";
-import { dispatchEventDeadlines } from "./event-deadlines";
-import { EventsRepository } from "./events.repository";
-import { EventsService } from "./events.service";
-import { NotificationsRepository } from "./notifications.repository";
-import { OrganizationAssetsRepository } from "./organization-assets.repository";
-import { OrganizationsRepository } from "./organizations.repository";
-import { OrganizationsService } from "./organizations.service";
-import { dispatchNotifications } from "./push";
-import { RelationshipRepository } from "./relationship.repository";
-import { UsersRepository } from "./users.repository";
+import { dispatchEventDeadlines } from "./events/event-deadlines";
+import { EventsRepository } from "./events/events.repository";
+import { EventsService } from "./events/events.service";
+import { BoardGamesRepository } from "./games/boardGames.repository";
+import { NotificationsRepository } from "./notifications/notifications.repository";
+import { dispatchNotifications } from "./notifications/push";
+import { OrganizationAssetsRepository } from "./organizations/organization-assets.repository";
+import { OrganizationsRepository } from "./organizations/organizations.repository";
+import { OrganizationsService } from "./organizations/organizations.service";
+import { UsersRepository } from "./users/users.repository";
 
-export { communityBody, communityId } from "./organization-assets.http";
+export { communityBody, communityId } from "./organizations/organization-assets.http";
 export function communityPage(request: Request) {
   const url = new URL(request.url);
   const input = z

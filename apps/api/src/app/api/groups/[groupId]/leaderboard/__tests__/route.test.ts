@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { enrichUserIds } from "@/app/lib/clerk";
-import { GroupLeaderboardRepository } from "@/app/lib/group-leaderboard.repository";
-import { GroupsRepository } from "@/app/lib/groups.repository";
+import { GroupLeaderboardRepository } from "@/app/lib/groups/group-leaderboard.repository";
+import { GroupsRepository } from "@/app/lib/groups/groups.repository";
 import { GET } from "../route";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));

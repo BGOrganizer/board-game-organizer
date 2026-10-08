@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { MongoServerError } from "mongodb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withTransaction } from "@/app/lib/db";
-import { MatchError, MatchService } from "@/app/lib/match.service";
+import { MatchError, MatchService } from "@/app/lib/matches/match.service";
 import * as invitationRoute from "../../match-invitations/[invitationId]/route";
 import * as choiceRoute from "../[matchId]/choices/route";
 import * as adminInvitationRoute from "../[matchId]/invitations/[invitationId]/route";
@@ -16,9 +16,11 @@ import * as statusRoute from "../[matchId]/status/route";
 import * as matchesRoute from "../route";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
-vi.mock("@/app/lib/events.repository", () => ({ EventsRepository: class {} }));
-vi.mock("@/app/lib/organizations.repository", () => ({ OrganizationsRepository: class {} }));
-vi.mock("@/app/lib/organization-assets.repository", () => ({
+vi.mock("@/app/lib/events/events.repository", () => ({ EventsRepository: class {} }));
+vi.mock("@/app/lib/organizations/organizations.repository", () => ({
+  OrganizationsRepository: class {},
+}));
+vi.mock("@/app/lib/organizations/organization-assets.repository", () => ({
   OrganizationAssetsRepository: class {},
 }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));

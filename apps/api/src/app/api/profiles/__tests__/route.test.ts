@@ -27,17 +27,17 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/app/lib/clerk", () => ({ enrichSingleUser: mocks.enrich }));
 vi.mock("@/app/lib/db", () => ({ getDb: mocks.getDb }));
-vi.mock("@/app/lib/relationship.repository", () => ({ RelationshipRepository: vi.fn() }));
-vi.mock("@/app/lib/relationship.service", () => ({
+vi.mock("@/app/lib/contacts/relationship.repository", () => ({ RelationshipRepository: vi.fn() }));
+vi.mock("@/app/lib/contacts/relationship.service", () => ({
   RelationshipService: vi.fn().mockImplementation(() => ({ list: mocks.list })),
 }));
-vi.mock("@/app/lib/groups.repository", () => ({
+vi.mock("@/app/lib/groups/groups.repository", () => ({
   GroupsRepository: vi.fn().mockImplementation(() => ({
     listInvitationsForUser: mocks.listInvitationsForUser,
     listForUser: mocks.listForUser,
   })),
 }));
-vi.mock("@/app/lib/matches.repository", () => ({
+vi.mock("@/app/lib/matches/matches.repository", () => ({
   MatchesRepository: vi
     .fn()
     .mockImplementation(() => ({ countPlayedByUser: mocks.countPlayedByUser })),

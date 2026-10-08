@@ -4,7 +4,7 @@ import {
   matchAdminInvitationIdsFromContext,
   matchOptions,
   runMatchOperation,
-} from "@/app/lib/match.http";
+} from "@/app/lib/matches/match.http";
 
 export const OPTIONS = matchOptions;
 

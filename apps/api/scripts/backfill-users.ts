@@ -5,7 +5,7 @@
  */
 import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
 import { getDb } from "../src/app/lib/db";
-import { UsersRepository } from "../src/app/lib/users.repository";
+import { UsersRepository } from "../src/app/lib/users/users.repository";
 import { loadApiEnv } from "./load-env";
 
 async function main() {

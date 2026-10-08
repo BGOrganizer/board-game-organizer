@@ -2,7 +2,7 @@ import { notificationIdSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
-import { NotificationsRepository } from "@/app/lib/notifications.repository";
+import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 
 export const OPTIONS = corsOptions;
 

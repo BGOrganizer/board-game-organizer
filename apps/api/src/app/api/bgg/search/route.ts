@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { searchGames } from "@/app/lib/bgg";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { searchGames } from "@/app/lib/games/bgg";
 
 const searchSchema = z.object({
   query: z.string().trim().min(4),

@@ -42,11 +42,11 @@ function find(rows: object[]) {
   return cursor;
 }
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
-vi.mock("@/app/lib/bgg", () => ({
+vi.mock("@/app/lib/games/bgg", () => ({
   searchGames: async (_db: unknown, _query: string, offset: number, limit: number) =>
     (await mocks.search()).slice(offset, offset + limit),
 }));
-vi.mock("@/app/lib/bgg-account.repository", () => ({
+vi.mock("@/app/lib/games/bgg-account.repository", () => ({
   BggAccountRepository: vi.fn().mockImplementation(() => ({ get: mocks.get })),
 }));
 vi.mock("@/app/lib/db", () => ({

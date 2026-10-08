@@ -13,7 +13,7 @@ vi.mock("@/app/lib/db", () => ({
     CONTACT_LINKS: "contactLinks",
   },
 }));
-vi.mock("@/app/lib/contacts.repository", () => ({
+vi.mock("@/app/lib/contacts/contacts.repository", () => ({
   ContactLinksRepository: class {
     contactClerkIdsForUser = contactClerkIdsForUser;
   },

@@ -5,10 +5,10 @@ import type {
 } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { searchGames } from "@/app/lib/bgg";
-import { BggAccountRepository } from "@/app/lib/bgg-account.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
+import { searchGames } from "@/app/lib/games/bgg";
+import { BggAccountRepository } from "@/app/lib/games/bgg-account.repository";
 
 export const OPTIONS = corsOptions;
 

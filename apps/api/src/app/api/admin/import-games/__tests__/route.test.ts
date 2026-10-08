@@ -7,7 +7,7 @@ const { bulkUpsert, count, removeLegacyThumbnails } = vi.hoisted(() => ({
   removeLegacyThumbnails: vi.fn(async () => 7),
 }));
 vi.mock("@/app/lib/db", () => ({ getDb: async () => ({ databaseName: "board-game-organizer" }) }));
-vi.mock("@/app/lib/boardGames.repository", () => ({
+vi.mock("@/app/lib/games/boardGames.repository", () => ({
   BoardGamesRepository: class {
     bulkUpsert = bulkUpsert;
     count = count;

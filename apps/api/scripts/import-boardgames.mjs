@@ -4,7 +4,7 @@
  * BGG_IMPORT_TOKEN=... node apps/api/scripts/import-boardgames.mjs
  */
 import { readFileSync } from "node:fs";
-import { parseBoardGamesCsv } from "../src/app/lib/boardGames.csv.ts";
+import { parseBoardGamesCsv } from "../src/app/lib/games/boardGames.csv.ts";
 
 const CSV_PATH = process.env.BGG_CSV;
 const IMPORT_URL = process.env.BGG_IMPORT_URL;

@@ -5,34 +5,36 @@ import { type ClientSession, type Db, MongoClient } from "mongodb";
 import sharp from "sharp";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { BoardGamesRepository } from "../../src/app/lib/boardGames.repository";
+import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
-import { EventsRepository } from "../../src/app/lib/events.repository";
-import { EventsService } from "../../src/app/lib/events.service";
-import { MatchService } from "../../src/app/lib/match.service";
-import { MatchInvitationsRepository } from "../../src/app/lib/match-invitations.repository";
-import { MatchesRepository } from "../../src/app/lib/matches.repository";
+import { EventsRepository } from "../../src/app/lib/events/events.repository";
+import { EventsService } from "../../src/app/lib/events/events.service";
+import { BoardGamesRepository } from "../../src/app/lib/games/boardGames.repository";
+import { MatchService } from "../../src/app/lib/matches/match.service";
+import { MatchInvitationsRepository } from "../../src/app/lib/matches/match-invitations.repository";
+import { MatchesRepository } from "../../src/app/lib/matches/matches.repository";
 import { migrate } from "../../src/app/lib/migrate";
-import { NotificationsRepository } from "../../src/app/lib/notifications.repository";
-import { OrganizationAssetsRepository } from "../../src/app/lib/organization-assets.repository";
-import { OrganizationAssetsService } from "../../src/app/lib/organization-assets.service";
-import { OrganizationsRepository } from "../../src/app/lib/organizations.repository";
-import { OrganizationsService } from "../../src/app/lib/organizations.service";
-import { RatingsRepository } from "../../src/app/lib/ratings.repository";
-import { RelationshipRepository } from "../../src/app/lib/relationship.repository";
-import { UsersRepository } from "../../src/app/lib/users.repository";
+import { NotificationsRepository } from "../../src/app/lib/notifications/notifications.repository";
+import { OrganizationAssetsRepository } from "../../src/app/lib/organizations/organization-assets.repository";
+import { OrganizationAssetsService } from "../../src/app/lib/organizations/organization-assets.service";
+import { OrganizationsRepository } from "../../src/app/lib/organizations/organizations.repository";
+import { OrganizationsService } from "../../src/app/lib/organizations/organizations.service";
+import { RatingsRepository } from "../../src/app/lib/ratings/ratings.repository";
+import { UsersRepository } from "../../src/app/lib/users/users.repository";
 
 // External Clerk/MapTiler/provider boundaries have their own request/authentication tests.
 // These tests exercise real repositories, locks, indexes, transactions and Sharp preparation.
-vi.mock("../../src/app/lib/community-location", () => ({
+vi.mock("../../src/app/lib/locations/community-location", () => ({
   verifyCommunityLocation: vi.fn(async (value: unknown) => value),
 }));
-vi.mock("../../src/app/lib/community-role", () => ({
+vi.mock("../../src/app/lib/organizations/community-role", () => ({
   requireBgoModerator: vi.fn(async (userId: string) => {
     if (userId !== "moderator") throw new Error("Moderator required");
   }),
 }));
-vi.mock("../../src/app/lib/event-deadlines", () => ({ deadlineServiceConfigured: () => true }));
+vi.mock("../../src/app/lib/events/event-deadlines", () => ({
+  deadlineServiceConfigured: () => true,
+}));
 let container: StartedTestContainer,
   client: MongoClient,
   db: Db,

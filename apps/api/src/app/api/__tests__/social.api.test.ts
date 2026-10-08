@@ -32,10 +32,10 @@ vi.mock("@/app/lib/db", () => ({
 }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
 vi.mock("@/app/lib/enrichUsers", () => ({ enrichRelationshipsWithUsers: mocks.enrich }));
-vi.mock("@/app/lib/relationship.repository", () => ({
+vi.mock("@/app/lib/contacts/relationship.repository", () => ({
   RelationshipRepository: class RelationshipRepository {},
 }));
-vi.mock("@/app/lib/relationship.service", () => {
+vi.mock("@/app/lib/contacts/relationship.service", () => {
   class RelationshipError extends Error {
     constructor(
       public status: number,
@@ -61,7 +61,7 @@ vi.mock("@/app/lib/relationship.service", () => {
   };
 });
 
-import { RelationshipError } from "@/app/lib/relationship.service";
+import { RelationshipError } from "@/app/lib/contacts/relationship.service";
 import * as blockRoute from "../blocks/[targetUserId]/route";
 import * as blocksRoute from "../blocks/route";
 import * as followRoute from "../follows/[targetUserId]/route";

@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
-import { BggAccountRepository } from "@/app/lib/bgg-account.repository";
-import { BggRemoteError, fetchBggCollection } from "@/app/lib/bgg-collection";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { BggAccountRepository } from "@/app/lib/games/bgg-account.repository";
+import { BggRemoteError, fetchBggCollection } from "@/app/lib/games/bgg-collection";
 
 export const OPTIONS = corsOptions;
 

@@ -4,7 +4,7 @@ import {
   communityBody,
   communityId,
   runOrganizationAssetOperation,
-} from "@/app/lib/organization-assets.http";
+} from "@/app/lib/organizations/organization-assets.http";
 export const OPTIONS = corsOptions;
 export function POST(request: Request, context: { params: Promise<{ assetId: string }> }) {
   return runOrganizationAssetOperation(request, async (userId, service) => {

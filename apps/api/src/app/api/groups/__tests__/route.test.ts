@@ -5,7 +5,7 @@ import * as membershipRoute from "@/app/api/groups/[groupId]/membership/route";
 import * as detailRoute from "@/app/api/groups/[groupId]/route";
 import * as groupsRoute from "@/app/api/groups/route";
 import { withTransaction } from "@/app/lib/db";
-import { GroupError, GroupService } from "@/app/lib/group.service";
+import { GroupError, GroupService } from "@/app/lib/groups/group.service";
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));

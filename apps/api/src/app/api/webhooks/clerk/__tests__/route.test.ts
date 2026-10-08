@@ -23,7 +23,7 @@ vi.mock("@/app/lib/db", () => ({
   ),
 }));
 
-vi.mock("@/app/lib/relationship.repository", () => {
+vi.mock("@/app/lib/contacts/relationship.repository", () => {
   const instance = { deleteAllForUser: vi.fn(async () => undefined) };
   return {
     RelationshipRepository: vi.fn().mockImplementation(() => instance),
@@ -31,7 +31,7 @@ vi.mock("@/app/lib/relationship.repository", () => {
   };
 });
 
-vi.mock("@/app/lib/notifications.repository", () => {
+vi.mock("@/app/lib/notifications/notifications.repository", () => {
   const instance = { deleteForUser: vi.fn(async () => undefined) };
   return {
     NotificationsRepository: vi.fn().mockImplementation(() => instance),
@@ -39,7 +39,7 @@ vi.mock("@/app/lib/notifications.repository", () => {
   };
 });
 
-vi.mock("@/app/lib/users.repository", () => {
+vi.mock("@/app/lib/users/users.repository", () => {
   const instance = {
     upsertFromClerk: vi.fn(async () => ({ value: null })),
     findById: vi.fn(async () => ({ clerkId: "user_3" })),
@@ -51,25 +51,25 @@ vi.mock("@/app/lib/users.repository", () => {
   };
 });
 
-import { NotificationsRepository } from "@/app/lib/notifications.repository";
-import { RelationshipRepository } from "@/app/lib/relationship.repository";
-import { UsersRepository } from "@/app/lib/users.repository";
+import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
+import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
+import { UsersRepository } from "@/app/lib/users/users.repository";
 
 const repoMock = vi.mocked(UsersRepository);
 const notificationRepoMock = vi.mocked(NotificationsRepository);
 const relationshipRepoMock = vi.mocked(RelationshipRepository);
 const notificationInstance = vi.mocked(
-  (await import("@/app/lib/notifications.repository")) as unknown as {
+  (await import("@/app/lib/notifications/notifications.repository")) as unknown as {
     __lastInstance: { deleteForUser: ReturnType<typeof vi.fn> };
   },
 ).__lastInstance;
 const relationshipInstance = vi.mocked(
-  (await import("@/app/lib/relationship.repository")) as unknown as {
+  (await import("@/app/lib/contacts/relationship.repository")) as unknown as {
     __lastInstance: { deleteAllForUser: ReturnType<typeof vi.fn> };
   },
 ).__lastInstance;
 const lastInstance = vi.mocked(
-  (await import("@/app/lib/users.repository")) as unknown as {
+  (await import("@/app/lib/users/users.repository")) as unknown as {
     __lastInstance: {
       upsertFromClerk: ReturnType<typeof vi.fn>;
       findById: ReturnType<typeof vi.fn>;

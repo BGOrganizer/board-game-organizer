@@ -4,8 +4,8 @@ import { z } from "zod";
 import { enrichUserIds } from "@/app/lib/clerk";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
-import { GroupLeaderboardRepository } from "@/app/lib/group-leaderboard.repository";
-import { GroupsRepository } from "@/app/lib/groups.repository";
+import { GroupLeaderboardRepository } from "@/app/lib/groups/group-leaderboard.repository";
+import { GroupsRepository } from "@/app/lib/groups/groups.repository";
 
 export const OPTIONS = corsOptions;
 

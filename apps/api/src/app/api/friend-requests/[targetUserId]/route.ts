@@ -6,7 +6,7 @@ import {
   runRelationshipOperation,
   type TargetRouteContext,
   targetFromContext,
-} from "@/app/lib/relationship.http";
+} from "@/app/lib/contacts/relationship.http";
 
 const decisionSchema = z.object({ decision: z.enum(["accept", "reject"]) }).strict();
 

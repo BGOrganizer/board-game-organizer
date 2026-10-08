@@ -1,10 +1,10 @@
 import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
 import { NextResponse } from "next/server";
 import { Webhook } from "svix";
+import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
 import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
-import { NotificationsRepository } from "@/app/lib/notifications.repository";
-import { RelationshipRepository } from "@/app/lib/relationship.repository";
-import { UsersRepository } from "@/app/lib/users.repository";
+import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
+import { UsersRepository } from "@/app/lib/users/users.repository";
 
 /**
  * Clerk webhook (`user.created` / `user.updated` / `user.deleted`).

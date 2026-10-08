@@ -7,15 +7,15 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
-import { FavoriteLocationsRepository } from "@/app/lib/favorite-locations.repository";
-import { GeocodingError, geocodeAddresses } from "@/app/lib/geocoding";
+import { FavoriteLocationsRepository } from "@/app/lib/locations/favorite-locations.repository";
+import { GeocodingError, geocodeAddresses } from "@/app/lib/locations/geocoding";
 import {
   badMatchRequest,
   hasValidMatchQuery,
   parseMatchJson,
   runMatchOperation,
-} from "@/app/lib/match.http";
-import { MatchError } from "@/app/lib/match.service";
+} from "@/app/lib/matches/match.http";
+import { MatchError } from "@/app/lib/matches/match.service";
 
 const querySchema = z
   .object({

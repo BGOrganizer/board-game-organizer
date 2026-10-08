@@ -6,7 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import type { z } from "zod";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
-import { PushSubscriptionsRepository } from "@/app/lib/push-subscriptions.repository";
+import { PushSubscriptionsRepository } from "@/app/lib/notifications/push-subscriptions.repository";
 
 export const OPTIONS = corsOptions;
 

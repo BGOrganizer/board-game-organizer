@@ -6,8 +6,8 @@ import {
   runRelationshipList,
   runRelationshipOperation,
   targetUserIdSchema,
-} from "@/app/lib/relationship.http";
-import type { RelationshipListType } from "@/app/lib/relationship.service";
+} from "@/app/lib/contacts/relationship.http";
+import type { RelationshipListType } from "@/app/lib/contacts/relationship.service";
 
 const listTypeSchema = z.enum(["followers", "following", "friends", "pending", "sent", "blocked"]);
 const createTypeSchema = z.enum(["follow", "friend_request", "block"]);

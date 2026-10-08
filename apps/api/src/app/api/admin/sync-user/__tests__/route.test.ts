@@ -71,7 +71,7 @@ describe("POST /api/admin/sync-user", () => {
     const upsert = vi.fn().mockResolvedValue({ ok: true });
     const fakeDb = { collection: vi.fn(() => ({ findOneAndUpdate: upsert })) };
     vi.doMock("@/app/lib/db", () => ({ getDb: async () => fakeDb }));
-    vi.doMock("@/app/lib/users.repository", () => ({
+    vi.doMock("@/app/lib/users/users.repository", () => ({
       UsersRepository: class {
         upsertFromClerk = upsert;
       },

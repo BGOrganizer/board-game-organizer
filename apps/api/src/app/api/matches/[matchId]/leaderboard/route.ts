@@ -5,7 +5,7 @@ import {
   type MatchRouteContext,
   matchOptions,
   runMatchOperation,
-} from "@/app/lib/match.http";
+} from "@/app/lib/matches/match.http";
 
 const querySchema = z
   .object({

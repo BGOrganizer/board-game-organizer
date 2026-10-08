@@ -1,12 +1,12 @@
 import { createGroupSchema } from "@board-game-organizer/schemas";
-import { runGroupOperation } from "@/app/lib/group.http";
+import { runGroupOperation } from "@/app/lib/groups/group.http";
 import { pageNamedList, parseListQuery } from "@/app/lib/list-pagination";
 import {
   badMatchRequest,
   hasValidMatchQuery,
   matchOptions,
   parseMatchJson,
-} from "@/app/lib/match.http";
+} from "@/app/lib/matches/match.http";
 
 export const OPTIONS = matchOptions;
 

@@ -4,7 +4,7 @@ import {
   runRelationshipOperation,
   type TargetRouteContext,
   targetFromContext,
-} from "@/app/lib/relationship.http";
+} from "@/app/lib/contacts/relationship.http";
 
 export const OPTIONS = relationshipOptions;
 

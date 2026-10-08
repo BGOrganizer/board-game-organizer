@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { BggAccountRepository } from "@/app/lib/bgg-account.repository";
-import { parseBggCollection } from "@/app/lib/bgg-collection";
-import { BoardGamesRepository } from "@/app/lib/boardGames.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
+import { BggAccountRepository } from "@/app/lib/games/bgg-account.repository";
+import { parseBggCollection } from "@/app/lib/games/bgg-collection";
+import { BoardGamesRepository } from "@/app/lib/games/boardGames.repository";
 import { migrate } from "@/app/lib/migrate";
 
 const requestSchema = z.object({

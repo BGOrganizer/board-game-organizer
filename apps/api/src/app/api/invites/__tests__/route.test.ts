@@ -30,9 +30,9 @@ vi.mock("@/app/lib/db", () => ({
     INVITES: "invites",
   },
 }));
-vi.mock("@/app/lib/invites.repository", async () => {
-  const actual = await vi.importActual<typeof import("@/app/lib/invites.repository")>(
-    "@/app/lib/invites.repository",
+vi.mock("@/app/lib/invites/invites.repository", async () => {
+  const actual = await vi.importActual<typeof import("@/app/lib/invites/invites.repository")>(
+    "@/app/lib/invites/invites.repository",
   );
   return {
     InvitesRepository: Object.assign(vi.fn(), {
@@ -44,7 +44,7 @@ vi.mock("@/app/lib/invites.repository", async () => {
 
 const { auth } = vi.mocked(await import("@clerk/nextjs/server"));
 const { getDb } = vi.mocked(await import("@/app/lib/db"));
-const { InvitesRepository } = vi.mocked(await import("@/app/lib/invites.repository"));
+const { InvitesRepository } = vi.mocked(await import("@/app/lib/invites/invites.repository"));
 
 const authMock = vi.mocked(auth as unknown as () => Promise<{ userId: string | null }>);
 const getDbMock = vi.mocked(

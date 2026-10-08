@@ -3,7 +3,7 @@ import {
   hasOnlyProtectionBypassQuery,
   relationshipOptions,
   runRelationshipList,
-} from "@/app/lib/relationship.http";
+} from "@/app/lib/contacts/relationship.http";
 
 export const OPTIONS = relationshipOptions;
 

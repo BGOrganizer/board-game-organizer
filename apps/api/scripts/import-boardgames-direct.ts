@@ -5,9 +5,9 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { MongoClient } from "mongodb";
-import { parseBoardGamesCsv } from "../src/app/lib/boardGames.csv";
-import { BoardGamesRepository } from "../src/app/lib/boardGames.repository";
 import { COLLECTIONS } from "../src/app/lib/db";
+import { parseBoardGamesCsv } from "../src/app/lib/games/boardGames.csv";
+import { BoardGamesRepository } from "../src/app/lib/games/boardGames.repository";
 
 const PREVIEW_DATABASE = "board-game-organizer";
 const CHUNK_SIZE = 500;

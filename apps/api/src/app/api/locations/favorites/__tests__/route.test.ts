@@ -1,7 +1,7 @@
 import { locationFavoriteKey } from "@board-game-organizer/schemas";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GeocodingError } from "@/app/lib/geocoding";
-import { MatchError } from "@/app/lib/match.service";
+import { GeocodingError } from "@/app/lib/locations/geocoding";
+import { MatchError } from "@/app/lib/matches/match.service";
 import { DELETE, GET, OPTIONS, POST } from "../route";
 
 const mocks = vi.hoisted(() => ({
@@ -22,18 +22,18 @@ vi.mock("@/app/lib/db", async (original) => ({
     operation({} as never, await mocks.db()),
 }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
-vi.mock("@/app/lib/match.service", async (original) => ({
-  ...(await original<typeof import("@/app/lib/match.service")>()),
+vi.mock("@/app/lib/matches/match.service", async (original) => ({
+  ...(await original<typeof import("@/app/lib/matches/match.service")>()),
   MatchService: class {
     detail = mocks.detail;
     async requireCurrentUser() {}
   },
 }));
-vi.mock("@/app/lib/geocoding", async (original) => ({
-  ...(await original<typeof import("@/app/lib/geocoding")>()),
+vi.mock("@/app/lib/locations/geocoding", async (original) => ({
+  ...(await original<typeof import("@/app/lib/locations/geocoding")>()),
   geocodeAddresses: mocks.geocode,
 }));
-vi.mock("@/app/lib/favorite-locations.repository", () => ({
+vi.mock("@/app/lib/locations/favorite-locations.repository", () => ({
   FavoriteLocationsRepository: class {
     list = mocks.list;
     statuses = mocks.statuses;

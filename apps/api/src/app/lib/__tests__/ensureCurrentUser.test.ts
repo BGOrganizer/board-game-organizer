@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: vi.fn(async () => ({ users: { getUser: mocks.getUser } })),
 }));
-vi.mock("@/app/lib/users.repository", () => ({
+vi.mock("@/app/lib/users/users.repository", () => ({
   UsersRepository: class {
     findById = mocks.findById;
     upsertFromClerk = mocks.upsertFromClerk;
