@@ -109,11 +109,11 @@ export default function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={sentryFallback}>
       <GestureHandlerRootView className="flex-1">
-        <HeroUINativeProvider>
-          <I18nProvider i18n={defaultI18n}>
+        <I18nProvider i18n={defaultI18n}>
+          <HeroUINativeProvider>
             <RootNavigator />
-          </I18nProvider>
-        </HeroUINativeProvider>
+          </HeroUINativeProvider>
+        </I18nProvider>
       </GestureHandlerRootView>
     </Sentry.ErrorBoundary>
   );

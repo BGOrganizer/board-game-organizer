@@ -220,9 +220,10 @@ Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_UR
   `@source`, Tailwind v4 does not generate the app's own utility classes
   (`flex-1`, `gap-*`, `p-*`) and layouts fall back to RN defaults
   (content appears centered).
-- Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
-  → `I18nProvider` (defaultI18n) → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
-  → `QueryProvider` → `Stack`.
+- Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `I18nProvider`
+  (defaultI18n) → `HeroUINativeProvider` → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
+  → `QueryProvider` → `Stack`. Lingui must wrap HeroUI so its sibling portal host also inherits
+  translation context.
 - **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 5 tabs as web; search
   auto (debounce + min 4 chars + clear X with `lucide-react-native`); `InviteCard` above the
   tabs (create + native Share sheet); shared `useContacts`/`useInvites` hooks, presence
