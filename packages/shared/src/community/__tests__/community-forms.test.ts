@@ -8,6 +8,8 @@ import type {
 import { describe, expect, it } from "vitest";
 import {
   editableEventTable,
+  eventBookingClosesAt,
+  eventBookingHours,
   eventEditResets,
   eventLocalDateTime,
   eventLocalToIso,
@@ -43,6 +45,40 @@ const table = {
 } as EventTableResponse;
 const input = { ...event, status: "PUBLISHED", tables: [] } as SaveEventInput;
 describe("event form instants and destructive edits", () => {
+  it("defaults to 24 elapsed hours and retains fractional, second-precise offsets", () => {
+    expect(eventBookingHours()).toBe("24");
+    expect(eventBookingHours(event)).toBe("24");
+    expect(eventBookingClosesAt(event.startsAt, "24")).toBe(event.bookingClosesAt);
+    expect(eventBookingClosesAt(event.startsAt, "1,5")).toBe("2030-03-04T16:30:00.000Z");
+    const precise = {
+      startsAt: "2030-01-01T18:00:12.123Z",
+      bookingClosesAt: "2029-12-31T18:00:56.789Z",
+    };
+    expect(eventBookingClosesAt(precise.startsAt, eventBookingHours(precise))).toBe(
+      precise.bookingClosesAt,
+    );
+    const millisecond = { startsAt: precise.startsAt, bookingClosesAt: "2030-01-01T18:00:12.122Z" };
+    expect(eventBookingHours(millisecond)).toBe("0.000000277778");
+    expect(eventBookingClosesAt(millisecond.startsAt, eventBookingHours(millisecond))).toBe(
+      millisecond.bookingClosesAt,
+    );
+    expect(eventBookingClosesAt("2027-03-28T10:00:00+02:00", "24")).toBe(
+      "2027-03-27T08:00:00.000Z",
+    );
+    expect(eventBookingClosesAt("2027-10-31T10:00:00+01:00", "24")).toBe(
+      "2027-10-30T09:00:00.000Z",
+    );
+  });
+  it.each(["", " ", "0", "-1", "NaN", "Infinity", "1e2", "0.000000001", "9999999999999999999999"])(
+    "rejects invalid booking hours %s",
+    (hours) => {
+      expect(() => eventBookingClosesAt(event.startsAt, hours)).toThrow();
+    },
+  );
+  it("rejects invalid instants and out-of-range deadlines", () => {
+    expect(() => eventBookingClosesAt("invalid", "24")).toThrow();
+    expect(() => eventBookingClosesAt("-271821-04-20T00:00:00Z", "24")).toThrow();
+  });
   it("converts wall time without using the browser time zone and preserves repeated DST instants", () => {
     expect(eventLocalDateTime(event.startsAt, "Europe/Rome")).toBe("2030-03-04T19:00:00");
     expect(eventLocalToIso("2030-03-04T19:00", "Europe/Rome")).toBe(event.startsAt);

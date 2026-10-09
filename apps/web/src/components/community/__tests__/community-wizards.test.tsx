@@ -180,7 +180,6 @@ function enterInfo() {
   fireEvent.change(screen.getByLabelText("Event name"), {
     target: { value: "Summer games evening" },
   });
-  fireEvent.change(screen.getByLabelText("Time zone"), { target: { value: "UTC" } });
   fireEvent.change(screen.getByLabelText("Starts at"), { target: { value: "2030-01-01T18:00" } });
   fireEvent.change(screen.getByLabelText("Ends at"), { target: { value: "2030-01-01T22:00" } });
   fireEvent.click(screen.getByRole("button", { name: /Choose.*address|Choose.*location/i }));
@@ -192,7 +191,17 @@ function next() {
 describe("event wizard acceptance", () => {
   it("creates a draft through information, table and review with default 24-hour cutoff and explicit seats", async () => {
     renderWithI18n(<EventWizard organizationId={id} />);
+    expect(screen.getByPlaceholderText("e.g. Board game evening")).toBeTruthy();
+    expect(screen.queryByLabelText("Time zone")).toBeNull();
+    expect(
+      (screen.getByLabelText("Booking deadline (hours before start)") as HTMLInputElement).value,
+    ).toBe("24");
+    fireEvent.click(screen.getByRole("button", { name: "Event information: Field help" }));
+    expect(screen.getByText(/Choose a name, start and end on the same day/)).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     enterInfo();
+    expect(screen.getByTestId("event-navigation-bar").className).toContain("fixed");
     next();
     fireEvent.click(screen.getByRole("button", { name: "Add table" }));
     fireEvent.change(screen.getByLabelText("Table name"), { target: { value: "Azul table" } });
@@ -210,7 +219,10 @@ describe("event wizard acceptance", () => {
           name: "Summer games evening",
           status: "DRAFT",
           location,
-          bookingClosesAt: "2029-12-31T18:00:00.000Z",
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          bookingClosesAt: new Date(
+            new Date("2030-01-01T18:00").getTime() - 24 * 3600000,
+          ).toISOString(),
           tables: [
             expect.objectContaining({
               name: "Azul table",
@@ -223,6 +235,33 @@ describe("event wizard acceptance", () => {
       }),
     );
     expect(router.replace).toHaveBeenCalledWith(`/events/${id}`);
+  });
+  it("reschedules only the numeric deadline, keeping the stored zone and exact event instants", async () => {
+    useEventMock.mockReturnValue({ data: event, isPending: false, isError: false });
+    renderWithI18n(<EventWizard eventId={id} />);
+    expect(screen.queryByLabelText("Time zone")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Booking deadline: Field help" }));
+    expect(screen.getByText(/Hours before the event starts/)).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.change(screen.getByLabelText("Booking deadline (hours before start)"), {
+      target: { value: "6" },
+    });
+    next();
+    next();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(eventActions.update.mutateAsync).toHaveBeenCalledWith({
+        id,
+        input: expect.objectContaining({
+          timeZone: "UTC",
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          bookingClosesAt: new Date(Date.parse(event.startsAt) - 6 * 3600000).toISOString(),
+        }),
+      }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
   it("retains unloaded tables and stored seconds on a non-destructive partial edit", async () => {
     useEventMock.mockReturnValue({ data: event, isPending: false, isError: false });
@@ -307,13 +346,15 @@ describe("event wizard acceptance", () => {
     renderWithI18n(<EventWizard eventId={id} />);
     expect(screen.getByText("Event cannot be edited")).not.toBeNull();
   });
-  it("rejects incomplete information and invalid time zones before sending changes", () => {
+  it("rejects incomplete information and invalid booking hours before sending changes", () => {
     renderWithI18n(<EventWizard organizationId={id} />);
     next();
     expect(screen.getByRole("alert").textContent).toContain("Check event name");
     expect(screen.queryByRole("button", { name: "Add table" })).toBeNull();
     enterInfo();
-    fireEvent.change(screen.getByLabelText("Time zone"), { target: { value: "Invalid/Zone" } });
+    fireEvent.change(screen.getByLabelText("Booking deadline (hours before start)"), {
+      target: { value: "0" },
+    });
     next();
     expect(eventActions.create.mutateAsync).not.toHaveBeenCalled();
     expect(screen.getByRole("alert").textContent).toContain("Check event name");

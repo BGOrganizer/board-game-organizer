@@ -214,7 +214,7 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
           {error}
         </p>
       ) : null}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-separator bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="fixed inset-x-0 bottom-0 z-40 bg-background px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <Button
           className="mx-auto flex w-full max-w-3xl"
           variant="primary"

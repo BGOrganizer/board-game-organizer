@@ -24,9 +24,7 @@ export function organizationMemberActions(
   if (organization.role !== "admin" || person.isAdmin || !person.membership) return [];
   switch (person.membership.status) {
     case "PENDING":
-      return person.membership.kind === "REQUEST"
-        ? ["approve", "reject", "remove", "ban"]
-        : ["remove", "ban"];
+      return person.membership.kind === "REQUEST" ? ["approve", "reject", "ban"] : ["remove"];
     case "ACCEPTED":
       return ["remove", "ban"];
     case "EXCLUDED":

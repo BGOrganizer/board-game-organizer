@@ -37,6 +37,7 @@ import { OrganizationArtwork } from "@/components/organizations/OrganizationArtw
 import { OrganizationMembers } from "@/components/organizations/OrganizationMembers";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { OrganizationInvitationResponse } from "./OrganizationInvitationResponse";
 
 function StatusBadge({ organization }: { organization: OrganizationResponse }) {
   const t = useT();
@@ -67,6 +68,8 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
   const [tab, setTab] = useState("details");
   const [confirm, setConfirm] = useState<OrganizationAction | null>(null);
   const run = (action: OrganizationAction) => {
+    if (actions.busy || !organization || !ownOrganizationActions(organization).includes(action))
+      return;
     if (action === "request") actions.requestJoin.mutate(organizationId);
     else if (options.userId)
       actions.membership.mutate(
@@ -146,27 +149,31 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
                 </Typography>
               ) : null}
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {ownOrganizationActions(organization).map((action) => {
-                  const Icon = icons[action as keyof typeof icons];
-                  const destructive = action === "decline" || action === "cancel";
-                  return (
-                    <Button
-                      key={action}
-                      isDisabled={actions.busy}
-                      variant={destructive ? "danger-soft" : "primary"}
-                      onPress={() =>
-                        isDestructiveOrganizationAction(action) ? setConfirm(action) : run(action)
-                      }
-                    >
-                      {Icon ? (
-                        <Icon size={16} color={destructive ? danger : accentForeground} />
-                      ) : null}
-                      <Button.Label>
-                        {t(organizationActionLabel(action, organization.role))}
-                      </Button.Label>
-                    </Button>
-                  );
-                })}
+                {organization.role === "invited" ? (
+                  <OrganizationInvitationResponse busy={actions.busy} onAction={run} />
+                ) : (
+                  ownOrganizationActions(organization).map((action) => {
+                    const Icon = icons[action as keyof typeof icons];
+                    const destructive = action === "decline" || action === "cancel";
+                    return (
+                      <Button
+                        key={action}
+                        isDisabled={actions.busy}
+                        variant={destructive ? "danger-soft" : "primary"}
+                        onPress={() =>
+                          isDestructiveOrganizationAction(action) ? setConfirm(action) : run(action)
+                        }
+                      >
+                        {Icon ? (
+                          <Icon size={16} color={destructive ? danger : accentForeground} />
+                        ) : null}
+                        <Button.Label>
+                          {t(organizationActionLabel(action, organization.role))}
+                        </Button.Label>
+                      </Button>
+                    );
+                  })
+                )}
               </View>
             </ScreenScrollView>
           </Tabs.Content>
@@ -174,9 +181,14 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
             {organization.role === "admin" || organization.role === "accepted" ? (
               <OrganizationMembers organization={organization} />
             ) : (
-              <Typography className="text-muted" style={{ padding: 20 }}>
-                {t("Organization members are visible only to confirmed members.")}
-              </Typography>
+              <View style={{ padding: 20, gap: 12, alignItems: "flex-start" }}>
+                <Typography className="text-muted">
+                  {t("Organization members are visible only to confirmed members.")}
+                </Typography>
+                {organization.role === "invited" ? (
+                  <OrganizationInvitationResponse busy={actions.busy} onAction={run} />
+                ) : null}
+              </View>
             )}
           </Tabs.Content>
           <Tabs.Content value="events" style={{ flex: 1 }}>

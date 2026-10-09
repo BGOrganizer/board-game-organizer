@@ -246,23 +246,27 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
             <BottomSheet.Overlay />
             <BottomSheet.Content>
               <BottomSheet.Title>{t("Upload organization logo")}</BottomSheet.Title>
-              <View style={{ gap: 12, paddingBottom: Math.max(insets.bottom, 12) }}>
-                <Button
-                  variant="secondary"
-                  onPress={() => void selectLogo("camera")}
-                  isDisabled={uploading || actions.busy}
-                >
-                  <Camera size={18} color={foreground} />
-                  <Button.Label>{t("Camera")}</Button.Label>
-                </Button>
-                <Button
-                  variant="secondary"
-                  onPress={() => void selectLogo("library")}
-                  isDisabled={uploading || actions.busy}
-                >
-                  <ImageIcon size={18} color={foreground} />
-                  <Button.Label>{t("Photo library")}</Button.Label>
-                </Button>
+              <View style={{ gap: 12, paddingBottom: Math.max(insets.bottom, 24) }}>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  <Button
+                    style={{ flex: 1 }}
+                    variant="secondary"
+                    onPress={() => void selectLogo("camera")}
+                    isDisabled={uploading || actions.busy}
+                  >
+                    <Camera size={18} color={foreground} />
+                    <Button.Label>{t("Camera")}</Button.Label>
+                  </Button>
+                  <Button
+                    style={{ flex: 1 }}
+                    variant="secondary"
+                    onPress={() => void selectLogo("library")}
+                    isDisabled={uploading || actions.busy}
+                  >
+                    <ImageIcon size={18} color={foreground} />
+                    <Button.Label>{t("Photo library")}</Button.Label>
+                  </Button>
+                </View>
                 <Button variant="ghost" onPress={() => setSourceOpen(false)}>
                   {t("Cancel")}
                 </Button>
@@ -305,9 +309,9 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
         ) : null}
       </ScrollView>
       <View
-        className="bg-background border-t border-separator"
+        className="bg-background"
         testID="organization-submit-bar"
-        style={{ padding: 12, paddingBottom: Math.max(insets.bottom, 12) }}
+        style={{ padding: 20, paddingTop: 12, paddingBottom: insets.bottom + 24 }}
       >
         <Button
           isDisabled={

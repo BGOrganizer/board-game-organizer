@@ -31,6 +31,7 @@ import { Events } from "@/components/events/Events";
 import { OrganizationArtwork } from "@/components/organizations/OrganizationArtwork";
 import { OrganizationMembers } from "@/components/organizations/OrganizationMembers";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { OrganizationInvitationResponse } from "./OrganizationInvitationResponse";
 
 function StatusBadge({ organization }: { organization: OrganizationResponse }) {
   const { t } = useLingui();
@@ -64,6 +65,8 @@ export function OrganizationDetail({
   const [confirm, setConfirm] = useState<OrganizationAction | null>(null);
   const organization = communityAccessDenied(detail.error) ? undefined : detail.data;
   const run = (action: OrganizationAction) => {
+    if (actions.busy || !organization || !ownOrganizationActions(organization).includes(action))
+      return;
     if (action === "request") actions.requestJoin.mutate(organizationId);
     else if (options.userId)
       actions.membership.mutate(
@@ -139,24 +142,28 @@ export function OrganizationDetail({
               <p className="text-sm text-default-500">{t`Approved information remains visible while changes are reviewed.`}</p>
             ) : null}
             <div className="flex flex-wrap gap-2">
-              {ownOrganizationActions(organization).map((action) => {
-                const Icon = icons[action as keyof typeof icons];
-                return (
-                  <Button
-                    key={action}
-                    isDisabled={actions.busy}
-                    variant={
-                      action === "decline" || action === "cancel" ? "danger-soft" : "primary"
-                    }
-                    onPress={() =>
-                      isDestructiveOrganizationAction(action) ? setConfirm(action) : run(action)
-                    }
-                  >
-                    {Icon ? <Icon className="size-4" /> : null}
-                    {i18n._(organizationActionMessage(action, organization.role))}
-                  </Button>
-                );
-              })}
+              {organization.role === "invited" ? (
+                <OrganizationInvitationResponse busy={actions.busy} onAction={run} />
+              ) : (
+                ownOrganizationActions(organization).map((action) => {
+                  const Icon = icons[action as keyof typeof icons];
+                  return (
+                    <Button
+                      key={action}
+                      isDisabled={actions.busy}
+                      variant={
+                        action === "decline" || action === "cancel" ? "danger-soft" : "primary"
+                      }
+                      onPress={() =>
+                        isDestructiveOrganizationAction(action) ? setConfirm(action) : run(action)
+                      }
+                    >
+                      {Icon ? <Icon className="size-4" /> : null}
+                      {i18n._(organizationActionMessage(action, organization.role))}
+                    </Button>
+                  );
+                })
+              )}
             </div>
             {organization.role === "admin" ? (
               <Link
@@ -172,7 +179,12 @@ export function OrganizationDetail({
             {organization.role === "admin" || organization.role === "accepted" ? (
               <OrganizationMembers organization={organization} />
             ) : (
-              <p className="text-sm text-default-500">{t`Organization members are visible only to confirmed members.`}</p>
+              <div className="space-y-3">
+                <p className="text-sm text-default-500">{t`Organization members are visible only to confirmed members.`}</p>
+                {organization.role === "invited" ? (
+                  <OrganizationInvitationResponse busy={actions.busy} onAction={run} />
+                ) : null}
+              </div>
             )}
           </Tabs.Panel>
           <Tabs.Panel id="events" className="pt-4">

@@ -34,7 +34,9 @@ describe("native list component ownership", () => {
     expect(list).not.toContain("<ScrollView");
     const members = source("components/organizations/OrganizationMembers.tsx");
     expect(members).toContain("data={canViewPeople ? list.items : []}");
-    expect(members).toContain('removing && canViewPeople && organization.role === "admin"');
+    expect(members).toContain("const managed = canViewPeople");
+    expect(members).toContain("organizationMemberActions(organization, managed)");
+    expect(members).toContain("managed && managedActions.length > 0");
   });
   it.each([
     "components/games/GamePicker.tsx",

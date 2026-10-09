@@ -279,12 +279,124 @@ describe("organization detail and member interactions", () => {
       }),
     );
     expect(
-      screen.getByRole("button", { name: "Approve request: requested Full Name" }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Approve request: requested Full Name" }),
+    ).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Reject request: requested Full Name" }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Reject request: requested Full Name" }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Respond to membership request: requested Full Name" }),
+    );
+    const requestDialog = screen.getByRole("dialog", { name: "Respond to membership request" });
+    expect(
+      within(requestDialog)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Cancel", "Accept", "Reject", "Ban from organization"]);
     expect(screen.queryByRole("button", { name: "Approve request: invited Full Name" })).toBeNull();
+  });
+  it.each(["approve", "reject", "ban"] as const)(
+    "responds to pending requests with %s without a social block",
+    async (action) => {
+      const state = setup();
+      await members();
+      await screen.findByText("excluded Full Name");
+      const row = screen.getByText("requested Full Name").closest("li")!;
+      expect(within(row).getAllByRole("button")).toHaveLength(4);
+      fireEvent.click(
+        within(row).getByRole("button", {
+          name: "Respond to membership request: requested Full Name",
+        }),
+      );
+      const dialog = screen.getByRole("dialog", { name: "Respond to membership request" });
+      fireEvent.click(
+        within(dialog).getByRole("button", {
+          name:
+            action === "approve"
+              ? "Accept"
+              : action === "reject"
+                ? "Reject"
+                : "Ban from organization",
+        }),
+      );
+      await waitFor(() =>
+        expect(
+          state.fetch.mock.calls.some(
+            ([, init]) =>
+              init?.method === "PATCH" && JSON.parse(String(init.body)).action === action,
+          ),
+        ).toBe(true),
+      );
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Respond to membership request" })).toBeNull(),
+      );
+      expect(state.people.find((p) => p.userId === "requested")?.membership?.status).toBe(
+        action === "approve" ? "ACCEPTED" : action === "ban" ? "EXCLUDED" : "DECLINED",
+      );
+      expect(
+        state.fetch.mock.calls.some(
+          ([url, init]) => url.includes("/blocks") && init?.method !== "GET",
+        ),
+      ).toBe(false);
+    },
+  );
+  it("keeps a failed pending-request dialog actionable after selective rollback", async () => {
+    const state = setup();
+    await members();
+    await screen.findByText("excluded Full Name");
+    state.fail();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Respond to membership request: requested Full Name" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Respond to membership request" })).getByRole(
+        "button",
+        { name: "Accept" },
+      ),
+    );
+    await waitFor(() =>
+      expect(mocks.failed).toHaveBeenCalledWith(expect.any(Error), "approve_organization_join"),
+    );
+    await screen.findByRole("dialog", { name: "Respond to membership request" });
+    expect(state.people.find((p) => p.userId === "requested")?.membership?.status).toBe("PENDING");
+    expect(
+      screen.getByRole("button", { name: "Ban from organization" }).hasAttribute("disabled"),
+    ).toBe(false);
+  });
+  it("confirms invitation cancellation without offering an admin acceptance or ban", async () => {
+    const state = setup();
+    await members();
+    await screen.findByText("excluded Full Name");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Cancel organization invitation: invited Full Name" }),
+    );
+    let dialog = screen.getByRole("dialog", { name: "Cancel organization invitation" });
+    expect(
+      within(dialog)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Cancel", "Cancel organization invitation"]);
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Cancel$/ }));
+    expect(state.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Cancel organization invitation: invited Full Name" }),
+    );
+    dialog = screen.getByRole("dialog", { name: "Cancel organization invitation" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel organization invitation" }));
+    await waitFor(() => expect(screen.queryByText("invited Full Name")).toBeNull());
+    expect(state.people.find((p) => p.userId === "invited")?.membership?.status).toBe("LEFT");
+  });
+  it("offers an invited viewer a response dialog in Members without fetching the private roster", async () => {
+    const state = setup({ role: "invited", adminUserId: "another" });
+    await screen.findByText("Test club");
+    fireEvent.click(screen.getByRole("tab", { name: "Members" }));
+    fireEvent.click(screen.getByRole("button", { name: "Respond to organization invitation" }));
+    const dialog = screen.getByRole("dialog", { name: "Respond to organization invitation" });
+    expect(within(dialog).getByRole("button", { name: "Accept" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Reject" })).toBeTruthy();
+    expect(state.fetch.mock.calls.some(([url]) => url.includes("/members?"))).toBe(false);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(state.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
   it("loads subsequent accepted pages before pending and excluded sources", async () => {
     const state = setup({}, true);

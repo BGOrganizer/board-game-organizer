@@ -4,7 +4,8 @@ name: Organization members — isolated approved fixture
 # Manual acceptance only. Use an isolated E2E organization, never production.
 # Requires signed-in creator, ORGANIZATION_LINK, MEMBER_NAME (accepted nonfriend),
 # REMOVE_MEMBER_NAME (another accepted member), REQUEST_NAME and REJECT_NAME
-# (pending requests), FRIEND_USERNAME (eligible friend for invitation).
+# (pending requests), BAN_REQUEST_NAME (another pending request), FRIEND_USERNAME
+# (eligible friend for invitation), INVITED_NAME (that friend's displayed full name).
 # Missing fixture values fail; no auth/permission bypass or conditional skips.
 - openLink: ${ORGANIZATION_LINK}
 - assertVisible:
@@ -13,10 +14,16 @@ name: Organization members — isolated approved fixture
     id: "organization-tab-members"
 - assertVisible: "Invite friends"
 - assertVisible: "Organization admin"
-- tapOn: "Approve request: ${REQUEST_NAME}"
-- assertNotVisible: "Approve request: ${REQUEST_NAME}"
-- tapOn: "Reject request: ${REJECT_NAME}"
+- tapOn: "Respond to membership request: ${REQUEST_NAME}"
+- assertVisible: "Ban from organization"
+- tapOn: "Accept"
+- assertNotVisible: "Respond to membership request: ${REQUEST_NAME}"
+- tapOn: "Respond to membership request: ${REJECT_NAME}"
+- tapOn: "Reject"
 - assertNotVisible: ${REJECT_NAME}
+- tapOn: "Respond to membership request: ${BAN_REQUEST_NAME}"
+- tapOn: "Ban from organization"
+- assertVisible: "Revoke exclusion: ${BAN_REQUEST_NAME}"
 - tapOn: "Follow: ${MEMBER_NAME}"
 - assertVisible: "Unfollow: ${MEMBER_NAME}"
 - tapOn: "Actions: ${MEMBER_NAME}"
@@ -55,6 +62,15 @@ name: Organization members — isolated approved fixture
 - tapOn: ${FRIEND_USERNAME}
 - assertVisible: "Invited"
 - assertVisible: "Invite friends"
+- tapOn: "Cancel organization invitation: ${INVITED_NAME}"
+- tapOn: "Cancel"
+- assertVisible: "Invited"
+- tapOn: "Cancel organization invitation: ${INVITED_NAME}"
+# The heading and destructive confirmation have the same label.
+- tapOn:
+    text: "Cancel organization invitation"
+    index: 1
+- assertNotVisible: "Invited"
 - tapOn:
     id: "organization-tab-events"
 - assertVisible:

@@ -60,12 +60,10 @@ describe("organization action policy", () => {
     expect(organizationMemberActions(organization, member("PENDING"))).toEqual([
       "approve",
       "reject",
-      "remove",
       "ban",
     ]);
     expect(organizationMemberActions(organization, member("PENDING", "INVITATION"))).toEqual([
       "remove",
-      "ban",
     ]);
     expect(organizationMemberActions(organization, member("ACCEPTED"))).toEqual(["remove", "ban"]);
     expect(organizationMemberActions(organization, member("EXCLUDED"))).toEqual(["revoke"]);

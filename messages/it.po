@@ -269,6 +269,7 @@ msgstr "Confermare la partita il {date} con {game}?"
 #: apps/web/src/components/contacts/UserMenu.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Accept"
 msgstr "Accetta"
@@ -293,6 +294,14 @@ msgstr "Accetta invito"
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Accept or decline this friend request."
 msgstr "Accetta o rifiuta questa richiesta di amicizia."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Accept or reject this membership request. Banning prevents rejoining this organization until revoked; global social blocking is separate."
+msgstr "Accetta o rifiuta questa richiesta d'ingresso. Il ban impedisce di rientrare in questa organizzazione finché non viene revocato; il blocco sociale globale è separato."
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Accept or reject this organization invitation."
+msgstr "Accetta o rifiuta questo invito all'organizzazione."
 
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
@@ -405,7 +414,6 @@ msgid "Approve organization"
 msgstr "Approva organizzazione"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
-#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Approve request"
 msgstr "Approva richiesta"
 
@@ -469,6 +477,10 @@ msgstr "Torna alla pianificazione"
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Back to planning?"
 msgstr "Tornare alla pianificazione?"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Ban from organization"
+msgstr "Banna dall'organizzazione"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx
@@ -538,6 +550,10 @@ msgstr "BoardGameGeek scollegato"
 msgid "Booking deadline"
 msgstr "Scadenza delle prenotazioni"
 
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Booking deadline (hours before start)"
+msgstr "Scadenza prenotazioni (ore prima dell'inizio)"
+
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/events/EventWizard.tsx
@@ -573,6 +589,10 @@ msgstr "Annulla richiesta di amicizia"
 msgid "Cancel friend request?"
 msgstr "Annullare la richiesta di amicizia?"
 
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Cancel organization invitation"
+msgstr "Annulla invito all'organizzazione"
+
 #: apps/web/src/components/contacts/UserMenu.tsx
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Cancel request"
@@ -601,6 +621,9 @@ msgid "Changes rejected"
 msgstr "Modifiche rifiutate"
 
 #: apps/web/src/components/events/EventWizard.tsx
+msgid "Check event name, dates, booking deadline, verified address and tables"
+msgstr "Controlla nome, date, scadenza prenotazioni, indirizzo verificato e tavoli dell'evento"
+
 msgid "Check event name, dates, time zone, verified address and tables"
 msgstr "Controlla nome dell'evento, date, fuso orario, indirizzo verificato e tavoli"
 
@@ -611,6 +634,10 @@ msgstr "Scelta salvata"
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose a game"
 msgstr "Scegli un gioco"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose a name, start and end on the same day, and a verified address. Times use the event's local time zone."
+msgstr "Scegli un nome, inizio e fine nello stesso giorno e un indirizzo verificato. Gli orari usano il fuso orario locale dell'evento."
 
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Choose a unique name, from 5 to 120 characters."
@@ -916,6 +943,7 @@ msgstr "Impossibile caricare gli eventi"
 #~ msgid "Could not load events. Retry"
 #~ msgstr "Impossibile caricare gli eventi. Riprova"
 
+#: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/locations/SearchLocationPage.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
@@ -1303,6 +1331,10 @@ msgstr "Chiudi notifica"
 msgid "Draft"
 msgstr "Bozza"
 
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "e.g. Board game evening"
+msgstr "es. Serata di giochi da tavolo"
+
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "es. Partite del venerdì sera"
@@ -1419,6 +1451,7 @@ msgstr "Membro escluso"
 msgid "Favorite locations"
 msgstr "Location preferite"
 
+#: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Field help"
 msgstr "Guida al campo"
@@ -1606,6 +1639,14 @@ msgstr "Gruppi"
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Highest score wins"
 msgstr "Vince il punteggio più alto"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "hours"
+msgstr "ore"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline."
+msgstr "Ore prima dell'inizio dell'evento. Valore predefinito: 24 ore. Prenotazioni e modifiche si chiudono esattamente a questa scadenza."
 
 #: apps/web/src/components/contacts/ContactLegend.tsx
 msgid "Icon legend"
@@ -2533,12 +2574,16 @@ msgstr "Registrare la partita?"
 msgid "Register results"
 msgstr "Registra risultati"
 
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Reject"
+msgstr "Rifiuta"
+
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 msgid "Reject organization"
 msgstr "Rifiuta organizzazione"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
-#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Reject request"
 msgstr "Rifiuta richiesta"
 
@@ -2668,6 +2713,14 @@ msgstr "Risolvi parità"
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Respond to friend request"
 msgstr "Rispondi alla richiesta di amicizia"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Respond to membership request"
+msgstr "Rispondi alla richiesta d'ingresso"
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Respond to organization invitation"
+msgstr "Rispondi all'invito all'organizzazione"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Results"
@@ -2981,6 +3034,10 @@ msgstr "La richiesta di amicizia verrà rifiutata."
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "The friendship and your follow will be removed."
 msgstr "L'amicizia e il tuo follow verranno rimossi."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "The organization invitation will be cancelled. You can invite this user again."
+msgstr "L'invito all'organizzazione verrà annullato. Potrai invitare nuovamente questo utente."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 #: apps/web/src/components/organizations/OrganizationMembers.tsx

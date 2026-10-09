@@ -9,8 +9,9 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
-  defaultEventBookingClosesAt,
   editableEventTable,
+  eventBookingClosesAt,
+  eventBookingHours,
   eventEditResets,
   eventLocalDateTime,
   eventLocalToIso,
@@ -18,6 +19,7 @@ import {
   useEventActions,
   useEventTables,
   useEventWindow,
+  useFavoriteLocations,
   useOrganization,
   useOrganizationList,
   useOrganizationMembers,
@@ -30,11 +32,16 @@ import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { Pencil, Trash2 } from "lucide-react-native";
+import { ArrowRight, Pencil, Trash2 } from "lucide-react-native";
 import { useState } from "react";
-import { FlatList, ScrollView, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import GamePicker from "@/components/games/GamePicker";
+import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -146,24 +153,23 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const actions = useEventActions(o);
   const foreground = useThemeColor("foreground");
   const danger = useThemeColor("danger");
+  const accentForeground = useThemeColor("accent-foreground");
+  const insets = useSafeAreaInsets();
+  const favorites = useFavoriteLocations(o);
   const tables = useEventTables(
     { ...o, enabled: Boolean(event) && o.enabled !== false },
     event?.id ?? "",
   );
   const [step, setStep] = useState(0);
   const [name, setName] = useState(event?.name ?? "");
-  const [zone, setZone] = useState(
-    event?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-  );
+  const [zone] = useState(event?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [start, setStart] = useState(
     event ? eventLocalDateTime(event.startsAt, event.timeZone).slice(0, 16) : "",
   );
   const [end, setEnd] = useState(
     event ? eventLocalDateTime(event.endsAt, event.timeZone).slice(0, 16) : "",
   );
-  const [cutoff, setCutoff] = useState(
-    event ? eventLocalDateTime(event.bookingClosesAt, event.timeZone).slice(0, 16) : "",
-  );
+  const [bookingHours, setBookingHours] = useState(() => eventBookingHours(event));
   const [location, setLocation] = useState<MatchLocation | undefined>(event?.location);
   const [pickLocation, setPickLocation] = useState(false);
   const [edited, setEdited] = useState<DraftTable[]>([]);
@@ -181,9 +187,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         timeZone: zone,
         startsAt,
         endsAt,
-        bookingClosesAt: cutoff
-          ? eventLocalToIso(cutoff, zone, event?.bookingClosesAt)
-          : defaultEventBookingClosesAt(startsAt),
+        bookingClosesAt: eventBookingClosesAt(startsAt, bookingHours),
         location,
         status,
         tables: edited.map((row) => row.input),
@@ -194,7 +198,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       if (!parsed.success) throw new Error("Invalid event");
       return parsed.data;
     } catch {
-      setError(t("Check event name, dates, time zone, verified address and tables"));
+      setError(t("Check event name, dates, booking deadline, verified address and tables"));
       return null;
     }
   }
@@ -269,9 +273,17 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       <Stack.Screen
         options={{ title: event ? t("Edit event") : t("New event"), headerLeft: undefined }}
       />
-      <Typography>
-        {step === 0 ? t("Event information") : step === 1 ? t("Tables") : t("Review event")}
-      </Typography>
+      {step === 0 ? (
+        <SearchHelpLabel
+          label={t("Event information")}
+          helpTitle={t("Field help")}
+          help={t(
+            "Choose a name, start and end on the same day, and a verified address. Times use the event's local time zone.",
+          )}
+        />
+      ) : (
+        <Typography>{step === 1 ? t("Tables") : t("Review event")}</Typography>
+      )}
       {step === 0 ? (
         <>
           <Typography>{t("Event name")}</Typography>
@@ -280,24 +292,57 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
             value={name}
             onChangeText={setName}
             maxLength={120}
+            placeholder={t("e.g. Board game evening")}
           />
-          <Typography>{t("Time zone")}</Typography>
-          <Input
-            accessibilityLabel={t("Time zone")}
-            value={zone}
-            onChangeText={setZone}
-            autoCapitalize="none"
+          <EventDateTimeField
+            label={t("Starts at")}
+            testID="event-start-calendar"
+            value={start}
+            timeZone={zone}
+            onChange={setStart}
           />
-          <EventDateTimeField label={t("Starts at")} value={start} onChange={setStart} />
-          <EventDateTimeField label={t("Ends at")} value={end} onChange={setEnd} />
-          <EventDateTimeField label={t("Booking deadline")} value={cutoff} onChange={setCutoff} />
-          <Typography className="text-muted">
-            {t("Default booking deadline is 24 hours before the event starts")}
-          </Typography>
-          <Button variant="secondary" onPress={() => setPickLocation(true)}>
-            {location?.name ?? t("Choose a verified address")}
-          </Button>
-          {location ? <Typography>{location.address}</Typography> : null}
+          <EventDateTimeField
+            label={t("Ends at")}
+            testID="event-end-calendar"
+            value={end}
+            timeZone={zone}
+            onChange={setEnd}
+          />
+          <SearchHelpLabel
+            label={t("Booking deadline")}
+            helpTitle={t("Field help")}
+            help={t(
+              "Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline.",
+            )}
+          />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Input
+              style={{ flex: 1 }}
+              accessibilityLabel={t("Booking deadline (hours before start)")}
+              keyboardType="decimal-pad"
+              value={bookingHours}
+              onChangeText={setBookingHours}
+            />
+            <Typography className="text-muted">{t("hours")}</Typography>
+          </View>
+          <GroupedList>
+            <LocationListRow
+              name={location?.name ?? t("Choose a verified address")}
+              accessibilityLabel={t("Choose a verified address")}
+              address={location?.address}
+              onPress={() => setPickLocation(true)}
+              leading={
+                location ? (
+                  <LocationFavoriteButton location={location} favorites={favorites} />
+                ) : undefined
+              }
+            />
+          </GroupedList>
+          {favorites.status.isError ? (
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Could not load favorite locations")}
+            </Typography>
+          ) : null}
         </>
       ) : (
         <>
@@ -349,6 +394,20 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           {t("Add table")}
         </Button>
       ) : null}
+      {event && tables.isError ? (
+        <Button onPress={() => void tables.refetch()}>{t("Could not load tables. Retry")}</Button>
+      ) : null}
+      {(tables.isPending && event) || tables.isFetchingNextPage ? (
+        <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
+      ) : null}
+    </View>
+  );
+  const navigation = (
+    <View
+      testID="event-navigation-bar"
+      className="bg-background"
+      style={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 24 }}
+    >
       {step < 2 ? (
         <Button
           isDisabled={actions.busy}
@@ -358,7 +417,8 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
             setStep(step + 1);
           }}
         >
-          {t("Next")}
+          <ArrowRight size={18} color={accentForeground} />
+          <Button.Label>{t("Next")}</Button.Label>
         </Button>
       ) : (
         <View style={{ flexDirection: "row", gap: 8 }}>
@@ -373,24 +433,22 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         </View>
       )}
       {step ? (
-        <Button variant="ghost" onPress={() => setStep(step - 1)}>
+        <Button variant="ghost" isDisabled={actions.busy} onPress={() => setStep(step - 1)}>
           {t("Back")}
         </Button>
-      ) : null}
-      {event && tables.isError ? (
-        <Button onPress={() => void tables.refetch()}>{t("Could not load tables. Retry")}</Button>
-      ) : null}
-      {(tables.isPending && event) || tables.isFetchingNextPage ? (
-        <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
       ) : null}
     </View>
   );
   return (
-    <View style={{ flex: 1 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={insets.top + 56}
+    >
       {step === 0 ? (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 120 }}
+          contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 24 }}
           keyboardShouldPersistTaps="handled"
         >
           {header}
@@ -401,7 +459,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           style={{ flex: 1 }}
           data={rows}
           keyExtractor={(row) => row.key}
-          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 120 }}
+          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 24 }}
           onEndReached={() => {
             if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
               void tables.fetchNextPage();
@@ -441,6 +499,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           )}
         />
       )}
+      {navigation}
       {pending ? (
         <CommunityConfirm
           title={t("Reset reservations")}
@@ -452,7 +511,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           onConfirm={() => void save(pending)}
         />
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -573,6 +632,8 @@ function TableEditor({
         <EventDateTimeField
           key={field}
           label={field === "startsAt" ? t("Starts at") : t("Ends at")}
+          testID={`event-table-${field}-calendar`}
+          timeZone={timeZone}
           value={eventLocalDateTime(value.input[field], timeZone).slice(0, 16)}
           onChange={(wall) => {
             try {

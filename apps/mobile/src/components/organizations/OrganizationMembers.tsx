@@ -17,11 +17,11 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import {
   Ban,
-  Check,
   CircleX,
+  ClipboardCheck,
   Clock3,
   Crown,
-  Ellipsis,
+  EllipsisVertical,
   RotateCcw,
   UserRoundCheck,
   UserRoundMinus,
@@ -54,7 +54,9 @@ export function OrganizationMembers({ organization }: { organization: Organizati
   const social = useOrganizationSocialActions(options);
   const busy = actions.busy || social.busy;
   const list = useOrganizationPeople(options, organization);
-  const [removing, setRemoving] = useState<OrganizationMemberResponse | null>(null);
+  const [managing, setManaging] = useState<{ userId: string; status: string; kind: string } | null>(
+    null,
+  );
   const [menu, setMenu] = useState<{ userId: string; confirm?: UserActionConfirmation } | null>(
     null,
   );
@@ -62,14 +64,42 @@ export function OrganizationMembers({ organization }: { organization: Organizati
   const selected = canViewPeople
     ? list.items.find((person) => person.userId === menu?.userId)
     : undefined;
+  const openManagement = (person: OrganizationMemberResponse) => {
+    if (person.membership)
+      setManaging({
+        userId: person.userId,
+        status: person.membership.status,
+        kind: person.membership.kind,
+      });
+  };
+  const managed = canViewPeople
+    ? list.items.find(
+        (person) =>
+          managing &&
+          person.userId === managing.userId &&
+          person.membership?.status === managing.status &&
+          person.membership.kind === managing.kind,
+      )
+    : undefined;
+  const managedActions = managed ? organizationMemberActions(organization, managed) : [];
+  const request =
+    managed?.membership?.status === "PENDING" && managed.membership.kind === "REQUEST";
+  const invitation =
+    managed?.membership?.status === "PENDING" && managed.membership.kind === "INVITATION";
+  const managementTitle = request
+    ? t("Respond to membership request")
+    : invitation
+      ? t("Cancel organization invitation")
+      : t("Remove member");
   const run = (
     person: OrganizationMemberResponse,
     action: "remove" | "ban" | "revoke" | "approve" | "reject",
   ) => {
-    if (busy) return;
+    if (busy || !canViewPeople || !organizationMemberActions(organization, person).includes(action))
+      return;
     actions.membership.mutate(
       { id: organization.id, userId: person.userId, action },
-      { onSuccess: () => setRemoving(null) },
+      { onSuccess: () => setManaging(null) },
     );
   };
   return (
@@ -150,23 +180,10 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                       variant="primary"
                       style={{ minWidth: 44, minHeight: 44 }}
                       isDisabled={busy}
-                      accessibilityLabel={`${t("Approve request")}: ${name}`}
-                      onPress={() => run(person, "approve")}
+                      accessibilityLabel={`${t("Respond to membership request")}: ${name}`}
+                      onPress={() => openManagement(person)}
                     >
-                      <Check size={18} color={accentForeground} />
-                    </Button>
-                  ) : null}
-                  {memberActions.includes("reject") ? (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="danger-soft"
-                      style={{ minWidth: 44, minHeight: 44 }}
-                      isDisabled={busy}
-                      accessibilityLabel={`${t("Reject request")}: ${name}`}
-                      onPress={() => run(person, "reject")}
-                    >
-                      <CircleX size={18} color={danger} />
+                      <ClipboardCheck size={18} color={accentForeground} />
                     </Button>
                   ) : null}
                   {memberActions.includes("remove") ? (
@@ -176,10 +193,14 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                       variant="danger-soft"
                       style={{ minWidth: 44, minHeight: 44 }}
                       isDisabled={busy}
-                      accessibilityLabel={`${t("Remove member")}: ${name}`}
-                      onPress={() => setRemoving(person)}
+                      accessibilityLabel={`${person.membership?.status === "PENDING" ? t("Cancel organization invitation") : t("Remove member")}: ${name}`}
+                      onPress={() => openManagement(person)}
                     >
-                      <UserRoundMinus size={18} color={danger} />
+                      {person.membership?.status === "PENDING" ? (
+                        <CircleX size={18} color={danger} />
+                      ) : (
+                        <UserRoundMinus size={18} color={danger} />
+                      )}
                     </Button>
                   ) : null}
                   {memberActions.includes("revoke") ? (
@@ -246,7 +267,7 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                         accessibilityLabel={`${t("Actions")}: ${name}`}
                         onPress={() => setMenu({ userId: person.userId })}
                       >
-                        <Ellipsis size={18} color={muted} />
+                        <EllipsisVertical size={18} color={muted} />
                       </Button>
                     </>
                   ) : null}
@@ -256,28 +277,62 @@ export function OrganizationMembers({ organization }: { organization: Organizati
           );
         }}
       />
-      {removing && canViewPeople && organization.role === "admin" ? (
+      {managed && managedActions.length > 0 ? (
         <CommunityConfirm
-          title={t("Remove member")}
-          description={t(
-            "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Remove allows new requests and invitations; Remove and exclude blocks rejoining this organization until revoked. Global social blocking is separate.",
-          )}
+          title={managementTitle}
+          description={
+            request
+              ? t(
+                  "Accept or reject this membership request. Banning prevents rejoining this organization until revoked; global social blocking is separate.",
+                )
+              : invitation
+                ? t(
+                    "The organization invitation will be cancelled. You can invite this user again.",
+                  )
+                : t(
+                    "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Remove allows new requests and invitations; Remove and exclude blocks rejoining this organization until revoked. Global social blocking is separate.",
+                  )
+          }
           busy={busy}
           onCancel={() => {
-            if (!busy) setRemoving(null);
+            if (!busy) setManaging(null);
           }}
-          actions={[
-            {
-              label: t("Remove from organization"),
-              variant: "danger",
-              onPress: () => run(removing, "remove"),
-            },
-            {
-              label: t("Remove and exclude"),
-              variant: "danger",
-              onPress: () => run(removing, "ban"),
-            },
-          ]}
+          actions={
+            request
+              ? [
+                  {
+                    label: t("Accept"),
+                    variant: "primary",
+                    onPress: () => run(managed, "approve"),
+                  },
+                  { label: t("Reject"), variant: "danger", onPress: () => run(managed, "reject") },
+                  {
+                    label: t("Ban from organization"),
+                    variant: "danger",
+                    onPress: () => run(managed, "ban"),
+                  },
+                ]
+              : invitation
+                ? [
+                    {
+                      label: t("Cancel organization invitation"),
+                      variant: "danger",
+                      onPress: () => run(managed, "remove"),
+                    },
+                  ]
+                : [
+                    {
+                      label: t("Remove from organization"),
+                      variant: "danger",
+                      onPress: () => run(managed, "remove"),
+                    },
+                    {
+                      label: t("Remove and exclude"),
+                      variant: "danger",
+                      onPress: () => run(managed, "ban"),
+                    },
+                  ]
+          }
         />
       ) : null}
       <UserActionsSheet

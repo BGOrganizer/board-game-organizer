@@ -82,6 +82,18 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/events/EventDateTimeField.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/organizations/OrganizationInvitationResponse.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/organizations/hooks/{useOrganizationPeople,useOrganizationSocialActions}.ts":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "../../packages/shared/src/common/hooks/useListSearch.ts": {

@@ -43,16 +43,36 @@ appId: com.bgo.mobile
 - assertVisible: "Event information"
 - tapOn: "Event name"
 - inputText: "Maestro summer event"
-- tapOn: "Time zone"
-- eraseText
-- inputText: "UTC"
-- tapOn: "Starts at"
-- eraseText
-- inputText: "2030-06-12T14:00"
-- tapOn: "Ends at"
-- eraseText
-- inputText: "2030-06-12T18:00"
 - hideKeyboard
+- assertNotVisible: "Time zone"
+- tapOn: "Event information: Field help"
+- assertVisible: "Choose a name, start and end on the same day.*"
+- back
+- tapOn:
+    id: "event-start-calendar"
+- runFlow:
+    file: ../helpers/event-date-time.yaml
+    env:
+      DATE: "06/12/2030"
+      HOUR: "14"
+      MINUTE: "00"
+- tapOn:
+    id: "event-end-calendar"
+- runFlow:
+    file: ../helpers/event-date-time.yaml
+    env:
+      DATE: "06/12/2030"
+      HOUR: "18"
+      MINUTE: "00"
+- tapOn: "Booking deadline: Field help"
+- assertVisible: "Hours before the event starts.*"
+- back
+- tapOn: "Booking deadline (hours before start)"
+- eraseText
+- inputText: "24"
+- hideKeyboard
+- assertVisible:
+    id: "event-navigation-bar"
 - scrollUntilVisible:
     element:
       text: "Choose a verified address"

@@ -5,7 +5,10 @@ pass; full PR/native acceptance remains pending. Do not describe the feature as 
 coverage. The operator requested local feasible checks followed by signed commits/push and CI
 iteration instead of further local-emulator cycles. Real Inngest provisioning/delivery is excluded.
 
-## Authority and isolation
+## Historical authority and isolation
+
+This records the original implementation pass, not authorization for subsequent tasks. The latest
+local-only scope below permits a signed local commit but no push, delegation or provisioning.
 
 - Branch `feat/organizations-events`, based on authorized PR #22 head `b83e30e`, not `main`.
 - Worktree `D:/git/board-game-organizer/.worktrees/organizations-events`.
@@ -61,7 +64,43 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 ## Latest verified automated gates
 
-### Search inputs, filters and help reuse — local only
+### Organization requests and event information — local only
+
+- Organization submission has no top separator and extra safe-area/bottom clearance; native Camera
+  and Photo library buttons share one row. Member social menus use vertical ellipses. A pending
+  request has one icon opening Accept / Reject / Ban from organization; an outgoing invitation has
+  one confirmed cancellation action. Recipients get one Accept / Reject dialog, including on the
+  private Members tab without roster access. Open management targets retain the displayed
+  membership kind/status and fail closed if it changes; busy/access checks and selective Query
+  rollback remain owned by the existing hooks. Global contact blocking is unrelated.
+- Both event wizards have information help, a name example, single calendar/date-time and verified
+  address/favorite rows, and bottom navigation with an arrow and scroll/keyboard clearance. Time
+  zone is hidden, not removed from validation: new events use the local zone and edits retain the
+  stored zone. Native Android chains date then time; iOS has a cancellable combined picker.
+- Booking deadline is a positive numeric elapsed-hour offset, default **24**, converted to the API's
+  ISO instant. Existing fractional/second/millisecond offsets round-trip; unchanged event seconds,
+  DST overlap instants and hidden zones remain intact. Missing DST wall times and invalid/zero
+  durations fail validation. Deadline-only edits reschedule closure without participation resets.
+- Local checks: full Biome/typecheck, compiled EN/IT catalogs, **357 web / 141 mobile / 103 shared
+  tests (601 total)** with coverage, web production build and Android JS export (**5,484 modules**)
+  pass. Shared deterministic form/action logic and the new web date/invitation components retain
+  **100%** line/function/branch/statement thresholds. Mobile source contracts do not measure native
+  rendering. No API/schema/integration rerun is claimed for this UI/shared-helper change.
+- Playwright organization/event cases and Maestro flow 13/member helper now use the dialogs and
+  calendar fields. The isolated recipient helper requires explicit fixtures and both decisions;
+  member-helper fixture requirements are documented in its header. These browser cases use mocked
+  domain responses and the updated authenticated/device flows have **not** run. No fresh APK,
+  device/iOS acceptance, real provider delivery or production verification is claimed; existing
+  account/device blockers are not bypassed.
+- Work stays local on `feat/organizations-events`: no push, new PR, delegation, account recreation or
+  provisioning. Preexisting API environment-type bytes and private configuration are preserved.
+- Guides used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`, `expo-data-fetching`,
+  `tanstack-query-development`, `heroui-react`, `heroui-native`, `uniwind`,
+  `lingui-best-practices`, `playwright-best-practices`, `clerk`, `clerk-testing`,
+  `web-design-guidelines`, `ponytail` and `context-mode`.
+
+### Previous search inputs, filters and help reuse — local only
 
 - Each client now composes its own `SearchInput`, `FilterChips` and `HelpPopover` in
   `src/components/common/ui`. List searches, contacts, user/game pickers, group game selection,

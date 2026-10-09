@@ -5,6 +5,28 @@ import type {
   SaveEventInput,
 } from "@board-game-organizer/schemas";
 import { eventScheduleChanged, eventTableChanged } from "./eventPolicy";
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/** Keep existing fractional offsets, including seconds, when editing an event. */
+export function eventBookingHours(
+  event?: Pick<EventResponse, "startsAt" | "bookingClosesAt">,
+): string {
+  return event
+    ? ((Date.parse(event.startsAt) - Date.parse(event.bookingClosesAt)) / HOUR_MS)
+        .toFixed(12)
+        .replace(/\.?0+$/, "")
+    : "24";
+}
+
+/** Hours are an elapsed duration, not local calendar days (DST can change day length). */
+export function eventBookingClosesAt(startsAt: string, hours: string): string {
+  if (!/^\d+(?:[.,]\d+)?$/.test(hours)) throw new Error("Invalid booking hours");
+  const duration = Math.round(Number(hours.replace(",", ".")) * HOUR_MS);
+  if (!Number.isSafeInteger(duration) || duration <= 0) throw new Error("Invalid booking hours");
+  return new Date(Date.parse(startsAt) - duration).toISOString();
+}
+
 export function eventLocalDateTime(instant: string, timeZone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,

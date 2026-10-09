@@ -10,11 +10,13 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
-  defaultEventBookingClosesAt,
   editableEventTable,
+  eventBookingClosesAt,
+  eventBookingHours,
   eventEditResets,
   eventLocalDateTime,
   eventLocalToIso,
+  formatLocationAddress,
   useEvent,
   useEventActions,
   useEventTables,
@@ -26,13 +28,18 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Input, Label, Skeleton, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, MapPin, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
+import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventDateTimeField } from "./EventDateTimeField";
 export function EventWizard({
   eventId,
   organizationId,
@@ -129,18 +136,14 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const favorites = useFavoriteLocations(o);
   const [step, setStep] = useState(0);
   const [name, setName] = useState(event?.name ?? "");
-  const [zone, setZone] = useState(
-    event?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-  );
+  const [zone] = useState(event?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [start, setStart] = useState(
     event ? eventLocalDateTime(event.startsAt, event.timeZone).slice(0, 16) : "",
   );
   const [end, setEnd] = useState(
     event ? eventLocalDateTime(event.endsAt, event.timeZone).slice(0, 16) : "",
   );
-  const [cutoff, setCutoff] = useState(
-    event ? eventLocalDateTime(event.bookingClosesAt, event.timeZone).slice(0, 16) : "",
-  );
+  const [bookingHours, setBookingHours] = useState(() => eventBookingHours(event));
   const [location, setLocation] = useState<MatchLocation | undefined>(event?.location);
   const [pickLocation, setPickLocation] = useState(false);
   const [edited, setEdited] = useState<DraftTable[]>([]);
@@ -153,9 +156,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
     try {
       const startsAt = eventLocalToIso(start, zone, event?.startsAt);
       const endsAt = eventLocalToIso(end, zone, event?.endsAt);
-      const bookingClosesAt = cutoff
-        ? eventLocalToIso(cutoff, zone, event?.bookingClosesAt)
-        : defaultEventBookingClosesAt(startsAt);
+      const bookingClosesAt = eventBookingClosesAt(startsAt, bookingHours);
       const raw = {
         name,
         timeZone: zone,
@@ -172,7 +173,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       if (!parsed.success) throw new Error("Invalid event");
       return parsed.data;
     } catch {
-      setError(t`Check event name, dates, time zone, verified address and tables`);
+      setError(t`Check event name, dates, booking deadline, verified address and tables`);
       return null;
     }
   }
@@ -246,36 +247,74 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         onPress={() => (step ? setStep(step - 1) : router.back())}
       >{t`Back`}</Button>
       <h1 className="text-xl font-semibold">{event ? t`Edit event` : t`New event`}</h1>
-      <p>{step === 0 ? t`Event information` : step === 1 ? t`Tables` : t`Review event`}</p>
+      {step === 0 ? (
+        <SearchHelpLabel
+          label={t`Event information`}
+          helpTitle={t`Field help`}
+          help={t`Choose a name, start and end on the same day, and a verified address. Times use the event's local time zone.`}
+        />
+      ) : (
+        <p>{step === 1 ? t`Tables` : t`Review event`}</p>
+      )}
       {step === 0 ? (
         <>
           <TextField value={name} onChange={setName}>
             <Label>{t`Event name`}</Label>
-            <Input name="event-name" maxLength={120} />
+            <Input name="event-name" maxLength={120} placeholder={t`e.g. Board game evening`} />
           </TextField>
-          <TextField value={zone} onChange={setZone}>
-            <Label>{t`Time zone`}</Label>
-            <Input name="time-zone" autoComplete="off" />
+          <EventDateTimeField label={t`Starts at`} value={start} onChange={setStart} />
+          <EventDateTimeField label={t`Ends at`} value={end} onChange={setEnd} />
+          <TextField value={bookingHours} onChange={setBookingHours}>
+            <SearchHelpLabel
+              label={t`Booking deadline`}
+              htmlFor="event-booking-hours"
+              helpTitle={t`Field help`}
+              help={t`Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline.`}
+            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="event-booking-hours"
+                aria-label={t`Booking deadline (hours before start)`}
+                type="number"
+                min={0}
+                step="any"
+                className="flex-1"
+              />
+              <span className="text-sm text-default-500">{t`hours`}</span>
+            </div>
           </TextField>
-          {[
-            [t`Starts at`, start, setStart],
-            [t`Ends at`, end, setEnd],
-            [t`Booking deadline`, cutoff, setCutoff],
-          ].map(([label, value, setter]) => (
-            <TextField
-              key={String(label)}
-              value={String(value)}
-              onChange={setter as (value: string) => void}
-            >
-              <Label>{String(label)}</Label>
-              <Input type="datetime-local" />
-            </TextField>
-          ))}
-          <p>{t`Default booking deadline is 24 hours before the event starts`}</p>
-          <Button variant="secondary" onPress={() => setPickLocation(true)}>
-            {location?.name ?? t`Choose a verified address`}
-          </Button>
-          {location ? <p>{location.address}</p> : null}
+          <GroupedList>
+            <GroupedRow>
+              {location ? (
+                <LocationFavoriteButton location={location} favorites={favorites} />
+              ) : (
+                <MapPin className="size-5 shrink-0 text-default-500" aria-hidden />
+              )}
+              <Button
+                variant="ghost"
+                className="h-auto min-h-11 min-w-0 flex-1 justify-start text-left"
+                aria-label={t`Choose a verified address`}
+                onPress={() => setPickLocation(true)}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">
+                    {location?.name ?? t`Choose a verified address`}
+                  </span>
+                  {location ? (
+                    <span
+                      className="block truncate text-xs text-default-500"
+                      title={location.address}
+                    >
+                      {formatLocationAddress(location.address)}
+                    </span>
+                  ) : null}
+                </span>
+              </Button>
+            </GroupedRow>
+          </GroupedList>
+          {favorites.status.isError ? (
+            <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
+          ) : null}
         </>
       ) : (
         <>
@@ -363,29 +402,40 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           {error}
         </p>
       ) : null}
-      {step < 2 ? (
-        <Button
-          isDisabled={actions.busy}
-          onPress={() => {
-            if (step === 0 && !input("DRAFT")) return;
-            setError("");
-            setStep(step + 1);
-          }}
-        >{t`Next`}</Button>
-      ) : (
-        <div className="flex gap-3">
-          {event?.status !== "PUBLISHED" ? (
+      <div
+        data-testid="event-navigation-bar"
+        className="fixed inset-x-0 bottom-0 z-40 bg-background px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+      >
+        <div className="mx-auto flex w-full max-w-3xl gap-3">
+          {step < 2 ? (
             <Button
-              variant="secondary"
+              className="w-full"
               isDisabled={actions.busy}
-              onPress={() => submit("DRAFT")}
-            >{t`Save draft`}</Button>
-          ) : null}
-          <Button isDisabled={actions.busy} onPress={() => submit("PUBLISHED")}>
-            {event?.status === "PUBLISHED" ? t`Save changes` : t`Publish event`}
-          </Button>
+              onPress={() => {
+                if (step === 0 && !input("DRAFT")) return;
+                setError("");
+                setStep(step + 1);
+              }}
+            >
+              <ArrowRight className="size-4" aria-hidden />
+              {t`Next`}
+            </Button>
+          ) : (
+            <div className="flex gap-3">
+              {event?.status !== "PUBLISHED" ? (
+                <Button
+                  variant="secondary"
+                  isDisabled={actions.busy}
+                  onPress={() => submit("DRAFT")}
+                >{t`Save draft`}</Button>
+              ) : null}
+              <Button isDisabled={actions.busy} onPress={() => submit("PUBLISHED")}>
+                {event?.status === "PUBLISHED" ? t`Save changes` : t`Publish event`}
+              </Button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       {pending ? (
         <ContactConfirmDialog
           title={t`Reset reservations`}
@@ -489,8 +539,9 @@ function TableEditor({
       </TextField>
       <Button onPress={() => setPickGame(true)}>{value.gameName || t`Choose a game`}</Button>
       {(["startsAt", "endsAt"] as const).map((field) => (
-        <TextField
+        <EventDateTimeField
           key={field}
+          label={field === "startsAt" ? t`Starts at` : t`Ends at`}
           value={eventLocalDateTime(value.input[field], timeZone).slice(0, 16)}
           onChange={(wall) => {
             try {
@@ -500,10 +551,7 @@ function TableEditor({
               setError(t`Invalid date or time`);
             }
           }}
-        >
-          <Label>{field === "startsAt" ? t`Starts at` : t`Ends at`}</Label>
-          <Input type="datetime-local" />
-        </TextField>
+        />
       ))}
       {(["minPlayers", "maxPlayers"] as const).map((field) => (
         <TextField
