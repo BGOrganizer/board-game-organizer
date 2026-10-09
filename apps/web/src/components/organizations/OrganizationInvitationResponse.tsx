@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ClipboardCheck } from "lucide-react";
+import { Check, ClipboardCheck, X } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 
@@ -29,12 +29,15 @@ export function OrganizationInvitationResponse({
           title={t`Respond to organization invitation`}
           description={t`Accept or reject this organization invitation.`}
           busy={busy}
+          cancelLast
+          cancelIcon={<X className="size-4" aria-hidden />}
           onCancel={() => {
             if (!busy) setOpen(false);
           }}
           actions={[
             {
               label: t`Accept`,
+              icon: <Check className="size-4" aria-hidden />,
               variant: "primary",
               onPress: () => {
                 onAction("accept");
@@ -43,6 +46,7 @@ export function OrganizationInvitationResponse({
             },
             {
               label: t`Reject`,
+              icon: <X className="size-4" aria-hidden />,
               variant: "danger",
               onPress: () => {
                 onAction("decline");

@@ -61,7 +61,7 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
   const controller = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
-  const favorites = useFavoriteLocations({ ...o });
+  const favorites = useFavoriteLocations(o, location ? [location] : []);
   const selectLogo = async (file: File) => {
     setError("");
     setUploading(true);

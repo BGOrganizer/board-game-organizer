@@ -619,14 +619,22 @@ function communityAcceptance() {
       page.getByLabel("Booking deadline (hours before start)", { exact: true }),
     ).toHaveValue("24");
     await page.getByRole("button", { name: "Event information: Field help", exact: true }).click();
-    await expect(page.getByText(/Choose a name, start and end on the same day/)).toBeVisible();
+    await expect(page.getByText(/Choose a name, a start and a later end/)).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Booking deadline: Field help", exact: true }).click();
     await expect(page.getByText(/Hours before the event starts/)).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByLabel("Event name", { exact: true }).fill("Numeric cutoff evening");
     await page.getByLabel("Starts at", { exact: true }).fill("2030-06-12T14:00");
-    await page.getByLabel("Ends at", { exact: true }).fill("2030-06-12T18:00");
+    await expect(page.getByRole("button", { name: "Back", exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("list", { name: "Steps" }).locator('[aria-current="step"]'),
+    ).toHaveText("1");
+    await expect(page.getByLabel("Ends at", { exact: true })).toHaveAttribute(
+      "min",
+      "2030-06-12T14:01",
+    );
+    await page.getByLabel("Ends at", { exact: true }).fill("2030-06-13T18:00");
     await page.getByLabel("Booking deadline (hours before start)", { exact: true }).fill("6");
     await chooseLocation(page);
     await expect(
@@ -634,6 +642,13 @@ function communityAcceptance() {
     ).toContainText(location.name);
     await expect(page.getByTestId("event-navigation-bar")).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(
+      page.getByRole("list", { name: "Steps" }).locator('[aria-current="step"]'),
+    ).toHaveText("2");
+    await expect(page.getByText("Numeric cutoff evening", { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText("No tables yet. Add a table to organize games and players."),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/events/${eventId}$`));
@@ -641,6 +656,7 @@ function communityAcceptance() {
     expect(
       (Date.parse(String(body.startsAt)) - Date.parse(String(body.bookingClosesAt))) / 3600000,
     ).toBe(6);
+    expect(Date.parse(String(body.endsAt)) - Date.parse(String(body.startsAt))).toBe(28 * 3600000);
     expect(body.location).toMatchObject({ address: location.address });
   });
 
@@ -866,10 +882,17 @@ function communityAcceptance() {
     await expect(page.getByRole("button", { name: "Invite friends", exact: true })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Follow: Target Member", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Send friend request: Target Member", exact: true }),
+    ).toHaveCount(0);
+    const socialRow = page.getByRole("listitem").filter({ hasText: "Target Member" });
+    await socialRow.getByRole("button", { name: "Actions", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Follow", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: "Send friend request", exact: true }),
     ).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Actions", exact: true }).click();
     await expect(
       page.getByRole("menuitem", { name: "Block user globally", exact: true }),

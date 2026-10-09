@@ -39,13 +39,13 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
-import { UserList as ContactList } from "@/components/common/ui/UserList";
-import { UserListRow } from "@/components/common/ui/UserListRow";
-import { ContactLegend } from "@/components/contacts/ContactLegend";
 import {
   type UserActionConfirmation,
   UserActionsSheet,
-} from "@/components/contacts/UserActionsSheet";
+} from "@/components/common/ui/UserActionsSheet";
+import { UserList as ContactList } from "@/components/common/ui/UserList";
+import { UserListRow } from "@/components/common/ui/UserListRow";
+import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts/contacts";
 import {
   pendingRegisteredContacts,

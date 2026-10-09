@@ -3,7 +3,6 @@ import type {
   OrganizationResponse,
 } from "@board-game-organizer/schemas";
 import {
-  type ContactAction,
   communityAccessDenied,
   organizationMemberActions,
   organizationMemberContact,
@@ -17,27 +16,27 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import {
   Ban,
+  Check,
   CircleX,
   ClipboardCheck,
   Clock3,
   Crown,
   EllipsisVertical,
   RotateCcw,
-  UserRoundCheck,
   UserRoundMinus,
-  UserRoundPlus,
   UsersRound,
+  X,
 } from "lucide-react-native";
 import { useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
-import { UserList } from "@/components/common/ui/UserList";
-import { UserListRow } from "@/components/common/ui/UserListRow";
 import {
   type UserActionConfirmation,
   UserActionsSheet,
-} from "@/components/contacts/UserActionsSheet";
+} from "@/components/common/ui/UserActionsSheet";
+import { UserList } from "@/components/common/ui/UserList";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -140,17 +139,8 @@ export function OrganizationMembers({ organization }: { organization: Organizati
         }
         renderRow={(person) => {
           const name = person.name ?? person.username ?? t("Username unavailable");
-          const user = organizationMemberContact(person);
-          const pending = person.social?.friendRequest;
           const disabled = busy || !person.social;
           const memberActions = organizationMemberActions(organization, person);
-          const friendLabel = user.isFriend
-            ? t("Friends")
-            : pending === "incoming"
-              ? t("Respond to friend request")
-              : pending === "outgoing"
-                ? t("Cancel friend request")
-                : t("Send friend request");
           const badge = person.isAdmin
             ? { icon: Crown, label: t("Organization admin"), color: "warning" as const }
             : person.membership?.status === "PENDING"
@@ -163,8 +153,6 @@ export function OrganizationMembers({ organization }: { organization: Organizati
               : person.membership?.status === "EXCLUDED"
                 ? { icon: Ban, label: t("Excluded member"), color: "danger" as const }
                 : undefined;
-          const socialRun = (action: ContactAction) =>
-            void social.run(person, action).catch(() => {});
           return (
             <UserListRow
               name={name}
@@ -221,46 +209,6 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                       <Button
                         isIconOnly
                         size="sm"
-                        variant={user.isFollowing ? "secondary" : "ghost"}
-                        style={{ minWidth: 44, minHeight: 44 }}
-                        isDisabled={
-                          disabled || user.blockedByMe || (user.blockedMe && !user.isFollowing)
-                        }
-                        accessibilityLabel={`${user.isFollowing ? t("Unfollow") : t("Follow")}: ${name}`}
-                        onPress={() => socialRun(user.isFollowing ? "unfollow" : "follow")}
-                      >
-                        <UserRoundPlus size={18} color={foreground} />
-                      </Button>
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant={user.isFriend ? "primary" : "ghost"}
-                        style={{ minWidth: 44, minHeight: 44 }}
-                        isDisabled={disabled || user.isFriend || user.blockedByMe || user.blockedMe}
-                        accessibilityLabel={`${friendLabel}: ${name}`}
-                        onPress={() =>
-                          setMenu({
-                            userId: person.userId,
-                            confirm:
-                              pending === "incoming"
-                                ? "respond_friend_request"
-                                : pending === "outgoing"
-                                  ? "cancel_friend_request"
-                                  : "friend_request",
-                          })
-                        }
-                      >
-                        {user.isFriend ? (
-                          <UserRoundCheck size={18} color={accentForeground} />
-                        ) : pending ? (
-                          <Clock3 size={18} color={foreground} />
-                        ) : (
-                          <UsersRound size={18} color={foreground} />
-                        )}
-                      </Button>
-                      <Button
-                        isIconOnly
-                        size="sm"
                         variant="ghost"
                         style={{ minWidth: 44, minHeight: 44 }}
                         isDisabled={disabled}
@@ -280,6 +228,8 @@ export function OrganizationMembers({ organization }: { organization: Organizati
       {managed && managedActions.length > 0 ? (
         <CommunityConfirm
           title={managementTitle}
+          cancelLast={request}
+          cancelIcon={request ? <X size={18} color={foreground} /> : undefined}
           description={
             request
               ? t(
@@ -303,12 +253,19 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                   {
                     label: t("Accept"),
                     variant: "primary",
+                    icon: <Check size={18} color={accentForeground} />,
                     onPress: () => run(managed, "approve"),
                   },
-                  { label: t("Reject"), variant: "danger", onPress: () => run(managed, "reject") },
+                  {
+                    label: t("Reject"),
+                    variant: "danger",
+                    icon: <X size={18} color={accentForeground} />,
+                    onPress: () => run(managed, "reject"),
+                  },
                   {
                     label: t("Ban from organization"),
                     variant: "danger",
+                    icon: <Ban size={18} color={accentForeground} />,
                     onPress: () => run(managed, "ban"),
                   },
                 ]

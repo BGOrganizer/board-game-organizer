@@ -41,6 +41,7 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { WizardSteps } from "@/components/common/ui/WizardSteps";
 import { GameListRow } from "@/components/games/GameListRow";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
@@ -321,24 +322,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   return (
     <View style={{ flex: 1 }}>
       <ScreenScrollView>
-        {/* Step indicator */}
-        <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 16 }}>
-          {[1, 2, 3, 4].map((s) => (
-            <View
-              key={s}
-              style={{
-                borderRadius: 999,
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                backgroundColor: step === s ? "#006fee" : "#e5e7eb",
-              }}
-            >
-              <Typography style={{ color: step === s ? "#fff" : "#6b7280", fontSize: 13 }}>
-                {s}
-              </Typography>
-            </View>
-          ))}
-        </View>
+        <WizardSteps current={step} count={4} />
 
         {step === 1 && (
           <View style={{ gap: 16 }}>

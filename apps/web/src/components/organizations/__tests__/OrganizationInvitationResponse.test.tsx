@@ -15,7 +15,7 @@ it.each(["accept", "decline"] as const)(
       within(dialog)
         .getAllByRole("button")
         .map((b) => b.textContent),
-    ).toEqual(["Cancel", "Accept", "Reject"]);
+    ).toEqual(["Accept", "Reject", "Cancel"]);
     expect(run).not.toHaveBeenCalled();
     fireEvent.click(
       within(dialog).getByRole("button", { name: action === "accept" ? "Accept" : "Reject" }),

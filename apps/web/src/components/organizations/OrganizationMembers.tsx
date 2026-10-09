@@ -16,15 +16,16 @@ import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Ban,
+  Check,
   CircleX,
   ClipboardCheck,
   Clock3,
   Crown,
   RotateCcw,
-  UserRoundCheck,
   UserRoundMinus,
   UserRoundPlus,
   UsersRound,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -46,102 +47,20 @@ function SocialControls({
   onAction: (action: ContactAction) => void;
 }) {
   const { t } = useLingui();
-  const [friendConfirm, setFriendConfirm] = useState(false);
   const user = organizationMemberContact(person);
   const pending = person.social?.friendRequest;
   const disabled = busy || !person.social;
-  const friendLabel = user.isFriend
-    ? t`Friends`
-    : pending === "incoming"
-      ? t`Respond to friend request`
-      : pending === "outgoing"
-        ? t`Cancel friend request`
-        : t`Send friend request`;
-  const followLabel = user.isFollowing ? t`Unfollow` : t`Follow`;
   return (
-    <>
-      <Button
-        isIconOnly
-        size="sm"
-        variant={user.isFollowing ? "secondary" : "ghost"}
-        isDisabled={disabled || user.blockedByMe || (user.blockedMe && !user.isFollowing)}
-        aria-label={`${followLabel}: ${user.name}`}
-        onPress={() => onAction(user.isFollowing ? "unfollow" : "follow")}
-      >
-        <UserRoundPlus className="size-4" />
-      </Button>
-      <Button
-        isIconOnly
-        size="sm"
-        variant={user.isFriend ? "primary" : "ghost"}
-        isDisabled={disabled || user.isFriend || user.blockedByMe || user.blockedMe}
-        aria-label={`${friendLabel}: ${user.name}`}
-        onPress={() => setFriendConfirm(true)}
-      >
-        {user.isFriend ? (
-          <UserRoundCheck className="size-4" />
-        ) : pending ? (
-          <Clock3 className="size-4" />
-        ) : (
-          <UsersRound className="size-4" />
-        )}
-      </Button>
-      <UserMenu
-        user={user}
-        busy={disabled}
-        blockLabel={t`Block user globally`}
-        friendRequest={pending}
-        canSendFriendRequest={!user.isFriend && !pending && !user.blockedByMe && !user.blockedMe}
-        onAction={(action) => {
-          if (action !== "profile") onAction(action);
-        }}
-      />
-      {friendConfirm ? (
-        <ContactConfirmDialog
-          title={friendLabel}
-          description={
-            pending === "incoming"
-              ? t`Accept or decline this friend request.`
-              : pending === "outgoing"
-                ? t`The sent friend request will be removed.`
-                : t`They can accept or decline your request.`
-          }
-          busy={busy}
-          onCancel={() => setFriendConfirm(false)}
-          actions={
-            pending === "incoming"
-              ? [
-                  {
-                    label: t`Decline`,
-                    variant: "danger",
-                    onPress: () => {
-                      onAction("reject_friend_request");
-                      setFriendConfirm(false);
-                    },
-                  },
-                  {
-                    label: t`Accept`,
-                    variant: "primary",
-                    onPress: () => {
-                      onAction("accept_friend_request");
-                      setFriendConfirm(false);
-                    },
-                  },
-                ]
-              : [
-                  {
-                    label: pending ? t`Cancel request` : t`Send request`,
-                    variant: pending ? "danger" : "primary",
-                    onPress: () => {
-                      onAction(pending ? "cancel_friend_request" : "friend_request");
-                      setFriendConfirm(false);
-                    },
-                  },
-                ]
-          }
-        />
-      ) : null}
-    </>
+    <UserMenu
+      user={user}
+      busy={disabled}
+      blockLabel={t`Block user globally`}
+      friendRequest={pending}
+      canSendFriendRequest={!user.isFriend && !pending && !user.blockedByMe && !user.blockedMe}
+      onAction={(action) => {
+        if (action !== "profile") onAction(action);
+      }}
+    />
   );
 }
 
@@ -337,6 +256,8 @@ export function OrganizationMembers({ organization }: { organization: Organizati
       {managed && managedActions.length > 0 ? (
         <ContactConfirmDialog
           title={managementTitle}
+          cancelLast={request}
+          cancelIcon={request ? <X className="size-4" aria-hidden /> : undefined}
           description={
             request
               ? t`Accept or reject this membership request. Banning prevents rejoining this organization until revoked; global social blocking is separate.`
@@ -351,11 +272,22 @@ export function OrganizationMembers({ organization }: { organization: Organizati
           actions={
             request
               ? [
-                  { label: t`Accept`, variant: "primary", onPress: () => run(managed, "approve") },
-                  { label: t`Reject`, variant: "danger", onPress: () => run(managed, "reject") },
+                  {
+                    label: t`Accept`,
+                    variant: "primary",
+                    icon: <Check className="size-4" aria-hidden />,
+                    onPress: () => run(managed, "approve"),
+                  },
+                  {
+                    label: t`Reject`,
+                    variant: "danger",
+                    icon: <X className="size-4" aria-hidden />,
+                    onPress: () => run(managed, "reject"),
+                  },
                   {
                     label: t`Ban from organization`,
                     variant: "danger",
+                    icon: <Ban className="size-4" aria-hidden />,
                     onPress: () => run(managed, "ban"),
                   },
                 ]

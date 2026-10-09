@@ -2,12 +2,13 @@
 
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface DialogAction {
   label: string;
   variant?: "primary" | "danger";
+  icon?: ReactNode;
   onPress: () => void;
 }
 
@@ -17,12 +18,16 @@ export function ContactConfirmDialog({
   busy,
   actions,
   onCancel,
+  cancelLast = false,
+  cancelIcon,
 }: {
   title: string;
   description: string;
   busy?: boolean;
   actions: DialogAction[];
   onCancel: () => void;
+  cancelLast?: boolean;
+  cancelIcon?: ReactNode;
 }) {
   const { t } = useLingui();
   const [mounted, setMounted] = useState(false);
@@ -30,14 +35,19 @@ export function ContactConfirmDialog({
   useEffect(() => setMounted(true), []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCancel();
+      if (event.key === "Escape" && !busy) onCancel();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  }, [onCancel, busy]);
 
   if (!mounted) return null;
-
+  const cancel = (
+    <Button className="w-full sm:w-auto" variant="ghost" isDisabled={busy} onPress={onCancel}>
+      {cancelIcon}
+      {t`Cancel`}
+    </Button>
+  );
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -55,10 +65,14 @@ export function ContactConfirmDialog({
           {title}
         </h2>
         <p className="mt-2 text-sm text-default-500">{description}</p>
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button className="w-full sm:w-auto" variant="ghost" isDisabled={busy} onPress={onCancel}>
-            {t`Cancel`}
-          </Button>
+        <div
+          className={
+            cancelLast
+              ? "mt-5 flex flex-col gap-2"
+              : "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"
+          }
+        >
+          {!cancelLast ? cancel : null}
           {actions.map((action) => (
             <Button
               key={action.label}
@@ -67,9 +81,11 @@ export function ContactConfirmDialog({
               isDisabled={busy}
               onPress={action.onPress}
             >
+              {action.icon}
               {action.label}
             </Button>
           ))}
+          {cancelLast ? cancel : null}
         </div>
       </div>
     </div>,

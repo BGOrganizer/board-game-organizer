@@ -71,9 +71,9 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
   const foreground = useThemeColor("foreground");
   const accentForeground = useThemeColor("accent-foreground");
   const actions = useOrganizationActions(o);
-  const favorites = useFavoriteLocations(o);
   const [name, setName] = useState(organization?.name ?? "");
   const [location, setLocation] = useState<MatchLocation | undefined>(organization?.location);
+  const favorites = useFavoriteLocations(o, location ? [location] : []);
   const [logo, setLogo] = useState(organization?.logoAssetId ?? "");
   const [preview, setPreview] = useState(organization?.logo ?? "");
   const [picking, setPicking] = useState(false);

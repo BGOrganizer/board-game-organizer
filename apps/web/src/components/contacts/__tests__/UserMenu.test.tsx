@@ -33,7 +33,7 @@ describe("UserMenu", () => {
     expect(onAction).toHaveBeenCalledWith("unfollow");
   });
 
-  it("offers one relationship action for friends", async () => {
+  it("keeps follow controls and friendship removal in the social menu for friends", async () => {
     const onAction = vi.fn();
     renderWithI18n(
       <UserMenu user={{ ...user, isFriend: true, isFollowing: true }} onAction={onAction} />,
@@ -41,7 +41,7 @@ describe("UserMenu", () => {
 
     await openMenu();
     expect(screen.queryByRole("menuitem", { name: "Follow" })).toBeNull();
-    expect(screen.queryByRole("menuitem", { name: "Unfollow" })).toBeNull();
+    expect(screen.getByRole("menuitem", { name: "Unfollow" })).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: "Send friend request" })).toBeNull();
     fireEvent.click(screen.getByRole("menuitem", { name: "Remove friend" }));
     expect(await screen.findByRole("dialog", { name: "Remove friend?" })).not.toBeNull();
@@ -49,6 +49,15 @@ describe("UserMenu", () => {
     expect(onAction).toHaveBeenCalledWith("unfriend");
   });
 
+  it("offers follow for friends who are not followed", async () => {
+    const onAction = vi.fn();
+    renderWithI18n(
+      <UserMenu user={{ ...user, isFriend: true, isFollowing: false }} onAction={onAction} />,
+    );
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Follow" }));
+    expect(onAction).toHaveBeenCalledWith("follow");
+  });
   it("confirms friend requests in an accessible dialog", async () => {
     const onAction = vi.fn();
     renderWithI18n(<UserMenu user={user} canSendFriendRequest onAction={onAction} />);

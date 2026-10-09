@@ -221,7 +221,7 @@ describe("event validation", () => {
       }).id,
     ).toBe(id);
   });
-  it("checks local event day, including UTC day changes and DST", () => {
+  it("allows ordered multi-day events, including UTC day changes and DST", () => {
     expect(
       saveEventSchema.safeParse({
         ...event,
@@ -239,7 +239,13 @@ describe("event validation", () => {
         startsAt: "2027-04-11T21:30:00Z",
         endsAt: "2027-04-11T22:00:00Z",
       }).success,
-    ).toBe(false);
+    ).toBe(true);
+    expect(saveEventSchema.safeParse({ ...event, endsAt: "2027-04-14T18:00:00Z" }).success).toBe(
+      true,
+    );
+    expect(
+      updateEventSchema.safeParse({ ...event, endsAt: "2027-04-14T18:00:00Z", version: 1 }).success,
+    ).toBe(true);
     expect(
       saveEventSchema.safeParse({
         ...event,

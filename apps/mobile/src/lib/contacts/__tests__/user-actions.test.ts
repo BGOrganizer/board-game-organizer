@@ -22,8 +22,15 @@ describe("userActionKeys", () => {
     ]);
   });
 
-  it("offers one relationship action for friends", () => {
+  it("keeps following and friendship actions available for friends", () => {
+    expect(userActionKeys({ ...user, isFriend: true }, true)).toEqual([
+      "follow",
+      "unfriend",
+      "block",
+      "profile",
+    ]);
     expect(userActionKeys({ ...user, isFriend: true, isFollowing: true }, true)).toEqual([
+      "unfollow",
       "unfriend",
       "block",
       "profile",

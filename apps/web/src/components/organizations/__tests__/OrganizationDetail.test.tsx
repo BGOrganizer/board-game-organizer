@@ -211,7 +211,10 @@ describe("organization detail and member interactions", () => {
       expect(screen.getByRole("img", { name: badge })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Invite friends" }));
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org/invite");
-    fireEvent.click(screen.getByRole("button", { name: "Follow: confirmed Full Name" }));
+    expect(screen.queryByRole("button", { name: "Follow: confirmed Full Name" })).toBeNull();
+    const confirmedRow = screen.getByText("confirmed Full Name").closest("li")!;
+    fireEvent.click(within(confirmedRow).getByRole("button", { name: "Actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Follow" }));
     await waitFor(() =>
       expect(
         state.fetch.mock.calls.some(
@@ -292,7 +295,12 @@ describe("organization detail and member interactions", () => {
       within(requestDialog)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Cancel", "Accept", "Reject", "Ban from organization"]);
+    ).toEqual(["Accept", "Reject", "Ban from organization", "Cancel"]);
+    expect(
+      within(requestDialog)
+        .getAllByRole("button")
+        .every((button) => button.querySelector("svg")),
+    ).toBe(true);
     expect(screen.queryByRole("button", { name: "Approve request: invited Full Name" })).toBeNull();
   });
   it.each(["approve", "reject", "ban"] as const)(
@@ -302,7 +310,10 @@ describe("organization detail and member interactions", () => {
       await members();
       await screen.findByText("excluded Full Name");
       const row = screen.getByText("requested Full Name").closest("li")!;
-      expect(within(row).getAllByRole("button")).toHaveLength(4);
+      expect(within(row).getAllByRole("button")).toHaveLength(2);
+      expect(
+        within(row).queryByRole("button", { name: /Follow|Unfollow|Send friend request/ }),
+      ).toBeNull();
       fireEvent.click(
         within(row).getByRole("button", {
           name: "Respond to membership request: requested Full Name",

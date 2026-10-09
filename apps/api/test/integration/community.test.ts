@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { registerMatchResultsSchema, type SaveEventInput } from "@board-game-organizer/schemas";
+import {
+  registerMatchResultsSchema,
+  type SaveEventInput,
+  saveEventSchema,
+  updateEventSchema,
+} from "@board-game-organizer/schemas";
 import { normalizeMatchScore } from "@board-game-organizer/shared";
 import { type ClientSession, type Db, MongoClient } from "mongodb";
 import sharp from "sharp";
@@ -7,6 +12,7 @@ import { GenericContainer, type StartedTestContainer, Wait } from "testcontainer
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
+import { deadlineServiceConfigured } from "../../src/app/lib/events/event-deadlines";
 import { EventsRepository } from "../../src/app/lib/events/events.repository";
 import { EventsService } from "../../src/app/lib/events/events.service";
 import { BoardGamesRepository } from "../../src/app/lib/games/boardGames.repository";
@@ -31,9 +37,6 @@ vi.mock("../../src/app/lib/organizations/community-role", () => ({
   requireBgoModerator: vi.fn(async (userId: string) => {
     if (userId !== "moderator") throw new Error("Moderator required");
   }),
-}));
-vi.mock("../../src/app/lib/events/event-deadlines", () => ({
-  deadlineServiceConfigured: () => true,
 }));
 let container: StartedTestContainer,
   client: MongoClient,
@@ -211,7 +214,10 @@ afterAll(async () => {
   await client?.close();
   await container?.stop();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+});
 beforeEach(async () => {
   db = client.db(`integration-community-${number++}`);
   await migrate(db);
@@ -579,6 +585,79 @@ describe("community transactions on a MongoDB replica set", () => {
       await services().events.list(OWNER, { limit: 1, cursor }, org.id, ["past"]),
     ).toHaveLength(1);
     expect(await services().events.list(OWNER, { limit: 20 }, undefined, [])).toEqual([]);
+  });
+  it("saves drafts and publishes without Inngest, preserves outbox and freezes at authorized access after cutoff", async () => {
+    for (const key of ["INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY", "INNGEST_ENV"])
+      vi.stubEnv(key, "");
+    expect(deadlineServiceConfigured()).toBe(false);
+    const pendingOrg = await organization(false);
+    const draft = await transaction((s) =>
+      s.eventService.create(OWNER, pendingOrg.id, eventInput({ status: "DRAFT", tables: [] })),
+    );
+    expect(draft.status).toBe("DRAFT");
+    await expect(
+      transaction((s) => s.eventService.create(OWNER, pendingOrg.id, eventInput())),
+    ).rejects.toMatchObject({ code: "ORGANIZATION_NOT_APPROVED" });
+    const { event, tables } = await eventSetup();
+    expect(event.status).toBe("PUBLISHED");
+    expect(event.canPublish).toBe(true);
+    expect(
+      (await services().events.pendingDeliveries()).some((row) => row.eventId === event.id),
+    ).toBe(true);
+    await book(event.id, tables[0].id, GUEST);
+    await book(event.id, tables[0].id, OTHER);
+    vi.setSystemTime(new Date(event.bookingClosesAt));
+    await expect(book(event.id, tables[0].id, DEMO)).rejects.toMatchObject({
+      code: "EVENT_CLOSED",
+    });
+    expect((await services().events.find(event.id))?.closedAt).toBeUndefined();
+    const closed = await transaction((s) => s.eventService.detail(OWNER, event.id));
+    expect(closed.closedAt).toBe(event.bookingClosesAt);
+    expect(closed.canModify).toBe(false);
+    const frozen = await services().events.findTable(tables[0].id);
+    expect(frozen?.status).toBe("CREATED");
+    const match = await services().events.findMatch(frozen?.matchId ?? "");
+    expect(match?.status).toBe("CREATED");
+    await transaction((s) => s.eventService.detail(OWNER, event.id));
+    expect((await services().events.findTable(tables[0].id))?.matchId).toBe(frozen?.matchId);
+  });
+  it("persists multi-day events and later-day tables through validated creation and partial edits", async () => {
+    const raw = eventInput({
+      endsAt: "2030-06-14T20:00:00.000Z",
+      tables: [
+        {
+          ...eventInput().tables[0],
+          startsAt: "2030-06-13T14:01:00.000Z",
+          endsAt: "2030-06-14T19:59:00.000Z",
+        },
+      ],
+    });
+    const input = saveEventSchema.parse(raw);
+    const { event, tables } = await eventSetup(input);
+    expect(tables[0].startsAt).toBe(input.tables[0].startsAt);
+    expect(tables[0].endsAt).toBe(input.tables[0].endsAt);
+    await book(event.id, tables[0].id, GUEST);
+    const updated = await transaction((s) =>
+      s.eventService.update(
+        OWNER,
+        event.id,
+        updateEventSchema.parse({
+          ...input,
+          endsAt: "2030-06-15T20:00:00.000Z",
+          tables: [],
+          version: event.version,
+          removedTableIds: [],
+        }),
+      ),
+    );
+    expect(updated.endsAt).toBe("2030-06-15T20:00:00.000Z");
+    const retained = await services().eventService.tables(OWNER, event.id, { limit: 50 });
+    expect(retained.items[0].id).toBe(tables[0].id);
+    expect(retained.items[0].endsAt).toBe(input.tables[0].endsAt);
+    // Schedule changes still cancel participation; no booking silently revives.
+    expect(
+      (await services().eventService.bookings(GUEST, event.id, tables[0].id, { limit: 50 })).items,
+    ).toEqual([]);
   });
   it("keeps drafts private and source-pagination applies event and booking visibility", async () => {
     const { org, event, tables } = await eventSetup();

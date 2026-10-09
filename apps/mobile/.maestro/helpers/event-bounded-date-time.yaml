@@ -1,0 +1,16 @@
+appId: com.bgo.mobile
+---
+# Android calendar followed by the bounded minute list. DATE: MM/DD/YYYY; TIME: HH:mm.
+# Assertions fail if the expected bounded picker is not rendered; no conditional skips.
+- tapOn: "Switch to text input mode|Switch to keyboard input"
+- tapOn:
+    id: "android:id/edit_text"
+- eraseText
+- inputText: ${DATE}
+- tapOn: "OK"
+- assertVisible: "Search time"
+- tapOn: "Search time"
+- inputText: ${TIME}
+- hideKeyboard
+- tapOn:
+    id: ${TIME_ID}

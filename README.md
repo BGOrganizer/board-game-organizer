@@ -21,8 +21,9 @@ organizations, and events, backed by a shared TypeScript API.
   with drafts, tables, invitations/bookings, cutoff enforcement and fixed matches.
 
 **Organizations/events are implemented in this branch, but full PR/native acceptance is incomplete.**
-They are not production-verified. Event publication fails closed without the required deadline-service
-configuration; real Inngest registration/delivery has not been attested. See the
+They are not production-verified. Draft saving and publication do not require Inngest; exact cutoff
+checks and authorized-read closure remain active. Autonomous closure requires a configured worker;
+real Inngest registration/delivery has not been attested. See the
 [implementation checkpoint](docs/implementation-progress.md) and
 [operational gates](docs/organizations-events-operations.md).
 

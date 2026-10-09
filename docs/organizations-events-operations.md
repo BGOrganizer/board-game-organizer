@@ -10,7 +10,14 @@ The feature is not production-verified merely because unit tests, replica-set in
 
 ## Durable deadlines
 
-Real Inngest configuration/registration/delivery is excluded from the current implementation and CI pass by operator request. Keep publication fail-closed until the following server-only configuration is supplied:
+Real Inngest configuration/registration/delivery remains excluded from local acceptance. By explicit
+operator request, draft saving and publication do not require Inngest. Publication still requires an
+approved organization and at least one valid table. Exact-cutoff mutation guards, transactional roster
+freezing and the durable outbox remain mandatory.
+
+Without a worker, closure is materialized on the first authorized event/table read after cutoff;
+there is no autonomous execution or five-minute recovery. Do not claim background closure or provider
+acceptance in this mode. Supply the following server-only configuration for autonomous execution:
 
 | Variable | Purpose |
 | --- | --- |
@@ -23,7 +30,8 @@ Register the deployed **`/api/inngest`** endpoint with Inngest. It serves GET/PO
 
 If Vercel Preview protection is enabled, configure its bypass as a **query parameter** on the registered endpoint URL, not a custom header. Keep the bypass value secret and out of logs/screenshots.
 
-Publishing fails closed when configuration is absent. MongoDB stores the deadline delivery before committing publication; dispatch happens afterward. Provider event IDs include the database name and event revision, so retries are idempotent. A revision-aware sleeper freezes the roster; five-minute recovery retries persisted deliveries and closes overdue events. Authorized reads also enforce closure if a worker is delayed. These fallbacks are not proof of actual provider delivery.
+MongoDB stores deadline delivery before committing publication, even when configuration is absent.
+Dispatch is a no-op until configured; when configured it happens afterward. Provider event IDs include the database name and event revision, so retries are idempotent. A revision-aware sleeper freezes the roster; five-minute recovery retries persisted deliveries and closes overdue events. Authorized reads also enforce closure if a worker is delayed. These fallbacks are not proof of actual provider delivery.
 
 ### Required provider acceptance
 
@@ -37,7 +45,8 @@ Use an isolated database and test Clerk users, never production fixtures:
 6. At exact cutoff, verify requests, invitations, approvals, edits, removals and cancellation fail for both members and administrators, including private drafts. Results remain writable only by the administrator or frozen assigned demonstrator.
 7. Delete all isolated fixtures/users after verification, including after failure.
 
-No production-provider success is currently attested. Real registration/credentials and delivery traces are an external release gate.
+No production-provider success is currently attested. Real registration/credentials and delivery
+traces remain an external acceptance gate for autonomous closure, not a publication prerequisite.
 
 ## Infisical and deployment isolation
 

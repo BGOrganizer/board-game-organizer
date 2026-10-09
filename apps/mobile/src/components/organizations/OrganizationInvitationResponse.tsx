@@ -1,6 +1,6 @@
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { ClipboardCheck } from "lucide-react-native";
+import { Check, ClipboardCheck, X } from "lucide-react-native";
 import { useState } from "react";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
 import { useT } from "@/lib/i18n";
@@ -13,7 +13,7 @@ export function OrganizationInvitationResponse({
   onAction: (action: "accept" | "decline") => void;
 }) {
   const t = useT();
-  const foreground = useThemeColor("accent-foreground");
+  const [foreground, accentForeground] = useThemeColor(["foreground", "accent-foreground"]);
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -24,19 +24,22 @@ export function OrganizationInvitationResponse({
         style={{ minWidth: 44, minHeight: 44 }}
         onPress={() => setOpen(true)}
       >
-        <ClipboardCheck size={18} color={foreground} />
+        <ClipboardCheck size={18} color={accentForeground} />
       </Button>
       {open ? (
         <CommunityConfirm
           title={t("Respond to organization invitation")}
           description={t("Accept or reject this organization invitation.")}
           busy={busy}
+          cancelLast
+          cancelIcon={<X size={18} color={foreground} />}
           onCancel={() => {
             if (!busy) setOpen(false);
           }}
           actions={[
             {
               label: t("Accept"),
+              icon: <Check size={18} color={accentForeground} />,
               variant: "primary",
               onPress: () => {
                 onAction("accept");
@@ -45,6 +48,7 @@ export function OrganizationInvitationResponse({
             },
             {
               label: t("Reject"),
+              icon: <X size={18} color={accentForeground} />,
               variant: "danger",
               onPress: () => {
                 onAction("decline");

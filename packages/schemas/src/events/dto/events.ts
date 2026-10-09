@@ -66,24 +66,6 @@ export const saveEventSchema = eventModel
         message: "Booking must close before event starts",
       });
     }
-    try {
-      const day = new Intl.DateTimeFormat("en-CA", {
-        timeZone: event.timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      if (day.format(start) !== day.format(end)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["endsAt"],
-          message: "Event must start and end on the same local day",
-        });
-      }
-    } catch {
-      // The time-zone/date validators report malformed values; never accept a failed refinement.
-      ctx.addIssue({ code: "custom", path: ["timeZone"], message: "Invalid event calendar" });
-    }
     if (event.status === "PUBLISHED" && event.tables.length === 0 && !("version" in event)) {
       ctx.addIssue({
         code: "custom",

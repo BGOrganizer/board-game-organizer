@@ -21,7 +21,8 @@ export function userActionKeys(
 ): UserActionKey[] {
   if (user.blockedByMe) return ["unblock"];
   if (user.blockedMe) return user.isFollowing ? ["unfollow", "profile"] : ["profile"];
-  if (user.isFriend) return ["unfriend", "block", "profile"];
+  if (user.isFriend)
+    return [user.isFollowing ? "unfollow" : "follow", "unfriend", "block", "profile"];
   return [
     user.isFollowing ? "unfollow" : "follow",
     ...(friendRequest === "incoming"

@@ -82,6 +82,15 @@ export function UserMenu({
       : user.isFriend
         ? [
             {
+              key: user.isFollowing ? "unfollow" : "follow",
+              label: user.isFollowing ? t`Unfollow` : t`Follow`,
+              icon: user.isFollowing ? (
+                <UserMinus className="h-4 w-4" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              ),
+            },
+            {
               key: "unfriend",
               label: t`Remove friend`,
               icon: <UserRoundX className="h-4 w-4" />,

@@ -33,7 +33,6 @@ import type {
   OrganizationsRepository,
 } from "../organizations/organizations.repository";
 import type { UsersRepository } from "../users/users.repository";
-import { deadlineServiceConfigured } from "./event-deadlines";
 import type { EventsRepository } from "./events.repository";
 
 const iso = (value: string) => new Date(value).toISOString();
@@ -111,7 +110,7 @@ export class EventsService {
             ? "member"
             : "visitor",
       canModify: event.adminUserId === userId && canModifyEvent(event, Date.now()),
-      canPublish: Boolean(organization.approved) && deadlineServiceConfigured(),
+      canPublish: Boolean(organization.approved),
     };
   }
   async detail(userId: string, id: string) {
@@ -154,8 +153,6 @@ export class EventsService {
   private publishable(organization: Organization, input: SaveEventInput) {
     if (input.status === "PUBLISHED") {
       if (!organization.approved) throw new CommunityError(409, "ORGANIZATION_NOT_APPROVED");
-      if (!deadlineServiceConfigured())
-        throw new CommunityError(503, "DEADLINE_SERVICE_UNAVAILABLE");
     }
     if (Date.parse(input.bookingClosesAt) <= Date.now())
       throw new CommunityError(409, "BOOKING_DEADLINE_PASSED");

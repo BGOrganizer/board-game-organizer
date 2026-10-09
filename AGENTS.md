@@ -161,7 +161,8 @@ include private drafts, table configuration, invitations/bookings, exact-cutoff 
 matches with immutable results.
 
 Organizations/events are **implemented in this branch; acceptance is incomplete**, not
-production-verified. Publication fails closed without the required deadline-service configuration.
+production-verified. Publication does not require Inngest: exact-cutoff guards and authorized-read
+closure remain active. Inngest configuration is required for autonomous deadline execution.
 Read [the domain specification](docs/organizations-events.md) for behavior,
 [operational gates](docs/organizations-events-operations.md) for deployment and provider requirements,
 and [the implementation checkpoint](docs/implementation-progress.md) for evidence. Historical

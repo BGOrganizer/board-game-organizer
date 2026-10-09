@@ -11,6 +11,7 @@ export * from "./contacts/hooks/useContacts";
 export * from "./contacts/phoneCountries";
 export * from "./events/eventForm";
 export * from "./events/eventPolicy";
+export * from "./events/eventWizardForm";
 export * from "./events/hooks/useEvents";
 export * from "./events/hooks/useEventWindow";
 export * from "./games/hooks/useBggAccount";

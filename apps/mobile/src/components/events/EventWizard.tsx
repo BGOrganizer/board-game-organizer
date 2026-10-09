@@ -1,7 +1,5 @@
 import {
   type EventResponse,
-  type EventTableInput,
-  eventTableInputSchema,
   type MatchLocation,
   type SaveEventInput,
   saveEventSchema,
@@ -9,12 +7,18 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  EVENT_FIELD_ERRORS,
+  type EventDraftTable,
+  type EventFormErrors,
   editableEventTable,
-  eventBookingClosesAt,
   eventBookingHours,
+  eventDateLimit,
   eventEditResets,
+  eventInformationForm,
   eventLocalDateTime,
   eventLocalToIso,
+  eventSaveFieldErrors,
+  eventTableForm,
   useEvent,
   useEventActions,
   useEventTables,
@@ -22,30 +26,40 @@ import {
   useFavoriteLocations,
   useOrganization,
   useOrganizationList,
-  useOrganizationMembers,
 } from "@board-game-organizer/shared";
-
+import { useLingui } from "@lingui/react";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
-import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { ArrowRight, Pencil, Trash2 } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarCheck,
+  CalendarClock,
+  LayoutGrid,
+  Plus,
+} from "lucide-react-native";
 import { useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
-import GamePicker from "@/components/games/GamePicker";
+import { WizardSteps } from "@/components/common/ui/WizardSteps";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventDateTimeField } from "./EventDateTimeField";
+import { EventDraftTableCard } from "./EventDraftTableCard";
+import { EventTableEditor } from "./EventTableEditor";
 
 export function EventWizard({
   eventId,
@@ -144,18 +158,18 @@ export function EventWizard({
   );
 }
 
-type DraftTable = { key: string; input: EventTableInput; gameName: string };
+type DraftTable = EventDraftTable;
 
 function Editor({ event, organizationId }: { event?: EventResponse; organizationId: string }) {
   const t = useT();
   const o = useCommunityApi();
   const router = useRouter();
   const actions = useEventActions(o);
+  const { i18n } = useLingui();
+  const layout = useFloatingActionLayout();
   const foreground = useThemeColor("foreground");
-  const danger = useThemeColor("danger");
   const accentForeground = useThemeColor("accent-foreground");
   const insets = useSafeAreaInsets();
-  const favorites = useFavoriteLocations(o);
   const tables = useEventTables(
     { ...o, enabled: Boolean(event) && o.enabled !== false },
     event?.id ?? "",
@@ -171,36 +185,60 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   );
   const [bookingHours, setBookingHours] = useState(() => eventBookingHours(event));
   const [location, setLocation] = useState<MatchLocation | undefined>(event?.location);
+  const favorites = useFavoriteLocations(o, location ? [location] : []);
   const [pickLocation, setPickLocation] = useState(false);
   const [edited, setEdited] = useState<DraftTable[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [table, setTable] = useState<DraftTable | null>(null);
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<EventFormErrors>({});
+  const fieldError = (field: string) =>
+    errors[field] ? (
+      <Typography className="text-sm text-danger" accessibilityRole="alert">
+        {t(errors[field])}
+      </Typography>
+    ) : null;
   const [pending, setPending] = useState<SaveEventInput | null>(null);
   const mutable = useEventWindow(event);
   function input(status: "DRAFT" | "PUBLISHED"): SaveEventInput | null {
-    try {
-      const startsAt = eventLocalToIso(start, zone, event?.startsAt),
-        endsAt = eventLocalToIso(end, zone, event?.endsAt);
-      const raw = {
-        name,
-        timeZone: zone,
-        startsAt,
-        endsAt,
-        bookingClosesAt: eventBookingClosesAt(startsAt, bookingHours),
-        location,
-        status,
-        tables: edited.map((row) => row.input),
-      };
-      const parsed = event
-        ? updateEventSchema.safeParse({ ...raw, version: event.version, removedTableIds: removed })
-        : saveEventSchema.safeParse(raw);
-      if (!parsed.success) throw new Error("Invalid event");
-      return parsed.data;
-    } catch {
-      setError(t("Check event name, dates, booking deadline, verified address and tables"));
+    const information = eventInformationForm(
+      { name, start, end, zone, bookingHours, location },
+      event,
+      Date.now(),
+    );
+    setErrors(information.errors);
+    if (!information.data) {
+      setStep(0);
       return null;
     }
+    const raw = { ...information.data, status, tables: edited.map((row) => row.input) };
+    const parsed = event
+      ? updateEventSchema.safeParse({ ...raw, version: event.version, removedTableIds: removed })
+      : saveEventSchema.safeParse(raw);
+    const invalidEdited = edited.some(
+      (row) =>
+        !eventTableForm({
+          input: row.input,
+          start: eventLocalDateTime(row.input.startsAt, zone).slice(0, 16),
+          end: eventLocalDateTime(row.input.endsAt, zone).slice(0, 16),
+          zone,
+          eventStart: raw.startsAt,
+          eventEnd: raw.endsAt,
+        }).data,
+    );
+    const outsideRetained = tables.items
+      .filter((row) => !removed.includes(row.id) && !edited.some((d) => d.input.id === row.id))
+      .some(
+        (row) =>
+          Date.parse(row.startsAt) < Date.parse(raw.startsAt) ||
+          Date.parse(row.endsAt) > Date.parse(raw.endsAt),
+      );
+    if (!parsed.success || invalidEdited || outsideRetained) {
+      setErrors({ tables: EVENT_FIELD_ERRORS.tables });
+      setStep(1);
+      return null;
+    }
+    return parsed.data;
   }
   async function save(data: SaveEventInput) {
     try {
@@ -211,13 +249,16 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           })
         : await actions.create.mutateAsync({ organizationId, input: data });
       router.dismissTo(`/event/${row.id}`);
-    } catch {
+    } catch (failure) {
       setPending(null);
-      setError(
-        t(
-          "Could not save event. Publication requires an approved organization and configured deadline service.",
-        ),
-      );
+      const fields = eventSaveFieldErrors(failure);
+      if (Object.keys(fields).length) {
+        setErrors(fields);
+        setStep(fields.tables ? 1 : 0);
+      } else
+        setError(
+          t("Could not save event. Check your connection and event permissions, then try again."),
+        );
     }
   }
   function submit(status: "DRAFT" | "PUBLISHED") {
@@ -249,9 +290,11 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
     );
   if (table)
     return (
-      <TableEditor
+      <EventTableEditor
         key={table.key}
         draft={table}
+        eventStart={eventLocalToIso(start, zone, event?.startsAt)}
+        eventEnd={eventLocalToIso(end, zone, event?.endsAt)}
         timeZone={zone}
         organizationId={organizationId}
         onClose={() => setTable(null)}
@@ -265,24 +308,41 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const rows = [
     ...tables.items
       .filter((row) => !removed.includes(row.id) && !edited.some((d) => d.input.id === row.id))
-      .map((row) => ({ key: row.id, input: editableEventTable(row), gameName: row.gameName })),
+      .map((row) => ({
+        key: row.id,
+        input: editableEventTable(row),
+        gameName: row.gameName,
+        imageUrl: row.image,
+        demonstrator: row.demonstrator ?? undefined,
+      })),
     ...edited,
   ];
   const header = (
     <View style={{ gap: 16 }}>
       <Stack.Screen
-        options={{ title: event ? t("Edit event") : t("New event"), headerLeft: undefined }}
+        options={{
+          title: event ? t("Edit event") : t("New event"),
+          headerLeft: undefined,
+          headerBackVisible: step > 0,
+        }}
       />
+      <WizardSteps current={step + 1} count={3} />
       {step === 0 ? (
         <SearchHelpLabel
           label={t("Event information")}
           helpTitle={t("Field help")}
           help={t(
-            "Choose a name, start and end on the same day, and a verified address. Times use the event's local time zone.",
+            "Choose a name, a start and a later end (also on another day), and a verified address.",
           )}
         />
       ) : (
-        <Typography>{step === 1 ? t("Tables") : t("Review event")}</Typography>
+        <SearchHelpLabel
+          label={step === 1 ? t("Tables") : t("Review event")}
+          helpTitle={t("Field help")}
+          help={t(
+            "Add tables with a game, player limits and times inside the event. Publishing requires at least one table.",
+          )}
+        />
       )}
       {step === 0 ? (
         <>
@@ -294,11 +354,13 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
             maxLength={120}
             placeholder={t("e.g. Board game evening")}
           />
+          {fieldError("name")}
           <EventDateTimeField
             label={t("Starts at")}
             testID="event-start-calendar"
             value={start}
             timeZone={zone}
+            error={errors.startsAt ? t(errors.startsAt) : undefined}
             onChange={setStart}
           />
           <EventDateTimeField
@@ -306,25 +368,15 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
             testID="event-end-calendar"
             value={end}
             timeZone={zone}
+            min={eventDateLimit(start, zone, "after", event?.startsAt)}
+            error={errors.endsAt ? t(errors.endsAt) : undefined}
             onChange={setEnd}
           />
           <SearchHelpLabel
-            label={t("Booking deadline")}
+            label={t("Location")}
             helpTitle={t("Field help")}
-            help={t(
-              "Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline.",
-            )}
+            help={t("Choose a verified event address from search or your favorites.")}
           />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Input
-              style={{ flex: 1 }}
-              accessibilityLabel={t("Booking deadline (hours before start)")}
-              keyboardType="decimal-pad"
-              value={bookingHours}
-              onChangeText={setBookingHours}
-            />
-            <Typography className="text-muted">{t("hours")}</Typography>
-          </View>
           <GroupedList>
             <LocationListRow
               name={location?.name ?? t("Choose a verified address")}
@@ -338,21 +390,64 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
               }
             />
           </GroupedList>
+          {fieldError("location")}
           {favorites.status.isError ? (
             <Typography accessibilityRole="alert" className="text-danger">
               {t("Could not load favorite locations")}
             </Typography>
           ) : null}
+          <SearchHelpLabel
+            label={t("Booking deadline")}
+            helpTitle={t("Field help")}
+            help={t(
+              "Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline.",
+            )}
+          />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Input
+              style={{ width: 112 }}
+              accessibilityLabel={t("Booking deadline (hours before start)")}
+              keyboardType="decimal-pad"
+              value={bookingHours}
+              onChangeText={setBookingHours}
+            />
+            <Typography className="text-muted">{t("hours")}</Typography>
+          </View>
+          {fieldError("bookingHours")}
         </>
       ) : (
         <>
-          <Typography>
-            {name} · {zone}
-          </Typography>
-          <Typography>
-            {start} – {end}
-          </Typography>
-          <Typography>{location?.name}</Typography>
+          {[
+            { label: t("Event start"), wall: start, Icon: CalendarClock },
+            { label: t("Event end"), wall: end, Icon: CalendarCheck },
+          ].map(({ label, wall, Icon }) => (
+            <View key={label} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Icon size={20} color={foreground} />
+              <View>
+                <Typography className="text-sm text-muted">{label}</Typography>
+                <Typography className="text-foreground">
+                  {new Intl.DateTimeFormat(i18n.locale, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                    timeZone: zone,
+                  }).format(
+                    new Date(
+                      eventLocalToIso(wall, zone, wall === start ? event?.startsAt : event?.endsAt),
+                    ),
+                  )}
+                </Typography>
+              </View>
+            </View>
+          ))}
+          {step === 2 ? (
+            <>
+              <Typography>{name}</Typography>
+              <Typography>
+                {location?.name} · {location?.address}
+              </Typography>
+            </>
+          ) : null}
+          {fieldError("tables")}
           {event ? (
             <Typography className="text-muted">
               {t("Unloaded tables are retained. Only explicit removals delete tables.")}
@@ -371,6 +466,8 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
     <View style={{ gap: 12 }}>
       {step === 1 ? (
         <Button
+          size="sm"
+          style={{ alignSelf: "flex-start" }}
           onPress={() => {
             try {
               setTable({
@@ -378,8 +475,14 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
                 gameName: "",
                 input: {
                   name: "",
-                  startsAt: eventLocalToIso(start, zone),
-                  endsAt: eventLocalToIso(end, zone),
+                  startsAt: eventLocalToIso(
+                    eventDateLimit(start, zone, "after", event?.startsAt) ?? "",
+                    zone,
+                  ),
+                  endsAt: eventLocalToIso(
+                    eventDateLimit(end, zone, "before", event?.endsAt) ?? "",
+                    zone,
+                  ),
                   minPlayers: 2,
                   maxPlayers: 4,
                   gameId: 0,
@@ -391,7 +494,8 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
             }
           }}
         >
-          {t("Add table")}
+          <Plus size={18} color={accentForeground} />
+          <Button.Label>{t("Add table")}</Button.Label>
         </Button>
       ) : null}
       {event && tables.isError ? (
@@ -402,25 +506,26 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       ) : null}
     </View>
   );
-  const navigation = (
-    <View
-      testID="event-navigation-bar"
-      className="bg-background"
-      style={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 24 }}
-    >
-      {step < 2 ? (
-        <Button
-          isDisabled={actions.busy}
-          onPress={() => {
-            if (step === 0 && !input("DRAFT")) return;
-            setError("");
-            setStep(step + 1);
-          }}
-        >
-          <ArrowRight size={18} color={accentForeground} />
-          <Button.Label>{t("Next")}</Button.Label>
-        </Button>
-      ) : (
+  const navigation =
+    step < 2 ? (
+      <FloatingActions
+        label="Next"
+        testID="event-next-fab"
+        variant="secondary"
+        isDisabled={actions.busy}
+        onPress={() => {
+          if (step === 0 && !input("DRAFT")) return;
+          setError("");
+          setStep(step + 1);
+        }}
+      >
+        <ArrowRight size={26} color={foreground} />
+      </FloatingActions>
+    ) : (
+      <View
+        testID="event-navigation-bar"
+        style={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 24 }}
+      >
         <View style={{ flexDirection: "row", gap: 8 }}>
           {event?.status !== "PUBLISHED" ? (
             <Button variant="secondary" isDisabled={actions.busy} onPress={() => submit("DRAFT")}>
@@ -431,14 +536,8 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
             {event?.status === "PUBLISHED" ? t("Save changes") : t("Publish event")}
           </Button>
         </View>
-      )}
-      {step ? (
-        <Button variant="ghost" isDisabled={actions.busy} onPress={() => setStep(step - 1)}>
-          {t("Back")}
-        </Button>
-      ) : null}
-    </View>
-  );
+      </View>
+    );
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -448,7 +547,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       {step === 0 ? (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 24 }}
+          contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: layout.paddingBottom }}
           keyboardShouldPersistTaps="handled"
         >
           {header}
@@ -459,47 +558,48 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           style={{ flex: 1 }}
           data={rows}
           keyExtractor={(row) => row.key}
-          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 24 }}
+          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: layout.paddingBottom }}
           onEndReached={() => {
             if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
               void tables.fetchNextPage();
           }}
           ListHeaderComponent={header}
+          ListEmptyComponent={
+            !tables.isError && !(event && tables.isPending) ? (
+              <EmptyList icon={<LayoutGrid size={28} color={foreground} />}>
+                {t("No tables yet. Add a table to organize games and players.")}
+              </EmptyList>
+            ) : null
+          }
           ListFooterComponent={footer}
           renderItem={({ item: row }) => (
-            <View className="bg-surface" style={{ padding: 12, borderRadius: 12, gap: 8 }}>
-              <Typography className="font-semibold">{row.input.name}</Typography>
-              <Typography>
-                {row.gameName} · {row.input.minPlayers}–{row.input.maxPlayers}
-              </Typography>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <Button
-                  isIconOnly
-                  variant="outline"
-                  size="sm"
-                  accessibilityLabel={`${t("Edit table")}: ${row.input.name}`}
-                  onPress={() => setTable(row)}
-                >
-                  <Pencil size={18} color={foreground} />
-                </Button>
-                <Button
-                  size="sm"
-                  isIconOnly
-                  accessibilityLabel={`${t("Remove table")}: ${row.input.name}`}
-                  variant="danger-soft"
-                  onPress={() => {
-                    if (row.input.id) setRemoved((ids) => [...ids, row.input.id!]);
-                    setEdited((list) => list.filter((d) => d.key !== row.key));
-                  }}
-                >
-                  <Trash2 size={18} color={danger} />
-                </Button>
-              </View>
-            </View>
+            <EventDraftTableCard
+              table={row}
+              timeZone={zone}
+              busy={actions.busy}
+              onEdit={() => setTable(row)}
+              onRemove={() => {
+                const id = row.input.id;
+                if (id) setRemoved((ids) => [...ids, id]);
+                setEdited((list) => list.filter((d) => d.key !== row.key));
+              }}
+            />
           )}
         />
       )}
       {navigation}
+      {step > 0 ? (
+        <FloatingActions
+          label="Back"
+          testID="event-back-fab"
+          left
+          variant="secondary"
+          isDisabled={actions.busy}
+          onPress={() => setStep(step - 1)}
+        >
+          <ArrowLeft size={26} color={foreground} />
+        </FloatingActions>
+      ) : null}
       {pending ? (
         <CommunityConfirm
           title={t("Reset reservations")}
@@ -512,172 +612,5 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         />
       ) : null}
     </KeyboardAvoidingView>
-  );
-}
-
-function TableEditor({
-  draft,
-  timeZone,
-  organizationId,
-  onSave,
-  onClose,
-}: {
-  draft: DraftTable;
-  timeZone: string;
-  organizationId: string;
-  onSave: (table: DraftTable) => void;
-  onClose: () => void;
-}) {
-  const t = useT();
-  const o = useCommunityApi();
-  const [value, setValue] = useState(draft);
-  const [pickGame, setPickGame] = useState(false);
-  const [pickDemo, setPickDemo] = useState(false);
-  const [error, setError] = useState("");
-  const members = useOrganizationMembers(
-    { ...o, enabled: pickDemo && o.enabled !== false },
-    organizationId,
-    "accepted",
-  );
-  const patch = (input: Partial<EventTableInput>) =>
-    setValue((row) => ({ ...row, input: { ...row.input, ...input } }));
-  if (pickGame)
-    return (
-      <GamePicker
-        onClose={() => setPickGame(false)}
-        onSelect={(game) => {
-          setValue((row) => ({
-            ...row,
-            gameName: game.name,
-            input: { ...row.input, gameId: game.id },
-          }));
-          setPickGame(false);
-        }}
-      />
-    );
-  if (pickDemo)
-    return (
-      <FlatList
-        style={{ flex: 1 }}
-        data={members.items}
-        keyExtractor={(row) => row.userId}
-        contentContainerStyle={{ padding: 20, gap: 12 }}
-        onEndReached={() => {
-          if (members.hasNextPage && !members.isFetchingNextPage && !members.isFetchNextPageError)
-            void members.fetchNextPage();
-        }}
-        ListHeaderComponent={
-          <View style={{ gap: 12 }}>
-            <Button variant="ghost" onPress={() => setPickDemo(false)}>
-              {t("Back")}
-            </Button>
-            <Button
-              onPress={() => {
-                patch({ demonstratorUserId: undefined });
-                setPickDemo(false);
-              }}
-            >
-              {t("No demonstrator")}
-            </Button>
-          </View>
-        }
-        ListFooterComponent={
-          <View>
-            {members.isPending || members.isFetchingNextPage ? (
-              <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
-            ) : null}
-            {members.isError ? (
-              <Button onPress={() => void members.refetch()}>{t("Retry")}</Button>
-            ) : null}
-          </View>
-        }
-        renderItem={({ item }) => (
-          <Button
-            onPress={() => {
-              patch({ demonstratorUserId: item.userId });
-              setPickDemo(false);
-            }}
-          >
-            {item.username ?? t("Username unavailable")}
-          </Button>
-        )}
-      />
-    );
-  return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 120 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Stack.Screen
-        options={{
-          title: t("Configure table"),
-          headerBackVisible: false,
-          headerLeft: () => (
-            <Button variant="ghost" onPress={onClose}>
-              {t("Back")}
-            </Button>
-          ),
-        }}
-      />
-      <Typography>{t("Table name")}</Typography>
-      <Input
-        accessibilityLabel={t("Table name")}
-        value={value.input.name}
-        onChangeText={(name) => patch({ name })}
-        maxLength={120}
-      />
-      <Button onPress={() => setPickGame(true)}>{value.gameName || t("Choose a game")}</Button>
-      {(["startsAt", "endsAt"] as const).map((field) => (
-        <EventDateTimeField
-          key={field}
-          label={field === "startsAt" ? t("Starts at") : t("Ends at")}
-          testID={`event-table-${field}-calendar`}
-          timeZone={timeZone}
-          value={eventLocalDateTime(value.input[field], timeZone).slice(0, 16)}
-          onChange={(wall) => {
-            try {
-              patch({ [field]: eventLocalToIso(wall, timeZone, value.input[field]) });
-              setError("");
-            } catch {
-              setError(t("Invalid date or time"));
-            }
-          }}
-        />
-      ))}
-      {(["minPlayers", "maxPlayers"] as const).map((field) => (
-        <View key={field} style={{ gap: 6 }}>
-          <Typography>
-            {field === "minPlayers" ? t("Minimum players") : t("Maximum players")}
-          </Typography>
-          <Input
-            accessibilityLabel={
-              field === "minPlayers" ? t("Minimum players") : t("Maximum players")
-            }
-            value={String(value.input[field])}
-            keyboardType="number-pad"
-            onChangeText={(n) => patch({ [field]: Number(n) })}
-          />
-        </View>
-      ))}
-      <Button variant="secondary" onPress={() => setPickDemo(true)}>
-        {t("Choose demonstrator")}
-      </Button>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Typography>{t("Global ratings enabled")}</Typography>
-        <Switch
-          accessibilityLabel={t("Global ratings enabled")}
-          isSelected={value.input.openSkill}
-          onSelectedChange={(openSkill) => patch({ openSkill })}
-        />
-      </View>
-      {error ? <Typography className="text-danger">{error}</Typography> : null}
-      <Button
-        isDisabled={Boolean(error) || !eventTableInputSchema.safeParse(value.input).success}
-        onPress={() => onSave(value)}
-      >
-        {t("Save table")}
-      </Button>
-    </ScrollView>
   );
 }

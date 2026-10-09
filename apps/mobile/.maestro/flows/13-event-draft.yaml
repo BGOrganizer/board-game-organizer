@@ -46,7 +46,7 @@ appId: com.bgo.mobile
 - hideKeyboard
 - assertNotVisible: "Time zone"
 - tapOn: "Event information: Field help"
-- assertVisible: "Choose a name, start and end on the same day.*"
+- assertVisible: "Choose a name, a start and a later end.*"
 - back
 - tapOn:
     id: "event-start-calendar"
@@ -59,11 +59,11 @@ appId: com.bgo.mobile
 - tapOn:
     id: "event-end-calendar"
 - runFlow:
-    file: ../helpers/event-date-time.yaml
+    file: ../helpers/event-bounded-date-time.yaml
     env:
-      DATE: "06/12/2030"
-      HOUR: "18"
-      MINUTE: "00"
+      DATE: "06/13/2030"
+      TIME: "18:00"
+      TIME_ID: "event-time-18-00"
 - tapOn: "Booking deadline: Field help"
 - assertVisible: "Hours before the event starts.*"
 - back
@@ -72,7 +72,9 @@ appId: com.bgo.mobile
 - inputText: "24"
 - hideKeyboard
 - assertVisible:
-    id: "event-navigation-bar"
+    id: "event-next-fab"
+- assertNotVisible:
+    id: "event-back-fab"
 - scrollUntilVisible:
     element:
       text: "Choose a verified address"
@@ -103,7 +105,7 @@ appId: com.bgo.mobile
 - eraseText
 - inputText: "Cascadia event table"
 - hideKeyboard
-- tapOn: "Choose a game"
+- tapOn: "Select a board game"
 - tapOn: "Search board games"
 - inputText: "Cascadia"
 - hideKeyboard
@@ -123,7 +125,7 @@ appId: com.bgo.mobile
 - assertVisible: "Review event"
 - tapOn: "Publish event"
 - extendedWaitUntil:
-    visible: "Could not save event. Publication requires an approved organization and configured deadline service."
+    visible: "Could not save event. Check your connection and event permissions, then try again."
     timeout: 30000
 - assertVisible: "Maestro summer event.*"
 - tapOn: "Save draft"

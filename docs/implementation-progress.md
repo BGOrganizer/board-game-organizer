@@ -39,8 +39,9 @@ local-only scope below permits a signed local commit but no push, delegation or 
 - Organization-before-event transactional locking, stale revision protection and rollback when a
   transaction crosses the cutoff. **Private drafts also freeze at the exact cutoff.**
 - Versioned, database-scoped durable deadline outbox, signed Inngest endpoint, sleepers, retry-safe
-  notifications, five-minute recovery and read fallback. Publication fails closed without required
-  configuration; local test configuration does not impersonate a registered production provider.
+  notifications, five-minute recovery and read fallback. Publication now permits missing Inngest
+  configuration by explicit operator request; autonomous closure/recovery still require it.
+  Local tests do not impersonate a registered production provider.
 - Fixed table matches and frozen explicit booking rosters. Ordinary match planning/voting/deletion
   is suppressed. Owner/demonstrator results preserve departed/excluded historical participants,
   optional GLOBAL OpenSkill and atomic immutable finalization. Cancelled tables are excluded.
@@ -63,6 +64,35 @@ local-only scope below permits a signed local commit but no push, delegation or 
   the event-table link. Logo bounds are checked before browser file reads or shared base64 decode.
 
 ## Latest verified automated gates
+
+### Multi-day event/table wizard and member social menus — local only
+
+- Explicit operator scope: current feature branch, signed local commit only; no push, delegation,
+  provisioning or account/device bypass. Preserve pre-existing API environment types byte-for-byte.
+- Multi-day event creation/edit validation; dynamic minute picker bounds with exact stored instants
+  retained. Tables use strict contained editor intervals, bounded player steppers, game/member rows,
+  removable demonstrators, inline errors, icon Save and match-style draft cards with covers/details.
+- Match/event wizards share numbered themed step indicators. First event page has no Back action;
+  demonstrator Back belongs to its header. Location precedes compact deadline input with dedicated
+  help; both organization/event wizards resolve selected-location favorite status before toggling.
+- Membership rows expose membership actions plus social ellipsis only. Common native HeroUI social
+  sheet serves contacts/groups/matches/organizations; friends retain follow/unfollow menu actions.
+  Request dialog order is Accept / Reject / Ban from organization / Cancel, all with icons.
+- Inngest is optional by explicit request. Draft saving/publication retain organization approval,
+  table validation, transactional outbox, exact-cutoff guards and idempotent authorized-read closure.
+  Without a configured worker, autonomous execution/recovery is unavailable. A real replica-set test
+  proves missing-key draft/publication, outbox retention, cutoff rejection, freezing and replay.
+- Local gates: Biome, typecheck, localization compilation; **1,251 unit tests** (web 374, mobile 142,
+  API 533, schemas 92, shared 110); **61 replica-set integration tests**, zero skips. New deterministic
+  form/range logic and web date/card/step components meet their 100% per-file coverage thresholds.
+- API/web production builds and Android JavaScript export (**5,489 modules**) pass. EN/IT preserve all
+  591 prior IDs/translations and add 35 translated messages. No dependency or environment-value changes.
+- Updated Playwright/Maestro flows are **not executed**. No fresh APK, native rendering, browser or
+  real-provider acceptance is claimed; broader PR/native acceptance remains incomplete.
+- Guides applied: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`, `expo-router`,
+  `heroui-react`, `heroui-native`, `uniwind`, `tanstack-query-development`, `lingui-best-practices`,
+  `playwright-best-practices`, `web-design-guidelines`, `ponytail`, `context-mode`.
 
 ### Organization requests and event information — local only
 
@@ -304,7 +334,8 @@ local-only scope below permits a signed local commit but no push, delegation or 
    permission/Settings return, empty/error/privacy/moderation/membership/invitation paths and
    publication/cutoff/frozen results. Full acceptance coverage is not yet demonstrated.
 2. Real Inngest registration/delivery/replay acceptance is outside the operator-approved current
-   scope. Keep missing-configuration publication fail-closed; do not claim provider delivery.
+   scope. Publication may use authorized-read closure without Inngest; do not claim autonomous
+   execution or provider delivery.
 3. BGO is non-commercial: no MapTiler commercial subscription prerequisite. Respect Free quotas,
    attribution and geocoding storage terms.
 4. Finish broad final UI/a11y/source review and any further acceptance/localization checks. Latest

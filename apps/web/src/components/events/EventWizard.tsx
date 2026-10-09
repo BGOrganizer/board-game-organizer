@@ -1,8 +1,6 @@
 "use client";
 import {
   type EventResponse,
-  type EventTableInput,
-  eventTableInputSchema,
   type MatchLocation,
   type SaveEventInput,
   saveEventSchema,
@@ -10,12 +8,18 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  EVENT_FIELD_ERRORS,
+  type EventDraftTable,
+  type EventFormErrors,
   editableEventTable,
-  eventBookingClosesAt,
   eventBookingHours,
+  eventDateLimit,
   eventEditResets,
+  eventInformationForm,
   eventLocalDateTime,
   eventLocalToIso,
+  eventSaveFieldErrors,
+  eventTableForm,
   formatLocationAddress,
   useEvent,
   useEventActions,
@@ -24,22 +28,32 @@ import {
   useFavoriteLocations,
   useOrganization,
   useOrganizationList,
-  useOrganizationMembers,
 } from "@board-game-organizer/shared";
-import { Button, Input, Label, Skeleton, Switch, TextField } from "@heroui/react";
+import { Button, FieldError, Input, Label, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowRight, MapPin, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarCheck,
+  CalendarClock,
+  LayoutGrid,
+  MapPin,
+  Plus,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
-import { SearchGamePage } from "@/components/games/SearchGamePage";
+import { WizardSteps } from "@/components/common/ui/WizardSteps";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDateTimeField } from "./EventDateTimeField";
+import { EventDraftTableCard } from "./EventDraftTableCard";
+import { EventTableEditor } from "./EventTableEditor";
 export function EventWizard({
   eventId,
   organizationId,
@@ -123,9 +137,9 @@ export function EventWizard({
     />
   );
 }
-type DraftTable = { key: string; input: EventTableInput; gameName: string };
+type DraftTable = EventDraftTable;
 function Editor({ event, organizationId }: { event?: EventResponse; organizationId: string }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const o = useCommunityApi();
   const router = useRouter();
   const actions = useEventActions(o);
@@ -133,7 +147,6 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
     { ...o, enabled: Boolean(event) && o.enabled !== false },
     event?.id ?? "",
   );
-  const favorites = useFavoriteLocations(o);
   const [step, setStep] = useState(0);
   const [name, setName] = useState(event?.name ?? "");
   const [zone] = useState(event?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -145,37 +158,60 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   );
   const [bookingHours, setBookingHours] = useState(() => eventBookingHours(event));
   const [location, setLocation] = useState<MatchLocation | undefined>(event?.location);
+  const favorites = useFavoriteLocations(o, location ? [location] : []);
   const [pickLocation, setPickLocation] = useState(false);
   const [edited, setEdited] = useState<DraftTable[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [table, setTable] = useState<DraftTable | null>(null);
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<EventFormErrors>({});
+  const fieldError = (field: string) =>
+    errors[field] ? (
+      <p role="alert" className="text-sm text-danger">
+        {i18n._(errors[field])}
+      </p>
+    ) : null;
   const [pending, setPending] = useState<SaveEventInput | null>(null);
   const mutable = useEventWindow(event);
   function input(status: "DRAFT" | "PUBLISHED"): SaveEventInput | null {
-    try {
-      const startsAt = eventLocalToIso(start, zone, event?.startsAt);
-      const endsAt = eventLocalToIso(end, zone, event?.endsAt);
-      const bookingClosesAt = eventBookingClosesAt(startsAt, bookingHours);
-      const raw = {
-        name,
-        timeZone: zone,
-        startsAt,
-        endsAt,
-        bookingClosesAt,
-        location,
-        status,
-        tables: edited.map((row) => row.input),
-      };
-      const parsed = event
-        ? updateEventSchema.safeParse({ ...raw, version: event.version, removedTableIds: removed })
-        : saveEventSchema.safeParse(raw);
-      if (!parsed.success) throw new Error("Invalid event");
-      return parsed.data;
-    } catch {
-      setError(t`Check event name, dates, booking deadline, verified address and tables`);
+    const information = eventInformationForm(
+      { name, start, end, zone, bookingHours, location },
+      event,
+      Date.now(),
+    );
+    setErrors(information.errors);
+    if (!information.data) {
+      setStep(0);
       return null;
     }
+    const raw = { ...information.data, status, tables: edited.map((row) => row.input) };
+    const parsed = event
+      ? updateEventSchema.safeParse({ ...raw, version: event.version, removedTableIds: removed })
+      : saveEventSchema.safeParse(raw);
+    const invalidEdited = edited.some(
+      (row) =>
+        !eventTableForm({
+          input: row.input,
+          start: eventLocalDateTime(row.input.startsAt, zone).slice(0, 16),
+          end: eventLocalDateTime(row.input.endsAt, zone).slice(0, 16),
+          zone,
+          eventStart: raw.startsAt,
+          eventEnd: raw.endsAt,
+        }).data,
+    );
+    const outsideRetained = tables.items
+      .filter((row) => !removed.includes(row.id) && !edited.some((d) => d.input.id === row.id))
+      .some(
+        (row) =>
+          Date.parse(row.startsAt) < Date.parse(raw.startsAt) ||
+          Date.parse(row.endsAt) > Date.parse(raw.endsAt),
+      );
+    if (!parsed.success || invalidEdited || outsideRetained) {
+      setErrors({ tables: EVENT_FIELD_ERRORS.tables });
+      setStep(1);
+      return null;
+    }
+    return parsed.data;
   }
   async function save(data: SaveEventInput) {
     try {
@@ -186,11 +222,16 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           })
         : await actions.create.mutateAsync({ organizationId, input: data });
       router.replace(`/events/${row.id}`);
-    } catch {
+    } catch (failure) {
       setPending(null);
-      setError(
-        t`Could not save event. Publication requires an approved organization and configured deadline service.`,
-      );
+      const fields = eventSaveFieldErrors(failure);
+      if (Object.keys(fields).length) {
+        setErrors(fields);
+        setStep(fields.tables ? 1 : 0);
+      } else
+        setError(
+          t`Could not save event. Check your connection and event permissions, then try again.`,
+        );
     }
   }
   function submit(status: "DRAFT" | "PUBLISHED") {
@@ -223,9 +264,11 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
     );
   if (table)
     return (
-      <TableEditor
+      <EventTableEditor
         key={table.key}
         draft={table}
+        eventStart={eventLocalToIso(start, zone, event?.startsAt)}
+        eventEnd={eventLocalToIso(end, zone, event?.endsAt)}
         timeZone={zone}
         organizationId={organizationId}
         onClose={() => setTable(null)}
@@ -238,51 +281,58 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
     );
   const loaded: DraftTable[] = tables.items
     .filter((row) => !removed.includes(row.id) && !edited.some((d) => d.input.id === row.id))
-    .map((row) => ({ key: row.id, input: editableEventTable(row), gameName: row.gameName }));
+    .map((row) => ({
+      key: row.id,
+      input: editableEventTable(row),
+      gameName: row.gameName,
+      imageUrl: row.image,
+      demonstrator: row.demonstrator ?? undefined,
+    }));
   const rows = [...loaded, ...edited];
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-4 pb-28">
-      <Button
-        variant="ghost"
-        onPress={() => (step ? setStep(step - 1) : router.back())}
-      >{t`Back`}</Button>
       <h1 className="text-xl font-semibold">{event ? t`Edit event` : t`New event`}</h1>
+      <WizardSteps current={step + 1} count={3} />
       {step === 0 ? (
         <SearchHelpLabel
           label={t`Event information`}
           helpTitle={t`Field help`}
-          help={t`Choose a name, start and end on the same day, and a verified address. Times use the event's local time zone.`}
+          help={t`Choose a name, a start and a later end (also on another day), and a verified address.`}
         />
       ) : (
-        <p>{step === 1 ? t`Tables` : t`Review event`}</p>
+        <SearchHelpLabel
+          label={step === 1 ? t`Tables` : t`Review event`}
+          helpTitle={t`Field help`}
+          help={t`Add tables with a game, player limits and times inside the event. Publishing requires at least one table.`}
+        />
       )}
       {step === 0 ? (
         <>
-          <TextField value={name} onChange={setName}>
+          <TextField value={name} onChange={setName} isInvalid={Boolean(errors.name)}>
             <Label>{t`Event name`}</Label>
             <Input name="event-name" maxLength={120} placeholder={t`e.g. Board game evening`} />
+            <FieldError>
+              <span role="alert">{errors.name ? i18n._(errors.name) : null}</span>
+            </FieldError>
           </TextField>
-          <EventDateTimeField label={t`Starts at`} value={start} onChange={setStart} />
-          <EventDateTimeField label={t`Ends at`} value={end} onChange={setEnd} />
-          <TextField value={bookingHours} onChange={setBookingHours}>
-            <SearchHelpLabel
-              label={t`Booking deadline`}
-              htmlFor="event-booking-hours"
-              helpTitle={t`Field help`}
-              help={t`Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline.`}
-            />
-            <div className="flex items-center gap-2">
-              <Input
-                id="event-booking-hours"
-                aria-label={t`Booking deadline (hours before start)`}
-                type="number"
-                min={0}
-                step="any"
-                className="flex-1"
-              />
-              <span className="text-sm text-default-500">{t`hours`}</span>
-            </div>
-          </TextField>
+          <EventDateTimeField
+            label={t`Starts at`}
+            value={start}
+            error={errors.startsAt ? i18n._(errors.startsAt) : undefined}
+            onChange={setStart}
+          />
+          <EventDateTimeField
+            label={t`Ends at`}
+            value={end}
+            min={eventDateLimit(start, zone, "after", event?.startsAt)}
+            error={errors.endsAt ? i18n._(errors.endsAt) : undefined}
+            onChange={setEnd}
+          />
+          <SearchHelpLabel
+            label={t`Location`}
+            helpTitle={t`Field help`}
+            help={t`Choose a verified event address from search or your favorites.`}
+          />
           <GroupedList>
             <GroupedRow>
               {location ? (
@@ -312,56 +362,98 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
               </Button>
             </GroupedRow>
           </GroupedList>
+          {fieldError("location")}
           {favorites.status.isError ? (
             <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
           ) : null}
+          <TextField
+            value={bookingHours}
+            onChange={setBookingHours}
+            isInvalid={Boolean(errors.bookingHours)}
+          >
+            <SearchHelpLabel
+              label={t`Booking deadline`}
+              htmlFor="event-booking-hours"
+              helpTitle={t`Field help`}
+              help={t`Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline.`}
+            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="event-booking-hours"
+                aria-label={t`Booking deadline (hours before start)`}
+                type="number"
+                min={0}
+                step="any"
+                className="w-28 flex-none"
+              />
+              <span className="text-sm text-default-500">{t`hours`}</span>
+            </div>
+            <FieldError>
+              <span role="alert">{errors.bookingHours ? i18n._(errors.bookingHours) : null}</span>
+            </FieldError>
+          </TextField>
         </>
       ) : (
         <>
-          <p>
-            {name} · {zone}
-          </p>
-          <p>
-            {start} – {end}
-          </p>
-          <p>{location?.name}</p>
+          <div className="space-y-2">
+            {[
+              { label: t`Event start`, wall: start, Icon: CalendarClock },
+              { label: t`Event end`, wall: end, Icon: CalendarCheck },
+            ].map(({ label, wall, Icon }) => (
+              <div key={label} className="flex items-center gap-2">
+                <Icon className="size-5 text-default-500" aria-hidden />
+                <span>
+                  <span className="block text-sm text-default-500">{label}</span>
+                  <span>
+                    {new Intl.DateTimeFormat(i18n.locale, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: zone,
+                    }).format(
+                      new Date(
+                        eventLocalToIso(
+                          wall,
+                          zone,
+                          wall === start ? event?.startsAt : event?.endsAt,
+                        ),
+                      ),
+                    )}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+          {step === 2 ? (
+            <>
+              <p>{name}</p>
+              <p>
+                {location?.name} · {location?.address}
+              </p>
+            </>
+          ) : null}
+          {fieldError("tables")}
           {event ? (
             <p>{t`Unloaded tables are retained. Only explicit removals delete tables.`}</p>
           ) : null}
           {tables.isPending && event ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
+          {!rows.length && !tables.isError && !(event && tables.isPending) ? (
+            <EmptyList
+              icon={<LayoutGrid className="size-7" />}
+            >{t`No tables yet. Add a table to organize games and players.`}</EmptyList>
+          ) : null}
           {rows.map((row) => (
-            <div
+            <EventDraftTableCard
               key={row.key}
-              className="flex items-center gap-3 rounded-xl bg-surface p-3"
-              style={{ contentVisibility: "auto", containIntrinsicSize: "auto 80px" }}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold">{row.input.name}</span>
-                <span>
-                  {row.gameName} · {row.input.minPlayers}–{row.input.maxPlayers}
-                </span>
-              </span>
-              <Button
-                isIconOnly
-                size="sm"
-                aria-label={`${t`Edit table`}: ${row.input.name}`}
-                onPress={() => setTable(row)}
-              >
-                <Pencil className="size-4" aria-hidden="true" />
-              </Button>
-              <Button
-                size="sm"
-                isIconOnly
-                aria-label={`${t`Remove table`}: ${row.input.name}`}
-                variant="danger"
-                onPress={() => {
-                  if (row.input.id) setRemoved((ids) => [...ids, row.input.id!]);
-                  setEdited((list) => list.filter((d) => d.key !== row.key));
-                }}
-              >
-                <Trash2 className="size-4" aria-hidden="true" />
-              </Button>
-            </div>
+              table={row}
+              timeZone={zone}
+              busy={actions.busy}
+              onEdit={() => setTable(row)}
+              onRemove={() => {
+                const id = row.input.id;
+                if (id) setRemoved((ids) => [...ids, id]);
+                setEdited((list) => list.filter((d) => d.key !== row.key));
+              }}
+            />
           ))}
           {tables.isError ? (
             <Button onPress={() => void tables.refetch()}>{t`Could not load tables. Retry`}</Button>
@@ -372,10 +464,18 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           {tables.isFetchingNextPage ? <Skeleton className="h-20 w-full rounded-xl" /> : null}
           {step === 1 ? (
             <Button
+              size="sm"
+              className="w-fit self-start"
               onPress={() => {
                 try {
-                  const s = eventLocalToIso(start, zone),
-                    e = eventLocalToIso(end, zone);
+                  const s = eventLocalToIso(
+                      eventDateLimit(start, zone, "after", event?.startsAt) ?? "",
+                      zone,
+                    ),
+                    e = eventLocalToIso(
+                      eventDateLimit(end, zone, "before", event?.endsAt) ?? "",
+                      zone,
+                    );
                   setTable({
                     key: crypto.randomUUID(),
                     gameName: "",
@@ -393,7 +493,10 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
                   setError(t`Enter event dates first`);
                 }
               }}
-            >{t`Add table`}</Button>
+            >
+              <Plus className="size-4" aria-hidden />
+              {t`Add table`}
+            </Button>
           ) : null}
         </>
       )}
@@ -402,14 +505,13 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           {error}
         </p>
       ) : null}
-      <div
-        data-testid="event-navigation-bar"
-        className="fixed inset-x-0 bottom-0 z-40 bg-background px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
-      >
+      <div data-testid="event-navigation-bar" className="contents">
         <div className="mx-auto flex w-full max-w-3xl gap-3">
           {step < 2 ? (
             <Button
-              className="w-full"
+              isIconOnly
+              aria-label={t`Next`}
+              className="fixed bottom-6 right-6 z-40 size-14 rounded-full shadow-lg"
               isDisabled={actions.busy}
               onPress={() => {
                 if (step === 0 && !input("DRAFT")) return;
@@ -417,8 +519,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
                 setStep(step + 1);
               }}
             >
-              <ArrowRight className="size-4" aria-hidden />
-              {t`Next`}
+              <ArrowRight className="size-6" aria-hidden />
             </Button>
           ) : (
             <div className="flex gap-3">
@@ -436,6 +537,18 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           )}
         </div>
       </div>
+      {step > 0 ? (
+        <Button
+          isIconOnly
+          variant="secondary"
+          className="fixed bottom-6 left-6 z-40 size-14 rounded-full shadow-lg"
+          aria-label={t`Back`}
+          isDisabled={actions.busy}
+          onPress={() => setStep(step - 1)}
+        >
+          <ArrowLeft className="size-6" aria-hidden />
+        </Button>
+      ) : null}
       {pending ? (
         <ContactConfirmDialog
           title={t`Reset reservations`}
@@ -449,141 +562,6 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           ]}
         />
       ) : null}
-    </section>
-  );
-}
-function TableEditor({
-  draft,
-  timeZone,
-  organizationId,
-  onSave,
-  onClose,
-}: {
-  draft: DraftTable;
-  timeZone: string;
-  organizationId: string;
-  onSave: (table: DraftTable) => void;
-  onClose: () => void;
-}) {
-  const { t } = useLingui();
-  const o = useCommunityApi();
-  const [value, setValue] = useState(draft);
-  const [pickGame, setPickGame] = useState(false);
-  const [pickDemo, setPickDemo] = useState(false);
-  const members = useOrganizationMembers(
-    { ...o, enabled: pickDemo && o.enabled !== false },
-    organizationId,
-    "accepted",
-  );
-  const [error, setError] = useState("");
-  if (pickGame)
-    return (
-      <SearchGamePage
-        {...o}
-        token={null}
-        onClose={() => setPickGame(false)}
-        onSelect={(game) => {
-          setValue((row) => ({
-            ...row,
-            gameName: game.name,
-            input: { ...row.input, gameId: game.id },
-          }));
-          setPickGame(false);
-        }}
-      />
-    );
-  if (pickDemo)
-    return (
-      <section className="flex flex-col gap-3">
-        <Button variant="ghost" onPress={() => setPickDemo(false)}>{t`Back`}</Button>
-        <Button
-          onPress={() => {
-            setValue((row) => ({ ...row, input: { ...row.input, demonstratorUserId: undefined } }));
-            setPickDemo(false);
-          }}
-        >{t`No demonstrator`}</Button>
-        {members.items.map((member) => (
-          <Button
-            key={member.userId}
-            onPress={() => {
-              setValue((row) => ({
-                ...row,
-                input: { ...row.input, demonstratorUserId: member.userId },
-              }));
-              setPickDemo(false);
-            }}
-          >
-            {member.username ?? t`Username unavailable`}
-          </Button>
-        ))}
-        {members.isPending || members.isFetchingNextPage ? (
-          <Skeleton className="h-20 w-full rounded-xl" />
-        ) : null}
-        {members.isError ? (
-          <Button onPress={() => void members.refetch()}>{t`Retry`}</Button>
-        ) : null}
-        {members.hasNextPage ? (
-          <Button onPress={() => void members.fetchNextPage()}>{t`Load more`}</Button>
-        ) : null}
-      </section>
-    );
-  const patch = (next: Partial<EventTableInput>) =>
-    setValue((row) => ({ ...row, input: { ...row.input, ...next } }));
-  return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-4 pb-28">
-      <Button variant="ghost" onPress={onClose}>{t`Back`}</Button>
-      <h1>{t`Configure table`}</h1>
-      <TextField value={value.input.name} onChange={(name) => patch({ name })}>
-        <Label>{t`Table name`}</Label>
-        <Input maxLength={120} />
-      </TextField>
-      <Button onPress={() => setPickGame(true)}>{value.gameName || t`Choose a game`}</Button>
-      {(["startsAt", "endsAt"] as const).map((field) => (
-        <EventDateTimeField
-          key={field}
-          label={field === "startsAt" ? t`Starts at` : t`Ends at`}
-          value={eventLocalDateTime(value.input[field], timeZone).slice(0, 16)}
-          onChange={(wall) => {
-            try {
-              patch({ [field]: eventLocalToIso(wall, timeZone, value.input[field]) });
-              setError("");
-            } catch {
-              setError(t`Invalid date or time`);
-            }
-          }}
-        />
-      ))}
-      {(["minPlayers", "maxPlayers"] as const).map((field) => (
-        <TextField
-          key={field}
-          value={String(value.input[field])}
-          onChange={(n) => patch({ [field]: Number(n) })}
-        >
-          <Label>{field === "minPlayers" ? t`Minimum players` : t`Maximum players`}</Label>
-          <Input type="number" min={2} />
-        </TextField>
-      ))}
-      <Button
-        variant="secondary"
-        onPress={() => setPickDemo(true)}
-      >{t`Choose demonstrator`}</Button>
-      <Switch isSelected={value.input.openSkill} onChange={(openSkill) => patch({ openSkill })}>
-        <Switch.Control>
-          <Switch.Thumb />
-        </Switch.Control>
-        <Switch.Content>
-          <Label>{t`Global ratings enabled`}</Label>
-        </Switch.Content>
-      </Switch>
-      {error ? (
-        <p role="alert" className="text-danger">
-          {error}
-        </p>
-      ) : null}
-      <Button
-        isDisabled={Boolean(error) || !eventTableInputSchema.safeParse(value.input).success}
-        onPress={() => onSave(value)}
-      >{t`Save table`}</Button>
     </section>
   );
 }

@@ -30,6 +30,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { WizardSteps } from "@/components/common/ui/WizardSteps";
 import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { SearchUserPage } from "../contacts/SearchUserPage";
@@ -411,19 +412,7 @@ export function MatchWizard({
 
   return (
     <div className="mx-auto w-full max-w-3xl pb-28">
-      {/* Step indicator */}
-      <div className="mb-4 flex items-center justify-center gap-2 text-sm">
-        {[1, 2, 3, 4].map((s) => (
-          <span
-            key={s}
-            className={`rounded-full px-3 py-1 ${
-              step === s ? "bg-primary text-white" : "bg-default-100 text-default-500"
-            }`}
-          >
-            {s}
-          </span>
-        ))}
-      </div>
+      <WizardSteps current={step} count={4} />
 
       {step === 1 && (
         <div className="space-y-4">

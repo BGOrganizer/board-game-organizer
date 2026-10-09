@@ -82,6 +82,18 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/common/ui/WizardSteps.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/EventDraftTableCard.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/events/EventDateTimeField.tsx": {
           lines: 100,
           functions: 100,

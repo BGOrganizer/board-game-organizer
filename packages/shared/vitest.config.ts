@@ -14,6 +14,7 @@ export default defineConfig({
         "src/community/communityFeedback.ts",
         "src/organizations/organizationActions.ts",
         "src/events/eventForm.ts",
+        "src/events/eventWizardForm.ts",
         "src/matches/matchParticipants.ts",
         "src/organizations/organizationLogoUpload.ts",
         "src/contacts/hooks/contactOptimistic.ts",
@@ -36,6 +37,12 @@ export default defineConfig({
           statements: 100,
         },
         "src/community/communityFeedback.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/events/eventWizardForm.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
