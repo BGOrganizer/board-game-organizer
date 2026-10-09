@@ -12,13 +12,12 @@ import { Button } from "heroui-native/button";
 import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
+import { LibraryBig, Plus, Search } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Image, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { GameListRow } from "@/components/games/GameListRow";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -243,44 +242,25 @@ export default function GamePicker({
       }
       renderItem={({ item }) => (
         <GroupedList>
-          <GroupedRow>
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 8,
-                backgroundColor: "#e5e7eb",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {item.imageUrl ? (
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  accessible={false}
-                  style={{ width: 40, height: 40, borderRadius: 8 }}
-                />
-              ) : (
-                <Gamepad2 size={18} color="#6b7280" />
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Typography className="font-medium text-foreground" numberOfLines={1}>
-                {item.name}
-              </Typography>
-              <GameCatalogMetadata year={item.year} average={item.average} rank={item.rank} />
-            </View>
-            <Button
-              isIconOnly
-              size="sm"
-              style={{ minWidth: 44, minHeight: 44 }}
-              accessibilityLabel={`${t("Select")}: ${item.name}`}
-              isDisabled={picking === item.id}
-              onPress={() => void select(item)}
-            >
-              <Plus size={16} color="#fff" />
-            </Button>
-          </GroupedRow>
+          <GameListRow
+            name={item.name}
+            imageUrl={item.imageUrl}
+            year={item.year}
+            average={item.average}
+            rank={item.rank}
+            actions={
+              <Button
+                isIconOnly
+                size="sm"
+                style={{ minWidth: 44, minHeight: 44 }}
+                accessibilityLabel={`${t("Select")}: ${item.name}`}
+                isDisabled={picking === item.id}
+                onPress={() => void select(item)}
+              >
+                <Plus size={16} color="#fff" />
+              </Button>
+            }
+          />
         </GroupedList>
       )}
     />

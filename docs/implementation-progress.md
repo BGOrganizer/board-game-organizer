@@ -61,7 +61,39 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 ## Latest verified automated gates
 
-### Current organization UX pass — local only
+### Mobile layout and row reuse — local only
+
+- Mobile common UI now owns `UserList`, `UserListRow`/`UserAvatar`, `AddUserRow`, `TabBar`,
+  `ScreenScrollView` and `ListCardBody`. Contacts, organization members/friend picker, group/match
+  members and invitation slots reuse them. Discovery also uses the common card body; public
+  groups remain read-only rather than acquiring unauthorized navigation/join actions.
+  `GameListRow` and `LocationListRow` stay in their
+  feature folders and serve pickers, wizards and match details. Existing `LinkedListCard` keeps
+  navigation and invitation actions; artwork, votes, favorites and permissions remain feature-owned.
+- Organization tabs use the same 20 px page inset and 12 px tab/content gap as group/contact
+  details. FAB position and scrolling clearance both use `useFloatingActionLayout`, scoped to the
+  owning navigator (tab offset 16; stack offset 100), plus safe-area inset. Callers no longer choose
+  incompatible offsets. The match wizard no longer applies the bottom inset twice to its FAB;
+  the iOS date picker retains its own safe-area container. The fixed organization submit bar is
+  unchanged.
+- User pagination remains virtualized and ordered, with explicit error/retry and next-page
+  skeletons. Privacy denial still hides cached organization people and their action targets.
+  No data/query ownership, API authorization, dependencies or web behavior changed. All visible
+  labels reuse the existing EN/IT catalogs. The match Maestro flow targets the stable create FAB
+  ID instead of a screen-coordinate guess; existing member/organization selectors are preserved.
+- Local checks: full Biome/typecheck, **123 mobile tests** with coverage, and Android JS export
+  pass. The deterministic FAB/pagination helpers meet **100%** line/function/branch/statement
+  thresholds. Source-structure guards are explicitly not runtime UI tests. No fresh APK, device
+  screenshots, Maestro execution or authenticated acceptance is claimed; the existing native/auth
+  blockers remain. API/web/integration suites were not rerun for this native-only refactor.
+- Work remains on `feat/organizations-events`, local only: **no push**, no new PR, no delegation,
+  no account/device/provider changes. Preexisting API `next-env.d.ts` and private configuration
+  stay untouched and outside this change.
+- Guides used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-native-skills`, `expo-overview`, `expo-router`, `expo-design-system`,
+  `heroui-native`, `uniwind`, `ponytail` and `context-mode`.
+
+### Previous organization UX pass — local only
 
 - Creation has field help, one Upload source selector, the match-style verified address/favorite
   row, and a fixed send-icon submit bar with safe-area clearance. Detail has Details / Members /

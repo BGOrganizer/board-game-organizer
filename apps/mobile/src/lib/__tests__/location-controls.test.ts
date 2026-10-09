@@ -43,13 +43,30 @@ it("anchors favorite sheets above system bars with viewport sizing", () => {
 });
 
 it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB clearance", () => {
-  for (const [path, component, offset] of [
-    ["../../app/match/[matchId].tsx", "ScrollView", 100],
-    ["../../app/group/[groupId].tsx", "ScrollView", 100],
-    ["../../app/(tabs)/matches.tsx", "FlatList", 16],
-    ["../../components/groups/GroupsScreen.tsx", "FlatList", 16],
-    ["../../components/matches/MatchWizard.tsx", "ScrollView", 100],
-    ["../../components/groups/GroupWizard.tsx", "ScrollView", 100],
+  const scroll = readFileSync(
+    new URL("../../components/common/ui/ScreenScrollView.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(scroll).toContain("useFloatingActionLayout()");
+  expect(scroll).toMatch(/style=\{\[\{ flex: 1 \}, style\]\}/);
+  expect(scroll).toContain("paddingBottom: layout.paddingBottom");
+  const fab = readFileSync(
+    new URL("../../components/common/ui/FloatingActions.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(fab).toContain("useFloatingActionLayout()");
+  expect(fab).toContain("bottom: layout.bottom");
+  expect(fab).not.toContain("extraBottom");
+  for (const [path, component] of [
+    ["../../app/match/[matchId].tsx", "ScreenScrollView"],
+    ["../../app/group/[groupId].tsx", "ScreenScrollView"],
+    ["../../app/(tabs)/matches.tsx", "FlatList"],
+    ["../../components/groups/GroupsScreen.tsx", "FlatList"],
+    ["../../components/organizations/Organizations.tsx", "FlatList"],
+    ["../../components/events/Events.tsx", "FlatList"],
+    ["../../components/matches/MatchWizard.tsx", "ScreenScrollView"],
+    ["../../components/groups/GroupWizard.tsx", "ScreenScrollView"],
+    ["../../components/organizations/OrganizationDetail.tsx", "ScreenScrollView"],
   ] as const) {
     const source = ts.createSourceFile(
       path,
@@ -69,10 +86,11 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
             .filter(ts.isJsxAttribute)
             .map((attr) => [attr.name.getText(source), attr.initializer?.getText(source)]),
         );
-        expect(props.get("style"), path).toMatch(/flex:\s*1/);
-        expect(props.get("contentContainerStyle"), path).toContain(
-          `floatingActionLayout(insets.bottom, ${offset}).paddingBottom`,
-        );
+        if (component === "FlatList") {
+          expect(props.get("style"), path).toMatch(/flex:\s*1/);
+          expect(props.get("contentContainerStyle"), path).toContain("layout.paddingBottom");
+        }
+        expect(source.text, path).not.toContain("extraBottom=");
         found = true;
       }
       ts.forEachChild(node, visit);

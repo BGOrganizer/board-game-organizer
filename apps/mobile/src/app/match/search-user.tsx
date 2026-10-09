@@ -7,7 +7,6 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
@@ -16,8 +15,8 @@ import { UserPlus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -237,24 +236,21 @@ export default function SearchUserScreen() {
         }
         renderItem={({ item: u }) => (
           <GroupedList>
-            <GroupedRow>
-              <Avatar size="md">
-                {u.avatarUrl ? <Avatar.Image source={{ uri: u.avatarUrl }} /> : null}
-                <Avatar.Fallback>{u.name.charAt(0) || "?"}</Avatar.Fallback>
-              </Avatar>
-              <View style={{ flex: 1 }}>
-                <Typography style={{ fontSize: 14, fontWeight: "500" }}>{u.name}</Typography>
-                <Typography style={{ fontSize: 12, color: "#9ca3af" }}>{u.email}</Typography>
-              </View>
-              <Button
-                isIconOnly
-                size="sm"
-                accessibilityLabel={`${t("Add")}: ${u.name}`}
-                onPress={() => select(u)}
-              >
-                <UserPlus size={16} color="#fff" />
-              </Button>
-            </GroupedRow>
+            <UserListRow
+              name={u.name}
+              avatarUrl={u.avatarUrl}
+              secondary={u.email}
+              actions={
+                <Button
+                  isIconOnly
+                  size="sm"
+                  accessibilityLabel={`${t("Add")}: ${u.name}`}
+                  onPress={() => select(u)}
+                >
+                  <UserPlus size={16} color="#fff" />
+                </Button>
+              }
+            />
           </GroupedList>
         )}
       />

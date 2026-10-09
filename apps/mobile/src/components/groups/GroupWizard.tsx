@@ -3,20 +3,19 @@ import { resolveApiUrl, useContacts, useGroups } from "@board-game-organizer/sha
 import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { Plus, Save, Trash2, UsersRound } from "lucide-react-native";
+import { Save, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View } from "react-native";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { floatingActionLayout } from "@/lib/floating-actions";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -40,7 +39,6 @@ function Editor({
   userId: string | null | undefined;
 }) {
   const t = useT();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const feedback = useMutationFeedback();
   const contacts = useContacts(apiUrl, token, getToken, undefined, userId, feedback);
@@ -94,16 +92,7 @@ function Editor({
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          padding: 20,
-          paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
-          gap: 16,
-        }}
-      >
+      <ScreenScrollView>
         <Input
           accessibilityLabel={t("Group name")}
           value={name}
@@ -142,97 +131,75 @@ function Editor({
         {contacts.friends.isError ? (
           <Typography className="text-danger">{t("Could not load friends")}</Typography>
         ) : null}
-        <GroupedList>
+        <View style={{ gap: 8 }}>
           {slots.map((slot) => {
             const friend = contacts.friends.data?.find(
               (row) => row.profile?.id === slot.user?.id,
             )?.profile;
             const user = friend ?? slot.user;
-            return (
-              <GroupedRow key={slot.id}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    user ? `${t("Select a friend")}: ${user.name}` : t("Select a friend")
-                  }
-                  onPress={() =>
-                    router.push({
-                      pathname: "/match/search-user",
-                      params: {
-                        slotId: slot.id,
-                        source: "group",
-                        exclude: slots
-                          .flatMap((item) =>
-                            item.id !== slot.id && item.user ? [item.user.id] : [],
-                          )
-                          .join(","),
-                      },
-                    })
-                  }
-                  style={{
-                    flex: 1,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    minHeight: 48,
-                  }}
-                >
-                  {user ? (
-                    <Avatar size="md">
-                      {user.avatarUrl ? <Avatar.Image source={{ uri: user.avatarUrl }} /> : null}
-                      <Avatar.Fallback>{user.name.charAt(0) || "?"}</Avatar.Fallback>
-                    </Avatar>
-                  ) : (
-                    <UsersRound color="#6b7280" size={18} />
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Typography className={user ? "text-foreground" : "text-muted"}>
-                      {user?.name ?? t("Select a friend")}
-                    </Typography>
-                    {user?.email ? (
-                      <Typography className="text-muted" style={{ fontSize: 12 }}>
-                        {user.email}
-                      </Typography>
-                    ) : null}
-                  </View>
-                </Pressable>
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  accessibilityLabel={t("Remove invite")}
-                  onPress={() =>
-                    setSlots((current) =>
-                      current.length > 1
-                        ? current.filter((item) => item.id !== slot.id)
-                        : current.map((item) =>
-                            item.id === slot.id ? { ...item, user: null } : item,
-                          ),
-                    )
-                  }
-                >
-                  <Trash2 color="#dc2626" size={16} />
-                </Button>
-              </GroupedRow>
+            const select = () =>
+              router.push({
+                pathname: "/match/search-user",
+                params: {
+                  slotId: slot.id,
+                  source: "group",
+                  exclude: slots
+                    .flatMap((item) => (item.id !== slot.id && item.user ? [item.user.id] : []))
+                    .join(","),
+                },
+              });
+            const remove = (
+              <Button
+                key={slot.id}
+                isIconOnly
+                size="sm"
+                variant="danger-soft"
+                accessibilityLabel={t("Remove invite")}
+                style={{ minWidth: 44, minHeight: 44 }}
+                onPress={() =>
+                  setSlots((current) =>
+                    current.length > 1
+                      ? current.filter((item) => item.id !== slot.id)
+                      : current.map((item) =>
+                          item.id === slot.id ? { ...item, user: null } : item,
+                        ),
+                  )
+                }
+              >
+                <Trash2 color="#dc2626" size={16} />
+              </Button>
+            );
+            return user ? (
+              <GroupedList key={slot.id}>
+                <UserListRow
+                  name={user.name}
+                  avatarUrl={user.avatarUrl}
+                  secondary={user.email}
+                  accessibilityLabel={`${t("Select a friend")}: ${user.name}`}
+                  onPress={select}
+                  actions={remove}
+                />
+              </GroupedList>
+            ) : (
+              <AddUserRow
+                key={slot.id}
+                label={t("Select a friend")}
+                onPress={select}
+                actions={remove}
+              />
             );
           })}
-        </GroupedList>
-        <Button
-          size="sm"
-          variant="primary"
+        </View>
+        <AddUserRow
+          label={t("Add friend")}
           onPress={() => setSlots((current) => [...current, newSlot()])}
-          style={{ alignSelf: "flex-start" }}
-        >
-          <Plus color="#fff" size={16} />
-          <Typography className="text-white">{t("Add friend")}</Typography>
-        </Button>
-      </ScrollView>
+        />
+      </ScreenScrollView>
 
       <FloatingActions
         label={group ? "Save changes" : "Create group"}
         testID="save-group-fab"
         onPress={save}
-        extraBottom={92}
         isDisabled={name.trim().length < 5 || groups.create.isPending || groups.update.isPending}
         variant="primary"
       >

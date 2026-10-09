@@ -4,7 +4,6 @@ import type {
   MatchLocation,
 } from "@board-game-organizer/schemas";
 import {
-  formatLocationAddress,
   formatMatchDateTime,
   listRoles,
   resolveApiUrl,
@@ -17,7 +16,6 @@ import { useLingui } from "@lingui/react";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
 import { Select } from "heroui-native/select";
@@ -29,23 +27,23 @@ import {
   CalendarClock,
   CalendarDays,
   Clock3,
-  Gamepad2,
-  MapPin,
   Minus,
   Plus,
   Save,
   Trash2,
-  Users,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Platform, Pressable, ScrollView, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Platform, Pressable, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { UserListRow } from "@/components/common/ui/UserListRow";
+import { GameListRow } from "@/components/games/GameListRow";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
-import { floatingActionLayout } from "@/lib/floating-actions";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -81,7 +79,6 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   const t = useT();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
 
@@ -308,6 +305,7 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
     userSlots,
     gameSlots,
     groupId,
+    isPublic,
     matches,
     router,
   ]);
@@ -321,16 +319,8 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
   const back = () => setStep((s) => (s === 2 ? 1 : s === 3 ? 2 : s === 4 ? 3 : s));
 
   return (
-    <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          padding: 20,
-          paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
-        }}
-      >
+    <View style={{ flex: 1 }}>
+      <ScreenScrollView>
         {/* Step indicator */}
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 16 }}>
           {[1, 2, 3, 4].map((s) => (
@@ -522,72 +512,44 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Locations")}</Typography>
             <GroupedList>
               {locationSlots.map((slot) => (
-                <GroupedRow key={slot.id}>
-                  {slot.location ? (
-                    <LocationFavoriteButton
-                      location={slot.location}
-                      favorites={favorites}
-                      matchId={initialData?.match.id}
-                    />
-                  ) : (
-                    <MapPin size={20} color="#6b7280" />
-                  )}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={slot.location?.name ?? t("Select location")}
-                    testID={`location-slot-${slot.id}`}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/match/search-location",
-                        params: {
-                          slotId: slot.id,
-                          ...(slot.location ? { initial: JSON.stringify(slot.location) } : {}),
-                        },
-                      })
-                    }
-                    style={{
-                      flex: 1,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      minHeight: 44,
-                    }}
-                  >
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Typography
-                        className="font-medium text-foreground"
-                        style={{ fontSize: 14, lineHeight: 20 }}
-                        numberOfLines={1}
-                      >
-                        {slot.location?.name ?? t("Select location")}
-                      </Typography>
-                      {slot.location && (
-                        <Typography
-                          className="text-xs text-muted"
-                          style={{ fontSize: 12, lineHeight: 16 }}
-                          numberOfLines={1}
-                          accessibilityLabel={slot.location.address}
-                        >
-                          {formatLocationAddress(slot.location.address)}
-                        </Typography>
-                      )}
-                    </View>
-                  </Pressable>
-                  <Button
-                    variant="danger-soft"
-                    isIconOnly
-                    size="sm"
-                    style={{ minHeight: 44, minWidth: 44, marginRight: 8 }}
-                    accessibilityLabel={t("Remove location")}
-                    onPress={() =>
-                      setLocationSlots((slots) => slots.filter((item) => item.id !== slot.id))
-                    }
-                  >
-                    <Trash2 size={18} color="#f31260" />
-                  </Button>
-                </GroupedRow>
+                <LocationListRow
+                  key={slot.id}
+                  name={slot.location?.name ?? t("Select location")}
+                  address={slot.location?.address}
+                  leading={
+                    slot.location ? (
+                      <LocationFavoriteButton
+                        location={slot.location}
+                        favorites={favorites}
+                        matchId={initialData?.match.id}
+                      />
+                    ) : undefined
+                  }
+                  testID={`location-slot-${slot.id}`}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/match/search-location",
+                      params: {
+                        slotId: slot.id,
+                        ...(slot.location ? { initial: JSON.stringify(slot.location) } : {}),
+                      },
+                    })
+                  }
+                  actions={
+                    <Button
+                      variant="danger-soft"
+                      isIconOnly
+                      size="sm"
+                      style={{ minHeight: 44, minWidth: 44, marginRight: 8 }}
+                      accessibilityLabel={t("Remove location")}
+                      onPress={() =>
+                        setLocationSlots((slots) => slots.filter((item) => item.id !== slot.id))
+                      }
+                    >
+                      <Trash2 size={18} color="#f31260" />
+                    </Button>
+                  }
+                />
               ))}
             </GroupedList>
             {favorites.status.isError && (
@@ -642,78 +604,54 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
                 {t("Remove players who are not members of the selected group")}
               </Typography>
             ) : null}
-            <GroupedList>
-              {userSlots.map((slot) => (
-                <GroupedRow key={slot.id}>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: "/match/search-user",
-                        params: {
-                          slotId: slot.id,
-                          ...(groupId ? { groupId } : {}),
-                          exclude: userSlots
-                            .flatMap((s) => (s.id !== slot.id && s.user ? [s.user.id] : []))
-                            .join(","),
-                        },
-                      })
-                    }
-                    style={{
-                      flex: 1,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      minHeight: 44,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    {slot.user ? (
-                      <Avatar size="md">
-                        {slot.user.avatarUrl ? (
-                          <Avatar.Image source={{ uri: slot.user.avatarUrl }} />
-                        ) : null}
-                        <Avatar.Fallback>{slot.user.name.charAt(0) || "?"}</Avatar.Fallback>
-                      </Avatar>
-                    ) : (
-                      <Users color="#6b7280" size={18} />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      {slot.user ? (
-                        <>
-                          <Typography style={{ fontSize: 14, fontWeight: "500" }}>
-                            {slot.user.name}
-                          </Typography>
-                          <Typography style={{ fontSize: 12, color: "#9ca3af" }}>
-                            {slot.user.email}
-                          </Typography>
-                        </>
-                      ) : (
-                        <Typography style={{ color: "#9ca3af" }}>
-                          {groupId ? t("Select group member") : t("Select a friend")}
-                        </Typography>
-                      )}
-                    </View>
-                  </Pressable>
-                  {slot.user && (
-                    <Button
-                      variant="danger-soft"
-                      isIconOnly
-                      size="sm"
-                      style={{ minHeight: 36, minWidth: 36, marginRight: 8 }}
-                      accessibilityLabel={t("Remove invite")}
-                      testID="remove-invite-slot"
-                      onPress={() =>
-                        setUserSlots((p) =>
-                          p.map((s) => (s.id === slot.id ? { ...s, user: null } : s)),
-                        )
+            <View style={{ gap: 8 }}>
+              {userSlots.map((slot) => {
+                const select = () =>
+                  router.push({
+                    pathname: "/match/search-user",
+                    params: {
+                      slotId: slot.id,
+                      ...(groupId ? { groupId } : {}),
+                      exclude: userSlots
+                        .flatMap((s) => (s.id !== slot.id && s.user ? [s.user.id] : []))
+                        .join(","),
+                    },
+                  });
+                return slot.user ? (
+                  <GroupedList key={slot.id}>
+                    <UserListRow
+                      name={slot.user.name}
+                      avatarUrl={slot.user.avatarUrl}
+                      secondary={slot.user.email}
+                      onPress={select}
+                      actions={
+                        <Button
+                          variant="danger-soft"
+                          isIconOnly
+                          size="sm"
+                          style={{ minHeight: 44, minWidth: 44 }}
+                          accessibilityLabel={t("Remove invite")}
+                          testID="remove-invite-slot"
+                          onPress={() =>
+                            setUserSlots((p) =>
+                              p.map((s) => (s.id === slot.id ? { ...s, user: null } : s)),
+                            )
+                          }
+                        >
+                          <Trash2 color="#dc2626" size={16} />
+                        </Button>
                       }
-                    >
-                      <Trash2 color="#dc2626" size={16} />
-                    </Button>
-                  )}
-                </GroupedRow>
-              ))}
-            </GroupedList>
+                    />
+                  </GroupedList>
+                ) : (
+                  <AddUserRow
+                    key={slot.id}
+                    label={groupId ? t("Select group member") : t("Select a friend")}
+                    onPress={select}
+                  />
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -722,90 +660,44 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             <Typography style={{ fontSize: 18, fontWeight: "600" }}>{t("Board games")}</Typography>
             <GroupedList>
               {gameSlots.map((slot) => (
-                <GroupedRow key={slot.id}>
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: "/match/search-game",
-                        params: {
-                          slotId: slot.id,
-                          exclude: gameSlots
-                            .filter(
-                              (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
-                                s.id !== slot.id && s.game !== null,
-                            )
-                            .map((s) => s.game.id)
-                            .join(","),
-                        },
-                      })
-                    }
-                    style={{
-                      flex: 1,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      minHeight: 44,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <View
-                      className="bg-muted/20"
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 8,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {slot.game?.imageUrl ? (
-                        <Image
-                          source={{ uri: slot.game.imageUrl }}
-                          accessible={false}
-                          style={{ width: 40, height: 40 }}
-                        />
-                      ) : (
-                        <Gamepad2 color="#6b7280" size={18} />
-                      )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      {slot.game ? (
-                        <>
-                          <Typography
-                            style={{ fontSize: 14, fontWeight: "500" }}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {slot.game.name}
-                          </Typography>
-                          <GameCatalogMetadata
-                            year={slot.game.year}
-                            average={slot.game.average}
-                            rank={slot.game.rank}
-                          />
-                        </>
-                      ) : (
-                        <Typography style={{ color: "#9ca3af" }}>
-                          {t("Select a board game")}
-                        </Typography>
-                      )}
-                    </View>
-                  </Pressable>
-                  {(slot.game || gameSlots.length > 1) && (
-                    <Button
-                      variant="danger-soft"
-                      isIconOnly
-                      size="sm"
-                      style={{ minHeight: 44, minWidth: 44, marginRight: 8 }}
-                      accessibilityLabel={t("Remove game")}
-                      testID="remove-game-slot"
-                      onPress={() => removeGameSlot(slot.id)}
-                    >
-                      <Trash2 color="#dc2626" size={16} />
-                    </Button>
-                  )}
-                </GroupedRow>
+                <GameListRow
+                  key={slot.id}
+                  name={slot.game?.name ?? t("Select a board game")}
+                  imageUrl={slot.game?.imageUrl}
+                  year={slot.game?.year}
+                  average={slot.game?.average}
+                  rank={slot.game?.rank}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/match/search-game",
+                      params: {
+                        slotId: slot.id,
+                        exclude: gameSlots
+                          .filter(
+                            (s): s is typeof s & { game: NonNullable<typeof s.game> } =>
+                              s.id !== slot.id && s.game !== null,
+                          )
+                          .map((s) => s.game.id)
+                          .join(","),
+                      },
+                    })
+                  }
+                  actions={
+                    (slot.game || gameSlots.length > 1) && (
+                      <Button
+                        variant="danger-soft"
+                        isIconOnly
+                        size="sm"
+                        style={{ minHeight: 44, minWidth: 44, marginRight: 8 }}
+                        accessibilityLabel={t("Remove game")}
+                        testID="remove-game-slot"
+                        onPress={() => removeGameSlot(slot.id)}
+                      >
+                        <Trash2 color="#dc2626" size={16} />
+                      </Button>
+                    )
+                  }
+                />
               ))}
             </GroupedList>
             <Button
@@ -824,14 +716,13 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             )}
           </View>
         )}
-      </ScrollView>
+      </ScreenScrollView>
 
       {step > 1 ? (
         <FloatingActions
           label="Back"
           testID="previous-step-fab"
           onPress={back}
-          extraBottom={92}
           left={true}
           variant="secondary"
         >
@@ -843,7 +734,6 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
         label={step === 4 ? (initialData ? "Save changes" : "Create match") : "Next step"}
         testID={step === 4 ? "save-match-fab" : "next-step-fab"}
         onPress={next}
-        extraBottom={92}
         variant={step === 4 ? "primary" : "secondary"}
         isDisabled={
           matches.create.isPending ||
@@ -864,16 +754,18 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
           mode exists on iOS); Android uses the imperative chained date →
           time dialogs in pickDateTimeOnAndroid. */}
       {Platform.OS !== "android" && pickingDate && (
-        <DateTimePicker
-          value={dateValue}
-          mode="datetime"
-          display="spinner"
-          onChange={(_, date) => {
-            if (date) setDateSlot(pickingDate, date.toISOString());
-          }}
-        />
+        <SafeAreaView edges={["bottom"]}>
+          <DateTimePicker
+            value={dateValue}
+            mode="datetime"
+            display="spinner"
+            onChange={(_, date) => {
+              if (date) setDateSlot(pickingDate, date.toISOString());
+            }}
+          />
+        </SafeAreaView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

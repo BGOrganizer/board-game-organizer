@@ -15,17 +15,19 @@ import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
-import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 
 export function Events({ organizationId = "" }: { organizationId?: string }) {
   const t = useT();
   const o = useCommunityApi();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const layout = useFloatingActionLayout();
   const filters = useListSearch(eventPeriods);
   const list = useEventList(o, organizationId, filters.search, filters.selected);
   return (
@@ -38,9 +40,8 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           ...listPageContentStyle,
-          paddingBottom: organizationId
-            ? floatingActionLayout(insets.bottom, 0).paddingBottom
-            : insets.bottom + 20,
+          paddingTop: organizationId ? 0 : 20,
+          paddingBottom: organizationId ? layout.paddingBottom : insets.bottom + 20,
         }}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage && !list.isFetchNextPageError)
@@ -88,8 +89,7 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
             onPress={() => router.push(`/event/${item.id}`)}
             label={`${t("Open event")}: ${item.name}`}
           >
-            <View style={{ flex: 1, gap: 4 }}>
-              <Typography className="font-semibold">{item.name}</Typography>
+            <ListCardBody title={item.name}>
               <Typography>
                 {item.organizationName} · {item.status === "DRAFT" ? t("Draft") : t("Published")}
               </Typography>
@@ -103,7 +103,7 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
               <Typography className="text-muted">
                 {formatLocationAddress(item.location.address)}
               </Typography>
-            </View>
+            </ListCardBody>
           </LinkedListCard>
         )}
       />

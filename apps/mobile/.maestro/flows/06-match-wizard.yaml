@@ -11,8 +11,7 @@ appId: com.bgo.mobile
     visible: "No matches yet.*"
     timeout: 120000
 - tapOn:
-    id: ".*"  # FAB (no testID on the Pressable) — fall back to position
-    point: "90%,92%"
+    id: "create-match-fab"
 - extendedWaitUntil:
     visible: "New match"
     timeout: 60000

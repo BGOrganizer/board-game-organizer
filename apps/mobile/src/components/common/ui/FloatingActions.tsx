@@ -1,15 +1,14 @@
 import { Button, type ButtonVariant } from "heroui-native/button";
 import type { ReactNode } from "react";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { FLOATING_ACTION_SIZE, floatingActionLayout } from "@/lib/floating-actions";
+import { FLOATING_ACTION_SIZE } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 
 interface FloatingActionsProps {
   children: ReactNode;
   label: string;
   testID?: string;
   onPress?: () => void;
-  extraBottom: number;
   isDisabled?: boolean;
   variant?: ButtonVariant;
   left?: boolean;
@@ -19,14 +18,13 @@ export function FloatingActions({
   children,
   label,
   testID,
-  extraBottom,
   onPress,
   isDisabled = false,
   variant,
   left,
 }: FloatingActionsProps) {
   const t = useT();
-  const insets = useSafeAreaInsets();
+  const layout = useFloatingActionLayout();
 
   return (
     <Button
@@ -40,7 +38,7 @@ export function FloatingActions({
         position: "absolute",
         right: left ? undefined : 20,
         left: left ? 20 : undefined,
-        bottom: floatingActionLayout(insets.bottom, extraBottom).bottom,
+        bottom: layout.bottom,
         width: FLOATING_ACTION_SIZE,
         height: FLOATING_ACTION_SIZE,
         borderRadius: 28,

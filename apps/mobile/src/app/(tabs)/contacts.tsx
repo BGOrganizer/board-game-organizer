@@ -13,7 +13,6 @@ import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { SearchField } from "heroui-native/search-field";
@@ -38,10 +37,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { UserList as ContactList } from "@/components/common/ui/UserList";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
-import { ContactList } from "@/components/contacts/ContactList";
 import {
   type UserActionConfirmation,
   UserActionsSheet,
@@ -98,62 +98,6 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
 }
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
-}
-
-/** Avatar with the presence dot floating on its top-right corner. */
-function AvatarWithPresence({
-  name,
-  avatarUrl,
-  online,
-  badge,
-}: {
-  name: string;
-  avatarUrl: string | null;
-  online: boolean;
-  badge?: { icon: LucideIcon; label: string; color: "accent" | "success" | "warning" | "danger" };
-}) {
-  const badgeColor = useThemeColor(badge?.color ?? "foreground");
-  const BadgeIcon = badge?.icon;
-  return (
-    <View style={{ position: "relative" }}>
-      <Avatar size="md">
-        {avatarUrl ? <Avatar.Image source={{ uri: avatarUrl }} /> : null}
-        <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
-      </Avatar>
-      <View
-        style={{
-          position: "absolute",
-          top: -1,
-          right: -1,
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          backgroundColor: online ? "#22c55e" : "#9ca3af",
-          borderWidth: 2,
-          borderColor: "#fff",
-        }}
-      />
-      {badge && BadgeIcon ? (
-        <View
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel={badge.label}
-          className="rounded-full border border-muted/20 bg-surface"
-          style={{
-            position: "absolute",
-            right: -4,
-            bottom: -4,
-            width: 22,
-            height: 22,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <BadgeIcon size={13} color={badgeColor} />
-        </View>
-      ) : null}
-    </View>
-  );
 }
 
 export default function ContactsScreen() {
@@ -647,54 +591,46 @@ export default function ContactsScreen() {
     friendRequest?: FriendRequestContext,
     badge?: { icon: LucideIcon; label: string; color: "accent" | "success" | "warning" | "danger" },
   ) => (
-    <GroupedRow key={user.id}>
-      <AvatarWithPresence
-        name={user.name}
-        avatarUrl={user.avatarUrl}
-        online={user.presence.online}
-        badge={badge}
-      />
-      <View style={{ flex: 1 }}>
-        <Typography className="font-medium text-foreground" numberOfLines={1}>
-          {user.name}
-        </Typography>
-        {user.email ? (
-          <Typography className="text-sm text-muted" numberOfLines={1}>
-            {user.email}
-          </Typography>
-        ) : null}
-      </View>
-      <Pressable
-        onPress={() =>
-          openUserActions(
-            user,
-            friendRequest ??
-              (pendingRequestIds.has(user.id)
-                ? "incoming"
-                : sentRequestIds.has(user.id)
-                  ? "outgoing"
-                  : undefined),
-          )
-        }
-        hitSlop={8}
-        accessibilityLabel={`${t("Actions")}: ${user.name}`}
-        style={{ padding: 6 }}
-      >
-        <MoreVertical size={18} color="#333" />
-      </Pressable>
-    </GroupedRow>
+    <UserListRow
+      key={user.id}
+      name={user.name}
+      avatarUrl={user.avatarUrl}
+      secondary={user.email}
+      online={user.presence.online}
+      badge={badge}
+      actions={
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            openUserActions(
+              user,
+              friendRequest ??
+                (pendingRequestIds.has(user.id)
+                  ? "incoming"
+                  : sentRequestIds.has(user.id)
+                    ? "outgoing"
+                    : undefined),
+            )
+          }
+          hitSlop={8}
+          accessibilityLabel={`${t("Actions")}: ${user.name}`}
+          style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+        >
+          <MoreVertical size={18} color={foreground} />
+        </Pressable>
+      }
+    />
   );
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <View style={{ flex: 1, padding: 20 }}>
       <Tabs
         style={{ flex: 1 }}
         value={tab}
         onValueChange={(value) => router.setParams({ tab: value as ContactTab })}
         variant="primary"
       >
-        <Tabs.List>
-          <Tabs.Indicator />
+        <TabBar>
           <Tabs.Trigger value="connections" style={{ flex: 1 }}>
             <Tabs.Label>{t("Connections")}</Tabs.Label>
           </Tabs.Trigger>
@@ -704,9 +640,9 @@ export default function ContactsScreen() {
           <Tabs.Trigger value="search" style={{ flex: 1 }}>
             <Tabs.Label>{t("Search")}</Tabs.Label>
           </Tabs.Trigger>
-        </Tabs.List>
+        </TabBar>
 
-        <Tabs.Content value="search" style={{ flex: 1, marginTop: 12 }}>
+        <Tabs.Content value="search" style={{ flex: 1 }}>
           <FlatList
             style={{ flex: 1 }}
             contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
@@ -857,42 +793,35 @@ export default function ContactsScreen() {
               const contact = item.contact;
               return (
                 <GroupedList>
-                  <GroupedRow>
-                    <Avatar size="md">
-                      <Avatar.Fallback>{contact.name.charAt(0).toUpperCase()}</Avatar.Fallback>
-                    </Avatar>
-                    <Typography
-                      className="font-medium text-foreground"
-                      style={{ flex: 1 }}
-                      numberOfLines={1}
-                    >
-                      {contact.name}
-                    </Typography>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="outline"
-                      style={{ minWidth: 44, minHeight: 44 }}
-                      isDisabled={invite.isPending}
-                      accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
-                      onPress={() =>
-                        invite.mutate(undefined, {
-                          onSuccess: (created) => {
-                            void Share.share({ message: created.link }).catch(() => {});
-                          },
-                        })
-                      }
-                    >
-                      <UserPlus size={18} color={foreground} />
-                    </Button>
-                  </GroupedRow>
+                  <UserListRow
+                    name={contact.name}
+                    actions={
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="outline"
+                        style={{ minWidth: 44, minHeight: 44 }}
+                        isDisabled={invite.isPending}
+                        accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
+                        onPress={() =>
+                          invite.mutate(undefined, {
+                            onSuccess: (created) => {
+                              void Share.share({ message: created.link }).catch(() => {});
+                            },
+                          })
+                        }
+                      >
+                        <UserPlus size={18} color={foreground} />
+                      </Button>
+                    }
+                  />
                 </GroupedList>
               );
             }}
           />
         </Tabs.Content>
 
-        <Tabs.Content value="requests" style={{ flex: 1, marginTop: 12 }}>
+        <Tabs.Content value="requests" style={{ flex: 1 }}>
           <ContactLegend
             title={t("Requests")}
             icon={Mail}
@@ -933,7 +862,7 @@ export default function ContactsScreen() {
           />
         </Tabs.Content>
 
-        <Tabs.Content value="connections" style={{ flex: 1, marginTop: 12 }}>
+        <Tabs.Content value="connections" style={{ flex: 1 }}>
           <ContactLegend
             title={t("Connections")}
             icon={UsersRound}

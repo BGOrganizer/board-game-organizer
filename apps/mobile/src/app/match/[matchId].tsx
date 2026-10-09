@@ -1,7 +1,6 @@
 import type { MatchChoice, MatchDetailResponse } from "@board-game-organizer/schemas";
 import {
   canRegisterMatchResults,
-  formatLocationAddress,
   formatMatchDateTime,
   matchContactState,
   matchParticipants,
@@ -13,7 +12,6 @@ import {
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Avatar } from "heroui-native/avatar";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
@@ -43,22 +41,24 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Alert, Pressable, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserActionsSheet } from "@/components/contacts/UserActionsSheet";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { GameListRow } from "@/components/games/GameListRow";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { MatchLeaderboard } from "@/components/matches/MatchLeaderboard";
 import { MatchStandingIdentity } from "@/components/matches/MatchStandingIdentity";
 import { VoteCounts } from "@/components/matches/VoteCounts";
 import { VoteLegend } from "@/components/matches/VoteLegend";
 import type { UserActionKey } from "@/lib/contacts/user-actions";
-import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -124,7 +124,6 @@ export default function MatchDetailScreen() {
   const t = useT();
   const { i18n } = useLingui();
   const mutationFeedback = useMutationFeedback();
-  const insets = useSafeAreaInsets();
   const [token, setToken] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(
     tab === "results" || tab === "standings" ? "results" : "overview",
@@ -428,15 +427,7 @@ export default function MatchDetailScreen() {
               : undefined,
         }}
       />
-      <ScrollView
-        testID="match-detail-scroll"
-        style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{
-          padding: 20,
-          paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
-        }}
-      >
+      <ScreenScrollView testID="match-detail-scroll">
         {matches.detail.isPending && (
           <View style={{ gap: 12, width: "100%" }}>
             {matches.summary ? (
@@ -499,7 +490,7 @@ export default function MatchDetailScreen() {
             }
           />
         )}
-      </ScrollView>
+      </ScreenScrollView>
       <BottomSheet
         isOpen={activeChoice !== null}
         onOpenChange={(open) => {
@@ -575,7 +566,6 @@ export default function MatchDetailScreen() {
           onPress={() =>
             void router.push({ pathname: "/match/wizard", params: { matchId: editableMatch.id } })
           }
-          extraBottom={100}
           variant="primary"
         >
           <Pencil color="#fff" size={26} />
@@ -775,8 +765,7 @@ function MatchDetailContent({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} variant="primary">
-        <Tabs.List>
-          <Tabs.Indicator />
+        <TabBar>
           <Tabs.Trigger value="overview" style={{ flex: 1 }}>
             <Tabs.Label>{t("Overview")}</Tabs.Label>
           </Tabs.Trigger>
@@ -792,9 +781,9 @@ function MatchDetailContent({
               <Tabs.Label>{t("Leaderboards")}</Tabs.Label>
             </Tabs.Trigger>
           )}
-        </Tabs.List>
+        </TabBar>
 
-        <Tabs.Content value="overview" style={{ marginTop: 16 }}>
+        <Tabs.Content value="overview">
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Typography
@@ -904,53 +893,44 @@ function MatchDetailContent({
                     .map((location) => {
                       const choice = data.choices?.locations?.[location.id] ?? "UNKNOWN";
                       return (
-                        <GroupedRow key={location.id}>
-                          <LocationFavoriteButton
-                            location={location}
-                            favorites={favorites}
-                            matchId={match.id}
-                          />
-                          <View style={{ flex: 1, gap: 3 }}>
-                            <Typography
-                              className="font-medium text-foreground"
-                              numberOfLines={1}
-                              style={{ fontSize: 14, lineHeight: 20 }}
-                            >
-                              {location.name}
-                            </Typography>
-                            <Typography
-                              className="text-xs text-muted"
-                              style={{ fontSize: 12, lineHeight: 16 }}
-                              numberOfLines={1}
-                              accessibilityLabel={location.address}
-                            >
-                              {formatLocationAddress(location.address)}
-                            </Typography>
-                            {match.status === "PLANNING" &&
-                              data.voteSummary?.locations?.[location.id] && (
-                                <VoteCounts counts={data.voteSummary.locations[location.id]} />
-                              )}
-                          </View>
-                          {canChoose && (
-                            <Button
-                              variant="outline"
-                              isIconOnly
-                              size="sm"
-                              isDisabled={choicePending}
-                              testID="choose-location"
-                              accessibilityLabel={`${t("Choose location")}: ${choiceLabel(choice, t)}`}
-                              onPress={() =>
-                                openChoice({
-                                  kind: "locations",
-                                  itemId: location.id,
-                                  title: t("Choose location"),
-                                })
-                              }
-                            >
-                              <ChoiceIcon choice={choice} color={iconColors[choice]} />
-                            </Button>
-                          )}
-                        </GroupedRow>
+                        <LocationListRow
+                          key={location.id}
+                          name={location.name}
+                          address={location.address}
+                          leading={
+                            <LocationFavoriteButton
+                              location={location}
+                              favorites={favorites}
+                              matchId={match.id}
+                            />
+                          }
+                          actions={
+                            canChoose && (
+                              <Button
+                                variant="outline"
+                                isIconOnly
+                                size="sm"
+                                isDisabled={choicePending}
+                                testID="choose-location"
+                                accessibilityLabel={`${t("Choose location")}: ${choiceLabel(choice, t)}`}
+                                onPress={() =>
+                                  openChoice({
+                                    kind: "locations",
+                                    itemId: location.id,
+                                    title: t("Choose location"),
+                                  })
+                                }
+                              >
+                                <ChoiceIcon choice={choice} color={iconColors[choice]} />
+                              </Button>
+                            )
+                          }
+                        >
+                          {match.status === "PLANNING" &&
+                            data.voteSummary?.locations?.[location.id] && (
+                              <VoteCounts counts={data.voteSummary.locations[location.id]} />
+                            )}
+                        </LocationListRow>
                       );
                     })}
                 </GroupedList>
@@ -971,86 +951,67 @@ function MatchDetailContent({
                 {games
                   .filter((game) => match.status === "PLANNING" || game.id === match.selectedGameId)
                   .map((game) => (
-                    <GroupedRow key={game.id}>
-                      <View
-                        className="bg-muted/20"
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          overflow: "hidden",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {game.thumbnail ? (
-                          <Image
-                            source={{ uri: game.thumbnail }}
-                            accessible={false}
-                            style={{ width: 40, height: 40 }}
-                          />
-                        ) : (
-                          <Gamepad2 size={18} color="#6b7280" />
-                        )}
-                      </View>
-                      <View style={{ flex: 1, gap: 3 }}>
-                        <Typography
-                          className="font-medium text-foreground"
-                          numberOfLines={1}
-                          style={{ fontSize: 14, lineHeight: 20 }}
-                        >
-                          {game.name}
-                        </Typography>
-                        <GameCatalogMetadata
-                          year={game.yearPublished}
-                          average={game.average}
-                          rank={game.rank}
-                        />
-                        {match.status === "PLANNING" &&
-                          data.voteSummary?.games[String(game.id)] && (
-                            <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
+                    <GameListRow
+                      key={game.id}
+                      name={game.name}
+                      imageUrl={game.thumbnail}
+                      year={game.yearPublished}
+                      average={game.average}
+                      rank={game.rank}
+                      actions={
+                        <>
+                          {match.status === "TERMINATED" && winnerNames && (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 4,
+                                flexShrink: 1,
+                              }}
+                            >
+                              <View
+                                accessible
+                                accessibilityRole="image"
+                                accessibilityLabel={t("Winner")}
+                              >
+                                <Medal size={16} color="#f59e0b" />
+                              </View>
+                              <Typography className="font-bold text-foreground" numberOfLines={1}>
+                                {winnerNames}
+                              </Typography>
+                            </View>
                           )}
-                      </View>
-                      {match.status === "TERMINATED" && winnerNames && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 4,
-                            flexShrink: 1,
-                          }}
-                        >
-                          <View
-                            accessible
-                            accessibilityRole="image"
-                            accessibilityLabel={t("Winner")}
-                          >
-                            <Medal size={16} color="#f59e0b" />
-                          </View>
-                          <Typography className="font-bold text-foreground" numberOfLines={1}>
-                            {winnerNames}
-                          </Typography>
-                        </View>
+                          {canChoose && (
+                            <Button
+                              variant="outline"
+                              isIconOnly
+                              size="sm"
+                              isDisabled={choicePending}
+                              testID="choose-game"
+                              accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
+                              onPress={() =>
+                                openChoice({
+                                  kind: "games",
+                                  itemId: game.id,
+                                  title: t("Choose game"),
+                                })
+                              }
+                            >
+                              <ChoiceIcon
+                                choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                                color={
+                                  iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]
+                                }
+                              />
+                            </Button>
+                          )}
+                        </>
+                      }
+                    >
+                      {match.status === "PLANNING" && data.voteSummary?.games[String(game.id)] && (
+                        <VoteCounts counts={data.voteSummary.games[String(game.id)]} />
                       )}
-                      {canChoose && (
-                        <Button
-                          variant="outline"
-                          isIconOnly
-                          size="sm"
-                          isDisabled={choicePending}
-                          testID="choose-game"
-                          accessibilityLabel={`${t("Choose game")}: ${choiceLabel(data.choices?.games?.[String(game.id)] ?? "UNKNOWN", t)}`}
-                          onPress={() =>
-                            openChoice({ kind: "games", itemId: game.id, title: t("Choose game") })
-                          }
-                        >
-                          <ChoiceIcon
-                            choice={data.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                            color={iconColors[data.choices?.games?.[String(game.id)] ?? "UNKNOWN"]}
-                          />
-                        </Button>
-                      )}
-                    </GroupedRow>
+                    </GameListRow>
                   ))}
               </GroupedList>
             )}
@@ -1058,7 +1019,7 @@ function MatchDetailContent({
         </Tabs.Content>
 
         {match.status !== "TERMINATED" && (
-          <Tabs.Content value="players" style={{ marginTop: 16 }}>
+          <Tabs.Content value="players">
             <View style={{ gap: 12 }}>
               {match.status === "PLANNING" && (
                 <View style={{ flexDirection: "row", gap: 28 }}>
@@ -1092,90 +1053,73 @@ function MatchDetailContent({
                         ? t("Accepted")
                         : t("Declined");
                   return (
-                    <GroupedRow key={player.id}>
-                      <View style={{ position: "relative" }}>
-                        <Avatar size="md">
-                          {player.avatarUrl ? (
-                            <Avatar.Image source={{ uri: player.avatarUrl }} />
-                          ) : null}
-                          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                        </Avatar>
-                        <View
-                          accessible
-                          accessibilityRole="image"
-                          accessibilityLabel={statusLabel}
-                          className="bg-background"
-                          style={{
-                            position: "absolute",
-                            right: -4,
-                            bottom: -4,
-                            borderRadius: 12,
-                            padding: 2,
-                          }}
-                        >
-                          {player.status === "PENDING" ? (
-                            <Clock3 size={15} color="#f5a524" />
-                          ) : player.status === "ACCEPTED" ? (
-                            <CircleCheck size={15} color="#17c964" />
-                          ) : (
-                            <CircleX size={15} color="#f31260" />
-                          )}
+                    <UserListRow
+                      key={player.id}
+                      name={player.name}
+                      avatarUrl={player.avatarUrl}
+                      secondary={player.email}
+                      badge={{
+                        icon:
+                          player.status === "PENDING"
+                            ? Clock3
+                            : player.status === "ACCEPTED"
+                              ? CircleCheck
+                              : CircleX,
+                        label: statusLabel,
+                        color:
+                          player.status === "PENDING"
+                            ? "warning"
+                            : player.status === "ACCEPTED"
+                              ? "success"
+                              : "danger",
+                      }}
+                      actions={
+                        <>
+                          {!match.eventTable &&
+                            match.adminUserId === userId &&
+                            match.status === "PLANNING" &&
+                            !player.isAdministrator &&
+                            player.invitation.kind === "REQUEST" &&
+                            player.invitation.status === "PENDING" && (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                isDisabled={isRemoving}
+                                accessibilityLabel={`${t("Approve join request")}: ${player.name}`}
+                                testID={`approve-match-join-${player.id}`}
+                                style={{ minHeight: 44, minWidth: 44 }}
+                                onPress={() => approveJoinRequest(player.invitation.id)}
+                              >
+                                <CircleCheck size={18} color="white" />
+                              </Button>
+                            )}
+                          {!match.eventTable &&
+                            match.adminUserId === userId &&
+                            match.status === "PLANNING" &&
+                            !player.isAdministrator && (
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="danger-soft"
+                                isDisabled={isRemoving}
+                                accessibilityLabel={`${t("Remove player")}: ${player.name}`}
+                                testID={`remove-match-player-${player.id}`}
+                                style={{ minHeight: 44, minWidth: 44 }}
+                                onPress={() => removePlayer(player.invitation.id)}
+                              >
+                                <UserRoundX size={18} color={danger} />
+                              </Button>
+                            )}
+                          {socialMenu(player)}
+                        </>
+                      }
+                    >
+                      {player.isAdministrator ? (
+                        <View accessible accessibilityLabel={t("Administrator")}>
+                          <Crown size={16} color={warning} />
                         </View>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          <Typography className="font-medium text-foreground" numberOfLines={1}>
-                            {player.name}
-                          </Typography>
-                          {player.isAdministrator ? (
-                            <View accessible accessibilityLabel={t("Administrator")}>
-                              <Crown size={16} color="#f5a524" />
-                            </View>
-                          ) : null}
-                        </View>
-                        {player.email ? (
-                          <Typography className="text-sm text-muted" numberOfLines={1}>
-                            {player.email}
-                          </Typography>
-                        ) : null}
-                      </View>
-                      {!match.eventTable &&
-                        match.adminUserId === userId &&
-                        match.status === "PLANNING" &&
-                        !player.isAdministrator &&
-                        player.invitation.kind === "REQUEST" &&
-                        player.invitation.status === "PENDING" && (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            isDisabled={isRemoving}
-                            accessibilityLabel={`${t("Approve join request")}: ${player.name}`}
-                            testID={`approve-match-join-${player.id}`}
-                            style={{ minHeight: 44, minWidth: 44 }}
-                            onPress={() => approveJoinRequest(player.invitation.id)}
-                          >
-                            <CircleCheck size={18} color="white" />
-                          </Button>
-                        )}
-                      {!match.eventTable &&
-                        match.adminUserId === userId &&
-                        match.status === "PLANNING" &&
-                        !player.isAdministrator && (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="danger-soft"
-                            isDisabled={isRemoving}
-                            accessibilityLabel={`${t("Remove player")}: ${player.name}`}
-                            testID={`remove-match-player-${player.id}`}
-                            style={{ minHeight: 44, minWidth: 44 }}
-                            onPress={() => removePlayer(player.invitation.id)}
-                          >
-                            <UserRoundX size={18} color={danger} />
-                          </Button>
-                        )}
-                      {socialMenu(player)}
-                    </GroupedRow>
+                      ) : null}
+                    </UserListRow>
                   );
                 })}
               </GroupedList>
@@ -1184,7 +1128,7 @@ function MatchDetailContent({
         )}
 
         {canViewLeaderboard && (
-          <Tabs.Content value="leaderboard" style={{ marginTop: 16 }}>
+          <Tabs.Content value="leaderboard">
             <MatchLeaderboard
               data={data}
               apiUrl={apiUrl}
@@ -1195,7 +1139,7 @@ function MatchDetailContent({
           </Tabs.Content>
         )}
         {match.status === "TERMINATED" && match.results && (
-          <Tabs.Content value="results" style={{ marginTop: 16 }}>
+          <Tabs.Content value="results">
             <View style={{ gap: 12 }}>
               <Typography className="text-sm text-muted">
                 {match.results.lowerWins ? t("Lowest score wins") : t("Highest score wins")}

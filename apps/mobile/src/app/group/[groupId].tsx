@@ -6,7 +6,6 @@ import {
 } from "@board-game-organizer/shared";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
@@ -27,17 +26,17 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Alert, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { UserActionsSheet } from "@/components/contacts/UserActionsSheet";
 import { GroupLeaderboard } from "@/components/groups/GroupLeaderboard";
 import type { UserActionKey } from "@/lib/contacts/user-actions";
-import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -51,7 +50,6 @@ export default function GroupDetailScreen() {
   const router = useRouter();
   const t = useT();
   const feedback = useMutationFeedback();
-  const insets = useSafeAreaInsets();
   const [token, setToken] = useState<string | null>(null);
   const [menuUserId, setMenuUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("settings");
@@ -229,10 +227,9 @@ export default function GroupDetailScreen() {
               : undefined,
         }}
       />
-      <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, padding: 20 }}>
         <Tabs value={activeTab} onValueChange={setActiveTab} variant="primary" style={{ flex: 1 }}>
-          <Tabs.List>
-            <Tabs.Indicator />
+          <TabBar>
             <Tabs.Trigger value="settings" style={{ flex: 1 }}>
               <Tabs.Label>{t("Settings")}</Tabs.Label>
             </Tabs.Trigger>
@@ -241,16 +238,11 @@ export default function GroupDetailScreen() {
                 <Tabs.Label>{t("Leaderboards")}</Tabs.Label>
               </Tabs.Trigger>
             ) : null}
-          </Tabs.List>
-          <Tabs.Content value="settings" style={{ flex: 1, marginTop: 12 }}>
-            <ScrollView
+          </TabBar>
+          <Tabs.Content value="settings" style={{ flex: 1 }}>
+            <ScreenScrollView
               testID="group-detail-scroll"
-              style={{ flex: 1 }}
-              contentInsetAdjustmentBehavior="automatic"
-              contentContainerStyle={{
-                paddingBottom: floatingActionLayout(insets.bottom, 100).paddingBottom,
-                gap: 16,
-              }}
+              contentContainerStyle={{ paddingHorizontal: 0, paddingTop: 0 }}
             >
               {groups.detail.isPending || (exiting && !group) ? (
                 <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
@@ -340,94 +332,50 @@ export default function GroupDetailScreen() {
                       {section.rows.length > 0 ? (
                         <GroupedList>
                           {section.rows.map((person) => (
-                            <GroupedRow key={person.id}>
-                              <View style={{ position: "relative" }}>
-                                <Avatar size="md">
-                                  {person.avatarUrl ? (
-                                    <Avatar.Image source={{ uri: person.avatarUrl }} />
+                            <UserListRow
+                              key={person.id}
+                              name={person.name}
+                              avatarUrl={person.avatarUrl}
+                              secondary={person.email}
+                              badge={
+                                person.id === group.adminUserId
+                                  ? { icon: Crown, label: t("Group admin"), color: "warning" }
+                                  : person.status === "PENDING"
+                                    ? { icon: Clock3, label: t("Pending"), color: "warning" }
+                                    : person.status !== "ACCEPTED"
+                                      ? { icon: CircleX, label: t("Declined"), color: "danger" }
+                                      : undefined
+                              }
+                              actions={
+                                <>
+                                  {admin && person.invitation ? (
+                                    <Button
+                                      isIconOnly
+                                      size="sm"
+                                      variant="danger-soft"
+                                      isDisabled={groups.removeInvitation.isPending}
+                                      accessibilityLabel={`${t("Remove from group")}: ${person.name}`}
+                                      style={{ minHeight: 44, minWidth: 44 }}
+                                      onPress={() => remove(person.invitation?.id ?? "")}
+                                    >
+                                      <UserRoundX size={18} color="#f31260" />
+                                    </Button>
                                   ) : null}
-                                  <Avatar.Fallback>{person.name.charAt(0) || "?"}</Avatar.Fallback>
-                                </Avatar>
-                                {person.status !== "ACCEPTED" ? (
-                                  <View
-                                    accessible
-                                    accessibilityRole="image"
-                                    className="bg-background"
-                                    accessibilityLabel={
-                                      person.status === "PENDING" ? t("Pending") : t("Declined")
-                                    }
-                                    style={{
-                                      position: "absolute",
-                                      right: -4,
-                                      bottom: -4,
-                                      borderRadius: 12,
-                                      padding: 2,
-                                    }}
-                                  >
-                                    {person.status === "PENDING" ? (
-                                      <Clock3 size={15} color="#f5a524" />
-                                    ) : (
-                                      <CircleX size={15} color="#f31260" />
-                                    )}
-                                  </View>
-                                ) : null}
-                                {person.id === group.adminUserId ? (
-                                  <View
-                                    accessible
-                                    accessibilityRole="image"
-                                    accessibilityLabel={t("Group admin")}
-                                    className="bg-surface"
-                                    style={{
-                                      position: "absolute",
-                                      top: 0,
-                                      left: 0,
-                                      borderBottomRightRadius: 8,
-                                      padding: 2,
-                                    }}
-                                  >
-                                    <Crown size={16} color="#f5a524" />
-                                  </View>
-                                ) : null}
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Typography
-                                  className="font-medium text-foreground"
-                                  numberOfLines={1}
-                                >
-                                  {person.name}
-                                </Typography>
-                                {person.email ? (
-                                  <Typography className="text-sm text-muted" numberOfLines={1}>
-                                    {person.email}
-                                  </Typography>
-                                ) : null}
-                              </View>
-                              {admin && person.invitation ? (
-                                <Button
-                                  isIconOnly
-                                  size="sm"
-                                  variant="danger-soft"
-                                  isDisabled={groups.removeInvitation.isPending}
-                                  accessibilityLabel={`${t("Remove from group")}: ${person.name}`}
-                                  style={{ minHeight: 44, minWidth: 44 }}
-                                  onPress={() => remove(person.invitation?.id ?? "")}
-                                >
-                                  <UserRoundX size={18} color="#f31260" />
-                                </Button>
-                              ) : null}
-                              {person.id !== userId ? (
-                                <Button
-                                  isIconOnly
-                                  size="sm"
-                                  variant="ghost"
-                                  accessibilityLabel={`${t("Actions")}: ${person.name}`}
-                                  style={{ minHeight: 44, minWidth: 44 }}
-                                  onPress={() => setMenuUserId(person.id)}
-                                >
-                                  <Ellipsis size={18} color="#737373" />
-                                </Button>
-                              ) : null}
-                            </GroupedRow>
+                                  {person.id !== userId ? (
+                                    <Button
+                                      isIconOnly
+                                      size="sm"
+                                      variant="ghost"
+                                      accessibilityLabel={`${t("Actions")}: ${person.name}`}
+                                      style={{ minHeight: 44, minWidth: 44 }}
+                                      onPress={() => setMenuUserId(person.id)}
+                                    >
+                                      <Ellipsis size={18} color="#737373" />
+                                    </Button>
+                                  ) : null}
+                                </>
+                              }
+                            />
                           ))}
                         </GroupedList>
                       ) : section.id === "invitations" ? (
@@ -448,10 +396,10 @@ export default function GroupDetailScreen() {
                   ) : null}
                 </>
               ) : null}
-            </ScrollView>
+            </ScreenScrollView>
           </Tabs.Content>
           {(admin || invitation?.status === "ACCEPTED") && group ? (
-            <Tabs.Content value="leaderboard" style={{ flex: 1, marginTop: 12 }}>
+            <Tabs.Content value="leaderboard" style={{ flex: 1 }}>
               <GroupLeaderboard groupId={group.id} />
             </Tabs.Content>
           ) : null}
@@ -462,7 +410,6 @@ export default function GroupDetailScreen() {
           label="Edit group"
           testID="edit-group-fab"
           onPress={() => router.push({ pathname: "/group/wizard", params: { groupId } })}
-          extraBottom={100}
           variant="primary"
         >
           <Pencil color="#fff" size={26} />

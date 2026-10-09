@@ -5,7 +5,6 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
-  formatLocationAddress,
   uploadOrganizationLogo,
   useFavoriteLocations,
   useOrganization,
@@ -19,7 +18,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Camera, Image as ImageIcon, MapPin, Send, Upload } from "lucide-react-native";
+import { Camera, Image as ImageIcon, Send, Upload } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   AppState,
@@ -31,9 +30,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -280,34 +280,19 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
             {t("Open settings")}
           </Button>
         ) : null}
-        <GroupedRow>
-          {location ? (
-            <LocationFavoriteButton location={location} favorites={favorites} />
-          ) : (
-            <MapPin size={20} color={foreground} />
-          )}
-          <Button
-            variant="ghost"
-            style={{ flex: 1, minHeight: 44, justifyContent: "flex-start" }}
+        <GroupedList>
+          <LocationListRow
+            name={location?.name ?? t("Choose a verified address")}
             accessibilityLabel={t("Choose a verified address")}
+            address={location?.address}
             onPress={() => setPicking(true)}
-          >
-            <View style={{ flex: 1, gap: 2 }}>
-              <Typography className="font-medium text-foreground" numberOfLines={1}>
-                {location?.name ?? t("Choose a verified address")}
-              </Typography>
-              {location ? (
-                <Typography
-                  className="text-xs text-muted"
-                  numberOfLines={1}
-                  accessibilityLabel={location.address}
-                >
-                  {formatLocationAddress(location.address)}
-                </Typography>
-              ) : null}
-            </View>
-          </Button>
-        </GroupedRow>
+            leading={
+              location ? (
+                <LocationFavoriteButton location={location} favorites={favorites} />
+              ) : undefined
+            }
+          />
+        </GroupedList>
         {favorites.status.isError ? (
           <Typography accessibilityRole="alert" className="text-danger">
             {t("Could not load favorite locations")}

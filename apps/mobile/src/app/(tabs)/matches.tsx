@@ -29,15 +29,15 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
-import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -102,7 +102,7 @@ export default function MatchesScreen() {
   const mutationFeedback = useMutationFeedback();
   const filters = useListFilters();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const layout = useFloatingActionLayout();
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -134,7 +134,7 @@ export default function MatchesScreen() {
         keyExtractor={(match) => match.id}
         contentContainerStyle={{
           padding: 20,
-          paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
+          paddingBottom: layout.paddingBottom,
           gap: 12,
           flexGrow: 1,
         }}
@@ -246,21 +246,19 @@ export default function MatchesScreen() {
                 name={match.name}
                 adminLabel={match.adminUserId === userId ? t("Administrator") : undefined}
               />
-              <View style={{ flex: 1, gap: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-                  <Typography
-                    className="flex-1 text-foreground"
-                    style={{ fontSize: 15, fontWeight: "600" }}
-                  >
-                    {match.name}
-                  </Typography>
-                  {match.eventTable ? (
-                    <Typography className="text-sm text-muted">{t("Event table")}</Typography>
-                  ) : null}
-                  <Chip size="sm" variant="soft" color={matchCardStatusColor[match.status]}>
-                    {statusLabels[match.status]}
-                  </Chip>
-                </View>
+              <ListCardBody
+                title={match.name}
+                titleAccessory={
+                  <>
+                    {match.eventTable ? (
+                      <Typography className="text-sm text-muted">{t("Event table")}</Typography>
+                    ) : null}
+                    <Chip size="sm" variant="soft" color={matchCardStatusColor[match.status]}>
+                      {statusLabels[match.status]}
+                    </Chip>
+                  </>
+                }
+              >
                 {card.date && dateLabel && (
                   <View
                     style={{
@@ -371,7 +369,7 @@ export default function MatchesScreen() {
                     </View>
                   </View>
                 )}
-              </View>
+              </ListCardBody>
             </LinkedListCard>
           );
         }}
@@ -406,7 +404,6 @@ export default function MatchesScreen() {
         label="Create a match"
         testID="create-match-fab"
         onPress={() => void router.push("/match/wizard")}
-        extraBottom={16}
         variant="primary"
       >
         <Plus color="#fff" size={26} />

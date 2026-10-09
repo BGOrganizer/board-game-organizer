@@ -1,18 +1,23 @@
 import {
   communityAccessDenied,
+  formatLocationAddress,
   useListSearch,
   useOrganizationList,
   usePublicGroups,
 } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { Card } from "heroui-native/card";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Building2, UsersRound } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
+import { OrganizationArtwork } from "@/components/organizations/OrganizationArtwork";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -117,19 +122,31 @@ export function CommunityDiscovery() {
         }
         renderItem={({ item }) =>
           item.kind === "organization" ? (
-            <Button variant="secondary" onPress={() => router.push(`/organization/${item.id}`)}>
-              {item.name}
-            </Button>
+            <LinkedListCard
+              label={`${t("Open organization")}: ${item.name}`}
+              onPress={() => router.push(`/organization/${item.id}`)}
+            >
+              <OrganizationArtwork organization={item} />
+              <ListCardBody title={item.name}>
+                <Typography className="text-muted" numberOfLines={2}>
+                  {formatLocationAddress(item.location.address)}
+                </Typography>
+                <Typography className="text-muted">
+                  {item.memberCount} {t("members")}
+                </Typography>
+              </ListCardBody>
+            </LinkedListCard>
           ) : (
-            <View className="bg-surface" style={{ padding: 16, borderRadius: 12, gap: 4 }}>
-              <Typography className="font-semibold">{item.name}</Typography>
-              <Typography>
-                {t("Public group")} · {item.memberCount} {t("members")}
-              </Typography>
-              <Typography className="text-muted">
-                {t("Group join requests will be available later")}
-              </Typography>
-            </View>
+            <Card style={{ width: "100%", padding: 12, borderRadius: 12 }}>
+              <ListCardBody title={item.name}>
+                <Typography>
+                  {t("Public group")} · {item.memberCount} {t("members")}
+                </Typography>
+                <Typography className="text-muted">
+                  {t("Group join requests will be available later")}
+                </Typography>
+              </ListCardBody>
+            </Card>
           )
         }
       />

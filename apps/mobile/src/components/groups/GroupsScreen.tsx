@@ -10,16 +10,16 @@ import { Typography } from "heroui-native/text";
 import { Crown, LockKeyhole, LockKeyholeOpen, Mail, Plus, UsersRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SvgXml } from "react-native-svg";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
-import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -55,7 +55,7 @@ function GroupArtwork({ name, admin }: { name: string; admin: boolean }) {
 export default function GroupsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const layout = useFloatingActionLayout();
   const t = useT();
   const { i18n } = useLingui();
   const feedback = useMutationFeedback();
@@ -93,7 +93,7 @@ export default function GroupsScreen() {
         keyExtractor={(group) => group.id}
         contentContainerStyle={{
           ...listPageContentStyle,
-          paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
+          paddingBottom: layout.paddingBottom,
         }}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.5}
@@ -157,11 +157,9 @@ export default function GroupsScreen() {
               }
             >
               <GroupArtwork name={group.name} admin={admin} />
-              <View style={{ flex: 1, gap: 5 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-                  <Typography numberOfLines={1} style={{ flexShrink: 1, fontWeight: "600" }}>
-                    {group.name}
-                  </Typography>
+              <ListCardBody
+                title={group.name}
+                titleAccessory={
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                     {group.isPublic ? (
                       <LockKeyholeOpen size={14} color="#6b7280" />
@@ -172,7 +170,8 @@ export default function GroupsScreen() {
                       {group.isPublic ? t("Public") : t("Private")}
                     </Typography>
                   </View>
-                </View>
+                }
+              >
                 <Typography className="text-muted" style={{ fontSize: 13 }}>
                   {new Date(group.createdAt).toLocaleDateString(i18n.locale, {
                     day: "numeric",
@@ -202,7 +201,7 @@ export default function GroupsScreen() {
                     </Typography>
                   </View>
                 ) : null}
-              </View>
+              </ListCardBody>
             </LinkedListCard>
           );
         }}
@@ -233,7 +232,6 @@ export default function GroupsScreen() {
         label="Create group"
         testID="create-group-fab"
         onPress={() => void router.push("/group/wizard")}
-        extraBottom={16}
         variant="primary"
       >
         <Plus color="#fff" size={26} />

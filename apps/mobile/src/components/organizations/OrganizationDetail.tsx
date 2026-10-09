@@ -27,14 +27,14 @@ import {
   UserRoundPlus,
 } from "lucide-react-native";
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View } from "react-native";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { TabBar } from "@/components/common/ui/TabBar";
 import { Events } from "@/components/events/Events";
 import { OrganizationArtwork } from "@/components/organizations/OrganizationArtwork";
 import { OrganizationMembers } from "@/components/organizations/OrganizationMembers";
-import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -61,7 +61,6 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
   const options = useCommunityApi();
   const accentForeground = useThemeColor("accent-foreground");
   const danger = useThemeColor("danger");
-  const insets = useSafeAreaInsets();
   const detail = useOrganization(options, organizationId);
   const actions = useOrganizationActions(options);
   const organization = communityAccessDenied(detail.error) ? undefined : detail.data;
@@ -93,27 +92,21 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
       ) : null}
       {organization ? (
         <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
-          <Tabs.List style={{ marginHorizontal: 20, marginTop: 12 }}>
-            <Tabs.Indicator />
-            <Tabs.Trigger value="details" testID="organization-tab-details" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Details")}</Tabs.Label>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="members" testID="organization-tab-members" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Members")}</Tabs.Label>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="events" testID="organization-tab-events" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Events")}</Tabs.Label>
-            </Tabs.Trigger>
-          </Tabs.List>
+          <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+            <TabBar>
+              <Tabs.Trigger value="details" testID="organization-tab-details" style={{ flex: 1 }}>
+                <Tabs.Label>{t("Details")}</Tabs.Label>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="members" testID="organization-tab-members" style={{ flex: 1 }}>
+                <Tabs.Label>{t("Members")}</Tabs.Label>
+              </Tabs.Trigger>
+              <Tabs.Trigger value="events" testID="organization-tab-events" style={{ flex: 1 }}>
+                <Tabs.Label>{t("Events")}</Tabs.Label>
+              </Tabs.Trigger>
+            </TabBar>
+          </View>
           <Tabs.Content value="details" style={{ flex: 1 }}>
-            <ScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                padding: 20,
-                gap: 16,
-                paddingBottom: floatingActionLayout(insets.bottom, 0).paddingBottom,
-              }}
-            >
+            <ScreenScrollView contentContainerStyle={{ paddingTop: 0 }}>
               <View
                 style={{
                   flexDirection: "row",
@@ -175,7 +168,7 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
                   );
                 })}
               </View>
-            </ScrollView>
+            </ScreenScrollView>
           </Tabs.Content>
           <Tabs.Content value="members" style={{ flex: 1 }}>
             {organization.role === "admin" || organization.role === "accepted" ? (
@@ -201,7 +194,6 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
         <FloatingActions
           label="Edit organization"
           testID="edit-organization-fab"
-          extraBottom={0}
           variant="primary"
           onPress={() =>
             router.push({ pathname: "/organization/wizard", params: { organizationId } })
@@ -214,7 +206,6 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
         <FloatingActions
           label="New event"
           testID="new-organization-event-fab"
-          extraBottom={0}
           variant="primary"
           onPress={() => router.push({ pathname: "/event/wizard", params: { organizationId } })}
         >

@@ -12,15 +12,15 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Building2, Check, Crown, Mail, Plus, Send, UsersRound } from "lucide-react-native";
 import { FlatList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
-import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { OrganizationArtwork } from "./OrganizationArtwork";
 
 export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" }) {
@@ -29,7 +29,7 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
   const t = useT();
   const foreground = useThemeColor("foreground");
   const accentForeground = useThemeColor("accent-foreground");
-  const insets = useSafeAreaInsets();
+  const layout = useFloatingActionLayout();
   const filters = useListSearch(organizationListRoles);
   const search = filters.search;
   const list = useOrganizationList(options, scope, search, filters.selected);
@@ -43,7 +43,7 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           ...listPageContentStyle,
-          paddingBottom: floatingActionLayout(insets.bottom, 16).paddingBottom,
+          paddingBottom: layout.paddingBottom,
         }}
         onEndReachedThreshold={0.5}
         onEndReached={() => {
@@ -101,10 +101,7 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
             }
           >
             <OrganizationArtwork organization={organization} />
-            <View style={{ flex: 1, gap: 4 }}>
-              <Typography numberOfLines={1} className="font-semibold">
-                {organization.name}
-              </Typography>
+            <ListCardBody title={organization.name}>
               <Typography numberOfLines={2} className="text-muted" style={{ fontSize: 13 }}>
                 {formatLocationAddress(organization.location.address)}
               </Typography>
@@ -130,7 +127,7 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
                   {t("Membership requested")}
                 </Typography>
               ) : null}
-            </View>
+            </ListCardBody>
           </LinkedListCard>
         )}
         ListFooterComponent={
@@ -162,7 +159,6 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
           label="New organization"
           testID="new-organization-fab"
           variant="primary"
-          extraBottom={16}
           isDisabled={!options.userId}
           onPress={() => router.push("/organization/wizard")}
         >
