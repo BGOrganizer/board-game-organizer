@@ -4,7 +4,6 @@ import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { SearchField } from "heroui-native/search-field";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -13,6 +12,7 @@ import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { LeaderboardGameCover } from "@/components/ratings/LeaderboardGameCover";
 import { LeaderboardStat } from "@/components/ratings/LeaderboardStat";
 import { useT } from "@/lib/i18n";
@@ -104,16 +104,12 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                 label={t("Search board games")}
                 help={t("Type at least 4 characters to search")}
               />
-              <SearchField value={search} onChange={setSearch}>
-                <SearchField.Group>
-                  <SearchField.SearchIcon />
-                  <SearchField.Input
-                    accessibilityLabel={t("Search board games")}
-                    placeholder={t("Search board games")}
-                  />
-                  <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
-                </SearchField.Group>
-              </SearchField>
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                label={t("Search board games")}
+                placeholder={t("Search board games")}
+              />
               {filteredChoices.map((game) => (
                 <Select.Item key={game.id} value={String(game.id)} label={game.name}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>

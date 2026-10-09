@@ -20,7 +20,6 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
-import { SearchField } from "heroui-native/search-field";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -29,6 +28,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppState, Image, Keyboard, Linking, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useT } from "@/lib/i18n";
 import { requestUserPosition } from "@/lib/locations/user-location";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -416,7 +416,7 @@ export default function LocationPicker({
           {t("Could not load favorite locations")}
         </Typography>
       )}
-      <SearchField
+      <SearchInput
         value={query}
         onChange={(text) => {
           cancelLocate();
@@ -425,34 +425,29 @@ export default function LocationPicker({
           setFavoriteKey(null);
           setResults([]);
         }}
+        testID="location-address-input"
+        label={t("Search address")}
+        placeholder={t("Search address")}
+        inputStyle={{ paddingRight: 100 }}
+        clearButtonStyle={{ right: 48 }}
       >
-        <SearchField.Group>
-          <SearchField.SearchIcon />
-          <SearchField.Input
-            testID="location-address-input"
-            accessibilityLabel={t("Search address")}
-            placeholder={t("Search address")}
-            style={{ paddingRight: 100 }}
-          />
-          <SearchField.ClearButton accessibilityLabel={t("Clear search")} style={{ right: 48 }} />
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            hitSlop={4}
-            style={{ position: "absolute", right: 4 }}
-            isDisabled={locating}
-            accessibilityLabel={
-              !permission.granted && !permission.canAskAgain
-                ? t("Open settings")
-                : t("Center map on my location")
-            }
-            onPress={() => void locate()}
-          >
-            <LocateFixed size={20} color={foreground} />
-          </Button>
-        </SearchField.Group>
-      </SearchField>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          hitSlop={4}
+          style={{ position: "absolute", right: 4 }}
+          isDisabled={locating}
+          accessibilityLabel={
+            !permission.granted && !permission.canAskAgain
+              ? t("Open settings")
+              : t("Center map on my location")
+          }
+          onPress={() => void locate()}
+        >
+          <LocateFixed size={20} color={foreground} />
+        </Button>
+      </SearchInput>
       {(searching || locating) && (
         <Skeleton
           isLoading

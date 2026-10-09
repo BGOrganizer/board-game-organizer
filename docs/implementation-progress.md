@@ -61,7 +61,37 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 ## Latest verified automated gates
 
-### Mobile layout and row reuse — local only
+### Search inputs, filters and help reuse — local only
+
+- Each client now composes its own `SearchInput`, `FilterChips` and `HelpPopover` in
+  `src/components/common/ui`. List searches, contacts, user/game pickers, group game selection,
+  country selection and verified-address search reuse the input. List/game filters share semantic
+  selected/unselected variants instead of fixed gray/white colors; native chips use real 44 px touch
+  targets rather than relying on hit slop clipped by a compact parent. Search/field labels and contact legends share the help
+  container; native voting legends use it too. Web voting tooltips retain their existing hover/focus
+  interaction rather than being forced into a popover.
+- Controllers still own debounce, queries, filters, permissions, selected-address invalidation and
+  navigation. The plain input imposes no four-character rule on country selection. Existing native
+  IDs, translated labels and bounded contact-legend scrolling/keyboard dismissal are preserved.
+  Web address lookup explicitly opts its independent geolocation button out of React Aria's
+  search-field clear-button context (`slot={null}`); regression tests cover both the independent
+  action and opening help without clearing the query.
+- English/Italian source catalogs were extracted and compiled. Web primitive/label components keep
+  **100%** line/function/branch/statement thresholds. Full Biome/typecheck and local coverage:
+  **346 web / 137 mobile tests** pass; native source contracts are not native rendering acceptance. Web production build and
+  Android JS export (**5,483 modules**) pass. Playwright match-wizard and Maestro flow 06 now cover
+  shared help, selected filters and conditional clear; these authenticated/device flows have **not**
+  been executed. Existing authentication/device/provider blockers remain, with no bypass or
+  account recreation. API/integration suites were not rerun for this client-only presentation pass.
+- Current work is local on `feat/organizations-events`: no push, new PR, delegation or provisioning.
+  Preexisting API `next-env.d.ts`, generated web environment types and private configuration are
+  preserved outside the commit.
+- Guides used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`, `heroui-react`,
+  `heroui-native`, `uniwind`, `lingui-best-practices`, `playwright-best-practices`, `clerk-testing`,
+  `web-design-guidelines`, `ponytail` and `context-mode`.
+
+### Previous mobile layout and row reuse — local only
 
 - Mobile common UI now owns `UserList`, `UserListRow`/`UserAvatar`, `AddUserRow`, `TabBar`,
   `ScreenScrollView` and `ListCardBody`. Contacts, organization members/friend picker, group/match

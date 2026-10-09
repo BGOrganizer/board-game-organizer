@@ -6,13 +6,14 @@ import {
   withProtectionBypass,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Button, SearchField, Skeleton } from "@heroui/react";
+import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 
 interface Props {
@@ -131,17 +132,17 @@ export function SearchUserPage({
         </h2>
       </div>
 
-      <SearchField fullWidth value={query} onChange={setQuery}>
-        <SearchHelpLabel
-          label={t`Search users by name or email`}
-          help={t`Type at least 4 characters to search`}
-        />
-        <SearchField.Group>
-          <SearchField.SearchIcon />
-          <SearchField.Input placeholder={t`Search users`} />
-          <SearchField.ClearButton aria-label={t`Clear`} />
-        </SearchField.Group>
-      </SearchField>
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder={t`Search users`}
+        label={
+          <SearchHelpLabel
+            label={t`Search users by name or email`}
+            help={t`Type at least 4 characters to search`}
+          />
+        }
+      />
 
       {(error || (!members && friends.isError)) && (
         <p className="mt-2 text-sm text-danger">{error || t`Could not load friends`}</p>

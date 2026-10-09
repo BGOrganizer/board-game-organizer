@@ -8,7 +8,7 @@ import {
   useContacts,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar, Card, Chip, SearchField, Skeleton, Tabs } from "@heroui/react";
+import { Avatar, Card, Chip, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -27,6 +27,7 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -372,24 +373,20 @@ export function Contacts() {
         </Tabs.ListContainer>
 
         <Tabs.Panel id="search" className="space-y-3 pt-4">
-          <SearchField
-            fullWidth
+          <SearchInput
             value={query}
             onChange={(value) => {
               setQuery(value);
               if (!value) contacts.runSearch("");
             }}
-          >
-            <SearchHelpLabel
-              label={t`Search users by name or email`}
-              help={t`Type at least 4 characters to search`}
-            />
-            <SearchField.Group>
-              <SearchField.SearchIcon />
-              <SearchField.Input placeholder={t`Search users`} />
-              <SearchField.ClearButton aria-label={t`Clear search`} />
-            </SearchField.Group>
-          </SearchField>
+            placeholder={t`Search users`}
+            label={
+              <SearchHelpLabel
+                label={t`Search users by name or email`}
+                help={t`Type at least 4 characters to search`}
+              />
+            }
+          />
 
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <Search className="size-4" aria-hidden="true" />

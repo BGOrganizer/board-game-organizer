@@ -155,6 +155,21 @@ appId: com.bgo.mobile
     id: "remove-game-slot"
 - assertVisible: "Select a board game"
 - tapOn: "Select a board game"
+- tapOn: "Search board games: Search help"
+- assertVisible: "Type at least 4 characters to search"
+- back
+- assertVisible:
+    id: "game-search-input"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-filter-search"
+- tapOn:
+    id: "list-filter-search"
+- tapOn:
+    id: "game-search-input"
+- inputText: "Cascadia"
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"
 - tapOn:
     id: "game-search-input"
 - inputText: "Cascadia"

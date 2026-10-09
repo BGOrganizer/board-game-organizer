@@ -90,6 +90,12 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/components/common/ui/{SearchInput,FilterChips,HelpPopover,SearchHelpLabel}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/common/ui/ListSearch.tsx": {
           lines: 100,
           functions: 100,

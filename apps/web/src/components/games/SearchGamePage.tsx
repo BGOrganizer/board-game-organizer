@@ -2,13 +2,15 @@
 
 import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/schemas";
 import { useBggAccount, useBggPicker, withProtectionBypass } from "@board-game-organizer/shared";
-import { Button, SearchField, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FilterChips } from "@/components/common/ui/FilterChips";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 
 interface Props {
@@ -108,42 +110,34 @@ export function SearchGamePage({
         </Button>
         <h2 className="text-lg font-semibold">{t`Select a board game`}</h2>
       </div>
-      <SearchField fullWidth value={query} onChange={setQuery}>
-        <SearchHelpLabel
-          label={t`Search board games`}
-          help={t`Type at least 4 characters to search`}
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder={t`Search board games`}
+        label={
+          <SearchHelpLabel
+            label={t`Search board games`}
+            help={t`Type at least 4 characters to search`}
+          />
+        }
+      />
+      <div className="mt-3">
+        <FilterChips
+          options={[
+            { key: "search", label: t`Search`, icon: Search },
+            ...(hasCollection
+              ? [{ key: "collection" as const, label: t`Collection`, icon: LibraryBig }]
+              : []),
+          ]}
+          selected={[
+            ...(search ? ["search" as const] : []),
+            ...(collection ? ["collection" as const] : []),
+          ]}
+          onToggle={(key) => {
+            if (key === "search") setSearch((value) => !value);
+            else setCollection((value) => !value);
+          }}
         />
-        <SearchField.Group>
-          <SearchField.SearchIcon />
-          <SearchField.Input placeholder={t`Search board games`} />
-          <SearchField.ClearButton aria-label={t`Clear`} />
-        </SearchField.Group>
-      </SearchField>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="primary"
-          className="h-7 min-h-7 px-2 text-xs"
-          style={search ? undefined : { backgroundColor: "#52525b" }}
-          aria-pressed={search}
-          onPress={() => setSearch((previous) => !previous)}
-        >
-          <Search aria-hidden="true" className="h-3.5 w-3.5 text-white" />
-          <span className="text-white">{t`Search`}</span>
-        </Button>
-        {hasCollection ? (
-          <Button
-            size="sm"
-            variant="primary"
-            className="h-7 min-h-7 px-2 text-xs"
-            style={collection ? undefined : { backgroundColor: "#52525b" }}
-            aria-pressed={collection}
-            onPress={() => setCollection((previous) => !previous)}
-          >
-            <LibraryBig aria-hidden="true" className="h-3.5 w-3.5 text-white" />
-            <span className="text-white">{t`Collection`}</span>
-          </Button>
-        ) : null}
       </div>
       {error ? (
         <p className="mt-2 text-sm text-danger" role="alert">

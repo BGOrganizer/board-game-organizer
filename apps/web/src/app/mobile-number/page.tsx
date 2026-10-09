@@ -9,11 +9,12 @@ import {
   phoneCountries,
 } from "@board-game-organizer/shared";
 import { useUser } from "@clerk/nextjs";
-import { Button, Card, Input, Label, ListBox, SearchField, Select, TextField } from "@heroui/react";
+import { Button, Card, Input, Label, ListBox, Select, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 
 export default function MobileNumberPage() {
   const { isLoaded, user } = useUser();
@@ -106,17 +107,17 @@ export default function MobileNumberPage() {
                 <Select.Indicator />
               </Select.Trigger>
               <Select.Popover className="w-72">
-                <SearchField fullWidth value={search} onChange={setSearch}>
-                  <SearchHelpLabel
-                    label={t`Search countries`}
-                    help={t`Search countries by name or code`}
-                  />
-                  <SearchField.Group>
-                    <SearchField.SearchIcon />
-                    <SearchField.Input placeholder={t`Search countries`} />
-                    <SearchField.ClearButton aria-label={t`Clear search`} />
-                  </SearchField.Group>
-                </SearchField>
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder={t`Search countries`}
+                  label={
+                    <SearchHelpLabel
+                      label={t`Search countries`}
+                      help={t`Search countries by name or code`}
+                    />
+                  }
+                />
                 <ListBox
                   className="max-h-72 overflow-y-auto"
                   renderEmptyState={() => (

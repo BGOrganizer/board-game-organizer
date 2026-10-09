@@ -547,6 +547,9 @@ msgstr "Le prenotazioni sono chiuse. È ancora possibile registrare i risultati.
 #~ msgid "Camera"
 #~ msgstr "Fotocamera"
 
+msgid "Camera permission is required"
+msgstr "È necessario il permesso per la fotocamera"
+
 #: apps/web/src/components/common/ui/ContactConfirmDialog.tsx
 #: apps/web/src/components/matches/MatchResultsEditor.tsx
 #: apps/web/src/components/profile/Profile.tsx
@@ -666,11 +669,7 @@ msgstr "Pulisci"
 msgid "Clear board game selection"
 msgstr "Deseleziona gioco"
 
-#: apps/web/src/app/mobile-number/page.tsx
-#: apps/web/src/components/common/ui/ListSearch.tsx
-#: apps/web/src/components/contacts/Contacts.tsx
-#: apps/web/src/components/groups/GroupLeaderboard.tsx
-#: apps/web/src/components/locations/SearchLocationPage.tsx
+#: apps/web/src/components/common/ui/SearchInput.tsx
 msgid "Clear search"
 msgstr "Pulisci ricerca"
 
@@ -3184,9 +3183,6 @@ msgstr "Il tuo invito è in attesa di una risposta."
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Your join request is waiting for admin approval."
 msgstr "La tua richiesta di partecipazione è in attesa dell'approvazione dell'admin."
-
-msgid "Camera permission is required"
-msgstr "È necessario il permesso per la fotocamera"
 
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "AAAA-MM-GGTHH:mm"

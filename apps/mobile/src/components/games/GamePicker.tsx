@@ -9,14 +9,15 @@ import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { LibraryBig, Plus, Search } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
+import { FilterChips } from "@/components/common/ui/FilterChips";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GameListRow } from "@/components/games/GameListRow";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -143,59 +144,29 @@ export default function GamePicker({
             label={t("Search board games")}
             help={t("Type at least 4 characters to search")}
           />
-          <SearchField value={query} onChange={setQuery}>
-            <SearchField.Group>
-              <SearchField.SearchIcon />
-              <SearchField.Input
-                testID="game-search-input"
-                accessibilityLabel={t("Search board games")}
-                placeholder={t("Search board games")}
-              />
-              <SearchField.ClearButton accessibilityLabel={t("Clear")} />
-            </SearchField.Group>
-          </SearchField>
-          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-            <Button
-              size="sm"
-              variant="primary"
-              style={{
-                minHeight: 32,
-                height: 32,
-                paddingHorizontal: 8,
-                gap: 6,
-                ...(!search && { backgroundColor: "#52525b" }),
-              }}
-              accessibilityLabel={t("Search")}
-              accessibilityState={{ selected: search }}
-              onPress={() => setSearch((value) => !value)}
-            >
-              <Search size={14} color="#fff" />
-              <Typography className="text-white" style={{ fontSize: 12 }}>
-                {t("Search")}
-              </Typography>
-            </Button>
-            {hasCollection ? (
-              <Button
-                size="sm"
-                variant="primary"
-                style={{
-                  minHeight: 32,
-                  height: 32,
-                  paddingHorizontal: 8,
-                  gap: 6,
-                  ...(!collection && { backgroundColor: "#52525b" }),
-                }}
-                accessibilityLabel={t("Collection")}
-                accessibilityState={{ selected: collection }}
-                onPress={() => setCollection((value) => !value)}
-              >
-                <LibraryBig size={14} color="#fff" />
-                <Typography className="text-white" style={{ fontSize: 12 }}>
-                  {t("Collection")}
-                </Typography>
-              </Button>
-            ) : null}
-          </View>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            label={t("Search board games")}
+            placeholder={t("Search board games")}
+            testID="game-search-input"
+          />
+          <FilterChips
+            options={[
+              { key: "search", label: t("Search"), icon: Search },
+              ...(hasCollection
+                ? [{ key: "collection" as const, label: t("Collection"), icon: LibraryBig }]
+                : []),
+            ]}
+            selected={[
+              ...(search ? ["search" as const] : []),
+              ...(collection ? ["collection" as const] : []),
+            ]}
+            onToggle={(key) => {
+              if (key === "search") setSearch((value) => !value);
+              else setCollection((value) => !value);
+            }}
+          />
           {error ? <Typography className="text-danger">{error}</Typography> : null}
           {picker.isError || account.account.isError ? (
             <Button

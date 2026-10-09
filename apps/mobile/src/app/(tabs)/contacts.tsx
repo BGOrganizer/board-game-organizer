@@ -15,7 +15,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
@@ -38,6 +37,7 @@ import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "reac
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { UserList as ContactList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
@@ -682,22 +682,15 @@ export default function ContactsScreen() {
                       label={t("Search users by name or email")}
                       help={t("Type at least 4 characters to search")}
                     />
-                    <SearchField
+                    <SearchInput
                       value={query}
                       onChange={(value) => {
                         setQuery(value);
                         if (!value) contacts.runSearch("");
                       }}
-                    >
-                      <SearchField.Group>
-                        <SearchField.SearchIcon />
-                        <SearchField.Input
-                          accessibilityLabel={t("Search users by name or email")}
-                          placeholder={t("Search users")}
-                        />
-                        <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
-                      </SearchField.Group>
-                    </SearchField>
+                      label={t("Search users by name or email")}
+                      placeholder={t("Search users")}
+                    />
                   </View>
                   {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
                     <Button

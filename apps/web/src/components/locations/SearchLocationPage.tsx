@@ -7,20 +7,12 @@ import {
   useCurrentLocationAddress,
   withProtectionBypass,
 } from "@board-game-organizer/shared";
-import {
-  Button,
-  Input,
-  Label,
-  ListBox,
-  SearchField,
-  Select,
-  Skeleton,
-  TextField,
-} from "@heroui/react";
+import { Button, Input, Label, ListBox, Select, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { Map as MapTilerMap, Marker as MapTilerMarker } from "@maptiler/sdk";
 import { ArrowLeft, Check, Heart, LocateFixed, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import "@maptiler/sdk/dist/maptiler-sdk.css";
 
 type Result = Pick<MatchLocation, "address" | "longitude" | "latitude"> & { id: string };
@@ -312,8 +304,7 @@ export function SearchLocationPage({
       {favorites.list.isError && (
         <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
       )}
-      <SearchField
-        fullWidth
+      <SearchInput
         value={query}
         onChange={(value) => {
           cancelLocate();
@@ -325,30 +316,23 @@ export function SearchLocationPage({
           setFavoriteKey(null);
           setResults([]);
         }}
+        label={<Label>{t`Search address`}</Label>}
+        placeholder={t`Search address`}
+        inputProps={{ className: "min-w-0", name: "address", autoComplete: "off" }}
       >
-        <Label>{t`Search address`}</Label>
-        <SearchField.Group>
-          <SearchField.SearchIcon />
-          <SearchField.Input
-            className="min-w-0"
-            name="address"
-            autoComplete="off"
-            placeholder={t`Search address`}
-          />
-          <SearchField.ClearButton aria-label={t`Clear search`} />
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            aria-label={t`Center map on my location`}
-            className="mr-1 shrink-0"
-            isDisabled={locating}
-            onPress={locate}
-          >
-            <LocateFixed className="size-5" aria-hidden="true" />
-          </Button>
-        </SearchField.Group>
-      </SearchField>
+        <Button
+          slot={null}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-label={t`Center map on my location`}
+          className="mr-1 shrink-0"
+          isDisabled={locating}
+          onPress={locate}
+        >
+          <LocateFixed className="size-5" aria-hidden="true" />
+        </Button>
+      </SearchInput>
       {(searching || locating) && <Skeleton className="h-12 w-full rounded-lg" />}
       {results.length > 0 && (
         <ul aria-label={t`Address results`} className="rounded-lg border">

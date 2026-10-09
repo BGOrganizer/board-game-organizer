@@ -547,6 +547,9 @@ msgstr "Bookings are closed. Results can still be recorded."
 #~ msgid "Camera"
 #~ msgstr "Camera"
 
+msgid "Camera permission is required"
+msgstr "Camera permission is required"
+
 #: apps/web/src/components/common/ui/ContactConfirmDialog.tsx
 #: apps/web/src/components/matches/MatchResultsEditor.tsx
 #: apps/web/src/components/profile/Profile.tsx
@@ -666,11 +669,7 @@ msgstr "Clear"
 msgid "Clear board game selection"
 msgstr "Clear board game selection"
 
-#: apps/web/src/app/mobile-number/page.tsx
-#: apps/web/src/components/common/ui/ListSearch.tsx
-#: apps/web/src/components/contacts/Contacts.tsx
-#: apps/web/src/components/groups/GroupLeaderboard.tsx
-#: apps/web/src/components/locations/SearchLocationPage.tsx
+#: apps/web/src/components/common/ui/SearchInput.tsx
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -3184,9 +3183,6 @@ msgstr "Your invitation is waiting for a response."
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Your join request is waiting for admin approval."
 msgstr "Your join request is waiting for admin approval."
-
-msgid "Camera permission is required"
-msgstr "Camera permission is required"
 
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "YYYY-MM-DDTHH:mm"

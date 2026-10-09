@@ -2,21 +2,13 @@
 
 import { resolveApiUrl, useGroupLeaderboard } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import {
-  Avatar,
-  Button,
-  Label,
-  ListBox,
-  SearchField,
-  Select,
-  Skeleton,
-  Table,
-} from "@heroui/react";
+import { Avatar, Button, Label, ListBox, Select, Skeleton, Table } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Clock3, Dices, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { LeaderboardGameCover } from "@/components/ratings/LeaderboardGameCover";
 
 const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -118,17 +110,17 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             {!selectedGame ? <Select.Indicator /> : null}
           </Select.Trigger>
           <Select.Popover>
-            <SearchField fullWidth value={search} onChange={setSearch}>
-              <SearchHelpLabel
-                label={t`Search board games`}
-                help={t`Type at least 4 characters to search`}
-              />
-              <SearchField.Group>
-                <SearchField.SearchIcon />
-                <SearchField.Input placeholder={t`Search board games`} />
-                <SearchField.ClearButton aria-label={t`Clear search`} />
-              </SearchField.Group>
-            </SearchField>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder={t`Search board games`}
+              label={
+                <SearchHelpLabel
+                  label={t`Search board games`}
+                  help={t`Type at least 4 characters to search`}
+                />
+              }
+            />
             <ListBox
               renderEmptyState={() => (
                 <EmptyList icon={<Dices className="size-7" />}>{t`No games found`}</EmptyList>

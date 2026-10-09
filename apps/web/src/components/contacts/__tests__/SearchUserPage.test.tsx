@@ -71,7 +71,7 @@ it("renders cached first-page friends, excludes invited users, and loads the nex
   expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: "user_friend" }));
   const search = screen.getByPlaceholderText(/Search users/i) as HTMLInputElement;
   fireEvent.change(search, { target: { value: "E2E Target" } });
-  fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
   expect(search.value).toBe("");
 });
 

@@ -19,4 +19,20 @@ describe("SearchHelpLabel", () => {
     const help = screen.getByText("Type at least 4 characters to search");
     expect(help.closest("[class*=whitespace-normal]")).toBeTruthy();
   });
+  it("preserves explicit field labeling and a feature-specific help title", () => {
+    renderWithI18n(
+      <>
+        <SearchHelpLabel
+          label="Organization name"
+          help="Choose a unique name"
+          helpTitle="Field help"
+          htmlFor="organization-name"
+        />
+        <input id="organization-name" />
+      </>,
+    );
+    expect(screen.getByRole("textbox", { name: "Organization name" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Organization name: Field help" }));
+    expect(screen.getByText("Choose a unique name")).toBeTruthy();
+  });
 });

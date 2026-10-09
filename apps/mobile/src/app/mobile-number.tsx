@@ -13,14 +13,13 @@ import * as Localization from "expo-localization";
 import { Redirect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Input } from "heroui-native/input";
-import { SearchField } from "heroui-native/search-field";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
-
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useT } from "@/lib/i18n";
 
 export default function MobileNumberScreen() {
@@ -133,16 +132,12 @@ export default function MobileNumberScreen() {
                   label={t("Search countries")}
                   help={t("Search countries by name or code")}
                 />
-                <SearchField value={search} onChange={setSearch}>
-                  <SearchField.Group>
-                    <SearchField.SearchIcon />
-                    <SearchField.Input
-                      accessibilityLabel={t("Search countries by name or code")}
-                      placeholder={t("Search countries")}
-                    />
-                    <SearchField.ClearButton accessibilityLabel={t("Clear search")} />
-                  </SearchField.Group>
-                </SearchField>
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  label={t("Search countries by name or code")}
+                  placeholder={t("Search countries")}
+                />
                 <BottomSheetFlatList
                   data={options}
                   keyExtractor={(item) => item.code}

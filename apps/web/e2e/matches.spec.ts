@@ -583,6 +583,25 @@ test("match wizard: name → players → game → create", async ({ page }) => {
     .click();
   await expect(page.getByPlaceholder(/Search board games/)).toBeVisible();
   const gameSearch = page.getByPlaceholder(/Search board games/);
+  const searchFilter = page.getByRole("button", { name: "Search", exact: true });
+  await expect(searchFilter).toHaveAttribute("aria-pressed", "true");
+  await expect(searchFilter).toHaveClass(/button--primary/);
+  await searchFilter.click();
+  await expect(searchFilter).toHaveAttribute("aria-pressed", "false");
+  await expect(searchFilter).toHaveClass(/button--secondary/);
+  await searchFilter.click();
+  await expect(searchFilter).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Clear search", exact: true })).toHaveCount(0);
+  await gameSearch.fill("Cascadia");
+  await page.getByRole("button", { name: "Search board games: Search help", exact: true }).click();
+  await expect(
+    page.getByText("Type at least 4 characters to search", { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(gameSearch).toHaveValue("Cascadia");
+  await page.getByRole("button", { name: "Clear search", exact: true }).click();
+  await expect(gameSearch).toBeEmpty();
+  await expect(page.getByRole("button", { name: "Clear search", exact: true })).toHaveCount(0);
   await gameSearch.fill("Cascadia");
   await expect(page.getByRole("img", { name: "Average: 7.83" })).toBeVisible();
   await expect(page.getByRole("img", { name: "Rank: 42" })).toBeVisible();

@@ -8,7 +8,6 @@ import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { SearchField } from "heroui-native/search-field";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
@@ -16,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { useT } from "@/lib/i18n";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -156,16 +156,12 @@ export default function SearchUserScreen() {
           label={t("Search users by name or email")}
           help={t("Type at least 4 characters to search")}
         />
-        <SearchField value={query} onChange={setQuery}>
-          <SearchField.Group>
-            <SearchField.SearchIcon />
-            <SearchField.Input
-              accessibilityLabel={t("Search users by name or email")}
-              placeholder={t("Search users")}
-            />
-            <SearchField.ClearButton accessibilityLabel={t("Clear")} />
-          </SearchField.Group>
-        </SearchField>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          label={t("Search users by name or email")}
+          placeholder={t("Search users")}
+        />
       </View>
       {listError && (
         <Typography

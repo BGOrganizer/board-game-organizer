@@ -1,7 +1,8 @@
-import { Button, SearchField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
+import { FilterChips } from "./FilterChips";
 import { SearchHelpLabel } from "./SearchHelpLabel";
+import { SearchInput } from "./SearchInput";
 
 export function ListSearch<Filter extends string>({
   query,
@@ -23,31 +24,15 @@ export function ListSearch<Filter extends string>({
   const { t } = useLingui();
   return (
     <div className="mb-4 space-y-3">
-      <SearchField fullWidth name="list-search" value={query} onChange={onQueryChange}>
-        <SearchHelpLabel label={label} help={t`Type at least 4 characters to search`} />
-        <SearchField.Group>
-          <SearchField.SearchIcon />
-          <SearchField.Input placeholder={placeholder} autoComplete="off" maxLength={120} />
-          {query ? <SearchField.ClearButton aria-label={t`Clear search`} /> : null}
-        </SearchField.Group>
-      </SearchField>
-      {options.length ? (
-        <div className="flex flex-wrap gap-2">
-          {options.map(({ key, label: name, icon: Icon }) => (
-            <Button
-              key={key}
-              size="sm"
-              variant={selected.includes(key) ? "primary" : "secondary"}
-              className="h-8 min-h-8 gap-1.5 px-2 text-xs"
-              aria-pressed={selected.includes(key)}
-              onPress={() => onToggle(key)}
-            >
-              <Icon className="size-3.5" aria-hidden="true" />
-              {name}
-            </Button>
-          ))}
-        </div>
-      ) : null}
+      <SearchInput
+        value={query}
+        onChange={onQueryChange}
+        name="list-search"
+        placeholder={placeholder}
+        label={<SearchHelpLabel label={label} help={t`Type at least 4 characters to search`} />}
+        inputProps={{ autoComplete: "off", maxLength: 120 }}
+      />
+      <FilterChips options={options} selected={selected} onToggle={onToggle} />
       {query.trim().length > 0 && query.trim().length < 4 ? (
         <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
       ) : null}

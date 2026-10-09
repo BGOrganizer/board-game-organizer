@@ -69,12 +69,13 @@ it("hides selected games and uses an icon-only selection action", async () => {
   });
 
   const searchChip = screen.getByRole("button", { name: "Search", pressed: true });
-  expect(searchChip.className).toContain("h-7");
-  expect(searchChip.querySelector(".text-white")).toBeTruthy();
+  expect(searchChip.className).toContain("h-8");
+  expect(searchChip.className).toContain("button--primary");
+  expect(searchChip.querySelector('[aria-hidden="true"]')).toBeTruthy();
   const select = await screen.findByRole("button", { name: "Select: Cascadia" });
   expect(select.closest("li")?.className).toContain("p-3 pl-4");
   expect(select.closest("ul")?.className).toContain("rounded-xl bg-surface");
-  expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Clear search" })).toBeTruthy();
   expect(screen.queryByText("Already selected")).toBeNull();
   expect(screen.queryByText("Select")).toBeNull();
   expect(screen.getByText("2021")).toBeTruthy();

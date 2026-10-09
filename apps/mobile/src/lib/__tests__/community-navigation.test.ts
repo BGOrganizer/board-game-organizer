@@ -104,8 +104,19 @@ describe("community notification destinations", () => {
     );
     expect(search).toContain("SearchHelpLabel");
     expect(search).toContain("placeholder={placeholder}");
-    expect(search).toContain("{query ? <SearchField.ClearButton");
-    expect(search).toContain("accessibilityState={{ selected: active }}");
+    expect(search).toContain("<SearchInput");
+    expect(search).toContain("<FilterChips");
+    const input = readFileSync(
+      new URL("../../components/common/ui/SearchInput.tsx", import.meta.url),
+      "utf8",
+    );
+    const chips = readFileSync(
+      new URL("../../components/common/ui/FilterChips.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(input).toContain("<SearchField.ClearButton");
+    expect(input).toContain("value ?");
+    expect(chips).toContain("accessibilityState={{ selected: active }}");
     const tabs = readFileSync(
       new URL("../../components/community/CommunitySection.tsx", import.meta.url),
       "utf8",
