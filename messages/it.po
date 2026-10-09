@@ -269,6 +269,7 @@ msgstr "Confermare la partita il {date} con {game}?"
 #: apps/web/src/components/contacts/UserMenu.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Accept"
 msgstr "Accetta"
 
@@ -289,8 +290,9 @@ msgstr "Accetta l'invito al gruppo"
 msgid "Accept invitation"
 msgstr "Accetta invito"
 
-#~ msgid "Accept or decline this friend request."
-#~ msgstr "Accetta o rifiuta questa richiesta di amicizia."
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Accept or decline this friend request."
+msgstr "Accetta o rifiuta questa richiesta di amicizia."
 
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
@@ -403,8 +405,13 @@ msgid "Approve organization"
 msgstr "Approva organizzazione"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Approve request"
 msgstr "Approva richiesta"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Approved"
+msgstr "Approvata"
 
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
 msgid "Approved information remains visible while changes are reviewed."
@@ -472,9 +479,13 @@ msgstr "Tornare alla pianificazione?"
 msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain."
 msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati."
 
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Remove allows new requests and invitations; Remove and exclude blocks rejoining this organization until revoked. Global social blocking is separate."
+msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati. Elimina consente nuove richieste e nuovi inviti; Elimina-Blocca impedisce il rientro nell’organizzazione fino alla revoca. Il blocco social globale è separato."
+
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
-msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Removed members cannot rejoin until their exclusion is revoked."
-msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati. I membri rimossi non possono rientrare finché non viene revocata l'esclusione."
+#~ msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Removed members cannot rejoin until their exclusion is revoked."
+#~ msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati. I membri rimossi non possono rientrare finché non viene revocata l'esclusione."
 
 #: apps/web/src/components/profile/Profile.tsx
 msgid "BGG user not found"
@@ -496,6 +507,10 @@ msgstr "Blocca"
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Block contact"
 msgstr "Blocca contatto"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Block user globally"
+msgstr "Blocca utente globale"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Blocked"
@@ -547,6 +562,7 @@ msgid "Cancel event"
 msgstr "Annulla evento"
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Cancel friend request"
 msgstr "Annulla richiesta di amicizia"
 
@@ -555,6 +571,7 @@ msgid "Cancel friend request?"
 msgstr "Annullare la richiesta di amicizia?"
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Cancel request"
 msgstr "Annulla richiesta"
 
@@ -591,6 +608,10 @@ msgstr "Scelta salvata"
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose a game"
 msgstr "Scegli un gioco"
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Choose a unique name, from 5 to 120 characters."
+msgstr "Scegli un nome univoco, da 5 a 120 caratteri."
 
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
@@ -899,6 +920,7 @@ msgstr "Impossibile caricare gli eventi"
 #: apps/web/src/components/locations/SearchLocationPage.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Could not load favorite locations"
 msgstr "Impossibile caricare le location preferite"
 
@@ -967,11 +989,11 @@ msgstr "Impossibile caricare le notifiche. Riprova"
 msgid "Could not load organization"
 msgstr "Impossibile caricare l'organizzazione"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Could not load organization members"
 msgstr "Impossibile caricare i membri dell'organizzazione"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Could not load organization members. Retry"
 msgstr "Impossibile caricare i membri dell'organizzazione. Riprova"
 
@@ -1184,6 +1206,7 @@ msgstr "date"
 #: apps/web/src/components/contacts/UserMenu.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Decline"
 msgstr "Rifiuta"
 
@@ -1248,6 +1271,10 @@ msgstr "Eliminare la notifica?"
 #: apps/web/src/components/events/EventTableDetail.tsx
 msgid "Demonstrator"
 msgstr "Dimostratore"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Details"
+msgstr "Dettagli"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Device Contacts"
@@ -1373,12 +1400,17 @@ msgid "Event table"
 msgstr "Tavolo di un evento"
 
 #: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
 msgid "Events"
 msgstr "Eventi"
 
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Excluded member"
+msgstr "Membro escluso"
+
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
-msgid "Excluded members"
-msgstr "Membri esclusi"
+#~ msgid "Excluded members"
+#~ msgstr "Membri esclusi"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "expires"
@@ -1388,11 +1420,16 @@ msgstr "Membri esclusi"
 msgid "Favorite locations"
 msgstr "Location preferite"
 
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Field help"
+msgstr "Guida al campo"
+
 #: apps/web/src/components/events/EventDetail.tsx
 msgid "Finished"
 msgstr "Terminato"
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Follow"
 msgstr "Segui"
 
@@ -1435,6 +1472,7 @@ msgstr "Richiesta di amicizia inviata"
 #~ msgstr "Richieste di amicizia"
 
 #: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
@@ -1607,6 +1645,10 @@ msgstr "Invito ricevuto"
 msgid "Invitations"
 msgstr "Inviti"
 
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Invitations require an approved organization."
+msgstr "Gli inviti richiedono un’organizzazione approvata."
+
 #: apps/web/src/components/invites/InviteCard.tsx
 msgid "Invite a friend"
 msgstr "Invita un amico"
@@ -1631,8 +1673,8 @@ msgstr "Invita un amico"
 #: apps/web/src/components/contacts/SearchUserPage.tsx
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
 #: apps/web/src/components/organizations/OrganizationFriendPicker.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Invite friends"
 msgstr "Invita amici"
 
@@ -1651,7 +1693,7 @@ msgstr "Invita membri dell'organizzazione"
 
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Invited"
 msgstr "Invitati"
@@ -1722,8 +1764,8 @@ msgstr "Classifica provvisoria"
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/Matches.tsx
 #: apps/web/src/components/notifications/NotificationsPage.tsx
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
 #: apps/web/src/components/organizations/OrganizationFriendPicker.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 #: apps/web/src/components/organizations/OrganizationModeration.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Load more"
@@ -1894,6 +1936,7 @@ msgstr "membri"
 
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Members"
 msgstr "Membri"
 
@@ -1901,7 +1944,7 @@ msgstr "Membri"
 #~ msgid "Members are visible after accepting the invitation"
 #~ msgstr "I membri saranno visibili dopo aver accettato l'invito"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Membership requested"
 msgstr "Adesione richiesta"
@@ -2084,7 +2127,7 @@ msgstr "Nessun match ancora giocato nel gruppo"
 msgid "No matches yet — create your first one!"
 msgstr "Nessuna partita — crea la prima!"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "No members found"
 msgstr "Nessun membro trovato"
 
@@ -2240,7 +2283,7 @@ msgstr "Apri partita del tavolo"
 #~ msgid "Optional email (auto-connect on claim)"
 #~ msgstr "Email opzionale (connessione automatica alla accettazione)"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Organization admin"
 msgstr "Amministratore dell'organizzazione"
 
@@ -2254,8 +2297,12 @@ msgid "Organization details"
 msgstr "Dettagli organizzazione"
 
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
-msgid "Organization events"
-msgstr "Eventi dell'organizzazione"
+#~ msgid "Organization events"
+#~ msgstr "Eventi dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Organization events are available after approval."
+msgstr "Gli eventi dell’organizzazione sono disponibili dopo l’approvazione."
 
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Organization logo"
@@ -2266,8 +2313,8 @@ msgid "Organization members are visible only to confirmed members."
 msgstr "I membri dell'organizzazione sono visibili solo ai membri confermati."
 
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
-msgid "Organization membership"
-msgstr "Adesioni all'organizzazione"
+#~ msgid "Organization membership"
+#~ msgstr "Adesioni all'organizzazione"
 
 #: apps/web/src/components/common/layout/Header.tsx
 #: apps/web/src/components/organizations/OrganizationModeration.tsx
@@ -2277,6 +2324,10 @@ msgstr "Moderazione organizzazioni"
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Organization name"
 msgstr "Nome dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Organization sections"
+msgstr "Sezioni dell’organizzazione"
 
 #: apps/web/src/components/community/CommunityDiscovery.tsx
 #: apps/web/src/components/community/CommunitySection.tsx
@@ -2488,12 +2539,17 @@ msgid "Reject organization"
 msgstr "Rifiuta organizzazione"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Reject request"
 msgstr "Rifiuta richiesta"
 
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 msgid "Rejection reason"
 msgstr "Motivo del rifiuto"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove and exclude"
+msgstr "Elimina-Blocca"
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Remove friend"
@@ -2511,6 +2567,10 @@ msgstr "Rimuovi dal gruppo"
 msgid "Remove from group?"
 msgstr "Rimuovere dal gruppo?"
 
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove from organization"
+msgstr "Elimina"
+
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Remove game"
 msgstr "Rimuovi gioco"
@@ -2527,6 +2587,10 @@ msgstr "Rimuovi luogo"
 #: apps/web/src/components/locations/LocationFavoriteButton.tsx
 msgid "Remove location from favorites"
 msgstr "Rimuovi location dai preferiti"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove member"
+msgstr "Rimuovi membro"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
@@ -2574,8 +2638,8 @@ msgid "Requests"
 msgstr "Richieste"
 
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
-msgid "Requests and invitations"
-msgstr "Richieste e inviti"
+#~ msgid "Requests and invitations"
+#~ msgstr "Richieste e inviti"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Requests awaiting their reply."
@@ -2602,8 +2666,9 @@ msgstr "Annulla prenotazioni"
 msgid "Resolve tie"
 msgstr "Risolvi parità"
 
-#~ msgid "Respond to friend request"
-#~ msgstr "Rispondi alla richiesta di amicizia"
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Respond to friend request"
+msgstr "Rispondi alla richiesta di amicizia"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Results"
@@ -2637,6 +2702,10 @@ msgstr "Riepilogo dell'evento"
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 msgid "Review organization"
 msgstr "Esamina organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Revoke exclusion"
+msgstr "Revoca esclusione"
 
 #: apps/web/src/components/groups/Groups.tsx
 #~ msgid "Save"
@@ -2769,6 +2838,7 @@ msgstr "Seleziona una location preferita"
 
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Select a friend"
 msgstr "Seleziona un amico"
 
@@ -2793,6 +2863,7 @@ msgstr "Il gruppo selezionato non è disponibile"
 #~ msgstr "Invia"
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Send friend request"
 msgstr "Invia richiesta di amicizia"
 
@@ -2804,6 +2875,7 @@ msgstr "Inviare la richiesta di amicizia?"
 #~ msgstr "Invia invito"
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Send request"
 msgstr "Invia richiesta"
 
@@ -2912,10 +2984,12 @@ msgid "The friendship and your follow will be removed."
 msgstr "L'amicizia e il tuo follow verranno rimossi."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "The sent friend request will be removed."
 msgstr "La richiesta di amicizia inviata verrà rimossa."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "They can accept or decline your request."
 msgstr "Potrà accettare o rifiutare la tua richiesta."
 
@@ -2965,6 +3039,7 @@ msgstr "Attiva/disattiva menu"
 
 #: apps/web/src/components/notifications/NotificationsPage.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 #: apps/web/src/components/organizations/OrganizationModeration.tsx
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
@@ -2988,6 +3063,7 @@ msgid "Unblock contact?"
 msgstr "Sbloccare il contatto?"
 
 #: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Unfollow"
 msgstr "Non seguire più"
 
@@ -2998,6 +3074,14 @@ msgstr "I tavoli non caricati vengono conservati. Saranno eliminati soltanto que
 #: apps/web/src/components/games/GameCatalogMetadata.tsx
 msgid "Unranked"
 msgstr "Non classificato"
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Upload"
+msgstr "Carica"
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Upload organization logo"
+msgstr "Carica logo dell’organizzazione"
 
 #: apps/web/src/components/locations/SearchLocationPage.tsx
 #~ msgid "Use my location"
@@ -3021,8 +3105,8 @@ msgstr "Utente non più seguito"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/events/EventWizard.tsx
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
 #: apps/web/src/components/organizations/OrganizationFriendPicker.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Username unavailable"
 msgstr "Nome utente non disponibile"
 
@@ -3100,6 +3184,9 @@ msgstr "Il tuo invito è in attesa di una risposta."
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Your join request is waiting for admin approval."
 msgstr "La tua richiesta di partecipazione è in attesa dell'approvazione dell'admin."
+
+msgid "Camera permission is required"
+msgstr "È necessario il permesso per la fotocamera"
 
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "AAAA-MM-GGTHH:mm"

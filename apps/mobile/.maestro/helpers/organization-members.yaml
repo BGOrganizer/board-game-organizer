@@ -1,0 +1,67 @@
+appId: com.bgo.mobile
+name: Organization members — isolated approved fixture
+---
+# Manual acceptance only. Use an isolated E2E organization, never production.
+# Requires signed-in creator, ORGANIZATION_LINK, MEMBER_NAME (accepted nonfriend),
+# REMOVE_MEMBER_NAME (another accepted member), REQUEST_NAME and REJECT_NAME
+# (pending requests), FRIEND_USERNAME (eligible friend for invitation).
+# Missing fixture values fail; no auth/permission bypass or conditional skips.
+- openLink: ${ORGANIZATION_LINK}
+- assertVisible:
+    id: "edit-organization-fab"
+- tapOn:
+    id: "organization-tab-members"
+- assertVisible: "Invite friends"
+- assertVisible: "Organization admin"
+- tapOn: "Approve request: ${REQUEST_NAME}"
+- assertNotVisible: "Approve request: ${REQUEST_NAME}"
+- tapOn: "Reject request: ${REJECT_NAME}"
+- assertNotVisible: ${REJECT_NAME}
+- tapOn: "Follow: ${MEMBER_NAME}"
+- assertVisible: "Unfollow: ${MEMBER_NAME}"
+- tapOn: "Actions: ${MEMBER_NAME}"
+- tapOn: "Block user globally"
+- assertVisible: "Block contact"
+- tapOn: "Block user globally"
+# Global block does not remove organization membership.
+- assertVisible: "Remove member: ${MEMBER_NAME}"
+- tapOn: "Actions: ${MEMBER_NAME}"
+- tapOn: "Unblock"
+- assertVisible: "Unblock contact?"
+- tapOn: "Unblock"
+- tapOn: "Remove member: ${MEMBER_NAME}"
+- tapOn: "Cancel"
+- assertVisible: ${MEMBER_NAME}
+- tapOn: "Remove member: ${MEMBER_NAME}"
+- tapOn: "Remove and exclude"
+- scrollUntilVisible:
+    element:
+      text: "Revoke exclusion: ${MEMBER_NAME}"
+    direction: DOWN
+- tapOn: "Revoke exclusion: ${MEMBER_NAME}"
+- assertNotVisible: ${MEMBER_NAME}
+- scrollUntilVisible:
+    element:
+      text: "Remove member: ${REMOVE_MEMBER_NAME}"
+    direction: UP
+- tapOn: "Remove member: ${REMOVE_MEMBER_NAME}"
+- tapOn: "Remove from organization"
+- assertNotVisible: ${REMOVE_MEMBER_NAME}
+- scrollUntilVisible:
+    element:
+      text: "Invite friends"
+    direction: UP
+- tapOn: "Invite friends"
+- tapOn: ${FRIEND_USERNAME}
+- assertVisible: "Invited"
+- assertVisible: "Invite friends"
+- tapOn:
+    id: "organization-tab-events"
+- assertVisible:
+    id: "events-scroll"
+- assertVisible:
+    id: "new-organization-event-fab"
+- tapOn:
+    id: "organization-tab-details"
+- assertVisible:
+    id: "edit-organization-fab"

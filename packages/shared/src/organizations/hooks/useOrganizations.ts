@@ -191,6 +191,48 @@ export function patchOrganizationData(
     })),
   };
 }
+export function patchOrganizationMemberData(
+  data: unknown,
+  patch: (person: OrganizationMemberResponse) => OrganizationMemberResponse | null,
+) {
+  if (!data || typeof data !== "object" || !("pages" in data) || !Array.isArray(data.pages))
+    return data;
+  const source = data as InfiniteData<CommunityPageResponse<OrganizationMemberResponse>>;
+  return {
+    ...source,
+    pages: source.pages.map((page) => ({
+      ...page,
+      items: page.items.flatMap((person) => {
+        const next = patch(person);
+        return next ? [next] : [];
+      }),
+    })),
+  };
+}
+export function restoreRemovedOrganizationMember(
+  current: InfiniteData<CommunityPageResponse<OrganizationMemberResponse>> | undefined,
+  previous: InfiniteData<CommunityPageResponse<OrganizationMemberResponse>> | undefined,
+  userId: string,
+) {
+  // Do not recreate cleared private caches or overwrite concurrent page/social updates.
+  if (
+    !current ||
+    !previous ||
+    current.pages.some((page) => page.items.some((row) => row.userId === userId))
+  )
+    return current;
+  return {
+    ...current,
+    pages: current.pages.map((page, index) => {
+      const oldPage = previous.pages[index];
+      const position = oldPage?.items.findIndex((row) => row.userId === userId) ?? -1;
+      if (position < 0) return page;
+      const items = [...page.items];
+      items.splice(Math.min(position, items.length), 0, oldPage.items[position]);
+      return { ...page, items };
+    }),
+  };
+}
 export function organizationMatchesList(row: OrganizationResponse, key: readonly unknown[]) {
   if (key[3] !== "list") return true;
   if (key[4] === "mine") {
@@ -206,13 +248,26 @@ export function useOrganizationActions(options: CommunityApiOptions) {
   async function begin(
     action: MutationFeedbackAction,
     patch?: (row: OrganizationResponse) => OrganizationResponse | null,
+    memberChange?: { id: string; userId: string },
   ) {
     await client.cancelQueries({ queryKey: root });
     const snapshots = client
       .getQueriesData({ queryKey: root })
-      .filter(([key]) => (key[3] === "detail" && key.length === 5) || key[3] === "list");
-    if (patch)
-      for (const [key, data] of snapshots)
+      .filter(
+        ([key]) =>
+          (key[3] === "detail" && key.length === 5) ||
+          key[3] === "list" ||
+          (key[3] === "members" && key[4] === memberChange?.id),
+      );
+    for (const [key, data] of snapshots) {
+      if (key[3] === "members" && memberChange) {
+        client.setQueryData(
+          key,
+          patchOrganizationMemberData(data, (person) =>
+            person.userId === memberChange.userId ? null : person,
+          ),
+        );
+      } else if (patch) {
         client.setQueryData(
           key,
           patchOrganizationData(data, (row) => {
@@ -220,11 +275,22 @@ export function useOrganizationActions(options: CommunityApiOptions) {
             return next && organizationMatchesList(next, key) ? next : null;
           }),
         );
+      }
+    }
     options.feedback?.onOptimisticUpdate?.(action);
-    return { snapshots, action };
+    return { snapshots, action, memberChange };
   }
   function undo(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
-    for (const [key, data] of context?.snapshots ?? []) client.setQueryData(key, data);
+    for (const [key, data] of context?.snapshots ?? []) {
+      if (key[3] === "members" && context?.memberChange) {
+        const { userId } = context.memberChange;
+        client.setQueryData(
+          key,
+          (current: InfiniteData<CommunityPageResponse<OrganizationMemberResponse>> | undefined) =>
+            restoreRemovedOrganizationMember(current, data as typeof current, userId),
+        );
+      } else client.setQueryData(key, data);
+    }
     if (context) options.feedback?.onError?.(error, context.action);
   }
   async function settle() {
@@ -340,13 +406,17 @@ export function useOrganizationActions(options: CommunityApiOptions) {
         { action },
       ),
     onMutate: ({ id, userId, action }) =>
-      begin(organizationMembershipFeedback(action), (row) => {
-        if (row.id !== id || userId !== options.userId) return row;
-        // Revocations are safe optimistically; acceptance never grants unconfirmed private access.
-        return action === "cancel" || action === "decline"
-          ? { ...row, role: "none", myMembership: null }
-          : row;
-      }),
+      begin(
+        organizationMembershipFeedback(action),
+        (row) => {
+          if (row.id !== id || userId !== options.userId) return row;
+          // Revocations are safe optimistically; acceptance never grants unconfirmed private access.
+          return action === "cancel" || action === "decline"
+            ? { ...row, role: "none", myMembership: null }
+            : row;
+        },
+        action === "accept" ? undefined : { id, userId },
+      ),
     onError: (error, _input, context) => undo(error, context),
     onSettled: settle,
   });

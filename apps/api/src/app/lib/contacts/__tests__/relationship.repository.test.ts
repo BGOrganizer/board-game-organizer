@@ -212,6 +212,63 @@ describe("RelationshipRepository", () => {
     expect(rows).toEqual([{ fromUserId: "a", toUserId: "b", status: "accepted" }]);
   });
 
+  it("returns bounded viewer-relative member state with both friendship and block directions", async () => {
+    const fake = setup({
+      follows: [
+        { fromUserId: "viewer", toUserId: "a" },
+        { fromUserId: "a", toUserId: "viewer" },
+      ],
+      friendRequests: [
+        { fromUserId: "viewer", toUserId: "a", status: "accepted" },
+        { fromUserId: "a", toUserId: "viewer", status: "accepted" },
+        { fromUserId: "b", toUserId: "viewer", status: "pending" },
+        { fromUserId: "viewer", toUserId: "c", status: "pending" },
+        { fromUserId: "viewer", toUserId: "d", status: "accepted" },
+        { fromUserId: "e", toUserId: "viewer", status: "accepted" },
+        { fromUserId: "f", toUserId: "viewer", status: "pending" },
+        { fromUserId: "viewer", toUserId: "g", status: "pending" },
+      ],
+      blocks: [
+        { fromUserId: "viewer", toUserId: "f" },
+        { fromUserId: "g", toUserId: "viewer" },
+      ],
+    });
+    const session = { id: "member-session" };
+    const repo = new RelationshipRepository(fake.db as never, session as never);
+    const ids = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const states = await repo.memberStates("viewer", ids);
+    expect(states.get("a")).toMatchObject({
+      isFollowing: true,
+      isFollower: true,
+      isFriend: true,
+      blockedByMe: false,
+    });
+    expect(states.get("b")?.friendRequest).toBe("incoming");
+    expect(states.get("c")?.friendRequest).toBe("outgoing");
+    for (const id of ["d", "e", "h"])
+      expect(states.get(id)).toMatchObject({ isFriend: false, friendRequest: undefined });
+    expect(states.get("f")).toMatchObject({ blockedByMe: true, friendRequest: undefined });
+    expect(states.get("g")).toMatchObject({ blockedByMe: false, friendRequest: undefined });
+    expect(states.get("g")).not.toHaveProperty("blockedMe");
+    for (const name of ["follows", "friendRequests", "blocks"])
+      expect(fake.col(name).find).toHaveBeenCalledWith(
+        {
+          $or: [
+            { fromUserId: "viewer", toUserId: { $in: ids } },
+            { toUserId: "viewer", fromUserId: { $in: ids } },
+          ],
+        },
+        { session },
+      );
+    expect(fake.col("follows").cursor.toArray.mock.invocationCallOrder[0]).toBeLessThan(
+      fake.col("friendRequests").find.mock.invocationCallOrder[0],
+    );
+    expect(fake.col("friendRequests").cursor.toArray.mock.invocationCallOrder[0]).toBeLessThan(
+      fake.col("blocks").find.mock.invocationCallOrder[0],
+    );
+    expect(await repo.memberStates("viewer", [])).toEqual(new Map());
+  });
+
   it("lists incoming, outgoing, and blocked relationships newest first", async () => {
     const fake = setup();
     const repo = new RelationshipRepository(fake.db as never);

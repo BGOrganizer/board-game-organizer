@@ -81,7 +81,8 @@ describe("community notification destinations", () => {
       "utf8",
     );
     expect(detail).toContain('pathname: "/event/wizard", params: { organizationId }');
-    expect(detail).toContain('organization.role === "admin"');
+    expect(detail).toContain('organization?.role === "admin" && tab === "events"');
+    expect(detail).toContain('testID="new-organization-event-fab"');
   });
   it("shares native search, icon filters, and page spacing without nested virtual lists", () => {
     for (const file of [

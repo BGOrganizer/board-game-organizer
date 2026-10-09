@@ -17,7 +17,7 @@ export interface ContactMutationVariables {
   targetUser: ContactUser;
 }
 
-function updatedUser(user: ContactUser, action: ContactAction): ContactUser {
+export function optimisticContactUser(user: ContactUser, action: ContactAction): ContactUser {
   switch (action) {
     case "follow":
       return { ...user, isFollowing: true };
@@ -43,7 +43,7 @@ function updateRows(
 ): RelationshipRow[] {
   return rows.map((row) =>
     row.profile?.id === variables.targetUserId
-      ? { ...row, profile: updatedUser(row.profile, action) }
+      ? { ...row, profile: optimisticContactUser(row.profile, action) }
       : row,
   );
 }
@@ -67,7 +67,7 @@ function withTarget(
     {
       fromUserId,
       toUserId,
-      profile: updatedUser(variables.targetUser, action),
+      profile: optimisticContactUser(variables.targetUser, action),
     },
   ];
 }
@@ -161,7 +161,7 @@ export function optimisticContactData(
   const users = remove
     ? container.users.filter((user) => user.id !== variables.targetUserId)
     : container.users.map((user) =>
-        user.id === variables.targetUserId ? updatedUser(user, action) : user,
+        user.id === variables.targetUserId ? optimisticContactUser(user, action) : user,
       );
   return { ...container, users };
 }

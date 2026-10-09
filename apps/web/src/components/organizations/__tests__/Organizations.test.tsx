@@ -155,9 +155,11 @@ describe("organization screens", () => {
     vi.stubGlobal("fetch", fetch);
     render(<OrganizationDetail organizationId="org" />);
     await screen.findByText("Board Club");
+    fireEvent.click(screen.getByRole("tab", { name: "Members" }));
     expect(
       screen.getByText("Organization members are visible only to confirmed members."),
     ).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Details" }));
     fireEvent.click(screen.getByRole("button", { name: "Request membership" }));
     await screen.findByRole("button", { name: "Cancel request" });
     expect(fetch.mock.calls.some(([url]) => url.includes("/members?"))).toBe(false);
@@ -183,7 +185,10 @@ describe("organization screens", () => {
     );
     vi.stubGlobal("fetch", fetch);
     render(<OrganizationDetail organizationId="org" />);
+    await screen.findByText("Board Club");
+    fireEvent.click(screen.getByRole("tab", { name: "Members" }));
     await screen.findByText("player");
+    fireEvent.click(screen.getByRole("tab", { name: "Details" }));
     fireEvent.click(screen.getByRole("button", { name: "Leave organization" }));
     const dialog = screen.getByRole("dialog", { name: "Leave organization" });
     expect(fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
@@ -191,6 +196,7 @@ describe("organization screens", () => {
     await waitFor(() =>
       expect(mocks.failed).toHaveBeenCalledWith(expect.any(Error), "leave_organization"),
     );
+    fireEvent.click(screen.getByRole("tab", { name: "Members" }));
     await screen.findByText("player");
   });
   it("hides cached private membership when server revokes access", async () => {

@@ -108,6 +108,15 @@ describe("UserMenu", () => {
     expect(onAction).toHaveBeenCalledWith("block");
   });
 
+  it("labels organization social blocking globally without changing the action scope", async () => {
+    const onAction = vi.fn();
+    renderWithI18n(<UserMenu user={user} blockLabel="Block user globally" onAction={onAction} />);
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Block user globally" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Block user globally" }));
+    expect(onAction).toHaveBeenCalledWith("block");
+  });
+
   it("offers only unblock and disabled profile actions for blocked contacts", async () => {
     const onAction = vi.fn();
     renderWithI18n(<UserMenu user={{ ...user, blockedByMe: true }} onAction={onAction} />);

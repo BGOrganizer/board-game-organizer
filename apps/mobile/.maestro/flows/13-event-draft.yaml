@@ -34,7 +34,12 @@ appId: com.bgo.mobile
 - tapOn:
     id: "community-tab-organizations"
 - tapOn: "Maestro community club updated"
-- tapOn: "New event"
+- tapOn:
+    id: "organization-tab-events"
+- assertVisible:
+    id: "events-scroll"
+- tapOn:
+    id: "new-organization-event-fab"
 - assertVisible: "Event information"
 - tapOn: "Event name"
 - inputText: "Maestro summer event"

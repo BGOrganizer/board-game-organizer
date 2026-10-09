@@ -145,7 +145,7 @@ async function fixture(page: Page) {
         const status =
           action === "approve" || action === "accept"
             ? "ACCEPTED"
-            : action === "ban" || action === "remove"
+            : action === "ban"
               ? "EXCLUDED"
               : action === "decline"
                 ? "DECLINED"
@@ -262,10 +262,29 @@ async function fixture(page: Page) {
     if (path === `/api/organizations/${orgId}`) return route.fulfill({ json: organization });
     if (path.endsWith("/members")) {
       const mode = new URL(req.url()).searchParams.get("mode") ?? "accepted";
+      if (
+        organization.role !== "admin" &&
+        (mode !== "accepted" || organization.role !== "accepted")
+      )
+        return route.fulfill({ status: 403, json: { error: "ORGANIZATION_MEMBER_REQUIRED" } });
       const status = mode === "pending" ? "PENDING" : mode === "excluded" ? "EXCLUDED" : "ACCEPTED";
       return route.fulfill({
         json: {
-          items: members.filter((person) => person.membership?.status === status),
+          items: [
+            ...(mode === "accepted"
+              ? [
+                  {
+                    userId: organization.adminUserId,
+                    name: "Organization owner",
+                    username: "owner_nick",
+                    avatarUrl: null,
+                    isAdmin: true,
+                    membership: null,
+                  },
+                ]
+              : []),
+            ...members.filter((person) => person.membership?.status === status),
+          ],
           nextCursor: null,
         },
       });
@@ -375,7 +394,9 @@ async function fixture(page: Page) {
     memberRow: (status: OrganizationMembership["status"]) => {
       members.push({
         userId: "user_target",
+        name: "Target Member",
         username: "target_member",
+        social: { isFollowing: false, isFollower: false, isFriend: false, blockedByMe: false },
         avatarUrl: null,
         isAdmin: false,
         membership: membership("user_target", "REQUEST", status),
@@ -458,6 +479,7 @@ function communityAcceptance() {
     await expect(search).toHaveValue("");
     await expect(page.getByText(baseEvent.name, { exact: true })).toBeVisible();
     await page.goto(`/organizations/${orgId}`);
+    await page.getByRole("tab", { name: "Events", exact: true }).click();
     await expect(page.getByRole("link", { name: "New event", exact: true })).toHaveAttribute(
       "href",
       `/events/new?organizationId=${orgId}`,
@@ -535,6 +557,21 @@ function communityAcceptance() {
     const state = await fixture(page);
     await page.goto("/organizations/new");
     await expect(page.getByRole("button", { name: "Submit for review" })).toBeDisabled();
+    await page.getByRole("button", { name: "Organization name: Field help", exact: true }).click();
+    await expect(
+      page.getByText("Choose a unique name, from 5 to 120 characters.", { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Organization logo: Field help", exact: true }).click();
+    await expect(
+      page.getByText("JPEG, PNG or WebP, up to 5 MB. A logo can be replaced, not removed.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: "Upload organization logo", exact: true }),
+    ).toBeVisible();
     await page.getByLabel("Organization name", { exact: true }).fill("Browser games club");
     await page
       .getByLabel("Organization logo", { exact: true })
@@ -612,10 +649,12 @@ function communityAcceptance() {
     const state = await fixture(page);
     state.organization({ role: "none" });
     await page.goto(`/organizations/${orgId}`);
+    await page.getByRole("tab", { name: "Members", exact: true }).click();
     await expect(
       page.getByText("Organization members are visible only to confirmed members."),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Edit organization" })).toHaveCount(0);
+    await page.getByRole("tab", { name: "Details", exact: true }).click();
     await page.getByRole("button", { name: "Request membership", exact: true }).click();
     await expect(page.getByRole("button", { name: "Cancel request", exact: true })).toBeVisible();
     expect(state.writes.some((row) => row.path.endsWith("/membership"))).toBe(true);
@@ -639,9 +678,11 @@ function communityAcceptance() {
       const state = await fixture(page);
       state.organization({ role: "invited" });
       await page.goto(`/organizations/${orgId}`);
+      await page.getByRole("tab", { name: "Members", exact: true }).click();
       await expect(
         page.getByText("Organization members are visible only to confirmed members."),
       ).toBeVisible();
+      await page.getByRole("tab", { name: "Details", exact: true }).click();
       await page
         .getByRole("button", {
           name: action === "accept" ? "Accept invitation" : "Decline invitation",
@@ -674,20 +715,58 @@ function communityAcceptance() {
     const state = await fixture(page);
     state.memberRow("PENDING");
     await page.goto(`/organizations/${orgId}`);
-    await page.getByRole("tab", { name: "Requests and invitations", exact: true }).click();
-    await page.getByRole("button", { name: "Approve request: target_member", exact: true }).click();
     await page.getByRole("tab", { name: "Members", exact: true }).click();
-    await page.getByRole("button", { name: "Exclude member: target_member", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Exclude member", exact: true });
-    await dialog.getByRole("button", { name: "Exclude member", exact: true }).click();
-    await page.getByRole("tab", { name: "Excluded members", exact: true }).click();
+    await expect(page.getByText("Target Member", { exact: true })).toBeVisible();
+    await expect(page.getByText("target_member", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Approve request: Target Member", exact: true }).click();
+    await page.getByRole("button", { name: "Remove member: Target Member", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Remove member", exact: true });
+    await expect(
+      dialog.getByRole("button", { name: "Remove from organization", exact: true }),
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: "Remove and exclude", exact: true }).click();
     await page
-      .getByRole("button", { name: "Revoke exclusion: target_member", exact: true })
+      .getByRole("button", { name: "Revoke exclusion: Target Member", exact: true })
       .click();
-    await expect(page.getByText("No members found", { exact: true })).toBeVisible();
+    await expect(page.getByText("Target Member", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Invite friends", exact: true })).toBeVisible();
     expect(
       state.writes.filter((row) => row.method === "PATCH").map((row) => row.body.action),
     ).toEqual(["approve", "ban", "revoke"]);
+  });
+
+  test("ordinary removal is separate from global social blocking and keeps an empty invitation slot", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    state.memberRow("ACCEPTED");
+    await page.goto(`/organizations/${orgId}?tab=members`);
+    await expect(page.getByRole("button", { name: "Invite friends", exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Follow: Target Member", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Send friend request: Target Member", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
+    await expect(
+      page.getByRole("menuitem", { name: "Block user globally", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Remove member: Target Member", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Remove member", exact: true });
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect(state.writes.filter((row) => row.method === "PATCH")).toHaveLength(0);
+    await page.getByRole("button", { name: "Remove member: Target Member", exact: true }).click();
+    await dialog.getByRole("button", { name: "Remove from organization", exact: true }).click();
+    await expect(page.getByText("Target Member", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Invite friends", exact: true })).toBeVisible();
+    expect(
+      state.writes.filter((row) => row.method === "PATCH").map((row) => row.body.action),
+    ).toEqual(["remove"]);
+    expect(
+      state.writes.some((row) => row.path === "/api/relationships" || row.path.includes("/blocks")),
+    ).toBe(false);
   });
 
   for (const decision of ["approve", "reject"] as const) {

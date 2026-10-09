@@ -38,6 +38,8 @@ export default defineConfig({
       include: [
         ...[
           "common/hooks/useListSearch.ts",
+          "organizations/hooks/useOrganizationPeople.ts",
+          "organizations/hooks/useOrganizationSocialActions.ts",
           "events/hooks/useEvents.ts",
           "events/hooks/useEventWindow.ts",
           "groups/hooks/usePublicGroups.ts",
@@ -80,6 +82,8 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/organizations/hooks/{useOrganizationPeople,useOrganizationSocialActions}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
         "../../packages/shared/src/common/hooks/useListSearch.ts": {
           lines: 100,
           functions: 100,

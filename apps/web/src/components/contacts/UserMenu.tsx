@@ -39,6 +39,7 @@ export function UserMenu({
   canSendFriendRequest = false,
   friendRequest,
   matchContext = false,
+  blockLabel,
   onAction,
 }: {
   user: ContactUser;
@@ -46,6 +47,7 @@ export function UserMenu({
   canSendFriendRequest?: boolean;
   friendRequest?: FriendRequestContext;
   matchContext?: boolean;
+  blockLabel?: string;
   onAction: (key: UserActionKey) => void;
 }) {
   const { t } = useLingui();
@@ -176,7 +178,7 @@ export function UserMenu({
         return {
           title: t`Block contact`,
           description: t`You will no longer see each other or find each other. Follow and friendships will be removed.`,
-          label: t`Block`,
+          label: blockLabel ?? t`Block`,
           danger: true,
         };
       case "unblock":
@@ -248,7 +250,7 @@ export function UserMenu({
               >
                 <span className="flex items-center gap-2">
                   {item.icon}
-                  {item.label}
+                  {item.key === "block" ? (blockLabel ?? item.label) : item.label}
                 </span>
               </Dropdown.Item>
             ))}

@@ -50,6 +50,7 @@ export function UserActionsSheet({
   canSendFriendRequest = false,
   friendRequest,
   matchContext = false,
+  blockLabel,
   initialConfirmAction,
   onClose,
   onAction,
@@ -60,6 +61,7 @@ export function UserActionsSheet({
   canSendFriendRequest?: boolean;
   friendRequest?: FriendRequestContext;
   matchContext?: boolean;
+  blockLabel?: string;
   initialConfirmAction?: UserActionConfirmation;
   onClose: () => void;
   onAction: (key: UserActionItem["key"]) => Promise<void>;
@@ -85,7 +87,7 @@ export function UserActionsSheet({
     accept_friend_request: t("Accept friend request"),
     reject_friend_request: t("Decline friend request"),
     cancel_friend_request: t("Cancel friend request"),
-    block: t("Block"),
+    block: blockLabel ?? t("Block"),
     unblock: t("Unblock"),
     profile: t("View profile"),
   };
@@ -148,7 +150,7 @@ export function UserActionsSheet({
           text: t(
             "You will no longer see each other or find each other. Follow and friendships will be removed.",
           ),
-          label: t("Block"),
+          label: blockLabel ?? t("Block"),
           danger: true,
           icon: <Ban size={18} color="#fff" />,
         };

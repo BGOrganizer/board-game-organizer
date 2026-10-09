@@ -61,6 +61,38 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 ## Latest verified automated gates
 
+### Current organization UX pass — local only
+
+- Creation has field help, one Upload source selector, the match-style verified address/favorite
+  row, and a fixed send-icon submit bar with safe-area clearance. Detail has Details / Members /
+  Events tabs, status/edit controls, ordered paginated member feeds and contextual event creation.
+- Ordinary removal is LEFT (new request/invitation allowed); explicit exclusion is organization-only
+  EXCLUDED until revoke. Global social blocking remains separate. Cancelled bookings never revive.
+  Member responses include name/username but no email or incoming block flags. Social rollback is
+  field-selective; membership rollback preserves unrelated rows, later pages and cleared caches.
+- All five unit coverage suites pass: web **338**, mobile **79**, API **533**, schemas **92**, shared
+  **92** (**1,134 total**). The new ordered/social hooks and changed organization cache logic meet
+  100% deterministic thresholds. Replica-set integration: **59 passed, zero skipped**. Biome,
+  typecheck, CI-script checks, API/web production builds and Android JS export (**5,470 modules**)
+  pass; this is not a new APK or device run.
+- Playwright desktop/mobile-width expectations and native flows 12/13 are updated. The separate
+  [native member acceptance helper](../apps/mobile/.maestro/helpers/organization-members.yaml)
+  requires an isolated approved organization, signed-in creator and the named fixtures in its
+  header. It deliberately does not join the thirteen-flow CI suite without those fixtures.
+  These updated authenticated/device paths have **not** been executed in this pass; no live
+  provider or release acceptance is claimed. Deleted-account, native-permission and provider
+  limitations below remain unresolved; no accounts/devices/services were changed to bypass them.
+- Current operator scope permits a signed **local commit only, no push**. Historical push/PR
+  authorization below is not authority for this pass. Generated API environment types and all
+  private configuration are preserved and excluded from staging.
+- Guides used for this pass: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`, `expo-router`,
+  `heroui-react`, `heroui-native`, `uniwind`, `tanstack-query-development`,
+  `lingui-best-practices`, `playwright-best-practices`, `web-design-guidelines`, `ponytail`
+  and `context-mode`.
+
+### Historical foundation evidence
+
 - Signed feature commit `9ea1502` is pushed on `feat/organizations-events`. [Branch CI run
   37758173173](https://github.com/BGOrganizer/board-game-organizer/actions/runs/37758173173)
   completed successfully: all **9/9 jobs**, including commitlint, Biome, typecheck, five unit suites
@@ -181,7 +213,8 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
    scripts/reports/APKs/exports/coverage and downloaded tools from any eventual commit. Owned
    community containers are stopped; baseline restoration is pending because the emulator is
    offline. Do not boot it merely to restart acceptance or clear its data.
-6. Feature commit is signed/pushed and Branch CI is green. PR #22 updates are now authorized;
+6. Historical scope only (superseded by the local-only UX pass above): feature commit was
+   signed/pushed and Branch CI was green. PR #22 updates were authorized;
    push subsequent fixes to both feature and PR head refs, monitor full PR gates through cleanup
    and publication, and never treat synthetic or absent native reports as success. **No new PR
    or merge to main.**

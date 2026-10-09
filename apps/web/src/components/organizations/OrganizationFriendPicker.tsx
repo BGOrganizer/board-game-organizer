@@ -45,7 +45,7 @@ export function OrganizationFriendPicker({ organizationId }: { organizationId: s
             onPress={() =>
               void actions.invite
                 .mutateAsync({ id: organizationId, userId: row.profile!.id })
-                .then(() => router.back())
+                .then(() => router.replace(`/organizations/${organizationId}?tab=members`))
                 .catch(() => {})
             }
           >

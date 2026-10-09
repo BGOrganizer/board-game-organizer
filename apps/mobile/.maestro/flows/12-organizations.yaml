@@ -47,6 +47,7 @@ appId: com.bgo.mobile
 - tapOn: "Organization name"
 - inputText: "Maestro community club"
 - hideKeyboard
+- tapOn: "Upload organization logo"
 - tapOn: "Camera"
 - runFlow:
     when:
@@ -55,21 +56,16 @@ appId: com.bgo.mobile
     commands:
       - tapOn:
           id: ".*:id/permission_deny.*button"
-- assertVisible: "Photo permission is required"
+- assertVisible: "Camera permission is required"
+- tapOn: "Upload organization logo"
 - tapOn: "Photo library"
-- tapOn:
-    id: ".*:id/permission_allow_all_button"
-    optional: true
-- tapOn:
-    id: ".*:id/permission_allow_button"
-    optional: true
 - extendedWaitUntil:
     visible: "Photo taken.*"
     timeout: 30000
 - tapOn:
     text: "Photo taken.*"
     index: 0
-# Android can first ask for a limited photo grant, then launch the actual picker.
+# System picker exposes only the selected image; no library permission request.
 - tapOn:
     text: "Done"
     optional: true
@@ -96,26 +92,27 @@ appId: com.bgo.mobile
 - tapOn:
     id: "address-result-0"
 - tapOn: "Confirm location"
-- scrollUntilVisible:
-    element:
-      text: "Submit for review"
-    direction: DOWN
+- assertVisible:
+    id: "organization-submit-bar"
 - tapOn: "Submit for review"
 - extendedWaitUntil:
     visible: "Edit organization"
     timeout: 30000
 - assertVisible: "Maestro community club"
 - assertVisible: "Awaiting review"
+- tapOn:
+    id: "organization-tab-members"
+- assertVisible: "Invitations require an approved organization."
+- tapOn:
+    id: "organization-tab-details"
 # Updating a pending proposal still requires a versioned final submission.
 - tapOn: "Edit organization"
 - tapOn: "Organization name"
 - eraseText
 - inputText: "Maestro community club updated"
 - hideKeyboard
-- scrollUntilVisible:
-    element:
-      text: "Submit for review"
-    direction: DOWN
+- assertVisible:
+    id: "organization-submit-bar"
 - tapOn: "Submit for review"
 - extendedWaitUntil:
     visible: "Edit organization"

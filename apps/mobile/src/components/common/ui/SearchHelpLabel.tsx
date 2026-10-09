@@ -6,7 +6,15 @@ import { CircleHelp } from "lucide-react-native";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 
-export function SearchHelpLabel({ label, help }: { label: string; help: string }) {
+export function SearchHelpLabel({
+  label,
+  help,
+  helpTitle,
+}: {
+  label: string;
+  help: string;
+  helpTitle?: string;
+}) {
   const t = useT();
   const muted = useThemeColor("muted");
   return (
@@ -20,7 +28,7 @@ export function SearchHelpLabel({ label, help }: { label: string; help: string }
             isIconOnly
             size="sm"
             variant="ghost"
-            accessibilityLabel={`${label}: ${t("Search help")}`}
+            accessibilityLabel={`${label}: ${helpTitle ?? t("Search help")}`}
             style={{ minWidth: 44, minHeight: 44 }}
           >
             <CircleHelp size={18} color={muted} />
@@ -29,7 +37,7 @@ export function SearchHelpLabel({ label, help }: { label: string; help: string }
         <Popover.Portal>
           <Popover.Overlay />
           <Popover.Content presentation="popover" placement="bottom" width={260}>
-            <Popover.Title>{t("Search help")}</Popover.Title>
+            <Popover.Title>{helpTitle ?? t("Search help")}</Popover.Title>
             <Typography className="text-foreground" style={{ flexShrink: 1 }}>
               {help}
             </Typography>

@@ -95,6 +95,7 @@ function services(session?: ClientSession) {
     organizations,
     assets,
     users,
+    relationships,
     notifications,
     events,
     eventService,
@@ -321,11 +322,18 @@ describe("community transactions on a MongoDB replica set", () => {
       { limit: 2 },
       "accepted",
     );
-    expect(first.items).toHaveLength(3); // Creator is a fixed, first-page header in addition to paginated memberships.expect(first.nextCursor).toBeTruthy();const second=await services().organizationService.members(GUEST,org.id,{limit:2,cursor:first.nextCursor??undefined},"accepted");expect(new Set([...first.items,...second.items].map(row=>row.userId)).size).toBe(5);
-    await book(event.id, tables[0].id, GUEST);
-    await transaction((s) =>
-      s.organizationService.membershipAction(OWNER, org.id, GUEST, "remove"),
+    expect(first.items).toHaveLength(3); // Creator is a fixed first-page header.
+    expect(first.nextCursor).toBeTruthy();
+    const second = await services().organizationService.members(
+      GUEST,
+      org.id,
+      { limit: 2, cursor: first.nextCursor ?? undefined },
+      "accepted",
     );
+    expect(new Set([...first.items, ...second.items].map((row) => row.userId)).size).toBe(5);
+    expect(first.items[0]).toMatchObject({ name: "owner Player", username: OWNER, isAdmin: true });
+    await book(event.id, tables[0].id, GUEST);
+    await transaction((s) => s.organizationService.membershipAction(OWNER, org.id, GUEST, "ban"));
     await expect(services().organizationService.detail(GUEST, org.id)).rejects.toMatchObject({
       status: 403,
     });
@@ -336,6 +344,97 @@ describe("community transactions on a MongoDB replica set", () => {
     await member(org.id, GUEST);
     expect((await services().events.bookingForUser(tables[0].id, GUEST))?.status).toBe("CANCELLED");
   });
+  it("removal permits new requests and invitations without reviving cancelled participation", async () => {
+    const { org, event, tables } = await eventSetup();
+    await book(event.id, tables[0].id, GUEST);
+    await transaction((s) =>
+      s.organizationService.membershipAction(OWNER, org.id, GUEST, "remove"),
+    );
+    expect((await services().organizationService.detail(GUEST, org.id)).role).toBe("none");
+    expect((await services().events.bookingForUser(tables[0].id, GUEST))?.status).toBe("CANCELLED");
+    await member(org.id, GUEST);
+    expect((await services().events.bookingForUser(tables[0].id, GUEST))?.status).toBe("CANCELLED");
+    await transaction((s) =>
+      s.organizationService.membershipAction(OWNER, org.id, GUEST, "remove"),
+    );
+    await transaction((s) => s.relationships.becomeFriends(OWNER, GUEST));
+    await expect(
+      transaction((s) => s.organizationService.invite(OWNER, org.id, GUEST)),
+    ).resolves.toMatchObject({ status: "PENDING", kind: "INVITATION" });
+    await expect(
+      transaction((s) => s.organizationService.membershipAction(OWNER, org.id, GUEST, "accept")),
+    ).rejects.toMatchObject({ code: "INVITATION_RECIPIENT_REQUIRED" });
+    // Recipient alone accepts; organization actions never create or clear global blocks.
+    await transaction((s) =>
+      s.organizationService.membershipAction(GUEST, org.id, GUEST, "accept"),
+    );
+    await transaction((s) => s.organizationService.membershipAction(OWNER, org.id, GUEST, "ban"));
+    await expect(
+      transaction((s) => s.organizationService.request(GUEST, org.id)),
+    ).rejects.toMatchObject({ code: "ORGANIZATION_EXCLUDED" });
+    expect(await services().relationships.isBlocked(OWNER, GUEST)).toBe(false);
+    await transaction((s) =>
+      s.organizationService.membershipAction(OWNER, org.id, GUEST, "revoke"),
+    );
+    expect(
+      (await services().organizationService.members(OWNER, org.id, { limit: 20 }, "excluded"))
+        .items,
+    ).toEqual([]);
+    expect((await services().events.bookingForUser(tables[0].id, GUEST))?.status).toBe("CANCELLED");
+  });
+  it("source-pages private pending and excluded feeds and keeps global blocking independent", async () => {
+    const org = await organization();
+    await member(org.id, GUEST);
+    await member(org.id, OTHER);
+    await transaction((s) => s.organizationService.request(OUTSIDER, org.id));
+    await transaction((s) => s.organizationService.request(DEMO, org.id));
+    await transaction((s) => s.organizationService.membershipAction(OWNER, org.id, OTHER, "ban"));
+    await transaction((s) => s.relationships.becomeFriends(OWNER, GUEST));
+    const accepted = await transaction((s) =>
+      s.organizationService.members(OWNER, org.id, { limit: 1 }),
+    );
+    expect(accepted.items.find((row) => row.userId === GUEST)).toMatchObject({
+      name: "guest Player",
+      username: GUEST,
+      social: { isFriend: true, isFollowing: true },
+    });
+    expect(accepted.items.every((row) => !Reflect.has(row, "email"))).toBe(true);
+    const pending = await services().organizationService.members(
+      OWNER,
+      org.id,
+      { limit: 1 },
+      "pending",
+    );
+    expect(pending.items).toHaveLength(1);
+    expect(pending.nextCursor).not.toBeNull();
+    const next = await services().organizationService.members(
+      OWNER,
+      org.id,
+      { limit: 1, cursor: pending.nextCursor ?? undefined },
+      "pending",
+    );
+    expect(new Set([...pending.items, ...next.items].map((row) => row.userId)).size).toBe(2);
+    const excluded = await services().organizationService.members(
+      OWNER,
+      org.id,
+      { limit: 1 },
+      "excluded",
+    );
+    expect(excluded.items.map((row) => row.userId)).toEqual([OTHER]);
+    for (const viewer of [GUEST, OUTSIDER])
+      for (const mode of ["pending", "excluded"] as const)
+        await expect(
+          services().organizationService.members(viewer, org.id, { limit: 1 }, mode),
+        ).rejects.toMatchObject({ code: "ORGANIZATION_MEMBER_REQUIRED" });
+    await transaction((s) => s.relationships.block(OWNER, GUEST));
+    expect((await services().organizationService.detail(GUEST, org.id)).role).toBe("accepted");
+    expect(
+      (await services().organizationService.members(OWNER, org.id, { limit: 20 })).items.find(
+        (row) => row.userId === GUEST,
+      )?.social,
+    ).toMatchObject({ blockedByMe: true, isFriend: false });
+  });
+
   it("source-filters organization administration, invitations, accepted membership and requests before pagination", async () => {
     const invited = await organization(),
       accepted = await organization(),

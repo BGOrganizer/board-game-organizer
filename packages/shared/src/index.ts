@@ -28,6 +28,8 @@ export * from "./matches/matchContactState";
 export * from "./matches/matchParticipants";
 export * from "./matches/matchResults";
 export * from "./notifications/hooks/useNotifications";
+export * from "./organizations/hooks/useOrganizationPeople";
+export * from "./organizations/hooks/useOrganizationSocialActions";
 export * from "./organizations/hooks/useOrganizations";
 export * from "./organizations/organizationActions";
 export * from "./organizations/organizationLogoUpload";

@@ -96,7 +96,12 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   useEventActions: () => eventActions,
   useOrganizationActions: () => organizationActions,
   useEventWindow: () => open,
-  useFavoriteLocations: () => ({ cacheKnown: vi.fn() }),
+  useFavoriteLocations: () => ({
+    cacheKnown: vi.fn(),
+    isFavorite: () => false,
+    toggle: { isPending: false, mutate: vi.fn() },
+    status: { isPending: false, isError: false },
+  }),
   useOrganizationLogo: () => ({ data: "data:image/webp;base64,AQID", isPending: false }),
   useOrganizations: () => ({
     items: [organization],

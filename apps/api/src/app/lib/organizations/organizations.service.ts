@@ -316,7 +316,11 @@ export class OrganizationsService {
       if (action === "revoke") {
         if (current.status !== "EXCLUDED") throw new CommunityError(409, "MEMBERSHIP_CHANGED");
         status = "LEFT";
-      } else status = "EXCLUDED";
+      } else {
+        if (current.status !== "ACCEPTED" && current.status !== "PENDING")
+          throw new CommunityError(409, "MEMBERSHIP_CHANGED");
+        status = action === "ban" ? "EXCLUDED" : "LEFT";
+      }
     }
     const next: OrganizationMembership = {
       id: current.id,
@@ -360,6 +364,10 @@ export class OrganizationsService {
       ...rows.slice(0, page.limit).map((row) => row.userId),
       ...(mode === "accepted" && !page.cursor ? [organization.adminUserId] : []),
     ]);
+    const social = await this.relationships.memberStates(
+      userId,
+      profiles.map((profile) => profile.clerkId),
+    );
     const item = (
       target: string,
       membership: OrganizationMembership | null,
@@ -367,8 +375,10 @@ export class OrganizationsService {
       const profile = profiles.find((value) => value.clerkId === target);
       return {
         userId: target,
+        name: profile?.name ?? null,
         username: profile?.username ?? null,
         avatarUrl: profile?.avatarUrl ?? null,
+        social: social.get(target),
         isAdmin: target === organization.adminUserId,
         membership,
       };

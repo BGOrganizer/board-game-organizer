@@ -155,7 +155,8 @@ admin editing and archival, optional attachment to planning matches, and per-gam
 leaderboards.
 
 Public-group and approved-organization discovery uses paginated, four-character searches.
-Organizations include verified addresses, logos, moderation, membership, and exclusions. Events
+Organizations include verified addresses, logos, moderation, membership, ordinary removal, and
+organization-only exclusions; global social blocking remains separate. Events
 include private drafts, table configuration, invitations/bookings, exact-cutoff closure, and fixed
 matches with immutable results.
 

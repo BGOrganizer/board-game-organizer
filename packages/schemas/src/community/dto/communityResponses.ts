@@ -26,6 +26,14 @@ export type OrganizationResponse = {
 };
 export type OrganizationMemberResponse = {
   userId: string;
+  name?: string | null;
+  social?: {
+    isFollowing: boolean;
+    isFollower: boolean;
+    isFriend: boolean;
+    blockedByMe: boolean;
+    friendRequest?: "incoming" | "outgoing";
+  };
   username: string | null;
   avatarUrl: string | null;
   isAdmin: boolean;

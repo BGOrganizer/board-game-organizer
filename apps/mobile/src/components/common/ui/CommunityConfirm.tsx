@@ -8,12 +8,14 @@ export function CommunityConfirm({
   busy,
   onConfirm,
   onCancel,
+  actions,
 }: {
   title: string;
   description: string;
   busy: boolean;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   onCancel: () => void;
+  actions?: { label: string; variant: "danger" | "primary"; onPress: () => void }[];
 }) {
   const t = useT();
   return (
@@ -30,13 +32,25 @@ export function CommunityConfirm({
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Description>{description}</Dialog.Description>
           </View>
-          <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+          <View
+            style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 12 }}
+          >
             <Button variant="ghost" isDisabled={busy} onPress={onCancel}>
               {t("Cancel")}
             </Button>
-            <Button variant="danger" isDisabled={busy} onPress={onConfirm}>
-              {title}
-            </Button>
+            {(
+              actions ??
+              (onConfirm ? [{ label: title, variant: "danger" as const, onPress: onConfirm }] : [])
+            ).map((action) => (
+              <Button
+                key={action.label}
+                variant={action.variant}
+                isDisabled={busy}
+                onPress={action.onPress}
+              >
+                {action.label}
+              </Button>
+            ))}
           </View>
         </Dialog.Content>
       </Dialog.Portal>

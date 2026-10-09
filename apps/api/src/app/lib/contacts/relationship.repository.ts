@@ -252,6 +252,58 @@ export class RelationshipRepository {
       .toArray();
   }
 
+  /** Viewer state for one bounded member page, independent of loaded social-list pages. */
+  async memberStates(userId: string, ids: string[]) {
+    const filter = {
+      $or: [
+        { fromUserId: userId, toUserId: { $in: ids } },
+        { toUserId: userId, fromUserId: { $in: ids } },
+      ],
+    };
+    // Sequential: these reads may share a transaction session.
+    const follows = await this.db
+      .collection<Follow>(COLLECTIONS.FOLLOWS)
+      .find(filter, this.opts)
+      .toArray();
+    const requests = await this.db
+      .collection<FriendRequest>(COLLECTIONS.FRIEND_REQUESTS)
+      .find(filter, this.opts)
+      .toArray();
+    const blocks = await this.db
+      .collection<Block>(COLLECTIONS.BLOCKS)
+      .find(filter, this.opts)
+      .toArray();
+    return new Map(
+      ids.map((id) => {
+        const outgoing = requests.find((row) => row.fromUserId === userId && row.toUserId === id);
+        const incoming = requests.find((row) => row.toUserId === userId && row.fromUserId === id);
+        const blockedByMe = blocks.some((row) => row.fromUserId === userId && row.toUserId === id);
+        const blockedMe = blocks.some((row) => row.toUserId === userId && row.fromUserId === id);
+        return [
+          id,
+          {
+            isFollowing: follows.some((row) => row.fromUserId === userId && row.toUserId === id),
+            isFollower: follows.some((row) => row.toUserId === userId && row.fromUserId === id),
+            isFriend:
+              !blockedByMe &&
+              !blockedMe &&
+              outgoing?.status === "accepted" &&
+              incoming?.status === "accepted",
+            blockedByMe,
+            friendRequest:
+              blockedByMe || blockedMe
+                ? undefined
+                : incoming?.status === "pending"
+                  ? ("incoming" as const)
+                  : outgoing?.status === "pending"
+                    ? ("outgoing" as const)
+                    : undefined,
+          },
+        ];
+      }),
+    );
+  }
+
   listBlocked(userId: string) {
     return this.db
       .collection<Block>(COLLECTIONS.BLOCKS)

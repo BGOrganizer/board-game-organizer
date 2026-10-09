@@ -8,15 +8,19 @@ import {
 import {
   bytesToBase64,
   communityAccessDenied,
+  formatLocationAddress,
   uploadOrganizationLogo,
   useFavoriteLocations,
   useOrganization,
   useOrganizationActions,
 } from "@board-game-organizer/shared";
-import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
+import { Button, Input, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { MapPin, Send, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -55,6 +59,7 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const controller = useRef<AbortController | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   const favorites = useFavoriteLocations({ ...o });
   const selectLogo = async (file: File) => {
@@ -128,11 +133,23 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
         {organization ? t`Edit organization` : t`New organization`}
       </h1>
       <TextField value={name} onChange={setName} isRequired>
-        <Label>{t`Organization name`}</Label>
+        <SearchHelpLabel
+          label={t`Organization name`}
+          helpTitle={t`Field help`}
+          help={t`Choose a unique name, from 5 to 120 characters.`}
+        />
         <Input name="organization-name" autoComplete="off" minLength={5} maxLength={120} />
       </TextField>
-      <Label htmlFor="organization-logo">{t`Organization logo`}</Label>
-      <Input
+      <SearchHelpLabel
+        label={t`Organization logo`}
+        helpTitle={t`Field help`}
+        htmlFor="organization-logo"
+        help={t`JPEG, PNG or WebP, up to 5 MB. A logo can be replaced, not removed.`}
+      />
+      <input
+        ref={fileInput}
+        className="sr-only"
+        tabIndex={-1}
         id="organization-logo"
         name="organization-logo"
         type="file"
@@ -144,7 +161,17 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
           e.target.value = "";
         }}
       />
-      <p className="text-sm text-default-500">{t`JPEG, PNG or WebP, up to 5 MB. A logo can be replaced, not removed.`}</p>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="w-fit"
+        aria-label={t`Upload organization logo`}
+        isDisabled={uploading || actions.busy}
+        onPress={() => fileInput.current?.click()}
+      >
+        <Upload className="size-4" aria-hidden />
+        {t`Upload`}
+      </Button>
       {preview ? (
         <img
           src={preview}
@@ -155,24 +182,53 @@ function Editor({ organization }: { organization?: OrganizationResponse }) {
         />
       ) : null}
       {uploading ? <Skeleton className="size-32 rounded-xl" /> : null}
-      <Button variant="secondary" onPress={() => setPicking(true)}>
-        {location ? location.name : t`Choose a verified address`}
-      </Button>
-      {location ? <p>{location.address}</p> : null}
+      <div className="flex items-center gap-2 rounded-lg border border-separator p-3">
+        {location ? (
+          <LocationFavoriteButton location={location} favorites={favorites} />
+        ) : (
+          <MapPin className="size-5 shrink-0" aria-hidden />
+        )}
+        <Button
+          variant="tertiary"
+          className="h-auto min-h-11 min-w-0 flex-1 justify-start px-2 py-1 text-left"
+          aria-label={t`Choose a verified address`}
+          onPress={() => setPicking(true)}
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium">
+              {location?.name ?? t`Choose a verified address`}
+            </span>
+            {location ? (
+              <span className="block truncate text-xs text-default-500" title={location.address}>
+                {formatLocationAddress(location.address)}
+              </span>
+            ) : null}
+          </span>
+        </Button>
+      </div>
+      {favorites.status.isError ? (
+        <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
+      ) : null}
       {error ? (
         <p role="alert" className="text-danger">
           {error}
         </p>
       ) : null}
-      <Button
-        variant="primary"
-        isDisabled={
-          actions.busy ||
-          uploading ||
-          !saveOrganizationSchema.safeParse({ name, location, logoAssetId: logo }).success
-        }
-        onPress={() => void save()}
-      >{t`Submit for review`}</Button>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-separator bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <Button
+          className="mx-auto flex w-full max-w-3xl"
+          variant="primary"
+          isDisabled={
+            actions.busy ||
+            uploading ||
+            !saveOrganizationSchema.safeParse({ name, location, logoAssetId: logo }).success
+          }
+          onPress={() => void save()}
+        >
+          <Send className="size-4" aria-hidden />
+          {t`Submit for review`}
+        </Button>
+      </div>
     </section>
   );
 }

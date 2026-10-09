@@ -54,8 +54,12 @@ function services(overrides: Record<string, unknown> = {}) {
   const organizationService = new OrganizationsService(
     organizations as never,
     { find: vi.fn(async () => ({ thumbnailBase64: "preview" })) } as never,
-    {} as never,
-    {} as never,
+    {
+      findByIds: vi.fn(async (ids: string[]) =>
+        ids.map((clerkId) => ({ clerkId, name: `${clerkId} Name`, username: clerkId })),
+      ),
+    } as never,
+    { memberStates: vi.fn(async () => new Map()) } as never,
     notifications as never,
     departure,
   );
@@ -121,6 +125,91 @@ describe("community transaction service invariants", () => {
     await expect(
       organizationService.detail("outsider", "organization"),
     ).resolves.not.toHaveProperty("proposal");
+  });
+
+  it.each(["ACCEPTED", "PENDING"])(
+    "removes %s membership without exclusion and permits a new request",
+    async (status) => {
+      const lookup = vi.fn(async () => ({
+        id: "membership",
+        userId: "member",
+        kind: "REQUEST",
+        status,
+        createdAt: now,
+      }));
+      const { organizationService, organizations, departure } = services({
+        findMembership: lookup,
+      });
+      const removed = await organizationService.membershipAction(
+        "admin",
+        "organization",
+        "member",
+        "remove",
+      );
+      expect(removed.status).toBe("LEFT");
+      expect(removed).not.toHaveProperty("excludedReason");
+      expect(departure).toHaveBeenCalledWith("organization", "member");
+      lookup.mockResolvedValue({ ...removed } as never);
+      await expect(organizationService.request("member", "organization")).resolves.toMatchObject({
+        status: "PENDING",
+        kind: "REQUEST",
+      });
+      expect(organizations.saveMembership).toHaveBeenCalledTimes(2);
+    },
+  );
+  it("keeps organization exclusion explicit and forbids removal from bypassing revocation", async () => {
+    const lookup = vi.fn(async () => ({
+      id: "membership",
+      userId: "member",
+      kind: "REQUEST",
+      status: "ACCEPTED",
+      createdAt: now,
+    }));
+    const { organizationService } = services({ findMembership: lookup });
+    const excluded = await organizationService.membershipAction(
+      "admin",
+      "organization",
+      "member",
+      "ban",
+    );
+    expect(excluded).toMatchObject({ status: "EXCLUDED", excludedReason: "BANNED" });
+    lookup.mockResolvedValue(excluded);
+    await expect(
+      organizationService.membershipAction("admin", "organization", "member", "remove"),
+    ).rejects.toThrow("MEMBERSHIP_CHANGED");
+    await expect(
+      organizationService.membershipAction("outsider", "organization", "member", "remove"),
+    ).rejects.toThrow("ORGANIZATION_ADMIN_REQUIRED");
+    await expect(
+      organizationService.membershipAction("admin", "organization", "member", "revoke"),
+    ).resolves.toMatchObject({ status: "LEFT" });
+  });
+  it("keeps pending and excluded lists admin-only while enriching accepted names", async () => {
+    const { organizationService } = services({
+      findMembership: vi.fn(async () => ({ status: "ACCEPTED" })),
+      listMemberships: vi.fn(async () => [
+        { id: "m", userId: "member", status: "ACCEPTED", createdAt: now },
+      ]),
+    });
+    for (const mode of ["pending", "excluded"] as const)
+      await expect(
+        organizationService.members("member", "organization", { limit: 2 }, mode),
+      ).rejects.toThrow("ORGANIZATION_MEMBER_REQUIRED");
+    const accepted = await organizationService.members("member", "organization", { limit: 2 });
+    expect(accepted.items).toEqual([
+      expect.objectContaining({
+        userId: "admin",
+        name: "admin Name",
+        username: "admin",
+        isAdmin: true,
+      }),
+      expect.objectContaining({
+        userId: "member",
+        name: "member Name",
+        username: "member",
+        isAdmin: false,
+      }),
+    ]);
   });
 
   it("never cancels frozen postdeadline participation on departure", async () => {

@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
+import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -37,7 +38,9 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           ...listPageContentStyle,
-          paddingBottom: insets.bottom + 20,
+          paddingBottom: organizationId
+            ? floatingActionLayout(insets.bottom, 0).paddingBottom
+            : insets.bottom + 20,
         }}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage && !list.isFetchNextPageError)
