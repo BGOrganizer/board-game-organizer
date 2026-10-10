@@ -1,6 +1,7 @@
 "use client";
 import {
   type EventResponse,
+  MAX_EVENT_TABLES,
   type MatchLocation,
   type SaveEventInput,
   saveEventSchema,
@@ -14,10 +15,12 @@ import {
   editableEventTable,
   eventBookingHours,
   eventDateLimit,
+  eventDraftTableCount,
   eventEditResets,
   eventInformationForm,
   eventLocalDateTime,
   eventLocalToIso,
+  eventOnDay,
   eventSaveFieldErrors,
   eventTableForm,
   formatLocationAddress,
@@ -29,17 +32,9 @@ import {
   useOrganization,
   useOrganizationList,
 } from "@board-game-organizer/shared";
-import { Button, FieldError, Input, Label, Skeleton, TextField } from "@heroui/react";
+import { Button, FieldError, Input, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarCheck,
-  CalendarClock,
-  LayoutGrid,
-  MapPin,
-  Plus,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, LayoutGrid, MapPin, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -54,6 +49,7 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDateTimeField } from "./EventDateTimeField";
 import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventTableEditor } from "./EventTableEditor";
+import { EventWizardSummary } from "./EventWizardSummary";
 export function EventWizard({
   eventId,
   organizationId,
@@ -156,6 +152,15 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const [end, setEnd] = useState(
     event ? eventLocalDateTime(event.endsAt, event.timeZone).slice(0, 16) : "",
   );
+  const [day, setDay] = useState(
+    event ? eventLocalDateTime(event.startsAt, event.timeZone).slice(0, 10) : "",
+  );
+  const changeDay = (wall: string) => {
+    const next = wall.slice(0, 10);
+    setDay(next);
+    setStart((current) => eventOnDay(current, next));
+    setEnd((current) => eventOnDay(current, next));
+  };
   const [bookingHours, setBookingHours] = useState(() => eventBookingHours(event));
   const [location, setLocation] = useState<MatchLocation | undefined>(event?.location);
   const favorites = useFavoriteLocations(o, location ? [location] : []);
@@ -163,6 +168,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const [edited, setEdited] = useState<DraftTable[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [table, setTable] = useState<DraftTable | null>(null);
+  const tableCount = eventDraftTableCount(event?.tableCount ?? 0, edited, removed);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<EventFormErrors>({});
   const fieldError = (field: string) =>
@@ -203,11 +209,16 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       .filter((row) => !removed.includes(row.id) && !edited.some((d) => d.input.id === row.id))
       .some(
         (row) =>
-          Date.parse(row.startsAt) < Date.parse(raw.startsAt) ||
-          Date.parse(row.endsAt) > Date.parse(raw.endsAt),
+          Date.parse(row.startsAt) <= Date.parse(raw.startsAt) ||
+          Date.parse(row.endsAt) >= Date.parse(raw.endsAt),
       );
-    if (!parsed.success || invalidEdited || outsideRetained) {
-      setErrors({ tables: EVENT_FIELD_ERRORS.tables });
+    if (!parsed.success || invalidEdited || outsideRetained || tableCount > MAX_EVENT_TABLES) {
+      setErrors({
+        tables:
+          tableCount > MAX_EVENT_TABLES
+            ? "An event can have at most 20 tables."
+            : EVENT_FIELD_ERRORS.tables,
+      });
       setStep(1);
       return null;
     }
@@ -293,41 +304,65 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
     <section className="mx-auto flex max-w-3xl flex-col gap-4 pb-28">
       <h1 className="text-xl font-semibold">{event ? t`Edit event` : t`New event`}</h1>
       <WizardSteps current={step + 1} count={3} />
-      {step === 0 ? (
-        <SearchHelpLabel
-          label={t`Event information`}
-          helpTitle={t`Field help`}
-          help={t`Choose a name, a start and a later end (also on another day), and a verified address.`}
-        />
-      ) : (
-        <SearchHelpLabel
-          label={step === 1 ? t`Tables` : t`Review event`}
-          helpTitle={t`Field help`}
-          help={t`Add tables with a game, player limits and times inside the event. Publishing requires at least one table.`}
-        />
-      )}
+      {step === 0 ? <h2 className="font-semibold">{t`Event detail`}</h2> : null}
       {step === 0 ? (
         <>
           <TextField value={name} onChange={setName} isInvalid={Boolean(errors.name)}>
-            <Label>{t`Event name`}</Label>
-            <Input name="event-name" maxLength={120} placeholder={t`e.g. Board game evening`} />
+            <SearchHelpLabel
+              label={t`Event name`}
+              htmlFor="event-name"
+              helpTitle={t`Field help`}
+              help={t`Choose an event name with 5–120 characters.`}
+            />
+            <Input
+              id="event-name"
+              name="event-name"
+              maxLength={120}
+              placeholder={t`e.g. Board game evening`}
+            />
             <FieldError>
               <span role="alert">{errors.name ? i18n._(errors.name) : null}</span>
             </FieldError>
           </TextField>
           <EventDateTimeField
-            label={t`Starts at`}
-            value={start}
-            error={errors.startsAt ? i18n._(errors.startsAt) : undefined}
-            onChange={setStart}
+            mode="date"
+            label={t`Event date`}
+            value={day ? `${day}T00:00` : ""}
+            help={t`Choose the event day. Start and end must be on this same local day.`}
+            onChange={changeDay}
           />
-          <EventDateTimeField
-            label={t`Ends at`}
-            value={end}
-            min={eventDateLimit(start, zone, "after", event?.startsAt)}
-            error={errors.endsAt ? i18n._(errors.endsAt) : undefined}
-            onChange={setEnd}
+          <SearchHelpLabel
+            label={t`Start/end time`}
+            helpTitle={t`Field help`}
+            help={t`Choose the start and end times on the event day. End must be after start.`}
           />
+          <div className="grid grid-cols-2 gap-3">
+            <EventDateTimeField
+              mode="time"
+              day={day}
+              label={t`Start time`}
+              value={start}
+              max={
+                end
+                  ? eventDateLimit(end, zone, "before", event?.endsAt)
+                  : day
+                    ? `${day}T23:58`
+                    : undefined
+              }
+              error={errors.startsAt ? i18n._(errors.startsAt) : undefined}
+              onChange={setStart}
+            />
+            <EventDateTimeField
+              mode="time"
+              day={day}
+              label={t`End time`}
+              value={end}
+              min={eventDateLimit(start, zone, "after", event?.startsAt)}
+              max={day ? `${day}T23:59` : undefined}
+              error={errors.endsAt ? i18n._(errors.endsAt) : undefined}
+              onChange={setEnd}
+            />
+          </div>
           <SearchHelpLabel
             label={t`Location`}
             helpTitle={t`Field help`}
@@ -343,12 +378,12 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
               <Button
                 variant="ghost"
                 className="h-auto min-h-11 min-w-0 flex-1 justify-start text-left"
-                aria-label={t`Choose a verified address`}
+                aria-label={t`Choose the event address`}
                 onPress={() => setPickLocation(true)}
               >
                 <span className="min-w-0">
                   <span className="block truncate font-medium">
-                    {location?.name ?? t`Choose a verified address`}
+                    {location?.name ?? t`Choose the event address`}
                   </span>
                   {location ? (
                     <span
@@ -395,42 +430,22 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         </>
       ) : (
         <>
-          <div className="space-y-2">
-            {[
-              { label: t`Event start`, wall: start, Icon: CalendarClock },
-              { label: t`Event end`, wall: end, Icon: CalendarCheck },
-            ].map(({ label, wall, Icon }) => (
-              <div key={label} className="flex items-center gap-2">
-                <Icon className="size-5 text-default-500" aria-hidden />
-                <span>
-                  <span className="block text-sm text-default-500">{label}</span>
-                  <span>
-                    {new Intl.DateTimeFormat(i18n.locale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                      timeZone: zone,
-                    }).format(
-                      new Date(
-                        eventLocalToIso(
-                          wall,
-                          zone,
-                          wall === start ? event?.startsAt : event?.endsAt,
-                        ),
-                      ),
-                    )}
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-          {step === 2 ? (
-            <>
-              <p>{name}</p>
-              <p>
-                {location?.name} · {location?.address}
-              </p>
-            </>
-          ) : null}
+          <EventWizardSummary
+            startsAt={eventLocalToIso(start, zone, event?.startsAt)}
+            endsAt={eventLocalToIso(end, zone, event?.endsAt)}
+            timeZone={zone}
+            name={step === 2 ? name : undefined}
+            location={step === 2 ? location : undefined}
+          />
+          {step === 1 ? (
+            <SearchHelpLabel
+              label={t`Tables`}
+              helpTitle={t`Field help`}
+              help={t`Add up to 20 tables with a game, player limits and times strictly inside the event. Publishing requires at least one table.`}
+            />
+          ) : (
+            <h2 className="font-semibold">{t`Tables`}</h2>
+          )}
           {fieldError("tables")}
           {event ? (
             <p>{t`Unloaded tables are retained. Only explicit removals delete tables.`}</p>
@@ -466,7 +481,9 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
             <Button
               size="sm"
               className="w-fit self-start"
+              isDisabled={tableCount >= MAX_EVENT_TABLES || actions.busy}
               onPress={() => {
+                if (tableCount >= MAX_EVENT_TABLES) return;
                 try {
                   const s = eventLocalToIso(
                       eventDateLimit(start, zone, "after", event?.startsAt) ?? "",

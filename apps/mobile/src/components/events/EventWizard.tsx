@@ -1,5 +1,6 @@
 import {
   type EventResponse,
+  MAX_EVENT_TABLES,
   type MatchLocation,
   type SaveEventInput,
   saveEventSchema,
@@ -13,10 +14,12 @@ import {
   editableEventTable,
   eventBookingHours,
   eventDateLimit,
+  eventDraftTableCount,
   eventEditResets,
   eventInformationForm,
   eventLocalDateTime,
   eventLocalToIso,
+  eventOnDay,
   eventSaveFieldErrors,
   eventTableForm,
   useEvent,
@@ -27,21 +30,13 @@ import {
   useOrganization,
   useOrganizationList,
 } from "@board-game-organizer/shared";
-import { useLingui } from "@lingui/react";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarCheck,
-  CalendarClock,
-  LayoutGrid,
-  Plus,
-} from "lucide-react-native";
+import { ArrowLeft, ArrowRight, LayoutGrid, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -60,6 +55,7 @@ import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventDateTimeField } from "./EventDateTimeField";
 import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventTableEditor } from "./EventTableEditor";
+import { EventWizardSummary } from "./EventWizardSummary";
 
 export function EventWizard({
   eventId,
@@ -165,7 +161,6 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const o = useCommunityApi();
   const router = useRouter();
   const actions = useEventActions(o);
-  const { i18n } = useLingui();
   const layout = useFloatingActionLayout();
   const foreground = useThemeColor("foreground");
   const accentForeground = useThemeColor("accent-foreground");
@@ -183,6 +178,15 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const [end, setEnd] = useState(
     event ? eventLocalDateTime(event.endsAt, event.timeZone).slice(0, 16) : "",
   );
+  const [day, setDay] = useState(
+    event ? eventLocalDateTime(event.startsAt, event.timeZone).slice(0, 10) : "",
+  );
+  const changeDay = (wall: string) => {
+    const next = wall.slice(0, 10);
+    setDay(next);
+    setStart((current) => eventOnDay(current, next));
+    setEnd((current) => eventOnDay(current, next));
+  };
   const [bookingHours, setBookingHours] = useState(() => eventBookingHours(event));
   const [location, setLocation] = useState<MatchLocation | undefined>(event?.location);
   const favorites = useFavoriteLocations(o, location ? [location] : []);
@@ -190,6 +194,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const [edited, setEdited] = useState<DraftTable[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
   const [table, setTable] = useState<DraftTable | null>(null);
+  const tableCount = eventDraftTableCount(event?.tableCount ?? 0, edited, removed);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<EventFormErrors>({});
   const fieldError = (field: string) =>
@@ -230,11 +235,16 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       .filter((row) => !removed.includes(row.id) && !edited.some((d) => d.input.id === row.id))
       .some(
         (row) =>
-          Date.parse(row.startsAt) < Date.parse(raw.startsAt) ||
-          Date.parse(row.endsAt) > Date.parse(raw.endsAt),
+          Date.parse(row.startsAt) <= Date.parse(raw.startsAt) ||
+          Date.parse(row.endsAt) >= Date.parse(raw.endsAt),
       );
-    if (!parsed.success || invalidEdited || outsideRetained) {
-      setErrors({ tables: EVENT_FIELD_ERRORS.tables });
+    if (!parsed.success || invalidEdited || outsideRetained || tableCount > MAX_EVENT_TABLES) {
+      setErrors({
+        tables:
+          tableCount > MAX_EVENT_TABLES
+            ? "An event can have at most 20 tables."
+            : EVENT_FIELD_ERRORS.tables,
+      });
       setStep(1);
       return null;
     }
@@ -328,25 +338,15 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
       />
       <WizardSteps current={step + 1} count={3} />
       {step === 0 ? (
-        <SearchHelpLabel
-          label={t("Event information")}
-          helpTitle={t("Field help")}
-          help={t(
-            "Choose a name, a start and a later end (also on another day), and a verified address.",
-          )}
-        />
-      ) : (
-        <SearchHelpLabel
-          label={step === 1 ? t("Tables") : t("Review event")}
-          helpTitle={t("Field help")}
-          help={t(
-            "Add tables with a game, player limits and times inside the event. Publishing requires at least one table.",
-          )}
-        />
-      )}
+        <Typography className="font-semibold text-foreground">{t("Event detail")}</Typography>
+      ) : null}
       {step === 0 ? (
         <>
-          <Typography>{t("Event name")}</Typography>
+          <SearchHelpLabel
+            label={t("Event name")}
+            helpTitle={t("Field help")}
+            help={t("Choose an event name with 5–120 characters.")}
+          />
           <Input
             accessibilityLabel={t("Event name")}
             value={name}
@@ -356,22 +356,54 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           />
           {fieldError("name")}
           <EventDateTimeField
-            label={t("Starts at")}
-            testID="event-start-calendar"
-            value={start}
+            label={t("Event date")}
+            mode="date"
+            testID="event-date-calendar"
+            value={day ? `${day}T00:00` : ""}
             timeZone={zone}
-            error={errors.startsAt ? t(errors.startsAt) : undefined}
-            onChange={setStart}
+            help={t("Choose the event day. Start and end must be on this same local day.")}
+            onChange={changeDay}
           />
-          <EventDateTimeField
-            label={t("Ends at")}
-            testID="event-end-calendar"
-            value={end}
-            timeZone={zone}
-            min={eventDateLimit(start, zone, "after", event?.startsAt)}
-            error={errors.endsAt ? t(errors.endsAt) : undefined}
-            onChange={setEnd}
+          <SearchHelpLabel
+            label={t("Start/end time")}
+            helpTitle={t("Field help")}
+            help={t("Choose the start and end times on the event day. End must be after start.")}
           />
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <EventDateTimeField
+                mode="time"
+                day={day}
+                label={t("Start time")}
+                testID="event-start-calendar"
+                value={start}
+                timeZone={zone}
+                max={
+                  end
+                    ? eventDateLimit(end, zone, "before", event?.endsAt)
+                    : day
+                      ? `${day}T23:58`
+                      : undefined
+                }
+                error={errors.startsAt ? t(errors.startsAt) : undefined}
+                onChange={setStart}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <EventDateTimeField
+                mode="time"
+                day={day}
+                label={t("End time")}
+                testID="event-end-calendar"
+                value={end}
+                timeZone={zone}
+                min={eventDateLimit(start, zone, "after", event?.startsAt)}
+                max={day ? `${day}T23:59` : undefined}
+                error={errors.endsAt ? t(errors.endsAt) : undefined}
+                onChange={setEnd}
+              />
+            </View>
+          </View>
           <SearchHelpLabel
             label={t("Location")}
             helpTitle={t("Field help")}
@@ -379,8 +411,8 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
           />
           <GroupedList>
             <LocationListRow
-              name={location?.name ?? t("Choose a verified address")}
-              accessibilityLabel={t("Choose a verified address")}
+              name={location?.name ?? t("Choose the event address")}
+              accessibilityLabel={t("Choose the event address")}
               address={location?.address}
               onPress={() => setPickLocation(true)}
               leading={
@@ -417,36 +449,24 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         </>
       ) : (
         <>
-          {[
-            { label: t("Event start"), wall: start, Icon: CalendarClock },
-            { label: t("Event end"), wall: end, Icon: CalendarCheck },
-          ].map(({ label, wall, Icon }) => (
-            <View key={label} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Icon size={20} color={foreground} />
-              <View>
-                <Typography className="text-sm text-muted">{label}</Typography>
-                <Typography className="text-foreground">
-                  {new Intl.DateTimeFormat(i18n.locale, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                    timeZone: zone,
-                  }).format(
-                    new Date(
-                      eventLocalToIso(wall, zone, wall === start ? event?.startsAt : event?.endsAt),
-                    ),
-                  )}
-                </Typography>
-              </View>
-            </View>
-          ))}
-          {step === 2 ? (
-            <>
-              <Typography>{name}</Typography>
-              <Typography>
-                {location?.name} · {location?.address}
-              </Typography>
-            </>
-          ) : null}
+          <EventWizardSummary
+            startsAt={eventLocalToIso(start, zone, event?.startsAt)}
+            endsAt={eventLocalToIso(end, zone, event?.endsAt)}
+            timeZone={zone}
+            name={step === 2 ? name : undefined}
+            location={step === 2 ? location : undefined}
+          />
+          {step === 1 ? (
+            <SearchHelpLabel
+              label={t("Tables")}
+              helpTitle={t("Field help")}
+              help={t(
+                "Add up to 20 tables with a game, player limits and times strictly inside the event. Publishing requires at least one table.",
+              )}
+            />
+          ) : (
+            <Typography className="font-semibold text-foreground">{t("Tables")}</Typography>
+          )}
           {fieldError("tables")}
           {event ? (
             <Typography className="text-muted">
@@ -468,7 +488,9 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         <Button
           size="sm"
           style={{ alignSelf: "flex-start" }}
+          isDisabled={tableCount >= MAX_EVENT_TABLES || actions.busy}
           onPress={() => {
+            if (tableCount >= MAX_EVENT_TABLES) return;
             try {
               setTable({
                 key: `new-${Date.now()}-${Math.random()}`,

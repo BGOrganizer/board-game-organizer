@@ -5,13 +5,13 @@ import { Card } from "heroui-native/card";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import {
-  CalendarCheck,
-  CalendarClock,
+  Clock3,
   Dices,
   LayoutGrid,
   Pencil,
   Presentation,
   Trash2,
+  Trophy,
   UsersRound,
 } from "lucide-react-native";
 import { Image, View } from "react-native";
@@ -35,17 +35,16 @@ export function EventDraftTableCard({
   const { i18n } = useLingui();
   const [foreground, muted, danger] = useThemeColor(["foreground", "muted", "danger"]);
   const dates = new Intl.DateTimeFormat(i18n.locale, {
-    dateStyle: "medium",
     timeStyle: "short",
     timeZone,
   });
   const fields = [
     {
-      Icon: CalendarClock,
-      label: t("Starts at"),
+      Icon: Clock3,
+      label: t("Start time"),
       value: dates.format(new Date(table.input.startsAt)),
     },
-    { Icon: CalendarCheck, label: t("Ends at"), value: dates.format(new Date(table.input.endsAt)) },
+    { Icon: Clock3, label: t("End time"), value: dates.format(new Date(table.input.endsAt)) },
     { Icon: Dices, label: t("Board games"), value: table.gameName },
     {
       Icon: UsersRound,
@@ -66,18 +65,30 @@ export function EventDraftTableCard({
   return (
     <Card style={{ padding: 12, gap: 12 }}>
       <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
-        {table.imageUrl ? (
-          <Image
-            source={{ uri: table.imageUrl }}
-            resizeMode="contain"
-            accessibilityLabel={table.gameName}
-            style={{ width: 80, height: 80, borderRadius: 12 }}
-          />
-        ) : (
-          <View style={{ width: 80, height: 80, alignItems: "center", justifyContent: "center" }}>
-            <Dices size={36} color={muted} />
-          </View>
-        )}
+        <View style={{ width: 80, height: 80, flexShrink: 0 }}>
+          {table.imageUrl ? (
+            <Image
+              source={{ uri: table.imageUrl }}
+              resizeMode="contain"
+              accessibilityLabel={table.gameName}
+              style={{ width: 80, height: 80, borderRadius: 12 }}
+            />
+          ) : (
+            <View style={{ width: 80, height: 80, alignItems: "center", justifyContent: "center" }}>
+              <Dices size={36} color={muted} />
+            </View>
+          )}
+          {table.input.openSkill ? (
+            <View
+              accessible
+              accessibilityLabel={t("Global ratings enabled")}
+              className="bg-surface rounded-full"
+              style={{ position: "absolute", bottom: -4, right: -4, padding: 4 }}
+            >
+              <Trophy size={16} color={foreground} accessible={false} />
+            </View>
+          ) : null}
+        </View>
         <ListCardBody
           title={table.input.name}
           titleAccessory={<LayoutGrid size={18} color={muted} />}

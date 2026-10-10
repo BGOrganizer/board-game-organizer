@@ -68,7 +68,6 @@ export function UserActionsSheet({
   useEffect(() => {
     setConfirmAction(visible && user?.id ? (initialConfirmAction ?? null) : null);
   }, [visible, initialConfirmAction, user?.id]);
-  if (!user) return null;
   const labels: Record<UserActionKey, string> = {
     follow: t("Follow"),
     unfollow: t("Unfollow"),
@@ -169,7 +168,7 @@ export function UserActionsSheet({
         : [];
   return (
     <BottomSheet
-      isOpen={visible}
+      isOpen={visible && Boolean(user)}
       onOpenChange={(open) => {
         if (!open && !busy) onClose();
       }}
@@ -178,7 +177,7 @@ export function UserActionsSheet({
         <BottomSheet.Overlay />
         <BottomSheet.Content enablePanDownToClose={!busy}>
           <View style={{ gap: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
-            <BottomSheet.Title>{user.name}</BottomSheet.Title>
+            <BottomSheet.Title>{user?.name}</BottomSheet.Title>
             {confirmation ? (
               <>
                 <Typography className="font-semibold text-foreground">
@@ -232,7 +231,7 @@ export function UserActionsSheet({
                 </Button>
               </>
             ) : (
-              userActionKeys(user, canSendFriendRequest, friendRequest).map((key) => {
+              (user ? userActionKeys(user, canSendFriendRequest, friendRequest) : []).map((key) => {
                 const Icon = icons[key];
                 return (
                   <Button

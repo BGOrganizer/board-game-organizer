@@ -2,11 +2,12 @@ import type { EventResponse, EventTableInput } from "@board-game-organizer/schem
 import { describe, expect, it } from "vitest";
 import {
   eventDateLimit,
+  eventDraftTableCount,
   eventInformationForm,
+  eventOnDay,
   eventPlayerRange,
   eventSaveFieldErrors,
   eventTableForm,
-  eventTimeChoices,
 } from "../eventWizardForm";
 
 const location = {
@@ -19,7 +20,7 @@ const location = {
 const info = {
   name: "Weekend games",
   start: "2030-01-01T18:00",
-  end: "2030-01-03T22:00",
+  end: "2030-01-01T22:00",
   zone: "UTC",
   bookingHours: "24",
   location,
@@ -42,13 +43,13 @@ const form = {
   eventEnd: "2030-01-01T22:00:00Z",
 };
 describe("event wizard validation and ranges", () => {
-  it("accepts multi-day events and preserves stored instants on edits", () => {
+  it("accepts one-day events and preserves stored instants on edits", () => {
     const result = eventInformationForm(info, undefined, 0);
     expect(result.errors).toEqual({});
-    expect(result.data?.endsAt).toBe("2030-01-03T22:00:00.000Z");
+    expect(result.data?.endsAt).toBe("2030-01-01T22:00:00.000Z");
     const previous = {
       startsAt: "2030-01-01T18:00:12.123Z",
-      endsAt: "2030-01-03T22:00:34.456Z",
+      endsAt: "2030-01-01T22:00:34.456Z",
     } as EventResponse;
     expect(eventInformationForm(info, previous, 0).data).toMatchObject(previous);
   });
@@ -148,6 +149,7 @@ describe("event wizard validation and ranges", () => {
       ["EVENT_MUST_BE_FUTURE", "startsAt"],
       ["TABLE_OUTSIDE_EVENT", "tables"],
       ["EVENT_REQUIRES_TABLE", "tables"],
+      ["EVENT_TABLE_LIMIT", "tables"],
       ["GAME_NOT_FOUND", "tables"],
       ["ORGANIZATION_MEMBER_REQUIRED", "tables"],
     ])
@@ -156,17 +158,20 @@ describe("event wizard validation and ranges", () => {
     expect(eventSaveFieldErrors(new Error("toString"))).toEqual({});
     expect(eventSaveFieldErrors("NETWORK_ERROR")).toEqual({});
   });
-  it("offers only selectable minutes on each day, including midnight and an empty range", () => {
-    expect(eventTimeChoices("2030-01-01")).toHaveLength(1440);
-    expect(eventTimeChoices("2030-01-01", "2030-01-01T18:01", "2030-01-01T18:03")).toEqual([
-      "2030-01-01T18:01",
-      "2030-01-01T18:02",
-      "2030-01-01T18:03",
-    ]);
-    expect(eventTimeChoices("2030-01-01", undefined, "2030-01-01T00:00")).toEqual([
-      "2030-01-01T00:00",
-    ]);
-    expect(eventTimeChoices("2030-01-01", "2030-01-01T23:59")).toEqual(["2030-01-01T23:59"]);
-    expect(eventTimeChoices("2030-01-01", "2030-01-02T00:00", "2030-01-01T23:59")).toEqual([]);
+  it("moves selected times to one day without inventing missing times or losing seconds", () => {
+    expect(eventOnDay("2030-01-01T18:01:12.123", "2030-02-02")).toBe("2030-02-02T18:01:12.123");
+    expect(eventOnDay("", "2030-02-02")).toBe("");
+    expect(eventOnDay("2030-01-01T18:01", "")).toBe("");
+    expect(
+      eventInformationForm({ ...info, end: "2030-01-02T22:00" }, undefined, 0).errors.endsAt,
+    ).toBeTruthy();
+  });
+  it("counts retained/unloaded tables, new tables, edits and unique explicit removals", () => {
+    const fresh = { key: "new", input: table, gameName: "Azul" };
+    const edited = { ...fresh, input: { ...table, id: "old" } };
+    expect(eventDraftTableCount(20, [], [])).toBe(20);
+    expect(eventDraftTableCount(20, [edited], [])).toBe(20);
+    expect(eventDraftTableCount(20, [fresh, edited], ["removed", "removed"])).toBe(20);
+    expect(eventDraftTableCount(0, [fresh], [])).toBe(1);
   });
 });

@@ -65,7 +65,39 @@ local-only scope below permits a signed local commit but no push, delegation or 
 
 ## Latest verified automated gates
 
-### Organization member dialogs and review controls — local only
+### One-day event wizard and compact member controls — local only
+
+- Same `feat/organizations-events` branch; signed local commit only, no push, PR changes,
+  delegation, provisioning, migration, or account/device reset. The user's API environment-types
+  change is preserved byte-for-byte and excluded.
+- Membership requests now use inline icon/text Accept / Reject / Ban on one row and Cancel below.
+  Other confirmation callers retain their existing layouts and busy/snapshot guards. The shared
+  native social sheet remains mounted closed without a selection: HeroUI's installed implementation
+  snaps only on a closed-to-open transition, so mounting it initially open had hidden the first menu.
+- Native filter chips have a 32px visual height with a 44px parent/touch area and vertical hit slop;
+  web chips use reduced height/padding. Selection, semantics and labels remain unchanged.
+- Events again require the same **local** day, strict start/end ordering and at most 20 tables.
+  Schema validation includes UTC-day crossings and DST; transactions count retained/unloaded tables
+  plus additions minus explicit removals. No existing data is migrated or silently removed.
+- Event detail step: name-specific help, one date-only picker with help, paired native/browser
+  time-only pickers with shared help, and the event-address label. Tables show date-only Event day,
+  paired times and the limit help. Review shares that platform-owned summary with name and venue.
+  Table editors have header Back, time-only strict ranges (including current table end), fixed-size
+  card covers, time-only rows and the bottom-right enabled-rating badge.
+- Android's native time picker cannot enforce min/max; invalid selections are rejected with a
+  visible localized error, not clamped or replaced by a custom minute list. Submit-time timezone/DST
+  validation and unchanged stored-second precision remain active.
+- Verified: lint, workspace typecheck, **1,274 unit tests** (web 391, mobile 146, API 534,
+  schemas 92, shared 111), web/mobile/schema/shared coverage gates and **62 replica-set integration
+  tests with no skips**, API/web production builds and Android bundle export. New/shared deterministic
+  date/count logic and the measured web primitives retain 100% per-file coverage gates.
+- EN/IT extraction and compilation pass: **647 active IDs** in each catalog; all previous 630
+  IDs/translations retained. Playwright and Maestro scenarios/helpers were updated for native date
+  and time pickers, invalid bounds, header Back, row geometry, summary and the rating badge.
+  **They were not executed**: builds/export/source contracts are not browser/device acceptance.
+  No APK, provider execution or remote CI verification is claimed for this pass.
+
+### Previous organization member dialogs and review controls — local only
 
 - Operator scope: same `feat/organizations-events` branch, signed local commit only. No push,
   PR, provisioning, delegation or changes to the unrelated API `next-env.d.ts`.
@@ -91,7 +123,7 @@ local-only scope below permits a signed local commit but no push, delegation or 
   `lingui-best-practices`, `playwright-best-practices`, `web-design-guidelines`, `ponytail`,
   `context-mode`. No skills or dependencies installed/changed.
 
-### Multi-day event/table wizard and member social menus — local only
+### Previous multi-day event/table wizard and member social menus — local only
 
 - Explicit operator scope: current feature branch, signed local commit only; no push, delegation,
   provisioning or account/device bypass. Preserve pre-existing API environment types byte-for-byte.

@@ -6,15 +6,18 @@ import { expect, it } from "vitest";
 
 const source = (path: string) =>
   readFileSync(new URL(`../../components/${path}`, import.meta.url), "utf8");
-it("uses one date row with chained Android dialogs and a cancellable iOS datetime picker", () => {
+it("uses native date/time-only pickers and rejects invalid Android time selections without clamping", () => {
   const field = source("events/EventDateTimeField.tsx");
   expect(field).toContain("GroupedRow");
   expect(field).toContain("accessibilityLabel={label}");
   expect(field).not.toContain("heroui-native/input");
   expect(field).not.toContain("Choose time");
-  expect(field.match(/DateTimePickerAndroid.open\(/g)).toHaveLength(2);
+  expect(field.match(/DateTimePickerAndroid.open\(/g)).toHaveLength(1);
   expect(field).toContain('timeZoneName="UTC"');
-  expect(field).toContain('mode="datetime"');
+  expect(field).toContain('mode: "date" | "time"');
+  expect(field).toContain("setPickerError");
+  expect(field).not.toContain("eventTimeChoices");
+  expect(field).not.toContain('mode="datetime"');
   expect(field).toContain("setDraft(null)");
 });
 it("keeps event navigation outside scrolling, verified location rows and numeric elapsed-hour deadlines", () => {
@@ -59,13 +62,15 @@ it("uses vertical social actions and one role-aware membership dialog, separate 
   expect(recipient).toContain('onAction("accept")');
   expect(recipient).toContain('onAction("decline")');
 });
-it("keeps request actions on one row without changing other confirmation layouts", () => {
+it("keeps request icons/text inline with Cancel below without changing other confirmation layouts", () => {
   const confirm = source("common/ui/CommunityConfirm.tsx");
   expect(confirm).toContain("actionsInRow = false");
   expect(confirm).toContain('flexDirection: cancelLast && !actionsInRow ? "column" : "row"');
   expect(confirm).toContain('flexWrap: actionsInRow ? "nowrap" : "wrap"');
   expect(confirm).toContain("minWidth: 44");
-  expect(confirm).toContain("minHeight: 64");
+  expect(confirm).toContain("minHeight: 44");
+  expect(confirm).toContain('flexDirection: "row" as const');
+  expect(confirm).toContain("{cancelLast && actionsInRow ? cancel : null}");
 });
 it("wraps every review button's translated text in a native label, including icon-bearing actions", () => {
   const review = source("organizations/OrganizationReview.tsx");
@@ -104,16 +109,34 @@ it("wraps every review button's translated text in a native label, including ico
 it("keeps demonstrator Back in the header and gives table cards image/date/game/player/demonstrator fields", () => {
   const picker = source("events/EventDemonstratorPicker.tsx");
   expect(picker).toContain("headerLeft:");
+  const editor = source("events/EventTableEditor.tsx");
+  expect(editor).toContain("headerLeft:");
+  expect(editor).not.toContain("FloatingActions");
+  expect(editor).toContain('mode="time"');
+  expect(editor).toContain("beforeEnd");
   const card = source("events/EventDraftTableCard.tsx");
-  for (const field of [
-    "imageUrl",
-    "CalendarClock",
-    "CalendarCheck",
-    "Dices",
-    "UsersRound",
-    "Presentation",
-  ])
+  for (const field of ["imageUrl", "Clock3", "Trophy", "Dices", "UsersRound", "Presentation"])
     expect(card).toContain(field);
+});
+it("mounts the social sheet closed even with no selected user, allowing the first open transition", () => {
+  const sheet = source("common/ui/UserActionsSheet.tsx");
+  expect(sheet).not.toContain("if (!user) return null");
+  expect(sheet).toContain("isOpen={visible && Boolean(user)}");
+  expect(sheet).toContain("user ? userActionKeys");
+  expect(sheet).toContain("BottomSheet.Title>{user?.name}");
+});
+it("keeps one day, two native time fields, counted table limit, and time-only fixed-size cards", () => {
+  const wizard = source("events/EventWizard.tsx");
+  expect(wizard.match(/mode="date"/g)).toHaveLength(1);
+  expect(wizard.match(/mode="time"/g)).toHaveLength(2);
+  expect(wizard).toContain("eventOnDay");
+  expect(wizard).toContain("eventDraftTableCount");
+  expect(wizard).toContain("tableCount >= MAX_EVENT_TABLES");
+  expect(wizard).toContain("EventWizardSummary");
+  const card = source("events/EventDraftTableCard.tsx");
+  expect(card).not.toContain("dateStyle");
+  expect(card).toContain("width: 80, height: 80, flexShrink: 0");
+  expect(card).toContain("table.input.openSkill");
 });
 it("retains bottom clearance without a submit separator and arranges camera/library horizontally", () => {
   const wizard = source("organizations/OrganizationWizard.tsx");

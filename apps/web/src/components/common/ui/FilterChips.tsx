@@ -19,7 +19,7 @@ export function FilterChips<Key extends string>({
           key={key}
           size="sm"
           variant={selected.includes(key) ? "primary" : "secondary"}
-          className="h-8 min-h-8 gap-1.5 px-2 text-xs"
+          className="h-7 min-h-7 gap-1.5 px-2 py-0 text-xs"
           aria-pressed={selected.includes(key)}
           onPress={() => onToggle(key)}
         >

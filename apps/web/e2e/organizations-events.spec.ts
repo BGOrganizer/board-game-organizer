@@ -58,7 +58,7 @@ const baseEvent: EventResponse = {
   role: "admin",
   canModify: true,
   canPublish: true,
-  tableCount: 23,
+  tableCount: 20,
   version: 7,
   createdAt: now,
   updatedAt: now,
@@ -70,8 +70,8 @@ const baseTable: EventTableResponse = {
   gameId: 1,
   gameName: "Azul",
   image: null,
-  startsAt: baseEvent.startsAt,
-  endsAt: baseEvent.endsAt,
+  startsAt: "2030-06-12T14:01:12.000Z",
+  endsAt: "2030-06-12T17:59:34.000Z",
   minPlayers: 2,
   maxPlayers: 4,
   openSkill: false,
@@ -439,8 +439,8 @@ async function fixture(page: Page) {
     },
   };
 }
-async function chooseLocation(page: Page) {
-  await page.getByRole("button", { name: "Choose a verified address" }).click();
+async function chooseLocation(page: Page, label = "Choose a verified address") {
+  await page.getByRole("button", { name: label, exact: true }).click();
   await page.getByRole("textbox", { name: "Location name" }).fill(location.name);
   await page.getByRole("searchbox", { name: "Search address" }).fill("Via Roma Rome");
   await page.getByRole("button", { name: location.address, exact: true }).click();
@@ -625,7 +625,7 @@ function communityAcceptance() {
     );
   });
 
-  test("new event uses help, single calendar rows, verified location and numeric booking hours", async ({
+  test("new event uses one day, native time-only fields, field help and numeric booking hours", async ({
     page,
   }) => {
     const state = await fixture(page);
@@ -638,27 +638,28 @@ function communityAcceptance() {
     await expect(
       page.getByLabel("Booking deadline (hours before start)", { exact: true }),
     ).toHaveValue("24");
-    await page.getByRole("button", { name: "Event information: Field help", exact: true }).click();
-    await expect(page.getByText(/Choose a name, a start and a later end/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Event detail", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Event name: Field help", exact: true }).click();
+    await expect(page.getByText(/Choose an event name with 5–120 characters/)).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Booking deadline: Field help", exact: true }).click();
     await expect(page.getByText(/Hours before the event starts/)).toBeVisible();
     await page.keyboard.press("Escape");
     await page.getByLabel("Event name", { exact: true }).fill("Numeric cutoff evening");
-    await page.getByLabel("Starts at", { exact: true }).fill("2030-06-12T14:00");
+    await page.getByLabel("Event date", { exact: true }).fill("2030-06-12");
+    await expect(page.getByLabel("Event date", { exact: true })).toHaveAttribute("type", "date");
+    await page.getByLabel("Start time", { exact: true }).fill("14:00");
+    await expect(page.getByLabel("Start time", { exact: true })).toHaveAttribute("type", "time");
     await expect(page.getByRole("button", { name: "Back", exact: true })).toHaveCount(0);
     await expect(
       page.getByRole("list", { name: "Steps" }).locator('[aria-current="step"]'),
     ).toHaveText("1");
-    await expect(page.getByLabel("Ends at", { exact: true })).toHaveAttribute(
-      "min",
-      "2030-06-12T14:01",
-    );
-    await page.getByLabel("Ends at", { exact: true }).fill("2030-06-13T18:00");
+    await expect(page.getByLabel("End time", { exact: true })).toHaveAttribute("min", "14:01");
+    await page.getByLabel("End time", { exact: true }).fill("18:00");
     await page.getByLabel("Booking deadline (hours before start)", { exact: true }).fill("6");
-    await chooseLocation(page);
+    await chooseLocation(page, "Choose the event address");
     await expect(
-      page.getByRole("button", { name: "Choose a verified address", exact: true }),
+      page.getByRole("button", { name: "Choose the event address", exact: true }),
     ).toContainText(location.name);
     await expect(page.getByTestId("event-navigation-bar")).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
@@ -676,7 +677,7 @@ function communityAcceptance() {
     expect(
       (Date.parse(String(body.startsAt)) - Date.parse(String(body.bookingClosesAt))) / 3600000,
     ).toBe(6);
-    expect(Date.parse(String(body.endsAt)) - Date.parse(String(body.startsAt))).toBe(28 * 3600000);
+    expect(Date.parse(String(body.endsAt)) - Date.parse(String(body.startsAt))).toBe(4 * 3600000);
     expect(body.location).toMatchObject({ address: location.address });
   });
 
@@ -843,7 +844,24 @@ function communityAcceptance() {
         exact: true,
       });
       await expect(dialog.getByRole("button")).toHaveText(["Accept", "Reject", "Ban", "Cancel"]);
-      await expectButtonsOnOneRow(dialog.getByRole("button"));
+      await expectButtonsOnOneRow(dialog.getByRole("button", { name: /^(Accept|Reject|Ban)$/ }));
+      await expect
+        .poll(() =>
+          dialog.evaluate((element) => {
+            const buttons = Array.from(element.querySelectorAll("button"));
+            const cancel = buttons.at(-1)?.getBoundingClientRect();
+            return Boolean(
+              cancel &&
+                buttons.slice(0, -1).every((button) => {
+                  const box = button.getBoundingClientRect();
+                  return (
+                    cancel.top > box.bottom && getComputedStyle(button).flexDirection === "row"
+                  );
+                }),
+            );
+          }),
+        )
+        .toBe(true);
       await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
       expect(state.writes.filter((row) => row.method === "PATCH")).toHaveLength(0);
       await page

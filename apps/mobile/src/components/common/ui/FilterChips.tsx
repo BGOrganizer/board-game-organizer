@@ -18,19 +18,27 @@ export function FilterChips<Key extends string>({
       {options.map(({ key, label, icon: Icon }) => {
         const active = selected.includes(key);
         return (
-          <Button
-            key={key}
-            testID={`list-filter-${key}`}
-            size="sm"
-            variant={active ? "primary" : "secondary"}
-            style={{ minWidth: 44, minHeight: 44, height: 44, paddingHorizontal: 8 }}
-            accessibilityLabel={label}
-            accessibilityState={{ selected: active }}
-            onPress={() => onToggle(key)}
-          >
-            <Icon size={14} color={active ? accentForeground : foreground} accessible={false} />
-            <Button.Label style={{ fontSize: 12 }}>{label}</Button.Label>
-          </Button>
+          <View key={key} style={{ minHeight: 44, justifyContent: "center" }}>
+            <Button
+              testID={`list-filter-${key}`}
+              size="sm"
+              variant={active ? "primary" : "secondary"}
+              style={{
+                minWidth: 44,
+                minHeight: 32,
+                height: 32,
+                paddingHorizontal: 8,
+                paddingVertical: 0,
+              }}
+              hitSlop={{ top: 6, bottom: 6 }}
+              accessibilityLabel={label}
+              accessibilityState={{ selected: active }}
+              onPress={() => onToggle(key)}
+            >
+              <Icon size={14} color={active ? accentForeground : foreground} accessible={false} />
+              <Button.Label style={{ fontSize: 12 }}>{label}</Button.Label>
+            </Button>
+          </View>
         );
       })}
     </View>

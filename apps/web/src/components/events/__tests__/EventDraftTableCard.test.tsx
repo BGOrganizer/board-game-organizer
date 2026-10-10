@@ -11,7 +11,7 @@ const table: EventDraftTable = {
     name: "Azul table",
     gameId: 1,
     startsAt: "2030-01-02T18:01:00.000Z",
-    endsAt: "2030-01-03T21:59:00.000Z",
+    endsAt: "2030-01-02T21:59:00.000Z",
     minPlayers: 2,
     maxPlayers: 4,
     openSkill: false,
@@ -23,7 +23,7 @@ it.each([
   { userId: "demo", username: null, name: null, avatarUrl: null },
   undefined,
 ])(
-  "shows dates, game, limits, optional demonstrator and working row actions: %j",
+  "shows times only, game, limits, optional demonstrator and working row actions: %j",
   (demonstrator) => {
     const onEdit = vi.fn(),
       onRemove = vi.fn();
@@ -43,8 +43,11 @@ it.each([
     expect(screen.getByRole("heading", { name: "Azul table" })).toBeTruthy();
     expect(screen.getByText("Azul")).toBeTruthy();
     expect(screen.getByText("2–4")).toBeTruthy();
-    expect(screen.getByText(/Jan 2, 2030/)).toBeTruthy();
-    expect(screen.getByText(/Jan 3, 2030/)).toBeTruthy();
+    const time = new Intl.DateTimeFormat("en", { timeStyle: "short", timeZone: "UTC" });
+    expect(screen.getByText(time.format(new Date(table.input.startsAt)))).toBeTruthy();
+    expect(screen.getByText(time.format(new Date(table.input.endsAt)))).toBeTruthy();
+    expect(screen.queryByText(/Jan 2, 2030/)).toBeNull();
+    expect(screen.queryByRole("img", { name: "Global ratings enabled" })).toBeNull();
     if (demonstrator)
       expect(
         screen.getByText(demonstrator.username ?? demonstrator.name ?? "Username unavailable"),
@@ -55,6 +58,21 @@ it.each([
     expect(onRemove).toHaveBeenCalledOnce();
   },
 );
+it("anchors the rating badge to the bottom-right of the fixed-size cover when enabled", () => {
+  renderWithI18n(
+    <EventDraftTableCard
+      table={{ ...table, input: { ...table.input, openSkill: true } }}
+      timeZone="UTC"
+      busy={false}
+      onEdit={vi.fn()}
+      onRemove={vi.fn()}
+    />,
+  );
+  const badge = screen.getByRole("img", { name: "Global ratings enabled" });
+  expect(badge.className).toContain("-bottom-1 -right-1");
+  expect(badge.parentElement?.style.width).toBe("80px");
+  expect(badge.parentElement?.style.height).toBe("80px");
+});
 it("disables repeat editing/removal during save", () => {
   const onEdit = vi.fn(),
     onRemove = vi.fn();

@@ -94,6 +94,12 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/components/events/EventWizardSummary.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/events/EventDraftTableCard.tsx": {
           lines: 100,
           functions: 100,

@@ -78,7 +78,11 @@ export function EventTableEditor({
   );
   const tableEndMin = eventDateLimit(start, timeZone, "after", value.input.startsAt);
   const endMin = min && tableEndMin ? (min > tableEndMin ? min : tableEndMin) : min;
-  const startMax = max ? eventDateLimit(max, timeZone, "before") : undefined;
+  const lastStart = max ? eventDateLimit(max, timeZone, "before") : undefined;
+  const beforeEnd = eventDateLimit(end, timeZone, "before", value.input.endsAt);
+  const startMax =
+    beforeEnd && lastStart ? (beforeEnd < lastStart ? beforeEnd : lastStart) : lastStart;
+  const day = eventLocalDateTime(eventStart, timeZone).slice(0, 10);
   if (pickGame)
     return (
       <SearchGamePage
@@ -113,7 +117,12 @@ export function EventTableEditor({
     );
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-4 pb-32">
-      <h1>{t`Configure table`}</h1>
+      <header className="flex items-center gap-3">
+        <Button isIconOnly variant="secondary" aria-label={t`Back`} onPress={onClose}>
+          <ArrowLeft className="size-5" aria-hidden />
+        </Button>
+        <h1>{t`Configure table`}</h1>
+      </header>
       <TextField
         value={value.input.name}
         onChange={(name) => patch({ name })}
@@ -134,7 +143,9 @@ export function EventTableEditor({
         </FieldError>
       </TextField>
       <EventDateTimeField
-        label={t`Starts at`}
+        label={t`Start time`}
+        mode="time"
+        day={day}
         value={start}
         min={min}
         max={startMax}
@@ -142,7 +153,9 @@ export function EventTableEditor({
         onChange={setStart}
       />
       <EventDateTimeField
-        label={t`Ends at`}
+        label={t`End time`}
+        mode="time"
+        day={day}
         value={end}
         min={endMin}
         max={max}
@@ -311,15 +324,6 @@ export function EventTableEditor({
       >
         <Save className="size-4" aria-hidden />
         {t`Save table`}
-      </Button>
-      <Button
-        isIconOnly
-        variant="secondary"
-        className="fixed bottom-6 left-6 z-40 size-14 rounded-full shadow-lg"
-        aria-label={t`Back`}
-        onPress={onClose}
-      >
-        <ArrowLeft className="size-6" aria-hidden />
       </Button>
     </section>
   );

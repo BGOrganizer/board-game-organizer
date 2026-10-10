@@ -2,6 +2,8 @@ import { z } from "zod";
 import { targetUserIdSchema } from "../../common/dto/common";
 import { eventModel, eventTableModel } from "../models/events";
 
+export const MAX_EVENT_TABLES = 20;
+
 export const eventTableInputSchema = eventTableModel
   .omit({
     eventId: true,
@@ -50,12 +52,30 @@ export const saveEventSchema = eventModel
           return false;
         }
       }, "Invalid time zone"),
-    tables: z.array(eventTableInputSchema),
+    tables: z.array(eventTableInputSchema).max(MAX_EVENT_TABLES),
   })
   .strict()
   .superRefine((event, ctx) => {
     const start = Date.parse(event.startsAt);
     const end = Date.parse(event.endsAt);
+    if (Number.isFinite(start) && Number.isFinite(end)) {
+      try {
+        const day = new Intl.DateTimeFormat("en-CA", {
+          timeZone: event.timeZone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        if (day.format(new Date(start)) !== day.format(new Date(end)))
+          ctx.addIssue({
+            code: "custom",
+            path: ["endsAt"],
+            message: "Event must start and end on the same local day",
+          });
+      } catch {
+        // Invalid zone is reported by the timeZone field refinement.
+      }
+    }
     if (end <= start) {
       ctx.addIssue({ code: "custom", path: ["endsAt"], message: "Event must end after its start" });
     }
@@ -75,7 +95,7 @@ export const saveEventSchema = eventModel
     }
     const ids = new Set<string>();
     for (const [index, table] of event.tables.entries()) {
-      if (Date.parse(table.startsAt) < start || Date.parse(table.endsAt) > end) {
+      if (Date.parse(table.startsAt) <= start || Date.parse(table.endsAt) >= end) {
         ctx.addIssue({
           code: "custom",
           path: ["tables", index],

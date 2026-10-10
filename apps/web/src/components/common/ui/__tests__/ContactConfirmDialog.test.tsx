@@ -4,7 +4,7 @@ import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { ContactConfirmDialog } from "../ContactConfirmDialog";
 
-it("opts into one-row actions with cancel last and preserves all callbacks", () => {
+it("opts into icon/text row actions with cancel below and preserves all callbacks", () => {
   const accept = vi.fn(),
     cancel = vi.fn();
   renderWithI18n(
@@ -22,10 +22,9 @@ it("opts into one-row actions with cancel last and preserves all callbacks", () 
   const buttons = within(dialog).getAllByRole("button");
   expect(buttons.map((button) => button.textContent)).toEqual(["Accept", "Cancel"]);
   expect(buttons[0].parentElement?.className).toBe("mt-5 flex flex-row gap-1");
-  for (const button of buttons) {
-    expect(button.className).toContain("flex-1");
-    expect(button.querySelector("svg")).toBeTruthy();
-  }
+  expect(buttons[0].className).toContain("flex-1 flex-row");
+  expect(buttons[1].parentElement).not.toBe(buttons[0].parentElement);
+  for (const button of buttons) expect(button.querySelector("svg")).toBeTruthy();
   fireEvent.click(buttons[0]);
   expect(accept).toHaveBeenCalledOnce();
   fireEvent.click(buttons[1]);

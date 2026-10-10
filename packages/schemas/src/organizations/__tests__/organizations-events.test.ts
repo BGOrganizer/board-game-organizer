@@ -221,7 +221,7 @@ describe("event validation", () => {
       }).id,
     ).toBe(id);
   });
-  it("allows ordered multi-day events, including UTC day changes and DST", () => {
+  it("enforces one local day, allowing UTC day changes and DST", () => {
     expect(
       saveEventSchema.safeParse({
         ...event,
@@ -239,13 +239,13 @@ describe("event validation", () => {
         startsAt: "2027-04-11T21:30:00Z",
         endsAt: "2027-04-11T22:00:00Z",
       }).success,
-    ).toBe(true);
+    ).toBe(false);
     expect(saveEventSchema.safeParse({ ...event, endsAt: "2027-04-14T18:00:00Z" }).success).toBe(
-      true,
+      false,
     );
     expect(
       updateEventSchema.safeParse({ ...event, endsAt: "2027-04-14T18:00:00Z", version: 1 }).success,
-    ).toBe(true);
+    ).toBe(false);
     expect(
       saveEventSchema.safeParse({
         ...event,
@@ -264,8 +264,11 @@ describe("event validation", () => {
       { ...event, bookingClosesAt: event.endsAt },
       { ...event, timeZone: "Invalid/Zone" },
       { ...event, startsAt: "not-a-date" },
+      { ...event, endsAt: "not-a-date" },
       { ...event, tables: [] },
       { ...event, tables: [{ ...table, startsAt: "2027-04-11T07:00:00Z" }] },
+      { ...event, tables: [{ ...table, startsAt: event.startsAt }] },
+      { ...event, tables: [{ ...table, endsAt: event.endsAt }] },
       { ...event, tables: [{ ...table, endsAt: "2027-04-11T19:00:00Z" }] },
       {
         ...event,
@@ -289,10 +292,18 @@ describe("event validation", () => {
       }).tables,
     ).toHaveLength(2);
   });
-  it("does not impose an arbitrary table-count ceiling", () => {
+  it("allows exactly 20 tables and rejects 21 on create and partial update", () => {
     expect(
-      saveEventSchema.parse({ ...event, tables: Array.from({ length: 250 }, () => table) }).tables,
-    ).toHaveLength(250);
+      saveEventSchema.parse({ ...event, tables: Array.from({ length: 20 }, () => table) }).tables,
+    ).toHaveLength(20);
+    for (const schema of [saveEventSchema, updateEventSchema]) {
+      const input = {
+        ...event,
+        tables: Array.from({ length: 21 }, () => table),
+        ...(schema === updateEventSchema ? { version: 1 } : {}),
+      };
+      expect(schema.safeParse(input).success).toBe(false);
+    }
   });
   it("validates every table edit field and booking action", () => {
     expect(

@@ -266,12 +266,6 @@ msgstr "Confirm {date} and {game}?"
 #~ msgid "organization.feedback.remove_event_player.error"
 #~ msgstr "Could not remove player"
 
-#~ msgid "A demonstrator is no longer a confirmed member. Edit the affected table and remove or replace them."
-#~ msgstr "A demonstrator is no longer a confirmed member. Edit the affected table and remove or replace them."
-
-#~ msgid "A selected game is unavailable. Edit the affected table and choose another game."
-#~ msgstr "A selected game is unavailable. Edit the affected table and choose another game."
-
 #: apps/web/src/components/contacts/UserMenu.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
@@ -366,8 +360,8 @@ msgid "Add table"
 msgstr "Add table"
 
 #: apps/web/src/components/events/EventWizard.tsx
-msgid "Add tables with a game, player limits and times inside the event. Publishing requires at least one table."
-msgstr "Add tables with a game, player limits and times inside the event. Publishing requires at least one table."
+msgid "Add up to 20 tables with a game, player limits and times strictly inside the event. Publishing requires at least one table."
+msgstr "Add up to 20 tables with a game, player limits and times strictly inside the event. Publishing requires at least one table."
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Add your mobile number to continue."
@@ -422,6 +416,10 @@ msgstr "Approve organization"
 #: apps/web/src/components/events/EventTableDetail.tsx
 msgid "Approve request"
 msgstr "Approve request"
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+msgstr "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
 
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
 msgid "Approved"
@@ -487,8 +485,8 @@ msgid "Back to planning?"
 msgstr "Back to planning?"
 
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
-msgid "Ban from organization"
-msgstr "Ban from organization"
+msgid "Ban"
+msgstr "Ban"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx
@@ -625,41 +623,25 @@ msgstr "Center map on my location"
 msgid "Changes rejected"
 msgstr "Changes rejected"
 
-#~ msgid "Check table times: every table must be inside the event. Publishing requires at least one table."
-#~ msgstr "Check table times: every table must be inside the event. Publishing requires at least one table.\"\"Check table times: every table must be inside the event. Publishing requires at least one table."
-
-#~ msgid "Check this field."
-#~ msgstr "Check this field.\"\"Check this field."
-
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Choice saved"
 msgstr "Choice saved"
-
-#: apps/web/src/components/events/EventWizard.tsx
-msgid "Choose a name, a start and a later end (also on another day), and a verified address."
-msgstr "Choose a name, a start and a later end (also on another day), and a verified address."
 
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Choose a unique name, from 5 to 120 characters."
 msgstr "Choose a unique name, from 5 to 120 characters."
 
-#~ msgid "Choose a valid date and time; this local time may not exist."
-#~ msgstr "Choose a valid date and time; this local time may not exist.\"\"Choose a valid date and time; this local time may not exist."
-
-#~ msgid "Choose a valid event start in the future."
-#~ msgstr "Choose a valid event start in the future.\"\"Choose a valid event start in the future."
-
-#: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Choose a verified address"
 msgstr "Choose a verified address"
 
-#~ msgid "Choose a verified address."
-#~ msgstr "Choose a verified address.\"\"Choose a verified address."
-
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose a verified event address from search or your favorites."
 msgstr "Choose a verified event address from search or your favorites."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose an event name with 5–120 characters."
+msgstr "Choose an event name with 5–120 characters."
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose an organization"
@@ -685,6 +667,18 @@ msgstr "Choose location"
 #: apps/mobile/src/app/match/[matchId].tsx
 #~ msgid "Choose preference"
 #~ msgstr "Choose preference"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose the event address"
+msgstr "Choose the event address"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose the event day. Start and end must be on this same local day."
+msgstr "Choose the event day. Start and end must be on this same local day."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose the start and end times on the event day. End must be after start."
+msgstr "Choose the start and end times on the event day. End must be after start."
 
 #~ msgid "Choose time"
 #~ msgstr "Choose time"
@@ -1340,9 +1334,6 @@ msgstr "Dismiss notification"
 msgid "Draft"
 msgstr "Draft"
 
-#~ msgid "e.g. 18:30"
-#~ msgstr "e.g. 18:30\"\"e.g. 18:30"
-
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "e.g. Board game evening"
 msgstr "e.g. Board game evening"
@@ -1398,8 +1389,9 @@ msgstr "Enable push notifications"
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventWizard.tsx
-msgid "Ends at"
-msgstr "Ends at"
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "End time"
+msgstr "End time"
 
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Enter a name, logo and verified address"
@@ -1409,15 +1401,9 @@ msgstr "Enter a name, logo and verified address"
 msgid "Enter a score for each participant or mark them as not participating. At least one must participate."
 msgstr "Enter a score for each participant or mark them as not participating. At least one must participate."
 
-#~ msgid "Enter a table name with 1–120 characters."
-#~ msgstr "Enter a table name with 1–120 characters.\"\"Enter a table name with 1–120 characters."
-
 #: apps/web/src/components/matches/MatchResultsEditor.tsx
 msgid "Enter a valid score"
 msgstr "Enter a valid score"
-
-#~ msgid "Enter an event name with 5–120 characters."
-#~ msgstr "Enter an event name with 5–120 characters.\"\"Enter an event name with 5–120 characters."
 
 #: apps/web/src/components/common/ui/ListSearch.tsx
 #: apps/web/src/components/community/CommunityDiscovery.tsx
@@ -1429,9 +1415,6 @@ msgstr "Enter at least 4 characters to search"
 msgid "Enter event dates first"
 msgstr "Enter event dates first"
 
-#~ msgid "Enter positive booking hours; the deadline must still be in the future."
-#~ msgstr "Enter positive booking hours; the deadline must still be in the future.\"\"Enter positive booking hours; the deadline must still be in the future."
-
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Error while loading the profile:"
@@ -1441,23 +1424,25 @@ msgid "Event cannot be edited"
 msgstr "Event cannot be edited"
 
 #: apps/web/src/components/events/EventWizard.tsx
-msgid "Event end"
-msgstr "Event end"
+msgid "Event date"
+msgstr "Event date"
 
-#~ msgid "Event end must be after event start; it may be on a later day."
-#~ msgstr "Event end must be after event start; it may be on a later day.\"\"Event end must be after event start; it may be on a later day."
-
-#: apps/web/src/components/events/EventWizard.tsx
-msgid "Event information"
-msgstr "Event information"
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Event day"
+msgstr "Event day"
 
 #: apps/web/src/components/events/EventWizard.tsx
+msgid "Event detail"
+msgstr "Event detail"
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Event location"
+msgstr "Event location"
+
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Event name"
 msgstr "Event name"
-
-#: apps/web/src/components/events/EventWizard.tsx
-msgid "Event start"
-msgstr "Event start"
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
@@ -1485,6 +1470,7 @@ msgstr "Excluded member"
 msgid "Favorite locations"
 msgstr "Favorite locations"
 
+#: apps/web/src/components/events/EventDateTimeField.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
@@ -1600,6 +1586,7 @@ msgstr "Give this table a recognizable name (1–120 characters)."
 msgid "Global ratings disabled"
 msgstr "Global ratings disabled"
 
+#: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Global ratings enabled"
@@ -1711,9 +1698,6 @@ msgstr "Increase max players"
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Increase min players"
 msgstr "Increase min players"
-
-#~ msgid "Invalid event time zone. Reload the event and try again."
-#~ msgstr "Invalid event time zone. Reload the event and try again.\"\"Invalid event time zone. Reload the event and try again."
 
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Invitation received"
@@ -1922,6 +1906,10 @@ msgstr "Logout"
 msgid "Lowest score wins"
 msgstr "Lowest score wins"
 
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Manage organization"
+msgstr "Manage organization"
+
 #~ msgid "Map by MapTiler"
 #~ msgstr "Map by MapTiler"
 
@@ -2003,9 +1991,6 @@ msgstr "Max must be at least min"
 msgid "Maximum players"
 msgstr "Maximum players"
 
-#~ msgid "Maximum players must be an integer at least equal to the minimum."
-#~ msgstr "Maximum players must be an integer at least equal to the minimum.\"\"Maximum players must be an integer at least equal to the minimum."
-
 #: apps/web/src/components/groups/Groups.tsx
 msgid "member"
 msgstr "member"
@@ -2041,9 +2026,6 @@ msgstr "Min"
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Minimum players"
 msgstr "Minimum players"
-
-#~ msgid "Minimum players must be an integer of at least 2."
-#~ msgstr "Minimum players must be an integer of at least 2.\"\"Minimum players must be an integer of at least 2."
 
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Mobile number"
@@ -2111,9 +2093,6 @@ msgstr "Next step"
 #: apps/web/src/components/matches/VoteLegend.tsx
 msgid "No"
 msgstr "No"
-
-#~ msgid "No available times in this range"
-#~ msgstr "No available times in this range\"\"No available times in this range"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 #~ msgid "No blocked users"
@@ -2642,6 +2621,10 @@ msgstr "Reject"
 msgid "Reject organization"
 msgstr "Reject organization"
 
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Reject reason"
+msgstr "Reject reason"
+
 #: apps/web/src/components/events/EventTableDetail.tsx
 msgid "Reject request"
 msgstr "Reject request"
@@ -2807,10 +2790,6 @@ msgstr "Results and standings will become final and cannot be edited."
 msgid "Retry"
 msgstr "Retry"
 
-#: apps/web/src/components/events/EventWizard.tsx
-msgid "Review event"
-msgstr "Review event"
-
 #: apps/web/src/components/organizations/OrganizationModeration.tsx
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 msgid "Review organization"
@@ -2923,9 +2902,6 @@ msgstr "Search organizations"
 msgid "Search results"
 msgstr "Search results"
 
-#~ msgid "Search time"
-#~ msgstr "Search time\"\"Search time"
-
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/contacts/SearchUserPage.tsx
 msgid "Search users"
@@ -2952,12 +2928,6 @@ msgstr "Select"
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Select a board game"
 msgstr "Select a board game"
-
-#~ msgid "Select a board game."
-#~ msgstr "Select a board game.\"\"Select a board game."
-
-#~ msgid "Select a confirmed organization member or remove the demonstrator."
-#~ msgstr "Select a confirmed organization member or remove the demonstrator.\"\"Select a confirmed organization member or remove the demonstrator."
 
 #: apps/web/src/components/locations/SearchLocationPage.tsx
 msgid "Select a favorite location"
@@ -3063,8 +3033,13 @@ msgstr "Sign Up"
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventWizard.tsx
-msgid "Starts at"
-msgstr "Starts at"
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Start time"
+msgstr "Start time"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Start/end time"
+msgstr "Start/end time"
 
 #: apps/web/src/components/common/ui/WizardSteps.tsx
 msgid "Steps"
@@ -3098,15 +3073,9 @@ msgstr "Synced collection games will be removed from your profile. Existing matc
 msgid "Syncing BoardGameGeek collection"
 msgstr "Syncing BoardGameGeek collection"
 
-#~ msgid "Table end must be after table start and before event end."
-#~ msgstr "Table end must be after table start and before event end.\"\"Table end must be after table start and before event end."
-
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Table name"
 msgstr "Table name"
-
-#~ msgid "Table start must be after event start and before event end."
-#~ msgstr "Table start must be after event start and before event end.\"\"Table start must be after event start and before event end."
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Tables"
@@ -3327,6 +3296,46 @@ msgstr "Your join request is waiting for admin approval."
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "YYYY-MM-DDTHH:mm"
 
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Add tables with a game, player limits and times inside the event. Publishing requires at least one table."
+msgstr "Add tables with a game, player limits and times inside the event. Publishing requires at least one table."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Ban from organization"
+msgstr "Ban from organization"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose a name, a start and a later end (also on another day), and a verified address."
+msgstr "Choose a name, a start and a later end (also on another day), and a verified address."
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Ends at"
+msgstr "Ends at"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event end"
+msgstr "Event end"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event information"
+msgstr "Event information"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event start"
+msgstr "Event start"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Review event"
+msgstr "Review event"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Starts at"
+msgstr "Starts at"
+
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Accept or decline this friend request."
 msgstr "Accept or decline this friend request."
@@ -3441,14 +3450,17 @@ msgstr "Choose a valid date and time; this local time may not exist."
 msgid "Check this field."
 msgstr "Check this field."
 
-msgid "Ban"
-msgstr "Ban"
+msgid "Choose a time within the allowed range."
+msgstr "Choose a time within the allowed range."
 
-msgid "Manage organization"
-msgstr "Manage organization"
+msgid "Pick event day"
+msgstr "Pick event day"
 
-msgid "Reject reason"
-msgstr "Reject reason"
+msgid "Pick time"
+msgstr "Pick time"
 
-msgid "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
-msgstr "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+msgid "Event end must be after event start on the same day."
+msgstr "Event end must be after event start on the same day."
+
+msgid "An event can have at most 20 tables."
+msgstr "An event can have at most 20 tables."

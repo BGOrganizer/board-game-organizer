@@ -40,30 +40,38 @@ appId: com.bgo.mobile
     id: "events-scroll"
 - tapOn:
     id: "new-organization-event-fab"
-- assertVisible: "Event information"
+- assertVisible: "Event detail"
 - tapOn: "Event name"
 - inputText: "Maestro summer event"
 - hideKeyboard
 - assertNotVisible: "Time zone"
-- tapOn: "Event information: Field help"
-- assertVisible: "Choose a name, a start and a later end.*"
+- assertNotVisible: "Event detail: Field help"
+- tapOn: "Event name: Field help"
+- assertVisible: "Choose an event name with 5–120 characters.*"
 - back
+- tapOn: "Event date: Field help"
+- assertVisible: "Choose the event day.*"
+- back
+- tapOn:
+    id: "event-date-calendar"
+- runFlow:
+    file: ../helpers/event-date.yaml
+    env:
+      DATE: "06/12/2030"
 - tapOn:
     id: "event-start-calendar"
 - runFlow:
-    file: ../helpers/event-date-time.yaml
+    file: ../helpers/event-time.yaml
     env:
-      DATE: "06/12/2030"
       HOUR: "14"
       MINUTE: "00"
 - tapOn:
     id: "event-end-calendar"
 - runFlow:
-    file: ../helpers/event-bounded-date-time.yaml
+    file: ../helpers/event-time.yaml
     env:
-      DATE: "06/13/2030"
-      TIME: "18:00"
-      TIME_ID: "event-time-18-00"
+      HOUR: "18"
+      MINUTE: "00"
 - tapOn: "Booking deadline: Field help"
 - assertVisible: "Hours before the event starts.*"
 - back
@@ -77,10 +85,10 @@ appId: com.bgo.mobile
     id: "event-back-fab"
 - scrollUntilVisible:
     element:
-      text: "Choose a verified address"
+      text: "Choose the event address"
     direction: DOWN
     centerElement: true
-- tapOn: "Choose a verified address"
+- tapOn: "Choose the event address"
 - tapOn: "Location name"
 - inputText: "Event club"
 - tapOn: "Search address"
@@ -93,18 +101,50 @@ appId: com.bgo.mobile
 - tapOn:
     id: "address-result-0"
 - tapOn: "Confirm location"
-- assertVisible: "New event"
-- scrollUntilVisible:
-    element:
-      text: "Next"
-    direction: DOWN
-    centerElement: true
-- tapOn: "Next"
+- tapOn:
+    id: "event-next-fab"
+- assertVisible: "Event day.*"
+- assertVisible: "Start time"
+- assertVisible: "End time"
+- tapOn: "Tables: Field help"
+- assertVisible: "Add up to 20 tables.*"
+- back
+- tapOn: "Add table"
+- assertVisible:
+    id: "event-table-header-back"
+- assertNotVisible:
+    id: "event-table-back-fab"
+- tapOn:
+    id: "event-table-header-back"
+- assertVisible: "Add table"
 - tapOn: "Add table"
 - tapOn: "Table name"
 - eraseText
 - inputText: "Cascadia event table"
 - hideKeyboard
+- tapOn:
+    id: "event-table-startsAt-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "00"
+- assertVisible: "Choose a time within the allowed range."
+- tapOn:
+    id: "event-table-startsAt-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "30"
+- assertNotVisible: "Choose a time within the allowed range."
+- tapOn:
+    id: "event-table-endsAt-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "17"
+      MINUTE: "30"
 - tapOn: "Select a board game"
 - tapOn: "Search board games"
 - inputText: "Cascadia"
@@ -116,13 +156,29 @@ appId: com.bgo.mobile
 - assertVisible: "Configure table"
 - scrollUntilVisible:
     element:
+      text: "Global ratings enabled"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Global ratings enabled"
+- scrollUntilVisible:
+    element:
       text: "Save table"
     direction: DOWN
     centerElement: true
 - tapOn: "Save table"
 - assertVisible: "Cascadia event table"
-- tapOn: "Next"
-- assertVisible: "Review event"
+- assertVisible: "Global ratings enabled"
+- tapOn:
+    id: "event-next-fab"
+- assertVisible: "Maestro summer event"
+- assertVisible: "Event day.*"
+- assertVisible: "Event location"
+- assertVisible: "Tables"
+- scrollUntilVisible:
+    element:
+      text: "Publish event"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Publish event"
 - extendedWaitUntil:
     visible: "Could not save event. Check your connection and event permissions, then try again."
@@ -137,18 +193,15 @@ appId: com.bgo.mobile
 - assertNotVisible: "Request a place"
 - back
 - tapOn: "Edit event"
-- scrollUntilVisible:
-    element:
-      text: "Next"
-    direction: DOWN
-    centerElement: true
-- tapOn: "Next"
+- tapOn:
+    id: "event-next-fab"
 - tapOn: "Remove table: Cascadia event table"
-- tapOn: "Next"
+- tapOn:
+    id: "event-next-fab"
 - tapOn: "Save draft"
 - assertVisible: "Reset reservations"
 - tapOn: "Cancel"
-- assertVisible: "Review event"
+- assertVisible: "Save draft"
 - tapOn: "Save draft"
 # The destructive action and dialog heading share this label.
 - tapOn:

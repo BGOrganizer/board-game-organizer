@@ -15,6 +15,7 @@ import type {
   SaveEventInput,
   UpdateEventInput,
 } from "@board-game-organizer/schemas";
+import { MAX_EVENT_TABLES } from "@board-game-organizer/schemas";
 import {
   canModifyEvent,
   confirmedEventPlayers,
@@ -151,6 +152,7 @@ export class EventsService {
     };
   }
   private publishable(organization: Organization, input: SaveEventInput) {
+    if (input.tables.length > MAX_EVENT_TABLES) throw new CommunityError(400, "EVENT_TABLE_LIMIT");
     if (input.status === "PUBLISHED") {
       if (!organization.approved) throw new CommunityError(409, "ORGANIZATION_NOT_APPROVED");
     }
@@ -317,12 +319,13 @@ export class EventsService {
       });
     for (const table of input.tables.filter((value) => !value.id))
       combined.push(this.table(table, id));
+    if (combined.length > MAX_EVENT_TABLES) throw new CommunityError(400, "EVENT_TABLE_LIMIT");
     if (next.status === "PUBLISHED" && combined.length === 0)
       throw new CommunityError(400, "EVENT_REQUIRES_TABLE");
     for (const table of combined)
       if (
-        Date.parse(table.startsAt) < Date.parse(next.startsAt) ||
-        Date.parse(table.endsAt) > Date.parse(next.endsAt)
+        Date.parse(table.startsAt) <= Date.parse(next.startsAt) ||
+        Date.parse(table.endsAt) >= Date.parse(next.endsAt)
       )
         throw new CommunityError(409, "TABLE_OUTSIDE_EVENT");
     await this.validateTables(organization, combined);

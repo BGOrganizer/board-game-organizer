@@ -167,7 +167,7 @@ function eventInput(extra: Partial<SaveEventInput> = {}): SaveEventInput {
       {
         name: "First table",
         gameId: 1,
-        startsAt: "2030-06-12T14:00:00.000Z",
+        startsAt: "2030-06-12T14:01:00.000Z",
         endsAt: "2030-06-12T16:00:00.000Z",
         minPlayers: 2,
         maxPlayers: 4,
@@ -621,16 +621,9 @@ describe("community transactions on a MongoDB replica set", () => {
     await transaction((s) => s.eventService.detail(OWNER, event.id));
     expect((await services().events.findTable(tables[0].id))?.matchId).toBe(frozen?.matchId);
   });
-  it("persists multi-day events and later-day tables through validated creation and partial edits", async () => {
+  it("retains one-day table instants through validated creation and schedule edits", async () => {
     const raw = eventInput({
-      endsAt: "2030-06-14T20:00:00.000Z",
-      tables: [
-        {
-          ...eventInput().tables[0],
-          startsAt: "2030-06-13T14:01:00.000Z",
-          endsAt: "2030-06-14T19:59:00.000Z",
-        },
-      ],
+      tables: [{ ...eventInput().tables[0], endsAt: "2030-06-12T19:59:12.123Z" }],
     });
     const input = saveEventSchema.parse(raw);
     const { event, tables } = await eventSetup(input);
@@ -643,14 +636,14 @@ describe("community transactions on a MongoDB replica set", () => {
         event.id,
         updateEventSchema.parse({
           ...input,
-          endsAt: "2030-06-15T20:00:00.000Z",
+          endsAt: "2030-06-12T21:00:00.000Z",
           tables: [],
           version: event.version,
           removedTableIds: [],
         }),
       ),
     );
-    expect(updated.endsAt).toBe("2030-06-15T20:00:00.000Z");
+    expect(updated.endsAt).toBe("2030-06-12T21:00:00.000Z");
     const retained = await services().eventService.tables(OWNER, event.id, { limit: 50 });
     expect(retained.items[0].id).toBe(tables[0].id);
     expect(retained.items[0].endsAt).toBe(input.tables[0].endsAt);
@@ -658,6 +651,52 @@ describe("community transactions on a MongoDB replica set", () => {
     expect(
       (await services().eventService.bookings(GUEST, event.id, tables[0].id, { limit: 50 })).items,
     ).toEqual([]);
+  });
+  it("enforces 20 total tables across partial edits and allows explicit replacement atomically", async () => {
+    const input = saveEventSchema.parse(
+      eventInput({
+        tables: Array.from({ length: 20 }, (_, index) => ({
+          ...eventInput().tables[0],
+          name: `Table ${index + 1}`,
+        })),
+      }),
+    );
+    const { event, tables } = await eventSetup(input);
+    expect(tables).toHaveLength(20);
+    const extra = { ...eventInput().tables[0], name: "Replacement table" };
+    await expect(
+      transaction((s) =>
+        s.eventService.update(
+          OWNER,
+          event.id,
+          updateEventSchema.parse({
+            ...input,
+            version: event.version,
+            tables: [extra],
+            removedTableIds: [],
+          }),
+        ),
+      ),
+    ).rejects.toThrow("EVENT_TABLE_LIMIT");
+    expect((await services().events.find(event.id))?.version).toBe(event.version);
+    expect(await services().events.allTables(event.id)).toHaveLength(20);
+    const updated = await transaction((s) =>
+      s.eventService.update(
+        OWNER,
+        event.id,
+        updateEventSchema.parse({
+          ...input,
+          version: event.version,
+          tables: [extra],
+          removedTableIds: [tables[0].id],
+        }),
+      ),
+    );
+    expect(updated.tableCount).toBe(20);
+    const retained = await services().events.allTables(event.id);
+    expect(retained).toHaveLength(20);
+    expect(retained.some((table) => table.id === tables[0].id)).toBe(false);
+    expect(retained.some((table) => table.name === "Replacement table")).toBe(true);
   });
   it("keeps drafts private and source-pagination applies event and booking visibility", async () => {
     const { org, event, tables } = await eventSetup();
@@ -761,8 +800,11 @@ describe("community transactions on a MongoDB replica set", () => {
   it("retains unloaded tables and bookings for title-only edits, resets only changed tables", async () => {
     const base = eventInput();
     const { event, tables } = await eventSetup({
-      tables: Array.from({ length: 23 }, (_, i) => ({ ...base.tables[0], name: `Table ${i}` })),
+      tables: Array.from({ length: 20 }, (_, i) => ({ ...base.tables[0], name: `Table ${i}` })),
     });
+    const firstPage = await services().eventService.tables(OWNER, event.id, { limit: 10 });
+    expect(firstPage.items).toHaveLength(10);
+    expect(firstPage.nextCursor).toBeTruthy();
     const one = tables[0],
       two = tables[1];
     await book(event.id, one.id, GUEST);
@@ -776,7 +818,7 @@ describe("community transactions on a MongoDB replica set", () => {
         tables: [],
       }),
     );
-    expect(await services().events.countTables(event.id)).toBe(23);
+    expect(await services().events.countTables(event.id)).toBe(20);
     expect((await services().events.bookingForUser(one.id, GUEST))?.status).toBe("CONFIRMED");
     await transaction((s) =>
       s.eventService.update(OWNER, event.id, {
@@ -798,7 +840,7 @@ describe("community transactions on a MongoDB replica set", () => {
         ],
       }),
     );
-    expect(await services().events.countTables(event.id)).toBe(23);
+    expect(await services().events.countTables(event.id)).toBe(20);
     expect((await services().events.bookingForUser(one.id, GUEST))?.status).toBe("CANCELLED");
     expect((await services().events.bookingForUser(two.id, OTHER))?.status).toBe("CONFIRMED");
   });

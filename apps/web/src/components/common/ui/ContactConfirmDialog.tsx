@@ -45,10 +45,15 @@ export function ContactConfirmDialog({
 
   if (!mounted) return null;
   const buttonClassName = actionsInRow
-    ? "min-h-16 min-w-11 flex-1 flex-col gap-1 px-1 whitespace-normal text-center"
+    ? "min-h-11 min-w-11 flex-1 flex-row gap-1 px-1 whitespace-normal text-center"
     : "w-full sm:w-auto";
   const cancel = (
-    <Button className={buttonClassName} variant="ghost" isDisabled={busy} onPress={onCancel}>
+    <Button
+      className={cancelLast && actionsInRow ? "min-h-11" : buttonClassName}
+      variant="ghost"
+      isDisabled={busy}
+      onPress={onCancel}
+    >
       {cancelIcon}
       {t`Cancel`}
     </Button>
@@ -85,6 +90,7 @@ export function ContactConfirmDialog({
               key={action.label}
               className={buttonClassName}
               variant={action.variant ?? "primary"}
+              size={actionsInRow ? "sm" : undefined}
               isDisabled={busy}
               onPress={action.onPress}
             >
@@ -92,8 +98,9 @@ export function ContactConfirmDialog({
               {action.label}
             </Button>
           ))}
-          {cancelLast ? cancel : null}
+          {cancelLast && !actionsInRow ? cancel : null}
         </div>
+        {cancelLast && actionsInRow ? <div className="mt-3 flex justify-end">{cancel}</div> : null}
       </div>
     </div>,
     document.body,

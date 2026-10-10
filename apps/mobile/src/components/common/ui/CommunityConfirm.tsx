@@ -34,17 +34,26 @@ export function CommunityConfirm({
     ? {
         flex: 1,
         minWidth: 44,
-        minHeight: 64,
-        paddingHorizontal: 4,
-        flexDirection: "column" as const,
-        gap: 4,
+        minHeight: 44,
+        paddingHorizontal: 2,
+        flexDirection: "row" as const,
+        gap: 2,
       }
     : undefined;
   const labelStyle = actionsInRow
-    ? { textAlign: "center" as const, alignSelf: "stretch" as const }
+    ? { textAlign: "center" as const, flexShrink: 1, fontSize: 12 }
     : undefined;
   const cancel = (
-    <Button variant="ghost" style={buttonStyle} isDisabled={busy} onPress={onCancel}>
+    <Button
+      variant="ghost"
+      style={
+        actionsInRow && cancelLast
+          ? { minHeight: 44, alignSelf: "flex-end", marginTop: 12 }
+          : buttonStyle
+      }
+      isDisabled={busy}
+      onPress={onCancel}
+    >
       {cancelIcon}
       <Button.Label style={labelStyle}>{t("Cancel")}</Button.Label>
     </Button>
@@ -88,6 +97,7 @@ export function CommunityConfirm({
               <Button
                 key={action.label}
                 variant={action.variant}
+                size={actionsInRow ? "sm" : undefined}
                 style={buttonStyle}
                 isDisabled={busy}
                 onPress={action.onPress}
@@ -96,8 +106,9 @@ export function CommunityConfirm({
                 <Button.Label style={labelStyle}>{action.label}</Button.Label>
               </Button>
             ))}
-            {cancelLast ? cancel : null}
+            {cancelLast && !actionsInRow ? cancel : null}
           </View>
+          {cancelLast && actionsInRow ? cancel : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog>

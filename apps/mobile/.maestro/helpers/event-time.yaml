@@ -1,0 +1,14 @@
+appId: com.bgo.mobile
+---
+# Android native time-only dialog. HOUR/MINUTE are 24-hour values.
+# No calendar or custom minute list; out-of-range choices must show an error.
+- tapOn: "Switch to text input mode|Switch to keyboard input"
+- tapOn:
+    id: "android:id/input_hour"
+- eraseText
+- inputText: ${HOUR}
+- tapOn:
+    id: "android:id/input_minute"
+- eraseText
+- inputText: ${MINUTE}
+- tapOn: "OK"

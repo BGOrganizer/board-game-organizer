@@ -1,3 +1,4 @@
+import type { SaveEventInput } from "@board-game-organizer/schemas";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventsService } from "../../events/events.service";
 import { requireBgoModerator } from "../../organizations/community-role";
@@ -71,6 +72,52 @@ describe("community transaction service invariants", () => {
     vi.setSystemTime(new Date(now));
   });
   afterEach(() => vi.useRealTimers());
+  it("caps new and retained tables before any event writes", async () => {
+    const table = {
+      name: "Table",
+      startsAt: "2030-06-12T14:01:00.000Z",
+      endsAt: "2030-06-12T19:59:00.000Z",
+      gameId: 1,
+      minPlayers: 2,
+      maxPlayers: 4,
+      openSkill: false,
+    };
+    const input: SaveEventInput = {
+      name: "Games afternoon",
+      timeZone: "UTC",
+      startsAt: "2030-06-12T14:00:00.000Z",
+      endsAt: "2030-06-12T20:00:00.000Z",
+      bookingClosesAt: "2030-06-11T14:00:00.000Z",
+      location: {
+        id: "venue",
+        name: "Club",
+        address: "Verified street 1",
+        latitude: 45,
+        longitude: 12,
+      },
+      status: "DRAFT",
+      tables: Array.from({ length: 21 }, () => table),
+    };
+    const retained = Array.from({ length: 20 }, (_, i) => ({ ...table, id: `table-${i}` }));
+    const save = vi.fn();
+    const s = services({ allTables: vi.fn(async () => retained), save });
+    await expect(s.eventService.create("admin", "organization", input)).rejects.toThrow(
+      "EVENT_TABLE_LIMIT",
+    );
+    const future = { ...event, ...input, tables: undefined };
+    s.events.find.mockResolvedValue(future);
+    s.events.lock.mockResolvedValue(future);
+    await expect(
+      s.eventService.update("admin", "event", {
+        ...input,
+        status: "PUBLISHED",
+        tables: [table],
+        version: 1,
+        removedTableIds: [],
+      }),
+    ).rejects.toThrow("EVENT_TABLE_LIMIT");
+    expect(save).not.toHaveBeenCalled();
+  });
   it("rejects every booking mutation at cutoff, including administrator approval", async () => {
     const { eventService } = services({
       findBooking: vi.fn(async () => ({ id: "booking", eventId: "event" })),

@@ -17,7 +17,6 @@ import { ArrowLeft, ClipboardList, Minus, Plus, Save, Trash2 } from "lucide-reac
 import { useState } from "react";
 import { View } from "react-native";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
-import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
@@ -81,7 +80,11 @@ export function EventTableEditor({
   );
   const tableEndMin = eventDateLimit(start, timeZone, "after", value.input.startsAt);
   const endMin = min && tableEndMin ? (min > tableEndMin ? min : tableEndMin) : min;
-  const startMax = max ? eventDateLimit(max, timeZone, "before") : undefined;
+  const lastStart = max ? eventDateLimit(max, timeZone, "before") : undefined;
+  const beforeEnd = eventDateLimit(end, timeZone, "before", value.input.endsAt);
+  const startMax =
+    beforeEnd && lastStart ? (beforeEnd < lastStart ? beforeEnd : lastStart) : lastStart;
+  const day = eventLocalDateTime(eventStart, timeZone).slice(0, 10);
   if (pickGame)
     return (
       <GamePicker
@@ -115,7 +118,21 @@ export function EventTableEditor({
   return (
     <View style={{ flex: 1 }}>
       <Stack.Screen
-        options={{ title: t("Configure table"), headerBackVisible: false, headerLeft: undefined }}
+        options={{
+          title: t("Configure table"),
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Button
+              isIconOnly
+              variant="ghost"
+              accessibilityLabel={t("Back")}
+              testID="event-table-header-back"
+              onPress={onClose}
+            >
+              <ArrowLeft size={24} color={foreground} />
+            </Button>
+          ),
+        }}
       />
       <ScreenScrollView
         contentContainerStyle={{ padding: 20, gap: 16 }}
@@ -139,7 +156,9 @@ export function EventTableEditor({
           {error("name")}
         </View>
         <EventDateTimeField
-          label={t("Starts at")}
+          label={t("Start time")}
+          mode="time"
+          day={day}
           testID="event-table-startsAt-calendar"
           value={start}
           timeZone={timeZone}
@@ -149,7 +168,9 @@ export function EventTableEditor({
           onChange={setStart}
         />
         <EventDateTimeField
-          label={t("Ends at")}
+          label={t("End time")}
+          mode="time"
+          day={day}
           testID="event-table-endsAt-calendar"
           value={end}
           timeZone={timeZone}
@@ -315,15 +336,6 @@ export function EventTableEditor({
           <Button.Label>{t("Save table")}</Button.Label>
         </Button>
       </ScreenScrollView>
-      <FloatingActions
-        label="Back"
-        testID="event-table-back-fab"
-        left
-        variant="secondary"
-        onPress={onClose}
-      >
-        <ArrowLeft size={26} color={foreground} />
-      </FloatingActions>
     </View>
   );
 }

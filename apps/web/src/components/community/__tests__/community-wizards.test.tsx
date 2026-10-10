@@ -57,8 +57,8 @@ const table = {
   name: "Azul table",
   gameId: 1,
   gameName: "Azul",
-  startsAt: event.startsAt,
-  endsAt: event.endsAt,
+  startsAt: "2030-01-01T18:01:12.000Z",
+  endsAt: "2030-01-01T21:59:34.000Z",
   minPlayers: 2,
   maxPlayers: 4,
   status: "PLANNING",
@@ -187,8 +187,9 @@ function enterInfo() {
   fireEvent.change(screen.getByLabelText("Event name"), {
     target: { value: "Summer games evening" },
   });
-  fireEvent.change(screen.getByLabelText("Starts at"), { target: { value: "2030-01-01T18:00" } });
-  fireEvent.change(screen.getByLabelText("Ends at"), { target: { value: "2030-01-01T22:00" } });
+  fireEvent.change(screen.getByLabelText("Event date"), { target: { value: "2030-01-01" } });
+  fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "18:00" } });
+  fireEvent.change(screen.getByLabelText("End time"), { target: { value: "22:00" } });
   fireEvent.click(screen.getByRole("button", { name: /Choose.*address|Choose.*location/i }));
   fireEvent.click(screen.getByRole("button", { name: "Use verified address" }));
 }
@@ -203,8 +204,10 @@ describe("event wizard acceptance", () => {
     expect(
       (screen.getByLabelText("Booking deadline (hours before start)") as HTMLInputElement).value,
     ).toBe("24");
-    fireEvent.click(screen.getByRole("button", { name: "Event information: Field help" }));
-    expect(screen.getByText(/Choose a name, a start and a later end/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Event detail" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Event detail: Field help" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Event name: Field help" }));
+    expect(screen.getByText(/Choose an event name with 5–120 characters/)).toBeTruthy();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     enterInfo();
@@ -217,7 +220,8 @@ describe("event wizard acceptance", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save table" }));
     expect(screen.getByRole("button", { name: "Edit table: Azul table" })).not.toBeNull();
     next();
-    expect(screen.getByText("Review event")).not.toBeNull();
+    expect(screen.getByText("Summer games evening")).not.toBeNull();
+    expect(screen.getByText("Event day:")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() =>
       expect(eventActions.create.mutateAsync).toHaveBeenCalledWith({
@@ -243,35 +247,37 @@ describe("event wizard acceptance", () => {
     );
     expect(router.replace).toHaveBeenCalledWith(`/events/${id}`);
   });
-  it("updates the end range when start changes and saves multi-day events without repeating information in Tables", async () => {
+  it("keeps start/end on the selected day and shows day then time-only summary with the table limit help", async () => {
     renderWithI18n(<EventWizard organizationId={id} />);
+    expect((screen.getByLabelText("Start time") as HTMLInputElement).disabled).toBe(true);
     enterInfo();
-    const end = screen.getByLabelText("Ends at") as HTMLInputElement;
-    expect(end.min).toBe("2030-01-01T18:01");
-    fireEvent.change(screen.getByLabelText("Starts at"), { target: { value: "2030-01-02T18:00" } });
-    expect(end.min).toBe("2030-01-02T18:01");
-    next();
-    expect(screen.getByText(/Event end must be after event start/)).toBeTruthy();
-    fireEvent.change(end, { target: { value: "2030-01-03T22:00" } });
+    const end = screen.getByLabelText("End time") as HTMLInputElement;
+    expect(end.min).toBe("18:01");
+    fireEvent.change(screen.getByLabelText("Event date"), { target: { value: "2030-01-02" } });
+    expect(end.value).toBe("22:00");
+    expect((screen.getByLabelText("Start time") as HTMLInputElement).value).toBe("18:00");
     next();
     expect(screen.queryByText("Summer games evening")).toBeNull();
     expect(screen.queryByText("Club house")).toBeNull();
-    expect(screen.getByText("Event start")).toBeTruthy();
-    expect(screen.getByText("Event end")).toBeTruthy();
+    expect(screen.getByText("Event day:")).toBeTruthy();
+    expect(screen.getByText("Start time")).toBeTruthy();
+    expect(screen.getByText("End time")).toBeTruthy();
     expect(
       screen.getByText("No tables yet. Add a table to organize games and players."),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Tables: Field help" }));
-    expect(screen.getByText(/Add tables with a game/)).toBeTruthy();
+    expect(screen.getByText(/Add up to 20 tables/)).toBeTruthy();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     next();
+    expect(screen.getByText("Event name:")).toBeTruthy();
+    expect(screen.getByText("Event location")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() => expect(eventActions.create.mutateAsync).toHaveBeenCalled());
     expect(
       Date.parse(eventActions.create.mutateAsync.mock.calls[0][0].input.endsAt) -
         Date.parse(eventActions.create.mutateAsync.mock.calls[0][0].input.startsAt),
-    ).toBe(28 * 3600000);
+    ).toBe(4 * 3600000);
   });
   it("table form has inline errors, live ranges, +/- players, removable game and member selection", async () => {
     renderWithI18n(<EventWizard organizationId={id} />);
@@ -281,13 +287,17 @@ describe("event wizard acceptance", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save table" }));
     expect(screen.getByText(/Enter a table name/)).toBeTruthy();
     expect(screen.getByText("Select a board game.")).toBeTruthy();
-    const start = screen.getByLabelText("Starts at") as HTMLInputElement,
-      end = screen.getByLabelText("Ends at") as HTMLInputElement;
-    expect(start.min).toBe("2030-01-01T18:01");
-    expect(start.max).toBe("2030-01-01T21:58");
-    expect(end.max).toBe("2030-01-01T21:59");
-    fireEvent.change(start, { target: { value: "2030-01-01T20:00" } });
-    expect(end.min).toBe("2030-01-01T20:01");
+    const start = screen.getByLabelText("Start time") as HTMLInputElement,
+      end = screen.getByLabelText("End time") as HTMLInputElement;
+    expect(start.type).toBe("time");
+    expect(start.min).toBe("18:01");
+    expect(start.max).toBe("21:58");
+    expect(end.max).toBe("21:59");
+    expect(screen.getByRole("button", { name: "Back" }).closest("header")).toBeTruthy();
+    fireEvent.change(start, { target: { value: "20:00" } });
+    expect(end.min).toBe("20:01");
+    fireEvent.change(end, { target: { value: "21:00" } });
+    expect(start.max).toBe("20:59");
     expect(screen.queryByRole("spinbutton", { name: "Minimum players" })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Decrease min players" }).hasAttribute("disabled"),
@@ -453,6 +463,34 @@ describe("event wizard acceptance", () => {
       expect(screen.getByRole("alert").textContent).toContain("Could not save event"),
     );
     expect(router.replace).not.toHaveBeenCalled();
+  });
+  it("counts unloaded tables toward 20, and permits a replacement only after explicit removal", () => {
+    useEventMock.mockReturnValue({
+      data: { ...event, tableCount: 20 },
+      isPending: false,
+      isError: false,
+    });
+    useTablesMock.mockReturnValue({
+      items: [table],
+      isPending: false,
+      isError: false,
+      hasNextPage: true,
+      fetchNextPage: vi.fn(),
+    });
+    renderWithI18n(<EventWizard eventId={id} />);
+    next();
+    expect(screen.getByRole("button", { name: "Add table" }).hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Remove table: Azul table" }));
+    expect(screen.getByRole("button", { name: "Add table" }).hasAttribute("disabled")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Add table" }));
+    fireEvent.change(screen.getByLabelText("Table name"), {
+      target: { value: "Replacement table" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Select a board game" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pick Azul" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save table" }));
+    expect(screen.getByRole("button", { name: "Add table" }).hasAttribute("disabled")).toBe(true);
+    expect(eventActions.update.mutateAsync).not.toHaveBeenCalled();
   });
   it("blocks the wizard at cutoff and rejects visitors before exposing edit controls", () => {
     useEventMock.mockReturnValue({ data: event, isPending: false, isError: false });

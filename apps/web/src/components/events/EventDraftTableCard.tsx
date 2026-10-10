@@ -3,13 +3,13 @@ import type { EventDraftTable } from "@board-game-organizer/shared";
 import { Avatar, Button, Card } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
-  CalendarCheck,
-  CalendarClock,
+  Clock3,
   Dices,
   LayoutGrid,
   Pencil,
   Presentation,
   Trash2,
+  Trophy,
   UsersRound,
 } from "lucide-react";
 
@@ -28,17 +28,16 @@ export function EventDraftTableCard({
 }) {
   const { t, i18n } = useLingui();
   const dates = new Intl.DateTimeFormat(i18n.locale, {
-    dateStyle: "medium",
     timeStyle: "short",
     timeZone,
   });
   const fields = [
     {
-      Icon: CalendarClock,
-      label: t`Starts at`,
+      Icon: Clock3,
+      label: t`Start time`,
       value: dates.format(new Date(table.input.startsAt)),
     },
-    { Icon: CalendarCheck, label: t`Ends at`, value: dates.format(new Date(table.input.endsAt)) },
+    { Icon: Clock3, label: t`End time`, value: dates.format(new Date(table.input.endsAt)) },
     { Icon: Dices, label: t`Board games`, value: table.gameName },
     {
       Icon: UsersRound,
@@ -62,16 +61,27 @@ export function EventDraftTableCard({
       style={{ contentVisibility: "auto", containIntrinsicSize: "auto 200px" }}
     >
       <div className="flex items-start gap-3">
-        <Avatar className="size-20 shrink-0 rounded-xl">
-          <Avatar.Image
-            src={table.imageUrl ?? undefined}
-            alt={table.gameName}
-            className="object-contain"
-          />
-          <Avatar.Fallback>
-            <Dices className="size-9" aria-hidden />
-          </Avatar.Fallback>
-        </Avatar>
+        <div className="relative shrink-0" style={{ width: 80, height: 80 }}>
+          <Avatar className="rounded-xl" style={{ width: 80, height: 80 }}>
+            <Avatar.Image
+              src={table.imageUrl ?? undefined}
+              alt={table.gameName}
+              className="object-contain"
+            />
+            <Avatar.Fallback>
+              <Dices className="size-9" aria-hidden />
+            </Avatar.Fallback>
+          </Avatar>
+          {table.input.openSkill ? (
+            <span
+              role="img"
+              aria-label={t`Global ratings enabled`}
+              className="absolute -bottom-1 -right-1 rounded-full bg-surface p-1"
+            >
+              <Trophy className="size-4" aria-hidden />
+            </span>
+          ) : null}
+        </div>
         <div className="min-w-0 flex-1 space-y-2">
           <h3 className="flex items-start gap-2 font-semibold">
             <LayoutGrid className="size-4 shrink-0" aria-hidden />

@@ -22,7 +22,7 @@ export const EVENT_FIELD_ERRORS: Record<string, string> = {
   name: "Enter an event name with 5–120 characters.",
   timeZone: "Invalid event time zone. Reload the event and try again.",
   startsAt: "Choose a valid event start in the future.",
-  endsAt: "Event end must be after event start; it may be on a later day.",
+  endsAt: "Event end must be after event start on the same day.",
   bookingHours: "Enter positive booking hours; the deadline must still be in the future.",
   location: "Choose a verified address.",
   tables:
@@ -161,6 +161,7 @@ export function eventSaveFieldErrors(error: unknown): EventFormErrors {
     EVENT_MUST_BE_FUTURE: { startsAt: EVENT_FIELD_ERRORS.startsAt },
     TABLE_OUTSIDE_EVENT: { tables: EVENT_FIELD_ERRORS.tables },
     EVENT_REQUIRES_TABLE: { tables: EVENT_FIELD_ERRORS.tables },
+    EVENT_TABLE_LIMIT: { tables: "An event can have at most 20 tables." },
     GAME_NOT_FOUND: {
       tables: "A selected game is unavailable. Edit the affected table and choose another game.",
     },
@@ -172,12 +173,16 @@ export function eventSaveFieldErrors(error: unknown): EventFormErrors {
   return Object.hasOwn(fields, error.message) ? fields[error.message] : {};
 }
 
-/** Logical wall times: Android time pickers cannot enforce minimumDate/maximumDate. */
-export function eventTimeChoices(day: string, min?: string, max?: string): string[] {
-  const slots: string[] = [];
-  for (let minute = 0; minute < 1440; minute++) {
-    const wall = `${day}T${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
-    if ((!min || wall >= min) && (!max || wall <= max)) slots.push(wall);
-  }
-  return slots;
+/** Changing the day preserves selected wall-clock times; empty times stay unselected. */
+export function eventOnDay(wall: string, day: string): string {
+  return wall && day ? `${day}T${wall.slice(11)}` : "";
+}
+
+/** Include retained, unloaded tables; editing an existing table adds no position. */
+export function eventDraftTableCount(
+  existing: number,
+  edited: EventDraftTable[],
+  removed: string[],
+): number {
+  return existing - new Set(removed).size + edited.filter((table) => !table.input.id).length;
 }
