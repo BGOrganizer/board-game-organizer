@@ -280,6 +280,12 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      E2E_USERNAME: ${{ needs.provision.outputs.username }}
+      E2E_PASSWORD: ${{ needs.provision.outputs.password }}
+      E2E_TARGET_EMAIL: ${{ needs.provision.outputs.email_2 }}
+      E2E_TARGET_USERNAME: ${{ needs.provision.outputs.username_2 }}
+      E2E_TARGET_PASSWORD: ${{ needs.provision.outputs.password_2 }}
+      E2E_TARGET_PHONE: ${{ needs.provision.outputs.phone_2 }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -313,16 +319,105 @@ jobs:
           export PATH="$PATH:$HOME/.maestro/bin"
           maestro --version
 
-      - name: 🚀 Maestro E2E flows
+      - name: 🛠️ Install Android SDK
+        uses: ./.github/actions/android-emulator
+        with:
+          phase: sdk
+      - name: 🏗️ Create Android AVD
+        uses: ./.github/actions/android-emulator
+        with:
+          phase: avd
+      - name: 📱 Boot shared Android emulator
+        uses: ./.github/actions/android-emulator
+        with:
+          phase: boot
+      - name: 📦 Install APK and verify Clerk callbacks
         uses: ./.github/actions/maestro-e2e
         with:
+          phase: install
           apk-path: ${{ steps.apk.outputs.path }}
-          username: ${{ needs.provision.outputs.username }}
-          password: ${{ needs.provision.outputs.password }}
-          target-email: ${{ needs.provision.outputs.email_2 }}
-          target-username: ${{ needs.provision.outputs.username_2 }}
-          target-password: ${{ needs.provision.outputs.password_2 }}
-          target-phone: ${{ needs.provision.outputs.phone_2 }}
+      - name: 🔥 Warm native app
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: warm
+      - name: 📒 Seed native address book
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: seed
+      - name: 🎬 01 Welcome
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 01-launch-welcome
+      - name: 🎬 02 Login
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 02-login
+      - name: 🎬 02 Startup deep link
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 02-startup-deep-link
+      - name: 🎬 05 Contacts
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 05-contacts-follow-block
+      - name: 🎬 03 Profile and logout
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 03-profile-logout
+      - name: 🎬 07 Reauthentication
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 07-reauth-after-logout
+      - name: 🎬 06 Match wizard
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 06-match-wizard
+      - name: 🎬 08 Groups
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 08-groups
+      - name: 🎬 09 Group invitations
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 09-group-invitations
+      - name: 🎬 10 BGG collection
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 10-bgg-collection
+      - name: 🎬 12 Organizations
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 12-organizations
+      - name: 🎬 13 Event draft
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 13-event-draft
+      - name: 🎬 04 Dark mode
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: flow
+          flow: 04-dark-mode
+      - name: 🔒 Verify all 13 real Maestro reports
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: verify
+      - name: 🧹 Stop shared emulator and preserve diagnostics
+        if: always()
+        uses: ./.github/actions/maestro-e2e
+        with:
+          phase: cleanup
 
       - name: 📤 Upload Maestro reports
         if: always()

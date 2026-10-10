@@ -221,7 +221,10 @@ async function fixture(page: Page) {
           });
         return route.fulfill({ json: organization });
       }
-      if (path === "/api/events" || path === `/api/events/${eventId}`) {
+      if (
+        (method === "POST" && path === `/api/organizations/${orgId}/events`) ||
+        path === `/api/events/${eventId}`
+      ) {
         if (failSave)
           return route.fulfill({ status: 503, json: { error: "DEADLINE_SERVICE_UNAVAILABLE" } });
         event = {
@@ -958,7 +961,9 @@ function communityAcceptance() {
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/events/${eventId}$`));
-    const creation = state.writes.find((row) => row.path === "/api/events");
+    const creation = state.writes.find(
+      (row) => row.method === "POST" && row.path === `/api/organizations/${orgId}/events`,
+    );
     if (!creation) throw new Error("Missing event creation request");
     const body = creation.body;
     expect(

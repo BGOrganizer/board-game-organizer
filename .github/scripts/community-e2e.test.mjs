@@ -10,25 +10,42 @@ const action = readFileSync(
   new URL("../actions/maestro-e2e/action.yml", import.meta.url),
   "utf8",
 ).replace(/\r\n/g, "\n");
-const flows = [...action.matchAll(/^\s+run_flow ([\w-]+)$/gm)].map((match) => match[1]);
+const script = readFileSync(new URL("./maestro-e2e.sh", import.meta.url), "utf8").replace(
+  /\r\n/g,
+  "\n",
+);
+const workflows = ["pr-ci.yml", "main-ci.yml", "mobile-e2e.yml"].map((name) =>
+  readFileSync(new URL(`../workflows/${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"),
+);
+const flows = [...workflows[0].matchAll(/^\s+flow: ([\w-]+)$/gm)].map((match) => match[1]);
 test("native acceptance flows are invoked and require real, distinct JUnit reports", () => {
   assert.equal(flows.length, 13);
   for (const name of ["08-groups", "09-group-invitations", "12-organizations", "13-event-draft"])
     assert(flows.includes(name), `${name} missing from the executable Maestro commands`);
   for (const name of flows)
     assert(existsSync(new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url)));
-  assert(action.includes('--output "/tmp/maestro-reports/$1.xml"'));
-  assert(action.includes("trap persist EXIT"));
-  const verification = action.slice(
-    action.indexOf("python3 .github/scripts/verify-maestro-reports.py"),
+  assert(script.includes('--output "/tmp/maestro-reports/$FLOW.xml"'));
+  assert(script.includes("trap persist EXIT"));
+  const verification = script.slice(
+    script.indexOf("python3 .github/scripts/verify-maestro-reports.py"),
   );
   for (const name of flows) assert(verification.includes(name));
-  for (const name of ["pr-ci.yml", "main-ci.yml", "mobile-e2e.yml"])
-    assert.doesNotMatch(
-      readFileSync(new URL(`../workflows/${name}`, import.meta.url), "utf8"),
-      /no-junit-output|all-flows-passed/,
+  for (const workflow of workflows) {
+    assert.deepEqual(
+      [...workflow.matchAll(/^\s+flow: ([\w-]+)$/gm)].map((match) => match[1]),
+      flows,
     );
-  assert.doesNotMatch(action, /all-flows-passed|summary\.xml/);
+    const native = workflow.split("  e2e-maestro:")[1].split(/\n {2}[\w-]+:/)[0];
+    assert.doesNotMatch(native, /continue-on-error|no-junit-output|all-flows-passed/);
+    for (const phase of ["sdk", "avd", "boot", "install", "warm", "seed", "verify", "cleanup"])
+      assert(native.includes(`phase: ${phase}`));
+    assert.match(native, /if: always\(\)[\s\S]*?phase: cleanup/);
+    assert.equal((native.match(/phase: boot/g) ?? []).length, 1);
+    assert.equal((native.match(/phase: install/g) ?? []).length, 1);
+    assert.equal((native.match(/phase: seed/g) ?? []).length, 1);
+    assert(native.indexOf("phase: cleanup") < native.indexOf("uses: actions/upload-artifact@v4"));
+  }
+  assert.doesNotMatch(script, /all-flows-passed|summary\.xml/);
 });
 test("fresh native launch preserves real contacts and notification permission prompts", () => {
   const welcome = readFileSync(
@@ -98,43 +115,108 @@ test("native event acceptance uses the catalog game actually seeded by CI", () =
   assert(!flow.includes('"Select: Catan"'));
 });
 test("the gallery fixture is committed and pushed to the emulator before community acceptance", () => {
-  const push = action.indexOf(
+  const push = script.indexOf(
     "adb push apps/mobile/assets/icon.png /sdcard/Pictures/bgo-organization-logo.png",
   );
   assert(push >= 0);
-  assert(push < action.indexOf("run_flow 12-organizations"));
+  assert(script.includes('if [ "$FLOW" = "12-organizations" ]'));
+  assert(push < script.indexOf("maestro test"));
   assert(existsSync(new URL("../../apps/mobile/assets/icon.png", import.meta.url)));
-  assert(action.includes("android.intent.action.MEDIA_SCANNER_SCAN_FILE"));
+  assert(script.includes("android.intent.action.MEDIA_SCANNER_SCAN_FILE"));
 });
 
-test("emulator executes quoted scripts fully and preserves command/pipeline failures", () => {
+test("emulator survives successful boot only, with guaranteed job teardown", () => {
   const emulator = readFileSync(
     new URL("../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
-  assert.match(emulator, /EMULATOR_SCRIPT: \$\{\{ inputs\.script \}\}/);
-  assert.doesNotMatch(emulator, /bash[^\n]*\$\{\{ inputs\.script \}\}/);
-  assert(emulator.includes("trap 'kill \"$EMU_PID\" 2>/dev/null || true' EXIT"));
-  const wrapper = emulator.match(/SCRIPT_EXIT=0\r?\n([\s\S]*?)exit "\$SCRIPT_EXIT"/)?.[0];
-  assert(wrapper);
-  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
-  const run = (script) =>
-    spawnSync(bash, ["-e", "-c", wrapper], {
-      encoding: "utf8",
-      env: { ...process.env, EMULATOR_SCRIPT: script },
-    });
-  const result = run(
-    "APK=\"path with spaces.apk\"\nprintf '%s\\n' \"APK found: $APK\"\nprintf '%s\\n' '$(echo not expanded)'\necho finished",
+  assert(emulator.includes('nohup "$ANDROID_HOME/emulator/emulator"'));
+  assert(emulator.includes('echo "BGO_EMULATOR_PID=$EMU_PID" >> "$GITHUB_ENV"'));
+  assert(emulator.includes('if [ "$EMULATOR_READY" != "1" ]; then kill "$EMU_PID"'));
+  assert(script.includes('kill "$BGO_EMULATOR_PID"'));
+  assert.match(action, /bash -e -o pipefail/);
+  assert(script.startsWith("#!/usr/bin/env bash\nset -euo pipefail"));
+});
+test("boot lifetime spans steps, but failed boot kills its process", () => {
+  const emulator = readFileSync(
+    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    "utf8",
   );
-  assert.equal(result.status, 0, result.stderr);
-  assert(result.stdout.includes("APK found: path with spaces.apk"));
-  assert(result.stdout.includes("$(echo not expanded)"));
-  assert(result.stdout.includes("finished"));
-  for (const script of ["false\necho unreachable", "false | cat\necho unreachable"]) {
-    const failed = run(script);
-    assert.equal(failed.status, 1, failed.stderr);
-    assert(!failed.stdout.includes("unreachable"));
+  const trap = emulator.match(/^\s*(trap 'if \[ "\$EMULATOR_READY".* EXIT)$/m)?.[1];
+  assert(trap);
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  for (const ready of ["0", "1"]) {
+    const r = spawnSync(
+      bash,
+      [
+        "-e",
+        "-c",
+        `
+      sleep 60 >/dev/null 2>&1 &
+      pid=$!
+      trap 'kill "$pid" 2>/dev/null || true' EXIT
+      (EMU_PID=$pid; EMULATOR_READY=${ready}; ${trap})
+      if [ "${ready}" = "0" ]; then wait "$pid" || true; fi
+      if kill -0 "$pid" 2>/dev/null; then echo alive; else echo stopped; fi
+    `,
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), ready === "1" ? "alive" : "stopped");
   }
+});
+test("each native flow preserves quoting, failure exit status and partial reports", () => {
+  const body = script.match(/\n {2}flow\)\n([\s\S]*?)\n {4};;/)?.[1];
+  assert(body);
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const run = (exit, name = "01-launch-welcome", username = "fixture $(not-expanded)") =>
+    spawnSync(
+      bash,
+      [
+        "-e",
+        "-o",
+        "pipefail",
+        "-c",
+        `
+        adb() { :; }
+        stop_recording() { :; }
+        persist() { echo persisted; }
+        capture() { echo captured; }
+        maestro() { printf '%s\\n' "$@"; return "$TEST_EXIT"; }
+        set -- flow "$TEST_FLOW"
+        ${body}
+        echo finished
+      `,
+      ],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          TEST_EXIT: String(exit),
+          TEST_FLOW: name,
+          E2E_USERNAME: username,
+          E2E_PASSWORD: "fixture password with spaces",
+          E2E_TARGET_EMAIL: "fixture@example.invalid",
+          E2E_TARGET_USERNAME: "fixture target",
+          E2E_TARGET_PASSWORD: "fixture target password",
+        },
+      },
+    );
+  const ok = run(0);
+  assert.equal(ok.status, 0, ok.stderr);
+  assert(ok.stdout.includes("USERNAME=fixture $(not-expanded)"));
+  assert(ok.stdout.includes("PASSWORD=fixture password with spaces"));
+  assert(ok.stdout.includes("/tmp/maestro-reports/01-launch-welcome.xml"));
+  assert(ok.stdout.includes("persisted"));
+  assert(ok.stdout.includes("finished"));
+  const failed = run(1);
+  assert.equal(failed.status, 1, failed.stderr);
+  assert(failed.stdout.includes("captured"));
+  assert(failed.stdout.includes("persisted"));
+  assert(!failed.stdout.includes("finished"));
+  assert.notEqual(run(0, "unrequested-flow").status, 0);
+  assert.notEqual(run(0, "01-launch-welcome", "").status, 0);
 });
 
 test("JUnit validation fails closed for absent, fabricated, skipped, failed, or malformed results", () => {

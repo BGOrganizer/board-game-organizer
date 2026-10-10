@@ -84,6 +84,19 @@ historical evidence, not the current push scope.
   typecheck, 162 mobile unit tests, 83-test Playwright discovery and all 35 workflow/source
   regressions pass. These combined corrections require the next full PR run; publication and
   complete web/native acceptance remain unverified.
+- Run `38087033020` verified the initial gates, deployments and both APK builds again. Playwright
+  advanced to **81 passed / 2 failed / 0 skipped**: both failures reach creation and expose a fixture
+  responding to the obsolete root POST instead of the actual contextual
+  `POST /api/organizations/:organizationId/events`. The local fixture and request assertion now
+  follow the controller and shared hook. Maestro was still active when this checkpoint was written;
+  its progress and cleanup must finish before the next push. Native CI is also split into visible
+  SDK/AVD/boot, APK/callback, warm-up, address-book and individual flow steps in PR, main and manual
+  workflows. One job-scoped emulator and the same authenticated session survive those steps; failed
+  boot kills its process, and always-run teardown stops a successful boot and preserves diagnostics.
+  All 13 flows retain their order, distinct real JUnit reports and fail-closed verification. Failure
+  video now covers the actual failing flow rather than only the first 30 minutes of the suite.
+  No timeout, acceleration, authentication or acceptance policy changes are included. These local
+  orchestration changes are not yet verified by a full CI run.
 
 Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
 pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance
