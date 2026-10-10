@@ -46,6 +46,7 @@ test("remote deployment preserves quoted build/runtime overrides without changin
     assert.deepEqual(args, [
       "deploy",
       "--yes",
+      "--force",
       "--local-config",
       ".vercel/deploy.json",
       "--token",
@@ -84,6 +85,8 @@ test("remote deployment preserves quoted build/runtime overrides without changin
     assert.equal(result.status, 0, result.stderr);
     args = readFileSync(argsFile, "utf8").split("\0").filter(Boolean);
     assert.ok(args.includes("--prod"));
+    assert.ok(args.includes("--force"));
+    assert.ok(!args.includes("--with-cache"));
     assert.ok(!args.some((arg) => /BGO_CI_DB_NAME|MONGODB_DB_NAME/.test(arg)));
     assert.equal(
       run({ CI_DB_NAME: "" }).status,

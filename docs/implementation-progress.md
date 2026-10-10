@@ -2,11 +2,11 @@
 
 ## Current table-participation and navigation pass
 
-The operator reauthorized signed commits, pushing `feat/organizations-events`, and CI monitoring.
-PR #22 currently targets `feat/social-api-refactor`, not this working branch; creating another PR
-or synchronizing its head still requires explicit confirmation. Earlier local-only restrictions
-remain historical evidence, not the current push scope. No delegation, provider provisioning,
-account recreation, Device Trust bypass, or changes to `main` were performed.
+The operator authorized updating existing PR #22 on `feat/social-api-refactor`, monitoring its
+full CI and fixing failures on that same branch. The PR branch was fast-forwarded to `fdfd052`
+without rewriting history. No new branch/PR, delegation, provider provisioning, account recreation,
+Device Trust bypass, or changes to `main` are authorized. Earlier local-only restrictions remain
+historical evidence, not the current push scope.
 
 - Creation/edit headers provide contextual Back independently of wizard step/table/location Back.
 - Event/table and match entrances compose the same platform-owned table heading, overview and
@@ -34,6 +34,14 @@ account recreation, Device Trust bypass, or changes to `main` were performed.
 - Protected API/web generated types were restored byte-for-byte. Private configuration, environments,
   historical artifacts/resources and unrelated work remain excluded from the task commit.
 
+- Full PR run `38074656882`: all 12 initial quality/build gates passed; both remote API builds
+  failed resolving workspace packages after restoring the same Vercel cache. Cleanup passed;
+  APK/E2E/publication did not run. A minimal pnpm 11.25 hoisted-workspace reproduction confirmed
+  that cached installs do not restore missing workspace links, even with `install --force`.
+  The shared deployment action now uses `vercel deploy --force` without `--with-cache`; this
+  bypasses remote build cache while retaining frozen dependency versions and all isolation guards.
+  Regression checks cover Preview and Production flags. A new full PR run must verify the fix.
+
 Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
 pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance
 coverage. The operator requested local feasible checks followed by signed commits/push and CI
@@ -43,7 +51,8 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 This records the original implementation pass, not authorization for subsequent tasks. Earlier
 local-only scopes below permitted local commits only; the current pass above supersedes their push
-restriction without authorizing delegation, provisioning, PR creation, or PR-head synchronization.
+restriction; current authorization permits updates only to existing PR #22, not delegation,
+provisioning, new PR creation or merges to `main`.
 
 - Branch `feat/organizations-events`, based on authorized PR #22 head `b83e30e`, not `main`.
 - Worktree `D:/git/board-game-organizer/.worktrees/organizations-events`.

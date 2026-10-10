@@ -102,7 +102,8 @@ runs:
         EXTRA_ENV: ${{ inputs.extra-env }}
       run: |
         set -euo pipefail
-        flags=(--yes --local-config .vercel/deploy.json --token "$VERCEL_TOKEN")
+        # ponytail: skip remote build cache until pnpm repairs cached hoisted workspace links.
+        flags=(--yes --force --local-config .vercel/deploy.json --token "$VERCEL_TOKEN")
         if [ "$PRODUCTION" = 'true' ]; then
           test "$VERCEL_ENVIRONMENT" = 'production'
           flags+=(--prod)
