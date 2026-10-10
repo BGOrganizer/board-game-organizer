@@ -1,0 +1,9 @@
+appId: com.bgo.mobile
+---
+# Android native date-only dialog. DATE is MM/DD/YYYY. No conditional skips.
+- tapOn: "Switch to text input mode|Switch to keyboard input"
+- tapOn:
+    id: "android:id/edit_text"
+- eraseText
+- inputText: ${DATE}
+- tapOn: "OK"

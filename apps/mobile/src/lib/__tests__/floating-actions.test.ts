@@ -1,0 +1,39 @@
+import { describe, expect, it } from "vitest";
+import {
+  FLOATING_ACTION_SIZE,
+  floatingActionLayout,
+  screenFloatingActionLayout,
+} from "../floating-actions";
+
+describe("floating action clearance", () => {
+  it.each([
+    [0, "tab", 24],
+    [34, "tab", 50],
+    [120, "tab", 136],
+    [0, "stack", 100],
+    [34, "stack", 134],
+    [120, "stack", 220],
+    [34, "", 134],
+    [0, "", 100],
+  ] as const)(
+    "shares FAB and scroll clearance for inset %i and navigator %s",
+    (inset, navigatorType, bottom) => {
+      expect(screenFloatingActionLayout(inset, navigatorType)).toEqual({
+        bottom,
+        paddingBottom: bottom + FLOATING_ACTION_SIZE + 16,
+      });
+    },
+  );
+  it.each([
+    [0, 16, 24],
+    [0, 100, 100],
+    [34, 16, 50],
+    [34, 100, 134],
+    [120, 100, 220],
+  ])("keeps the final row above the FAB for inset %i and offset %i", (inset, offset, bottom) => {
+    const layout = floatingActionLayout(inset, offset);
+    expect(layout.bottom).toBe(bottom);
+    expect(layout.paddingBottom).toBe(bottom + FLOATING_ACTION_SIZE + 16);
+    expect(layout.paddingBottom - layout.bottom - FLOATING_ACTION_SIZE).toBe(16);
+  });
+});

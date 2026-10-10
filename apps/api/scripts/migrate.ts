@@ -5,8 +5,10 @@
  */
 import { getDb } from "../src/app/lib/db";
 import { migrate } from "../src/app/lib/migrate";
+import { loadApiEnv } from "./load-env";
 
 async function main() {
+  loadApiEnv();
   const db = await getDb();
   const result = await migrate(db);
   console.log("created indexes:", result.created);

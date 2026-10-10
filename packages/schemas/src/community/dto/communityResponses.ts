@@ -1,0 +1,65 @@
+import type { Event, EventBooking, EventTable } from "../../events/models/events";
+import type {
+  Organization,
+  OrganizationMembership,
+  OrganizationRevision,
+} from "../../organizations/models/organizations";
+export type CommunityPageResponse<T> = { items: T[]; nextCursor: string | null };
+export type OrganizationResponse = {
+  id: string;
+  adminUserId: string;
+  name: string;
+  location: OrganizationRevision["location"];
+  logoAssetId: string;
+  logo: string;
+  status: Organization["status"];
+  memberCount: number;
+  publishedEventCount: number;
+  role: "admin" | "accepted" | "invited" | "requested" | "none" | "excluded";
+  myMembership: OrganizationMembership | null;
+  approved?: OrganizationRevision;
+  proposal?: OrganizationRevision;
+  reviewStatus?: Organization["reviewStatus"];
+  rejectionReason?: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+export type OrganizationMemberResponse = {
+  userId: string;
+  name?: string | null;
+  social?: {
+    isFollowing: boolean;
+    isFollower: boolean;
+    isFriend: boolean;
+    blockedByMe: boolean;
+    friendRequest?: "incoming" | "outgoing";
+  };
+  username: string | null;
+  avatarUrl: string | null;
+  isAdmin: boolean;
+  membership: OrganizationMembership | null;
+};
+export type EventResponse = Event & {
+  organizationName: string;
+  logo: string;
+  tableCount: number;
+  confirmedParticipantCount: number;
+  organizationApproved: boolean;
+  role: "admin" | "member" | "visitor";
+  canModify: boolean;
+  canPublish: boolean;
+};
+export type EventTableResponse = EventTable & {
+  gameName: string;
+  image: string | null;
+  confirmedCount: number;
+  reservedCount: number;
+  myBooking: EventBooking | null;
+  canBook: boolean;
+  demonstrator: { userId: string; username: string | null; avatarUrl: string | null } | null;
+};
+export type EventBookingResponse = EventBooking & {
+  username: string | null;
+  avatarUrl: string | null;
+};

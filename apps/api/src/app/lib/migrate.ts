@@ -1,16 +1,35 @@
 import {
+  BGG_ACCOUNT_INDEXES,
+  BGG_COLLECTION_INDEXES,
   BLOCK_INDEXES,
+  EVENT_BOOKING_INDEXES,
+  EVENT_DEADLINE_DELIVERY_INDEXES,
+  EVENT_INDEXES,
+  EVENT_TABLE_INDEXES,
   FOLLOW_INDEXES,
   FRIEND_REQUEST_INDEXES,
+  GROUP_INDEXES,
+  GROUP_INVITATION_INDEXES,
   INVITE_INDEXES,
+  MATCH_INDEXES,
+  MATCH_INVITATION_INDEXES,
+  NOTIFICATION_INDEXES,
+  normalizePhoneNumberForMatching,
+  ORGANIZATION_ASSET_INDEXES,
+  ORGANIZATION_INDEXES,
+  ORGANIZATION_MEMBERSHIP_INDEXES,
+  PLAYER_RATING_INDEXES,
+  PUSH_SUBSCRIPTION_INDEXES,
+  RATING_EVENT_INDEXES,
   USER_INDEXES,
+  type User,
 } from "@board-game-organizer/schemas";
 import type { Db, IndexSpecification } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /**
- * Phase 1 migration: creates the social collections with their indexes
- * (shared from `packages/schemas`) and drops the legacy `relationships`
+ * Creates application collections with shared indexes and drops the legacy
+ * `relationships`
  * collection, whose data model was replaced by `follows` + `friendRequests`
  * + `blocks`.
  *
@@ -20,15 +39,37 @@ interface IndexDef {
   key: Record<string, number | string>;
   unique?: boolean;
   partialFilterExpression?: object;
+  expireAfterSeconds?: number;
 }
 
 export async function migrate(db: Db) {
   const tables: Array<[string, ReadonlyArray<IndexDef>]> = [
     [COLLECTIONS.USERS, USER_INDEXES],
+    [COLLECTIONS.BGG_ACCOUNTS, BGG_ACCOUNT_INDEXES],
+    [COLLECTIONS.BGG_COLLECTION_GAMES, BGG_COLLECTION_INDEXES],
     [COLLECTIONS.FOLLOWS, FOLLOW_INDEXES],
     [COLLECTIONS.FRIEND_REQUESTS, FRIEND_REQUEST_INDEXES],
     [COLLECTIONS.BLOCKS, BLOCK_INDEXES],
     [COLLECTIONS.INVITES, INVITE_INDEXES],
+    [COLLECTIONS.MATCHES, MATCH_INDEXES],
+    [
+      COLLECTIONS.FAVORITE_LOCATIONS,
+      [{ key: { userId: 1, _id: 1 } }, { key: { userId: 1, key: 1 }, unique: true }],
+    ],
+    [COLLECTIONS.MATCH_INVITATIONS, MATCH_INVITATION_INDEXES],
+    [COLLECTIONS.GROUPS, GROUP_INDEXES],
+    [COLLECTIONS.GROUP_INVITATIONS, GROUP_INVITATION_INDEXES],
+    [COLLECTIONS.ORGANIZATIONS, ORGANIZATION_INDEXES],
+    [COLLECTIONS.ORGANIZATION_MEMBERSHIPS, ORGANIZATION_MEMBERSHIP_INDEXES],
+    [COLLECTIONS.ORGANIZATION_ASSETS, ORGANIZATION_ASSET_INDEXES],
+    [COLLECTIONS.EVENTS, EVENT_INDEXES],
+    [COLLECTIONS.EVENT_TABLES, EVENT_TABLE_INDEXES],
+    [COLLECTIONS.EVENT_BOOKINGS, EVENT_BOOKING_INDEXES],
+    [COLLECTIONS.EVENT_DEADLINE_DELIVERIES, EVENT_DEADLINE_DELIVERY_INDEXES],
+    [COLLECTIONS.PLAYER_RATINGS, PLAYER_RATING_INDEXES],
+    [COLLECTIONS.RATING_EVENTS, RATING_EVENT_INDEXES],
+    [COLLECTIONS.NOTIFICATIONS, NOTIFICATION_INDEXES],
+    [COLLECTIONS.PUSH_SUBSCRIPTIONS, PUSH_SUBSCRIPTION_INDEXES],
   ];
 
   const created: string[] = [];
@@ -37,6 +78,9 @@ export async function migrate(db: Db) {
     for (const index of indexes) {
       await db.collection(name).createIndex(index.key as IndexSpecification, {
         ...(index.unique ? { unique: index.unique } : {}),
+        ...(index.expireAfterSeconds !== undefined
+          ? { expireAfterSeconds: index.expireAfterSeconds }
+          : {}),
         ...(index.partialFilterExpression
           ? { partialFilterExpression: index.partialFilterExpression }
           : {}),
@@ -47,6 +91,26 @@ export async function migrate(db: Db) {
 
   // The legacy single `relationships` collection is no longer written by
   // the repository (Phase 1 restructure) — drop it unconditionally.
+  const users = db.collection<User>(COLLECTIONS.USERS);
+  const usersWithPhones = await users
+    .find({ mobileNumber: { $type: "string" } }, { projection: { mobileNumber: 1 } })
+    .toArray();
+  if (usersWithPhones.length) {
+    await users.bulkWrite(
+      usersWithPhones.map((user) => {
+        const normalized = normalizePhoneNumberForMatching(user.mobileNumber);
+        return {
+          updateOne: {
+            filter: { _id: user._id },
+            update: normalized
+              ? { $set: { mobileNumberNormalized: normalized } }
+              : { $unset: { mobileNumberNormalized: "" } },
+          },
+        };
+      }),
+    );
+  }
+
   const dropped = await db
     .collection(COLLECTIONS.RELATIONSHIPS)
     .drop()

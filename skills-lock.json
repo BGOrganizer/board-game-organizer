@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "skills": {
+    "clerk": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/core/clerk/SKILL.md",
+      "computedHash": "31dde2e1c88bfc2af5a1c783eec6d64aaf554ed3bc71ad463b812f6b58c9de41"
+    },
+    "clerk-backend-api": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/core/clerk-backend-api/SKILL.md",
+      "computedHash": "cbcad1341a7d32fed789abe864c829f27a2858dc8ba68b92254e9beb53467148"
+    },
+    "clerk-billing": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/features/clerk-billing/SKILL.md",
+      "computedHash": "7e862109e64dfa69d7f4b4236ef6720047130953b4b8f46efd235b1ff170dc90"
+    },
+    "clerk-cli": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/core/clerk-cli/SKILL.md",
+      "computedHash": "032774905bcc27fa768483a3eafdff00aae14ba8ad39a5387c5b49c6c4400072"
+    },
+    "clerk-custom-ui": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/core/clerk-custom-ui/SKILL.md",
+      "computedHash": "fe5014e5155b83e074202cc9c97044e7b5cdc07e8116f7de2c93fcb4f8c4f787"
+    },
+    "clerk-expo": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/mobile/clerk-expo/SKILL.md",
+      "computedHash": "268e6d6ea293c440d9a2fa4fd2a97828e9cbda1c66e2cc2cd7c4379a840f21cc"
+    },
+    "clerk-nextjs-patterns": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frameworks/clerk-nextjs-patterns/SKILL.md",
+      "computedHash": "cdcb9f08d567058fca7563ad8c67a4a2a2f3b9f286294e1caeb1ea5407dfebc6"
+    },
+    "clerk-orgs": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/features/clerk-orgs/SKILL.md",
+      "computedHash": "d93dc8368d7cc4e4b628f5876d4960be927250bff60d18861e8b61d888b7142f"
+    },
+    "clerk-setup": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/core/clerk-setup/SKILL.md",
+      "computedHash": "9048294220ffd0c1e58c5dc4e6ee2c2bd1d93f444eb58078c92f5448d1a3c55b"
+    },
+    "clerk-testing": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/features/clerk-testing/SKILL.md",
+      "computedHash": "7a103e04442822f0e8e11184e11e92fea143723817dba8c5f06fd71dab86c4ad"
+    },
+    "clerk-webhooks": {
+      "source": "clerk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/features/clerk-webhooks/SKILL.md",
+      "computedHash": "6acecf8a6a4a77294c87874bce189d311bce39ea28786a010d2769b922fbb8cc"
+    },
+    "eas-app-stores": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/eas-app-stores/SKILL.md",
+      "computedHash": "55636a4b9b2cfee1aed1d6ae067d1f1b7958cbaedc67ac25a98a562c346536a3"
+    },
+    "eas-update": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/eas-update/SKILL.md",
+      "computedHash": "5e591c6d495aedb78feeff46d3f58fc52408f1e4d69ad0808c0c5b47a0722b55"
+    },
+    "eas-update-insights": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/eas-update-insights/SKILL.md",
+      "computedHash": "7bba0fea47a4aaf29f5ea52292053c64c70ae2f1ff39b241b6d2c62c43d4a2c0"
+    },
+    "expo-animation": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-animation/SKILL.md",
+      "computedHash": "9e9ad7e0c4a73085484ecf9f4cc763474415ce0d466097b9e09109414ebd55d7"
+    },
+    "expo-data-fetching": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-data-fetching/SKILL.md",
+      "computedHash": "34fe0ea97749dc85f46fe376dc54fb44ee41bdeba04bf4f50e49ee7d16dc3121"
+    },
+    "expo-design-system": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-design-system/SKILL.md",
+      "computedHash": "cf425c344c671f3f75e300009791c88a821359282872c397ba97aa1f55c96abd"
+    },
+    "expo-dev-client": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-dev-client/SKILL.md",
+      "computedHash": "7b8b0ec9a98e96674b13b72b798bc1b0b0d122244dc22c54d375613eb525bcae"
+    },
+    "expo-examples": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-examples/SKILL.md",
+      "computedHash": "b5b23f25e6f0c80c01367e1cc37ce6f00dc5f9b7bb4046056ef0cdc1d2e50515"
+    },
+    "expo-overview": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-overview/SKILL.md",
+      "computedHash": "5fa852198c46a4f984a373b33dc442b1f13d572d097a2b8a7f5c08d0f5965ace"
+    },
+    "expo-project-structure": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-project-structure/SKILL.md",
+      "computedHash": "fad7cc86cf8815631d2bc5546c4926b126bdd8ff7263f0ab6577684431bf5041"
+    },
+    "expo-router": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-router/SKILL.md",
+      "computedHash": "1cc6bb6852cf44bb51e6f4cb50efb3bed48b486c7f8ba3ac8e06b6b82be2cd78"
+    },
+    "expo-upgrade": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-upgrade/SKILL.md",
+      "computedHash": "cf2948a0d0023758a9faad2b47e5e0c6d0aaabf4d1335fc36d9925d75848f4c9"
+    },
+    "heroui-native": {
+      "source": "heroui-inc/heroui",
+      "sourceType": "github",
+      "skillPath": "skills/heroui-native/SKILL.md",
+      "computedHash": "0c69432d03bb4ab6ce85158631c3d2b05f2efd5c2ddefecca161d7e697054704"
+    },
+    "heroui-react": {
+      "source": "heroui-inc/heroui",
+      "sourceType": "github",
+      "skillPath": "skills/heroui-react/SKILL.md",
+      "computedHash": "c3633cb324aef2a51a9828c96776897ec2273d8d092cfcfb4dfa754006c7b8df"
+    },
+    "infisical-user-setup-guide": {
+      "source": "infisical/ai-skills",
+      "sourceType": "github",
+      "skillPath": "skills/infisical-setup/SKILL.md",
+      "computedHash": "60f95d8ef9a02a5539168dc7298ab7aa4607691d31ccf55bd8cc5ddd7ef092e8"
+    },
+    "lingui-best-practices": {
+      "source": "lingui/skills",
+      "sourceType": "github",
+      "skillPath": "skills/lingui-best-practices/SKILL.md",
+      "computedHash": "234185e667c8b53767fe0b5c625949f4a0384d29ec1a13e1a70c260efed6a65b"
+    },
+    "maptiler": {
+      "source": "maptiler/maptiler-skills",
+      "sourceType": "github",
+      "skillPath": "skills/SKILL.md",
+      "computedHash": "2ce5f424a0550ea79344ae8822648be198d36c9a6eb528404bcecd76d2a9a064"
+    },
+    "playwright-best-practices": {
+      "source": "currents-dev/playwright-best-practices-skill",
+      "sourceType": "github",
+      "skillPath": "playwright-best-practices/SKILL.md",
+      "computedHash": "88623575c97314e115f0e361a7d942e31d3b7a4e8925832257e1ad33f52096e4"
+    },
+    "sentry-react-native-sdk": {
+      "source": "getsentry/sentry-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sentry-react-native-sdk/SKILL.md",
+      "computedHash": "89f79da0832352bc81dc6b168de23219874672b4400b3e8a14346fed24fc64c4"
+    },
+    "tanstack-query-development": {
+      "source": "axross/skills",
+      "sourceType": "github",
+      "skillPath": "skills/tanstack-query-development/SKILL.md",
+      "computedHash": "090f7dcbeb90cb61ecc69957e72da8363b01dba5fd2d9972fc755d94b640a4ca"
+    },
+    "uniwind": {
+      "source": "uni-stack/uniwind",
+      "sourceType": "github",
+      "skillPath": "skills/uniwind/SKILL.md",
+      "computedHash": "4f3d033154e0ecb4e9cb8ffd9d273884002fa9b499123dceb894623b0eadc859"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/composition-patterns/SKILL.md",
+      "computedHash": "10eb4ec94577b79ae98c63ce3e7f35f8a6a06436a4011bff083b397de6960eeb"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "6b526d013e28073246a36f99b529bc43745d30832ecfa8217b359c34f260ca6b"
+    },
+    "vercel-react-native-skills": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-native-skills/SKILL.md",
+      "computedHash": "a804b4e848059822638c390359976f7021380bcefb1469d473aa4e9202c15ecb"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "d8e7d3afe37dcc8a97b99ffb5afdb4d0919ae0092ea8b68f44eb201f035e33ac"
+    },
+    "zustand-state-management": {
+      "source": "mkgp-dev/codex-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/zustand-state-management/SKILL.md",
+      "computedHash": "ade34f429befa905ee4f7efb7d4acac5b8ce97aa894daeb24958b5b681762b03"
+    }
+  }
+}

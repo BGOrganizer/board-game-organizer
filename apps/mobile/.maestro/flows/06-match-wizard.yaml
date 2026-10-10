@@ -10,9 +10,12 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "No matches yet.*"
     timeout: 120000
+- tapOn: "Table list"
+- assertVisible: "The crown identifies the match administrator."
+- assertVisible: "The calendar identifies a table belonging to an event."
+- back
 - tapOn:
-    id: ".*"  # FAB (no testID on the Pressable) — fall back to position
-    point: "90%,92%"
+    id: "create-match-fab"
 - extendedWaitUntil:
     visible: "New match"
     timeout: 60000
@@ -23,6 +26,21 @@ appId: com.bgo.mobile
 - tapOn: "Match name"
 - eraseText: 3
 - inputText: "Friday night games"
+- hideKeyboard
+- assertVisible: "Private match"
+- tapOn:
+    id: "match-public-switch"
+- assertVisible: "Public match"
+- assertNotVisible:
+    id: "remove-date-slot"
+# Remove one date from inside its row, then fill the remaining slot.
+- tapOn: "Add date"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
 # Date slot: open the native picker and confirm it exists (the wizard
 # requires a filled date to advance — tapping Confirm on the native
 # date dialog sets today).
@@ -31,13 +49,94 @@ appId: com.bgo.mobile
     visible: "OK|Done|Confirm|Set"
     timeout: 30000
 - tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
+# The final date's trash appears only while a date is selected.
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
+- assertVisible: "Pick date and time"
+- tapOn: "Pick date and time"
+- extendedWaitUntil:
+    visible: "OK|Done|Confirm|Set"
+    timeout: 30000
+- tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
 # Advance to step 2 via the next FAB (bottom right).
 - tapOn:
-    point: "90%,92%"
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 60000
+# Step 2: select at least one complete location.
+- assertVisible: "Locations"
+- tapOn: "Select location"
+- extendedWaitUntil:
+    visible: "Search address"
+    timeout: 30000
+- assertVisible: "Map by MapTiler"
+- tapOn: "Location name"
+- inputText: "Game cafe"
+- hideKeyboard
+# GPS is an explicit action: resolve a verified address without saving the slot yet.
+- setLocation:
+    latitude: 41.8902
+    longitude: 12.4922
+- scrollUntilVisible:
+    element: "Center map on my location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Center map on my location"
+- extendedWaitUntil:
+    visible:
+      id: "location-address-input"
+      text: ".*(Roma|Rome).*"
+    timeout: 30000
+- assertVisible: "Confirm location"
+- assertVisible: "Select location"
+- tapOn: "Clear search"
+- tapOn: "Search address"
+- inputText: "Piazza del Colosseo 1 Roma"
+- extendedWaitUntil:
+    visible:
+      id: "address-result-0"
+    timeout: 30000
+- tapOn:
+    id: "address-result-0"
+- scrollUntilVisible:
+    element: "Confirm location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Confirm location"
+- extendedWaitUntil:
+    visible: "Game cafe.*"
+    timeout: 30000
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
+    timeout: 30000
+- assertVisible: "Game cafe"
+- tapOn: "Remove location from favorites"
+- extendedWaitUntil:
+    visible: "Add location to favorites"
+    timeout: 30000
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
+    timeout: 30000
+- tapOn: "Add location"
+- assertVisible: "Select location"
+- tapOn:
+    text: "Remove location"
+    index: 1
+- tapOn:
+    id: "next-step-fab"
 - extendedWaitUntil:
     visible: "Players"
     timeout: 60000
-# Step 2: min/max steppers exist; max must stay >= min.
+# Step 3: min/max steppers exist; max must stay >= min.
 - assertVisible: "Min"
 - assertVisible: "Max"
 - tapOn: "Max"
@@ -45,11 +144,258 @@ appId: com.bgo.mobile
 # Advance to step 3 (invite slots are optional-empty; validation only
 # requires the player range, which defaults valid).
 - tapOn:
-    point: "90%,92%"
+    id: "next-step-fab"
 - extendedWaitUntil:
     visible: "Board games"
     timeout: 60000
-# Step 3: at least one game is required — empty state blocks the FAB.
+# Step 4: at least one game is required — empty state blocks the FAB.
 - assertVisible: "Select a board game"
-- tapOn: "Add another game"
+- tapOn: "Add game"
+- assertVisible:
+    id: "remove-game-slot"
+- tapOn:
+    id: "remove-game-slot"
+- assertNotVisible:
+    id: "remove-game-slot"
 - assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- tapOn: "Search board games: Search help"
+- assertVisible: "Type at least 4 characters to search"
+- back
+- assertVisible:
+    id: "game-search-input"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-filter-search"
+- tapOn:
+    id: "list-filter-search"
+- tapOn:
+    id: "game-search-input"
+- inputText: "Cascadia"
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "game-search-input"
+- inputText: "Cascadia"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- assertVisible: "2021"
+- assertVisible: ".*7[.]83.*"
+- assertVisible: ".*Rank: 42.*"
+- tapOn: "Select: Cascadia.*"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+- assertVisible: "Cascadia"
+- assertVisible: ".*7[.]83.*"
+- assertVisible: ".*Rank: 42.*"
+# Submit, open the match and exercise all three HeroUI tabs.
+- assertVisible:
+    id: "save-match-fab"
+- tapOn:
+    id: "save-match-fab"
+- assertVisible: "Match created"
+- tapOn:
+    id: "dismiss-notification"
+- assertNotVisible: "Match created"
+- extendedWaitUntil:
+    visible: "Friday night games"
+    timeout: 60000
+- assertVisible: "Planning"
+- assertVisible: "Game cafe"
+- assertVisible: ".*[Rr]oma.*"
+- assertVisible: "2/4"
+- assertVisible: "1 game"
+- assertVisible:
+    id: "match-waves-image"
+- assertVisible:
+    id: "admin-match-badge"
+- assertVisible: "Search matches"
+- assertVisible: "Admin"
+- assertVisible: "Invited"
+- assertVisible: "Accepted"
+- tapOn:
+    id: "list-search-input"
+- inputText: "Friday"
+- assertVisible: "Friday night games"
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "No matches match your filters"
+    timeout: 30000
+- tapOn: "Admin"
+- extendedWaitUntil:
+    visible: "Friday night games"
+    timeout: 30000
+- tapOn: "Clear search"
+- tapOn: "Friday night games"
+- extendedWaitUntil:
+    visible: "Overview"
+    timeout: 30000
+- assertVisible: "Date selection"
+- assertVisible:
+    id: "confirm-match-unavailable"
+- assertNotVisible:
+    id: "open-match-results"
+- tapOn:
+    id: "confirm-match-unavailable"
+- assertVisible: "Cannot confirm match"
+- assertVisible: "Not enough accepted players"
+- tapOn: "Date selection"
+- tapOn:
+    id: "choose-date"
+- assertVisible: "Choose date"
+- tapOn: "Yes"
+- assertVisible: "Choice saved"
+- assertVisible: "Choose date: Yes"
+- extendedWaitUntil:
+    visible: "Yes: 1, No: 0, If needed: 0, Not chosen: 0"
+    timeout: 30000
+- tapOn: "Vote count legend"
+- assertVisible: "Not chosen"
+- tapOn: "Date selection"
+- tapOn: "Players"
+- assertVisible:
+    id: "match-detail-scroll"
+- scrollUntilVisible:
+    element: "Participants"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Minimum players"
+- assertVisible: "Maximum players"
+- assertVisible: "Participants"
+- assertVisible: "Administrator"
+- assertVisible: "Accepted"
+- tapOn: "Overview"
+- assertVisible: "Game selection"
+- assertVisible: "Cascadia"
+- assertVisible: "2021"
+- assertVisible: ".*7[.]83.*"
+- assertVisible: ".*Rank: 42.*"
+- tapOn:
+    id: "choose-game"
+- assertVisible: "Choose game"
+- tapOn: "If I have to"
+- assertVisible: "Choice saved"
+- assertVisible: "Choose game: If I have to"
+- tapOn:
+    id: "choose-location"
+- assertVisible: "Choose location"
+- tapOn: "Yes"
+- assertVisible: "Choose location: Yes"
+- tapOn: "Remove location from favorites"
+- extendedWaitUntil:
+    visible: "Add location to favorites"
+    timeout: 30000
+- assertVisible: "Choose location: Yes"
+- tapOn: "Add location to favorites"
+- extendedWaitUntil:
+    visible: "Remove location from favorites"
+    timeout: 30000
+- assertVisible: "Choose location: Yes"
+- tapOn: "Leaderboards"
+- assertVisible: "Board game"
+- tapOn: "Select a board game"
+- tapOn: "Cascadia"
+- extendedWaitUntil:
+    visible: "500.00"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Games played"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Games played"
+- assertVisible: "Games won"
+- assertVisible: "ND"
+- tapOn: "Overview"
+# Admin editing reuses the same wizard and sends changes only on final save.
+- tapOn: "Edit match"
+- extendedWaitUntil:
+    visible: "Edit match"
+    timeout: 30000
+- tapOn: "Match name"
+- eraseText: 18
+- inputText: "Updated game night"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
+- assertVisible: "Pick date and time"
+- tapOn: "Pick date and time"
+- extendedWaitUntil:
+    visible: "OK|Done|Confirm|Set"
+    timeout: 30000
+- tapOn: "OK|Done|Confirm|Set"
+- assertVisible:
+    id: "remove-date-slot"
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 30000
+- assertVisible: "Game cafe.*"
+- tapOn: "Select location"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-select"
+    timeout: 30000
+- tapOn: "Location name"
+- inputText: "Temporary name"
+- scrollUntilVisible:
+    element:
+      id: "favorite-location-select"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-select"
+- assertVisible: "Favorite locations"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-0"
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-0"
+- scrollUntilVisible:
+    element: "Confirm location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Confirm location"
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 30000
+- tapOn: "Next step"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+# Editing reuses the same wizard; remove its selected game, then restore it.
+- tapOn:
+    id: "remove-game-slot"
+- assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- tapOn:
+    id: "game-search-input"
+- inputText: "Cascadia"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- tapOn: "Select: Cascadia.*"
+- assertVisible: "Cascadia"
+- tapOn: "Save changes"
+- assertVisible: "Match updated"
+- extendedWaitUntil:
+    visible: "Updated game night"
+    timeout: 30000
+# Secondary actions live in the header popover. Deletion still requires confirmation.
+- tapOn:
+    id: "more-match-actions"
+- assertVisible: "Delete match"
+- tapOn:
+    id: "delete-match-action"
+- assertVisible: "Delete match?"
+- tapOn: "Delete match"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 30000
+- assertNotVisible: "Updated game night"

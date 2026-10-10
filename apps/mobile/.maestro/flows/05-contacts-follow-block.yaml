@@ -1,60 +1,373 @@
 appId: com.bgo.mobile
 ---
-# 5. Social flow: search user B (target) → follow → block via kebab menu →
-#    Blocked tab → unblock.
-#    Requires a signed-in session (run right after flow 02-login) and the
-#    target's email injected as ${EMAIL_2}.
+# 5. Social flow: connections → requests → reject/accept → friends → block.
+# Requires signed-in actor session (run after flow 02-login).
 - tapOn: "Contacts"
+# Permission prompt appears as soon as Contacts opens.
 - extendedWaitUntil:
-    visible: "Search"
-    timeout: 60000
+    visible: ".*[Aa]llow.*contacts.*"
+    timeout: 30000
+- tapOn: "Don't allow"
 - tapOn: "Search"
+- assertVisible: "Search results"
+- tapOn: "Search users by name or email: Search help"
+- assertVisible: "Search help"
+- assertVisible: "Type at least 4 characters to search"
+- back
+- tapOn:
+    id: "enable-contacts-btn"
+- tapOn: "Yes"
+- extendedWaitUntil:
+    visible: ".*[Aa]llow.*contacts.*"
+    timeout: 30000
+- tapOn: "Allow"
+- tapOn: "Connections"
+- tapOn: "Connections: Icon legend"
+- assertVisible: "Friendship accepted."
+- assertVisible: "People you follow."
+- assertVisible: "People who follow you."
+- assertVisible: "People you have blocked."
+- assertVisible: "Online"
+- assertVisible: "Offline"
+- back
+- assertVisible: "No connections yet"
+- assertNotVisible: "Contacts on BGO"
+- assertNotVisible: "Action failed"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertNotVisible: "Add contacts"
+- assertNotVisible: "Allow address book access to find your friends here."
+- tapOn: "Requests"
+- tapOn: "Requests: Icon legend"
+- assertVisible: "Requests awaiting your reply."
+- assertVisible: "Requests awaiting their reply."
+- back
+- assertVisible: "No friend requests"
+- assertNotVisible: "Blocked"
+- tapOn: "Search"
+- assertVisible: "Device Contacts"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- scrollUntilVisible:
+    element: "E2E Unregistered"
+    direction: DOWN
+    timeout: 90000
+- scrollUntilVisible:
+    element: "ZZ Page 43"
+    direction: DOWN
+    timeout: 90000
+- assertVisible: "ZZ Page 43"
+- scrollUntilVisible:
+    element: "E2E Unregistered"
+    direction: UP
+    timeout: 90000
+- assertNotVisible: "Send invite: E2E Target"
+- assertNotVisible: "^Send$"
+- tapOn: "Send invite: E2E Unregistered"
+- extendedWaitUntil:
+    visible: "Copy"
+    timeout: 30000
+- back
 - extendedWaitUntil:
     visible: ".*[Ss]earch.*users.*"
     timeout: 30000
 - tapOn: ".*[Ss]earch.*users.*"
 - inputText: ${EMAIL_2}
-# Search fires automatically on debounce; the target row (name "E2E Target")
-# must appear once it is mirrored into the users collection.
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-# Follow the target via the icon-only button (resource-id follow-btn) →
-# the icon flips to UserMinus (unfollow-btn) once the mutation lands.
+# Send and confirm a friend request.
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Send friend request"
+    timeout: 30000
+- tapOn: "Send friend request"
+- extendedWaitUntil:
+    visible:
+      id: "confirm-friend-request-btn"
+    timeout: 30000
+# Cancel returns to action rows without closing the sheet.
 - tapOn:
-    id: "follow-btn"
+    id: "cancel-confirmation-btn"
+- assertVisible: "Send friend request"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirm-friend-request-btn"
+    timeout: 30000
+# Actor sees the outgoing request.
+- tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
-- assertVisible:
-    id: "unfollow-btn"
-# Open the kebab action sheet (accessibility label "Actions") and block.
+- assertVisible: "Sent"
+# Cancel the outgoing request from its menu, then send it again.
+- tapOn: "Actions"
+- tapOn: "Cancel friend request"
+- tapOn:
+    id: "confirm-cancel_friend_request-btn"
+- extendedWaitUntil:
+    visible: "No friend requests"
+    timeout: 30000
+- tapOn: "Search"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- tapOn: "Actions"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- tapOn: "Requests"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+
+# Switch to target and reject the incoming request.
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Logout"
+    timeout: 60000
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD_2}
+- tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn:
+    id: "notifications-button"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - assertNotVisible: "View all notifications"
+      - tapOn: "Allow"
+      - extendedWaitUntil:
+          visible: "View all notifications"
+          timeout: 30000
+      - assertNotVisible: "Open notification settings"
+- extendedWaitUntil:
+    visible: "New friend request"
+    timeout: 30000
+- assertVisible: "View all notifications"
+- tapOn: "View all notifications"
+- extendedWaitUntil:
+    visible: "Notifications"
+    timeout: 30000
+- assertVisible: "Mark all as read"
+- tapOn: "Mark all as read"
+- extendedWaitUntil:
+    notVisible: "Mark all as read"
+    timeout: 30000
+- tapOn: "New friend request"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- assertVisible: "Received"
+- tapOn: "Actions"
+- tapOn: "Decline friend request"
+- tapOn:
+    id: "confirm-reject_friend_request-btn"
+- extendedWaitUntil:
+    notVisible: "E2E Test"
+    timeout: 30000
+- tapOn:
+    id: "notifications-button"
+- tapOn: "View all notifications"
+- assertVisible: "New friend request"
+- tapOn:
+    id: "delete-notification-.*"
+- assertVisible: "Delete notification?"
+- tapOn: "Delete notification"
+- extendedWaitUntil:
+    notVisible: "New friend request"
+    timeout: 30000
+- back
+
+# Switch back to actor and send the rejected request again.
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD}
+- tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Contacts"
+- tapOn: "Search"
+- tapOn: ".*[Ss]earch.*users.*"
+- inputText: ${EMAIL_2}
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- tapOn: "Actions"
+- tapOn: "Send friend request"
+- tapOn:
+    id: "confirm-friend-request-btn"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirm-friend-request-btn"
+    timeout: 30000
+
+# Switch to target, accept, and verify the Friends tab.
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME_2}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD_2}
+- tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn: "Contacts"
+- tapOn: "Requests"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 60000
+- tapOn: "Actions"
+- tapOn: "Accept friend request"
+- tapOn:
+    id: "confirm-accept_friend_request-btn"
+- tapOn: "Connections"
+- extendedWaitUntil:
+    visible: "E2E Test"
+    timeout: 30000
+
+# Return to actor, verify friendship, then exercise follow/block cleanup.
+- tapOn: "Profile"
+- tapOn: "Logout"
+- extendedWaitUntil:
+    visible: "Welcome to Board Game Organizer"
+    timeout: 120000
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
+- inputText: ${USERNAME}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter [Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter [Pp]assword.*"
+- inputText: ${PASSWORD}
+- tapOn: "Continue"
+- runFlow: "../helpers/verify-clerk-device.yaml"
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- tapOn:
+    id: "notifications-button"
+- extendedWaitUntil:
+    visible: "Friend request accepted"
+    timeout: 30000
+- tapOn: "Friend request accepted"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 30000
+- assertVisible: "Friends"
+# One menu action removes friendship and refreshes every list.
+- tapOn: "Actions"
+- tapOn: "Remove friend"
+- tapOn:
+    id: "confirm-unfriend-btn"
+- extendedWaitUntil:
+    notVisible: "Friends"
+    timeout: 30000
+- tapOn: "Search"
+- tapOn: ".*[Ss]earch.*users.*"
+- inputText: ${EMAIL_2}
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Follow"
+    timeout: 30000
+- tapOn: "Follow"
+- tapOn: "Connections"
+- extendedWaitUntil:
+    visible: "Following"
+    timeout: 30000
+- tapOn: "Search"
+- tapOn: "Actions"
+- extendedWaitUntil:
+    visible: "Unfollow"
+    timeout: 30000
+- tapOn: "Unfollow"
+# Block hides the target.
 - tapOn: "Actions"
 - extendedWaitUntil:
     visible: "Block"
     timeout: 30000
 - tapOn: "Block"
-# Confirmation view: confirm the block (testID confirm-block-btn).
 - extendedWaitUntil:
     visible:
       id: "confirm-block-btn"
     timeout: 30000
 - tapOn:
     id: "confirm-block-btn"
-# The blocked user must disappear from search results (blockedByMe policy).
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000
-# Blocked tab lists the target; unblock via kebab → search shows them again.
-- tapOn: "Blocked"
+- tapOn: "Requests"
+- assertNotVisible: "E2E Target"
+- tapOn: "Connections"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
+- assertVisible: "Blocked"
 - tapOn: "Actions"
 - extendedWaitUntil:
     visible: "Unblock"
     timeout: 30000
 - tapOn: "Unblock"
+- tapOn:
+    id: "confirm-unblock-btn"
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000

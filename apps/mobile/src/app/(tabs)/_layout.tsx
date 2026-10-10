@@ -1,32 +1,29 @@
-import { useAuth } from "@clerk/expo";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
+import { useAuth, useUser } from "@clerk/expo";
+import { Redirect, Tabs, useRouter } from "expo-router";
+import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
-import { useEffect } from "react";
+import {
+  CalendarDays,
+  ContactRound,
+  Dices,
+  ShieldCheck,
+  UserRound,
+  UsersRound,
+} from "lucide-react-native";
 import { Platform, View } from "react-native";
 
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useT } from "@/lib/i18n";
 
-/**
- * Guard: the tabs are only reachable when authenticated. After sign-out the
- * Clerk state flips and this layout redirects back to the welcome screen.
- * Uses router.replace in an effect (NOT a rendered <Redirect>); the pathname
- * check prevents a ping-pong with the index screen's guard while Clerk's auth
- * state settles.
- */
 export default function TabLayout() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { isLoaded: isUserLoaded, user } = useUser();
   const t = useT();
   const router = useRouter();
-  const pathname = usePathname();
 
-  useEffect(() => {
-    if (isLoaded && !isSignedIn && pathname !== "/") {
-      router.replace("/");
-    }
-  }, [isLoaded, isSignedIn, router, pathname]);
-
-  if (!isLoaded) {
+  if (!isAuthLoaded || (isSignedIn && !isUserLoaded)) {
     return (
       <View
         style={{
@@ -37,56 +34,81 @@ export default function TabLayout() {
           backgroundColor: "transparent",
         }}
       >
-        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 48, borderRadius: 8 }} />
-        <Skeleton isLoading variant="pulse" style={{ width: 128, height: 16, borderRadius: 4 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: 192, height: 32, borderRadius: 8 }} />
+        <Skeleton isLoading variant="pulse" style={{ width: "80%", height: 16, borderRadius: 4 }} />
       </View>
     );
   }
 
-  if (!isSignedIn) {
-    return null; // the effect above navigates back to the welcome screen
-  }
+  if (!isSignedIn) return <Redirect href="/" />;
+  if (!getMobileNumber(user?.unsafeMetadata)) return <Redirect href="/mobile-number" />;
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#006fee",
         animation: Platform.OS === "android" ? "none" : "fade",
+        headerRight: () => (
+          <View style={{ marginRight: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <NotificationBell />
+            {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={t("Organization moderation")}
+                style={{ minHeight: 44, minWidth: 44 }}
+                onPress={() => router.push("/moderation")}
+              >
+                <ShieldCheck size={20} color="#737373" />
+              </Button>
+            ) : null}
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              accessibilityLabel={t("Profile")}
+              testID="profile-button"
+              style={{ minHeight: 36, minWidth: 36 }}
+              onPress={() => router.push("/profile")}
+            >
+              <UserRound size={20} color="#737373" />
+            </Button>
+          </View>
+        ),
       }}
     >
       <Tabs.Screen
         name="matches"
         options={{
           title: t("Matches"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="home" color={color} />,
+          headerTitle: () => <HeaderTitle title={t("Matches")} icon={Dices} />,
+          tabBarIcon: ({ color }) => <Dices size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name="groups"
         options={{
-          title: t("Groups"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="users" color={color} />,
+          title: t("Community"),
+          headerTitle: () => <HeaderTitle title={t("Community")} icon={UsersRound} />,
+          tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="organizations"
+        name="events"
         options={{
-          title: t("Organizations"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="cog" color={color} />,
+          title: t("Events"),
+          headerTitle: () => <HeaderTitle title={t("Events")} icon={CalendarDays} />,
+          tabBarIcon: ({ color }) => <CalendarDays size={26} color={color} />,
         }}
       />
+      <Tabs.Screen name="organizations" options={{ href: null }} />
       <Tabs.Screen
         name="contacts"
         options={{
           title: t("Contacts"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="address-book" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t("Profile"),
-          tabBarIcon: ({ color }) => <FontAwesome size={28} name="user" color={color} />,
+          headerTitle: () => <HeaderTitle title={t("Contacts")} icon={ContactRound} />,
+          tabBarIcon: ({ color }) => <ContactRound size={26} color={color} />,
         }}
       />
     </Tabs>

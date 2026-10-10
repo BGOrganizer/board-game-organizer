@@ -1,10 +1,4 @@
-import { Text } from "heroui-native/text";
-import { View } from "react-native";
-
+import { CommunitySection } from "@/components/community/CommunitySection";
 export default function GroupsScreen() {
-  return (
-    <View className="flex-1 items-center justify-center bg-background">
-      <Text className="text-muted">Tab [Groups]</Text>
-    </View>
-  );
+  return <CommunitySection />;
 }

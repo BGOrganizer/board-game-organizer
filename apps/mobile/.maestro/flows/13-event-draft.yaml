@@ -1,0 +1,249 @@
+appId: com.bgo.mobile
+---
+# Run after 12-organizations. No provider bypass: pending organizations cannot publish.
+- launchApp
+- tapOn: "Events"
+- assertNotVisible: "New event"
+- assertVisible:
+    id: "list-filter-future"
+- assertVisible:
+    id: "list-filter-past"
+- tapOn:
+    id: "list-filter-future"
+- tapOn:
+    id: "list-filter-past"
+- extendedWaitUntil:
+    visible: "No events found"
+    timeout: 30000
+- tapOn:
+    id: "list-filter-future"
+- tapOn:
+    id: "list-filter-past"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-event"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No events found"
+    timeout: 30000
+- tapOn: "Clear search"
+- hideKeyboard
+- assertNotVisible: "Clear search"
+- tapOn: "Community"
+- tapOn:
+    id: "community-tab-organizations"
+- tapOn: "Maestro community club updated"
+- tapOn:
+    id: "organization-tab-events"
+- assertVisible:
+    id: "events-scroll"
+- tapOn:
+    id: "new-organization-event-fab"
+- assertVisible: "Event detail"
+- tapOn: "Event name"
+- inputText: "Maestro summer event"
+- hideKeyboard
+- assertNotVisible: "Time zone"
+- assertNotVisible: "Event detail: Field help"
+- tapOn: "Event name: Field help"
+- assertVisible: "Choose an event name with 5–120 characters.*"
+- back
+- tapOn: "Event date: Field help"
+- assertVisible: "Choose the event day.*"
+- back
+- tapOn:
+    id: "event-date-calendar"
+- runFlow:
+    file: ../helpers/event-date.yaml
+    env:
+      DATE: "06/12/2030"
+- tapOn:
+    id: "event-start-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "00"
+- tapOn:
+    id: "event-end-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "18"
+      MINUTE: "00"
+- tapOn: "Booking deadline: Field help"
+- assertVisible: "Hours before the event starts.*"
+- back
+- tapOn: "Booking deadline (hours before start)"
+- eraseText
+- inputText: "24"
+- hideKeyboard
+- assertVisible:
+    id: "event-next-fab"
+- assertNotVisible:
+    id: "event-back-fab"
+- scrollUntilVisible:
+    element:
+      text: "Choose the event address"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Choose the event address"
+- tapOn: "Location name"
+- inputText: "Event club"
+- tapOn: "Search address"
+- inputText: "Via Roma Milano"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "address-result-0"
+    timeout: 30000
+- tapOn:
+    id: "address-result-0"
+- tapOn: "Confirm location"
+- tapOn:
+    id: "event-next-fab"
+- assertVisible: "Event day.*"
+- assertVisible: "Start time"
+- assertVisible: "End time"
+- tapOn: "Tables: Field help"
+- assertVisible: "Add up to 20 tables.*"
+- back
+- tapOn: "Add table"
+- assertVisible:
+    id: "event-table-header-back"
+- assertNotVisible:
+    id: "event-table-back-fab"
+- tapOn:
+    id: "event-table-header-back"
+- assertVisible: "Add table"
+- tapOn: "Add table"
+- tapOn: "Table name"
+- eraseText
+- inputText: "Cascadia event table"
+- hideKeyboard
+- tapOn:
+    id: "event-table-startsAt-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "00"
+- assertVisible: "Choose a time within the allowed range."
+- tapOn:
+    id: "event-table-startsAt-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "14"
+      MINUTE: "30"
+- assertNotVisible: "Choose a time within the allowed range."
+- tapOn:
+    id: "event-table-endsAt-calendar"
+- runFlow:
+    file: ../helpers/event-time.yaml
+    env:
+      HOUR: "17"
+      MINUTE: "30"
+- tapOn: "Select a board game"
+- tapOn: "Search board games"
+- inputText: "Cascadia"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Select: Cascadia"
+    timeout: 30000
+- tapOn: "Select: Cascadia"
+- assertVisible: "Configure table"
+- scrollUntilVisible:
+    element:
+      text: "Global ratings enabled"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Global ratings enabled"
+- scrollUntilVisible:
+    element:
+      text: "Save table"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Save table"
+- assertVisible: "Cascadia event table"
+- assertVisible: "Global ratings enabled"
+- tapOn:
+    id: "event-next-fab"
+- assertVisible: "Maestro summer event"
+- assertVisible: "Event day.*"
+- assertVisible: "Event location"
+- assertVisible: "Tables"
+- scrollUntilVisible:
+    element:
+      text: "Publish event"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Publish event"
+- extendedWaitUntil:
+    visible: "Could not save event. Check your connection and event permissions, then try again."
+    timeout: 30000
+- assertVisible: "Maestro summer event.*"
+- tapOn: "Save draft"
+- extendedWaitUntil:
+    visible: "Maestro summer event"
+    timeout: 30000
+- assertVisible:
+    id: "event-tab-details"
+- assertVisible:
+    id: "cancel-event-header"
+- assertVisible:
+    id: "edit-event-fab"
+- tapOn:
+    id: "event-tab-tables"
+- assertVisible:
+    id: "edit-event-fab"
+- assertNotVisible: "Edit table: Cascadia event table"
+- assertNotVisible: "Remove table: Cascadia event table"
+- tapOn: "Open table: Cascadia event table"
+- assertVisible: "Table name"
+- assertVisible: "Cascadia event table"
+- assertNotVisible: "Open event table"
+- assertVisible:
+    id: "edit-event-table-fab"
+- tapOn:
+    id: "edit-event-table-fab"
+- assertVisible:
+    id: "event-table-header-back"
+- tapOn:
+    id: "event-table-header-back"
+- tapOn:
+    id: "table-players-tab"
+- assertVisible:
+    id: "event-table-players"
+- assertVisible: "Empty place"
+# Private drafts do not permit booking. Published pending approvals need a moderated organization.
+- assertNotVisible: "Request a place"
+- back
+- tapOn:
+    id: "event-tab-details"
+- assertVisible:
+    id: "edit-event-fab"
+- tapOn:
+    id: "edit-event-fab"
+- tapOn:
+    id: "event-next-fab"
+- tapOn: "Remove table: Cascadia event table"
+- tapOn:
+    id: "event-next-fab"
+- tapOn: "Save draft"
+- assertVisible: "Reset reservations"
+- tapOn: "Cancel"
+- assertVisible: "Save draft"
+- tapOn: "Save draft"
+# The destructive action and dialog heading share this label.
+- tapOn:
+    text: "Reset reservations"
+    index: 1
+- extendedWaitUntil:
+    visible: "Maestro summer event"
+    timeout: 30000
+- back
+- assertVisible:
+    id: "events-scroll"
+- assertVisible: "Open event: Maestro summer event,.*Draft.*Tables: 0, Confirmed participants: 0"

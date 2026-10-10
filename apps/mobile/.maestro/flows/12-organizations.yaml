@@ -1,0 +1,147 @@
+appId: com.bgo.mobile
+---
+# Preserve the authenticated account while making permission denial deterministic.
+- launchApp:
+    permissions:
+      camera: deny
+- tapOn: "Community"
+- tapOn:
+    id: "community-tab-organizations"
+- assertVisible:
+    id: "list-filter-requested"
+- tapOn:
+    id: "list-filter-admin"
+- tapOn:
+    id: "list-filter-invited"
+- tapOn:
+    id: "list-filter-accepted"
+- tapOn:
+    id: "list-filter-requested"
+- extendedWaitUntil:
+    visible: "No organizations found"
+    timeout: 30000
+- tapOn:
+    id: "list-filter-admin"
+- tapOn:
+    id: "list-filter-invited"
+- tapOn:
+    id: "list-filter-accepted"
+- tapOn:
+    id: "list-filter-requested"
+- assertNotVisible: "Clear search"
+- tapOn: "Search organizations: Search help"
+- assertVisible: "Type at least 4 characters to search"
+- back
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-organization"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No organizations found"
+    timeout: 30000
+- tapOn: "Clear search"
+- hideKeyboard
+- assertNotVisible: "Clear search"
+- tapOn: "New organization"
+- assertVisible: "New organization"
+- tapOn: "Organization name"
+- inputText: "Maestro community club"
+- hideKeyboard
+- tapOn: "Upload organization logo"
+- tapOn: "Camera"
+- runFlow:
+    when:
+      visible:
+        id: ".*:id/permission_deny.*button"
+    commands:
+      - tapOn:
+          id: ".*:id/permission_deny.*button"
+- assertVisible: "Camera permission is required"
+- tapOn: "Upload organization logo"
+- tapOn: "Photo library"
+- extendedWaitUntil:
+    visible: "Photo taken.*"
+    timeout: 30000
+- tapOn:
+    text: "Photo taken.*"
+    index: 0
+# System picker exposes only the selected image; no library permission request.
+- tapOn:
+    text: "Done"
+    optional: true
+- tapOn:
+    text: "Photo taken.*"
+    index: 0
+    optional: true
+- tapOn:
+    text: "Done"
+    optional: true
+- extendedWaitUntil:
+    visible: "Organization logo"
+    timeout: 30000
+- tapOn: "Choose a verified address"
+- tapOn: "Location name"
+- inputText: "Community club"
+- tapOn: "Search address"
+- inputText: "Via Roma Milano"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "address-result-0"
+    timeout: 30000
+- tapOn:
+    id: "address-result-0"
+- tapOn: "Confirm location"
+- assertVisible:
+    id: "organization-submit-bar"
+- tapOn: "Submit for review"
+- extendedWaitUntil:
+    visible: "Edit organization"
+    timeout: 30000
+- assertVisible: "Maestro community club"
+- assertVisible: "Awaiting review"
+- assertVisible: "Approved members: 1"
+- assertVisible: "Published events: 0"
+- tapOn:
+    id: "organization-tab-members"
+- assertVisible: "Invitations require an approved organization."
+- tapOn:
+    id: "organization-tab-details"
+# Updating a pending proposal still requires a versioned final submission.
+- tapOn: "Edit organization"
+- tapOn: "Organization name"
+- eraseText
+- inputText: "Maestro community club updated"
+- hideKeyboard
+- assertVisible:
+    id: "organization-submit-bar"
+- tapOn: "Submit for review"
+- extendedWaitUntil:
+    visible: "Edit organization"
+    timeout: 30000
+- assertVisible: "Maestro community club updated"
+- back
+- extendedWaitUntil:
+    visible:
+      id: "new-organization-fab"
+    timeout: 30000
+- tapOn:
+    id: "community-tab-search"
+- extendedWaitUntil:
+    visible: "Search groups and organizations"
+    timeout: 30000
+- assertVisible:
+    id: "list-filter-groups"
+- assertVisible:
+    id: "list-filter-organizations"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-community"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No results found"
+    timeout: 30000
+- tapOn: "Clear search"
+- hideKeyboard
+- assertNotVisible: "Clear search"

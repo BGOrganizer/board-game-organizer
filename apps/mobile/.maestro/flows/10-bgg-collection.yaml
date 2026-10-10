@@ -1,0 +1,58 @@
+appId: com.bgo.mobile
+---
+# BGG fixture lives only in run-scoped CI DB; no remote BoardGameGeek request.
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "bgg-e2e"
+    timeout: 60000
+- assertVisible: "Friends: .*"
+- assertVisible: "Matches played: .*"
+- assertVisible: "Powered by BoardGameGeek"
+- assertNotVisible: "Sync with BoardGameGeek"
+- tapOn: "Matches"
+- tapOn:
+    point: "90%,92%"
+- extendedWaitUntil:
+    visible: "New match"
+    timeout: 60000
+- tapOn: "Match name"
+- inputText: "BGG collection match"
+- tapOn: "Pick date time"
+- extendedWaitUntil:
+    visible: "OK|Done|Confirm|Set"
+    timeout: 30000
+- tapOn: "OK|Done|Confirm|Set"
+- tapOn:
+    point: "90%,92%"
+- extendedWaitUntil:
+    visible: "2:.*"
+    timeout: 60000
+- tapOn:
+    point: "90%,92%"
+- assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- extendedWaitUntil:
+    visible: "Collection"
+    timeout: 30000
+- assertVisible: "Cascadia"
+- tapOn: "Collection"
+- assertNotVisible: "Cascadia"
+- tapOn: "Collection"
+- assertVisible: "Cascadia"
+- back
+- back
+- tapOn: "Profile"
+- assertVisible: "bgg-e2e"
+- tapOn: "Disconnect BoardGameGeek"
+- assertVisible: "Disconnect BoardGameGeek?"
+- tapOn: "Cancel"
+- assertVisible: "bgg-e2e"
+- tapOn: "Disconnect BoardGameGeek"
+- tapOn: "Disconnect"
+- extendedWaitUntil:
+    visible: "Sync with BoardGameGeek"
+    timeout: 30000
+- assertNotVisible: "bgg-e2e"
+- tapOn: "Sync with BoardGameGeek"
+- assertVisible: "BGG username"
+- tapOn: "Cancel"

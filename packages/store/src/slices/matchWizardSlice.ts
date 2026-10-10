@@ -20,21 +20,34 @@ export interface SelectedGame {
   name: string;
   imageUrl: string | null;
   year: number | null;
+  average?: number | null;
+  rank?: number | null;
 }
 
+export interface SelectedLocation {
+  id: string;
+  name: string;
+  address: string;
+  longitude: number;
+  latitude: number;
+}
 export interface MatchWizardSlice {
   /** Pending selection written by a search page, keyed by slot id. */
   pendingUser: { slotId: string; user: SelectedUser } | null;
   pendingGame: { slotId: string; game: SelectedGame } | null;
+  pendingLocation: { slotId: string; location: SelectedLocation } | null;
   setPendingUser: (slotId: string, user: SelectedUser) => void;
   setPendingGame: (slotId: string, game: SelectedGame) => void;
+  setPendingLocation: (slotId: string, location: SelectedLocation) => void;
   clearPending: () => void;
 }
 
 export const createMatchWizardSlice: StateCreator<MatchWizardSlice, [], []> = (set) => ({
   pendingUser: null,
   pendingGame: null,
+  pendingLocation: null,
   setPendingUser: (slotId, user) => set({ pendingUser: { slotId, user } }),
   setPendingGame: (slotId, game) => set({ pendingGame: { slotId, game } }),
-  clearPending: () => set({ pendingUser: null, pendingGame: null }),
+  setPendingLocation: (slotId, location) => set({ pendingLocation: { slotId, location } }),
+  clearPending: () => set({ pendingUser: null, pendingGame: null, pendingLocation: null }),
 });

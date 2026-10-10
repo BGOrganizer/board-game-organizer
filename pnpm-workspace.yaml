@@ -2,7 +2,12 @@ packages:
   - "apps/*"
   - "packages/*"
 
+nodeLinker: hoisted
+virtualStoreDirMaxLength: 32
+
 overrides:
+  react: "19.2.3"
+  react-dom: "19.2.3"
   utf-8-validate: "5.0.10"
 
 peerDependencyRules:
@@ -10,6 +15,7 @@ peerDependencyRules:
     "@gorhom/bottom-sheet>react-native-reanimated": ">=3.16.0"
 
 allowBuilds:
+  '@firebase/util': true
   '@sentry/cli': true
   browser-tabs-lock: true
   bufferutil: true
@@ -21,3 +27,24 @@ allowBuilds:
   ssh2: false
   unrs-resolver: true
   utf-8-validate: true
+
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.25 || 57.0.28'
+  - '@expo/router-server@57.0.10 || 57.0.12'
+  - babel-preset-expo@57.0.12 || 57.0.14
+  - expo@57.0.23 || 57.0.26 || 57.0.27
+  - expo-notifications@57.0.19 || 57.0.22
+  - expo-constants@57.0.20 || 57.0.21
+  - expo-modules-core@57.0.20 || 57.0.21
+  - '@expo/ui@57.0.21 || 57.0.22'
+  - expo-router@57.0.24 || 57.0.25
+  - '@expo/config-plugins@57.0.10'
+  - '@expo/config@57.0.10'
+  - '@expo/image-utils@0.11.6'
+  - '@expo/metro-config@57.0.13'
+  - '@expo/metro-file-map@57.0.4'
+  - '@expo/prebuild-config@57.0.17'
+  - '@expo/require-utils@57.0.6'
+  - expo-asset@57.0.19
+  - expo-modules-autolinking@57.0.14
+  - expo-linking@57.0.12

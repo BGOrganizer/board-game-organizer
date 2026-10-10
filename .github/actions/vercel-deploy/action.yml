@@ -1,15 +1,15 @@
 name: Vercel Deploy
-description: Deploys an app to Vercel (preview or production) using the prebuilt output.
+description: Builds and deploys source on Vercel, preserving Infisical-synced Secrets.
 
 inputs:
   app-name:
     description: Human-readable app name for comments
     required: true
   app-path:
-    description: App root inside the monorepo (Vercel rootDirectory)
+    description: App workspace to build and publish inside the monorepo
     required: true
   vercel-environment:
-    description: Vercel environment to pull (preview or production)
+    description: Vercel deployment environment (preview or production)
     required: true
   production:
     description: Build/deploy with --prod (true/false as string)
@@ -29,9 +29,12 @@ inputs:
     required: true
   extra-env:
     description: >-
-      Optional multi-line KEY=value build-time env overrides injected into the
-      pulled environment file before `vercel build` (used to point previews at
-      sibling preview deployments, e.g. NEXT_PUBLIC_API_URL).
+      Optional multi-line KEY=value overrides scoped to this deployment's build
+      and runtime (e.g. NEXT_PUBLIC_API_URL); never updates project variables.
+    required: false
+    default: ''
+  ci-db-name:
+    description: Ephemeral E2E database; validates base webhook routing before build override, and overrides runtime.
     required: false
     default: ''
 
@@ -39,6 +42,9 @@ outputs:
   deployment-url:
     description: Deployment URL
     value: ${{ steps.deploy.outputs.url }}
+  ci-db-name:
+    description: Isolated database tied to this deployment, including on partial reruns
+    value: ${{ inputs.ci-db-name }}
 
 runs:
   using: composite
@@ -74,91 +80,58 @@ runs:
           },
         };
         fs.writeFileSync(path, JSON.stringify(next, null, 2));
-        console.log(`Vercel rootDirectory=${next.settings.rootDirectory}`);
+        const app = { 'apps/api': 'api', 'apps/web': 'web' }[process.env.VERCEL_APP_PATH];
+        if (!app) throw new Error('Unsupported Vercel app workspace');
+        fs.writeFileSync('.vercel/deploy.json', JSON.stringify({
+          framework: 'nextjs',
+          buildCommand: `pnpm --filter ${app} build`,
+          outputDirectory: `${process.env.VERCEL_APP_PATH}/.next`,
+        }, null, 2));
+        console.log(`Vercel workspace=${app}`);
         NODE
-
-    - name: 🔗 Pull Vercel environment
-      shell: bash
-      env:
-        VERCEL_TOKEN: ${{ inputs.vercel-token }}
-        VERCEL_ENVIRONMENT: ${{ inputs.vercel-environment }}
-      run: vercel pull --yes --environment="$VERCEL_ENVIRONMENT" --token="$VERCEL_TOKEN"
-
-    - name: 🩹 Force Vercel monorepo root
-      shell: bash
-      env:
-        VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
-        VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
-        VERCEL_APP_PATH: ${{ inputs.app-path }}
-      run: |
-        node <<'NODE'
-        const fs = require('fs');
-        const path = '.vercel/project.json';
-        const current = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, 'utf8')) : {};
-        const next = {
-          ...current,
-          orgId: process.env.VERCEL_ORG_ID,
-          projectId: process.env.VERCEL_PROJECT_ID,
-          settings: {
-            ...(current.settings || {}),
-            rootDirectory: process.env.VERCEL_APP_PATH,
-          },
-        };
-        fs.writeFileSync(path, JSON.stringify(next, null, 2));
-        console.log(`Vercel rootDirectory=${next.settings.rootDirectory}`);
-        NODE
-
-    - name: 🔧 Inject build-time env overrides
-      shell: bash
-      env:
-        EXTRA_ENV: ${{ inputs.extra-env }}
-        VERCEL_ENVIRONMENT: ${{ inputs.vercel-environment }}
-      run: |
-        if [ -z "$EXTRA_ENV" ]; then
-          echo "No extra env to inject"
-          exit 0
-        fi
-        env_file=".vercel/.env.${VERCEL_ENVIRONMENT}.local"
-        node -e '
-          const fs = require("fs");
-          const [f, extra] = process.argv.slice(1);
-          const overrides = extra.split("\n").map(l => l.trim()).filter(l => l.includes("=") && l.split("=")[1].length > 0);
-          const keys = new Set(overrides.map(l => l.split("=")[0].trim()));
-          const existing = fs.existsSync(f) ? fs.readFileSync(f, "utf8").split("\n") : [];
-          const kept = existing.filter(l => {
-            const k = l.split("=")[0].trim();
-            return !k || !keys.has(k);
-          });
-          fs.writeFileSync(f, [...kept, ...overrides].filter(Boolean).join("\n") + "\n");
-          console.log("Injected:", overrides.map(l => l.split("=")[0]).join(", "));
-        ' "$env_file" "$EXTRA_ENV"
-
-    - name: 🔨 Build
-      shell: bash
-      env:
-        VERCEL_TOKEN: ${{ inputs.vercel-token }}
-      run: |
-        prod_flag=''
-        if [ '${{ inputs.production }}' = 'true' ]; then
-          prod_flag='--prod'
-        fi
-        vercel build $prod_flag --token="$VERCEL_TOKEN"
 
     - name: 🚀 Deploy
       id: deploy
       shell: bash
       env:
         VERCEL_TOKEN: ${{ inputs.vercel-token }}
+        VERCEL_ENVIRONMENT: ${{ inputs.vercel-environment }}
+        PRODUCTION: ${{ inputs.production }}
+        APP_PATH: ${{ inputs.app-path }}
+        CI_DB_NAME: ${{ inputs.ci-db-name }}
+        EXTRA_ENV: ${{ inputs.extra-env }}
       run: |
-        prod_flag=''
-        if [ '${{ inputs.production }}' = 'true' ]; then
-          prod_flag='--prod'
+        set -euo pipefail
+        flags=(--yes --local-config .vercel/deploy.json --token "$VERCEL_TOKEN")
+        if [ "$PRODUCTION" = 'true' ]; then
+          test "$VERCEL_ENVIRONMENT" = 'production'
+          flags+=(--prod)
+        else
+          test "$PRODUCTION" = 'false'
+          test "$VERCEL_ENVIRONMENT" = 'preview'
         fi
-        url=$(vercel deploy --prebuilt $prod_flag --token="$VERCEL_TOKEN")
+        if [ -n "$CI_DB_NAME" ]; then
+          test "$PRODUCTION" = 'false'
+          test "$APP_PATH" = 'apps/api'
+          [[ "$CI_DB_NAME" =~ ^bgo_ci_[1-9][0-9]*_[1-9][0-9]*$ ]] || exit 1
+          # The remote API build validates Infisical's base DB/webhook pair first.
+          flags+=(--build-env "BGO_CI_DB_NAME=$CI_DB_NAME" --env "MONGODB_DB_NAME=$CI_DB_NAME")
+        fi
+        while IFS= read -r line; do
+          [ -z "$line" ] && continue
+          [[ "$line" =~ ^([A-Z][A-Z0-9_]*)=(.+)$ ]] || exit 1
+          key="${BASH_REMATCH[1]}"
+          value="${BASH_REMATCH[2]}"
+          test "$key" != 'BGO_CI_DB_NAME'
+          test "$value" != '[SENSITIVE]'
+          if [ -n "$CI_DB_NAME" ]; then test "$key" != 'MONGODB_DB_NAME'; fi
+          flags+=(--build-env "$key=$value" --env "$key=$value")
+        done <<< "$EXTRA_ENV"
+        url=$(vercel deploy "${flags[@]}")
         echo "url=$url" >> "$GITHUB_OUTPUT"
 
     - name: 📝 Comment Preview URL
-      if: ${{ inputs.production == 'false' }}
+      if: ${{ inputs.production == 'false' && github.event_name == 'pull_request' }}
       uses: actions/github-script@v7
       env:
         APP_NAME: ${{ inputs.app-name }}

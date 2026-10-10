@@ -1,0 +1,24 @@
+appId: com.bgo.mobile
+name: Organization review — isolated pending proposal
+---
+# Manual acceptance only. Requires a genuinely signed-in BGO moderator and an
+# isolated pending proposal at REVIEW_LINK. Run once per decision with separate
+# fixtures: DECISION=Approve or Reject, REASON=a nonempty correction reason.
+# No role/auth bypass, conditional skip or production mutation.
+- openLink: ${REVIEW_LINK}
+- extendedWaitUntil:
+    visible: "Manage organization"
+    timeout: 30000
+- tapOn: "Manage organization: Manage organization"
+- assertVisible: "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+- back
+- assertVisible: "Reject reason"
+- assertVisible: "Approve organization"
+- assertVisible: "Reject organization"
+- tapOn: "Rejection reason"
+- inputText: ${REASON}
+- hideKeyboard
+- tapOn: "${DECISION} organization"
+- extendedWaitUntil:
+    visible: "Organization moderation"
+    timeout: 30000

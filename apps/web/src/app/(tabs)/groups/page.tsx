@@ -1,10 +1,10 @@
-import { initServerI18n } from "@/lib/i18n";
+import { CommunitySection } from "@/components/community/CommunitySection";
+import { Groups } from "@/components/groups/Groups";
 
-export default async function Groups() {
-  await initServerI18n();
+export default function GroupsPage() {
   return (
-    <div className="flex justify-center">
-      <p className="text-sm text-default-500">Groups — coming soon</p>
-    </div>
+    <CommunitySection selected="groups">
+      <Groups />
+    </CommunitySection>
   );
 }

@@ -1,682 +1,940 @@
 # AGENTS.md
 
-Guidance for AI agents working on the **Board Game Organizer** monorepo.
+Instructions for coding agents working on **Board Game Organizer**.
 
-## Project Overview
+## 1. Source of truth
 
-Multi-platform app for organizing board game sessions, collections, groups, and player stats.
-Users authenticate with **Clerk** (user identity = Clerk user ID, no local users table); the API enriches
-profiles/relationships from the Clerk API on demand. Data lives in **MongoDB**.
+Read this file before changing code. Then inspect the files touched by the task and every caller of
+shared code being changed. Prefer current code and workflow files over historical notes.
 
-Currently in early stage: auth, web/mobile shells with tab navigation, and a first API feature
-(follow/friend/block "relationships") are implemented. Most pages are placeholders.
+Core rules:
 
-## Stack & Structure
+- Keep changes small, complete, and tested.
+- Keep user-facing feature behavior in parity across web and mobile unless a platform exception is
+  explicit.
+- Internationalize every user-facing string and update both English and Italian catalogs.
+- Fix root causes in shared code instead of patching each caller.
+- Do not add speculative abstractions, dependencies, or scaffolding.
+- Within each app, reuse components when screens share a real layout or interaction pattern. Prefer
+  small composable pieces that remove duplication; do not force different users, games, and dates
+  into one component with many conditional branches. Keep web and mobile UI components
+  platform-specific.
+- Never weaken validation, authentication, authorization, accessibility, or data-safety checks.
+- Never commit credentials, private MCP configuration, or generated environment files. Tracked
+  `.env.example` templates may contain names and placeholders only.
+- Use **Biome**, not ESLint or Prettier.
+- Use `import type` for type-only imports.
+- Honor the operator's branch, commit, and push scope; local-only work must stay local.
+- Open a pull request only when the user explicitly asks.
+- Read applicable existing domain/operations documents before changing that area; link them rather
+  than duplicating their specifications. This file and README describe current behavior, not a roadmap.
 
-pnpm + Turborepo monorepo. TypeScript everywhere. **Biome** for lint/format (no ESLint/Prettier).
+### Agent skills
 
-```
+Skills are task-scoped guides, not authority to expand a task. Resolve conflicts in this order:
+
+1. the explicit user request;
+2. this `AGENTS.md` and repository invariants;
+3. current code, tests, workflows, installed package types, and official documentation;
+4. skill guidance and generic examples.
+
+Before implementation:
+
+- Inventory with `pnpm dlx skills@latest list --agent pi`. Pi also discovers `.agents/skills`
+  directly: `Agents: not linked` does not prove absence. Verify actual Pi discovery/diagnostics or
+  `/skill:<name>`. A CLI success message is not proof that canonical files or links were removed.
+- Select explicit skill names and `--agent pi` on installation, in project scope; do not install
+  whole vendor collections. Managed sources/integrity live in `skills-lock.json`; the tracked
+  project-authored guide is `.pi/skills/bgo-component-architecture/SKILL.md`.
+- Load the smallest applicable set. Read bundled references only as needed; inspect bundled scripts
+  before executing them. Prefer first-party guides and verify community advice against installed
+  versions. This file references guides; do not duplicate their full bodies here.
+- If a global skill has the same name, inspect diagnostics and use the project's locked guide
+  explicitly rather than assuming which copy `/skill:<name>` selected. Do not delete global skills
+  or Pi packages as a project cleanup side effect.
+- Do not hand-edit installed vendor skills or integrity records outside an explicit skill-management
+  task. Retained guides must not be upgraded incidentally while installing another guide.
+- No skill may add npm/yarn, ESLint, Prettier, Expo web, another UI system, duplicated server state,
+  speculative abstractions, or unrequested packages/configuration. Generic routers may reference
+  removed/uninstalled siblings: use the selected set or official docs, not an automatic reinstall.
+- Installed for future use does not mean implemented, enabled, or authorized. Report the skill names
+  actually used, not every available guide. Skill installation does not prove runtime acceptance.
+
+Load skills by affected task:
+
+| Task | Skills and repository-specific scope |
+| --- | --- |
+| React/Next.js implementation and performance | `vercel-react-best-practices`; TanStack Query, not suggested SWR, owns remote data |
+| Component architecture, extraction, or feature ownership | `bgo-component-architecture`, then `vercel-composition-patterns` and the relevant platform guide |
+| Web UI/accessibility | `heroui-react` while implementing; `web-design-guidelines` for final review |
+| React Native rendering/lists/performance | `vercel-react-native-skills`; no automatic FlashList, NativeWind, or alternative UI dependency |
+| General Expo work/navigation | `expo-overview`, then `expo-router` only for touched routes/layouts/links/headers; generic `@expo/ui` routing is not applicable here |
+| Native animation/gestures | `expo-animation` |
+| Native requests/cache/offline/loaders | `expo-data-fetching` and `tanstack-query-development`; no SWR or duplicated server state |
+| Native development clients/integration | `expo-dev-client`; `expo-examples` only for a version-matched official example |
+| MapTiler maps/verified address search | `maptiler` and relevant platform guides; native MapLibre requires installed types/version-matched docs, not the guide's React Native GL JS tutorial |
+| Expo/native dependency upgrade | `expo-upgrade`; Expo compatibility and exact mobile pins remain authoritative |
+| EAS build/signing/store delivery | `eas-app-stores`; no provisioning or publication beyond requested scope |
+| Mobile components/styling | `heroui-native`, `uniwind`; explicit structural style objects remain required |
+| Native design consistency audit | `expo-design-system`, `heroui-native`, `uniwind`; extend existing CSS/tokens, never create a second theme or copy fallback custom controls/spinners |
+| Clerk authentication | `clerk`, then only applicable `clerk-nextjs-patterns`, `clerk-expo`, `clerk-backend-api`, `clerk-cli`, `clerk-webhooks`, `clerk-testing`, or `clerk-custom-ui` |
+| Query keys/hooks/mutations/paging/hydration | `tanstack-query-development`; preserve Section 6 ownership, fresh tokens, cancellation, and selective rollback |
+| Local state/drafts | `zustand-state-management`; never mirror Query data |
+| Web Playwright tests/debugging | `playwright-best-practices`; add `clerk-testing` for authenticated flows; mocks/skips/fabricated reports are not real acceptance |
+| Native Maestro flows | Existing flows/CI rules and version-matched official docs; no unreviewed community skill or Limrun/cloud dependency |
+| Lingui/localization | `lingui-best-practices`; web macros, mobile `useT`/`translate`, EN/IT source and compiled catalogs; no mobile Babel or suggested ESLint plugin |
+| Existing native Sentry integration | `sentry-react-native-sdk`; verify installed SDK/Expo APIs and existing release/Fabric safeguards; no new web/API instrumentation or SDK upgrade |
+| Development secret injection | `infisical-user-setup-guide`, with its CLI local-development reference; explicit per-app/environment scope, not a root Turbo process receiving every app's secrets |
+
+**Clerk Organizations are never BGO organizations.** BGO organizations, moderation, membership,
+permissions, and events belong to the BGO MongoDB/API domain. Do not load `clerk-orgs` for a BGO
+organization task or map BGO membership/authorization onto Clerk tenancy without an explicit domain
+change request. Shared naming is not shared identity or authority.
+
+Use MapTiler and installed MapLibre APIs, not Mapbox integration examples. Verified addresses and
+attribution remain mandatory. This product is noncommercial; comply with applicable quotas and
+storage/plan terms rather than inventing a commercial-subscription requirement.
+
+HeroUI and Uniwind supply the existing design system. Generic Expo examples for `@expo/ui`, native
+palette files, custom Buttons, or spinners do not supersede available HeroUI controls, existing
+CSS/tokens, or skeleton/cached-content policy. Tailwind v4 CSS advice does not apply indiscriminately
+to native structural layout. Use current library docs and established flows.
+
+Sentry examples do not authorize PII collection, replay/profiling/logging changes, sample-rate
+increases, or enabling replay/feedback in production. Preserve existing release/Fabric safeguards.
+Existing `sendDefaultPii: true` requires a separate explicit privacy review, not silent change from
+skill installation. Never put tokens, secrets, address-book data, or arbitrary request bodies in
+logs/breadcrumbs. Infisical injection likewise does not authorize credential rotation, Production,
+CORS, Vercel-sync, or identity/permission changes. Never log/export/commit private values or bake
+secrets into images. Client `NEXT_PUBLIC_*`/`EXPO_PUBLIC_*` values are public even if labeled Secret.
+
+### Component ownership and shared behavior
+
+- Keep Next.js and Expo Router entry files in their apps. Keep DOM/HeroUI web and React Native/
+  HeroUI Native structure, layout, navigation, permissions, accessibility, and refs platform-owned.
+- Share actual platform-independent behavior via pure functions and hooks. Not every non-JSX hook
+  belongs in `shared`: Clerk/environment/feedback/native adapters remain in their respective apps.
+- A headless provider may share one workflow instance through context/children when a hook alone
+  is insufficient. It must not impose a universal page layout, host UI, platform flags, placeholder
+  slots, or duplicated Query/store data. Preserve narrow Next.js client boundaries.
+- One public/top-level component per file, named after it. Private components used only in that
+  module may remain there, defined at module scope rather than inside render. Framework route
+  metadata/configuration exports are allowed. Short local hooks/types/helpers need not each split.
+- Components should stay focused and readable. Around **400 implementation lines** warrants a
+  responsibility/branching/repeated-markup review, not a hard ceiling or lint/CI gate. Extract
+  cohesive pieces when it improves clarity/testing; do not fragment or add indirection just to
+  reduce line count. Total file lines including comments/types/private helpers are not complexity.
+- Use feature folders inside each app's `src/components`, such as `events`, `organizations`, or
+  `matches`. Promote to `common/ui` only for proven cross-feature reuse. No empty scaffolding,
+  giant barrels, private cross-feature imports, or replacement HeroUI kit.
+- Apply conventions to requested new/touched work. Do not rename/refactor the whole repository as
+  a side effect. Explicit refactors preserve all callers, EN/IT, coverage paths, and web/native
+  acceptance; a static folder test is not runtime behavior evidence.
+
+## 2. Product and current scope
+
+Board Game Organizer is a TypeScript monorepo for board-game contacts, matches, groups,
+organizations, and events across web and native mobile clients.
+
+Implemented product areas:
+
+- Clerk authentication on web and mobile.
+- Profile display and logout.
+- Social graph: follows, friend requests, friendships, blocks, user search, presence, and
+  contact-based suggestions.
+- Shareable invites with seven-day expiry and authenticated claim flow.
+- Match creation, listing, detail, and invitation lifecycle, including date slots, player limits,
+  friend invitations, board-game selection, and immutable result registration with standings.
+- Durable notification inboxes, unread state, and optional FCM/APNs push delivery.
+- BoardGameGeek catalog import, MongoDB-backed game search, and user collection synchronization.
+- English and Italian localization.
+- Web Playwright and mobile Maestro end-to-end coverage.
+
+Groups support friend-only invitations, accepted membership, public/private visibility metadata,
+admin editing and archival, optional attachment to planning matches, and per-game member
+leaderboards.
+
+Public-group and approved-organization discovery uses paginated, four-character searches.
+Organizations include verified addresses, logos, moderation, membership, ordinary removal, and
+organization-only exclusions; global social blocking remains separate. Events
+include private drafts, table configuration, invitations/bookings, exact-cutoff closure, and fixed
+matches with immutable results.
+
+Organizations/events are **implemented in this branch; acceptance is incomplete**, not
+production-verified. Publication does not require Inngest: exact-cutoff guards and authorized-read
+closure remain active. Inngest configuration is required for autonomous deadline execution.
+Read [the domain specification](docs/organizations-events.md) for behavior,
+[operational gates](docs/organizations-events-operations.md) for deployment and provider requirements,
+and [the implementation checkpoint](docs/implementation-progress.md) for evidence. Historical
+checkpoint authorization is not permission to push, provision, or mutate services in a new task.
+
+## 3. Repository structure
+
+The repository has nine workspace packages (three apps and six shared/configuration packages),
+plus the root project, managed with pnpm workspaces and Turborepo.
+
+```text
 apps/
-  web/      Next.js 16 (App Router, React 19) + Tailwind v4 + HeroUI (@heroui/react) + Clerk   → port 3000
-  api/      Next.js 16 route handlers + Clerk + MongoDB (raw driver, no ODM) + zod → port 4000
-  mobile/   Expo SDK 56 (RN 0.85, Expo Router, dev client) + Clerk + Sentry + heroui-native + uniwind
+  api/      Next.js routes, Clerk server auth, MongoDB services/repositories, zod validation
+  web/      Next.js App Router, React, HeroUI, Tailwind CSS, Clerk
+  mobile/   Expo Router native app, React Native, Clerk, Sentry, heroui-native, Uniwind
 packages/
-  store/              @board-game-organizer/store   Zustand store, slice pattern (UI state ONLY)
-  query/              @board-game-organizer/query   TanStack Query provider + client factory
-  shared/             @board-game-organizer/shared  shared types, API client + TanStack Query hooks
-  schemas/            @board-game-organizer/schemas  DB models (5 collections) + zod DTOs (Phase 0)
-  biome-config/       @board-game-organizer/biome-config
-  typescript-config/  @board-game-organizer/typescript-config (base / next / expo)
+  query/              TanStack Query client and provider
+  schemas/            Shared MongoDB models and zod DTOs
+  shared/             Shared API helpers, types, and TanStack Query hooks
+  store/              Zustand UI and draft-form state
+  biome-config/       Shared Biome configuration only
+  typescript-config/  Shared TypeScript configuration only
+messages/              Shared Lingui catalogs and compiled messages
+docs/                  Domain specifications, operational gates, implementation evidence
+docker/mongodb/        Local replica-set startup and BGG catalog import
+data/                  Local catalog CSV (ignored); tracked setup notes
+scripts/release/       Release versioning, changelog, and Telegram helpers
+.github/actions/       Local composite CI actions
+.github/workflows/     Branch, PR, release, mobile, and catalog-import workflows
+.agents/skills/         Shared project skills discovered by Pi and managed by the skills CLI
+.pi/skills/             Pi-specific project skills or links
+skills-lock.json        Locked skill sources and integrity metadata
 ```
 
-- **The Expo web target is NOT used** — never implement/maintain it; mobile is a native-only app.
-- UI on mobile = **heroui-native** components + **uniwind** (Tailwind-like) `className`s.
-  UI on web = **@heroui/react** components + Tailwind v4 classes. Both follow the same
-  HeroUI look. If a component can't be built with HeroUI, build a custom one that matches
-  HeroUI's aesthetic, always styled with uniwind/tailwind classes.
-- `apps/mobile` and `apps/web` are **specular**: same folder structure (route groups, tabs,
-  components). Reuse shared logic via `packages/shared`; only duplicate a component when it
-  cannot be shared (then keep one copy in each app, same path/name).
+Component structure inside **each** client:
 
-- Path alias `@/*` → `<app>/src/*` in all apps.
-- Workspace packages are consumed as source (`exports` point to `./src/index.ts`), no build step.
-- `biome.json` at root extends the shared `biome-config` (2-space indent, double quotes,
-  semicolons, trailing commas, 100 col width). Each app has its own `biome.json` too.
+```text
+src/
+  app/                  Next.js or Expo Router entries
+  components/
+    contacts/
+    matches/
+    groups/
+    organizations/
+    events/
+    profile/
+    common/ui/          Proven cross-feature reuse only
+  lib/                  Platform adapters and local helpers
+```
 
-## Commands (run from repo root)
+Feature-folder layout applies to both clients; do not share their UI components. Auth, games,
+locations, notifications, invites and ratings have their own feature folders too; cross-feature
+providers, navigation/layout and startup components live under `common`. Colocate component tests
+under the owning feature. Platform-specific contact/location/push helpers stay in each app's `lib`
+domain folders; shared platform adapters remain at its root.
+
+`packages/shared/src/<domain>` owns pure logic and Query hooks; `packages/schemas/src/<domain>` owns
+its `models`, `dto` and nearby tests. Keep shared cross-domain infrastructure at the package root or
+in `common`. `packages/store` retains slices; Query/configuration packages remain small and flat.
+
+API HTTP helpers, services, repositories and nearby tests live in
+`apps/api/src/app/lib/<domain>`. Existing route handlers are controllers: keep their paths/URLs and
+thin responsibilities; do not add controller classes, global layer silos, dependency injection or
+base repositories. General infrastructure such as database, CORS and Clerk helpers stays at the
+library root.
+
+Do not create empty feature directories. API scripts live in `apps/api/scripts`; web E2E lives in
+`apps/web/e2e`, and native E2E in `apps/mobile/.maestro/flows`.
+
+Current dependency baselines:
+
+- Node.js 26 in CI.
+- pnpm 11.25.
+- Next.js 16 and React 19.
+- Expo SDK 57 and React Native 0.86.
+- HeroUI React 3, HeroUI Native 1, Tailwind CSS 4, and Uniwind 1.
+- TanStack Query 5, Zustand 5, Lingui 6, MongoDB driver 7, and zod 4.
+- MapTiler SDK 4 on web; MapLibre React Native 11 with MapTiler tiles on mobile.
+- OpenSkill 5 for ratings, Sharp 0.35 for logos, and Inngest 4 for deadline workers.
+- TypeScript 7 for non-mobile workspaces; Expo-compatible TypeScript 6 for `apps/mobile`.
+- Vitest 3.2 (latest compatible baseline; Vitest 5 currently breaks existing JSX transforms and
+  class mocks).
+
+Workspace packages export source files directly; there is no package build step. App alias `@/*`
+resolves to each app's `src/*`.
+
+Expo web is not a supported product target. Do not implement or maintain it even though Expo-related
+packages may expose web support transitively.
+
+## 4. Commands
+
+Run commands from repository root unless noted.
 
 ```bash
-pnpm install                # install (lockfile frozen in CI)
-pnpm dev                    # turbo: run all apps in dev mode (persistent)
-pnpm build                  # turbo build (depends on ^build)
-pnpm lint                   # turbo lint → biome check .
-pnpm typecheck              # turbo typecheck (depends on ^build)
-pnpm test                   # not wired at root → use per-app: pnpm --filter web test
-pnpm format                 # biome format --write .
-pnpm clean                  # turbo clean
-pnpm release                # semantic-release (only on main, via main-ci.yml)
+pnpm install                         # frozen in CI
+pnpm dev                             # all development tasks through Turbo
+pnpm build                           # all builds
+pnpm lint                            # biome check through Turbo
+pnpm typecheck                       # tsc --noEmit through Turbo
+pnpm format                          # biome format --write .
+pnpm clean                           # Turbo clean
+pnpm i18n:extract
+pnpm i18n:compile
+pnpm release                         # semantic-release; main only
+pnpm --filter web dev                # http://localhost:3000
+pnpm --filter api dev                # http://localhost:4000
+pnpm --filter mobile dev             # Expo development client
+pnpm --filter <app> test
+pnpm --filter <app> test:coverage
+pnpm --filter api test:integration
+pnpm --filter api migrate
+pnpm --filter api backfill:users
 ```
 
-Per-app (filters: `web`, `api`, `mobile`):
+No root `test` script exists. Run app/package tests with filters.
+
+### Dependency updates
+
+Use pnpm, keep `pnpm-lock.yaml` synchronized, and install the graph rather than editing only the
+lockfile.
 
 ```bash
-pnpm --filter web dev       # http://localhost:3000
-pnpm --filter api dev       # http://localhost:4000 (binds 0.0.0.0)
-pnpm --filter mobile dev    # expo start --dev-client
-pnpm --filter <app> test    # vitest run
-pnpm --filter <app> lint|typecheck|format
-pnpm --filter api migrate        # Phase 1: create social collections + indexes
-pnpm --filter api backfill:users # Phase 1: mirror all Clerk users into `users`
+pnpm outdated -r
+pnpm update -r                         # compatible updates within declared ranges
+pnpm --filter mobile exec expo install --fix
+pnpm dedupe
+pnpm peers check
+pnpm --filter mobile exec expo install --check
 ```
 
-## Environment Variables
+Upgrade major versions one package family at a time; do not use a blanket `--latest` update without
+running and fixing the full validation suite. Expo owns compatible versions of React Native and
+native modules. Do not force npm-latest versions over Expo's compatibility matrix. Keep mobile
+`react`, `react-dom`, and other exact Expo-managed versions pinned when a caret would let pnpm
+dedupe to an incompatible version. Keep Vitest 3.2 until the web JSX transform and constructor mocks
+are migrated for Vitest 5.
 
-No committed `.env*` files — copy each app's `.env.example` (`apps/web/.env.example`, `apps/api/.env.example`, `apps/mobile/.env.example`) into that app as `.env.local` (web/api) or `.env` (mobile).
+After any dependency update, run lint, typecheck, unit tests, builds, and relevant integration
+tests.
 
-| App | Variable | Notes |
-|-----|----------|-------|
-| web | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
-| web | `NEXT_PUBLIC_API_URL` | defaults to `http://localhost:4000`; prod → `https://api-chi-two-97.vercel.app` |
-| api | `CLERK_SECRET_KEY` | backend calls to Clerk API |
-| api | `CLERK_WEBHOOK_SECRET` | SVIX signing secret for `POST /api/webhooks/clerk` (user.created/updated/deleted mirroring) |
-| api | `MONGODB_URI` / `MONGODB_DB_NAME` | MongoDB (needs transactions → replica set) |
-| api | `ALLOWED_ORIGINS` | comma-separated CORS allowlist (dev allows all) |
-| mobile | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | via `app.config.js` `extra` |
-| mobile | `EXPO_PUBLIC_API_URL` | read from `Constants.expoConfig.extra.apiUrl`; prod → the Vercel API URL |
+Native dependency changes also require a fresh APK and Maestro coverage in CI.
 
-**Preview chaining (option B)**: in pr-ci the mobile APK and the web preview are
-built to talk to **this PR's API preview deployment**: `build-mobile-internal` and
-`deploy-preview-web` depend on `deploy-preview-api` and inject its `outputs.url` as
-`EXPO_PUBLIC_API_URL` / `NEXT_PUBLIC_API_URL` (via `vercel-deploy`'s `extra-env`
-input). Both jobs keep an `if: !cancelled() && <main needs> == 'success'` so a failed
-API preview falls back to the repo/project env var instead of killing the E2E chain.
-The standalone `mobile-e2e.yml` workflow keeps using the repo variable (no preview
-deploy there).
+## 5. Environment configuration
 
-The API preview deployments are protected by **Vercel Deployment Protection**; the
-repo secret `VERCEL_PROTECTION_BYPASS` (x-vercel-protection-bypass token) is injected
-at build time into the mobile APK (`EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS` via the
-mobile-build action) and into the web preview (`NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS`
-via `extra-env`), and every client fetch attaches it via `apiHeaders()` in
-`packages/shared/src/api.ts`, so preview clients can call the protected API.
+Copy examples; never commit generated environment files.
 
-**Production deployments**: web → `web-rosy-phi-82.vercel.app`, api → `api-chi-two-97.vercel.app`.
-CI relies on repo **secrets**: `EXPO_TOKEN`, `VERCEL_TOKEN` (admin), `VERCEL_ORG_ID`,
-`VERCEL_WEB_PROJECT_ID`, `VERCEL_API_PROJECT_ID`, `VERCEL_PROTECTION_BYPASS`,
-`CLERK_SECRET_KEY` (used by Maestro E2E to
-provision a test user via the Clerk API and by Playwright E2E for the testing token +
-user cleanup), `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (release notifications on the
-Telegram channel), `RELEASE_PAT` (admin PAT usato da main-ci per il push del bump di
-semantic-release su `main` protetta), `CODECOV_TOKEN` (upload coverage a Codecov;
-installa anche l'app GitHub Codecov per i commenti PR col delta di coverage). Repo **variables** (baked into mobile builds / E2E):
-`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_API_URL`,
-`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (web, required by the Playwright `clerkSetup()`).
+| App | File | Variables |
+| --- | --- | --- |
+| web | `apps/web/.env.local` | Clerk publishable key, API URL, public MapTiler key; optional Firebase web push |
+| api | `apps/api/.env.local` | Clerk server/webhook keys, MongoDB, server MapTiler key, origins, BGG; deadline-worker and optional push configuration |
+| mobile | `apps/mobile/.env` | Clerk publishable key, API URL, public MapTiler key; optional Sentry/FCM |
 
-Note: root `.env*` files are gitignored; the API's `db.ts` throws if `MONGODB_URI` is missing, so the API can't start without it.
+The tracked per-app `.env.example` files define variable names and placeholders. Infisical is the
+configuration source of truth for deployments. Build/runtime database isolation is documented in
+[operational gates](docs/organizations-events-operations.md#infisical-and-deployment-isolation);
+never copy private values into documentation, Git, logs, or a different environment.
 
-## i18n (LinguiJS)
+`MONGODB_URI` is mandatory. Transactions require a replica set.
 
-- **One shared catalog** for web + mobile: `lingui.config.ts` at the repo root,
-  catalogs in `messages/{en,it}.po` (compiled to `messages/{en,it}.js`).
-- Commands: `pnpm i18n:extract` / `pnpm i18n:compile` (root). Compiled catalogs
-  are committed; keep them in sync after editing strings.
-- **Locale detection**: web reads the browser `Accept-Language` header
-  server-side (`apps/web/src/lib/i18n.ts` + `i18n-locale.ts`, q-values parsed)
-  with a `navigator.language` client fallback in `LinguiClientProvider`;
-  mobile uses `expo-localization` (`apps/mobile/src/lib/i18n.ts`).
-- **Macros**: `t` / `Trans` / `useLingui` from `@lingui/react/macro` (and
-  `@lingui/core/macro`). Web uses `babel.config.js` (next/babel +
-  `@lingui/babel-plugin-lingui-macro`); **mobile uses RUNTIME i18n only**
-  (`useT()`/`translate()` from `apps/mobile/src/lib/i18n.ts` — English
-  source string mapped to the shared hashed catalog id).
-- **Mobile build quirk (why no Babel macro on mobile)**: RN 0.85 ships
-  `@babel/core@8`, but a custom mobile `babel.config.js` forced the
-  worklets plugin (react-native-worklets/reanimated 4.x) to run under
-  Babel 7, producing a bundle that crashed at LAUNCH on real devices
-  (release + New Architecture — no error, just instant close; works on the
-  CI emulator because Maestro never exercises worklet animations). The fix:
-  no custom Babel config on mobile (identical to main) + runtime i18n.
-- **Vitest**: the Lingui macro transform is applied in WEB tests via
-  `@lingui/vite-plugin` + `@rolldown/plugin-babel`
-  (`linguiTransformerBabelPreset`); mobile tests use plain runtime
-  `translate()` (no Babel).
+Match location search uses MapTiler address geocoding; persist only returned address results, not unverified input. Set `NEXT_PUBLIC_MAPTILER_API_KEY` for web, `EXPO_PUBLIC_MAPTILER_API_KEY` for mobile (and GitHub Actions APK builds), and server-only `MAPTILER_GEOCODING_KEY` for API deployments. Configure the public web key on Vercel web Preview/Production and the geocoding key on Vercel API Preview/Production. Keep MapTiler/OpenStreetMap attribution visible. MapTiler Free terms limit commercial use; review plan and storage terms before production. Native MapLibre requires a development build, not Expo Go. Never commit token values.
 
-## Coverage thresholds
+Mobile reads public variables through `apps/mobile/app.config.js` and `Constants.expoConfig.extra`.
+Android FCM builds optionally read `GOOGLE_SERVICES_JSON`: EAS may provide a file secret, while
+GitHub Actions expects the JSON document as a repository secret. Never commit
+`google-services.json`. API push delivery optionally uses Firebase service-account and APNs token
+credentials; web push optionally uses `NEXT_PUBLIC_FIREBASE_*` values documented in app env
+examples. Inbox behavior must remain functional when push credentials are absent. Web public
+variables must be read inside `apps/web` and passed to workspace helpers: Next.js does not reliably
+inline `NEXT_PUBLIC_*` reads from workspace package source.
 
-- Every app (`web`, `mobile`, `api`) and `packages/schemas` enforces a **50%**
-  coverage threshold in its `vitest.config.ts` (lines/functions/branches/
-  statements) — the PR pipeline fails below it.
-- **Mobile note**: RN 0.85 ships CJS with Flow syntax, which node's native CJS
-  loader bypasses the Vite transform pipeline for (jest-expo is the official
-  path for RN component tests, but would add a second test framework for one
-  app). Mobile unit coverage therefore targets the pure logic
-  (`src/lib/**`, and Phase 3: hooks/store/schemas); mobile UI behaviour is
-  covered by the Maestro E2E flows in pr-ci/main-ci.
+Production endpoints:
 
-## Architecture & Patterns
+- Web: `https://board-game-organizer.com`
+- API: `https://api.board-game-organizer.com`
 
-### API (`apps/api`)
-- Route handlers in `src/app/api/<resource>/route.ts` re-export handlers from `src/app/lib/handler.ts`.
-- **Handler factories**: `typedMutationHandler(actionTable)` (validates `targetUserId` via zod,
-  requires Clerk auth, maps errors via `httpError(status, msg)`) and `listHandler` (validates `?type=`
-  against `LISTS` in `relationship.lists.ts`).
-- **Repository pattern**: `RelationshipRepository` takes `(db, session?)`; all mutations run inside
-  `withTransaction` from `lib/db.ts` (single `MongoClient` singleton).
-- **Domain model**: `Relationship { fromUserId, toUserId, type, status }` —
-  types `follow | friend_request | friend | block`, statuses `pending | accepted | blocked`.
-  Follow = immediate `accepted`; friend = bidirectional pair of accepted records; block clears
-  bidirectional follow/request/friend first. See comments in `apps/api/src/app/models/relationship.ts`.
-- **Phase 1 (social backend)**: users are mirrored from Clerk via the webhook
-  `POST /api/webhooks/clerk` (SVIX-verified with `CLERK_WEBHOOK_SECRET`; events
-  `user.created/updated/deleted`) into the `users` collection via `UsersRepository`
-  (`lib/users.repository.ts`). `lib/migrate.ts` creates the social collections
-  (`users`, `follows`, `friendRequests`, `blocks`, `invites`) with indexes shared from
-  `packages/schemas` (`*_INDEXES` constants) and optionally drops the legacy
-  `relationships` collection. Run it with
-  `pnpm --filter api migrate` (scripts/migrate.ts). `scripts/backfill-users.ts`
-  (`pnpm --filter api backfill:users`) mirrors ALL existing Clerk users idempotently.
-  The legacy `RelationshipRepository` still powers the existing relationships API
-  until Phase 2 migrates those routes to the new collections.
-- Profiles are **not stored locally**: `lib/clerk.ts` fetches users from Clerk in chunks of 100
-  (`enrichUserIds`, `enrichSingleUser`). `apps/api/src/app/api/profiles/route.ts` reuses
-  `enrichSingleUser` + adds CORS handling (do NOT duplicate the direct Clerk call).
-- Dynamic imports in `listHandler` (`await import('./clerk')`) keep Clerk out of the edge bundle.
+Preview web builds use the immutable API Preview URL; PR mobile APKs use a verified moving per-PR
+alias. No E2E job falls back to a development or production API URL.
 
-### Web (`apps/web`)
-- App Router; server components by default; `dynamic = "force-dynamic"` on pages needing auth state.
-- Auth: `middleware.ts` protects all routes except `/`, `/sign-in(.*)`, `/sign-up(.*)`.
-  `ClerkProvider` in root `layout.tsx` (uses `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`).
-- UI: HeroUI (`@heroui/react`) + Tailwind v4 (`@import "tailwindcss"` + `@import "@heroui/styles"`).
-- Theme: HeroUI v3 dark mode is **class-based** — `layout.tsx` toggles `.dark` on `<html>` from
-  `prefers-color-scheme` (no forced `className="light"`).
-- Route group `(tabs)` hosts Matches / Groups / Organizations / Contacts / Profile.
-- **Contacts tab (Phase 2 UI)**: `components/Contacts.tsx` + `app/(tabs)/contacts/page.tsx`
-  with 5 tabs (Following / Followers / Friends / Suggestions / Search), presence green-dot
-  and follow/unfollow actions, backed by `useContacts` from `packages/shared`
-  (`hooks/useContacts.ts`). Client sends a **presence heartbeat** (`POST /api/users/presence`)
-  on mount and every 60s while the tab is open.
-- **Search (Phase 3 review)**: auto-search with 300ms debounce, minimum 4 characters, clear
-  (X) button when there is text — NO submit button. Web uses `lucide-react` icons.
-- **Invite a friend (Phase 3 review)**: NO Invites tab — a single `InviteCard` (card + button)
-  above the tabs generates a shareable link (no email form). The link ALWAYS points at the
-  **API** (the origin that received `POST /api/invites`), never at the web app — preview API
-  generates preview links, production generates production links. Claim happens on the public
-  claim page HOSTED BY THE API: `apps/api/src/app/invite/[token]/` (server wrapper awaits
-  params + client `claim.tsx` with ClerkProvider; signed-out visitors sign in via modal,
-  signed-in visitors claim with a Bearer token). Requires `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-  on the API deployment (injected in pr-ci via `extra-env`). API: `POST /api/invites` (create),
-  `POST /api/invites/claim` (TTL 7gg) → both users become MUTUAL followers/friends. Repo:
-  `lib/invites.repository.ts` (token `base64url` 128bit, `expireStale()` per cleanup).
-- Client state via `@board-game-organizer/store` (Zustand); server data via
-  `@board-game-organizer/query` (TanStack Query — `QueryProvider` uses `useState` to avoid client
-  sharing during SSR).
+Vercel preview protection bypass is a **query parameter**, not a custom header. Use
+`withProtectionBypass()` so CORS preflight requests reach the protected deployment.
 
-### Mobile (`apps/mobile`)
-- Expo Router file-based routing; `(tabs)` group with Matches/Groups/Organizations/Contacts/Profile
-  (specular to web). `index.tsx` renders a declarative `<Redirect href="/matches" />` when signed in
-  (a `router.replace` effect raced the navigator on cold start → intermittent
-  crash when reopening the app while still logged in).
-- `global.css` must list `@source "./src"` — with only the heroui-native
-  `@source`, Tailwind v4 does not generate the app's own utility classes
-  (`flex-1`, `gap-*`, `p-*`) and layouts fall back to RN defaults
-  (content appears centered).
-- Root `_layout.tsx`: Sentry init (before providers), `GestureHandlerRootView` → `HeroUINativeProvider`
-  → `I18nProvider` (defaultI18n) → `ClerkProvider` (with `tokenCache` from `@clerk/expo/token-cache`)
-  → `QueryProvider` → `Stack`.
-- **Contacts screen (Phase 2 UI)**: `app/(tabs)/contacts.tsx` — same 5 tabs as web; search
-  auto (debounce + min 4 chars + clear X with `lucide-react-native`); `InviteCard` above the
-  tabs (create + native Share sheet); shared `useContacts`/`useInvites` hooks, presence
-  heartbeat; `useT()` runtime i18n (no Babel macro).
-- Styling: **heroui-native** components + **uniwind** classes (`global.css` wired in `metro.config.js`
-  via `withUniwindConfig`). Use `className`, never raw `style` for colors.
-- **Theme**: uniwind auto-follows the device `Appearance`; the Zustand `uiSlice.themePreference`
-  (`system|light|dark`) is synced to `Uniwind.setTheme` by `ThemeSync` in the root layout.
-  Every text must carry a theme-aware color (`text-foreground`/`text-muted`/`text-danger` or the
-  heroui-native `Text` default) — RN's default black text is invisible on dark backgrounds.
-- Env access through `app.config.js` `extra` + `Constants.expoConfig.extra`.
+## 6. Data and state ownership
 
-### Shared packages
-- `store`: Zustand — **local UI state ONLY** (theme preference, open/closed components, active tab,
-  multi-step form state, optimistic flags). Never store server data here. Add slices following
-  the `createCounterSlice`/`createUiSlice` pattern (`store/src/index.ts`).
-- `query`: `createQueryClient()` (staleTime 60s, retry 1) + `QueryProvider` with devtools.
-- `shared`: cross-app logic — types (`UserProfile`), API client (`fetchProfile`, `resolveApiUrl`),
-  TanStack Query hooks (`useProfileQuery`). Add shared hooks/types here, not per-app.
-- Never add runtime code to `biome-config`/`typescript-config` (config-only, `private: true`).
+### TanStack Query
 
-## Data & State Pattern (IMPORTANT)
+TanStack Query owns all server data: profiles, contacts, relationships, suggestions, matches,
+groups, organizations, memberships, events, tables, bookings, games, notifications, and invite results.
 
-- **TanStack Query owns all server data**: friends/follow requests, games, profiles, anything from
-  the REST API. Mutations update the server and `invalidateQueries` the cache.
-- **Zustand owns client UI state only**: active tab, applied filters, open/closed components,
-  multi-step form state before submit, transient optimistic UI flags.
-- Zustand never mirrors Query data. At most it holds a temporary "optimistic UI flag" for instant
-  feedback while a mutation resolves.
-- **Cache correctness rules (web AND mobile)**:
-  - Every contact list (following/followers/friends/suggestions) is a `useQuery` with a
-    `["contacts", <type>, apiUrl, token]` key.
-  - Every mutation (follow/unfollow/…) MUST invalidate the whole `["contacts"]` prefix on
-    success (`queryClient.invalidateQueries({ queryKey: ["contacts"] })`) so all lists and
-    suggestions refetch; NEVER let the UI rely on manual refresh.
-  - If a search is active when a follow/unfollow succeeds, re-run it (see `runSearch` +
-    `lastSearchQuery` in `packages/shared/src/hooks/useContacts.ts`) so buttons switch
-    follow ⇄ unfollow without a user action.
-  - Session JWTs rotate: never use a stale `token` snapshot across calls — pass Clerk
-    `getToken` into `useContacts` (or `useProfileQuery`-style hooks) so every fetch resolves
-    a fresh token; a cached snapshot eventually returns HTTP 401.
+Scope authenticated Query keys by API URL, stable Clerk user ID, and resource parameters, not a
+rotating session JWT. Clear/cancel private caches when the user or session changes. Clerk session
+JWTs rotate: shared hooks receive `getToken` and resolve a fresh token immediately before every
+request.
 
-## Code Conventions
+Do not retain a token snapshot for later network calls.
 
-- **Biome** only: `pnpm lint` = `biome check .`; `pnpm format` = `biome format --write .`.
-- Prefer server components; `"use client"` only where interactivity is needed.
-- Keep domain logic in `lib/` with thin route handlers.
-- Use `import type` for type-only imports (Biome rule `useImportType`).
-- Tests: vitest per app (`vitest.config.ts`), currently placeholder tests only.
-- **E2E (mobile)**: Maestro flows in `apps/mobile/.maestro/flows/` (`maestro test`), run via the
-  `.github/actions/maestro-e2e` composite (which boots the software-rendered emulator via
-  `.github/actions/android-emulator`). The E2E runs in **both** pipelines — pr-ci (PR's internal
-  APK) and main-ci (the released APK) — never as a standalone workflow. Each run provisions an
-  E2E user via the Clerk API (`CLERK_SECRET_KEY` secret), runs
-  launch/welcome → login → profile+logout → dark mode, then deletes the user.
-- **E2E (web)**: Playwright (`apps/web/e2e`) against the Vercel preview URL. The spec signs in
-  with the provisioned Clerk test user using a **Testing Token** (bypasses Clerk bot detection;
-  minted by `clerkSetup()` in `apps/web/e2e/global.setup.ts` via `CLERK_SECRET_KEY`) and a
-  **server-side sign-in ticket** (`clerk.signIn({ emailAddress })` from `@clerk/testing` — no
-  password, no email verification, no cross-domain redirects), then checks profile + logout.
-  Requires the `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` repo variable (read by `clerkSetup()`).
-- **Test-user cleanup**: every E2E run provisions exactly one user (tagged
-  `public_metadata.e2e: true`) and the `cleanup-e2e-user` job (pr-ci) / final step (maestro)
-  deletes it afterwards — `if: always()`, never blocks the run. A leftover sweep in
-  `.github/scripts/cleanup-e2e-clerk-users.sh` also removes orphaned e2e users older than 24h
-  (from runs killed mid-flight); the age filter keeps concurrent PR runs safe.
+On an ordinary authenticated mobile launch, start loading the profile, first pages of matches,
+groups, each social list, and BGO contact suggestions, plus the first local address-book page if
+permission was already granted. Never request contacts permission at startup. A deep link
+prioritizes its own detail instead; other lists may warm afterward. Keep the existing five-second
+**total** splash limit: unfinished requests continue without blocking navigation. Paginate API lists
+at the source; fetch subsequent pages on demand, not all records during bootstrap. A partial
+address-book scan must never replace the complete server contact snapshot: finish the scan before
+syncing in the background.
 
-## Versioning & Releases
+Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 
-- **Single unified semver** for the whole product (api + web + mobile), driven by
-  **semantic-release** on `main` (see `release.config.mjs`, run via `pnpm release`).
-- Bump rules: conventional commits since the last release — breaking change → **major**,
-  `feat` → **minor**, `fix`/perf/… → **patch**. Every release generates **`CHANGELOG.md`**,
-  syncs `apps/{api,web,mobile}/package.json` + `apps/mobile/app.config.js`
-  (`scripts/release/bump-versions.mjs`) and creates the GitHub release `v<version>`.
-- PRs do **not** bump: the PR pipeline only creates/updates a **draft prerelease**
-  (`v<version>-pr.<PR>`, e.g. `v1.0.0-pr.3`) with the PR changelog + internal APK.
-- Release/PR notifications are sent to the **Telegram channel** via
-  `scripts/release/telegram-notify.mjs` (HTML parse mode, truncated to 4096 chars).
+Reuse cached data between lists and details when the server-authorized response actually contains
+all required fields. Fetch a missing match or group through its individual detail endpoint, prefetch
+likely next details with bounded concurrency, and keep cached fields visible while missing fields
+load.
 
-## Git Workflow (IMPORTANT)
+Keep per-resource stale and retention times deliberate. Revalidate stale data in the background on
+navigation, rather than polling every list. Notifications alone watch for unrelated remote events
+proactively; presence heartbeat and polling while an explicitly started BGG sync is in progress are
+narrow exceptions. Relevant notification events may mark affected data stale without fetching every
+inactive query.
 
-- **main is protected**: no direct pushes/commits to `main` — every change lands via a
-  **pull request** with **at least 1 approval** (Alessandro). The branch protection rule
-  must be enabled in **Settings → Branches → Add rule → main** (require PR + 1 approval +
-  status checks) — requires an admin account.
-- **For every feature/fix/docs/CI change: create a new branch** off `main`
-  (e.g. `feat/...`, `fix/...`, `ci/...`) and commit (signed, conventional). Push the
-  branch and **implement ALL the tasks of the feature before opening a PR**.
-- **PRs are opened ONLY when the user explicitly asks for it.** Do NOT open a PR
-  proactively: push commits on the branch while implementing, let `branch-ci.yml`
-  (fast subset: commitlint, Biome, typecheck, unit + integration tests) validate each
-  push, and only when the feature is complete — and the user says so — open the PR to
-  `main`. The full pipeline (`pr-ci.yml`) then runs all the heavy gates (builds, Vercel
-  previews, Maestro + Playwright E2E) and publishes the draft prerelease + Telegram
-  notification.
-- **Commit messages must follow Conventional Commits** — enforced by CI via
-  **commitlint** (`commitlint.config.mjs`, `@commitlint/config-conventional`). Allowed
-  types: `feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert`.
-- **All commits are signed** (SSH commit signing). Repo-local config (already set):
-  ```bash
-  git config user.name "Alessandro Mancini"
-  git config user.email "alexemancio1985@gmail.com"   # personal email
-  git config user.signingkey /root/.ssh/mancioshell_github.pub
-  git config gpg.format ssh
-  git config commit.gpgsign true
-  ```
-  Verify after committing: `git log --show-signature -1` (expect `Good "git" signature for ...`).
-- Push command: `git push origin <branch>` (upstream is set after the first push).
+Every relationship mutation must mark the `['contacts']` prefix stale; if search is active,
+`useContacts` must rerun the last query so action state updates without manual refresh. Match
+creation must mark `['matches']` stale. Explicit remote mutations update owned Query caches
+optimistically when cached state exists, cancel conflicting requests first, then reconcile from the
+server response and refetch only affected active data when necessary. Show an action-specific
+default toast after the optimistic update; on failure restore affected cache snapshots and show an
+action-specific danger toast.
 
-## CI/CD (GitHub Actions)
+Do not invent server-authoritative results or bypass validation. Notification reads,
+push-subscription synchronization, logout, profile completion, and background synchronization do not
+show user-action toasts.
 
-### Branch pipeline — `branch-ci.yml` (every push to a feature branch)
+### Zustand
 
-Fast subset of the PR gates, meant for quick feedback while implementing on a branch:
-1. **commitlint** — conventional-commit check on the pushed commits
-2. **Biome** — `pnpm lint`
-3. **Typecheck** — `pnpm typecheck`
-4. **Unit tests (vitest)** — mobile/web/api (no coverage)
-5. **API integration tests (testcontainers)** — MongoDB in Docker
+Zustand owns local UI state and unsaved form state only:
 
-No builds (mobile/Vercel), no preview deploys, no E2E: those run only when the PR is
-opened. Concurrency is per-branch with `cancel-in-progress` so a new push cancels the
-previous run.
+- theme preference;
+- selected tabs and open/closed UI;
+- match-wizard draft values;
+- transient optimistic flags.
 
-### PR pipeline — `pr-ci.yml` (every pull request to main)
+Never mirror Query data into Zustand.
 
-A single workflow runs ALL quality gates on every PR:
-1. **commitlint** — conventional-commit check on the PR commits
-2. **Biome** — `pnpm lint` (format + lint, TS/React rules)
-3. **Typecheck** — `pnpm typecheck` (tsc --noEmit across apps)
-4. **Unit tests (vitest)** — mobile/web/api with **coverage** (`test:coverage`,
-   `@vitest/coverage-v8`) → coverage report uploaded as artifact
-5. **API integration tests (vitest + testcontainers)** — `pnpm --filter api test:integration`;
-   spins up a real MongoDB container (Docker) — the scaffold for the upcoming MongoDB
-   integration
-6. **Mobile build (internal only)** — `mobile-build` composite action, profile `internal`.
-   The APK is rebuilt ONLY when mobile-affecting code changed: `detect-mobile-changes`
-   diffs HEAD against the **last green pr-ci run** on the branch (NOT the PR base — the
-   base diff always contains historical mobile commits and would rebuild on every run),
-   restricted to `apps/mobile`, `packages/{shared,query,store,schemas}`, lockfiles; Maestro
-   flows and unit tests are excluded. When nothing changed, the last successful `apk-internal`
-   artifact is downloaded and re-uploaded instead of rebuilding.
-7. **Build API + Web** — `next build` for both apps
-8. **Vercel preview deploys** — api and web deployed to **preview** (never production)
-9. **E2E Maestro (mobile)** — boots a software-rendered Android emulator
-   (`.github/actions/android-emulator`), installs the PR's internal APK and runs the flows in
-   `apps/mobile/.maestro/flows` (welcome → login → profile/logout → dark mode)
-10. **E2E Playwright (web)** — `apps/web/e2e` against the **Vercel preview URL**: signed-out
-    checks + real sign-in with the provisioned Clerk test user via **Testing Token** and
-    **sign-in ticket** (`@clerk/testing`) → profile → logout
-11. **Cleanup E2E test users** — deletes the provisioned user (`if: always()`, never blocks)
-    and sweeps stale e2e users > 24h (`.github/scripts/cleanup-e2e-clerk-users.sh`)
-12. **Draft prerelease + Telegram** — if ALL gates pass, a **draft prerelease** is created/
-    updated (tag `v<version>-pr.<PR>`, e.g. `v1.0.0-pr.3`) with the **PR changelog**
-    (from conventional commits `base...head`), the **internal APK** attached and the
-    **web/api preview links** in the body. Every PR update refreshes the draft (new APK +
-    changelog). Last step: a **Telegram notification** with changelog + preview links +
-    PR APK (only when the whole pipeline passed)
+## 7. API architecture
 
-E2E test users are provisioned per-run via the Clerk API (`CLERK_SECRET_KEY` secret) and deleted
-at the end of the run (cleanup job/script above) — they never accumulate.
+API routes live under `apps/api/src/app/api`. Keep route handlers thin. Put data access in
+repository classes under `apps/api/src/app/lib` and shared validation in `packages/schemas`.
 
-### Main pipeline — `main-ci.yml` (push/merge to main)
+Handlers under `src/app/api` and shared DTOs are the source of truth for methods and request shapes.
+Current domains include profiles/social/invites, groups/discovery/leaderboards, matches/invitations/
+results, locations/favorites, BGG, notifications/push, organizations/assets/members/reviews, and
+events/tables/bookings. Read their service and repository authorization, not only the route wrapper.
 
-After the approved PR is merged to main, `main-ci.yml` runs:
-1. **semantic-release** (`.github/../release.config.mjs`, `pnpm release`) — analyzes the
-   conventional commits since the last release and computes the next **semver**
-   (breaking → major, `feat` → minor, `fix` → patch), then:
-   - generates **`CHANGELOG.md`** from the commit messages
-   - syncs the version in `apps/{api,web,mobile}/package.json` and
-     `apps/mobile/app.config.js` (`expo.version`) via `scripts/release/bump-versions.mjs`
-   - commits the bump (`chore(release): vX.Y.Z [skip ci]`) and creates the
-     **GitHub release `v<version>`** with the changelog in the body
-2. **Build APK (internal)** — `mobile-build` (sync al commit di bump: l'APK porta il
-   versionName corretto) + **attach to the release** con nome pulito
-   (`board-game-organizer-<version>-internal.apk`)
-3. **Maestro E2E** — emulatore software (`.github/actions/maestro-e2e`) sull'**APK rilasciato**
-4. **Playwright E2E** — test web contro **produzione** (sign-in autenticato con testing token)
-5. **Vercel production deploys** — api + web (`vercel-deploy`, production: true)
-6. **Telegram notification** — changelog + links (APK → release, web, api production)
+Admin CI/import routes require their existing server-secret authentication and target guards.
+`/api/inngest` verifies provider execution requests through the SDK, not ordinary user authorization. See
+[operational gates](docs/organizations-events-operations.md) before worker/deployment changes.
+Most application routes expose `OPTIONS` through centralized `lib/cors.ts`; preserve CORS handling.
 
-The release commit carries `[skip ci]`, so the workflow does not re-trigger on its own bump.
+### Authentication and users
 
-### Development APK — `mobile-development.yml` (manual, main only)
+Clerk user IDs are application identities; there is no separate local authentication identity.
 
-`workflow_dispatch` **only from main** (guard `github.ref == 'refs/heads/main'`): builds the
-**development** profile APK and **uploads it to the latest release** as an additional asset.
+There **is** a MongoDB `users` mirror used by social search and contact suggestions. Clerk webhook
+`user.created`, `user.updated`, and `user.deleted` events maintain it. `backfill:users` mirrors
+existing Clerk accounts idempotently.
+
+A Clerk account alone does not make a user searchable. The corresponding document must exist in the
+`users` collection.
+
+Web and mobile enforce a post-signup mobile-number step before application access. The value is a
+required non-empty string with no phone-format or SMS validation, stored in Clerk `unsafeMetadata`
+as `mobileNumber`, and mirrored into MongoDB by `user.updated` webhooks. Backfill and administrative
+sync paths preserve the same field when present. Contact discovery derives a 7–15 digit lookup key,
+normalizes `00` and `+` international prefixes without country inference, and ignores ambiguous
+numbers claimed by multiple accounts.
+
+`GET /api/profiles` uses `enrichSingleUser` from `lib/clerk.ts`; do not duplicate direct Clerk
+calls.
+
+Relationship list enrichment uses local users through `lib/enrichUsers.ts`.
+
+### Collections
+
+`COLLECTIONS` in `lib/db.ts` is the authoritative collection registry; do not maintain a second
+partial list here. Models/DTOs live in `packages/schemas`, and indexes in `lib/migrate.ts`.
+
+`pnpm --filter api migrate` creates social, group, rating, favorite-location, organization,
+asset/chunk, event/table/booking and deadline-outbox indexes, and drops legacy `relationships`.
+Run migrations against the intended replica set before deploying writes.
+
+The current `RelationshipRepository` writes only `follows`, `friendRequests`, and `blocks`.
+
+### Relationship invariants
+
+- Follow is a directed edge in `follows`.
+- Friendship is derived from accepted friend-request records in both directions.
+- Block is a directed edge in `blocks`.
+- Blocking removes only blocker-to-target follow, preserves target-to-blocker follow, and clears
+  pending friend requests. This deliberately prevents blocked users from detecting the block through
+  their own follow state.
+- Blocked users are hidden from normal lists and search.
+- Connections shows friends, following,
+  followers, then blocked users in one list with a connection-type badge on each avatar; blocked
+  users remain visible there so unblock is possible. Requests shows received then sent in one list,
+  with type badges on avatars and no section header.
+- MongoDB operations sharing one session must run sequentially. Never use `Promise.all` on
+  operations using the same transaction session.
+- DELETE relationship requests include `targetUserId`. Parse DELETE bodies defensively with
+  `request.text()` plus guarded JSON parsing so a missing body returns 400, not 500.
+
+### Invites
+
+Invite tokens are 128-bit base64url values with seven-day expiry. Creation links always use `new
+URL(request.url).origin`; preview APIs create preview links and production creates production links.
+Claim UI is hosted by the API at `/invite/[token]`, uses Clerk modal sign-in, and claims with a
+Bearer token. Successful claim connects both users.
+
+### Matches
+
+The planning/invitation rules below describe ordinary matches. Event-table matches are fixed by
+cutoff closure and managed through event bookings, not ordinary planning/voting/deletion endpoints.
+Their results use the frozen roster, including departed/excluded users, and may be registered by the
+organization owner or assigned demonstrator. Optional ratings are GLOBAL only; there is no
+organization rating scope. Read the event specification before changing these shared match paths.
+
+New ordinary matches always start as `PLANNING`. Match creation and initial invitation writes share one
+MongoDB transaction. Names, ISO date slots, player limits, game IDs, invitee IDs, friendship, block
+state, and catalog existence are validated on the API. `minPlayers` is at least two, `maxPlayers` is
+not lower, and at least one date, location, and game are required.
+
+A match may have an optional `groupId`, selected on the first wizard step and editable or removable
+only while `PLANNING`; from `CREATED` it is fixed. Ungrouped matches retain the friendship
+requirement for invitees. Group match invitees must be accepted members of that group (friendship is
+not required), and the admin must also be a member. Revalidate every selected invitee on an atomic
+planning edit and every accepted participant before confirmation; never silently remove incompatible
+players. Once `CREATED`, an accepted player leaving the group cannot prevent registering the result
+or updating both GLOBAL and GROUP ratings. Archiving a group retains its ID and historical matches
+and ratings; archived groups cannot be selected or confirmed for new matches.
+
+Matches are private by default, including legacy records. Ungrouped matches may be public, but no
+public discovery/search is exposed yet. An authenticated user with a match detail link may request
+participation only while `PLANNING`, with a free slot and no block or active invitation/request.
+Group matches are always private regardless of group visibility; accepted group members may request
+participation. Requests use `kind: REQUEST` and start `PENDING`; only the match admin can approve
+or remove them. The requester cannot accept their own request. Admins can still invite eligible
+contacts/group members and remove accepted participants while planning. Serialize requests and
+invitations through the same transaction lock, and revalidate membership on approval. Group selection
+disables the public/private wizard switch with an explanation on both clients.
+
+Match invitations live in `matchInvitations`, not on the match document. Admin counts as one player.
+Only `PENDING` and `ACCEPTED` records reserve positions within `maxPlayers - 1`; declined invitations
+do not reserve a slot. Only admin can invite, and duplicate invitation records are rejected. While planning,
+admin can replace title, dates, games, `minPlayers`, `maxPlayers`, and selected invitees through the
+same wizard used for creation. Updated values retain creation constraints. Field changes, new
+invitations, and invitation removals are submitted only on the final wizard step and committed in
+one transaction; `maxPlayers` cannot drop below `minPlayers` or occupied invitation positions.
+
+Pending invitees can accept or decline while match is planning. Accepted invitees can leave while
+planning; leaving deletes invitation so admin can invite them again. Admin can remove pending,
+declined, or accepted invitations while planning. Admin alone can delete a match; match and every
+invitation are deleted in one transaction. No invitation response, departure, or choice change is
+allowed after status becomes `CREATED`. Admin alone may confirm a match once the accepted players
+plus admin meet `minPlayers` and every participant has voted `YES` or `IF_NEEDED` for at least one
+date and game.
+
+Choose the shared option with most `YES` votes; ties prefer an admin `YES`, then original option
+order.
+
+Confirmation stores selected date/game and hides pending invitees from the created match. Admin may
+reopen planning, restoring pending invitees' access and clearing the selected options without
+erasing existing choices. Notify accepted invitees only on both transitions.
+
+Match deletion and leaving are destructive actions. Show each action only when current role and
+invitation status permit it, require an explicit confirmation dialog, disable repeated submission
+while pending, and apply the standard optimistic-cache plus action-specific toast lifecycle.
+Non-admin match details expose accepted players only; keep viewer's own pending invitation solely
+for response actions.
+
+An admin alone registers results while a match is `CREATED`. Every accepted invitee plus admin must
+be included once; scores are exact signed decimals, or null for `ND` (did not participate). At least
+one player must have played even if the actual count falls below `minPlayers`. Highest score wins by
+default; admin may choose lowest wins and explicitly rank any group of equal scores. Unresolved ties
+share a position; all `ND` participants appear last. Persist final ranks and scores in one atomic
+`CREATED` → `TERMINATED` operation. Terminated matches cannot be edited, reopened or deleted. Match
+detail Overview holds dates and game selection, with one voting legend beside the match title.
+
+Leaderboards show current ratings for the administrator and accepted invitees only (GROUP for group
+matches, GLOBAL otherwise); pending/declined invitees cannot open them. Planning matches select from
+proposed games with covers; confirmed/terminated matches show only the selected game. Leaderboards
+show games played, games won, withdrawals (ND), current rating, and no deltas. Confirmed-match
+Players show email instead of ranking. Web and mobile replace the Players tab with read-only Results
+only in TERMINATED status. Results keep player avatar, position badge, name, email, score (or ND),
+and immutable rating deltas; match cards identify all first-place players, including unresolved
+shared first place.
+
+### Board-game catalog
+
+Runtime search reads MongoDB `boardGames`; it does not call BoardGameGeek and excludes entries with
+`isExpansion: true`. Import all BGG rankings CSV columns through
+`apps/api/scripts/import-boardgames.mjs`, `/api/admin/import-games`, or the manual
+`import-boardgames.yml` workflow. Imports use idempotent upserts keyed by BGG ID; missing games
+remain for existing matches. Linking a BGG username validates it through XML API2; sync stages a
+complete non-expansion collection before publishing. A failed sync removes its pending item while
+retaining any previously published snapshot. Collection games are available regardless of
+ownership/status; unlink removes private snapshots but not catalog games or match history. Keep the
+supplied Powered by BGG attribution visible above logout on both Profiles. Set `BGG_TOKEN` on API
+deployments for authenticated XML API2 calls. Store one validated BGG cover URL in `image`, not a
+`thumbnail` database field; full remote imports remove any legacy `thumbnail` fields. Re-import a
+complete CSV before enabling the search filter on an older catalog without `isExpansion`.
+
+## 8. Web architecture and UI
+
+`apps/web` uses Next.js App Router and server components by default. Add `"use client"` only for
+interactive state or browser APIs. Auth middleware leaves `/`, sign-in, and sign-up public and
+protects application routes.
+
+Navigation exposes Matches, Community, Events, Contacts, and Profile. Groups, Organizations,
+and discovery are sections of Community. Its lists share platform-specific page/search/filter patterns.
+The main Events list contains own bookings (confirmed or pending), administration and demonstrations;
+event creation remains contextual to organizations. Past/Future uses the exact event end instant. Do not repeat a page or section title inside tab
+content; main navigation already identifies the section.
+
+Use `@heroui/react` and Tailwind CSS. When HeroUI provides an appropriate component, use it instead
+of a custom or native substitute. For unsupported components, build a small accessible custom
+component matching HeroUI styling.
+
+HeroUI v3 uses React Aria composition:
+
+- Do not use obsolete `startContent`, `endContent`, `flat`, `light`, or `solid` APIs.
+- Put item icons inside item children.
+- Attach `onAction` to each `Dropdown.Item`; menu-level `onAction` is not reliable here.
+- `Dropdown.Trigger` renders an interactive button; do not nest another Button inside it.
+- Prefer the existing custom portal dialog for controlled confirmation dialogs; the HeroUI composite
+  modal previously left orphaned overlays.
+- Check installed `.d.ts` files before introducing a HeroUI component API not already used.
+
+HeroUI dark mode is class-based. `ThemeScript` sets the initial class from system preference.
+
+Use `lucide-react` icons only.
+
+## 9. Mobile architecture and UI
+
+`apps/mobile` is native-only Expo Router. Root provider order is:
+
+```text
+Sentry initialization
+GestureHandlerRootView
+I18nProvider
+HeroUINativeProvider
+ClerkProvider
+QueryProvider
+Expo Router Stack
+```
+
+Keep `index.tsx` authentication navigation declarative with `<Redirect>`; an effect-driven
+`router.replace` raced cold-start navigation.
+
+Keep `I18nProvider` above `HeroUINativeProvider`: HeroUI's sibling portal host must inherit Lingui
+context, including search-help components rendered inside Select overlays.
+
+Use heroui-native components and Uniwind classes. When HeroUI Native provides an appropriate
+component, use it instead of a custom or React Native substitute. Use explicit React Native style
+objects for structural layout (`flex`, row direction, gaps, dimensions) because generated utility
+availability is not reliable at runtime. Use classes for theme-aware visual styling. Every text
+element needs a visible theme-aware color or heroui-native's Typography default.
+
+`global.css` must retain `@source "./src"`; otherwise app utility classes are not generated.
+
+`ThemeSync` maps Zustand `system | light | dark` to `Uniwind.setTheme`. Selected mobile chips and
+tabs must visibly reflect active state.
+
+Use `lucide-react-native` icons only.
+
+Address-book suggestions require explicit `expo-contacts` permission. Sync emails and phone numbers
+to `POST /api/contacts/sync`; persist only unambiguous registered matches in `contactLinks` and
+discard unmatched address-book values. Repeated denials lead to an open-settings path, not silent
+permission loops. After every native permission action and whenever the app returns active from
+system settings, re-read the native permission and refresh permission-gated UI immediately; never
+rely on stale local permission state. When mobile notification permission is askable, pressing the
+notification bell requests it directly; do not add a second enable button.
+
+HeroUI Native Skeleton has no intrinsic size. Give each skeleton explicit width, height, and border
+radius, and keep parent rows stretched to full width.
+
+Do not add a custom mobile Babel configuration. React Native's Babel/runtime combination and
+worklets previously caused release builds to crash at launch. Mobile localization intentionally uses
+runtime helpers instead of Lingui Babel macros.
+
+## 10. Shared localization
+
+Lingui configuration lives at repository root. Source catalogs are `messages/en.po` and
+`messages/it.po`; compiled catalogs are committed.
+
+```bash
+pnpm i18n:extract
+pnpm i18n:compile
+```
+
+Web uses Lingui macros through `apps/web/babel.config.js`. Mobile uses `useT()` and `translate()`
+from `apps/mobile/src/lib/i18n.ts`.
+
+Strings used only by mobile runtime helpers are invisible to Lingui extraction. Add them manually to
+both PO files, then compile.
+
+For dynamic web messages, use a descriptor with stable ID and values rather than a runtime template
+literal that produces a hashed fallback.
+
+## 11. Loading, errors, and accessibility
+
+- Use skeletons, not spinners, only for data not yet available: initial startup, first access to an
+  uncached deep link or detail field, next pages, and searches. Never replace usable cached content
+  with skeletons during a background refetch; show partial skeletons only for missing detail fields.
+- Keep logout available even when profile loading fails.
+- Do not convert network failures into empty-list success states; preserve an observable error path.
+- Keep buttons, dialogs, dropdowns, and form inputs accessible by role and label.
+- Give actions semantic colors matching their intent: primary for confirmation, danger for
+  destructive actions, and neutral for cancellation. Do not rely on color alone to convey meaning.
+  Prefer icon-only actions in tight spaces when the icon is self-explanatory; otherwise show text.
+  Every icon-only action needs an accessible label.
+- On native mobile and mobile-width web layouts, repeated list-row action buttons are icon-only and
+  must retain an accessible label. Section-level creation actions may keep a compact text label.
+- Search runs automatically after 300 ms, requires at least four characters, and has a clear button;
+  do not add a submit button.
+- For every variable-length list, default to paginated data and virtualized rendering: use
+  `FlatList` or `SectionList` on mobile and pagination (plus windowing when large) on web. Load
+  further pages as the user scrolls; do not render an entire address book, search result set, or
+  feed with `ScrollView` plus `.map()`, and never nest a virtualized list in a same-direction
+  `ScrollView`. Keep short, fixed-size lists simple. Preserve loading, empty, error, permission, and
+  accessibility states while paging.
+
+## 12. Tests
+
+Vitest covers web, mobile pure logic, API, and schemas. Each coverage config enforces at least 50%
+for lines, functions, branches, and statements.
+
+Mobile component unit tests are not run under Vitest because React Native 0.86 packages include Flow
+syntax loaded outside Vite transforms. Keep mobile unit coverage focused on pure logic; Maestro owns
+native UI behavior.
+
+API integration tests use Testcontainers with MongoDB configured as a single-node replica set so
+transactions behave like production.
+
+Every product feature requires both:
+
+- Playwright coverage for web in `apps/web/e2e`;
+- Maestro coverage for mobile in `apps/mobile/.maestro/flows`.
+
+New and changed feature behavior must have 100% acceptance-path coverage across unit, API, and E2E
+suites. Add per-file 100% line, function, branch, and statement thresholds for deterministic logic
+measured by Vitest. Because Playwright and Maestro do not expose statement metrics, exercise every
+user-visible success, empty, failure, and action path on both clients.
+
+Social E2E uses two provisioned users. Wait for Clerk webhook mirroring before searching for the
+target.
+
+Never allow missing E2E environment variables to silently skip authenticated tests. Inspect JUnit
+skip counts when expected flows appear suspiciously fast.
+
+When extending `useContacts`, update every test mock. UI code reads pending state from each
+mutation; a missing mutation object crashes tests before assertions.
+
+Useful validation order:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm --filter mobile test
+pnpm --filter web test
+pnpm --filter api test
+pnpm --filter schemas test
+pnpm --filter shared test
+pnpm --filter api test:integration
+pnpm build
+```
+
+## 13. CI/CD
+
+Every job using a local action must run `actions/checkout` first. GitHub cannot resolve
+`./.github/actions/...` before checkout.
+
+### `branch-ci.yml`
+
+Runs on every non-main branch push:
+
+1. commitlint
+2. Biome
+3. typecheck
+4. unit tests for mobile, web, API, schemas, and shared deterministic helpers
+5. API integration tests
+
+No builds, deployments, or E2E.
+
+### `pr-ci.yml`
+
+Runs full pull-request gates:
+
+1. commitlint, Biome, typecheck, unit coverage/Codecov, API integration tests, API/web builds, and
+   mobile-change detection start in parallel;
+2. only after quality gates pass, deploy isolated CI API and non-CI development API Previews in
+   parallel; the development Preview remains deployed even if later E2E fails;
+3. build both mobile APKs on separate runners as soon as their respective URLs are available; only
+   the CI APK (or verified reuse) targets the moving per-PR API alias;
+4. deploy Preview web against the immutable CI API URL, seed `bgo_ci_<run_id>_<attempt>`, and
+   synchronize two test users;
+5. run Maestro and Playwright E2E, then clean up CI users and database even on failure;
+6. publish only the development-API APK to the draft prerelease and Telegram after every gate and
+   cleanup passes.
+
+A new PR commit cancels the previous run. A trusted `workflow_run` watchdog polls for job failures
+and cancels the entire PR run; GitHub marks the run `cancelled`, while the failing job retains its
+failure. A separate trusted `workflow_run` cleanup removes exact-run CI users and the isolated
+database after cancellation/failure; ordinary in-run cleanup and the periodic Clerk sweep provide
+fallback.
+
+Mobile change detection compares against the last successful PR workflow run on the branch, not the
+PR base. Mobile code, related workspace packages, compiled localization, and changes to the mobile
+lockfile dependency graph trigger APK rebuilds. Web/API-only, Maestro-only, unit-test-only, and
+unrelated lockfile changes do not. Compare each reusable artifact's own commit with the PR head
+before reuse.
+
+Preview web uses the immutable isolated API deployment URL; E2E PR APKs use the per-PR alias. The
+published PR APK embeds the immutable development API Preview URL. Never point E2E at the
+development API. Protected previews receive `VERCEL_PROTECTION_BYPASS` and clients append it to
+request URLs.
+
+### `main-ci.yml`
+
+On every merge to main:
+
+1. lint, typecheck, unit coverage (mobile, web, API, schemas, shared), and API integration tests run
+   on the merge SHA;
+2. that SHA deploys to isolated API/web Previews using test Clerk and `bgo_ci_<run>_<attempt>`;
+   Maestro uses a separate E2E APK, Playwright uses the Preview web app;
+3. test users and the run-scoped CI database are cleaned even when E2E fails; failed gates never
+   deploy to production;
+4. only the latest verified merge may run semantic-release; the resulting release SHA is pinned for
+   the production APK and deployments;
+5. production API and web deploy only after E2E and APK build pass, then run read-only smoke checks;
+6. GitHub release publishes the production APK after the gates; Telegram notification sends release
+   links and changelog.
+
+Main verification has no workflow-wide concurrency group so every merge runs E2E. Release
+preparation alone is serialized; a newer merge can supersede a pending release, not its
+verification.
+
+Release commits use `[skip ci]` to avoid recursion. If a failed release leaves a tag without a
+release, remove the orphan tag and restore version state before retrying; semantic-release treats
+existing tags as published history.
+
+Preview/test Clerk uses `CLERK_SECRET_KEY`. Production uses `CLERK_SECRET_KEY_PRODUCTION` and
+production publishable-key variables. Never mix instance keys: tokens from one Clerk instance return
+401 against the other.
 
 ### Other workflows
 
-*(none — every quality gate lives in `pr-ci.yml` / `main-ci.yml`; no standalone workflows)*
+- `mobile-development.yml`: manual development APK from `main`, attached to latest release.
+- `mobile-e2e.yml`: manual Maestro iteration deploys an isolated API Preview and cleans its own CI
+  database.
+- `import-boardgames.yml`: manual BoardGameGeek CSV import into a chosen API deployment.
 
-### Composite actions (`.github/actions/`)
+## 14. Required GitHub configuration
 
-`setup-pnpm` (Node 26, pnpm 11.6.0, `--frozen-lockfile`), `vercel-deploy` (preview/production), `mobile-build`
-(local `eas build --local`, ONE profile per invocation; frees ~7GB of toolchains, caches
-`~/.eas-build-local` and `~/.gradle`), `android-emulator` (software-rendered emulator + script
-runner), `maestro-e2e` (install APK + run the Maestro flows), `provision-e2e-user` (Clerk
-test user via the Backend API), `publish-draft-release` (create/update the PR draft
-prerelease + attach APK), `telegram-notify` (send the release message to the channel).
-⚠️ GitHub can only resolve **local** actions after `actions/checkout` has run: every job must
-start with `actions/checkout@v4` before the first `uses: ./.github/actions/...` (a local
-action as the first step fails with "Can't find action.yml").
+Workflow/action YAML is authoritative for referenced Secret and Variable names. The current
+server-secret responsibilities and Infisical/Vercel isolation are documented in
+[operational gates](docs/organizations-events-operations.md#infisical-and-deployment-isolation),
+not duplicated here. Native builds/E2E still consume their existing public Clerk, MapTiler, API and
+Sentry Variables. Preserve optional FCM credentials and exact test/production instance separation;
+do not delete or synchronize configuration merely to match a documentation edit.
 
-- If you change dependencies, keep `pnpm-lock.yaml` in sync (run `pnpm install`, not `pnpm install --lockfile-only` when the graph changes).
-- The repo is **public** (Actions are free). Branch protection on `main` must be enabled by an
-  admin: Settings → Branches → Add rule → `main` → require a PR with 1 approving review +
-  status checks.
+## 15. Git workflow
 
-## Board automation — pi-board-agent (autonomous GitHub Project executor)
+`main` is protected. Never commit or push directly to it.
 
-A separate pi extension ([mancioshell/pi-board-agent](https://github.com/mancioshell/pi-board-agent))
-watches the project board and does the whole loop autonomously: story refine →
-sub-issue tasks → implementation in git worktrees → cumulative PR per plan →
-watchdog (CI fixes + mentions) → Telegram notifications.
+For each feature, fix, documentation change, dependency update, or CI change:
 
-### Config
+1. start a new branch from current `main`;
+2. implement the complete task;
+3. run relevant checks;
+4. commit with a signed Conventional Commit;
+5. push the branch so `branch-ci.yml` validates it;
+6. open a PR only after the user explicitly requests it.
 
-Local, **gitignored**: `.pi/board-agent.yml` (a full example is already in place in this
-repo). Key sections: `project` (owner + project number), `columns` (the 6 Status options:
-Backlog / Ready / In Progress / Needs Design / Review / Done), `status_field` / `plan_field`
-/ `type_field` ("Type" is reserved in Projects v2 → "Kind" with Story|Task), `models`
-(builder/refine/watch — default `deepseek-v4-flash-0731`), `context`, `refine`, `watchdog`,
-`telegram`, `auto_start` (container).
+Allowed commit types:
 
-### Initialize the GitHub Project
+```text
+feat, fix, chore, docs, style, refactor, perf, test, build, ci, revert
+```
 
-`/board-agent init-project` creates the standard fields from the config: **Status**
-single-select (the 6 columns), **Kind** (Story|Task), **Plan** (text) + a Board view.
+Repository-local signing identity:
 
-### gh token (permissions needed)
+```bash
+git config user.name "Alessandro Mancini"
+git config user.email "alexemancio1985@gmail.com"
+git config gpg.format ssh
+git config commit.gpgsign true
+```
 
-For both `init-project` and the daily loop the token needs:
+Keep the machine's valid SSH public key in `user.signingkey`. The board-agent container uses
+`/root/.ssh/mancioshell_github.pub`; local Windows development uses the configured user key.
 
-- **Fine-grained PAT** (recommended):
-  - Repository access on the **target repo** (BGOrganizer/board-game-organizer):
-    `Issues: Read and write`, `Pull requests: Read and write`,
-    `Contents: Read and write` (branch pushes), `Actions: Read` (check-runs/logs),
-    `Metadata: Read`
-  - **Organization permissions (BGOrganizer): `Projects: Read and write`** — this is the
-    one `init-project` needs to create fields/options/view. "All repositories" does NOT
-    grant it.
-- **Classic PAT** alternative: scopes `repo` + `project`.
+Verify signatures with:
 
-The token value goes in the environment (container `GH_TOKEN` / `gh auth login`), never in
-the repo.
+```bash
+git log --show-signature -1
+```
 
-### Run
+Use `git push origin <branch>`. Do not open a PR proactively.
 
-See pi-board-agent `docs/docker.md`: the board-agent runs in its own Docker container
-(pi headless + `auto_start: true`), with the repo mounted at `/workspace`. Control via
-GitHub comments (`@<bot-login> status|stop|refine <plan>`) or `docker compose exec`.
+## 16. Debugging invariants
 
-## UX & UI Rules (da ricordare SEMPRE)
+- Browser `Failed to fetch` without a response usually means unreachable host, deployment
+  protection, or CORS. Capture request URLs as well as responses.
+- Confirm frontend API URLs after domain changes; changing a Vercel domain does not update baked
+  public environment variables.
+- Keep profile E2E assertions specific to API-loaded profile content; header display names can
+  create false positives.
+- Controlled block dialogs may coexist with a dropdown carrying `role="dialog"`; target the intended
+  dialog explicitly in Playwright.
+- YAML folded blocks (`>-`) join lines. Use literal blocks (`|`) for multiline environment input.
+- GitHub Actions `actions/runs` does not honor `conclusion=success` as a query filter; filter
+  returned JSON explicitly and pass `GH_TOKEN` to `gh api`.
+- Main APK builds need 180 minutes; clean local EAS builds can exceed 90 minutes.
 
-- **Chip/tab selezionata (mobile)**: le chip della tab bar devono riflettere la
-  selezione corrente (stato visivo attivo/non attivo). Su web funziona; su
-  mobile va corretto ovunque (non solo Contacts — tutte le tab).
-- **Loading**: usare componenti **skeleton** al posto degli spinner, per
-  TUTTE le pagine/tab (web + mobile), non solo le nuove.
-- **Titolo di sezione**: NON mettere il titolo della pagina/sezione nelle
-  pagine dei tab — la sezione è già indicata dal menu principale (tab bar).
-  Vale per web e mobile e per tutte le implementazioni future.
-- **Users/search**: gli utenti compaiono in Contacts solo se sono nella
-  collection `users` (webhook Clerk o backfill). Un account Google in Clerk
-  NON basta: serve `pnpm --filter api backfill:users` (o webhook
-  configurato con CLERK_WEBHOOK_SECRET).
+## 17. Board automation
 
-## Lessons Learned (errori passati — NON ripeterli)
+`pi-board-agent` runs separately and uses gitignored `.pi/board-agent.yml`. It manages project-board
+refinement, task worktrees, cumulative PRs, CI watchdog behavior, and Telegram notifications.
 
-- **`NEXT_PUBLIC_*` non viene inlined da Next.js nei workspace packages**
-  (node_modules): le env vanno lette nei file del progetto (es.
-  `apps/web/src/components/*.tsx`) e passate esplicitamente agli helper
-  condivisi. Leggerle dentro `packages/shared` produce `undefined` nel
-  browser. (`EXPO_PUBLIC_*` invece funziona ovunque.)
-- **Il bypass Vercel è un query param, NON un header**: i preflight CORS
-  (OPTIONS) non trasportano mai header custom → header-based bypass fallisce
-  con "Redirect is not allowed for a preflight request". Usare
-  `withProtectionBypass()` che appende `?x-vercel-protection-bypass=…`
-  all'URL (l'URL fa parte del preflight).
-- **Skeleton**: heroui-native Skeleton non ha dimensione intrinseca (nasconde
-  i children) → sempre `style={{width,height,borderRadius}}` espliciti, e le
-  righe/figure devono avere `width: "100%"` nel parent con `alignItems`
-  stretch (flex-start li restringe).
-- **Layout mobile**: NON dipendere dalle classi Tailwind/uniwind per la
-  struttura (flex-1, gap-2, mb-3, flex-row) — potrebbero non essere generate
-  a runtime. Usare style object espliciti per il layout strutturale.
-- **Token Clerk ruota**: mai riusare uno snapshot di `getToken()` catturato
-  al mount — ogni fetch risolve un token FRESCO (`getToken` passato a
-  `useContacts`). Uno snapshot vecchio → 401 dopo poco.
-- **DELETE con body**: il server deve parsare il body in modo difensivo
-  (`req.text()` + try/catch JSON → 400) e il client invia `targetUserId`
-  anche su DELETE; `req.json()` diretto su body assente → 500.
-- **Invalidazione cache**: ogni mutation (follow/unfollow/…) deve
-  invalidare il prefisso `["contacts"]` su success (refetch di tutte le
-  liste + re-run della ricerca attiva, così i bottoni Follow ⇄ Unfollow si
-  aggiornano da soli). Stato follow sempre coerente tra sezioni.
-- **YAML folded block `>-` unisce le righe**: per multi-line env usare il
-  literal block `|` (es. `extra-env`), altrimenti la seconda riga sparisce.
-- **GitHub Actions API**: `conclusion=success` NON filtra nei query param di
-  `actions/runs` → va filtrato in jq. Il token `GH_TOKEN` va esplicitato
-  come env per `gh api`.
-- **detect-mobile-changes**: il diff va fatto contro l'ultimo run verde sul
-  branch (non contro la base PR — quello include sempre i commit storici e
-  rebuilda sempre).
-- **Stringhe i18n mobile-only**: Lingui extract vede solo le stringhe web
-  (macro). Le stringhe usate SOLO nel mobile con `t("...")` runtime non
-  entrano nel catalogo: aggiungerle a mano in `messages/{en,it}.po` e
-  rilanciare `pnpm i18n:compile` (il reverse index `idByEnglish` le mappa).
-- **Icone**: usare `lucide-react` (web) e `lucide-react-native` (mobile) —
-  già installate. Mai importare icone da altri posti.
-- **Link di invito = API corrente**: il link deve puntare SEMPRE all'API che
-  ha generato l'invito (`new URL(request.url).origin` in `POST /api/invites`) —
-  preview API → link preview, production → link production. Mai al web app e
-  mai hardcodare l'URL di produzione.
-- **HeroUI v3 (`@heroui/react` ^3) usa l'API react-aria-components**: niente
-  `startContent/endContent` su DropdownItem (icona dentro i children),
-  niente `variant="light"/"flat"/"solid"` né `color="danger"` sui Button
-  (usare `variant="ghost"/"danger"`), niente `ModalContent`/`size`:
-  `Modal` è composito (`.Backdrop/.Container/.Dialog/.Header/.Body/.Footer`).
-  Controllare i `.d.ts` in `node_modules/@heroui/react/dist/components/*`
-  prima di usare un componente nuovo.
-- **I mock di `useContacts` nei test vanno aggiornati a ogni nuova
-  mutation**: `isBusy` legge `follow/unfollow/block/unblock.isPending` — un
-  mock vecchio (senza `block`/`unblock`) fa crashare i tab test con
-  "Cannot read properties of undefined (reading 'isPending')".
-- **Suggerimenti = contatti salvati su DB**: i suggerimenti non sono più
-  utenti random — il mobile legge la rubrica (permesso esplicito,
-  `expo-contacts`), invia le email a `POST /api/contacts/sync`, l'API fa
-  match con gli utenti registrati e persiste SOLO i match nella collection
-  `contactLinks` (replace semantics). `GET /api/users/suggestions` legge da
-  lì e ritorna `hasContacts` per guidare CTA/empty state. Le stringhe
-  mobile-only vanno aggiunte a mano nei .po (la macro Lingui non vede il
-  mobile runtime `useT`).
-- **HeroUI v3 Modal è inaffidabile per dialog controllati**: il composito
-  (DialogTrigger/Overlay) mostrava backdrop senza dialog, richiedeva doppio
-  click e non chiudeva l'overlay. Usare un dialog portale custom
-  (`createPortal` + div fisso, chiude su Cancel/Escape/backdrop) —
-  deterministico.
-- **Dropdown HeroUI v3**: `MenuItem.onAction` è `() => void` (nessun id) →
-  `onAction` a livello di Menu non scatta. Attaccare `onAction` a OGNI
-  `Dropdown.Item` direttamente. Il `Dropdown.Trigger` è un Button react-aria:
-  deve contenere un Button cliccabile (un'icona nuda non è cliccabile).
-- **Interpolazione i18n runtime web**: `t\`Block ${name}?\`` via macro
-  runtime cerca l'id letterale interpolato → hash fallback (es. "vPh7mM").
-  Usare `i18n.t({ id: "Block {0}?", values: { name } })` con `i18n` da
-  `@lingui/core` (NON `useLingui` core — causa timeout nei test).
-- **Blocco (policy finale)**: al blocco il FOLLOW DEL BLOCKANTE verso il
-  bloccato viene eliminato (unidirezionale), mentre il follow del bloccato
-  verso il bloccante resta — così l'utente bloccato non si accorge di nulla e
-  allo sblocco l'asimmetria è: lui segue me, io non seguo lui. Si eliminano
-  solo le friend request pendenti. Test unit + integration coprono l'edge
-  b→a sopravvissuto.
+`/board-agent init-project` creates configured project fields and views. Tokens need repository
+Issues, Pull requests, Contents, Actions, and Metadata permissions plus organization Projects
+read/write.
 
-## CI Rules (trigger intelligenti)
+Never store this token in the repository.
 
-- **E2E per OGNI funzionalità**: ogni feature implementata deve avere copertura
-  e2e — Playwright (web) E e Maestro (mobile). Non basta il test unit. Aggiungere
-  i casi e2e nello stesso commit della feature (es. follow/unfollow, block,
-  search, inviti). I flussi social usano 2 utenti E2E: l'actor (`E2E_EMAIL`) e
-  il target (`E2E_EMAIL_2`) provisionati dal CI. Il target viene mirrorato nella
-  collection `users` dal webhook Clerk user.created — il test attende con poll
-  lungo per tollerare la latenza del webhook.
+## Groups and ranking domain
 
-- **pr-ci build mobile**: parte SOLO se modificati `apps/mobile` o i package
-  correlati (shared/query/store/schemas) + lockfile. NON deve triggerare per
-  i file `.maestro/flows/*` (nuovi flow Maestro senza cambio codice non
-  devono rifare la build APK).
-- **Unit test**: se aggiunti/modificati SOLO test (senza cambio codice app),
-  NON rieseguire il rebuild mobile.
-- **mobile-e2e.yml** (workflow singolo per test veloci): builda APK
-  (profilo **internal**, NON development) e runna i flow Maestro. Serve per
-  iterare velocemente senza tutta la pr-ci.
+A group has one administrator (its creator); administrator counts as a member. Its other members are
+accepted invitees. Only friends may be invited into a group, although friendship is not required
+later to stay a member or to be invited into a match belonging to that group. Group creation/editing
+accepts a name of 5–120 characters, a public/private flag, and zero or more friend invitations.
+Public groups are searchable through paginated discovery; discovery does not grant membership.
+Group membership remains invitation-only. Only the administrator may edit or archive a group;
+accepted members may leave. Archival is a soft deletion: it hides the group from lists and prevents
+new matches while retaining IDs, created matches, results, and rating history.
 
-## Lessons Learned (rilascio + CI, turno main-ci #9)
+Web and mobile group flows mirror match flows: a card opens a dedicated detail screen; create/edit
+open a separate screen with header back navigation, and invitation slots open a friend-picker
+screen. Use HeroUI switches for visibility and icon-bearing primary actions.
 
-- **main-ci build APK**: `timeout-minutes` deve essere 180, NON 90. Una
-  `eas build --local` fresca (cache invalidata perché il bump semantico tocca
-  `apps/mobile/package.json`) dura ~88-90 min sulle runner GitHub: a 90 min il
-  job veniva cancellato durante `packageRelease`. Su pr-ci la build veniva
-  RIUSATA (zero diff mobile) → il timeout non si era mai visto.
-- **Tag orfani da publish fallito**: se il publish job fallisce DOPO aver
-  creato il tag (release non creata), semantic-release considera la versione
-  già rilasciata → "no release" → `published=false` → build skippata. Se il
-  bump è committato ma il tag non esiste, revertare il bump e cancellare il
-  tag prima di pushare nuovi fix, così semantic-release rigenera il bump.
-- **`[skip ci]` nel messaggio**: un commit il cui subject contiene
-  `[skip ci]` (es. `git revert` di un commit `chore(release): … [skip ci]`)
-  NON triggera i workflow. Verificare il subject del commit prima del push.
-- **pr-ci needs dei job E2E**: `e2e-maestro` e `e2e-playwright` usano
-  `needs.provision.outputs.*` — `provision` DEVE essere nella loro lista
-  `needs`, altrimenti `E2E_EMAIL`/`E2E_EMAIL_2` sono vuoti e i test
-  (sign-in/profile/logout, contacts) vengono SILENZIOSAMENTE skippati →
-  pr-ci falsi verdi. Controllare il junit (skipped > 0) se i test non girano.
-- **Logout sempre raggiungibile**: il bottone Logout non deve dipendere dal
-  caricamento del profilo (se l'API profile fallisce con 401, il logout
-  spariva e l'E2E andava in timeout sul click). Logout = azione globale,
-  renderizzarlo anche nel ramo errore.
+Player ratings use **OpenSkill** (the installed JavaScript implementation of the Weng–Lin
+multiplayer model), not Glicko-2 or Elo. Each player is a one-person team, and a whole match's final
+ranks (including unresolved ties) are passed to one `rate` call per scope. Withdrawn (`ND`) players
+share last place, lose against finishers, and draw against other withdrawn players. If fewer than
+two participants have scores, terminate the match but do not change ratings or `gamesPlayed` for
+anyone. A rated match adds exactly one to `gamesPlayed` per player and scope, not one per opponent.
+Ratings are keyed by `userId + selectedGameId + scope`, where scope is `GLOBAL` or `GROUP(groupId)`.
+Group matches update both scopes using **pre-match** snapshots; ungrouped matches update only
+GLOBAL. Never use games proposed but not selected.
 
-## Lessons Learned (due ambienti Clerk — preview vs production)
+New OpenSkill state uses its native defaults `mu=25`, `sigma=25/3`; `tau` uses the library's
+default. Group ratings are initialized lazily: if a pre-match global rating exists, start from its
+`mu`, inflate uncertainty to `min(25/3, max((25/3)*200/350, global.sigma*1.5))`, and start the
+**group** `gamesPlayed` at zero. Otherwise use new-player defaults. Thereafter the two scopes evolve
+independently. Conservative leaderboard score is `mu - 3*sigma` (OpenSkill `ordinal`).
 
-- Esistono DUE istanze Clerk: **preview/test** (`pk_test_…singular-marten-79`,
-  chiave `CLERK_SECRET_KEY`) e **production/live** (`pk_live_…`,
-  `CLERK_SECRET_KEY_PRODUCTION`). Il GitHub secret `CLERK_SECRET_KEY` è quella
-  di preview: usarla verso l'API production dà 401 (mismatch istanza).
-- **pr-ci / preview**: tutto su `CLERK_SECRET_KEY` (test) — preview deploy usa
-  l'istanza test.
-- **main-ci / production**: i job E2E (provision, mirror sync-user, testing
-  token, cleanup) usano `CLERK_SECRET_KEY_PRODUCTION` (live) — il Bearer del
-  sync-user deve combaciare con l'env `CLERK_SECRET_KEY` di Vercel api
-  production (attualmente la live).
-- Coerenza richiesta: web production (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` su
-  Vercel) e APK (`EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` vars GitHub) devono usare
-  la pk dell'istanza GIUSTA, altrimenti i token emessi dal frontend non
-  vengono verificati dall'API (profile → 401).
-- I tag orfani da release fallite vanno cancellati insieme al revert del bump
-  (vedi lezione precedente), altrimenti semantic-release considera la
-  versione già rilasciata.
+Provisional means `gamesPlayed < 5` in that game and scope; it disappears after the fifth rated
+physical match even if sigma remains high. Group ratings may remain provisional after the global
+rating is established. No historical test matches are backfilled.
 
-## Lessons Learned (migrazione domini custom production — run #27-#45)
-
-- **Cambio dominio Vercel ≠ aggiornamento env**: spostando web/api da
-  `web-rosy-phi-82`/`api-chi-two-97.vercel.app` ai custom domain, le env
-  `NEXT_PUBLIC_API_URL` (Vercel web) e `EXPO_PUBLIC_API_URL` (vars GitHub)
-  restavano ai vecchi alias eliminati → la web puntava a un host morto.
-  Sintomo: contacts E2E "No users found" (il fetch fallisce con "Failed to
-  fetch" — la UI maschera l'errore come lista vuota; `page.on("request")`
-  mostra l'URL reale). Fix: `extra-env` nel main-ci (deterministico) +
-  vars GitHub aggiornati.
-- **"Failed to fetch" nel browser senza risposta catturabile** =
-  l'host è irraggiungibile/CORS bloccato. `page.on("request")` rivela l'URL
-  che la UI chiama davvero (a differenza di `response`, che non scatta se
-  la fetch muore in rete).
-- **Falso positivo test profile**: `getByText("E2E Test")` è il NOME
-  UTENTE nell'header, non i dati del profilo — il test 4 passa anche se
-  il fetch `/api/profiles` fallisce. Assertion debole.
-- **Il dialog di blocco web**: `getByRole("dialog")` può risolvere 2
-  elementi (il kebab dropdown lascia un role=dialog residuo) → usare
-  `.last()` nel test.
-- **Debug E2E efficace**: log nel componente (console del browser) +
-  `page.on("console")` nel test + `page.on("request")` per l'URL reale.
-  Ogni run di debug ha isolato un pezzo: token → mutate → URL.
-
-## BGG giochi (match wizard) — fonte dati
-
-- **Niente bgg-client/API key a runtime**: la ricerca giochi legge la
-  collection `boardGames` (importata dal dump ufficiale BGG `bg_ranks`:
-  boardgamegeek.com/data_dumps/bg_ranks → `boardgame_ranks.csv.zip`, serve
-  sessione loggata BGG per scaricarlo). Colonne usate: ID, Name, Year
-  Published, Thumbnail.
-- **Import**: `POST /api/admin/import-games` (Bearer == CLERK_SECRET_KEY,
-  come sync-user) + script `apps/api/scripts/import-boardgames.mjs` che parsa
-  il CSV e lo carica in chunk da 500. Idempotente (upsert su id BGG).
-- **Perché**: il dump evita il rate-limit BGG (1 req/5s) e non richiede API
-  key; la ricerca è un prefix-regex sul nome nella collection.
-- Per aggiornare il catalogo: riscaricare il dump e rilanciare lo script.
+Persist mutable rating snapshots and immutable before/after/delta events in the *same MongoDB
+transaction* as immutable match finalization. Unique indexes prevent duplicate processing;
+concurrent matches sharing a player must retry against fresh pre-match snapshots. Keep the OpenSkill
+calculation separate from persistence, and store enough immutable match outcomes and algorithm
+version to recompute ratings under a future model: OpenSkill and Glicko-2 numbers cannot be
+converted directly. Group detail shows member-only game leaderboards including withdrawals and
+historical members; no public leaderboard search endpoint is exposed. Cover deterministic rating
+logic and group authorization with unit/integration tests; exercise new user-visible flows on web
+and mobile.

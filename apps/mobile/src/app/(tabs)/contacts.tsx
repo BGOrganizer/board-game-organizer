@@ -1,26 +1,64 @@
 import {
   type ContactUser,
+  contactConnections,
   reportPresence,
   resolveApiUrl,
+  type SyncedContactIdentifiers,
   useContacts,
+  useInvites,
 } from "@board-game-organizer/shared";
-import { useAuth } from "@clerk/expo";
+import * as Sentry from "@sentry/react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Contacts from "expo-contacts";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
-import { Card } from "heroui-native/card";
-import { Chip } from "heroui-native/chip";
-import { Input } from "heroui-native/input";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
-import { Text } from "heroui-native/text";
-import { BookUser, MoreVertical, UserMinus, UserPlus, X } from "lucide-react-native";
+import { Tabs } from "heroui-native/tabs";
+import { Typography } from "heroui-native/text";
+import {
+  Ban,
+  BookUser,
+  type LucideIcon,
+  Mail,
+  MoreVertical,
+  Search,
+  SearchX,
+  Send,
+  UserPlus,
+  UserRoundCheck,
+  UserRoundPlus,
+  UsersRound,
+} from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, Linking, Pressable, ScrollView, View } from "react-native";
-import { InviteCard } from "@/components/InviteCard";
-import { UserActionsSheet } from "@/components/UserActionsSheet";
+import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { SearchInput } from "@/components/common/ui/SearchInput";
+import { TabBar } from "@/components/common/ui/TabBar";
+import {
+  type UserActionConfirmation,
+  UserActionsSheet,
+} from "@/components/common/ui/UserActionsSheet";
+import { UserList as ContactList } from "@/components/common/ui/UserList";
+import { UserListRow } from "@/components/common/ui/UserListRow";
+import { ContactLegend } from "@/components/contacts/ContactLegend";
+import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts/contacts";
+import {
+  pendingRegisteredContacts,
+  type SyncedContacts,
+  scanContactIdentifiers,
+} from "@/lib/contacts/registeredContacts";
+import { unregisteredContacts } from "@/lib/contacts/unregisteredContacts";
+import type { FriendRequestContext, UserActionKey } from "@/lib/contacts/user-actions";
 import { useT } from "@/lib/i18n";
+import { useMutationFeedback } from "@/lib/useMutationFeedback";
+import { useSessionAuth } from "@/lib/useSessionAuth";
+
+const CONTACT_LIST_PAGE_SIZE = 40;
 
 /** Placeholder shown while a contact list is loading. */
 function ContactListSkeleton({ count = 4 }: { count?: number }) {
@@ -58,56 +96,43 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
     </View>
   );
 }
-type TabKey = "following" | "followers" | "friends" | "blocked" | "suggestions" | "search";
-
 function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
-/** Avatar with the presence dot floating on its top-right corner. */
-function AvatarWithPresence({
-  name,
-  avatarUrl,
-  online,
-}: {
-  name: string;
-  avatarUrl: string | null;
-  online: boolean;
-}) {
-  return (
-    <View style={{ position: "relative" }}>
-      <Avatar size="md">
-        {avatarUrl ? <Avatar.Image source={{ uri: avatarUrl }} /> : null}
-        <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
-      </Avatar>
-      <View
-        style={{
-          position: "absolute",
-          top: -1,
-          right: -1,
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          backgroundColor: online ? "#22c55e" : "#9ca3af",
-          borderWidth: 2,
-          borderColor: "#fff",
-        }}
-      />
-    </View>
-  );
-}
-
 export default function ContactsScreen() {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
+  const queryClient = useQueryClient();
   const t = useT();
+  const foreground = useThemeColor("foreground");
+  const mutationFeedback = useMutationFeedback();
+  const router = useRouter();
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string | string[] }>();
+  const tab = contactTab(tabParam);
   const [token, setToken] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("following");
   const [query, setQuery] = useState("");
   const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
+  const [menuFriendRequest, setMenuFriendRequest] = useState<FriendRequestContext>();
+  const [initialConfirmAction, setInitialConfirmAction] = useState<UserActionConfirmation>();
+  const [unregistered, setUnregistered] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingDevicePage, setLoadingDevicePage] = useState(false);
+  const [hasMoreDeviceContacts, setHasMoreDeviceContacts] = useState(false);
+  const [contactsReadError, setContactsReadError] = useState(false);
   const [contactsPermission, setContactsPermission] = useState<
-    "undetermined" | "granted" | "denied"
-  >("undetermined");
+    "checking" | "undetermined" | "granted" | "denied"
+  >("checking");
   const [syncingContacts, setSyncingContacts] = useState(false);
+  const contactsSyncRef = useRef<Promise<void> | null>(null);
+  const devicePageRef = useRef<Promise<void> | null>(null);
+  const deviceOffsetRef = useRef(0);
+  const deviceHasMoreRef = useRef(false);
+  const deviceGenerationRef = useRef(0);
+  const deviceMatchesRef = useRef<{
+    submitted: SyncedContactIdentifiers;
+    registered: SyncedContactIdentifiers;
+  } | null>(null);
+  const contactsPromptShownRef = useRef(false);
+  const initialSyncRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -126,8 +151,7 @@ export default function ContactsScreen() {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn]);
+  }, [getToken, isLoaded, isSignedIn]);
 
   // Presence heartbeat: keep the green-dot fresh while the screen is open.
   // Uses a fresh session token each beat so the JWT rotation never 401s.
@@ -145,59 +169,189 @@ export default function ContactsScreen() {
     return () => clearInterval(interval);
   }, [token, getToken]);
 
-  const contacts = useContacts(apiUrl(), token, getToken);
+  const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback);
+  const invite = useInvites({ apiUrl: apiUrl(), token, getToken, feedback: mutationFeedback });
   const isBusy =
     contacts.follow.isPending ||
     contacts.unfollow.isPending ||
+    contacts.unfriend.isPending ||
+    contacts.friendRequest.isPending ||
+    contacts.cancelFriendRequest.isPending ||
+    contacts.acceptFriendRequest.isPending ||
+    contacts.rejectFriendRequest.isPending ||
     contacts.block.isPending ||
     contacts.unblock.isPending;
-
-  const handleUserAction = (u: ContactUser) => (key: string) => {
-    if (key === "follow") contacts.follow.mutate({ targetUserId: u.id });
-    else if (key === "unfollow") contacts.unfollow.mutate({ targetUserId: u.id });
-    else if (key === "block") contacts.block.mutate({ targetUserId: u.id });
-    else if (key === "unblock") contacts.unblock.mutate({ targetUserId: u.id });
+  const openUserActions = (
+    user: ContactUser,
+    friendRequest?: FriendRequestContext,
+    confirmation?: UserActionConfirmation,
+  ) => {
+    setMenuUser(user);
+    setMenuFriendRequest(friendRequest);
+    setInitialConfirmAction(confirmation);
+  };
+  const closeUserActions = () => {
+    setMenuUser(null);
+    setMenuFriendRequest(undefined);
+    setInitialConfirmAction(undefined);
+  };
+  const handleUserAction = (user: ContactUser) => async (key: UserActionKey) => {
+    const variables = { targetUserId: user.id, targetUser: user };
+    if (key === "follow") await contacts.follow.mutateAsync(variables);
+    else if (key === "unfollow") await contacts.unfollow.mutateAsync(variables);
+    else if (key === "unfriend") await contacts.unfriend.mutateAsync(variables);
+    else if (key === "friend_request") await contacts.friendRequest.mutateAsync(variables);
+    else if (key === "cancel_friend_request") {
+      await contacts.cancelFriendRequest.mutateAsync(variables);
+    } else if (key === "accept_friend_request") {
+      await contacts.acceptFriendRequest.mutateAsync(variables);
+    } else if (key === "reject_friend_request") {
+      await contacts.rejectFriendRequest.mutateAsync(variables);
+    } else if (key === "block") await contacts.block.mutateAsync(variables);
+    else if (key === "unblock") await contacts.unblock.mutateAsync(variables);
     // profile: not implemented yet — no-op.
   };
 
-  // Device address book: on first visit to Suggestions (and via the "Add
-  // contacts" CTA) we show a CONFIRMATION dialog first. Only if the user
+  // Device address book: on entry to Contacts (or via the Search tab CTA)
+  // we show a confirmation dialog before the native permission request. Only if the user
   // taps "Yes" does the real Android/iOS permission dialog fire. If the user
   // declines twice the system stops asking (canAskAgain=false) and we open
   // the app settings instead. The CTA stays tappable until consent is given.
-  // With consent the matched registered users are persisted on the API
-  // (POST /api/contacts/sync) and suggestions read them from the DB, so the
-  // address book is only read once.
-  const syncContactsData = useCallback(async () => {
-    try {
-      const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Emails],
-      });
-      const emails = Array.from(
-        new Set(
-          data
-            .flatMap((c) => (c.emails ?? []).map((e) => e.email?.trim().toLowerCase() ?? ""))
-            .filter(Boolean),
-        ),
-      );
-      if (emails.length) {
-        setSyncingContacts(true);
-        try {
-          await contacts.syncContacts.mutateAsync({ emails });
-        } finally {
-          setSyncingContacts(false);
-        }
-      }
-    } catch {
-      setContactsPermission("denied");
+  // With consent matched users are persisted through POST /api/contacts/sync;
+  // unmatched names are kept in memory only, never persisted.
+  const syncContactsMutation = contacts.syncContacts.mutateAsync;
+  const loadDevicePage = useCallback(() => {
+    if (!deviceHasMoreRef.current || !deviceMatchesRef.current || devicePageRef.current) {
+      return devicePageRef.current ?? Promise.resolve();
     }
-  }, [contacts.syncContacts]);
+    const generation = deviceGenerationRef.current;
+    const matches = deviceMatchesRef.current;
+    const task = (async () => {
+      setLoadingDevicePage(true);
+      try {
+        // Skip pages without eligible contacts; otherwise an empty first page
+        // would never give the user a scroll event to request the next page.
+        while (deviceHasMoreRef.current) {
+          const page =
+            (deviceOffsetRef.current === 0 && userId
+              ? queryClient.getQueryData<
+                  Awaited<ReturnType<typeof Contacts.Contact.getAllDetails>>
+                >(["device-contacts", apiUrl(), userId])
+              : undefined) ??
+            (await Contacts.Contact.getAllDetails(
+              [
+                Contacts.ContactField.FULL_NAME,
+                Contacts.ContactField.EMAILS,
+                Contacts.ContactField.PHONES,
+              ],
+              {
+                limit: CONTACT_LIST_PAGE_SIZE,
+                offset: deviceOffsetRef.current,
+                sortOrder: Contacts.ContactsSortOrder.GivenName,
+              },
+            ));
+          if (generation !== deviceGenerationRef.current) return;
+          deviceOffsetRef.current += page.length;
+          deviceHasMoreRef.current = page.length === CONTACT_LIST_PAGE_SIZE;
+          setHasMoreDeviceContacts(deviceHasMoreRef.current);
+          const next = unregisteredContacts(page, matches.submitted, matches.registered);
+          if (next.length) setUnregistered((current) => [...current, ...next]);
+          if (next.length || !deviceHasMoreRef.current) break;
+        }
+      } catch (error) {
+        if (generation !== deviceGenerationRef.current) return;
+        Sentry.captureException(error, { tags: { operation: "contacts.page" } });
+        setContactsReadError(true);
+        deviceHasMoreRef.current = false;
+        setHasMoreDeviceContacts(false);
+      } finally {
+        if (generation === deviceGenerationRef.current) setLoadingDevicePage(false);
+        devicePageRef.current = null;
+      }
+    })();
+    devicePageRef.current = task;
+    return task;
+  }, [queryClient, userId]);
+
+  const syncContactsData = useCallback(
+    (showFeedback = true) => {
+      if (!token) return Promise.resolve();
+      if (contactsSyncRef.current) return contactsSyncRef.current;
+      initialSyncRef.current = true;
+      const generation = ++deviceGenerationRef.current;
+      deviceHasMoreRef.current = false;
+      deviceMatchesRef.current = null;
+      setUnregistered([]);
+      setHasMoreDeviceContacts(false);
+      setLoadingDevicePage(false);
+
+      const sync = (async () => {
+        setSyncingContacts(true);
+        setContactsReadError(false);
+        let stage = "read";
+        try {
+          if (devicePageRef.current) await devicePageRef.current;
+          const warming = !showFeedback && userId ? pendingRegisteredContacts(userId) : undefined;
+          const warmed = warming
+            ? await warming
+            : !showFeedback && userId
+              ? queryClient.getQueryData<SyncedContacts>(["contact-sync", apiUrl(), userId])
+              : null;
+          if (generation !== deviceGenerationRef.current) return;
+          const submitted = warmed?.submitted ?? (await scanContactIdentifiers());
+          if (generation !== deviceGenerationRef.current) return;
+          stage = "request";
+          const registered =
+            warmed?.registered ??
+            (await syncContactsMutation({ ...submitted, silent: !showFeedback }))
+              .registeredIdentifiers;
+          if (generation !== deviceGenerationRef.current) return;
+          deviceMatchesRef.current = { submitted, registered };
+          if (userId)
+            queryClient.setQueryData(["contact-sync", apiUrl(), userId], { submitted, registered });
+          deviceOffsetRef.current = 0;
+          deviceHasMoreRef.current = true;
+          setHasMoreDeviceContacts(true);
+          await loadDevicePage();
+        } catch (error) {
+          if (generation !== deviceGenerationRef.current) return;
+          Sentry.captureException(error, { tags: { operation: "contacts.sync", stage } });
+          setContactsReadError(stage === "read");
+          if (stage === "read" && showFeedback) {
+            mutationFeedback.onError?.(
+              error instanceof Error ? error : new Error("Could not read contacts"),
+              "sync_contacts",
+            );
+          }
+        } finally {
+          if (generation === deviceGenerationRef.current) setSyncingContacts(false);
+          contactsSyncRef.current = null;
+        }
+      })();
+      contactsSyncRef.current = sync;
+      return sync;
+    },
+    [loadDevicePage, mutationFeedback, queryClient, syncContactsMutation, token, userId],
+  );
 
   // Fire the REAL system permission request and track denials. A denial only
   // returns to the screen (the CTA stays). The app settings are opened ONLY
   // when the user taps "Yes" again after already denying twice — the system
   // dialog would not re-appear anyway (canAskAgain=false).
   const requestContactsAccess = useCallback(async () => {
+    let permission = null;
+    try {
+      permission = await Contacts.getPermissionsAsync();
+    } catch {
+      permission = null;
+    }
+    if (permission?.granted) {
+      setContactsPermission("granted");
+      await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
+      await syncContactsData();
+      return;
+    }
+
     let denials = 0;
     try {
       denials = Number(await SecureStore.getItemAsync("contacts_denials")) || 0;
@@ -210,20 +364,12 @@ export default function ContactsScreen() {
       await Linking.openSettings().catch(() => {});
       return;
     }
-    let permission = null;
     try {
-      permission = await Contacts.getPermissionsAsync();
+      permission = await Contacts.requestPermissionsAsync();
     } catch {
       permission = null;
     }
-    if (!permission || !permission.granted) {
-      try {
-        permission = await Contacts.requestPermissionsAsync();
-      } catch {
-        permission = null;
-      }
-    }
-    if (!permission || !permission.granted) {
+    if (!permission?.granted) {
       // Declined the system dialog → back to the screen, no redirect.
       setContactsPermission("denied");
       denials += 1;
@@ -234,13 +380,9 @@ export default function ContactsScreen() {
       }
       return;
     }
-    // Granted: persist so the CTA never comes back, even across restarts.
+
     setContactsPermission("granted");
-    try {
-      await SecureStore.setItemAsync("contacts_granted", "true");
-    } catch {
-      /* non-fatal */
-    }
+    await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
     await syncContactsData();
   }, [syncContactsData]);
 
@@ -257,68 +399,78 @@ export default function ContactsScreen() {
     );
   }, [requestContactsAccess, t]);
 
-  // Restore a previously granted consent (survives app restarts) so the tab
-  // never re-prompts and the "Add contacts" CTA stays hidden.
+  // Native permission is the only source of truth; OS already persists it.
   useEffect(() => {
     let active = true;
-    (async () => {
-      // Real OS permission is the source of truth (the user may have revoked
-      // it in the settings). The SecureStore flag is a fast path only.
-      let granted = false;
-      try {
-        const p = await Contacts.getPermissionsAsync();
-        granted = Boolean(p?.granted);
-      } catch {
-        granted = false;
-      }
-      if (!granted) {
-        try {
-          const stored = await SecureStore.getItemAsync("contacts_granted");
-          granted = stored === "true";
-        } catch {
-          granted = false;
-        }
-      }
-      if (active && granted) {
-        setContactsPermission("granted");
-        try {
-          await SecureStore.setItemAsync("contacts_granted", "true");
-        } catch {
-          /* non-fatal */
-        }
-      }
-    })();
+    void Contacts.getPermissionsAsync()
+      .then((permission) => {
+        if (!active) return;
+        setContactsPermission(
+          permission.granted
+            ? "granted"
+            : permission.status === "denied"
+              ? "denied"
+              : "undetermined",
+        );
+      })
+      .catch(() => {
+        if (active) setContactsPermission("undetermined");
+      });
     return () => {
       active = false;
     };
   }, []);
 
-  // When the user grants in the SYSTEM SETTINGS and returns to the app, sync
-  // automatically (AppState → active). Android can lag a moment before the
-  // permission state updates, so re-check briefly instead of trusting a
-  // single read.
+  // When the user grants in SYSTEM SETTINGS and returns, sync automatically.
   const checkContactsGranted = useCallback(async () => {
-    for (let i = 0; i < 5; i += 1) {
-      let granted = false;
+    if (contactsPermission === "granted") {
       try {
-        const p = await Contacts.getPermissionsAsync();
-        granted = Boolean(p?.granted);
-      } catch {
-        granted = false;
-      }
-      if (granted) {
-        setContactsPermission("granted");
-        try {
-          await SecureStore.setItemAsync("contacts_granted", "true");
-        } catch {
-          /* non-fatal */
+        const permission = await Contacts.getPermissionsAsync();
+        if (!permission.granted) {
+          deviceGenerationRef.current += 1;
+          if (userId)
+            queryClient.removeQueries({ queryKey: ["device-contacts", apiUrl(), userId] });
+          deviceHasMoreRef.current = false;
+          deviceMatchesRef.current = null;
+          setUnregistered([]);
+          setHasMoreDeviceContacts(false);
+          setLoadingDevicePage(false);
+          setContactsReadError(false);
+          initialSyncRef.current = false;
+          setContactsPermission("denied");
+          return;
         }
-        await syncContactsData();
-        return;
+        if (userId) {
+          queryClient.removeQueries({ queryKey: ["device-contacts", apiUrl(), userId] });
+          queryClient.removeQueries({ queryKey: ["contact-sync", apiUrl(), userId] });
+        }
+        await syncContactsData(false);
+      } catch {
+        /* keep last known permission state */
       }
-      await new Promise((r) => setTimeout(r, 400));
+      return;
     }
-  }, [syncContactsData]);
+
+    // Android can lag briefly before publishing the new permission state.
+    for (let i = 0; i < 5; i += 1) {
+      try {
+        const permission = await Contacts.getPermissionsAsync();
+        if (permission.granted) {
+          setContactsPermission("granted");
+          if (userId) {
+            queryClient.removeQueries({ queryKey: ["device-contacts", apiUrl(), userId] });
+            queryClient.removeQueries({ queryKey: ["contact-sync", apiUrl(), userId] });
+          }
+          await SecureStore.deleteItemAsync("contacts_denials").catch(() => {});
+          await syncContactsData(false);
+          return;
+        }
+      } catch {
+        /* retry below */
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 400));
+    }
+  }, [contactsPermission, syncContactsData, queryClient, userId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
@@ -327,23 +479,21 @@ export default function ContactsScreen() {
     return () => sub.remove();
   }, [checkContactsGranted]);
 
-  // Re-check when re-entering the Suggestions tab: some Android launchers
-  // miss the AppState foreground event, so this is the safety net.
-  useEffect(() => {
-    if (tab !== "suggestions") return;
-    if (contactsPermission === "granted") return;
-    void checkContactsGranted();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  // Ask for native permission only when the Contacts tab receives focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (contactsPermission !== "undetermined" || contactsPromptShownRef.current) return;
+      contactsPromptShownRef.current = true;
+      void requestContactsAccess();
+    }, [contactsPermission, requestContactsAccess]),
+  );
 
-  // Ask for permission the first time the user opens the Suggestions tab
-  // (through the confirmation dialog — never an unprompted system dialog).
+  // Restore the in-memory invite list when permission was granted earlier.
   useEffect(() => {
-    if (tab !== "suggestions") return;
-    if (contactsPermission !== "undetermined") return;
-    confirmAndRequestContacts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+    if (contactsPermission !== "granted" || !token || initialSyncRef.current) return;
+    initialSyncRef.current = true;
+    void syncContactsData(false);
+  }, [contactsPermission, syncContactsData, token]);
 
   // Auto-search on input: fires 300ms after the user stops typing, only when
   // at least 4 characters are present (min prefix length per product spec).
@@ -359,379 +509,404 @@ export default function ContactsScreen() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [contacts.runSearch, query]);
 
   const followingRows = contacts.following.data ?? [];
-  // Ids the viewer follows — used by the Followers tab to render the right
-  // icon (the server-side profile.isFollowing is relative to the list row and
-  // is always false for follower rows).
-  const followingIds = new Set(
-    followingRows.map((r) => r.profile?.id).filter((id): id is string => Boolean(id)),
-  );
   const followersRows = contacts.followers.data ?? [];
+  const friendsRows = contacts.friends.data ?? [];
+  const pendingRows = contacts.pending.data ?? [];
+  const sentRows = contacts.sent.data ?? [];
+  const requestRows = [
+    ...pendingRows.map((row) => ({ row, type: "received" as const })),
+    ...sentRows.map((row) => ({ row, type: "sent" as const })),
+  ].filter(({ row }) => row.profile);
+  const requestPages = [contacts.pending, contacts.sent];
+  const pendingRequestIds = new Set(
+    pendingRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const sentRequestIds = new Set(
+    sentRows.map((row) => row.profile?.id).filter((id): id is string => Boolean(id)),
+  );
+  const friendRequestsLoaded = contacts.pending.isSuccess && contacts.sent.isSuccess;
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
-  const hasContacts = contacts.suggestions.data?.hasContacts ?? false;
+  const visibleSuggestions =
+    contacts.suggestions.isLoading || contactsPermission === "checking" ? [] : suggestions;
   const searchResults = contacts.search.data?.users ?? [];
-
-  const tabButtons: Array<[TabKey, string]> = [
-    ["following", t("Following")],
-    ["followers", t("Followers")],
-    ["blocked", t("Blocked")],
-    ["suggestions", t("Suggestions")],
-    ["search", t("Search")],
+  const connections = contactConnections(
+    friendsRows,
+    followingRows,
+    followersRows,
+    visibleSuggestions,
+    blockedRows,
+  );
+  const bgoContacts = connections.find((section) => section.key === "device")?.users ?? [];
+  const searchRows = contactSearchRows(
+    searchResults,
+    bgoContacts,
+    contacts.suggestions.hasNextPage ? [] : unregistered,
+  );
+  const connectionLabels = {
+    friends: t("Friends"),
+    following: t("Following"),
+    followers: t("Followers"),
+    blocked: t("Blocked"),
+  };
+  const connectionDescriptions = {
+    friends: t("Friendship accepted."),
+    following: t("People you follow."),
+    followers: t("People who follow you."),
+    blocked: t("People you have blocked."),
+  };
+  const connectionIcons = {
+    friends: UsersRound,
+    following: UserRoundPlus,
+    followers: UserRoundCheck,
+    blocked: Ban,
+  };
+  const connectionColors = {
+    friends: "accent",
+    following: "warning",
+    followers: "success",
+    blocked: "danger",
+  } as const;
+  const connectionQueries = [
+    contacts.friends,
+    contacts.following,
+    contacts.followers,
+    contacts.blocked,
   ];
-
-  const listTab =
-    tab === "following" || tab === "followers" || tab === "friends" || tab === "blocked"
-      ? tab
-      : null;
-  const listRows =
-    listTab === "following" ? followingRows : listTab === "followers" ? followersRows : blockedRows;
-  const listLoading =
-    listTab === "following"
-      ? contacts.following.isLoading
-      : listTab === "followers"
-        ? contacts.followers.isLoading
-        : contacts.blocked.isLoading;
-  const listEmpty =
-    listTab === "following"
-      ? t("You are not following anyone yet")
-      : listTab === "followers"
-        ? t("No followers yet")
-        : t("No blocked users");
+  const connectionRows = connections
+    .filter((section) => section.key !== "device")
+    .flatMap((section) => section.users.map((user) => ({ user, type: section.key })));
+  const canSendFriendRequest = (user: ContactUser) =>
+    friendRequestsLoaded &&
+    !user.isFriend &&
+    !user.blockedByMe &&
+    !user.blockedMe &&
+    !pendingRequestIds.has(user.id) &&
+    !sentRequestIds.has(user.id);
+  const contactRow = (
+    user: ContactUser,
+    friendRequest?: FriendRequestContext,
+    badge?: { icon: LucideIcon; label: string; color: "accent" | "success" | "warning" | "danger" },
+  ) => (
+    <UserListRow
+      key={user.id}
+      name={user.name}
+      avatarUrl={user.avatarUrl}
+      secondary={user.email}
+      online={user.presence.online}
+      badge={badge}
+      actions={
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            openUserActions(
+              user,
+              friendRequest ??
+                (pendingRequestIds.has(user.id)
+                  ? "incoming"
+                  : sentRequestIds.has(user.id)
+                    ? "outgoing"
+                    : undefined),
+            )
+          }
+          hitSlop={8}
+          accessibilityLabel={`${t("Actions")}: ${user.name}`}
+          style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}
+        >
+          <MoreVertical size={18} color={foreground} />
+        </Pressable>
+      }
+    />
+  );
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <InviteCard apiUrl={apiUrl()} token={token} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginTop: 12, marginBottom: 12, flexGrow: 0 }}
-      >
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {tabButtons.map(([key, label]) => (
-            <Chip
-              key={key}
-              variant={tab === key ? "primary" : "secondary"}
-              color={tab === key ? "accent" : "default"}
-              size="md"
-              onPress={() => setTab(key)}
-            >
-              <Text className={tab === key ? "text-accent-foreground" : "text-muted"}>{label}</Text>
-            </Chip>
-          ))}
-        </View>
-      </ScrollView>
-
-      <ScrollView
+    <View style={{ flex: 1, padding: 20 }}>
+      <Tabs
         style={{ flex: 1 }}
-        contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
+        value={tab}
+        onValueChange={(value) => router.setParams({ tab: value as ContactTab })}
+        variant="primary"
       >
-        {tab === "search" && (
-          <View style={{ marginBottom: 12, gap: 8 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Input
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder={t("Search users (at least 4 characters)")}
-                />
-              </View>
-              {query.length > 0 && (
-                <Pressable
-                  onPress={() => {
-                    setQuery("");
-                    contacts.runSearch("");
-                  }}
-                  hitSlop={8}
-                  accessibilityLabel={t("Clear search")}
-                >
-                  <X size={18} color="#8e8e93" />
-                </Pressable>
-              )}
-            </View>
-            {query.trim().length > 0 && query.trim().length < 4 && (
-              <Text style={{ fontSize: 13, color: "#8e8e93" }}>
-                {t("Type at least 4 characters to search")}
-              </Text>
-            )}
-            {contacts.search.isPending && <ContactListSkeleton count={2} />}
-            {query.trim().length >= 4 &&
-              !contacts.search.isPending &&
-              searchResults.length === 0 && (
-                <Text style={{ fontSize: 13, color: "#8e8e93" }}>{t("No users found")}</Text>
-              )}
-            {searchResults.map((u) => (
-              <Card
-                key={u.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: 12,
-                  width: "100%",
-                }}
-              >
-                <AvatarWithPresence
-                  name={u.name}
-                  avatarUrl={u.avatarUrl}
-                  online={u.presence.online}
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text className="font-medium">{u.name}</Text>
-                  </View>
-                  {u.email ? (
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 13, color: "#8e8e93" }}
-                    >
-                      {u.email}
-                    </Text>
-                  ) : null}
-                </View>
-                <Button
-                  variant="outline"
-                  isIconOnly
-                  size="sm"
-                  style={{ minHeight: 30, minWidth: 30 }}
-                  isDisabled={isBusy}
-                  accessibilityLabel={u.isFollowing ? t("Unfollow") : t("Follow")}
-                  testID={u.isFollowing ? "unfollow-btn" : "follow-btn"}
-                  onPress={() =>
-                    u.isFollowing
-                      ? contacts.unfollow.mutate({ targetUserId: u.id })
-                      : contacts.follow.mutate({ targetUserId: u.id })
-                  }
-                >
-                  {u.isFollowing ? (
-                    <UserMinus size={16} color="#111" />
-                  ) : (
-                    <UserPlus size={16} color="#111" />
-                  )}
-                </Button>
-                <Pressable
-                  onPress={() => setMenuUser(u)}
-                  hitSlop={8}
-                  accessibilityLabel={t("Actions")}
-                  style={{ padding: 6 }}
-                >
-                  <MoreVertical size={18} color="#333" />
-                </Pressable>
-              </Card>
-            ))}
-          </View>
-        )}
+        <TabBar>
+          <Tabs.Trigger value="connections" style={{ flex: 1 }}>
+            <Tabs.Label>{t("Connections")}</Tabs.Label>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="requests" style={{ flex: 1 }}>
+            <Tabs.Label>{t("Requests")}</Tabs.Label>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="search" style={{ flex: 1 }}>
+            <Tabs.Label>{t("Search")}</Tabs.Label>
+          </Tabs.Trigger>
+        </TabBar>
 
-        {tab === "suggestions" && (
-          <View style={{ gap: 8 }}>
-            {contacts.suggestions.isLoading && <ContactListSkeleton count={3} />}
-            {syncingContacts && <ContactListSkeleton count={2} />}
-            {!contacts.suggestions.isLoading &&
-              !syncingContacts &&
-              contactsPermission !== "granted" && (
-                <View style={{ gap: 8 }}>
-                  <Text className="text-sm text-muted">
-                    {contactsPermission === "denied"
-                      ? t("Allow address book access to find your friends here.")
-                      : t("No suggestions yet — sync your address book to find friends.")}
-                  </Text>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    isDisabled={syncingContacts}
-                    onPress={confirmAndRequestContacts}
-                  >
-                    <BookUser size={16} color="#111" />
-                    <Text>{t("Add contacts")}</Text>
+        <Tabs.Content value="search" style={{ flex: 1 }}>
+          <FlatList
+            style={{ flex: 1 }}
+            contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
+            keyboardShouldPersistTaps="handled"
+            data={searchRows}
+            keyExtractor={(row) => row.id}
+            onEndReached={() => {
+              if (contacts.suggestions.hasNextPage) {
+                if (
+                  !contacts.suggestions.isFetchingNextPage &&
+                  !contacts.suggestions.isFetchNextPageError
+                )
+                  void contacts.suggestions.fetchNextPage();
+              } else void loadDevicePage();
+            }}
+            onEndReachedThreshold={0.5}
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            windowSize={7}
+            ListFooterComponent={
+              <>
+                {loadingDevicePage || syncingContacts || contacts.suggestions.isFetchingNextPage ? (
+                  <ContactListSkeleton count={2} />
+                ) : null}
+                {contacts.suggestions.isFetchNextPageError ? (
+                  <Button variant="ghost" onPress={() => void contacts.suggestions.fetchNextPage()}>
+                    <Typography>{t("Retry")}</Typography>
                   </Button>
-                </View>
-              )}
-            {!contacts.suggestions.isLoading &&
-              contactsPermission === "granted" &&
-              suggestions.length === 0 && (
-                <Text className="text-sm text-muted">
-                  {hasContacts
-                    ? t("No friends from your contacts are on Board Game Organizer yet.")
-                    : t("No contacts found in your address book.")}
-                </Text>
-              )}
-            {suggestions.map((u) => (
-              <Card
-                key={u.id}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: 12,
-                  width: "100%",
-                }}
-              >
-                <AvatarWithPresence
-                  name={u.name}
-                  avatarUrl={u.avatarUrl}
-                  online={u.presence.online}
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Text className="font-medium">{u.name}</Text>
+                ) : null}
+              </>
+            }
+            ListHeaderComponent={
+              <View style={{ marginBottom: 12, gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <SearchHelpLabel
+                      label={t("Search users by name or email")}
+                      help={t("Type at least 4 characters to search")}
+                    />
+                    <SearchInput
+                      value={query}
+                      onChange={(value) => {
+                        setQuery(value);
+                        if (!value) contacts.runSearch("");
+                      }}
+                      label={t("Search users by name or email")}
+                      placeholder={t("Search users")}
+                    />
                   </View>
-                  {u.email ? (
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 13, color: "#8e8e93" }}
+                  {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                    <Button
+                      isIconOnly
+                      variant="outline"
+                      accessibilityLabel={t("Add contacts")}
+                      onPress={confirmAndRequestContacts}
+                      testID="enable-contacts-btn"
                     >
-                      {u.email}
-                    </Text>
+                      <BookUser size={18} color="#111" />
+                    </Button>
                   ) : null}
                 </View>
-                <Button
-                  variant="outline"
-                  isIconOnly
-                  size="sm"
-                  style={{ minHeight: 30, minWidth: 30 }}
-                  isDisabled={isBusy}
-                  accessibilityLabel={u.isFollowing ? t("Unfollow") : t("Follow")}
-                  testID={u.isFollowing ? "unfollow-btn" : "follow-btn"}
-                  onPress={() =>
-                    u.isFollowing
-                      ? contacts.unfollow.mutate({ targetUserId: u.id })
-                      : contacts.follow.mutate({ targetUserId: u.id })
-                  }
-                >
-                  {u.isFollowing ? (
-                    <UserMinus size={16} color="#111" />
-                  ) : (
-                    <UserPlus size={16} color="#111" />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Search size={18} color={foreground} />
+                  <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                    {t("Search results")}
+                  </Typography>
+                </View>
+                {query.trim().length < 4 && (
+                  <EmptyList icon={<Search size={28} color="#737373" />}>
+                    {t("Type at least 4 characters to search")}
+                  </EmptyList>
+                )}
+                {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+                {query.trim().length >= 4 &&
+                  !contacts.search.isLoading &&
+                  !contacts.search.isError &&
+                  searchResults.length === 0 && (
+                    <EmptyList icon={<SearchX size={28} color="#737373" />}>
+                      {t("No users found")}
+                    </EmptyList>
                   )}
-                </Button>
-                <Pressable
-                  onPress={() => setMenuUser(u)}
-                  hitSlop={8}
-                  accessibilityLabel={t("Actions")}
-                  style={{ padding: 6 }}
-                >
-                  <MoreVertical size={18} color="#333" />
-                </Pressable>
-              </Card>
-            ))}
-          </View>
-        )}
-
-        {listTab && (
-          <View style={{ gap: 8 }}>
-            {listLoading && <ContactListSkeleton count={4} />}
-            {listRows.length === 0 && !listLoading && (
-              <Text className="text-sm text-muted" style={{ textAlign: "left" }}>
-                {listEmpty}
-              </Text>
-            )}
-            {listRows.map((row) => {
-              const profile = row.profile;
-              if (!profile) return null;
-              return (
-                <Card
-                  key={profile.id}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: 12,
-                    width: "100%",
-                  }}
-                >
-                  <AvatarWithPresence
-                    name={profile.name}
-                    avatarUrl={profile.avatarUrl}
-                    online={profile.presence.online}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text className="font-medium">{profile.name}</Text>
-                    </View>
-                    {profile.email ? (
-                      <Text
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={{ fontSize: 13, color: "#8e8e93" }}
-                      >
-                        {profile.email}
-                      </Text>
+                {contacts.search.isError ? (
+                  <Typography className="text-danger">{t("Could not load contacts")}</Typography>
+                ) : null}
+              </View>
+            }
+            renderItem={({ item }) => {
+              if (item.kind === "user" || item.kind === "bgo") {
+                return <GroupedList>{contactRow(item.user)}</GroupedList>;
+              }
+              if (item.kind === "device-header") {
+                return (
+                  <View style={{ gap: 8 }}>
+                    <Typography
+                      accessibilityRole="header"
+                      className="font-semibold text-foreground"
+                    >
+                      {t("Device Contacts")}
+                    </Typography>
+                    {contacts.suggestions.isLoading || contactsPermission === "checking" ? (
+                      <ContactListSkeleton count={2} />
+                    ) : null}
+                    {contacts.suggestions.isError ? (
+                      <Typography accessibilityRole="alert" className="text-danger">
+                        {t("Could not load contacts")}
+                      </Typography>
+                    ) : null}
+                    {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                      <Typography className="text-muted">
+                        {t("Allow address book access to find your friends here.")}
+                      </Typography>
+                    ) : null}
+                    {contactsPermission === "granted" &&
+                    (contacts.syncContacts.isError || contactsReadError) ? (
+                      <Button variant="outline" onPress={() => void syncContactsData()}>
+                        <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+                      </Button>
+                    ) : null}
+                    {contactsPermission === "granted" &&
+                    !syncingContacts &&
+                    !contacts.syncContacts.isError &&
+                    !contactsReadError &&
+                    !loadingDevicePage &&
+                    !hasMoreDeviceContacts &&
+                    !contacts.suggestions.isLoading &&
+                    !contacts.suggestions.isError &&
+                    bgoContacts.length === 0 &&
+                    unregistered.length === 0 ? (
+                      <EmptyList icon={<BookUser size={28} color="#737373" />}>
+                        {t("No contacts to invite")}
+                      </EmptyList>
+                    ) : null}
+                    {invite.isError ? (
+                      <Typography className="text-danger">
+                        {t("Could not create the invite. Try again.")}
+                      </Typography>
                     ) : null}
                   </View>
-                  {listTab === "following" ? (
-                    <Button
-                      variant="outline"
-                      isIconOnly
-                      size="sm"
-                      style={{ minHeight: 30, minWidth: 30 }}
-                      isDisabled={isBusy}
-                      accessibilityLabel={t("Unfollow")}
-                      testID="unfollow-btn"
-                      onPress={() => contacts.unfollow.mutate({ targetUserId: profile.id })}
-                    >
-                      <UserMinus size={16} color="#111" />
-                    </Button>
-                  ) : listTab === "followers" ? (
-                    <Button
-                      variant="outline"
-                      isIconOnly
-                      size="sm"
-                      style={{ minHeight: 30, minWidth: 30 }}
-                      isDisabled={isBusy}
-                      accessibilityLabel={
-                        followingIds.has(profile.id) ? t("Unfollow") : t("Follow")
-                      }
-                      testID={followingIds.has(profile.id) ? "unfollow-btn" : "follow-btn"}
-                      onPress={() =>
-                        followingIds.has(profile.id)
-                          ? contacts.unfollow.mutate({ targetUserId: profile.id })
-                          : contacts.follow.mutate({ targetUserId: profile.id })
-                      }
-                    >
-                      {followingIds.has(profile.id) ? (
-                        <UserMinus size={16} color="#111" />
-                      ) : (
-                        <UserPlus size={16} color="#111" />
-                      )}
-                    </Button>
-                  ) : null}
-                  <Pressable
-                    onPress={() => setMenuUser(profile)}
-                    hitSlop={8}
-                    accessibilityLabel={t("Actions")}
-                    style={{ padding: 6 }}
-                  >
-                    <MoreVertical size={18} color="#333" />
-                  </Pressable>
-                </Card>
+                );
+              }
+              const contact = item.contact;
+              return (
+                <GroupedList>
+                  <UserListRow
+                    name={contact.name}
+                    actions={
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="outline"
+                        style={{ minWidth: 44, minHeight: 44 }}
+                        isDisabled={invite.isPending}
+                        accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
+                        onPress={() =>
+                          invite.mutate(undefined, {
+                            onSuccess: (created) => {
+                              void Share.share({ message: created.link }).catch(() => {});
+                            },
+                          })
+                        }
+                      >
+                        <UserPlus size={18} color={foreground} />
+                      </Button>
+                    }
+                  />
+                </GroupedList>
               );
-            })}
-          </View>
-        )}
-      </ScrollView>
+            }}
+          />
+        </Tabs.Content>
+
+        <Tabs.Content value="requests" style={{ flex: 1 }}>
+          <ContactLegend
+            title={t("Requests")}
+            icon={Mail}
+            entries={[
+              {
+                icon: Mail,
+                label: t("Received"),
+                color: "accent",
+                description: t("Requests awaiting your reply."),
+              },
+              {
+                icon: Send,
+                label: t("Sent"),
+                color: "warning",
+                description: t("Requests awaiting their reply."),
+              },
+            ]}
+          />
+          <ContactList
+            data={requestRows}
+            pages={requestPages}
+            keyExtractor={({ row, type }) =>
+              `${type}-${row.profile?.id ?? `${row.fromUserId}-${row.toUserId}`}`
+            }
+            renderRow={({ row, type }) =>
+              row.profile
+                ? contactRow(row.profile, type === "received" ? "incoming" : "outgoing", {
+                    icon: type === "received" ? Mail : Send,
+                    label: type === "received" ? t("Received") : t("Sent"),
+                    color: type === "received" ? "accent" : "warning",
+                  })
+                : null
+            }
+            empty={t("No friend requests")}
+            emptyIcon={<Mail size={28} color="#737373" />}
+            error={t("Could not load friend requests")}
+            skeleton={<ContactListSkeleton count={2} />}
+          />
+        </Tabs.Content>
+
+        <Tabs.Content value="connections" style={{ flex: 1 }}>
+          <ContactLegend
+            title={t("Connections")}
+            icon={UsersRound}
+            entries={(["friends", "following", "followers", "blocked"] as const).map((type) => ({
+              icon: connectionIcons[type],
+              label: connectionLabels[type],
+              color: connectionColors[type],
+              description: connectionDescriptions[type],
+            }))}
+          />
+          <ContactList
+            data={connectionRows}
+            pages={connectionQueries}
+            keyExtractor={({ user }) => user.id}
+            renderRow={({ user, type }) =>
+              contactRow(user, undefined, {
+                icon: connectionIcons[type],
+                label: connectionLabels[type],
+                color: connectionColors[type],
+              })
+            }
+            empty={t("No connections yet")}
+            emptyIcon={<UsersRound size={28} color="#737373" />}
+            error={t("Could not load contacts")}
+            skeleton={<ContactListSkeleton count={2} />}
+            footer={
+              <>
+                {syncingContacts || contactsPermission === "checking" ? (
+                  <ContactListSkeleton count={2} />
+                ) : null}
+                {contactsPermission === "granted" &&
+                (contactsReadError || contacts.syncContacts.isError) ? (
+                  <Button variant="outline" onPress={() => void syncContactsData()}>
+                    <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+                  </Button>
+                ) : null}
+              </>
+            }
+          />
+        </Tabs.Content>
+      </Tabs>
 
       <UserActionsSheet
         visible={menuUser !== null}
         user={menuUser}
         busy={isBusy}
-        error={
-          contacts.follow.isError ||
-          contacts.unfollow.isError ||
-          contacts.block.isError ||
-          contacts.unblock.isError
-            ? t("Could not complete the action. Try again.")
-            : null
-        }
-        onClose={() => setMenuUser(null)}
-        onAction={(key) => {
-          if (menuUser) handleUserAction(menuUser)(key);
-        }}
+        canSendFriendRequest={menuUser !== null && canSendFriendRequest(menuUser)}
+        friendRequest={menuFriendRequest}
+        initialConfirmAction={initialConfirmAction}
+        onClose={closeUserActions}
+        onAction={(key) => (menuUser ? handleUserAction(menuUser)(key) : Promise.resolve())}
       />
     </View>
   );
