@@ -42,6 +42,9 @@ export default defineConfig({
           "organizations/hooks/useOrganizationSocialActions.ts",
           "events/hooks/useEvents.ts",
           "events/hooks/useEventWindow.ts",
+          "events/hooks/useEventTableContext.ts",
+          "events/hooks/useEventTableParticipation.ts",
+          "events/hooks/useEventTableMatch.ts",
           "groups/hooks/usePublicGroups.ts",
         ].map((file) =>
           fileURLToPath(new URL(`../../packages/shared/src/${file}`, import.meta.url)).replaceAll(
@@ -82,6 +85,22 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/lib/events/eventWizardBackHref.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventTableHeading,EventTablePlayers,EventTableOverview,EventTableEditAction,EventTableInvitationPicker,EventTableEdit,EventTable}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/components/organizations/OrganizationMemberPicker.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/events/hooks/{useEventTableContext,useEventTableParticipation,useEventTableMatch}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/components/common/ui/ContactConfirmDialog.tsx": {
           lines: 100,
           functions: 100,

@@ -49,6 +49,7 @@ import { WizardSteps } from "@/components/common/ui/WizardSteps";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import LocationPicker from "@/components/locations/LocationPicker";
+import { goBackFromEventWizard } from "@/lib/events/goBackFromEventWizard";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
@@ -57,13 +58,49 @@ import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventTableEditor } from "./EventTableEditor";
 import { EventWizardSummary } from "./EventWizardSummary";
 
-export function EventWizard({
+type EventWizardProps = { eventId?: string; organizationId?: string };
+
+function WizardHeader({
   eventId,
   organizationId,
-}: {
-  eventId?: string;
-  organizationId?: string;
-}) {
+  busy = false,
+}: EventWizardProps & { busy?: boolean }) {
+  const t = useT();
+  const router = useRouter();
+  const foreground = useThemeColor("foreground");
+  return (
+    <Stack.Screen
+      options={{
+        title: eventId ? t("Edit event") : t("New event"),
+        headerBackVisible: false,
+        headerLeft: () => (
+          <Button
+            isIconOnly
+            variant="ghost"
+            accessibilityLabel={t("Back")}
+            testID="event-wizard-header-back"
+            style={{ minWidth: 44, minHeight: 44 }}
+            isDisabled={busy}
+            onPress={() => goBackFromEventWizard(router, eventId, organizationId)}
+          >
+            <ArrowLeft size={20} color={foreground} />
+          </Button>
+        ),
+      }}
+    />
+  );
+}
+
+export function EventWizard(props: EventWizardProps) {
+  return (
+    <View style={{ flex: 1 }}>
+      <WizardHeader {...props} />
+      <WizardContent {...props} />
+    </View>
+  );
+}
+
+function WizardContent({ eventId, organizationId }: EventWizardProps) {
   const t = useT();
   const o = useCommunityApi();
   const detail = useEvent(
@@ -329,13 +366,7 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   ];
   const header = (
     <View style={{ gap: 16 }}>
-      <Stack.Screen
-        options={{
-          title: event ? t("Edit event") : t("New event"),
-          headerLeft: undefined,
-          headerBackVisible: step > 0,
-        }}
-      />
+      <WizardHeader eventId={event?.id} organizationId={organizationId} busy={actions.busy} />
       <WizardSteps current={step + 1} count={3} />
       {step === 0 ? (
         <Typography className="font-semibold text-foreground">{t("Event detail")}</Typography>

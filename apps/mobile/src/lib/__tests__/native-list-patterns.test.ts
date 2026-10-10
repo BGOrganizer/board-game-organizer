@@ -9,7 +9,7 @@ describe("native list component ownership", () => {
   it.each([
     "app/(tabs)/contacts.tsx",
     "app/group/[groupId].tsx",
-    "app/match/[matchId].tsx",
+    "components/matches/MatchDetail.tsx",
     "app/match/search-user.tsx",
     "components/groups/GroupWizard.tsx",
     "components/matches/MatchWizard.tsx",
@@ -41,14 +41,14 @@ describe("native list component ownership", () => {
   it.each([
     "components/games/GamePicker.tsx",
     "components/matches/MatchWizard.tsx",
-    "app/match/[matchId].tsx",
+    "components/matches/MatchDetail.tsx",
   ])("uses shared game row in %s", (path) => {
     expect(source(path)).toContain("<GameListRow");
   });
   it.each([
     "components/organizations/OrganizationWizard.tsx",
     "components/matches/MatchWizard.tsx",
-    "app/match/[matchId].tsx",
+    "components/matches/MatchDetail.tsx",
   ])("uses shared location row in %s", (path) => {
     expect(source(path)).toContain("<LocationListRow");
   });
@@ -70,7 +70,7 @@ describe("native list component ownership", () => {
   it.each([
     "components/organizations/OrganizationDetail.tsx",
     "app/group/[groupId].tsx",
-    "app/match/[matchId].tsx",
+    "components/matches/MatchDetail.tsx",
     "app/(tabs)/contacts.tsx",
   ])("uses shared tab spacing in %s", (path) => {
     expect(source(path)).toContain("<TabBar>");

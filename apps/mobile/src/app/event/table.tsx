@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from "expo-router";
-import { EventTableDetail } from "@/components/events/EventTableDetail";
+import { EventTable } from "@/components/events/EventTable";
 export default function TableScreen() {
   const { eventId, tableId } = useLocalSearchParams<{ eventId: string; tableId: string }>();
-  return <EventTableDetail eventId={eventId} tableId={tableId} />;
+  return <EventTable eventId={eventId} tableId={tableId} />;
 }

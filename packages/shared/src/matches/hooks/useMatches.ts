@@ -28,6 +28,7 @@ import {
   patchPagedList,
 } from "../../common/hooks/listFilters";
 import type { MutationFeedback } from "../../common/mutationFeedback";
+import { CommunityApiError } from "../../community/communityApi";
 import { rankMatchResults } from "../matchResults";
 
 /**
@@ -82,12 +83,13 @@ async function fetchMatchDetail(
   token: string,
   matchId: string,
   protectionBypass?: string | null,
+  signal?: AbortSignal,
 ): Promise<MatchDetailResponse> {
   const res = await fetch(
     withProtectionBypass(`${apiUrl}/api/matches/${encodeURIComponent(matchId)}`, protectionBypass),
-    { headers: { Authorization: `Bearer ${token}` } },
+    { headers: { Authorization: `Bearer ${token}` }, ...(signal ? { signal } : {}) },
   );
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new CommunityApiError(res.status, `HTTP ${res.status}`);
   return (await res.json()) as MatchDetailResponse;
 }
 
@@ -715,8 +717,14 @@ export function matchDetailQuery({
 }: MatchDetailApiOptions) {
   return {
     queryKey: ["matches", "detail", matchId, apiUrl, userId ?? token] as const,
-    queryFn: async () =>
-      fetchMatchDetail(apiUrl, await resolveToken(token, getToken), matchId, protectionBypass),
+    queryFn: async ({ signal }: { signal?: AbortSignal } = {}) =>
+      fetchMatchDetail(
+        apiUrl,
+        await resolveToken(token, getToken),
+        matchId,
+        protectionBypass,
+        signal,
+      ),
     staleTime: 5 * 60_000,
   };
 }

@@ -7,6 +7,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import {
   canRegisterMatchResults,
+  communityAccessDenied,
   formatLocationAddress,
   formatMatchDateTime,
   matchContactState,
@@ -51,6 +52,10 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
+import { EventTableEditAction } from "@/components/events/EventTableEditAction";
+import { EventTableHeading } from "@/components/events/EventTableHeading";
+import { EventTableOverview } from "@/components/events/EventTableOverview";
+import { EventTablePlayers } from "@/components/events/EventTablePlayers";
 import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { MatchLeaderboard } from "@/components/matches/MatchLeaderboard";
@@ -144,7 +149,15 @@ function ChoiceDropdown({
   );
 }
 
-export function MatchDetail({ matchId }: { matchId: string }) {
+export function MatchDetail({
+  matchId,
+  backHref = "/matches",
+  initialTab = "overview",
+}: {
+  matchId: string;
+  backHref?: string;
+  initialTab?: string;
+}) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t, i18n } = useLingui();
   const router = useRouter();
@@ -202,6 +215,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   if (
     registeringMatch?.match.id === matchId &&
     isSignedIn &&
+    !communityAccessDenied(matches.detail.error) &&
     canRegisterMatchResults(registeringMatch.match, userId)
   ) {
     return (
@@ -218,6 +232,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   if (
     editingMatch?.match.id === matchId &&
     isSignedIn &&
+    !communityAccessDenied(matches.detail.error) &&
     editingMatch.match.adminUserId === userId
   ) {
     return (
@@ -234,9 +249,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   if (matches.detail.isPending) {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <Link href="/matches" className="inline-flex items-center gap-2 text-sm text-primary">
+        <Link
+          href={backHref}
+          className="inline-flex min-h-11 items-center gap-2 text-sm text-primary"
+        >
           <ArrowLeft className="h-4 w-4" />
-          {t`Back matches`}
+          {backHref === "/matches" ? t`Back matches` : t`Back to event`}
         </Link>
         {matches.summary ? (
           <h2 className="text-xl font-semibold">{matches.summary.name}</h2>
@@ -248,12 +266,15 @@ export function MatchDetail({ matchId }: { matchId: string }) {
     );
   }
 
-  if (matches.detail.isError || !matches.detail.data) {
+  if (communityAccessDenied(matches.detail.error) || !matches.detail.data) {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <Link href="/matches" className="inline-flex items-center gap-2 text-sm text-primary">
+        <Link
+          href={backHref}
+          className="inline-flex min-h-11 items-center gap-2 text-sm text-primary"
+        >
           <ArrowLeft className="h-4 w-4" />
-          {t`Back to matches`}
+          {backHref === "/matches" ? t`Back to matches` : t`Back to event`}
         </Link>
         <p className="text-sm text-danger">{t`Could not load match details`}</p>
       </div>
@@ -264,7 +285,7 @@ export function MatchDetail({ matchId }: { matchId: string }) {
   const { match, administrator, games } = matchData;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const isAdmin = match.adminUserId === userId;
-  const canViewLeaderboard = (!match.eventTable && isAdmin) || ownInvitation?.status === "ACCEPTED";
+  const canViewLeaderboard = isAdmin || ownInvitation?.status === "ACCEPTED";
   const canLeave =
     !match.eventTable && match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
   const canChoose =
@@ -476,12 +497,18 @@ export function MatchDetail({ matchId }: { matchId: string }) {
             {t`Leave match`}
           </Button>
         ) : null}
-        <Link href="/matches" className="inline-flex items-center gap-2 text-sm text-primary">
+        <Link
+          href={backHref}
+          className="inline-flex min-h-11 items-center gap-2 text-sm text-primary"
+        >
           <ArrowLeft className="h-4 w-4" />
-          {t`Back to matches`}
+          {backHref === "/matches" ? t`Back to matches` : t`Back to event`}
         </Link>
       </div>
 
+      {matches.detail.isError ? (
+        <p role="alert" className="text-sm text-danger">{t`Could not load match details`}</p>
+      ) : null}
       {matchData.canRequestJoin && (
         <Button
           isDisabled={matches.requestJoin.isPending}
@@ -554,7 +581,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
           >{t`Retry`}</Button>
         </p>
       )}
-      <Tabs aria-label={t`Match details`} defaultSelectedKey="overview">
+      <Tabs
+        aria-label={t`Match details`}
+        defaultSelectedKey={
+          initialTab === "players" && match.status === "TERMINATED" ? "results" : initialTab
+        }
+      >
         <Tabs.ListContainer>
           <Tabs.List>
             <Tabs.Tab id="overview">
@@ -577,271 +609,303 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         <Tabs.Panel id="overview">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold">{match.name}</h1>
               {match.eventTable ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onPress={() =>
-                    router.push(
-                      `/events/${match.eventTable!.eventId}/tables/${match.eventTable!.tableId}`,
-                    )
-                  }
-                >{t`Event table`}</Button>
-              ) : null}
+                <EventTableHeading
+                  name={match.eventTable.tableName}
+                  ratingsEnabled={match.eventTable.openSkill}
+                />
+              ) : (
+                <h1 className="text-xl font-semibold">{match.name}</h1>
+              )}
               {!match.eventTable && match.status === "PLANNING" && summary && <VoteLegend />}
             </div>
-            <div>
-              <div className="mb-2 flex items-center gap-1">
-                <h2 className="flex items-center gap-2 text-sm font-semibold">
-                  <CalendarDays className="size-4" aria-hidden="true" />
-                  {match.status !== "PLANNING" ? t`Confirmed date` : t`Date selection`}
-                </h2>
-              </div>
-              <GroupedList className="text-sm text-default-600">
-                {(match.status !== "PLANNING" && match.selectedDate
-                  ? [match.selectedDate]
-                  : match.dates
-                ).map((date) => (
-                  <GroupedRow key={date} className="flex-wrap">
-                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                      <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).date}</time>
-                      <Clock3 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).time}</time>
-                    </div>
-                    {canChoose && (
-                      <ChoiceDropdown
-                        label={t`Choose date`}
-                        choice={matchData.choices?.dates?.[String(Date.parse(date))] ?? "UNKNOWN"}
-                        pending={matches.setChoice.isPending}
-                        onChoose={(choice) => choose({ kind: "dates", itemId: date, choice })}
-                      />
-                    )}
-                    {match.status === "PLANNING" && summary?.dates[String(Date.parse(date))] && (
-                      <VoteCounts counts={summary.dates[String(Date.parse(date))]} />
-                    )}
-                  </GroupedRow>
-                ))}
-              </GroupedList>
-            </div>
-            {Boolean(match.locations?.length) && (
-              <div className="space-y-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold">
-                  <MapPin className="size-4" aria-hidden="true" />
-                  {match.status !== "PLANNING" ? t`Confirmed location` : t`Location selection`}
-                </h2>
-                {favorites.status.isError && (
-                  <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
-                )}
-                <GroupedList>
-                  {match.locations
-                    ?.filter(
-                      (location) =>
-                        match.status === "PLANNING" || location.id === match.selectedLocationId,
-                    )
-                    .map((location) => (
-                      <GroupedRow key={location.id} className="flex-wrap">
-                        <LocationFavoriteButton
-                          location={location}
-                          favorites={favorites}
-                          matchId={match.id}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" title={location.name}>
-                            {location.name}
-                          </p>
-                          <p className="truncate text-xs text-default-500" title={location.address}>
-                            {formatLocationAddress(location.address)}
-                          </p>
+            {match.eventTable ? (
+              <EventTableOverview
+                eventId={match.eventTable.eventId}
+                tableId={match.eventTable.tableId}
+                match={matchData}
+              />
+            ) : (
+              <>
+                <div>
+                  <div className="mb-2 flex items-center gap-1">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold">
+                      <CalendarDays className="size-4" aria-hidden="true" />
+                      {match.status !== "PLANNING" ? t`Confirmed date` : t`Date selection`}
+                    </h2>
+                  </div>
+                  <GroupedList className="text-sm text-default-600">
+                    {(match.status !== "PLANNING" && match.selectedDate
+                      ? [match.selectedDate]
+                      : match.dates
+                    ).map((date) => (
+                      <GroupedRow key={date} className="flex-wrap">
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                          <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).date}</time>
+                          <Clock3 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).time}</time>
                         </div>
                         {canChoose && (
                           <ChoiceDropdown
-                            label={t`Choose location`}
-                            choice={matchData.choices?.locations?.[location.id] ?? "UNKNOWN"}
-                            pending={matches.setChoice.isPending}
-                            onChoose={(choice) =>
-                              choose({ kind: "locations", itemId: location.id, choice })
+                            label={t`Choose date`}
+                            choice={
+                              matchData.choices?.dates?.[String(Date.parse(date))] ?? "UNKNOWN"
                             }
+                            pending={matches.setChoice.isPending}
+                            onChoose={(choice) => choose({ kind: "dates", itemId: date, choice })}
                           />
                         )}
-                        {match.status === "PLANNING" && summary?.locations?.[location.id] && (
-                          <VoteCounts counts={summary.locations[location.id]} />
-                        )}
-                      </GroupedRow>
-                    ))}
-                </GroupedList>
-              </div>
-            )}
-            <div className="space-y-2">
-              <h2 className="flex items-center gap-2 text-sm font-semibold">
-                <Gamepad2 className="size-4" aria-hidden="true" />
-                {match.status !== "PLANNING" ? t`Confirmed game` : t`Game selection`}
-              </h2>
-              {games.length === 0 ? (
-                <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No selected games`}</EmptyList>
-              ) : (
-                <GroupedList>
-                  {games
-                    .filter(
-                      (game) => match.status === "PLANNING" || game.id === match.selectedGameId,
-                    )
-                    .map((game) => (
-                      <GroupedRow key={game.id} className="flex-wrap">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
-                          {game.thumbnail ? (
-                            // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-                            <img
-                              src={game.thumbnail}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <Gamepad2 className="h-5 w-5 text-default-400" />
+                        {match.status === "PLANNING" &&
+                          summary?.dates[String(Date.parse(date))] && (
+                            <VoteCounts counts={summary.dates[String(Date.parse(date))]} />
                           )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="max-w-[40ch] truncate text-sm font-medium"
-                            title={game.name}
-                          >
-                            {game.name}
-                          </p>
-                          <GameCatalogMetadata
-                            year={game.yearPublished}
-                            average={game.average}
-                            rank={game.rank}
-                          />
-                        </div>
-                        {match.status === "TERMINATED" && winnerNames && (
-                          <span className="inline-flex min-w-0 items-center gap-1 text-sm">
-                            <Medal
-                              className="h-4 w-4 shrink-0 text-warning"
-                              aria-label={t`Winner`}
-                            />
-                            <strong className="truncate">{winnerNames}</strong>
-                          </span>
-                        )}
-                        {canChoose && (
-                          <ChoiceDropdown
-                            label={t`Choose game`}
-                            choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                            pending={matches.setChoice.isPending}
-                            onChoose={(choice) =>
-                              choose({ kind: "games", itemId: game.id, choice })
-                            }
-                          />
-                        )}
-                        {match.status === "PLANNING" && summary?.games[String(game.id)] && (
-                          <VoteCounts counts={summary.games[String(game.id)]} />
-                        )}
                       </GroupedRow>
                     ))}
-                </GroupedList>
-              )}
-            </div>
+                  </GroupedList>
+                </div>
+                {Boolean(match.locations?.length) && (
+                  <div className="space-y-2">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold">
+                      <MapPin className="size-4" aria-hidden="true" />
+                      {match.status !== "PLANNING" ? t`Confirmed location` : t`Location selection`}
+                    </h2>
+                    {favorites.status.isError && (
+                      <p
+                        role="alert"
+                        className="text-danger"
+                      >{t`Could not load favorite locations`}</p>
+                    )}
+                    <GroupedList>
+                      {match.locations
+                        ?.filter(
+                          (location) =>
+                            match.status === "PLANNING" || location.id === match.selectedLocationId,
+                        )
+                        .map((location) => (
+                          <GroupedRow key={location.id} className="flex-wrap">
+                            <LocationFavoriteButton
+                              location={location}
+                              favorites={favorites}
+                              matchId={match.id}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium" title={location.name}>
+                                {location.name}
+                              </p>
+                              <p
+                                className="truncate text-xs text-default-500"
+                                title={location.address}
+                              >
+                                {formatLocationAddress(location.address)}
+                              </p>
+                            </div>
+                            {canChoose && (
+                              <ChoiceDropdown
+                                label={t`Choose location`}
+                                choice={matchData.choices?.locations?.[location.id] ?? "UNKNOWN"}
+                                pending={matches.setChoice.isPending}
+                                onChoose={(choice) =>
+                                  choose({ kind: "locations", itemId: location.id, choice })
+                                }
+                              />
+                            )}
+                            {match.status === "PLANNING" && summary?.locations?.[location.id] && (
+                              <VoteCounts counts={summary.locations[location.id]} />
+                            )}
+                          </GroupedRow>
+                        ))}
+                    </GroupedList>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    <Gamepad2 className="size-4" aria-hidden="true" />
+                    {match.status !== "PLANNING" ? t`Confirmed game` : t`Game selection`}
+                  </h2>
+                  {games.length === 0 ? (
+                    <EmptyList
+                      icon={<Gamepad2 className="size-7" />}
+                    >{t`No selected games`}</EmptyList>
+                  ) : (
+                    <GroupedList>
+                      {games
+                        .filter(
+                          (game) => match.status === "PLANNING" || game.id === match.selectedGameId,
+                        )
+                        .map((game) => (
+                          <GroupedRow key={game.id} className="flex-wrap">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+                              {game.thumbnail ? (
+                                // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
+                                <img
+                                  src={game.thumbnail}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Gamepad2 className="h-5 w-5 text-default-400" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className="max-w-[40ch] truncate text-sm font-medium"
+                                title={game.name}
+                              >
+                                {game.name}
+                              </p>
+                              <GameCatalogMetadata
+                                year={game.yearPublished}
+                                average={game.average}
+                                rank={game.rank}
+                              />
+                            </div>
+                            {match.status === "TERMINATED" && winnerNames && (
+                              <span className="inline-flex min-w-0 items-center gap-1 text-sm">
+                                <Medal
+                                  className="h-4 w-4 shrink-0 text-warning"
+                                  aria-label={t`Winner`}
+                                />
+                                <strong className="truncate">{winnerNames}</strong>
+                              </span>
+                            )}
+                            {canChoose && (
+                              <ChoiceDropdown
+                                label={t`Choose game`}
+                                choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
+                                pending={matches.setChoice.isPending}
+                                onChoose={(choice) =>
+                                  choose({ kind: "games", itemId: game.id, choice })
+                                }
+                              />
+                            )}
+                            {match.status === "PLANNING" && summary?.games[String(game.id)] && (
+                              <VoteCounts counts={summary.games[String(game.id)]} />
+                            )}
+                          </GroupedRow>
+                        ))}
+                    </GroupedList>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </Tabs.Panel>
 
         {match.status !== "TERMINATED" && (
           <Tabs.Panel id="players">
-            <div className="space-y-5">
-              {match.status === "PLANNING" && (
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-default-500">{t`Minimum players`}</p>
-                    <p className="font-semibold">{match.minPlayers}</p>
+            {match.eventTable ? (
+              <EventTablePlayers
+                key={`${match.eventTable.eventId}/${match.eventTable.tableId}`}
+                eventId={match.eventTable.eventId}
+                tableId={match.eventTable.tableId}
+                frozen={match.status === "PLANNING" ? undefined : matchData}
+                renderActions={(id) => {
+                  const player = participants.find((player) => player.id === id);
+                  return player ? socialMenu(player) : null;
+                }}
+              />
+            ) : (
+              <div className="space-y-5">
+                {match.status === "PLANNING" && (
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-default-500">{t`Minimum players`}</p>
+                      <p className="font-semibold">{match.minPlayers}</p>
+                    </div>
+                    <div>
+                      <p className="text-default-500">{t`Maximum players`}</p>
+                      <p className="font-semibold">{match.maxPlayers}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-default-500">{t`Maximum players`}</p>
-                    <p className="font-semibold">{match.maxPlayers}</p>
-                  </div>
-                </div>
-              )}
-              <div>
-                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <UsersRound className="size-4" aria-hidden="true" />
-                  {t`Participants`}
-                </h2>
-                <GroupedList>
-                  {participants.map((player) => (
-                    <GroupedRow key={player.id}>
-                      <div className="relative shrink-0">
-                        <Avatar size="md" color="accent">
-                          <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
-                          <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
-                        </Avatar>
-                        <span
-                          className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5"
-                          role="img"
-                          aria-label={
-                            player.status === "PENDING"
-                              ? t`Pending`
-                              : player.status === "ACCEPTED"
-                                ? t`Accepted`
-                                : t`Declined`
-                          }
-                        >
-                          {player.status === "PENDING" ? (
-                            <Clock3 className="h-4 w-4 text-warning" />
-                          ) : player.status === "ACCEPTED" ? (
-                            <CircleCheck className="h-4 w-4 text-success" />
-                          ) : (
-                            <CircleX className="h-4 w-4 text-danger" />
-                          )}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate font-medium">{player.name}</p>
-                          {player.isAdministrator ? (
-                            <Crown
-                              className="h-4 w-4 shrink-0 text-warning"
-                              aria-label={t`Administrator`}
-                            />
+                )}
+                <div>
+                  <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                    <UsersRound className="size-4" aria-hidden="true" />
+                    {t`Participants`}
+                  </h2>
+                  <GroupedList>
+                    {participants.map((player) => (
+                      <GroupedRow key={player.id}>
+                        <div className="relative shrink-0">
+                          <Avatar size="md" color="accent">
+                            <Avatar.Image src={player.avatarUrl ?? undefined} alt={player.name} />
+                            <Avatar.Fallback>{player.name.charAt(0) || "?"}</Avatar.Fallback>
+                          </Avatar>
+                          <span
+                            className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5"
+                            role="img"
+                            aria-label={
+                              player.status === "PENDING"
+                                ? t`Pending`
+                                : player.status === "ACCEPTED"
+                                  ? t`Accepted`
+                                  : t`Declined`
+                            }
+                          >
+                            {player.status === "PENDING" ? (
+                              <Clock3 className="h-4 w-4 text-warning" />
+                            ) : player.status === "ACCEPTED" ? (
+                              <CircleCheck className="h-4 w-4 text-success" />
+                            ) : (
+                              <CircleX className="h-4 w-4 text-danger" />
+                            )}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate font-medium">{player.name}</p>
+                            {player.isAdministrator ? (
+                              <Crown
+                                className="h-4 w-4 shrink-0 text-warning"
+                                aria-label={t`Administrator`}
+                              />
+                            ) : null}
+                          </div>
+                          {player.email ? (
+                            <p className="truncate text-sm text-default-500">{player.email}</p>
                           ) : null}
                         </div>
-                        {player.email ? (
-                          <p className="truncate text-sm text-default-500">{player.email}</p>
-                        ) : null}
-                      </div>
-                      {isAdmin &&
-                        !match.eventTable &&
-                        match.status === "PLANNING" &&
-                        !player.isAdministrator &&
-                        player.invitation.kind === "REQUEST" &&
-                        player.invitation.status === "PENDING" && (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            isDisabled={actionBusy || matches.approveJoinRequest.isPending}
-                            aria-label={`${t`Approve join request`}: ${player.name}`}
-                            onPress={() => matches.approveJoinRequest.mutate(player.invitation.id)}
-                          >
-                            <Check className="size-4" aria-hidden="true" />
-                          </Button>
-                        )}
-                      {isAdmin &&
-                        !match.eventTable &&
-                        match.status === "PLANNING" &&
-                        !player.isAdministrator && (
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="danger-soft"
-                            isDisabled={actionBusy}
-                            aria-label={`${t`Remove player`}: ${player.name}`}
-                            onPress={() => setRemovePlayerId(player.invitation.id)}
-                          >
-                            <UserRoundX className="h-4 w-4" />
-                          </Button>
-                        )}
-                      {socialMenu(player)}
-                    </GroupedRow>
-                  ))}
-                </GroupedList>
+                        {isAdmin &&
+                          !match.eventTable &&
+                          match.status === "PLANNING" &&
+                          !player.isAdministrator &&
+                          player.invitation.kind === "REQUEST" &&
+                          player.invitation.status === "PENDING" && (
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              isDisabled={actionBusy || matches.approveJoinRequest.isPending}
+                              aria-label={`${t`Approve join request`}: ${player.name}`}
+                              onPress={() =>
+                                matches.approveJoinRequest.mutate(player.invitation.id)
+                              }
+                            >
+                              <Check className="size-4" aria-hidden="true" />
+                            </Button>
+                          )}
+                        {isAdmin &&
+                          !match.eventTable &&
+                          match.status === "PLANNING" &&
+                          !player.isAdministrator && (
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="danger-soft"
+                              isDisabled={actionBusy}
+                              aria-label={`${t`Remove player`}: ${player.name}`}
+                              onPress={() => setRemovePlayerId(player.invitation.id)}
+                            >
+                              <UserRoundX className="h-4 w-4" />
+                            </Button>
+                          )}
+                        {socialMenu(player)}
+                      </GroupedRow>
+                    ))}
+                  </GroupedList>
+                </div>
               </div>
-            </div>
+            )}
           </Tabs.Panel>
         )}
 
@@ -889,6 +953,12 @@ export function MatchDetail({ matchId }: { matchId: string }) {
         )}
       </Tabs>
 
+      {match.eventTable ? (
+        <EventTableEditAction
+          eventId={match.eventTable.eventId}
+          tableId={match.eventTable.tableId}
+        />
+      ) : null}
       {isAdmin && !match.eventTable && match.status === "PLANNING" ? (
         <Button
           isIconOnly

@@ -35,6 +35,7 @@ export function EventTableEditor({
   eventStart,
   eventEnd,
   organizationId,
+  busy = false,
   onSave,
   onClose,
 }: {
@@ -43,6 +44,7 @@ export function EventTableEditor({
   eventStart: string;
   eventEnd: string;
   organizationId: string;
+  busy?: boolean;
   onSave: (table: EventDraftTable) => void;
   onClose: () => void;
 }) {
@@ -309,7 +311,9 @@ export function EventTableEditor({
       </Switch>
       <Button
         className="w-fit self-end"
+        isDisabled={busy}
         onPress={() => {
+          if (busy) return;
           const result = eventTableForm({
             input: value.input,
             start,

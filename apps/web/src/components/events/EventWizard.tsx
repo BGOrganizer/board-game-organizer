@@ -35,7 +35,9 @@ import {
 import { Button, FieldError, Input, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, LayoutGrid, MapPin, Plus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -45,11 +47,38 @@ import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { WizardSteps } from "@/components/common/ui/WizardSteps";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
+import { eventWizardBackHref } from "@/lib/events/eventWizardBackHref";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDateTimeField } from "./EventDateTimeField";
 import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventTableEditor } from "./EventTableEditor";
 import { EventWizardSummary } from "./EventWizardSummary";
+
+function WizardHeader({
+  eventId,
+  organizationId,
+  children,
+}: {
+  eventId?: string;
+  organizationId?: string;
+  children?: ReactNode;
+}) {
+  const { t } = useLingui();
+  return (
+    <header className="mx-auto flex w-full max-w-3xl items-center gap-3">
+      <Link
+        href={eventWizardBackHref(eventId, organizationId)}
+        aria-label={t`Back`}
+        data-testid="event-wizard-header-back"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-default/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        <ArrowLeft className="size-5" aria-hidden />
+      </Link>
+      {children}
+    </header>
+  );
+}
+
 export function EventWizard({
   eventId,
   organizationId,
@@ -77,13 +106,18 @@ export function EventWizard({
     chosen &&
     (communityAccessDenied(organization.error) || organization.data?.role !== "admin")
   )
-    return organization.isPending ? (
-      <Skeleton className="h-24 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p>{t`Organization admin required`}</p>
-        <Button onPress={() => void organization.refetch()}>{t`Retry`}</Button>
-      </div>
+    return (
+      <>
+        <WizardHeader organizationId={chosen} />
+        {organization.isPending ? (
+          <Skeleton className="h-24 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p>{t`Organization admin required`}</p>
+            <Button onPress={() => void organization.refetch()}>{t`Retry`}</Button>
+          </div>
+        )}
+      </>
     );
   if (
     eventId &&
@@ -92,18 +126,25 @@ export function EventWizard({
       detail.data.role !== "admin" ||
       !detail.data.canModify)
   )
-    return detail.isPending ? (
-      <Skeleton className="h-40 w-full rounded-xl" />
-    ) : (
-      <div role="alert">
-        <p>{t`Event cannot be edited`}</p>
-        <Button onPress={() => void detail.refetch()}>{t`Retry`}</Button>
-      </div>
+    return (
+      <>
+        <WizardHeader eventId={eventId} />
+        {detail.isPending ? (
+          <Skeleton className="h-40 w-full rounded-xl" />
+        ) : (
+          <div role="alert">
+            <p>{t`Event cannot be edited`}</p>
+            <Button onPress={() => void detail.refetch()}>{t`Retry`}</Button>
+          </div>
+        )}
+      </>
     );
   if (!eventId && !chosen)
     return (
       <section className="mx-auto flex max-w-3xl flex-col gap-4">
-        <h1>{t`Choose an organization`}</h1>
+        <WizardHeader>
+          <h1>{t`Choose an organization`}</h1>
+        </WizardHeader>
         {organizations.isPending ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
         {organizations.items
           .filter((row) => row.role === "admin")
@@ -302,7 +343,9 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
   const rows = [...loaded, ...edited];
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-4 pb-28">
-      <h1 className="text-xl font-semibold">{event ? t`Edit event` : t`New event`}</h1>
+      <WizardHeader eventId={event?.id} organizationId={organizationId}>
+        <h1 className="text-xl font-semibold">{event ? t`Edit event` : t`New event`}</h1>
+      </WizardHeader>
       <WizardSteps current={step + 1} count={3} />
       {step === 0 ? <h2 className="font-semibold">{t`Event detail`}</h2> : null}
       {step === 0 ? (

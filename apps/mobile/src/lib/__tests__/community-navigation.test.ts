@@ -58,8 +58,8 @@ describe("community notification destinations", () => {
         new URL(`../../components/${component}.tsx`, import.meta.url),
         "utf8",
       );
-      expect(source).toContain("router.dismissTo(`/" + resource + "/${row.id}`)");
-      expect(source).not.toContain("router.replace(`/" + resource + "/${row.id}`)");
+      expect(source).toContain(`router.dismissTo(\`/${resource}/\${row.id}\`)`);
+      expect(source).not.toContain(`router.replace(\`/${resource}/\${row.id}\`)`);
     }
   });
   it("keeps organization creation accessible and event creation inside its owning organization", () => {
@@ -131,11 +131,13 @@ describe("community notification destinations", () => {
   });
   it("shows table errors instead of waiting forever for a disabled dependent query", () => {
     const source = readFileSync(
-      new URL("../../components/events/EventTableDetail.tsx", import.meta.url),
+      new URL("../../components/events/EventTable.tsx", import.meta.url),
       "utf8",
     );
-    expect(source).toContain("eq.isPending || (Boolean(event) && tq.isPending)");
-    expect(source).toContain("if (event) void tq.refetch()");
+    expect(source).toContain(
+      "context.eventQuery.isPending || (event && context.tableQuery.isPending)",
+    );
+    expect(source).toContain("if (event) void context.tableQuery.refetch()");
   });
   it("resolves static assets after extracting reusable native pickers", () => {
     for (const name of [

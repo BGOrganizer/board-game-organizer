@@ -201,7 +201,23 @@ appId: com.bgo.mobile
 - assertNotVisible: "Edit table: Cascadia event table"
 - assertNotVisible: "Remove table: Cascadia event table"
 - tapOn: "Open table: Cascadia event table"
-- assertVisible: "Minimum players.*2"
+- assertVisible: "Table name"
+- assertVisible: "Cascadia event table"
+- assertNotVisible: "Open event table"
+- assertVisible:
+    id: "edit-event-table-fab"
+- tapOn:
+    id: "edit-event-table-fab"
+- assertVisible:
+    id: "event-table-header-back"
+- tapOn:
+    id: "event-table-header-back"
+- tapOn:
+    id: "table-players-tab"
+- assertVisible:
+    id: "event-table-players"
+- assertVisible: "Empty place"
+# Private drafts do not permit booking. Published pending approvals need a moderated organization.
 - assertNotVisible: "Request a place"
 - back
 - tapOn:

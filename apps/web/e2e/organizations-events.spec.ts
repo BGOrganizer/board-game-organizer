@@ -1,4 +1,5 @@
 import type {
+  EventBookingResponse,
   EventResponse,
   EventTableResponse,
   OrganizationMemberResponse,
@@ -117,6 +118,7 @@ async function fixture(page: Page) {
     moderator = false,
     denyReview = false;
   const members: OrganizationMemberResponse[] = [];
+  const bookings: EventBookingResponse[] = [];
   const membership = (
     userId: string,
     kind: OrganizationMembership["kind"],
@@ -162,7 +164,8 @@ async function fixture(page: Page) {
         return route.fulfill({ json: organization.myMembership });
       }
       if (path.startsWith(`/api/organizations/${orgId}/members/`)) {
-        const userId = path.split("/").at(-1)!;
+        const userId = path.split("/").at(-1);
+        if (!userId) throw new Error("Missing fixture member ID");
         const action = body.action;
         const person = members.find((row) => row.userId === userId);
         const status =
@@ -228,18 +231,46 @@ async function fixture(page: Page) {
           version: event.version + 1,
           ...(req.method() === "DELETE" ? { status: "CANCELLED" as const, canModify: false } : {}),
         };
+        if (Array.isArray(body.tables)) {
+          const changed = body.tables.find((row: { id?: string }) => row.id === tableId);
+          if (changed) table = { ...table, ...changed };
+        }
         return route.fulfill({ json: event });
       }
       if (path.endsWith("/bookings") || path.startsWith("/api/event-bookings/")) {
-        const booking = {
-          id: "66666666-6666-4666-8666-666666666666",
-          eventId,
-          tableId,
-          userId: viewer,
-          kind: "REQUEST",
-          status: "PENDING",
-          createdAt: now,
-          updatedAt: now,
+        let booking = bookings.find((row) => row.id === path.split("/").at(-1));
+        if (method === "POST") {
+          booking = {
+            id: "66666666-6666-4666-8666-666666666666",
+            eventId,
+            tableId,
+            userId: viewer,
+            kind: "REQUEST",
+            status: "PENDING",
+            username: "browser_fixture",
+            avatarUrl: null,
+            createdAt: now,
+            updatedAt: now,
+          };
+          bookings.push(booking);
+        } else if (booking) {
+          booking.status =
+            body.action === "approve" || body.action === "accept"
+              ? "CONFIRMED"
+              : body.action === "reject" || body.action === "decline"
+                ? "DECLINED"
+                : "CANCELLED";
+          booking.updatedAt = "2030-06-01T12:01:00.000Z";
+        }
+        const active = bookings.filter(
+          (row) => row.status === "PENDING" || row.status === "CONFIRMED",
+        );
+        table = {
+          ...table,
+          reservedCount: active.length,
+          confirmedCount: active.filter((row) => row.status === "CONFIRMED").length,
+          myBooking: active.find((row) => row.userId === viewer) ?? null,
+          canBook: !active.some((row) => row.userId === viewer) && active.length < table.maxPlayers,
         };
         return route.fulfill({ json: booking });
       }
@@ -340,7 +371,8 @@ async function fixture(page: Page) {
     if (path === `/api/events/${eventId}/tables`)
       return route.fulfill({ json: { items: [table], nextCursor: "unloaded-table-cursor" } });
     if (path === `/api/events/${eventId}/tables/${tableId}`) return route.fulfill({ json: table });
-    if (path.endsWith("/bookings")) return route.fulfill({ json: { items: [], nextCursor: null } });
+    if (path.endsWith("/bookings"))
+      return route.fulfill({ json: { items: bookings, nextCursor: null } });
     if (path === "/api/events" || path.endsWith("/events")) {
       const params = new URL(req.url()).searchParams;
       const periods = params.get("periods")?.split(",") ?? ["future", "past"];
@@ -414,11 +446,12 @@ async function fixture(page: Page) {
     review: (denied = false) => {
       moderator = true;
       denyReview = denied;
+      if (!organization.approved) throw new Error("Missing approved organization fixture");
       organization = {
         ...organization,
         status: "MODIFIED",
         reviewStatus: "PENDING",
-        proposal: { ...organization.approved!, name: "Proposed community club" },
+        proposal: { ...organization.approved, name: "Proposed community club" },
       };
     },
     memberRow: (
@@ -446,6 +479,9 @@ async function fixture(page: Page) {
     },
     member: () => {
       event = { ...event, role: "member", canModify: false };
+    },
+    table: (patch: Partial<EventTableResponse>) => {
+      table = { ...table, ...patch };
     },
     close: () => {
       event = { ...event, canModify: false, closedAt: new Date().toISOString() } as typeof event;
@@ -917,7 +953,9 @@ function communityAcceptance() {
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/events/${eventId}$`));
-    const body = state.writes.find((row) => row.path === "/api/events")!.body;
+    const creation = state.writes.find((row) => row.path === "/api/events");
+    if (!creation) throw new Error("Missing event creation request");
+    const body = creation.body;
     expect(
       (Date.parse(String(body.startsAt)) - Date.parse(String(body.bookingClosesAt))) / 3600000,
     ).toBe(6);
@@ -1284,20 +1322,110 @@ function communityAcceptance() {
     expect(tableRequests).toBe(requestsBeforeRetry);
   });
 
-  test("members request explicit seats and closed table controls disappear", async ({ page }) => {
+  test("members confirm a selected reservation pending approval, can cancel/leave, and cannot book closed places", async ({
+    page,
+  }) => {
     const state = await fixture(page);
     state.member();
     await page.goto(`/events/${eventId}/tables/${tableId}`);
-    await page.getByRole("button", { name: "Request a place", exact: true }).click();
+    await page.getByRole("tab", { name: "Players", exact: true }).click();
+    await page.getByRole("button", { name: "Reserve a place: 3", exact: true }).click();
+    const reserve = page.getByRole("dialog", { name: "Reserve a place", exact: true });
+    await expect(reserve.getByText(/administrator reviews your request/)).toBeVisible();
+    await expect(reserve.getByText(/notified when it is accepted or rejected/)).toBeVisible();
+    await reserve.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect(state.writes.filter((r) => r.path.endsWith("/bookings"))).toHaveLength(0);
+    await page.getByRole("button", { name: "Reserve a place: 3", exact: true }).click();
+    await reserve.getByRole("button", { name: "Reserve a place", exact: true }).click();
     await expect
       .poll(() => state.writes.filter((r) => r.path.endsWith("/bookings")).length)
       .toBe(1);
+    await expect(page.getByText("Awaiting admin approval", { exact: true })).toBeVisible();
+    await expect(
+      page.locator("li").nth(2).getByText("browser_fixture", { exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /Leave table:/ }).click();
+    const leave = page.getByRole("dialog", { name: "Leave table", exact: true });
+    await leave.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect(state.writes.filter((r) => r.path.startsWith("/api/event-bookings/"))).toHaveLength(0);
+    await page.getByRole("button", { name: /Leave table:/ }).click();
+    await leave.getByRole("button", { name: "Leave table", exact: true }).click();
+    await expect
+      .poll(() => state.writes.find((r) => r.path.startsWith("/api/event-bookings/"))?.body.action)
+      .toBe("cancel");
     state.close();
     await page.reload();
     await expect(
       page.getByText("Bookings are closed. Results can still be recorded.", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Request a place", exact: true })).toHaveCount(0);
+    await page.getByRole("tab", { name: "Players", exact: true }).click();
+    for (const button of await page.getByRole("button", { name: /Reserve a place:/ }).all())
+      await expect(button).toBeDisabled();
+    await expect(page.getByRole("link", { name: "Edit table", exact: true })).toHaveCount(0);
+  });
+  for (const decision of ["Accept", "Reject"] as const)
+    test(`admin table requests use membership-style ${decision}/Cancel without Ban`, async ({
+      page,
+    }) => {
+      const state = await fixture(page);
+      await page.goto(`/events/${eventId}/tables/${tableId}`);
+      await expect(page.getByText("Table name", { exact: true })).toBeVisible();
+      await expect(page.getByText("Open event table", { exact: true })).toHaveCount(0);
+      await page.getByRole("tab", { name: "Players", exact: true }).click();
+      await page.getByRole("button", { name: "Reserve a place: 1", exact: true }).click();
+      await page
+        .getByRole("dialog", { name: "Reserve a place", exact: true })
+        .getByRole("button", { name: "Reserve a place", exact: true })
+        .click();
+      await page.getByRole("button", { name: /Respond to participation request:/ }).click();
+      const dialog = page.getByRole("dialog", {
+        name: "Respond to participation request",
+        exact: true,
+      });
+      await expect(dialog.getByRole("button", { name: /Ban/ })).toHaveCount(0);
+      await expectButtonsOnOneRow(
+        dialog.getByRole("button").filter({ hasText: /^(Accept|Reject)$/ }),
+      );
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      expect(state.writes.filter((r) => r.path.startsWith("/api/event-bookings/"))).toHaveLength(0);
+      await page.getByRole("button", { name: /Respond to participation request:/ }).click();
+      await dialog.getByRole("button", { name: decision, exact: true }).click();
+      await expect
+        .poll(
+          () => state.writes.find((r) => r.path.startsWith("/api/event-bookings/"))?.body.action,
+        )
+        .toBe(decision === "Accept" ? "approve" : "reject");
+      await expect(page.getByText("Awaiting admin approval", { exact: true })).toHaveCount(0);
+    });
+  test("table editing is owner-only, preserves unloaded tables/version, and disables after the deadline", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    await page.goto(`/events/${eventId}/tables/${tableId}`);
+    await page.getByRole("link", { name: "Edit table", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/tables/${tableId}/edit$`));
+    await page
+      .getByRole("textbox", { name: "Table name", exact: true })
+      .fill("Renamed event table");
+    await page.getByRole("button", { name: "Save table", exact: true }).click();
+    const reset = page.getByRole("dialog", { name: "Reset reservations", exact: true });
+    await reset.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect(state.writes.filter((r) => r.path === `/api/events/${eventId}`)).toHaveLength(0);
+    await page.getByRole("button", { name: "Save table", exact: true }).click();
+    await reset.getByRole("button", { name: "Save changes", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/tables/${tableId}$`));
+    const input = state.writes.find((r) => r.path === `/api/events/${eventId}`)?.body;
+    expect(input?.version).toBe(baseEvent.version);
+    expect(input?.removedTableIds).toEqual([]);
+    expect(input?.tables).toEqual([
+      expect.objectContaining({ id: tableId, name: "Renamed event table" }),
+    ]);
+    state.close();
+    await page.reload();
+    await expect(page.getByRole("link", { name: "Edit table", exact: true })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 }
 for (const [name, viewport] of [

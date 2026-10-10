@@ -9,6 +9,8 @@ export default defineConfig({
       include: [
         "src/contacts/contactConnections.ts",
         "src/events/eventPolicy.ts",
+        "src/events/eventTableSeats.ts",
+        "src/events/eventTableEditInput.ts",
         "src/events/eventList.ts",
         "src/community/communityApi.ts",
         "src/community/communityFeedback.ts",
@@ -25,6 +27,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/events/{eventTableSeats,eventTableEditInput}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/eventList.ts": { lines: 100, functions: 100, branches: 100, statements: 100 },
         lines: 50,
         functions: 50,

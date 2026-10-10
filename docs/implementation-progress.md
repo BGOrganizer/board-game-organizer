@@ -1,5 +1,39 @@
 # Organizations/events implementation checkpoint
 
+## Current table-participation and navigation pass
+
+The operator reauthorized signed commits, pushing `feat/organizations-events`, and CI monitoring.
+PR #22 currently targets `feat/social-api-refactor`, not this working branch; creating another PR
+or synchronizing its head still requires explicit confirmation. Earlier local-only restrictions
+remain historical evidence, not the current push scope. No delegation, provider provisioning,
+account recreation, Device Trust bypass, or changes to `main` were performed.
+
+- Creation/edit headers provide contextual Back independently of wizard step/table/location Back.
+- Event/table and match entrances compose the same platform-owned table heading, overview and
+  virtualized/paged players. Fixed results, rating views and demonstrator result registration
+  retain server authorization. Optional match access is checked through the match API, preserving
+  frozen former participants rather than inferring access from current organization membership.
+- Empty-place confirmation explains that the existing REQUEST/PENDING booking immediately
+  reserves capacity and awaits administrator approval plus an acceptance/rejection notification.
+  Admin request decisions use Accept/Reject/Cancel, without organization Ban. Leave/remove actions
+  require confirmation. Position hints are local presentation, never persisted physical seats.
+- Owner-only contextual table editing uses existing editors and atomic event updates: one changed
+  table, no implicit removals, an initial concurrency version, retained unloaded tables, deadline
+  guards and explicit reservation-reset confirmation. No booking-domain/service changes were made.
+- New Query observers use stable scoped keys, fresh tokens, cancellation and denied-data masking;
+  cached content survives ordinary network failures. Native players are not nested in a ScrollView.
+- EN/IT catalogs: 678 active IDs each; all 660 previous IDs/translations preserved and compiled.
+- Local evidence: lint/typecheck, five coverage gates, **1,418 unit tests**, **63 replica-set
+  integrations**, API/web builds, Android JS export (5,512 modules), and six Maestro source/report
+  contracts pass. New deterministic helpers, shared table hooks and web table components have
+  measured 100% line/function/branch/statement coverage.
+- Browser desktop/mobile-width scenarios and the real native draft flow were updated but not run
+  locally. Controlled Playwright community responses are rendering checks, not live API/provider
+  acceptance. Published native pending-approval/notification/frozen-result paths still need actual
+  acceptance against a moderated organization; exports and source contracts do not prove them.
+- Protected API/web generated types were restored byte-for-byte. Private configuration, environments,
+  historical artifacts/resources and unrelated work remain excluded from the task commit.
+
 Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
 pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance
 coverage. The operator requested local feasible checks followed by signed commits/push and CI
@@ -7,8 +41,9 @@ iteration instead of further local-emulator cycles. Real Inngest provisioning/de
 
 ## Historical authority and isolation
 
-This records the original implementation pass, not authorization for subsequent tasks. The latest
-local-only scope below permits a signed local commit but no push, delegation or provisioning.
+This records the original implementation pass, not authorization for subsequent tasks. Earlier
+local-only scopes below permitted local commits only; the current pass above supersedes their push
+restriction without authorizing delegation, provisioning, PR creation, or PR-head synchronization.
 
 - Branch `feat/organizations-events`, based on authorized PR #22 head `b83e30e`, not `main`.
 - Worktree `D:/git/board-game-organizer/.worktrees/organizations-events`.

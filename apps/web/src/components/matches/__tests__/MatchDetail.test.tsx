@@ -1,4 +1,5 @@
 import type { MatchDetailResponse } from "@board-game-organizer/schemas";
+import { CommunityApiError } from "@board-game-organizer/shared";
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -97,6 +98,18 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/components/events/EventTableOverview", () => ({
+  EventTableOverview: () => <div>Canonical table overview</div>,
+}));
+vi.mock("@/components/events/EventTablePlayers", () => ({
+  EventTablePlayers: ({ frozen }: { frozen?: MatchDetailResponse }) => (
+    <div>{frozen ? `Frozen table roster ${frozen.match.status}` : "Live table roster"}</div>
+  ),
+}));
+vi.mock("@/components/events/EventTableEditAction", () => ({
+  EventTableEditAction: () => <span>Contextual table edit</span>,
+}));
+
 const invitation = {
   id: "11111111-1111-4111-8111-111111111111",
   matchId: "22222222-2222-4222-8222-222222222222",
@@ -156,6 +169,95 @@ function result(data: typeof detail | undefined = detail) {
 }
 
 describe("MatchDetail", () => {
+  const eventTable = {
+    organizationId: "org",
+    eventId: "event",
+    tableId: "table",
+    eventName: "Event",
+    tableName: "Canonical table",
+    demonstratorUserId: "user_guest",
+    openSkill: true,
+    bookingClosesAt: "2030-06-01T12:00:00Z",
+    endsAt: "2030-06-12T20:00:00Z",
+  };
+  it("opens event matches directly in the canonical table overview/players without a second table view", () => {
+    useMatchDetailMock.mockReturnValue(
+      result({ ...detail, match: { ...detail.match, eventTable } }),
+    );
+    renderWithI18n(<MatchDetail matchId={detail.match.id} backHref="/events/event" />);
+    expect(screen.getByRole("heading", { name: "Canonical table" })).toBeTruthy();
+    expect(screen.getByText("Table name")).toBeTruthy();
+    expect(screen.getByText("Rating")).toBeTruthy();
+    expect(screen.getByText("Canonical table overview")).toBeTruthy();
+    expect(screen.queryByText("Open event table")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit match" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Back to event" }).getAttribute("href")).toBe(
+      "/events/event",
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    expect(screen.getByText("Live table roster")).toBeTruthy();
+    expect(screen.getByText("Contextual table edit")).toBeTruthy();
+  });
+  it("preserves fixed event-table participants, demonstrator result registration and standings access", () => {
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: {
+          ...detail.match,
+          eventTable,
+          status: "CREATED",
+          selectedDate: detail.match.dates[0],
+          selectedGameId: 1,
+          invitations: [{ ...invitation, status: "ACCEPTED" }],
+        },
+        invitedPlayers: [
+          { ...detail.invitedPlayers[0], invitation: { ...invitation, status: "ACCEPTED" } },
+        ],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={detail.match.id} initialTab="players" />);
+    expect(screen.getByText("Frozen table roster CREATED")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Register results" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Leaderboards" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Delete match" })).toBeNull();
+  });
+  it("keeps the event owner’s server-authorized leaderboard access without inventing an owner seat", () => {
+    authMock.userId = "user_admin";
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, eventTable, invitations: [] },
+        invitedPlayers: [],
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={detail.match.id} />);
+    expect(screen.getByRole("tab", { name: "Leaderboards" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    expect(screen.getByText("Live table roster")).toBeTruthy();
+    expect(screen.queryByText("Admin Player")).toBeNull();
+  });
+  it("retains ordinary cached details on network failure but hides them after explicit access denial", () => {
+    useMatchDetailMock.mockReturnValue({
+      ...result(),
+      detail: { data: detail, isPending: false, isError: true, error: new Error("network") },
+    });
+    const v = renderWithI18n(<MatchDetail matchId={detail.match.id} />);
+    expect(screen.getByText(detail.match.name)).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toBe("Could not load match details");
+    v.unmount();
+    useMatchDetailMock.mockReturnValue({
+      ...result(),
+      detail: {
+        data: detail,
+        isPending: false,
+        isError: true,
+        error: new CommunityApiError(403, "DENIED"),
+      },
+    });
+    renderWithI18n(<MatchDetail matchId={detail.match.id} backHref="/events/event" />);
+    expect(screen.queryByText(detail.match.name)).toBeNull();
+    expect(screen.getByRole("link", { name: "Back to event" })).toBeTruthy();
+  });
   it("offers a join request to eligible viewers and shows network failures", () => {
     useMatchDetailMock.mockReturnValue({
       ...result({

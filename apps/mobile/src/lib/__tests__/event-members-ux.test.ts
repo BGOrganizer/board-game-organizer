@@ -107,7 +107,8 @@ it("wraps every review button's translated text in a native label, including ico
   expect(review).toContain('flexDirection: "row", gap: 12');
 });
 it("keeps demonstrator Back in the header and gives table cards image/date/game/player/demonstrator fields", () => {
-  const picker = source("events/EventDemonstratorPicker.tsx");
+  const picker = source("organizations/OrganizationMemberPicker.tsx");
+  expect(source("events/EventDemonstratorPicker.tsx")).toContain("<OrganizationMemberPicker");
   expect(picker).toContain("headerLeft:");
   const editor = source("events/EventTableEditor.tsx");
   expect(editor).toContain("headerLeft:");

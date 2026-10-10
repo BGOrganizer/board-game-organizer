@@ -58,7 +58,7 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
   expect(fab).toContain("bottom: layout.bottom");
   expect(fab).not.toContain("extraBottom");
   for (const [path, component] of [
-    ["../../app/match/[matchId].tsx", "ScreenScrollView"],
+    ["../../components/matches/MatchDetail.tsx", "DetailsContainer"],
     ["../../app/group/[groupId].tsx", "ScreenScrollView"],
     ["../../app/(tabs)/matches.tsx", "FlatList"],
     ["../../components/groups/GroupsScreen.tsx", "FlatList"],
@@ -98,7 +98,10 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
     visit(source);
     expect(found, path).toBe(true);
   }
-  const match = readFileSync(new URL("../../app/match/[matchId].tsx", import.meta.url), "utf8");
+  const match = readFileSync(
+    new URL("../../components/matches/MatchDetail.tsx", import.meta.url),
+    "utf8",
+  );
   for (const tab of ["overview", "players", "leaderboard", "results"])
     expect(match).toContain(`<Tabs.Content value="${tab}"`);
   const leaderboard = readFileSync(
@@ -113,7 +116,7 @@ it("keeps text inside explicit labels when native location buttons contain icons
   for (const path of [
     "../../components/matches/MatchWizard.tsx",
     "../../components/locations/LocationPicker.tsx",
-    "../../app/match/[matchId].tsx",
+    "../../components/matches/MatchDetail.tsx",
     "../../components/contacts/ContactLegend.tsx",
   ]) {
     const source = ts.createSourceFile(

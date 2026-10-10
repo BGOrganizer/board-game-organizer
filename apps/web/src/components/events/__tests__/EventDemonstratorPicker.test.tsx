@@ -2,6 +2,7 @@ import { CommunityApiError } from "@board-game-organizer/shared";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
+import { OrganizationMemberPicker } from "../../organizations/OrganizationMemberPicker";
 import { EventDemonstratorPicker } from "../EventDemonstratorPicker";
 
 const hooks = vi.hoisted(() => ({ members: vi.fn(), sentinel: vi.fn() }));
@@ -98,6 +99,44 @@ it("never exposes cached private members after access is denied", () => {
   );
   expect(screen.queryByText("Demo Name")).toBeNull();
   expect(screen.getByRole("alert")).toBeTruthy();
+});
+it("supports caller-owned invitation disabling and all identity/avatar fallbacks", () => {
+  const select = vi.fn();
+  state.items = [
+    {
+      ...member,
+      userId: "one",
+      name: null,
+      username: "nickname",
+      avatarUrl: "https://example.test/avatar",
+    },
+    { ...member, userId: "two", name: "Full Name", username: null },
+    { ...member, userId: "three", name: null, username: null },
+  ] as unknown as typeof state.items;
+  renderWithI18n(
+    <OrganizationMemberPicker
+      title="Invite organization members"
+      organizationId="org"
+      onSelect={select}
+      onClose={vi.fn()}
+      isDisabled={(m) => m.userId === "one"}
+    />,
+  );
+  const disabled = screen.getByRole("button", { name: "nickname" });
+  expect(disabled.hasAttribute("disabled")).toBe(true);
+  fireEvent.click(disabled);
+  expect(select).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Full Name" }));
+  expect(select).toHaveBeenLastCalledWith(state.items[1]);
+  fireEvent.click(screen.getByRole("button", { name: "Username unavailable" }));
+  expect(select).toHaveBeenLastCalledWith(state.items[2]);
+});
+it("shows paging skeletons even after first loading has finished", () => {
+  state.isFetchingNextPage = true;
+  renderWithI18n(
+    <EventDemonstratorPicker organizationId="org" onSelect={vi.fn()} onClose={vi.fn()} />,
+  );
+  expect(screen.getByText("Demo Name")).toBeTruthy();
 });
 it("blocks repeated pagination while loading", () => {
   state.isPending = true;
