@@ -88,8 +88,14 @@ historical evidence, not the current push scope.
   advanced to **81 passed / 2 failed / 0 skipped**: both failures reach creation and expose a fixture
   responding to the obsolete root POST instead of the actual contextual
   `POST /api/organizations/:organizationId/events`. The local fixture and request assertion now
-  follow the controller and shared hook. Maestro was still active when this checkpoint was written;
-  its progress and cleanup must finish before the next push. Native CI is also split into visible
+  follow the controller and shared hook. Maestro passed welcome, login and the startup deep link,
+  then flow 05 passed the initial contacts permission prompt/denial and failed asserting the help
+  popover title after tapping its trigger. The capture did not retain a UI hierarchy, so exact native
+  positioning cannot be established from that run. Installed HeroUI content requires asynchronous
+  native measurement before entering; help and legend checks now explicitly wait for visible portal
+  content, retaining all title/body assertions. The same transition guard covers the game and
+  organization search helpers. This remains a CI hypothesis to verify, not native acceptance.
+  Both user/database cleanup jobs succeeded before the next push. Native CI is also split into visible
   SDK/AVD/boot, APK/callback, warm-up, address-book and individual flow steps in PR, main and manual
   workflows. One job-scoped emulator and the same authenticated session survive those steps; failed
   boot kills its process, and always-run teardown stops a successful boot and preserves diagnostics.

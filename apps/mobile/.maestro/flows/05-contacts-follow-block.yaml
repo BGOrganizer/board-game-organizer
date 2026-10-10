@@ -11,6 +11,10 @@ appId: com.bgo.mobile
 - tapOn: "Search"
 - assertVisible: "Search results"
 - tapOn: "Search users by name or email: Search help"
+# Portal content becomes visible only after native measurement/animation.
+- extendedWaitUntil:
+    visible: "Search help"
+    timeout: 30000
 - assertVisible: "Search help"
 - assertVisible: "Type at least 4 characters to search"
 - back
@@ -23,6 +27,9 @@ appId: com.bgo.mobile
 - tapOn: "Allow"
 - tapOn: "Connections"
 - tapOn: "Connections: Icon legend"
+- extendedWaitUntil:
+    visible: "Friendship accepted."
+    timeout: 30000
 - assertVisible: "Friendship accepted."
 - assertVisible: "People you follow."
 - assertVisible: "People who follow you."
@@ -39,6 +46,9 @@ appId: com.bgo.mobile
 - assertNotVisible: "Allow address book access to find your friends here."
 - tapOn: "Requests"
 - tapOn: "Requests: Icon legend"
+- extendedWaitUntil:
+    visible: "Requests awaiting your reply."
+    timeout: 30000
 - assertVisible: "Requests awaiting your reply."
 - assertVisible: "Requests awaiting their reply."
 - back

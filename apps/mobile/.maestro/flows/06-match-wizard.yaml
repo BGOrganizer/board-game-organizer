@@ -160,6 +160,9 @@ appId: com.bgo.mobile
 - assertVisible: "Select a board game"
 - tapOn: "Select a board game"
 - tapOn: "Search board games: Search help"
+- extendedWaitUntil:
+    visible: "Search help"
+    timeout: 30000
 - assertVisible: "Type at least 4 characters to search"
 - back
 - assertVisible:

@@ -67,6 +67,30 @@ test("fresh native launch preserves real contacts and notification permission pr
   assert(contacts.includes('- tapOn: "Yes"'));
   assert(contacts.includes('- tapOn: "Allow"'));
 });
+test("native help and legends wait for visible portal content without dropping assertions", () => {
+  for (const name of ["05-contacts-follow-block", "06-match-wizard", "12-organizations"]) {
+    const flow = readFileSync(
+      new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    assert.match(
+      flow,
+      /Search help"\n(?:#[^\n]*\n)?- extendedWaitUntil:\n {4}visible: "Search help"\n {4}timeout: 30000/,
+    );
+    assert(flow.includes('- assertVisible: "Type at least 4 characters to search"'));
+  }
+  const contacts = readFileSync(
+    new URL("../../apps/mobile/.maestro/flows/05-contacts-follow-block.yaml", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  for (const title of ["Friendship accepted.", "Requests awaiting your reply."])
+    assert(
+      contacts.includes(
+        `- extendedWaitUntil:\n    visible: "${title}"\n    timeout: 30000\n- assertVisible: "${title}"`,
+      ),
+    );
+  assert(contacts.includes('- assertVisible: "Search help"'));
+});
 test("native device verification uses Clerk development fixtures, without disabling Device Trust", () => {
   const provision = readFileSync(
     new URL("../actions/provision-e2e-user/action.yml", import.meta.url),
