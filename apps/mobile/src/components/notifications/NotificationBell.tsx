@@ -12,6 +12,7 @@ import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { defaultI18n, useT } from "@/lib/i18n";
 import {
@@ -30,6 +31,7 @@ export function NotificationBell() {
   const queryClient = useQueryClient();
   const t = useT();
   const surface = useThemeColor("surface");
+  const muted = useThemeColor("muted");
   const registeredRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
   const [permission, setPermission] = useState<{
@@ -238,9 +240,9 @@ export function NotificationBell() {
             {!notifications.list.isPending &&
               !notifications.list.isError &&
               notifications.notifications.length === 0 && (
-                <Typography className="py-3 text-sm text-muted">
+                <EmptyList icon={<Bell size={28} color={muted} />}>
                   {t("No notifications yet")}
-                </Typography>
+                </EmptyList>
               )}
             {notifications.notifications.slice(0, 3).map((notification) => (
               <Pressable

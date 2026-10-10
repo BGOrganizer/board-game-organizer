@@ -89,6 +89,29 @@ export class EventsRepository {
   countTables(eventId: string) {
     return this.tables.countDocuments({ eventId, status: { $ne: "CANCELLED" } }, this.opts);
   }
+  async countConfirmedParticipants(eventId: string) {
+    const rows = await this.bookings
+      .aggregate<{ count: number }>(
+        [
+          { $match: { eventId, status: "CONFIRMED" } },
+          {
+            $lookup: {
+              from: COLLECTIONS.EVENT_TABLES,
+              localField: "tableId",
+              foreignField: "id",
+              pipeline: [{ $match: { eventId, status: { $ne: "CANCELLED" } } }],
+              as: "activeTables",
+            },
+          },
+          { $match: { "activeTables.0": { $exists: true } } },
+          { $group: { _id: "$userId" } },
+          { $count: "count" },
+        ],
+        this.opts,
+      )
+      .toArray();
+    return rows[0]?.count ?? 0;
+  }
   findBooking(id: string) {
     return this.bookings.findOne({ id }, { ...this.opts, projection: { _id: 0 } });
   }

@@ -210,3 +210,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Maestro summer event"
     timeout: 30000
+- back
+- assertVisible:
+    id: "events-scroll"
+- assertVisible: "Open event: Maestro summer event,.*Draft.*Tables: 0, Confirmed participants: 0"

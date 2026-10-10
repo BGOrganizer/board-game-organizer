@@ -8,11 +8,13 @@ import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
@@ -29,6 +31,7 @@ function apiUrl(): string {
 export default function SearchUserScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
+  const muted = useThemeColor("muted");
   const router = useRouter();
   const { slotId, exclude, groupId } = useLocalSearchParams<{
     slotId: string;
@@ -200,9 +203,7 @@ export default function SearchUserScreen() {
         shown.length === 0 &&
         (query.trim().length >= 4 || !friends.hasNextPage) &&
         !listError && (
-          <Typography style={{ color: "#6b7280", fontSize: 14, padding: 16 }}>
-            {t("No users found")}
-          </Typography>
+          <EmptyList icon={<UserPlus size={28} color={muted} />}>{t("No users found")}</EmptyList>
         )}
       <FlatList
         data={shown}

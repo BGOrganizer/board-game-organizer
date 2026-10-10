@@ -32,6 +32,7 @@ function services(overrides: Record<string, unknown> = {}) {
     find: vi.fn(async () => event),
     lock: vi.fn(async () => event),
     liveOrganizationEvents: vi.fn(async () => []),
+    countConfirmedParticipants: vi.fn(async () => 0),
     ...overrides,
   };
   const organizations = {
@@ -40,6 +41,7 @@ function services(overrides: Record<string, unknown> = {}) {
     findMembership: vi.fn(async () => null),
     saveMembership: vi.fn(),
     countMembers: vi.fn(async () => 1),
+    countPublishedEvents: vi.fn(async () => 0),
     ...overrides,
   };
   const notifications = { notifyMany: vi.fn() };

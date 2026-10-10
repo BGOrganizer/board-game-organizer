@@ -10,6 +10,7 @@ import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
@@ -156,9 +157,13 @@ export function SearchUserPage({
           <Skeleton className="h-12 w-full rounded-lg" />
         </div>
       )}
-      {!loading && shown.length === 0 && query.trim().length >= 4 && (
-        <p className="mt-3 text-sm text-default-500">{t`No users found`}</p>
-      )}
+      {!loading &&
+        !error &&
+        (members || (!friends.isPending && !friends.isError)) &&
+        shown.length === 0 &&
+        (query.trim().length >= 4 || Boolean(members) || !friends.hasNextPage) && (
+          <EmptyList icon={<UserPlus className="size-7" />}>{t`No users found`}</EmptyList>
+        )}
       <GroupedList className="mt-3">
         {shown.map((u) => (
           <GroupedRow key={u.id}>

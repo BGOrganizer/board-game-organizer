@@ -104,6 +104,8 @@ export class EventsService {
       organizationName: organization.approved?.name ?? organization.proposal?.name ?? "",
       logo: `data:image/webp;base64,${asset?.thumbnailBase64 ?? ""}`,
       tableCount: await this.events.countTables(event.id),
+      confirmedParticipantCount: await this.events.countConfirmedParticipants(event.id),
+      organizationApproved: Boolean(organization.approved),
       role:
         event.adminUserId === userId
           ? "admin"

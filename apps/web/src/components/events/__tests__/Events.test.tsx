@@ -38,6 +38,8 @@ const row: EventResponse = {
   timeZone: "UTC",
   status: "PUBLISHED",
   tableCount: 1,
+  organizationApproved: true,
+  confirmedParticipantCount: 3,
 };
 function render() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

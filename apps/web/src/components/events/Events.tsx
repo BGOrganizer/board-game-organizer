@@ -1,23 +1,19 @@
 "use client";
 import { eventPeriods } from "@board-game-organizer/schemas";
-import {
-  communityAccessDenied,
-  formatLocationAddress,
-  useEventList,
-  useListSearch,
-} from "@board-game-organizer/shared";
+import { communityAccessDenied, useEventList, useListSearch } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarClock, CalendarDays, History } from "lucide-react";
 
-import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { EventCard } from "./EventCard";
 
 export function Events({ organizationId = "" }: { organizationId?: string }) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const options = useCommunityApi();
   const filters = useListSearch(eventPeriods);
   const list = useEventList(options, organizationId, filters.search, filters.selected);
@@ -43,29 +39,7 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
       />
       {list.isPending ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
       {(communityAccessDenied(list.error) ? [] : list.items).map((event) => (
-        <LinkedListCard
-          key={event.id}
-          href={`/events/${event.id}`}
-          label={`${t`Open event`}: ${event.name}`}
-        >
-          <CalendarDays aria-hidden className="size-6 shrink-0" />
-          <span className="min-w-0">
-            <span className="block truncate font-semibold">{event.name}</span>
-            <span className="block text-sm">
-              {event.organizationName} · {event.status === "DRAFT" ? t`Draft` : t`Published`}
-            </span>
-            <time dateTime={event.startsAt}>
-              {new Intl.DateTimeFormat(i18n.locale, {
-                dateStyle: "medium",
-                timeStyle: "short",
-                timeZone: event.timeZone,
-              }).format(new Date(event.startsAt))}
-            </time>
-            <span className="block truncate text-sm">
-              {formatLocationAddress(event.location.address)}
-            </span>
-          </span>
-        </LinkedListCard>
+        <EventCard key={event.id} event={event} />
       ))}
       {list.isError ? (
         <div role="alert">
@@ -73,7 +47,9 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
           <Button variant="outline" onPress={() => void list.refetch()}>{t`Retry`}</Button>
         </div>
       ) : null}
-      {!list.isPending && !list.isError && !list.items.length ? <p>{t`No events found`}</p> : null}
+      {!list.isPending && !list.isError && !list.items.length ? (
+        <EmptyList icon={<CalendarDays className="size-7" />}>{t`No events found`}</EmptyList>
+      ) : null}
       <div ref={sentinel} />
       {list.isFetchingNextPage ? <Skeleton className="h-20 w-full rounded-xl" /> : null}
       {list.hasNextPage ? (

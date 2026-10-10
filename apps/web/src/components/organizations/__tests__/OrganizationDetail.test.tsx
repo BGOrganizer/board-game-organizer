@@ -40,6 +40,7 @@ const base: OrganizationResponse = {
   status: "CREATED",
   role: "admin",
   memberCount: 2,
+  publishedEventCount: 5,
   myMembership: null,
   approved: { name: "Test club", location, logoAssetId: "logo" },
   version: 1,
@@ -180,6 +181,30 @@ beforeEach(() => {
 });
 
 describe("organization detail and member interactions", () => {
+  it("puts accepted-member Leave in the header, icon-only, with confirmation and no immediate mutation", async () => {
+    const state = setup({ role: "accepted", adminUserId: "another" });
+    const button = await screen.findByRole("button", { name: "Leave organization" });
+    expect(button.textContent).toBe("");
+    expect(button.parentElement?.querySelector("h1")?.textContent).toBe("Organization details");
+    fireEvent.click(button);
+    expect(screen.getByRole("dialog", { name: "Leave organization" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(state.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  });
+  it("puts pending self-request cancellation in the card footer, preserving its confirmation", async () => {
+    const state = setup({ role: "requested", adminUserId: "another" });
+    const button = await screen.findByRole("button", {
+      name: "Cancel request",
+    });
+    expect(button.textContent).toBe("");
+    expect(button.parentElement?.className).toContain("justify-end");
+    expect(screen.getByText("Approved members: 2")).toBeTruthy();
+    expect(screen.getByText("Published events: 5")).toBeTruthy();
+    fireEvent.click(button);
+    const dialog = screen.getByRole("dialog", { name: "Cancel request" });
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Cancel$/ }));
+    expect(state.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  });
   it("keeps controls contextual, invite slot first, full name/nickname, and private lists ordered", async () => {
     const state = setup();
     await screen.findByText("Approved");

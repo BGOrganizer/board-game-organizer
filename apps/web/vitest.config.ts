@@ -94,6 +94,24 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/components/common/ui/{ListCard,EmptyList}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/EventCard.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/organizations/OrganizationDetailsCard.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/events/EventWizardSummary.tsx": {
           lines: 100,
           functions: 100,

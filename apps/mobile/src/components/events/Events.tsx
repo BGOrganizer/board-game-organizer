@@ -1,31 +1,24 @@
 import { eventPeriods } from "@board-game-organizer/schemas";
-import {
-  communityAccessDenied,
-  formatLocationAddress,
-  useEventList,
-  useListSearch,
-} from "@board-game-organizer/shared";
-import { useRouter } from "expo-router";
+import { communityAccessDenied, useEventList, useListSearch } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
-
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
-import { Typography } from "heroui-native/text";
-import { CalendarClock, History } from "lucide-react-native";
+import { CalendarClock, CalendarDays, History } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
-import { ListCardBody } from "@/components/common/ui/ListCardBody";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { EventCard } from "./EventCard";
 
 export function Events({ organizationId = "" }: { organizationId?: string }) {
   const t = useT();
   const o = useCommunityApi();
-  const router = useRouter();
+  const muted = useThemeColor("muted");
   const insets = useSafeAreaInsets();
   const layout = useFloatingActionLayout();
   const filters = useListSearch(eventPeriods);
@@ -67,7 +60,11 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
           </View>
         }
         ListEmptyComponent={
-          !list.isPending && !list.isError ? <Typography>{t("No events found")}</Typography> : null
+          !list.isPending && !list.isError ? (
+            <EmptyList icon={<CalendarDays size={28} color={muted} />}>
+              {t("No events found")}
+            </EmptyList>
+          ) : null
         }
         ListFooterComponent={
           <View style={{ gap: 8 }}>
@@ -84,28 +81,7 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <LinkedListCard
-            onPress={() => router.push(`/event/${item.id}`)}
-            label={`${t("Open event")}: ${item.name}`}
-          >
-            <ListCardBody title={item.name}>
-              <Typography>
-                {item.organizationName} · {item.status === "DRAFT" ? t("Draft") : t("Published")}
-              </Typography>
-              <Typography>
-                {new Intl.DateTimeFormat(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                  timeZone: item.timeZone,
-                }).format(new Date(item.startsAt))}
-              </Typography>
-              <Typography className="text-muted">
-                {formatLocationAddress(item.location.address)}
-              </Typography>
-            </ListCardBody>
-          </LinkedListCard>
-        )}
+        renderItem={({ item }) => <EventCard event={item} />}
       />
     </ListPage>
   );

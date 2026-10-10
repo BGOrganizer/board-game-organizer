@@ -7,7 +7,9 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { UserRoundPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -65,7 +67,7 @@ export function OrganizationFriendPicker({ organizationId }: { organizationId: s
         >{t`Load more`}</Button>
       ) : null}
       {!friends.isPending && !friends.isError && !friends.data?.length ? (
-        <p>{t`No friends found`}</p>
+        <EmptyList icon={<UserRoundPlus className="size-7" />}>{t`No friends found`}</EmptyList>
       ) : null}
     </section>
   );

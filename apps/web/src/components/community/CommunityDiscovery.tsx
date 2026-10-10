@@ -8,7 +8,8 @@ import {
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 
-import { Building2, UsersRound } from "lucide-react";
+import { Building2, Search, UsersRound } from "lucide-react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -80,7 +81,7 @@ export function CommunityDiscovery() {
       !o.length &&
       (!groupsEnabled || !groups.isError) &&
       (!organizationsEnabled || !organizations.isError) ? (
-        <p>{t`No results found`}</p>
+        <EmptyList icon={<Search className="size-7" />}>{t`No results found`}</EmptyList>
       ) : null}
       {[groupsEnabled ? groups : null, organizationsEnabled ? organizations : null].map((list) =>
         list && search ? (

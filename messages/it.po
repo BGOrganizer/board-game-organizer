@@ -299,6 +299,10 @@ msgstr "Accetta o rifiuta questa richiesta d'ingresso. Il ban impedisce di rient
 msgid "Accept or reject this organization invitation."
 msgstr "Accetta o rifiuta questo invito all'organizzazione."
 
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Accept organization invitation"
+msgstr "Accetta l'invito all'organizzazione"
+
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
@@ -421,13 +425,25 @@ msgstr "Approva richiesta"
 msgid "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
 msgstr "Approva le informazioni proposte per l'organizzazione oppure rifiutale indicando un motivo, così il creatore può correggerle. Le informazioni già approvate restano disponibili."
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
 msgid "Approved"
 msgstr "Approvata"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
 msgid "Approved information remains visible while changes are reviewed."
 msgstr "Le informazioni approvate restano visibili durante la revisione delle modifiche."
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Approved members"
+msgstr "Membri confermati"
+
+#: apps/web/src/components/events/EventCard.tsx
+msgid "Approved organization"
+msgstr "Organizzazione approvata"
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Are you sure?"
+msgstr "Confermi?"
 
 #: apps/web/src/components/groups/Groups.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
@@ -438,7 +454,7 @@ msgstr "Almeno 5 caratteri"
 msgid "Average"
 msgstr "Media"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Awaiting review"
 msgstr "In attesa di revisione"
@@ -601,6 +617,7 @@ msgstr "Annulla invito all'organizzazione"
 msgid "Cancel request"
 msgstr "Annulla richiesta"
 
+#: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Cancelled"
@@ -618,7 +635,7 @@ msgstr "Centra la mappa sulla mia posizione"
 #~ msgid "Changes applied"
 #~ msgstr "Modifiche applicate"
 
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "Changes rejected"
 msgstr "Modifiche rifiutate"
@@ -777,6 +794,10 @@ msgstr "Gioco confermato"
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Confirmed location"
 msgstr "Luogo confermato"
+
+#: apps/web/src/components/events/EventCard.tsx
+msgid "Confirmed participants"
+msgstr "Partecipanti confermati"
 
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
@@ -1330,7 +1351,7 @@ msgstr "Scollegare BoardGameGeek?"
 msgid "Dismiss notification"
 msgstr "Chiudi notifica"
 
-#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/EventCard.tsx
 msgid "Draft"
 msgstr "Bozza"
 
@@ -1386,6 +1407,7 @@ msgstr "Email non disponibile"
 msgid "Enable push notifications"
 msgstr "Attiva notifiche push"
 
+#: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventWizard.tsx
@@ -1809,6 +1831,10 @@ msgstr "Esci dalla partita"
 msgid "Leave match?"
 msgstr "Uscire dalla partita?"
 
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Leave organization"
+msgstr "Lascia organizzazione"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Left group"
 msgstr "Hai lasciato il gruppo"
@@ -1997,7 +2023,6 @@ msgstr "membro"
 
 #: apps/web/src/components/community/CommunityDiscovery.tsx
 #: apps/web/src/components/groups/Groups.tsx
-#: apps/web/src/components/organizations/OrganizationDetail.tsx
 #: apps/web/src/components/organizations/Organizations.tsx
 msgid "members"
 msgstr "membri"
@@ -2093,6 +2118,10 @@ msgstr "Passaggio successivo"
 #: apps/web/src/components/matches/VoteLegend.tsx
 msgid "No"
 msgstr "No"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "No addresses found"
+msgstr "Nessun indirizzo trovato"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 #~ msgid "No blocked users"
@@ -2309,7 +2338,7 @@ msgstr "Online"
 msgid "Only the admin can invite players to a private match."
 msgstr "Solo l'admin può invitare giocatori a un match privato."
 
-#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/EventCard.tsx
 msgid "Open event"
 msgstr "Apri evento"
 
@@ -2566,9 +2595,13 @@ msgstr "Match pubblico"
 msgid "Publish event"
 msgstr "Pubblica evento"
 
-#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/EventCard.tsx
 msgid "Published"
 msgstr "Pubblicato"
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Published events"
+msgstr "Eventi pubblicati"
 
 #: apps/web/src/components/games/GameCatalogMetadata.tsx
 msgid "Rank"
@@ -2620,6 +2653,10 @@ msgstr "Rifiuta"
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 msgid "Reject organization"
 msgstr "Rifiuta organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Reject organization invitation"
+msgstr "Rifiuta l'invito all'organizzazione"
 
 #: apps/web/src/components/organizations/OrganizationReview.tsx
 msgid "Reject reason"
@@ -3030,6 +3067,7 @@ msgstr "Registrati"
 #~ msgid "Standings"
 #~ msgstr "Classifica"
 
+#: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventWizard.tsx
@@ -3077,6 +3115,7 @@ msgstr "Sincronizzazione della collezione BoardGameGeek in corso"
 msgid "Table name"
 msgstr "Nome del tavolo"
 
+#: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Tables"
 msgstr "Tavoli"
@@ -3295,6 +3334,7 @@ msgstr "La tua richiesta di partecipazione è in attesa dell'approvazione dell'a
 
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "AAAA-MM-GGTHH:mm"
+
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Add tables with a game, player limits and times inside the event. Publishing requires at least one table."

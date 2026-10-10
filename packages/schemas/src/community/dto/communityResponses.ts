@@ -14,6 +14,7 @@ export type OrganizationResponse = {
   logo: string;
   status: Organization["status"];
   memberCount: number;
+  publishedEventCount: number;
   role: "admin" | "accepted" | "invited" | "requested" | "none" | "excluded";
   myMembership: OrganizationMembership | null;
   approved?: OrganizationRevision;
@@ -43,6 +44,8 @@ export type EventResponse = Event & {
   organizationName: string;
   logo: string;
   tableCount: number;
+  confirmedParticipantCount: number;
+  organizationApproved: boolean;
   role: "admin" | "member" | "visitor";
   canModify: boolean;
   canPublish: boolean;

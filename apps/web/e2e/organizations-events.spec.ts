@@ -36,6 +36,7 @@ const baseOrganization: OrganizationResponse = {
   status: "CREATED",
   role: "admin",
   memberCount: 1,
+  publishedEventCount: 2,
   myMembership: null,
   approved: { name: "Community club", logoAssetId: assetId, location },
   version: 4,
@@ -59,6 +60,8 @@ const baseEvent: EventResponse = {
   canModify: true,
   canPublish: true,
   tableCount: 20,
+  organizationApproved: true,
+  confirmedParticipantCount: 3,
   version: 7,
   createdAt: now,
   updatedAt: now,
@@ -431,6 +434,9 @@ async function fixture(page: Page) {
     succeed: () => {
       failSave = false;
     },
+    event: (patch: Partial<EventResponse>) => {
+      event = { ...event, ...patch };
+    },
     member: () => {
       event = { ...event, role: "member", canModify: false };
     },
@@ -448,6 +454,90 @@ async function chooseLocation(page: Page, label = "Choose a verified address") {
 }
 
 function communityAcceptance() {
+  test("organization events use planets, approved identity, local times, counts and semantic badges", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    await page.goto(`/organizations/${orgId}`);
+    await page.getByRole("tab", { name: "Events", exact: true }).click();
+    const card = page.getByRole("link", { name: /^Open event: Summer games evening/ });
+    await expect(card.locator("img")).toHaveAttribute("src", /^data:image\/svg\+xml,/);
+    await expect(card.locator(".lucide-badge-check")).toBeVisible();
+    await expect(card.getByText("06/12/2030", { exact: true })).toBeVisible();
+    await expect(card.getByText("14:00", { exact: true })).toBeVisible();
+    await expect(card.getByText("18:00", { exact: true })).toBeVisible();
+    await expect(card.getByText("20", { exact: true })).toBeVisible();
+    await expect(card.getByText("3", { exact: true })).toBeVisible();
+    await expect(card.getByText("Published", { exact: true })).toBeVisible();
+    await expect(card.locator(".chip")).toHaveClass(/success/);
+    await expect
+      .poll(async () => {
+        const a = await card.locator("img").boundingBox(),
+          n = await card.getByText(baseEvent.name, { exact: true }).boundingBox();
+        return Boolean(a && n && a.x + a.width <= n.x);
+      })
+      .toBe(true);
+    state.event({ status: "DRAFT" });
+    await page.reload();
+    await expect(card.getByText("Draft", { exact: true })).toBeVisible();
+    await expect(card.locator(".chip")).toHaveClass(/warning/);
+  });
+  test("organization details reuse the card and keep destructive self-actions contextual and confirmed", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    state.organization({ role: "accepted", adminUserId: "another" });
+    await page.goto(`/organizations/${orgId}`);
+    await expect(page.getByText("Approved members: 1", { exact: true })).toBeVisible();
+    await expect(page.getByText("Published events: 2", { exact: true })).toBeVisible();
+    const leave = page.getByRole("button", { name: "Leave organization", exact: true });
+    await expect(leave).toHaveText("");
+    await expect(
+      leave.locator("..").getByRole("heading", { name: "Organization details" }),
+    ).toBeVisible();
+    await leave.click();
+    await page
+      .getByRole("dialog", { name: "Leave organization", exact: true })
+      .getByRole("button", { name: "Cancel", exact: true })
+      .click();
+    expect(state.writes).toHaveLength(0);
+    state.organization({ role: "requested" });
+    await page.reload();
+    const cancel = page.getByRole("button", { name: "Cancel request", exact: true });
+    await expect(cancel).toHaveText("");
+    await cancel.click();
+    await page
+      .getByRole("dialog", { name: "Cancel request", exact: true })
+      .getByRole("button", { name: "Cancel", exact: true })
+      .click();
+    expect(state.writes).toHaveLength(0);
+  });
+  for (const [label, confirm, action] of [
+    ["Accept organization invitation", "Accept", "accept"],
+    ["Reject organization invitation", "Reject", "decline"],
+  ] as const) {
+    test(`card invitation choice ${action} confirms only the chosen action`, async ({ page }) => {
+      const state = await fixture(page);
+      state.organization({ role: "invited", adminUserId: "another" });
+      await page.goto(`/organizations/${orgId}`);
+      const choice = page.getByRole("button", { name: label, exact: true });
+      await expect(choice).toHaveText("");
+      await choice.click();
+      let dialog = page.getByRole("dialog", { name: label, exact: true });
+      await expect(
+        dialog.getByRole("button", {
+          name: confirm === "Accept" ? "Reject" : "Accept",
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      expect(state.writes).toHaveLength(0);
+      await choice.click();
+      dialog = page.getByRole("dialog", { name: label, exact: true });
+      await dialog.getByRole("button", { name: confirm, exact: true }).click();
+      await expect.poll(() => state.writes.some((w) => w.body.action === action)).toBe(true);
+    });
+  }
   test("organization role filters include own requests; search help and clear are consistent", async ({
     page,
   }) => {

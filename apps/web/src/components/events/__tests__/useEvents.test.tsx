@@ -29,6 +29,10 @@ import {
   publicGroupsQuery,
   usePublicGroups,
 } from "../../../../../../packages/shared/src/groups/hooks/usePublicGroups";
+import {
+  organizationKeys,
+  useOrganization,
+} from "../../../../../../packages/shared/src/organizations/hooks/useOrganizations";
 
 const event = {
   id: "event",
@@ -534,6 +538,53 @@ describe("event mutations", () => {
       pages: [{ items: [expired, other], nextCursor: null }],
       pageParams: [""],
     });
+  });
+  it("revalidates the owning organization counts after publication and its event cards after booking, without touching other scopes", async () => {
+    const { client, wrapper } = setup();
+    client.setQueryData(eventKeys.detail(options, event.id), event);
+    const ownOrg = organizationKeys.detail(options, "org"),
+      otherOrg = organizationKeys.detail(options, "other-org");
+    const foreignOrg = organizationKeys.detail({ ...options, userId: "foreign" }, "org");
+    const ownList = organizationKeys.list(options, "mine", ""),
+      privateMembers = organizationKeys.members(options, "org", "accepted", "");
+    for (const key of [ownOrg, otherOrg, foreignOrg, ownList, privateMembers])
+      client.setQueryData(key, { id: "org", publishedEventCount: 0 });
+    const fetch = vi.fn(async (url: string, init: RequestInit) =>
+      init.method === "PATCH"
+        ? response(event)
+        : init.method === "POST"
+          ? response(booking)
+          : new URL(url).pathname === "/api/organizations/org"
+            ? response({ id: "org", publishedEventCount: 1 })
+            : response({ items: [event], nextCursor: null }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const h = renderHook(
+      () => ({
+        organization: useOrganization(options, "org"),
+        events: useEventList(options, "org"),
+        actions: useEventActions(options),
+      }),
+      { wrapper },
+    );
+    await waitFor(() => expect(h.result.current.events.isSuccess).toBe(true));
+    await act(() =>
+      h.result.current.actions.update.mutateAsync({
+        id: event.id,
+        input: { ...input, version: 2, removedTableIds: [] },
+      }),
+    );
+    await waitFor(() => expect(h.result.current.organization.data?.publishedEventCount).toBe(1));
+    expect(client.getQueryState(ownList)?.isInvalidated).toBe(true);
+    for (const key of [otherOrg, foreignOrg, privateMembers])
+      expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+    const before = fetch.mock.calls.filter(([url]) => url.includes("/org/events")).length;
+    await act(() =>
+      h.result.current.actions.request.mutateAsync({ eventId: event.id, tableId: table.id }),
+    );
+    expect(fetch.mock.calls.filter(([url]) => url.includes("/org/events"))).toHaveLength(
+      before + 1,
+    );
   });
   it("refreshes personal participation after booking changes without fetching unrelated organization lists", async () => {
     const { wrapper } = setup();

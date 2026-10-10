@@ -1,8 +1,8 @@
 "use client";
 
-import { Card } from "@heroui/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ListCard } from "./ListCard";
 
 export function LinkedListCard({
   href,
@@ -18,7 +18,7 @@ export function LinkedListCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="relative rounded-xl p-0">
+    <ListCard>
       <Link
         href={href}
         aria-label={label}
@@ -26,7 +26,7 @@ export function LinkedListCard({
         onClick={(event) => {
           if (disabled) event.preventDefault();
         }}
-        className="flex w-full cursor-pointer items-start gap-3 p-3 text-left"
+        className="flex w-full cursor-pointer items-start gap-3 rounded-xl p-3 text-left hover:bg-default-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
       >
         {children}
       </Link>
@@ -35,6 +35,6 @@ export function LinkedListCard({
           {actions}
         </div>
       ) : null}
-    </Card>
+    </ListCard>
   );
 }

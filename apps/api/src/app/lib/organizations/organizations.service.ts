@@ -100,6 +100,7 @@ export class OrganizationsService {
       logo: `data:image/webp;base64,${asset?.thumbnailBase64 ?? ""}`,
       status: owner || moderator ? organization.status : "CREATED",
       memberCount: 1 + (await this.organizations.countMembers(organization.id)),
+      publishedEventCount: await this.organizations.countPublishedEvents(organization.id),
       role,
       myMembership: membership,
       approved: organization.approved,

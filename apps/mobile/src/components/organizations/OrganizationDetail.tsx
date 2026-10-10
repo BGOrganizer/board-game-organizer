@@ -1,7 +1,5 @@
-import type { OrganizationResponse } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
-  formatLocationAddress,
   isDestructiveOrganizationAction,
   type OrganizationAction,
   organizationActionLabel,
@@ -11,21 +9,11 @@ import {
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { Chip } from "heroui-native/chip";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import {
-  Check,
-  CircleCheck,
-  CircleX,
-  Clock3,
-  LogOut,
-  Pencil,
-  Plus,
-  UserRoundPlus,
-} from "lucide-react-native";
+import { LogOut, Pencil, Plus, UserRoundPlus, X } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
@@ -33,28 +21,13 @@ import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { Events } from "@/components/events/Events";
-import { OrganizationArtwork } from "@/components/organizations/OrganizationArtwork";
 import { OrganizationMembers } from "@/components/organizations/OrganizationMembers";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { OrganizationDetailsCard } from "./OrganizationDetailsCard";
 import { OrganizationInvitationResponse } from "./OrganizationInvitationResponse";
 
-function StatusBadge({ organization }: { organization: OrganizationResponse }) {
-  const t = useT();
-  const rejected = organization.reviewStatus === "REJECTED";
-  const pending = organization.reviewStatus === "PENDING";
-  const color = useThemeColor(rejected ? "danger" : pending ? "warning" : "success");
-  const Icon = rejected ? CircleX : pending ? Clock3 : CircleCheck;
-  return (
-    <Chip size="sm" color={rejected ? "danger" : pending ? "warning" : "success"} variant="soft">
-      <Icon size={14} color={color} />
-      <Chip.Label>
-        {rejected ? t("Changes rejected") : pending ? t("Awaiting review") : t("Approved")}
-      </Chip.Label>
-    </Chip>
-  );
-}
-const icons = { request: UserRoundPlus, accept: Check, decline: CircleX, cancel: LogOut };
+const icons = { request: UserRoundPlus, cancel: X };
 
 export function OrganizationDetail({ organizationId }: { organizationId: string }) {
   const router = useRouter();
@@ -79,7 +52,26 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
   };
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: organization?.name ?? t("Organization details") }} />
+      <Stack.Screen
+        options={{
+          title: organization?.name ?? t("Organization details"),
+          headerRight:
+            organization?.role === "accepted"
+              ? () => (
+                  <Button
+                    isIconOnly
+                    variant="danger-soft"
+                    accessibilityLabel={t("Leave organization")}
+                    testID="leave-organization-header"
+                    isDisabled={actions.busy}
+                    onPress={() => setConfirm("cancel")}
+                  >
+                    <LogOut size={20} color={danger} />
+                  </Button>
+                )
+              : undefined,
+        }}
+      />
       {detail.isError ? (
         <View style={{ padding: 20, gap: 8 }}>
           <Typography accessibilityRole="alert" className="text-danger">
@@ -110,71 +102,46 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
           </View>
           <Tabs.Content value="details" style={{ flex: 1 }}>
             <ScreenScrollView contentContainerStyle={{ paddingTop: 0 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: 8,
-                }}
-              >
-                <Typography
-                  className="font-semibold text-foreground"
-                  style={{ flex: 1, fontSize: 20 }}
-                >
-                  {organization.name}
-                </Typography>
-                <StatusBadge organization={organization} />
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 16 }}>
-                <OrganizationArtwork organization={organization} />
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Typography className="font-semibold text-foreground">
-                    {organization.location.name}
-                  </Typography>
-                  <Typography className="text-muted">
-                    {formatLocationAddress(organization.location.address)}
-                  </Typography>
-                  <Typography className="text-muted">
-                    {organization.memberCount} {t("members")}
-                  </Typography>
-                </View>
-              </View>
-              {organization.rejectionReason ? (
-                <Typography className="text-danger">{organization.rejectionReason}</Typography>
-              ) : null}
-              {organization.approved && organization.reviewStatus ? (
-                <Typography className="text-muted">
-                  {t("Approved information remains visible while changes are reviewed.")}
-                </Typography>
-              ) : null}
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {organization.role === "invited" ? (
-                  <OrganizationInvitationResponse busy={actions.busy} onAction={run} />
-                ) : (
-                  ownOrganizationActions(organization).map((action) => {
-                    const Icon = icons[action as keyof typeof icons];
-                    const destructive = action === "decline" || action === "cancel";
-                    return (
-                      <Button
-                        key={action}
-                        isDisabled={actions.busy}
-                        variant={destructive ? "danger-soft" : "primary"}
-                        onPress={() =>
-                          isDestructiveOrganizationAction(action) ? setConfirm(action) : run(action)
-                        }
-                      >
-                        {Icon ? (
-                          <Icon size={16} color={destructive ? danger : accentForeground} />
-                        ) : null}
-                        <Button.Label>
-                          {t(organizationActionLabel(action, organization.role))}
-                        </Button.Label>
-                      </Button>
-                    );
-                  })
-                )}
-              </View>
+              <OrganizationDetailsCard organization={organization}>
+                {organization.role !== "accepted" &&
+                ownOrganizationActions(organization).length > 0 ? (
+                  organization.role === "invited" ? (
+                    <OrganizationInvitationResponse
+                      presentation="choices"
+                      busy={actions.busy}
+                      onAction={run}
+                    />
+                  ) : (
+                    ownOrganizationActions(organization).map((action) => {
+                      const Icon = icons[action as keyof typeof icons];
+                      const destructive = action === "cancel";
+                      return (
+                        <Button
+                          key={action}
+                          isIconOnly={destructive}
+                          accessibilityLabel={t(organizationActionLabel(action, organization.role))}
+                          isDisabled={actions.busy}
+                          variant={destructive ? "danger-soft" : "primary"}
+                          onPress={() =>
+                            isDestructiveOrganizationAction(action)
+                              ? setConfirm(action)
+                              : run(action)
+                          }
+                        >
+                          {Icon ? (
+                            <Icon size={18} color={destructive ? danger : accentForeground} />
+                          ) : null}
+                          {!destructive ? (
+                            <Button.Label>
+                              {t(organizationActionLabel(action, organization.role))}
+                            </Button.Label>
+                          ) : null}
+                        </Button>
+                      );
+                    })
+                  )
+                ) : null}
+              </OrganizationDetailsCard>
             </ScreenScrollView>
           </Tabs.Content>
           <Tabs.Content value="members" style={{ flex: 1 }}>

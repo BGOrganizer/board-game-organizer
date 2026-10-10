@@ -1,4 +1,5 @@
 import {
+  type Event,
   type Organization,
   type OrganizationListRole,
   type OrganizationMembership,
@@ -17,6 +18,7 @@ export type OrganizationListRow = Organization & {
 export class OrganizationsRepository {
   private organizations;
   private memberships;
+  private events;
   private opts;
 
   constructor(db: Db, session?: ClientSession) {
@@ -24,6 +26,7 @@ export class OrganizationsRepository {
       COLLECTIONS.ORGANIZATIONS,
     );
     this.memberships = db.collection<OrganizationMembership>(COLLECTIONS.ORGANIZATION_MEMBERSHIPS);
+    this.events = db.collection<Event>(COLLECTIONS.EVENTS);
     this.opts = session ? { session } : {};
   }
 
@@ -155,6 +158,10 @@ export class OrganizationsRepository {
 
   countMembers(organizationId: string) {
     return this.memberships.countDocuments({ organizationId, status: "ACCEPTED" }, this.opts);
+  }
+
+  countPublishedEvents(organizationId: string) {
+    return this.events.countDocuments({ organizationId, status: "PUBLISHED" }, this.opts);
   }
 
   listMemberships(

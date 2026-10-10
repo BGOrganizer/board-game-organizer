@@ -25,6 +25,31 @@ it.each(["accept", "decline"] as const)(
   },
 );
 
+it.each(["Accept organization invitation", "Reject organization invitation"])(
+  "opens confirmation from the icon-only card choice %s",
+  (label) => {
+    const run = vi.fn();
+    renderWithI18n(
+      <OrganizationInvitationResponse presentation="choices" busy={false} onAction={run} />,
+    );
+    const trigger = screen.getByRole("button", { name: label });
+    expect(trigger.textContent).toBe("");
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog", { name: label })).toBeTruthy();
+    expect(run).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: label });
+    const accepting = label.startsWith("Accept");
+    expect(
+      within(dialog).queryByRole("button", { name: accepting ? "Reject" : "Accept" }),
+    ).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: accepting ? "Accept" : "Reject" }));
+    expect(run).toHaveBeenCalledWith(accepting ? "accept" : "decline");
+  },
+);
+
 function PendingHarness({ onAction }: { onAction: (action: "accept" | "decline") => void }) {
   const [busy, setBusy] = useState(false);
   return (

@@ -6,6 +6,7 @@ export function EmptyList({ icon, children }: { icon: ReactNode; children: React
   return (
     <View
       style={{
+        width: "100%",
         minHeight: 120,
         alignItems: "center",
         justifyContent: "center",

@@ -12,12 +12,15 @@ import { useLingui } from "@lingui/react";
 import * as Localization from "expo-localization";
 import { Redirect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
+import { Globe } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useT } from "@/lib/i18n";
@@ -26,6 +29,7 @@ export default function MobileNumberScreen() {
   const { isLoaded, user } = useUser();
   const router = useRouter();
   const t = useT();
+  const muted = useThemeColor("muted");
   const { i18n } = useLingui();
   const [mobileNumber, setMobileNumber] = useState("");
   const [country, setCountry] = useState<PhoneCountryCode>(() =>
@@ -144,7 +148,9 @@ export default function MobileNumberScreen() {
                   keyboardShouldPersistTaps="handled"
                   style={{ flex: 1 }}
                   ListEmptyComponent={
-                    <Typography className="p-3 text-muted">{t("No countries found")}</Typography>
+                    <EmptyList icon={<Globe size={28} color={muted} />}>
+                      {t("No countries found")}
+                    </EmptyList>
                   }
                   renderItem={({ item }) => (
                     <Select.Item value={item.code} label={`${item.name} ${item.callingCode}`}>

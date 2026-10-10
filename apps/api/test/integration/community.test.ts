@@ -240,6 +240,80 @@ beforeEach(async () => {
   vi.setSystemTime(new Date("2030-06-01T10:00:00.000Z"));
 });
 describe("community transactions on a MongoDB replica set", () => {
+  it("returns authoritative member/publication counts and distinct confirmed people across paginated tables", async () => {
+    const first = eventInput().tables[0];
+    const { org, event, tables } = await eventSetup({
+      tables: [
+        first,
+        {
+          ...first,
+          name: "Later table",
+          startsAt: "2030-06-12T17:00:00.000Z",
+          endsAt: "2030-06-12T19:00:00.000Z",
+        },
+      ],
+    });
+    await transaction((s) => s.organizationService.request(OUTSIDER, org.id));
+    await book(event.id, tables[0].id, GUEST);
+    const later = await book(event.id, tables[1].id, GUEST);
+    await book(event.id, tables[0].id, OWNER);
+    await book(event.id, tables[0].id, OTHER, false);
+    expect(await services().organizationService.detail(OWNER, org.id)).toMatchObject({
+      memberCount: 4,
+      publishedEventCount: 1,
+    });
+    expect(await services().eventService.detail(OWNER, event.id)).toMatchObject({
+      tableCount: 2,
+      confirmedParticipantCount: 2,
+      organizationApproved: true,
+    });
+    expect(
+      (await services().eventService.tables(OWNER, event.id, { limit: 1 })).items,
+    ).toHaveLength(1);
+    expect(
+      (await services().eventService.list(OWNER, { limit: 1 }, org.id)).items[0],
+    ).toMatchObject({ tableCount: 2, confirmedParticipantCount: 2 });
+    const draft = await transaction((s) =>
+      s.eventService.create(OWNER, org.id, eventInput({ status: "DRAFT", tables: [] })),
+    );
+    expect((await services().organizationService.detail(OWNER, org.id)).publishedEventCount).toBe(
+      1,
+    );
+    const published = await transaction((s) =>
+      s.eventService.update(OWNER, draft.id, {
+        ...eventInput(),
+        version: draft.version,
+        removedTableIds: [],
+      }),
+    );
+    expect((await services().organizationService.detail(OWNER, org.id)).publishedEventCount).toBe(
+      2,
+    );
+    await transaction((s) => s.eventService.cancel(OWNER, published.id));
+    expect((await services().organizationService.detail(OWNER, org.id)).publishedEventCount).toBe(
+      1,
+    );
+    await transaction((s) =>
+      s.eventService.update(OWNER, event.id, {
+        ...eventInput(),
+        tables: [],
+        version: event.version,
+        removedTableIds: [tables[1].id],
+      }),
+    );
+    expect((await services().events.findBooking(later.id))?.status).toBe("CANCELLED");
+    expect(await services().eventService.detail(OWNER, event.id)).toMatchObject({
+      tableCount: 1,
+      confirmedParticipantCount: 2,
+    });
+    await transaction((s) =>
+      s.organizationService.membershipAction(OWNER, org.id, GUEST, "remove"),
+    );
+    expect((await services().organizationService.detail(OWNER, org.id)).memberCount).toBe(3);
+    expect((await services().eventService.detail(OWNER, event.id)).confirmedParticipantCount).toBe(
+      1,
+    );
+  });
   it("claims a prepared logo, keeps approved revision public and retires only replaced assets", async () => {
     const org = await organization();
     const original = org.logoAssetId;

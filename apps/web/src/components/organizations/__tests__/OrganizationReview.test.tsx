@@ -37,6 +37,7 @@ const organization: OrganizationResponse = {
   reviewStatus: "PENDING",
   role: "none",
   memberCount: 1,
+  publishedEventCount: 0,
   myMembership: null,
   version: 7,
   createdAt: "2030-01-01T00:00:00.000Z",

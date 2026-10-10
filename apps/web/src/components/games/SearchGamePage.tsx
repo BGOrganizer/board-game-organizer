@@ -6,6 +6,7 @@ import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -166,7 +167,7 @@ export function SearchGamePage({
       !picker.isError &&
       items.length === 0 &&
       (debounced.length >= 4 || (collection && hasCollection)) ? (
-        <p className="mt-3 text-sm text-default-500">{t`No games found`}</p>
+        <EmptyList icon={<Gamepad2 className="size-7" />}>{t`No games found`}</EmptyList>
       ) : null}
       <GroupedList className="mt-3">
         {items.map((item) => (

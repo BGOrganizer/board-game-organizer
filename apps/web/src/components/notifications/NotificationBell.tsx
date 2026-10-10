@@ -7,6 +7,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Bell, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { getWebPushToken, isWebPushConfigured } from "@/lib/notifications/webPush";
 
@@ -138,7 +139,7 @@ export function NotificationBell() {
             !notifications.list.isError &&
             notifications.notifications.length === 0 && (
               <Dropdown.Item id="empty" textValue={t`No notifications yet`}>
-                <span className="text-sm text-default-500">{t`No notifications yet`}</span>
+                <EmptyList icon={<Bell className="size-7" />}>{t`No notifications yet`}</EmptyList>
               </Dropdown.Item>
             )}
           {notifications.notifications.slice(0, 3).map((notification) => (

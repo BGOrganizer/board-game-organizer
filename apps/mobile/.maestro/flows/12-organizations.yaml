@@ -100,6 +100,8 @@ appId: com.bgo.mobile
     timeout: 30000
 - assertVisible: "Maestro community club"
 - assertVisible: "Awaiting review"
+- assertVisible: "Approved members: 1"
+- assertVisible: "Published events: 0"
 - tapOn:
     id: "organization-tab-members"
 - assertVisible: "Invitations require an approved organization."

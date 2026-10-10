@@ -8,11 +8,13 @@ import {
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Building2, UsersRound } from "lucide-react-native";
+import { Building2, Search, UsersRound } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
@@ -26,6 +28,7 @@ const kinds = ["groups", "organizations"] as const;
 export function CommunityDiscovery() {
   const options = useCommunityApi();
   const t = useT();
+  const muted = useThemeColor("muted");
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const filters = useListSearch(kinds);
@@ -94,7 +97,7 @@ export function CommunityDiscovery() {
           (!oe || !orgs.isPending) &&
           (!ge || !groups.isError) &&
           (!oe || !orgs.isError) ? (
-            <Typography>{t("No results found")}</Typography>
+            <EmptyList icon={<Search size={28} color={muted} />}>{t("No results found")}</EmptyList>
           ) : null
         }
         ListFooterComponent={

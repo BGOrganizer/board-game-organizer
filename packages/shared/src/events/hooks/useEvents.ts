@@ -28,6 +28,7 @@ import {
   communityPagePath,
   communityRequest,
 } from "../../community/communityApi";
+import { organizationKeys } from "../../organizations/hooks/useOrganizations";
 import { eventMatchesFilters } from "../eventList";
 import { useEventWindow } from "./useEventWindow";
 
@@ -292,17 +293,24 @@ export function useEventActions(o: CommunityApiOptions) {
       queryKey: root,
       predicate: (q) =>
         q.queryKey[4] === eventId ||
-        (q.queryKey[3] === "list" && (changesList || q.queryKey[4] === "")),
+        (q.queryKey[3] === "list" &&
+          (changesList || q.queryKey[4] === "" || q.queryKey[4] === org)),
       refetchType: "none",
     });
     await client.refetchQueries({
       queryKey: root,
       predicate: (q) =>
         q.queryKey[4] === eventId ||
-        (q.queryKey[3] === "list" &&
-          (q.queryKey[4] === "" || (changesList && q.queryKey[4] === org))),
+        (q.queryKey[3] === "list" && (q.queryKey[4] === "" || q.queryKey[4] === org)),
       type: "active",
     });
+    if (changesList && org)
+      await client.invalidateQueries({
+        queryKey: organizationKeys.root(o),
+        predicate: (q) =>
+          q.queryKey[3] === "list" || (q.queryKey[3] === "detail" && q.queryKey[4] === org),
+        refetchType: "active",
+      });
     await client.invalidateQueries({
       predicate: (q) =>
         q.queryKey[0] === "matches" &&

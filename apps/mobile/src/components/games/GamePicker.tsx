@@ -9,11 +9,13 @@ import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { LibraryBig, Plus, Search } from "lucide-react-native";
+import { Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
@@ -35,6 +37,7 @@ export default function GamePicker({
 } = {}) {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
+  const muted = useThemeColor("muted");
   const router = useRouter();
   const { slotId, exclude } = useLocalSearchParams<{ slotId: string; exclude?: string }>();
   const setPendingGame = useAppStore((s) => s.setPendingGame);
@@ -198,7 +201,7 @@ export default function GamePicker({
           !picker.isError &&
           !picker.hasNextPage &&
           items.length === 0 ? (
-            <Typography className="text-muted">{t("No games found")}</Typography>
+            <EmptyList icon={<Gamepad2 size={28} color={muted} />}>{t("No games found")}</EmptyList>
           ) : null}
         </View>
       }

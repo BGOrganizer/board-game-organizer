@@ -1,19 +1,19 @@
 appId: com.bgo.mobile
 ---
-# Isolated fixture: sign in as the invited recipient, not the organization admin.
-# Requires ORGANIZATION_LINK, DECISION (Accept or Reject), EXPECTED_ACTION
-# (Leave organization or Request membership). Missing fixtures fail; no skips.
+# Isolated fixture: invited recipient, not admin. Missing fixtures fail; no skips.
+# ORGANIZATION_LINK, DECISION (Accept or Reject), EXPECTED_ACTION are required.
 - openLink: ${ORGANIZATION_LINK}
 - tapOn:
-    id: "organization-tab-members"
-- assertVisible: "Organization members are visible only to confirmed members."
-- tapOn: "Respond to organization invitation"
-- assertVisible: "Accept"
-- assertVisible: "Reject"
+    id: "organization-tab-details"
+- assertVisible: "Approved members:.*"
+- assertVisible: "Published events:.*"
+- assertVisible: "Accept organization invitation"
+- assertVisible: "Reject organization invitation"
+- tapOn: "${DECISION} organization invitation"
+- assertVisible: "Are you sure?"
 - assertNotVisible: "Ban from organization"
 - tapOn: "Cancel"
-- tapOn: "Respond to organization invitation"
+- tapOn: "${DECISION} organization invitation"
 - tapOn: ${DECISION}
-- tapOn:
-    id: "organization-tab-details"
 - assertVisible: ${EXPECTED_ACTION}
+# The legacy response dialog remains accessible from Members without exposing its roster.

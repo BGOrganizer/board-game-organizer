@@ -30,6 +30,28 @@ function renderPicker(onSelect = vi.fn()) {
   return onSelect;
 }
 
+it("centers the exhausted empty friend list without turning failures into empty success", async () => {
+  let failed = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      failed
+        ? Response.json({ error: "UNAVAILABLE" }, { status: 503 })
+        : Response.json({ rows: [], nextCursor: null }),
+    ),
+  );
+  renderPicker();
+  const empty = await screen.findByText("No users found");
+  expect(empty.parentElement?.className).toContain("items-center");
+  expect(empty.parentElement?.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+  failed = true;
+  fireEvent.change(screen.getByPlaceholderText(/Search users/i), {
+    target: { value: "Missing friend" },
+  });
+  await screen.findByText("Search failed");
+  expect(screen.queryByText("No users found")).toBeNull();
+});
+
 it("renders cached first-page friends, excludes invited users, and loads the next page", async () => {
   let onIntersect: IntersectionObserverCallback | undefined;
   vi.stubGlobal(

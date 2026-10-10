@@ -56,12 +56,16 @@ describe("native list component ownership", () => {
     "components/organizations/Organizations.tsx",
     "components/groups/GroupsScreen.tsx",
     "app/(tabs)/matches.tsx",
-    "components/events/Events.tsx",
     "components/community/CommunityDiscovery.tsx",
   ])("keeps shared card shell/body without moving domain actions in %s", (path) => {
     const content = source(path);
     expect(content).toContain("<LinkedListCard");
     expect(content).toContain("<ListCardBody");
+  });
+  it("keeps event metadata domain-owned while reusing the common card frame", () => {
+    expect(source("components/events/Events.tsx")).toContain("<EventCard");
+    expect(source("components/events/EventCard.tsx")).toContain("<LinkedListCard");
+    expect(source("components/common/ui/LinkedListCard.tsx")).toContain("<ListCard");
   });
   it.each([
     "components/organizations/OrganizationDetail.tsx",

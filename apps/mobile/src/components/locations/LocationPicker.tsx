@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppState, Image, Keyboard, Linking, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useT } from "@/lib/i18n";
 import { requestUserPosition } from "@/lib/locations/user-location";
@@ -54,7 +55,11 @@ export default function LocationPicker({
   const insets = useSafeAreaInsets();
   const { getToken, userId } = useSessionAuth();
   const feedback = useMutationFeedback();
-  const [foreground, accentForeground] = useThemeColor(["foreground", "accent-foreground"]);
+  const [foreground, accentForeground, muted] = useThemeColor([
+    "foreground",
+    "accent-foreground",
+    "muted",
+  ]);
   const [locating, setLocating] = useState(false);
   const { slotId, initial: initialParam } = useLocalSearchParams<{
     slotId: string;
@@ -356,6 +361,13 @@ export default function LocationPicker({
               <BottomSheetFlatList
                 style={{ flex: 1 }}
                 data={favorites.items}
+                ListEmptyComponent={
+                  !favorites.list.isPending && !favorites.list.isError ? (
+                    <EmptyList icon={<Heart size={28} color={muted} />}>
+                      {t("No favorite locations")}
+                    </EmptyList>
+                  ) : null
+                }
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}
                 keyExtractor={(item) => item.key}
@@ -455,6 +467,14 @@ export default function LocationPicker({
           style={{ width: "100%", height: 48, borderRadius: 12 }}
         />
       )}
+      {!searching &&
+      !locating &&
+      !error &&
+      query.trim().length >= 4 &&
+      selected?.address !== query.trim() &&
+      results.length === 0 ? (
+        <EmptyList icon={<MapPin size={28} color={muted} />}>{t("No addresses found")}</EmptyList>
+      ) : null}
       {results.length > 0 && (
         <View accessibilityLabel={t("Address results")}>
           {results.map((item, index) => (

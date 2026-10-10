@@ -66,6 +66,41 @@ afterEach(() => {
   else process.env.NEXT_PUBLIC_MAPTILER_API_KEY = originalKey;
 });
 
+it("centers a successful empty address search but not startup, pending requests or failures", async () => {
+  let complete: ((value: Response) => void) | undefined;
+  const fetch = vi.fn(
+    () =>
+      new Promise<Response>((resolve) => {
+        complete = resolve;
+      }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh-token"}
+      favorites={favorites()}
+      onSelect={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(screen.queryByText("No addresses found")).toBeNull();
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search address" }), {
+    target: { value: "Missing road" },
+  });
+  await waitFor(() => expect(complete).toBeDefined());
+  expect(screen.queryByText("No addresses found")).toBeNull();
+  complete?.(Response.json({ items: [] }));
+  const empty = await screen.findByText("No addresses found");
+  expect(empty.parentElement?.className).toContain("items-center");
+  fetch.mockImplementation(async () => Response.json({ error: "UNAVAILABLE" }, { status: 503 }));
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search address" }), {
+    target: { value: "Another road" },
+  });
+  await screen.findByText("Could not search addresses");
+  expect(screen.queryByText("No addresses found")).toBeNull();
+});
+
 it("requires a chosen address and four-character name, caps results and hides the selected summary", async () => {
   const getToken = vi.fn().mockResolvedValue("fresh-token");
   const fetchMock = vi.fn().mockResolvedValue(

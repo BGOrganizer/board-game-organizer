@@ -65,7 +65,42 @@ local-only scope below permits a signed local commit but no push, delegation or 
 
 ## Latest verified automated gates
 
-### One-day event wizard and compact member controls — local only
+### Community event/organization cards and empty lists — local only
+
+- Same feature branch, signed local commit only. No push, PR synchronization, delegation,
+  provisioning, migration or account/device changes. API and web environment-type files are
+  restored and checked byte-for-byte against their pre-build copies; the user's existing API
+  change remains outside the commit.
+- Platform event cards use locally generated DiceBear planets artwork, approved-organization
+  identity, event name, local day/time, venue/address and server table/participant counts. Published
+  and Draft retain success/warning top-right badges. Platform ListCard frames now serve linked
+  cards and organization details; native padding is explicit rather than doubled by Surface.
+- Organization details keep name/status together, logo left, venue/address and confirmed-member
+  count including creator plus published-event count right. Leave is a danger icon in the page
+  header; pending-request Cancel is an icon at the card's bottom-right. Separate invitation choices
+  confirm only the selected action. The existing Members/list-row response dialog, private roster
+  guards, exclusion semantics and destructive confirmations remain.
+- API counts published (not draft/cancelled) events and distinct users with confirmed bookings on
+  active tables, including retained/unloaded records. Query settlement revalidates owning event
+  cards after booking changes and owning organization counts after event lifecycle changes;
+  foreign API/user scopes and unrelated organizations/private member queries stay untouched.
+- Existing EmptyList primitives now cover remaining item/card empty states, including discovery,
+  events/tables, user/friend and game pickers, country/address/favorite lists and notification
+  previews. Loading/failures are not empty success. Linked cards retain visible inset keyboard
+  focus; icon-only actions have labels, long text wraps and dates/counts use the active locale.
+- Verified: Biome, workspace typecheck, **1,294 unit tests** (web 406, mobile 149, API 536,
+  schemas 92, shared 111), all five coverage gates, **63 replica-set integration tests with no
+  skips**, API/web production builds and Android export (**5,494 modules**). New web event/detail
+  cards and common frame/empty primitives have 100% per-file thresholds; existing thresholds were
+  not reduced. Six Maestro CI/JUnit contract tests pass, with no skips.
+- EN/IT extraction/compilation: **656 active IDs** each, all prior 647 IDs/translations preserved.
+  Playwright desktop/mobile-width scenarios and Maestro draft/invitation helpers were updated.
+  **They were not executed**; export/source contracts/unit fixtures do not establish browser,
+  native device, APK or provider acceptance. No remote CI result is claimed.
+- Guides used: project component architecture, composition, TanStack Query/Expo fetching,
+  HeroUI React/Native, Uniwind, Lingui and web-design review. No dependency or skill installation.
+
+### Previous one-day event wizard and compact member controls — local only
 
 - Same `feat/organizations-events` branch; signed local commit only, no push, PR changes,
   delegation, provisioning, migration, or account/device reset. The user's API environment-types

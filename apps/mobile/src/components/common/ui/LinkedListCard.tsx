@@ -1,6 +1,6 @@
-import { Card } from "heroui-native/card";
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
+import { ListCard } from "./ListCard";
 
 export function LinkedListCard({
   label,
@@ -16,7 +16,7 @@ export function LinkedListCard({
   children: ReactNode;
 }) {
   return (
-    <Card style={{ width: "100%", borderRadius: 12, position: "relative" }}>
+    <ListCard>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -44,6 +44,6 @@ export function LinkedListCard({
           {actions}
         </View>
       ) : null}
-    </Card>
+    </ListCard>
   );
 }

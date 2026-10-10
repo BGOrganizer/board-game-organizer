@@ -9,11 +9,12 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, LayoutGrid, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -111,7 +112,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
         </LinkedListCard>
       ))}
       {!tables.isPending && !tables.isError && !tables.items.length ? (
-        <p>{t`No tables found`}</p>
+        <EmptyList icon={<LayoutGrid className="size-7" />}>{t`No tables found`}</EmptyList>
       ) : null}
       {tables.isError ? (
         <Button onPress={() => void tables.refetch()}>{t`Could not load tables. Retry`}</Button>

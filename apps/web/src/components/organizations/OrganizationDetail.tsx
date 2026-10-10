@@ -1,8 +1,6 @@
 "use client";
-import type { OrganizationResponse } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
-  formatLocationAddress,
   isDestructiveOrganizationAction,
   type OrganizationAction,
   organizationActionMessage,
@@ -10,43 +8,20 @@ import {
   useOrganization,
   useOrganizationActions,
 } from "@board-game-organizer/shared";
-import { Button, Chip, Skeleton, Tabs } from "@heroui/react";
+import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  ArrowLeft,
-  Check,
-  CircleCheck,
-  CircleX,
-  Clock3,
-  LogOut,
-  Pencil,
-  Plus,
-  UserRoundPlus,
-} from "lucide-react";
+import { ArrowLeft, LogOut, Pencil, Plus, UserRoundPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { Events } from "@/components/events/Events";
-import { OrganizationArtwork } from "@/components/organizations/OrganizationArtwork";
 import { OrganizationMembers } from "@/components/organizations/OrganizationMembers";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { OrganizationDetailsCard } from "./OrganizationDetailsCard";
 import { OrganizationInvitationResponse } from "./OrganizationInvitationResponse";
 
-function StatusBadge({ organization }: { organization: OrganizationResponse }) {
-  const { t } = useLingui();
-  const rejected = organization.reviewStatus === "REJECTED";
-  const pending = organization.reviewStatus === "PENDING";
-  const Icon = rejected ? CircleX : pending ? Clock3 : CircleCheck;
-  return (
-    <Chip size="sm" color={rejected ? "danger" : pending ? "warning" : "success"} variant="soft">
-      <Icon className="size-3" aria-hidden />
-      {rejected ? t`Changes rejected` : pending ? t`Awaiting review` : t`Approved`}
-    </Chip>
-  );
-}
-
-const icons = { request: UserRoundPlus, accept: Check, decline: CircleX, cancel: LogOut };
+const icons = { request: UserRoundPlus, cancel: X };
 export function OrganizationDetail({
   organizationId,
   initialTab = "details",
@@ -85,7 +60,18 @@ export function OrganizationDetail({
         >
           <ArrowLeft className="size-5" />
         </Button>
-        <h1 className="text-lg font-semibold">{t`Organization details`}</h1>
+        <h1 className="flex-1 text-lg font-semibold">{t`Organization details`}</h1>
+        {organization?.role === "accepted" ? (
+          <Button
+            isIconOnly
+            variant="danger-soft"
+            aria-label={t`Leave organization`}
+            isDisabled={actions.busy}
+            onPress={() => setConfirm("cancel")}
+          >
+            <LogOut className="size-5" aria-hidden />
+          </Button>
+        ) : null}
       </div>
       {!organization && detail.isPending ? <Skeleton className="h-48 w-full rounded-xl" /> : null}
       {detail.isError ? (
@@ -119,52 +105,38 @@ export function OrganizationDetail({
             </Tabs.List>
           </Tabs.ListContainer>
           <Tabs.Panel id="details" className="space-y-4 pt-4">
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="min-w-0 break-words text-xl font-semibold">{organization.name}</h2>
-              <StatusBadge organization={organization} />
-            </div>
-            <div className="flex items-start gap-4">
-              <OrganizationArtwork organization={organization} />
-              <div className="min-w-0 space-y-1">
-                <p className="font-medium">{organization.location.name}</p>
-                <p className="text-sm text-default-500">
-                  {formatLocationAddress(organization.location.address)}
-                </p>
-                <p className="text-sm text-default-500">
-                  {organization.memberCount} {t`members`}
-                </p>
-              </div>
-            </div>
-            {organization.rejectionReason ? (
-              <p className="text-sm text-danger">{organization.rejectionReason}</p>
-            ) : null}
-            {organization.approved && organization.reviewStatus ? (
-              <p className="text-sm text-default-500">{t`Approved information remains visible while changes are reviewed.`}</p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              {organization.role === "invited" ? (
-                <OrganizationInvitationResponse busy={actions.busy} onAction={run} />
-              ) : (
-                ownOrganizationActions(organization).map((action) => {
-                  const Icon = icons[action as keyof typeof icons];
-                  return (
-                    <Button
-                      key={action}
-                      isDisabled={actions.busy}
-                      variant={
-                        action === "decline" || action === "cancel" ? "danger-soft" : "primary"
-                      }
-                      onPress={() =>
-                        isDestructiveOrganizationAction(action) ? setConfirm(action) : run(action)
-                      }
-                    >
-                      {Icon ? <Icon className="size-4" /> : null}
-                      {i18n._(organizationActionMessage(action, organization.role))}
-                    </Button>
-                  );
-                })
-              )}
-            </div>
+            <OrganizationDetailsCard organization={organization}>
+              {organization.role !== "accepted" &&
+              ownOrganizationActions(organization).length > 0 ? (
+                organization.role === "invited" ? (
+                  <OrganizationInvitationResponse
+                    presentation="choices"
+                    busy={actions.busy}
+                    onAction={run}
+                  />
+                ) : (
+                  ownOrganizationActions(organization).map((action) => {
+                    const Icon = icons[action as keyof typeof icons];
+                    const label = i18n._(organizationActionMessage(action, organization.role));
+                    return (
+                      <Button
+                        key={action}
+                        isIconOnly={action === "cancel"}
+                        aria-label={label}
+                        isDisabled={actions.busy}
+                        variant={action === "cancel" ? "danger-soft" : "primary"}
+                        onPress={() =>
+                          isDestructiveOrganizationAction(action) ? setConfirm(action) : run(action)
+                        }
+                      >
+                        {Icon ? <Icon className="size-4" aria-hidden /> : null}
+                        {action !== "cancel" ? label : null}
+                      </Button>
+                    );
+                  })
+                )
+              ) : null}
+            </OrganizationDetailsCard>
             {organization.role === "admin" ? (
               <Link
                 href={`/organizations/${organization.id}/edit`}

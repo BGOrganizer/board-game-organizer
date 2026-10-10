@@ -12,6 +12,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { Map as MapTilerMap, Marker as MapTilerMarker } from "@maptiler/sdk";
 import { ArrowLeft, Check, Heart, LocateFixed, MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import "@maptiler/sdk/dist/maptiler-sdk.css";
 
@@ -254,6 +255,13 @@ export function SearchLocationPage({
           <Select.Popover>
             <ListBox
               aria-label={t`Favorite locations`}
+              renderEmptyState={() =>
+                !favorites.list.isError ? (
+                  <EmptyList
+                    icon={<Heart className="size-7" />}
+                  >{t`No favorite locations`}</EmptyList>
+                ) : null
+              }
               className="max-h-64 overflow-y-auto"
               onScroll={(event) => {
                 const list = event.currentTarget;
@@ -334,6 +342,14 @@ export function SearchLocationPage({
         </Button>
       </SearchInput>
       {(searching || locating) && <Skeleton className="h-12 w-full rounded-lg" />}
+      {!searching &&
+      !locating &&
+      !error &&
+      query.trim().length >= 4 &&
+      selected?.address !== query.trim() &&
+      results.length === 0 ? (
+        <EmptyList icon={<MapPin className="size-7" />}>{t`No addresses found`}</EmptyList>
+      ) : null}
       {results.length > 0 && (
         <ul aria-label={t`Address results`} className="rounded-lg border">
           {results.map((result) => (

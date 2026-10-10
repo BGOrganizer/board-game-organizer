@@ -11,8 +11,10 @@ import {
 import { useUser } from "@clerk/nextjs";
 import { Button, Card, Input, Label, ListBox, Select, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 
@@ -121,7 +123,9 @@ export default function MobileNumberPage() {
                 <ListBox
                   className="max-h-72 overflow-y-auto"
                   renderEmptyState={() => (
-                    <p className="p-3 text-sm text-default-500">{t`No countries found`}</p>
+                    <EmptyList
+                      icon={<Globe className="size-7" />}
+                    >{t`No countries found`}</EmptyList>
                   )}
                 >
                   {options.map((item) => (
