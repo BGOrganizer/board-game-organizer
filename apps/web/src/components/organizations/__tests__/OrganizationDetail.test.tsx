@@ -295,7 +295,13 @@ describe("organization detail and member interactions", () => {
       within(requestDialog)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Accept", "Reject", "Ban from organization", "Cancel"]);
+    ).toEqual(["Accept", "Reject", "Ban", "Cancel"]);
+    expect(
+      within(requestDialog).getByRole("button", { name: "Accept" }).parentElement?.className,
+    ).toContain("flex-row");
+    expect(
+      within(requestDialog).getByRole("button", { name: "Accept" }).parentElement?.className,
+    ).not.toContain("flex-col");
     expect(
       within(requestDialog)
         .getAllByRole("button")
@@ -322,12 +328,7 @@ describe("organization detail and member interactions", () => {
       const dialog = screen.getByRole("dialog", { name: "Respond to membership request" });
       fireEvent.click(
         within(dialog).getByRole("button", {
-          name:
-            action === "approve"
-              ? "Accept"
-              : action === "reject"
-                ? "Reject"
-                : "Ban from organization",
+          name: action === "approve" ? "Accept" : action === "reject" ? "Reject" : "Ban",
         }),
       );
       await waitFor(() =>
@@ -370,9 +371,7 @@ describe("organization detail and member interactions", () => {
     );
     await screen.findByRole("dialog", { name: "Respond to membership request" });
     expect(state.people.find((p) => p.userId === "requested")?.membership?.status).toBe("PENDING");
-    expect(
-      screen.getByRole("button", { name: "Ban from organization" }).hasAttribute("disabled"),
-    ).toBe(false);
+    expect(screen.getByRole("button", { name: "Ban" }).hasAttribute("disabled")).toBe(false);
   });
   it("confirms invitation cancellation without offering an admin acceptance or ban", async () => {
     const state = setup();

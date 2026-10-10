@@ -82,6 +82,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/common/ui/ContactConfirmDialog.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/common/ui/WizardSteps.tsx": {
           lines: 100,
           functions: 100,

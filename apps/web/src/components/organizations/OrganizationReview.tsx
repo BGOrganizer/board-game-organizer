@@ -11,6 +11,7 @@ import { ArrowLeft, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { OrganizationArtwork } from "@/components/organizations/OrganizationArtwork";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -44,7 +45,7 @@ export function OrganizationReview({ organizationId }: { organizationId: string 
           aria-label={t`Back`}
           onPress={() => router.push("/moderation")}
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="size-5" aria-hidden />
         </Button>
         <h1 className="text-lg font-semibold">{t`Review organization`}</h1>
       </div>
@@ -81,25 +82,37 @@ export function OrganizationReview({ organizationId }: { organizationId: string 
           ) : null}
           {organization.reviewStatus === "PENDING" ? (
             <>
+              <SearchHelpLabel
+                label={t`Manage organization`}
+                helpTitle={t`Manage organization`}
+                help={t`Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available.`}
+              />
               <TextField value={reason} onChange={setReason}>
                 <Label>{t`Rejection reason`}</Label>
-                <Input name="rejection-reason" autoComplete="off" maxLength={1000} />
+                <Input
+                  name="rejection-reason"
+                  placeholder={t`Reject reason`}
+                  autoComplete="off"
+                  maxLength={1000}
+                />
               </TextField>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-row gap-2">
                 <Button
                   variant="primary"
+                  className="min-h-16 min-w-11 flex-1 flex-col gap-1 px-2 whitespace-normal text-center"
                   isDisabled={actions.busy}
                   onPress={() => review("approve")}
                 >
-                  <Check className="size-4" />
+                  <Check className="size-4" aria-hidden />
                   {t`Approve organization`}
                 </Button>
                 <Button
                   variant="danger"
+                  className="min-h-16 min-w-11 flex-1 flex-col gap-1 px-2 whitespace-normal text-center"
                   isDisabled={actions.busy || !reason.trim()}
                   onPress={() => review("reject")}
                 >
-                  <X className="size-4" />
+                  <X className="size-4" aria-hidden />
                   {t`Reject organization`}
                 </Button>
               </div>

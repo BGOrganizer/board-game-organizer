@@ -3440,3 +3440,15 @@ msgstr "Choose a valid date and time; this local time may not exist."
 
 msgid "Check this field."
 msgstr "Check this field."
+
+msgid "Ban"
+msgstr "Ban"
+
+msgid "Manage organization"
+msgstr "Manage organization"
+
+msgid "Reject reason"
+msgstr "Reject reason"
+
+msgid "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+msgstr "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."

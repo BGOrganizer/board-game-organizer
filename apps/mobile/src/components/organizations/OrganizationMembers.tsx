@@ -229,6 +229,7 @@ export function OrganizationMembers({ organization }: { organization: Organizati
         <CommunityConfirm
           title={managementTitle}
           cancelLast={request}
+          actionsInRow={request}
           cancelIcon={request ? <X size={18} color={foreground} /> : undefined}
           description={
             request
@@ -263,7 +264,7 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                     onPress: () => run(managed, "reject"),
                   },
                   {
-                    label: t("Ban from organization"),
+                    label: t("Ban"),
                     variant: "danger",
                     icon: <Ban size={18} color={accentForeground} />,
                     onPress: () => run(managed, "ban"),

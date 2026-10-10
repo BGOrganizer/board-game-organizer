@@ -6,7 +6,7 @@ import type {
   OrganizationResponse,
 } from "@board-game-organizer/schemas";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 
 const orgId = "11111111-1111-4111-8111-111111111111",
@@ -85,6 +85,26 @@ const baseTable: EventTableResponse = {
   createdAt: now,
   updatedAt: now,
 };
+async function expectButtonsOnOneRow(buttons: Locator) {
+  await expect
+    .poll(() =>
+      buttons.evaluateAll((elements) => {
+        const boxes = elements.map((element) => element.getBoundingClientRect());
+        return (
+          boxes.length > 0 &&
+          boxes.every(
+            (box) =>
+              Math.abs(box.top - boxes[0].top) < 1 &&
+              box.width >= 44 &&
+              box.height >= 44 &&
+              box.left >= 0 &&
+              box.right <= window.innerWidth,
+          )
+        );
+      }),
+    )
+    .toBe(true);
+}
 async function fixture(page: Page) {
   let viewer = "viewer",
     organization = { ...baseOrganization },
@@ -791,9 +811,7 @@ function communityAcceptance() {
       exact: true,
     });
     await expect(requestDialog.getByRole("button", { name: "Reject", exact: true })).toBeVisible();
-    await expect(
-      requestDialog.getByRole("button", { name: "Ban from organization", exact: true }),
-    ).toBeVisible();
+    await expect(requestDialog.getByRole("button", { name: "Ban", exact: true })).toBeVisible();
     await requestDialog.getByRole("button", { name: "Accept", exact: true }).click();
     await page.getByRole("button", { name: "Remove member: Target Member", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Remove member", exact: true });
@@ -815,6 +833,7 @@ function communityAcceptance() {
     test(`pending membership request offers one action dialog: ${action}`, async ({ page }) => {
       const state = await fixture(page);
       state.memberRow("PENDING");
+      await page.setViewportSize({ width: 360, height: 800 });
       await page.goto(`/organizations/${orgId}?tab=members`);
       await page
         .getByRole("button", { name: "Respond to membership request: Target Member", exact: true })
@@ -823,7 +842,8 @@ function communityAcceptance() {
         name: "Respond to membership request",
         exact: true,
       });
-      await expect(dialog.getByRole("button")).toHaveCount(4);
+      await expect(dialog.getByRole("button")).toHaveText(["Accept", "Reject", "Ban", "Cancel"]);
+      await expectButtonsOnOneRow(dialog.getByRole("button"));
       await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
       expect(state.writes.filter((row) => row.method === "PATCH")).toHaveLength(0);
       await page
@@ -831,7 +851,7 @@ function communityAcceptance() {
         .click();
       await dialog
         .getByRole("button", {
-          name: action === "reject" ? "Reject" : "Ban from organization",
+          name: action === "reject" ? "Reject" : "Ban",
           exact: true,
         })
         .click();
@@ -920,8 +940,26 @@ function communityAcceptance() {
     }) => {
       const state = await fixture(page);
       state.review();
+      await page.setViewportSize({ width: 360, height: 800 });
       await page.goto(`/moderation/${orgId}`);
       await expect(page.getByText("Proposed community club", { exact: true })).toBeVisible();
+      await expect(page.getByText("Manage organization", { exact: true })).toBeVisible();
+      await page
+        .getByRole("button", { name: "Manage organization: Manage organization", exact: true })
+        .click();
+      await expect(
+        page.getByText(
+          "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available.",
+        ),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByLabel("Rejection reason", { exact: true })).toHaveAttribute(
+        "placeholder",
+        "Reject reason",
+      );
+      await expectButtonsOnOneRow(
+        page.getByRole("button", { name: /^(Approve|Reject) organization$/ }),
+      );
       await expect(page.getByText("Currently approved information", { exact: true })).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Reject organization", exact: true }),

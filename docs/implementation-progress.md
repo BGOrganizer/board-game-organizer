@@ -65,6 +65,32 @@ local-only scope below permits a signed local commit but no push, delegation or 
 
 ## Latest verified automated gates
 
+### Organization member dialogs and review controls — local only
+
+- Operator scope: same `feat/organizations-events` branch, signed local commit only. No push,
+  PR, provisioning, delegation or changes to the unrelated API `next-env.d.ts`.
+- Pending membership requests show icon-bearing Accept / Reject / Ban / Cancel on one row
+  (Accetta / Rifiuta / Banna / Annulla). Organization exclusion remains separate from global
+  social blocking. The shared dialog row layout is opt-in; existing callers retain their layout,
+  busy guards and cancellation behavior.
+- Review reuses the platform question-mark help label for Manage organization and adds a
+  localized Reject reason placeholder. Approve/Reject stay on one row. Native icon-bearing
+  buttons now use explicit `Button.Label`: the installed HeroUI implementation cannot wrap
+  mixed icon/raw-string children automatically. A TypeScript-AST source regression checks all
+  review button labels; this is not native rendering evidence.
+- Verified: full Biome lint, workspace typecheck, 1,266 unit tests (web 387, mobile 144, API 533,
+  schemas 92, shared 110), web/mobile coverage gates and EN/IT compilation. Shared web dialog
+  has 100% statements/lines/functions/branches with an explicit per-file threshold. Catalogs
+  retain all 626 previous IDs/translations and add four localized messages each.
+- Playwright now checks management help, placeholder, request order and real button geometry at
+  a 360px viewport. Native membership helper and a fixture-scoped moderation helper are updated.
+  These flows were not executed; browser/native acceptance remains incomplete. No build, APK,
+  integration/provider verification or remote CI was run for this UI-only correction.
+- Skills used: `bgo-component-architecture`, `vercel-react-best-practices`,
+  `vercel-react-native-skills`, `expo-overview`, `heroui-react`, `heroui-native`, `uniwind`,
+  `lingui-best-practices`, `playwright-best-practices`, `web-design-guidelines`, `ponytail`,
+  `context-mode`. No skills or dependencies installed/changed.
+
 ### Multi-day event/table wizard and member social menus — local only
 
 - Explicit operator scope: current feature branch, signed local commit only; no push, delegation,

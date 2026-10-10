@@ -11,6 +11,7 @@ export function CommunityConfirm({
   onCancel,
   actions,
   cancelLast = false,
+  actionsInRow = false,
   cancelIcon,
 }: {
   title: string;
@@ -25,13 +26,27 @@ export function CommunityConfirm({
     icon?: ReactNode;
   }[];
   cancelLast?: boolean;
+  actionsInRow?: boolean;
   cancelIcon?: ReactNode;
 }) {
   const t = useT();
+  const buttonStyle = actionsInRow
+    ? {
+        flex: 1,
+        minWidth: 44,
+        minHeight: 64,
+        paddingHorizontal: 4,
+        flexDirection: "column" as const,
+        gap: 4,
+      }
+    : undefined;
+  const labelStyle = actionsInRow
+    ? { textAlign: "center" as const, alignSelf: "stretch" as const }
+    : undefined;
   const cancel = (
-    <Button variant="ghost" isDisabled={busy} onPress={onCancel}>
+    <Button variant="ghost" style={buttonStyle} isDisabled={busy} onPress={onCancel}>
       {cancelIcon}
-      <Button.Label>{t("Cancel")}</Button.Label>
+      <Button.Label style={labelStyle}>{t("Cancel")}</Button.Label>
     </Button>
   );
   return (
@@ -50,10 +65,10 @@ export function CommunityConfirm({
           </View>
           <View
             style={{
-              flexDirection: cancelLast ? "column" : "row",
-              flexWrap: "wrap",
+              flexDirection: cancelLast && !actionsInRow ? "column" : "row",
+              flexWrap: actionsInRow ? "nowrap" : "wrap",
               justifyContent: "flex-end",
-              gap: 12,
+              gap: actionsInRow ? 4 : 12,
             }}
           >
             {!cancelLast ? cancel : null}
@@ -73,11 +88,12 @@ export function CommunityConfirm({
               <Button
                 key={action.label}
                 variant={action.variant}
+                style={buttonStyle}
                 isDisabled={busy}
                 onPress={action.onPress}
               >
                 {action.icon}
-                <Button.Label>{action.label}</Button.Label>
+                <Button.Label style={labelStyle}>{action.label}</Button.Label>
               </Button>
             ))}
             {cancelLast ? cancel : null}

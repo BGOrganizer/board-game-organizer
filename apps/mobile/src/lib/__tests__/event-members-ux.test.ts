@@ -1,6 +1,7 @@
 // Source contracts only: Maestro owns actual native dialogs, keyboard and picker acceptance.
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
+import ts from "typescript";
 import { expect, it } from "vitest";
 
 const source = (path: string) =>
@@ -44,7 +45,8 @@ it("uses vertical social actions and one role-aware membership dialog, separate 
   expect(members).toContain("EllipsisVertical");
   expect(members).toContain("Respond to membership request");
   expect(members).toContain("Cancel organization invitation");
-  expect(members).toContain("Ban from organization");
+  expect(members).toContain('label: t("Ban")');
+  expect(members).toContain("actionsInRow={request}");
   expect(members).toContain("Block user globally");
   expect(members).not.toContain("setRemoving");
   expect(members).not.toContain("socialRun");
@@ -56,6 +58,48 @@ it("uses vertical social actions and one role-aware membership dialog, separate 
   expect(recipient).toContain("CommunityConfirm");
   expect(recipient).toContain('onAction("accept")');
   expect(recipient).toContain('onAction("decline")');
+});
+it("keeps request actions on one row without changing other confirmation layouts", () => {
+  const confirm = source("common/ui/CommunityConfirm.tsx");
+  expect(confirm).toContain("actionsInRow = false");
+  expect(confirm).toContain('flexDirection: cancelLast && !actionsInRow ? "column" : "row"');
+  expect(confirm).toContain('flexWrap: actionsInRow ? "nowrap" : "wrap"');
+  expect(confirm).toContain("minWidth: 44");
+  expect(confirm).toContain("minHeight: 64");
+});
+it("wraps every review button's translated text in a native label, including icon-bearing actions", () => {
+  const review = source("organizations/OrganizationReview.tsx");
+  const ast = ts.createSourceFile(
+    "OrganizationReview.tsx",
+    review,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let buttons = 0;
+  function visit(node: ts.Node) {
+    if (ts.isJsxElement(node) && node.openingElement.tagName.getText(ast) === "Button") {
+      buttons++;
+      expect(
+        node.children.some(
+          (child) =>
+            ts.isJsxElement(child) && child.openingElement.tagName.getText(ast) === "Button.Label",
+        ),
+      ).toBe(true);
+      expect(
+        node.children.some(
+          (child) =>
+            ts.isJsxExpression(child) && child.expression && ts.isCallExpression(child.expression),
+        ),
+      ).toBe(false);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  expect(buttons).toBe(3);
+  expect(review).toContain('label={t("Manage organization")}');
+  expect(review).toContain('placeholder={t("Reject reason")}');
+  expect(review).toContain('flexDirection: "row", gap: 12');
 });
 it("keeps demonstrator Back in the header and gives table cards image/date/game/player/demonstrator fields", () => {
   const picker = source("events/EventDemonstratorPicker.tsx");

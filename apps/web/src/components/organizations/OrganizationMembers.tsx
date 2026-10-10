@@ -257,6 +257,7 @@ export function OrganizationMembers({ organization }: { organization: Organizati
         <ContactConfirmDialog
           title={managementTitle}
           cancelLast={request}
+          actionsInRow={request}
           cancelIcon={request ? <X className="size-4" aria-hidden /> : undefined}
           description={
             request
@@ -285,7 +286,7 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                     onPress: () => run(managed, "reject"),
                   },
                   {
-                    label: t`Ban from organization`,
+                    label: t`Ban`,
                     variant: "danger",
                     icon: <Ban className="size-4" aria-hidden />,
                     onPress: () => run(managed, "ban"),

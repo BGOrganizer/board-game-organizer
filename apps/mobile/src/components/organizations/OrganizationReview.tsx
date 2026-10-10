@@ -15,6 +15,7 @@ import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { OrganizationArtwork } from "@/components/organizations/OrganizationArtwork";
 import { floatingActionLayout } from "@/lib/floating-actions";
 import { useT } from "@/lib/i18n";
@@ -67,7 +68,7 @@ export function OrganizationReview({ organizationId }: { organizationId: string 
                 : t("Could not load organization review")}
             </Typography>
             <Button variant="outline" onPress={() => void detail.refetch()}>
-              {t("Try again")}
+              <Button.Label>{t("Try again")}</Button.Label>
             </Button>
           </>
         ) : organization ? (
@@ -95,30 +96,56 @@ export function OrganizationReview({ organizationId }: { organizationId: string 
             ) : null}
             {organization.reviewStatus === "PENDING" ? (
               <>
+                <SearchHelpLabel
+                  label={t("Manage organization")}
+                  helpTitle={t("Manage organization")}
+                  help={t(
+                    "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available.",
+                  )}
+                />
                 <Typography>{t("Rejection reason")}</Typography>
                 <Input
                   accessibilityLabel={t("Rejection reason")}
+                  placeholder={t("Reject reason")}
                   value={reason}
                   onChangeText={setReason}
                   multiline
                   maxLength={1000}
                 />
-                <View style={{ gap: 12 }}>
+                <View style={{ flexDirection: "row", gap: 12 }}>
                   <Button
                     variant="primary"
+                    style={{
+                      flex: 1,
+                      minWidth: 44,
+                      minHeight: 64,
+                      flexDirection: "column",
+                      gap: 4,
+                    }}
                     isDisabled={actions.busy}
                     onPress={() => review("approve")}
                   >
                     <Check size={16} color={accentForeground} />
-                    {t("Approve organization")}
+                    <Button.Label style={{ textAlign: "center", alignSelf: "stretch" }}>
+                      {t("Approve organization")}
+                    </Button.Label>
                   </Button>
                   <Button
                     variant="danger"
+                    style={{
+                      flex: 1,
+                      minWidth: 44,
+                      minHeight: 64,
+                      flexDirection: "column",
+                      gap: 4,
+                    }}
                     isDisabled={actions.busy || !reason.trim()}
                     onPress={() => review("reject")}
                   >
                     <X size={16} color={dangerForeground} />
-                    {t("Reject organization")}
+                    <Button.Label style={{ textAlign: "center", alignSelf: "stretch" }}>
+                      {t("Reject organization")}
+                    </Button.Label>
                   </Button>
                 </View>
               </>

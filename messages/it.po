@@ -3440,3 +3440,15 @@ msgstr "Scegli una data e un orario validi; questo orario locale potrebbe non es
 
 msgid "Check this field."
 msgstr "Controlla questo campo."
+
+msgid "Ban"
+msgstr "Banna"
+
+msgid "Manage organization"
+msgstr "Gestisci organizzazione"
+
+msgid "Reject reason"
+msgstr "Motivo del rifiuto"
+
+msgid "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+msgstr "Approva le informazioni proposte per l'organizzazione oppure rifiutale indicando un motivo, così il creatore può correggerle. Le informazioni già approvate restano disponibili."

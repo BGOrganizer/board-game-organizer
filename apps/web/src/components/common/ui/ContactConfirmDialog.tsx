@@ -19,6 +19,7 @@ export function ContactConfirmDialog({
   actions,
   onCancel,
   cancelLast = false,
+  actionsInRow = false,
   cancelIcon,
 }: {
   title: string;
@@ -27,6 +28,7 @@ export function ContactConfirmDialog({
   actions: DialogAction[];
   onCancel: () => void;
   cancelLast?: boolean;
+  actionsInRow?: boolean;
   cancelIcon?: ReactNode;
 }) {
   const { t } = useLingui();
@@ -42,8 +44,11 @@ export function ContactConfirmDialog({
   }, [onCancel, busy]);
 
   if (!mounted) return null;
+  const buttonClassName = actionsInRow
+    ? "min-h-16 min-w-11 flex-1 flex-col gap-1 px-1 whitespace-normal text-center"
+    : "w-full sm:w-auto";
   const cancel = (
-    <Button className="w-full sm:w-auto" variant="ghost" isDisabled={busy} onPress={onCancel}>
+    <Button className={buttonClassName} variant="ghost" isDisabled={busy} onPress={onCancel}>
       {cancelIcon}
       {t`Cancel`}
     </Button>
@@ -67,16 +72,18 @@ export function ContactConfirmDialog({
         <p className="mt-2 text-sm text-default-500">{description}</p>
         <div
           className={
-            cancelLast
-              ? "mt-5 flex flex-col gap-2"
-              : "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"
+            actionsInRow
+              ? "mt-5 flex flex-row gap-1"
+              : cancelLast
+                ? "mt-5 flex flex-col gap-2"
+                : "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"
           }
         >
           {!cancelLast ? cancel : null}
           {actions.map((action) => (
             <Button
               key={action.label}
-              className="w-full sm:w-auto"
+              className={buttonClassName}
               variant={action.variant ?? "primary"}
               isDisabled={busy}
               onPress={action.onPress}
