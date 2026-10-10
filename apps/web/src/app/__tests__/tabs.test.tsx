@@ -1,6 +1,8 @@
 import { screen } from "@testing-library/react";
+import { redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Contacts from "@/app/(tabs)/contacts/page";
+import CommunityOrganizations from "@/app/(tabs)/groups/organizations/page";
 import Groups from "@/app/(tabs)/groups/page";
 import Matches from "@/app/(tabs)/matches/page";
 import Notifications from "@/app/(tabs)/notifications/page";
@@ -15,7 +17,7 @@ vi.mock("@/components/notifications/NotificationsPage", () => ({
 vi.mock("next/headers", () => ({
   headers: () => ({ get: () => null }),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ redirect: vi.fn(), useRouter: () => ({ push: vi.fn() }) }));
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
@@ -129,9 +131,17 @@ describe("tab pages", () => {
     expect(screen.getByText("No groups yet")).toBeTruthy();
     unmountGroups();
 
-    const { unmount: unmountOrgs } = renderWithI18n(await Organizations());
+    const { unmount: unmountOrgs } = renderWithI18n(await CommunityOrganizations());
     expect(screen.getByText("No organizations found")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Organizations" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
     unmountOrgs();
+  });
+
+  it("keeps the organization list inside Community when using its direct URL", () => {
+    Organizations();
+    expect(redirect).toHaveBeenCalledWith("/groups/organizations");
   });
 
   it("renders the matches page with the create button", async () => {

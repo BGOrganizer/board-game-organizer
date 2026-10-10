@@ -53,6 +53,27 @@ it.each([false, true])(
     expect(buttons[0].className).toContain("w-full");
   },
 );
+it("wraps desktop actions so a three-button removal cannot push Cancel outside the dialog", () => {
+  renderWithI18n(
+    <ContactConfirmDialog
+      title="Remove member"
+      description="Organization removal only"
+      onCancel={vi.fn()}
+      actions={[
+        { label: "Remove from organization", variant: "danger", onPress: vi.fn() },
+        { label: "Remove and exclude", variant: "danger", onPress: vi.fn() },
+      ]}
+    />,
+  );
+  const dialog = screen.getByRole("dialog", { name: "Remove member" });
+  const buttons = within(dialog).getAllByRole("button");
+  expect(buttons.map((button) => button.textContent)).toEqual([
+    "Cancel",
+    "Remove from organization",
+    "Remove and exclude",
+  ]);
+  expect(buttons[0].parentElement?.className).toContain("sm:flex-wrap");
+});
 it("blocks repeated submission, Escape and backdrop dismissal while busy", () => {
   const confirm = vi.fn(),
     cancel = vi.fn();

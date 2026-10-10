@@ -53,6 +53,21 @@ historical evidence, not the current push scope.
   cancellation-cleanup workflow is not yet present on the default branch; it cannot currently
   supply fallback cleanup. Attempt 2 database cleanup remains unverified until explicitly recovered.
   Full APK/browser/native/publication acceptance still requires a new successful PR run.
+- Run `38079278200` verified both API deployments, the webhook alias, Web Preview, provisioning,
+  mirroring and both cleanup jobs. Both APK jobs stopped before compilation because Expo rejected
+  their bearer token; the APK environment-scope fix was not yet in that run. Playwright recorded
+  69 passed / 14 failed / 0 skipped: rendering assertions still targeted old card text, invitation
+  actions and booking labels, and the seat assertion included navigation list items. Those selectors
+  now match the accessible UI and scope the chosen seat to Players; invitation cancellation remains
+  covered before confirming either choice. Browser evidence also exposed a real desktop confirmation
+  overflow: three non-wrapping buttons pushed Cancel outside the dialog, under its backdrop. Shared
+  confirmation actions now wrap, with unit and browser hit-target regressions. The direct organization
+  list URL now redirects into the existing Community organization section instead of losing its tabs.
+  Local lint, web coverage (508 tests), web typecheck/build and all 34 workflow regressions pass.
+  An isolated Chromium check with the compiled CSS reproduces the missed Cancel hit target before
+  wrapping and verifies all buttons remain clickable at 320/768/1280px afterward; this is not app
+  acceptance. These fixes are not yet verified by a new full PR run; no APK/native/publication
+  success is claimed.
 
 Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
 pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance

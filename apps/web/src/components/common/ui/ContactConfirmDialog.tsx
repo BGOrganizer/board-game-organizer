@@ -81,7 +81,7 @@ export function ContactConfirmDialog({
               ? "mt-5 flex flex-row gap-1"
               : cancelLast
                 ? "mt-5 flex flex-col gap-2"
-                : "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"
+                : "mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end"
           }
         >
           {!cancelLast ? cancel : null}

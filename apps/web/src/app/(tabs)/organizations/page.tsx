@@ -1,4 +1,5 @@
-import { Organizations } from "@/components/organizations/Organizations";
+import { redirect } from "next/navigation";
+
 export default function OrganizationsPage() {
-  return <Organizations />;
+  redirect("/groups/organizations");
 }

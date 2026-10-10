@@ -71,7 +71,9 @@ The current 13 GitHub repository Secrets all remain used:
   `VERCEL_PROTECTION_BYPASS`.
 - Clerk: `CLERK_SECRET_KEY` for development E2E provisioning/attestation/cleanup/import;
   `CLERK_SECRET_KEY_PRODUCTION` for explicit production catalog import.
-- Mobile: `EXPO_TOKEN`; `GOOGLE_SERVICES_JSON` for optional push-enabled APKs.
+- Mobile: `EXPO_TOKEN`; `GOOGLE_SERVICES_JSON` for optional push-enabled APKs. In GitHub,
+  `GOOGLE_SERVICES_JSON` contains the original JSON document, not Base64 or a file path; the build
+  action writes it to a restricted temporary file and passes that path to Expo.
 - Release/reporting: `RELEASE_PAT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `CODECOV_TOKEN`.
 
 No GitHub Secret needs deletion for this migration. MongoDB credentials, webhook secrets and other
