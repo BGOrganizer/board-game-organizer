@@ -670,6 +670,7 @@ function communityAcceptance() {
       .toBe(true);
     state.event({ status: "DRAFT" });
     await page.reload();
+    await page.getByRole("tab", { name: "Events", exact: true }).click();
     await expect(card.getByText("Draft", { exact: true })).toBeVisible();
     await expect(card.locator(".chip")).toHaveClass(/warning/);
   });
@@ -943,7 +944,9 @@ function communityAcceptance() {
     await expect(
       page.getByRole("button", { name: "Choose the event address", exact: true }),
     ).toContainText(location.name);
-    await expect(page.getByTestId("event-navigation-bar")).toBeVisible();
+    await expect(
+      page.getByTestId("event-navigation-bar").getByRole("button", { name: "Next", exact: true }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(
       page.getByRole("list", { name: "Steps" }).locator('[aria-current="step"]'),
@@ -1214,16 +1217,21 @@ function communityAcceptance() {
     ).toHaveCount(0);
     const socialRow = page.getByRole("listitem").filter({ hasText: "Target Member" });
     await socialRow.getByRole("button", { name: "Actions", exact: true }).click();
+    await expect(page.getByRole("menu")).toBeFocused();
     await expect(page.getByRole("menuitem", { name: "Follow", exact: true })).toBeVisible();
     await expect(
       page.getByRole("menuitem", { name: "Send friend request", exact: true }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Actions", exact: true }).click();
+    await expect(page.locator('[data-slot="dropdown-popover"]')).toHaveCount(0);
+    await expect(socialRow.getByRole("button", { name: "Actions", exact: true })).toBeFocused();
+    await socialRow.getByRole("button", { name: "Actions", exact: true }).click();
+    await expect(page.getByRole("menu")).toBeFocused();
     await expect(
       page.getByRole("menuitem", { name: "Block user globally", exact: true }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
+    await expect(page.locator('[data-slot="dropdown-popover"]')).toHaveCount(0);
     await page.getByRole("button", { name: "Remove member: Target Member", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Remove member", exact: true });
     const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });

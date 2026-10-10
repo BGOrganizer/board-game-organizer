@@ -98,7 +98,7 @@ test("sign-in (testing token + ticket), profile and logout", async ({ page }) =>
           "aria-selected",
           "true",
         );
-        await expect(page.getByRole("textbox", { name: "Search organizations" })).toBeVisible();
+        await expect(page.getByRole("searchbox", { name: "Search organizations" })).toBeVisible();
       }
     }
   }
