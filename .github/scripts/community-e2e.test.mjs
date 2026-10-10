@@ -30,6 +30,26 @@ test("native acceptance flows are invoked and require real, distinct JUnit repor
     );
   assert.doesNotMatch(action, /all-flows-passed|summary\.xml/);
 });
+test("fresh native launch preserves real contacts and notification permission prompts", () => {
+  const welcome = readFileSync(
+    new URL("../../apps/mobile/.maestro/flows/01-launch-welcome.yaml", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  const launch = welcome.split("- launchApp:")[1]?.split(/\n- /)[0];
+  assert(launch);
+  assert.match(launch, /^\s+contacts: deny$/m);
+  assert.match(launch, /^\s+notifications: deny$/m);
+  assert.doesNotMatch(launch, /clearState: true|contacts: allow|notifications: allow/);
+  const contacts = readFileSync(
+    new URL("../../apps/mobile/.maestro/flows/05-contacts-follow-block.yaml", import.meta.url),
+    "utf8",
+  );
+  assert.equal((contacts.match(/visible: ".*\[Aa\]llow.*contacts.*"/g) ?? []).length, 2);
+  assert(contacts.includes('- tapOn: "Don.t allow"'));
+  assert(contacts.indexOf('"Don.t allow"') < contacts.indexOf('id: "enable-contacts-btn"'));
+  assert(contacts.includes('- tapOn: "Yes"'));
+  assert(contacts.includes('- tapOn: "Allow"'));
+});
 test("native device verification uses Clerk development fixtures, without disabling Device Trust", () => {
   const provision = readFileSync(
     new URL("../actions/provision-e2e-user/action.yml", import.meta.url),

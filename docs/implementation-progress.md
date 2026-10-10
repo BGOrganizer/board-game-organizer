@@ -66,8 +66,24 @@ historical evidence, not the current push scope.
   Local lint, web coverage (508 tests), web typecheck/build and all 34 workflow regressions pass.
   An isolated Chromium check with the compiled CSS reproduces the missed Cancel hit target before
   wrapping and verifies all buttons remain clickable at 320/768/1280px afterward; this is not app
-  acceptance. These fixes are not yet verified by a new full PR run; no APK/native/publication
-  success is claimed.
+  acceptance. That checkpoint did not yet prove APK/native/publication success; the next run is
+  recorded below.
+- Run `38082278542` completed with all 12 initial gates, both API deployments, Web Preview,
+  provisioning/mirroring, **both APK builds** and both cleanup jobs passing. Expo environment
+  selection is now verified by successful compilation, not just workflow inspection. Playwright
+  improved to **77 passed / 6 failed / 0 skipped**. Remaining tests now target the searchbox role,
+  reselect Events after reload, inspect the visible Next action instead of its `display: contents`
+  wrapper, and await menu focus, complete dismissal and restored trigger focus before reopening.
+  Five isolated Chromium focus/Escape/reopen cycles with installed HeroUI/React Aria pass; this is
+  not authenticated application acceptance. Maestro passed the first three flows, then flow 05
+  failed waiting for a contacts prompt; the remaining nine flows were not run. Its initial
+  `launchApp` implicitly granted every permission, so the native prompt was absent. The launch now
+  explicitly leaves contacts and notifications denied without clearing session data; denial/retry
+  and actual grants remain required. The deny-button selector accepts straight or typographic
+  apostrophes. No app permission policy, Device Trust or acceptance gates were weakened. Local
+  typecheck, 162 mobile unit tests, 83-test Playwright discovery and all 35 workflow/source
+  regressions pass. These combined corrections require the next full PR run; publication and
+  complete web/native acceptance remain unverified.
 
 Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
 pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance

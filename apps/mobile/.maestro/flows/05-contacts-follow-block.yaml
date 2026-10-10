@@ -7,7 +7,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: ".*[Aa]llow.*contacts.*"
     timeout: 30000
-- tapOn: "Don't allow"
+- tapOn: "Don.t allow"
 - tapOn: "Search"
 - assertVisible: "Search results"
 - tapOn: "Search users by name or email: Search help"
