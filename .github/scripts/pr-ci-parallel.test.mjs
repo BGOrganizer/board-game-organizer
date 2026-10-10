@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
 
 const pr = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8"));
@@ -85,6 +86,7 @@ test("watchdog cancels any failed PR job; independent cleanup survives cancellat
   assert.deepEqual(cleanup.on.workflow_run.types, ["completed"]);
   assert.match(cleanup.jobs.cleanup.if, /conclusion != 'success'/);
   assert.match(cleanup.jobs.cleanup.steps[1].run, /cleanup-pr-e2e\.sh/);
+  assert.equal(cleanup.jobs.cleanup.environment, "development");
   const steps = jobs["deploy-preview-api"].steps.map((item) => item.name);
   assert.equal(
     step("deploy-preview-api", "📤 Preserve URL for cancellation cleanup").with.name,
@@ -107,4 +109,119 @@ test("watchdog cancels any failed PR job; independent cleanup survives cancellat
   assert.match(script, /\.projectId == \$project/);
   assert.match(script, /\.databaseName == \$db/);
   assert.match(script, /bgo_ci_\$\{RUN_ID\}_\$\{ATTEMPT\}/);
+});
+
+test("every PR job using the development Clerk secret selects the same GitHub environment", () => {
+  const consumers = Object.entries(jobs).filter(([, job]) =>
+    /secrets\.CLERK_SECRET_KEY\s*}}/.test(JSON.stringify(job)),
+  );
+  assert.equal(consumers.length, 7);
+  for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
+});
+
+function runWebhookAlias(options = {}) {
+  const alias = step("deploy-preview-api", "🔗 Point Clerk webhook alias to preview");
+  const script = alias.run.match(/node <<'NODE'\n([\s\S]*?)\nNODE/)[1];
+  const env = {
+    GIT_BRANCH: "feat/social-api-refactor",
+    PREVIEW_URL: "https://api-test.vercel.app",
+    VERCEL_ORG_ID: "team-test",
+    VERCEL_PROJECT_ID: "project-test",
+    VERCEL_TOKEN: "private-test-token",
+    WEBHOOK_ALIAS: "clerk-preview-api.board-game-organizer.com",
+    ...options.env,
+  };
+  let binding = {
+    name: env.WEBHOOK_ALIAS,
+    verified: true,
+    gitBranch: env.GIT_BRANCH,
+    ...options.binding,
+  };
+  const calls = [];
+  let error;
+  try {
+    runInNewContext(script, {
+      process: { env },
+      require: (name) => {
+        assert.equal(name, "node:child_process");
+        return {
+          execFileSync(command, args) {
+            assert.equal(command, "vercel");
+            calls.push(Array.from(args));
+            if (options.fail === args[0]) throw new Error(`Failure with ${env.VERCEL_TOKEN}`);
+            if (args.includes("--method=PATCH")) {
+              if (options.patchFails) throw new Error(`Branch not found: ${env.VERCEL_TOKEN}`);
+              binding = { ...binding, gitBranch: env.GIT_BRANCH, ...options.afterPatch };
+              return "";
+            }
+            if (args[0] === "api") return JSON.stringify(binding);
+            assert.deepEqual(Array.from(args).slice(0, 4), [
+              "alias",
+              "set",
+              env.PREVIEW_URL,
+              env.WEBHOOK_ALIAS,
+            ]);
+            return "";
+          },
+        };
+      },
+    });
+  } catch (caught) {
+    error = caught;
+  }
+  return { calls, error };
+}
+
+test("verified webhook binding is reused without a redundant Git-provider PATCH", () => {
+  const result = runWebhookAlias({ patchFails: true });
+  assert.equal(result.error, undefined);
+  assert.deepEqual(
+    result.calls.map((args) => args[0]),
+    ["api", "alias"],
+  );
+  assert.ok(result.calls[0][1].includes("/projects/project-test/domains/"));
+  assert.ok(result.calls[0][1].endsWith("?teamId=team-test"));
+});
+
+test("changed webhook binding is patched, reread and verified before alias assignment", () => {
+  const result = runWebhookAlias({ binding: { gitBranch: "old-preview-branch" } });
+  assert.equal(result.error, undefined);
+  assert.deepEqual(
+    result.calls.map((args) => args[0]),
+    ["api", "api", "api", "alias"],
+  );
+  assert.ok(result.calls[1].includes("--method=PATCH"));
+  assert.ok(result.calls[1].includes("--raw-field=gitBranch=feat/social-api-refactor"));
+});
+
+test("webhook alias rejects production, missing inputs and unverified or unexpected bindings", () => {
+  for (const env of [
+    { GIT_BRANCH: "" },
+    { GIT_BRANCH: "main" },
+    { PREVIEW_URL: "" },
+    { VERCEL_ORG_ID: "" },
+    { VERCEL_PROJECT_ID: "" },
+    { VERCEL_TOKEN: "" },
+    { WEBHOOK_ALIAS: "production.example.com" },
+  ]) {
+    const result = runWebhookAlias({ env });
+    assert.match(result.error.message, /non-production branch/);
+    assert.equal(result.calls.length, 0);
+  }
+  for (const options of [
+    { binding: { name: "another.example.com" } },
+    { binding: { verified: false } },
+    { binding: { gitBranch: "old" }, afterPatch: { gitBranch: "old" } },
+    { binding: { gitBranch: "old" }, afterPatch: { verified: false } },
+    { binding: { gitBranch: "old" }, patchFails: true },
+    { fail: "api" },
+  ]) {
+    const result = runWebhookAlias(options);
+    assert.ok(result.error);
+    assert.ok(!result.calls.some((args) => args[0] === "alias"));
+    assert.ok(!result.error.message.includes("private-test-token"));
+  }
+  const failedAlias = runWebhookAlias({ fail: "alias" });
+  assert.match(failedAlias.error.message, /Vercel webhook alias command failed/);
+  assert.ok(!failedAlias.error.message.includes("private-test-token"));
 });

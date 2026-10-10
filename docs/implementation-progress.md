@@ -40,7 +40,17 @@ historical evidence, not the current push scope.
   that cached installs do not restore missing workspace links, even with `install --force`.
   The shared deployment action now uses `vercel deploy --force` without `--with-cache`; this
   bypasses remote build cache while retaining frozen dependency versions and all isolation guards.
-  Regression checks cover Preview and Production flags. A new full PR run must verify the fix.
+  Regression checks cover Preview and Production flags. Run `38075709178` verified both remote
+  API builds, then attempt 1 stopped at authentication. After the operator corrected the key,
+  attempt 2 passed both database attestations and seeded its isolated database. It failed on a
+  redundant webhook-domain PATCH (the domain was already bound to the exact PR branch) and on
+  database cleanup using the repository Clerk key instead of the `development` environment key.
+  PR consumers and cancellation cleanup now select `development`; the alias step verifies and
+  reuses an already-correct Preview binding, and still verifies any changed binding before aliasing.
+  No secrets, Git-provider connection or Production configuration were modified. The independent
+  cancellation-cleanup workflow is not yet present on the default branch; it cannot currently
+  supply fallback cleanup. Attempt 2 database cleanup remains unverified until explicitly recovered.
+  Full APK/browser/native/publication acceptance still requires a new successful PR run.
 
 Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
 pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance

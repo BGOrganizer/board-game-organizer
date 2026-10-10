@@ -317,6 +317,7 @@ jobs:
     name: 👤 Provision E2E test users (Clerk API)
     needs: [deploy-preview-api]
     runs-on: ubuntu-latest
+    environment: development
     outputs:
       username: ${{ steps.provision.outputs.username }}
       email: ${{ steps.provision.outputs.email }}
@@ -461,13 +462,37 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           WEBHOOK_ALIAS: clerk-preview-api.board-game-organizer.com
         run: |
-          # Keep this domain preview-bound so production deploys cannot reclaim it.
-          vercel api "/v9/projects/$VERCEL_PROJECT_ID/domains/$WEBHOOK_ALIAS?teamId=$VERCEL_ORG_ID" \
-            --method=PATCH \
-            --raw-field="gitBranch=$GIT_BRANCH" \
-            --token="$VERCEL_TOKEN" \
-            --silent
-          vercel alias set "$PREVIEW_URL" "$WEBHOOK_ALIAS" --token="$VERCEL_TOKEN"
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { GIT_BRANCH, PREVIEW_URL, VERCEL_ORG_ID, VERCEL_PROJECT_ID, VERCEL_TOKEN, WEBHOOK_ALIAS } = process.env;
+          if (!GIT_BRANCH || GIT_BRANCH === 'main' || !PREVIEW_URL || !VERCEL_ORG_ID || !VERCEL_PROJECT_ID || !VERCEL_TOKEN || WEBHOOK_ALIAS !== 'clerk-preview-api.board-game-organizer.com') {
+            throw new Error('A non-production branch and deployment credentials are required');
+          }
+          const endpoint = `/v9/projects/${VERCEL_PROJECT_ID}/domains/${WEBHOOK_ALIAS}?teamId=${VERCEL_ORG_ID}`;
+          function vercel(args) {
+            try {
+              return execFileSync('vercel', [...args, `--token=${VERCEL_TOKEN}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+            } catch {
+              throw new Error('Vercel webhook alias command failed');
+            }
+          }
+          function readBinding() {
+            const binding = JSON.parse(vercel(['api', endpoint, '--raw']));
+            if (binding.name !== WEBHOOK_ALIAS || binding.verified !== true) {
+              throw new Error('The webhook domain must be verified in the API project');
+            }
+            return binding;
+          }
+          let binding = readBinding();
+          // Do not reconfigure an already-correct binding: Git integration may reject a redundant PATCH.
+          // Preserve preview binding so production deployments cannot reclaim this domain.
+          if (binding.gitBranch !== GIT_BRANCH) {
+            vercel(['api', endpoint, '--method=PATCH', `--raw-field=gitBranch=${GIT_BRANCH}`, '--silent']);
+            binding = readBinding();
+          }
+          if (binding.gitBranch !== GIT_BRANCH) throw new Error('Webhook domain is not bound to the expected Preview branch');
+          vercel(['alias', 'set', PREVIEW_URL, WEBHOOK_ALIAS]);
+          NODE
 
   # ---------------------------------------------------- Vercel preview web
   deploy-preview-web:
@@ -510,6 +535,7 @@ jobs:
     name: 🔄 Mirror E2E users into users collection
     needs: [provision, deploy-preview-api]
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -621,6 +647,7 @@ jobs:
     name: 🎭 Playwright E2E (web)
     needs: [deploy-preview-web, sync-e2e-users, provision, deploy-development-api]
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -663,6 +690,7 @@ jobs:
     if: always()
     # Cleanup failure must stay visible; otherwise leaked Clerk users accumulate silently.
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -681,6 +709,7 @@ jobs:
     needs: [deploy-preview-api, cleanup-e2e-user]
     if: always() && needs.deploy-preview-api.outputs.url != ''
     runs-on: ubuntu-latest
+    environment: development
     steps:
       - name: 🗑️ Clear only this run's database collections
         env:
