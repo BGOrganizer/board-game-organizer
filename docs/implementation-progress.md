@@ -47,6 +47,8 @@ historical evidence, not the current push scope.
   database cleanup using the repository Clerk key instead of the `development` environment key.
   PR consumers and cancellation cleanup now select `development`; the alias step verifies and
   reuses an already-correct Preview binding, and still verifies any changed binding before aliasing.
+  The same environment-selection defect rejected the repository Expo token. APK builds and
+  draft publication also select `development` for Expo, release and Telegram credentials.
   No secrets, Git-provider connection or Production configuration were modified. The independent
   cancellation-cleanup workflow is not yet present on the default branch; it cannot currently
   supply fallback cleanup. Attempt 2 database cleanup remains unverified until explicitly recovered.

@@ -111,11 +111,13 @@ test("watchdog cancels any failed PR job; independent cleanup survives cancellat
   assert.match(script, /bgo_ci_\$\{RUN_ID\}_\$\{ATTEMPT\}/);
 });
 
-test("every PR job using the development Clerk secret selects the same GitHub environment", () => {
+test("PR deployment, auth, build and publication secrets use the development GitHub environment", () => {
   const consumers = Object.entries(jobs).filter(([, job]) =>
-    /secrets\.CLERK_SECRET_KEY\s*}}/.test(JSON.stringify(job)),
+    /secrets\.(?:CLERK_SECRET_KEY|EXPO_TOKEN|VERCEL_TOKEN|RELEASE_PAT|TELEGRAM_BOT_TOKEN)\s*}}/.test(
+      JSON.stringify(job),
+    ),
   );
-  assert.equal(consumers.length, 7);
+  assert.equal(consumers.length, 11);
   for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
 });
 

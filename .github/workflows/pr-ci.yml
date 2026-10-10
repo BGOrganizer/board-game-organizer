@@ -211,6 +211,7 @@ jobs:
   # -------------------------------------------------- mobile internal build
   build-mobile-internal:
     name: 📱 Mobile APK (internal) — build or reuse
+    environment: development
     needs: [detect-mobile-changes, deploy-preview-api]
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -775,6 +776,7 @@ jobs:
 
   build-mobile-development:
     name: 📱 Build PR APK for development (parallel build)
+    environment: development
     needs: [deploy-development-api]
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -809,6 +811,7 @@ jobs:
   # ----------------------------------------------------------- draft release
   draft-release:
     name: 📦 Draft prerelease (APK + changelog) → Telegram
+    environment: development
     needs:
       - commitlint
       - lint

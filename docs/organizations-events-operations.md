@@ -79,7 +79,8 @@ server-only app configuration stay in Infisical/Vercel, not GitHub. Keep existin
 Variables used by native builds and E2E; they are not credentials. GitHub `development` contains
 an environment-scoped `CLERK_SECRET_KEY`. Every PR job consuming that key must select
 `environment: development`, including provisioning, mirroring, browser tests and cleanup;
-otherwise GitHub falls back to a potentially different repository Secret. This GitHub environment
+otherwise GitHub falls back to a potentially different repository Secret. PR APK builds and draft
+publication likewise select `development` for Expo, release and Telegram credentials. This GitHub environment
 does not select an Infisical environment: the deployed API reads the Vercel Preview value supplied
 by its existing sync. No credentials were deleted, rotated or synchronized as part of this code change.
 
