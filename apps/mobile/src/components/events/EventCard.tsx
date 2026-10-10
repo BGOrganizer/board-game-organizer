@@ -21,10 +21,17 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCard } from "@/components/common/ui/ListCard";
 import { useT } from "@/lib/i18n";
 
 const style = new Style(planets);
-export function EventCard({ event }: { event: EventResponse }) {
+export function EventCard({
+  event,
+  presentation = "list",
+}: {
+  event: EventResponse;
+  presentation?: "list" | "detail";
+}) {
   const t = useT();
   const { i18n } = useLingui();
   const router = useRouter();
@@ -55,11 +62,8 @@ export function EventCard({ event }: { event: EventResponse }) {
         : t("Cancelled");
   const OrganizationIcon = event.organizationApproved ? BadgeCheck : Building2;
   const numbers = new Intl.NumberFormat(i18n.locale);
-  return (
-    <LinkedListCard
-      onPress={() => router.push(`/event/${event.id}`)}
-      label={`${t("Open event")}: ${event.name}, ${event.organizationName}${event.organizationApproved ? `, ${t("Approved organization")}` : ""}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t("Tables")}: ${numbers.format(event.tableCount)}, ${t("Confirmed participants")}: ${numbers.format(event.confirmedParticipantCount)}`}
-    >
+  const content = (
+    <>
       <View
         accessible={false}
         importantForAccessibility="no-hide-descendants"
@@ -69,29 +73,31 @@ export function EventCard({ event }: { event: EventResponse }) {
         <SvgXml xml={xml} width={64} height={64} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-            paddingRight: 84,
-            minHeight: 24,
-          }}
-        >
-          <OrganizationIcon size={16} color={muted} />
-          <Typography
-            accessibilityLabel={
-              event.organizationApproved
-                ? `${event.organizationName}, ${t("Approved organization")}`
-                : event.organizationName
-            }
-            className="font-semibold text-foreground"
-            numberOfLines={1}
-            style={{ flex: 1 }}
+        {presentation === "list" ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              paddingRight: 84,
+              minHeight: 24,
+            }}
           >
-            {event.organizationName}
-          </Typography>
-        </View>
+            <OrganizationIcon size={16} color={muted} />
+            <Typography
+              accessibilityLabel={
+                event.organizationApproved
+                  ? `${event.organizationName}, ${t("Approved organization")}`
+                  : event.organizationName
+              }
+              className="font-semibold text-foreground"
+              numberOfLines={1}
+              style={{ flex: 1 }}
+            >
+              {event.organizationName}
+            </Typography>
+          </View>
+        ) : null}
         <Chip
           size="sm"
           color={
@@ -106,7 +112,15 @@ export function EventCard({ event }: { event: EventResponse }) {
         >
           <Chip.Label>{label}</Chip.Label>
         </Chip>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+            paddingRight: presentation === "detail" ? 84 : 0,
+            minHeight: 24,
+          }}
+        >
           <CalendarRange size={16} color={muted} />
           <Typography className="font-medium text-foreground" numberOfLines={1} style={{ flex: 1 }}>
             {event.name}
@@ -155,15 +169,17 @@ export function EventCard({ event }: { event: EventResponse }) {
           </Typography>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <LayoutGrid size={16} color={muted} />
-            <Typography
-              accessibilityLabel={`${t("Tables")}: ${numbers.format(event.tableCount)}`}
-              className="text-sm text-foreground"
-            >
-              {numbers.format(event.tableCount)}
-            </Typography>
-          </View>
+          {presentation === "list" ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <LayoutGrid size={16} color={muted} />
+              <Typography
+                accessibilityLabel={`${t("Tables")}: ${numbers.format(event.tableCount)}`}
+                className="text-sm text-foreground"
+              >
+                {numbers.format(event.tableCount)}
+              </Typography>
+            </View>
+          ) : null}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <UsersRound size={16} color={muted} />
             <Typography
@@ -175,6 +191,20 @@ export function EventCard({ event }: { event: EventResponse }) {
           </View>
         </View>
       </View>
+    </>
+  );
+  return presentation === "detail" ? (
+    <ListCard>
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 12 }}>
+        {content}
+      </View>
+    </ListCard>
+  ) : (
+    <LinkedListCard
+      onPress={() => router.push(`/event/${event.id}`)}
+      label={`${t("Open event")}: ${event.name}, ${event.organizationName}${event.organizationApproved ? `, ${t("Approved organization")}` : ""}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t("Tables")}: ${numbers.format(event.tableCount)}, ${t("Confirmed participants")}: ${numbers.format(event.confirmedParticipantCount)}`}
+    >
+      {content}
     </LinkedListCard>
   );
 }

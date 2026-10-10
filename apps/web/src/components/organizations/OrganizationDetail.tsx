@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { Events } from "@/components/events/Events";
 import { OrganizationMembers } from "@/components/organizations/OrganizationMembers";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -138,13 +139,12 @@ export function OrganizationDetail({
               ) : null}
             </OrganizationDetailsCard>
             {organization.role === "admin" ? (
-              <Link
+              <FloatingActions
                 href={`/organizations/${organization.id}/edit`}
-                className="button button--primary button--icon-only fixed right-4 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 size-14 rounded-full shadow-lg sm:right-6"
-                aria-label={t`Edit organization`}
+                label={t`Edit organization`}
               >
-                <Pencil className="size-6" />
-              </Link>
+                <Pencil className="size-6" aria-hidden />
+              </FloatingActions>
             ) : null}
           </Tabs.Panel>
           <Tabs.Panel id="members" className="pt-4">
@@ -166,13 +166,12 @@ export function OrganizationDetail({
               <p className="text-sm text-default-500">{t`Organization events are available after approval.`}</p>
             )}
             {organization.role === "admin" ? (
-              <Link
+              <FloatingActions
                 href={`/events/new?organizationId=${organization.id}`}
-                className="button button--primary button--icon-only fixed right-4 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 size-14 rounded-full shadow-lg sm:right-6"
-                aria-label={t`New event`}
+                label={t`New event`}
               >
-                <Plus className="size-6" />
-              </Link>
+                <Plus className="size-6" aria-hidden />
+              </FloatingActions>
             ) : null}
           </Tabs.Panel>
         </Tabs>

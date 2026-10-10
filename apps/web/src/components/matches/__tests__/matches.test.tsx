@@ -117,6 +117,39 @@ describe("Matches", () => {
     expect(useMatchesMock.mock.lastCall?.[0].listFilters.roles).toEqual(["invited", "accepted"]);
   });
 
+  it("puts only the event-table icon below artwork, retaining the administrator crown and no ordinary invitation actions", () => {
+    useMatchesMock.mockReturnValue({
+      ...baseMock,
+      list: {
+        ...baseMock.list,
+        data: [
+          {
+            ...baseMock.list.data[0],
+            adminUserId: "user_guest",
+            eventTable: { eventId: "event", tableId: "table" },
+            invitations: [{ id: "invitation", inviteeUserId: "user_guest", status: "PENDING" }],
+          },
+        ],
+      },
+    });
+    renderWithI18n(<Matches />);
+    const badge = screen.getByRole("img", { name: "Event table" });
+    expect(badge.className).toContain("bottom-0 right-0");
+    expect(badge.parentElement?.className).toContain("h-[84px]");
+    expect(screen.getByRole("img", { name: "Administrator" })).toBeTruthy();
+    expect(screen.queryByText("Event table")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Accept" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Decline" })).toBeNull();
+    expect(
+      screen.getByRole("link", { name: /Open match: Friday night games, Event table/ }),
+    ).toBeTruthy();
+    const label = screen.getByText("Table list");
+    expect(
+      screen.getByRole("searchbox", { name: "Search matches" }).compareDocumentPosition(label) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("lists the matches with name, dates and player range", () => {
     renderWithI18n(<Matches />);
     expect(screen.getByText("Friday night games")).toBeTruthy();

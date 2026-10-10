@@ -556,7 +556,7 @@ msgstr "Blocked"
 msgid "Board game"
 msgstr "Board game"
 
-#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Board games"
 msgstr "Board games"
@@ -618,7 +618,7 @@ msgid "Cancel request"
 msgstr "Cancel request"
 
 #: apps/web/src/components/events/EventCard.tsx
-#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Cancelled"
 msgstr "Cancelled"
@@ -777,7 +777,7 @@ msgstr "Confirm match?"
 msgid "Confirm tie-break"
 msgstr "Confirm tie-break"
 
-#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Confirmed"
@@ -799,7 +799,7 @@ msgstr "Confirmed location"
 msgid "Confirmed participants"
 msgstr "Confirmed participants"
 
-#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 msgid "confirmed players"
 msgstr "confirmed players"
@@ -1317,12 +1317,13 @@ msgstr "Delete notification"
 msgid "Delete notification?"
 msgstr "Delete notification?"
 
-#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Demonstrator"
 msgstr "Demonstrator"
 
+#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
 msgid "Details"
 msgstr "Details"
@@ -1408,7 +1409,7 @@ msgid "Enable push notifications"
 msgstr "Enable push notifications"
 
 #: apps/web/src/components/events/EventCard.tsx
-#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
@@ -1466,6 +1467,10 @@ msgstr "Event location"
 msgid "Event name"
 msgstr "Event name"
 
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Event sections"
+msgstr "Event sections"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Event table"
@@ -1499,7 +1504,7 @@ msgstr "Favorite locations"
 msgid "Field help"
 msgstr "Field help"
 
-#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 msgid "Finished"
 msgstr "Finished"
 
@@ -1608,7 +1613,7 @@ msgstr "Give this table a recognizable name (1–120 characters)."
 msgid "Global ratings disabled"
 msgstr "Global ratings disabled"
 
-#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Global ratings enabled"
@@ -2365,7 +2370,7 @@ msgstr "Open organization"
 #~ msgid "Open settings"
 #~ msgstr "Open settings"
 
-#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 msgid "Open table"
 msgstr "Open table"
 
@@ -2500,7 +2505,7 @@ msgstr "Person removed from group"
 msgid "Plan:"
 msgstr "Plan:"
 
-#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Planning"
 msgstr "Planning"
@@ -2522,7 +2527,7 @@ msgstr "Player removed from match"
 #~ msgid "Player scores"
 #~ msgstr "Player scores"
 
-#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
@@ -2777,7 +2782,7 @@ msgstr "Requests awaiting their reply."
 msgid "Requests awaiting your reply."
 msgstr "Requests awaiting your reply."
 
-#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 msgid "reserved places"
 msgstr "reserved places"
@@ -3068,7 +3073,7 @@ msgstr "Sign Up"
 #~ msgstr "Standings"
 
 #: apps/web/src/components/events/EventCard.tsx
-#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
@@ -3111,11 +3116,16 @@ msgstr "Synced collection games will be removed from your profile. Existing matc
 msgid "Syncing BoardGameGeek collection"
 msgstr "Syncing BoardGameGeek collection"
 
+#: apps/web/src/components/matches/MatchListLegend.tsx
+msgid "Table list"
+msgstr "Table list"
+
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Table name"
 msgstr "Table name"
 
 #: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Tables"
 msgstr "Tables"
@@ -3123,6 +3133,14 @@ msgstr "Tables"
 #: apps/web/src/components/matches/Matches.tsx
 msgid "Terminated"
 msgstr "Terminated"
+
+#: apps/web/src/components/matches/MatchListLegend.tsx
+msgid "The calendar identifies a table belonging to an event."
+msgstr "The calendar identifies a table belonging to an event."
+
+#: apps/web/src/components/matches/MatchListLegend.tsx
+msgid "The crown identifies the match administrator."
+msgstr "The crown identifies the match administrator."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "The friend request will be declined."
@@ -3250,7 +3268,7 @@ msgid "User unfollowed"
 msgstr "User unfollowed"
 
 #: apps/web/src/components/events/EventDemonstratorPicker.tsx
-#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableDetail.tsx
 #: apps/web/src/components/organizations/OrganizationFriendPicker.tsx
 #: apps/web/src/components/organizations/OrganizationMembers.tsx

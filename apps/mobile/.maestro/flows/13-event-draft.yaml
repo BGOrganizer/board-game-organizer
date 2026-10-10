@@ -188,11 +188,28 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Maestro summer event"
     timeout: 30000
-- tapOn: "Cascadia event table"
+- assertVisible:
+    id: "event-tab-details"
+- assertVisible:
+    id: "cancel-event-header"
+- assertVisible:
+    id: "edit-event-fab"
+- tapOn:
+    id: "event-tab-tables"
+- assertVisible:
+    id: "edit-event-fab"
+- assertNotVisible: "Edit table: Cascadia event table"
+- assertNotVisible: "Remove table: Cascadia event table"
+- tapOn: "Open table: Cascadia event table"
 - assertVisible: "Minimum players.*2"
 - assertNotVisible: "Request a place"
 - back
-- tapOn: "Edit event"
+- tapOn:
+    id: "event-tab-details"
+- assertVisible:
+    id: "edit-event-fab"
+- tapOn:
+    id: "edit-event-fab"
 - tapOn:
     id: "event-next-fab"
 - tapOn: "Remove table: Cascadia event table"

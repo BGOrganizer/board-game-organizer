@@ -33,6 +33,19 @@ const event: EventResponse = {
   createdAt: "2030-01-01T00:00:00.000Z",
   updatedAt: "2030-01-01T00:00:00.000Z",
 };
+it("reuses planets/details without a self link, organization identity or table count", () => {
+  const { container } = renderWithI18n(<EventCard event={event} presentation="detail" />);
+  expect(screen.queryByRole("link")).toBeNull();
+  expect(screen.queryByText("Game club")).toBeNull();
+  expect(screen.queryByText("Tables:")).toBeNull();
+  expect(screen.queryByText("20")).toBeNull();
+  expect(screen.getByText("Evening games")).toBeTruthy();
+  expect(screen.getByText("3")).toBeTruthy();
+  expect(container.querySelector(".lucide-users-round")).toBeTruthy();
+  expect(container.querySelector(".lucide-layout-grid")).toBeNull();
+  expect(container.querySelector('img[src^="data:image/svg+xml,"]')).toBeTruthy();
+});
+
 it.each([
   ["PUBLISHED", "Published", "success", true],
   ["DRAFT", "Draft", "warning", false],

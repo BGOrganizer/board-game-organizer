@@ -65,7 +65,43 @@ local-only scope below permits a signed local commit but no push, delegation or 
 
 ## Latest verified automated gates
 
-### Community event/organization cards and empty lists — local only
+### Event detail tabs and match-table legend — local only
+
+- Same feature branch, signed local commit only; no push, PR synchronization, delegation,
+  provisioning or service/account/device changes. Protected API/web environment types are
+  checked/restored byte-for-byte; the existing API change is excluded from the commit.
+- Matches replace the Event table text tag with one accessible calendar icon below the artwork
+  at bottom-right. Administrator crowns remain. Table list / Lista Tavoli follows filters and
+  reuses the platform question-mark popover with both symbols and localized explanations.
+  Ordinary invitation controls remain absent for event-table matches.
+- Event detail uses Details / Tables with existing HeroUI tabs and native TabBar. Details reuse
+  the planets event card without organization identity or table count; confirmed participants,
+  status, day/times/address, deadline and the post-cutoff information remain. Tables reuse one
+  platform table-card body from the wizard, preserving fixed covers/fallbacks, time-only fields,
+  name/game/player limits, optional demonstrator and enabled-rating badge. Read-only navigation
+  retains confirmed/reserved totals and status, with no row edit/removal.
+- Cancel is a labeled danger icon in the header. Edit is the shared bottom-right icon FAB outside
+  both panels, guarded by server modification rights and the exact cutoff. The web FAB is extracted
+  from the existing organization edit/create links; their destinations and tab behavior remain.
+  Confirmation/busy/failure guards remain, including cutoff rechecking before cancellation.
+  Denied native details clear the old resource title/header action. Table requests are tab-scoped;
+  pagination retains cache, skeleton/error/retry paths and native virtualization.
+- Verified: Biome, workspace typecheck, **1,318 unit tests** (web 427, mobile 152, API 536,
+  schemas 92, shared 111), all five coverage gates, API/web production builds and Android export
+  (**5,497 modules**). New/readjusted web card/body/detail/FAB/legend modules have 100% per-file
+  thresholds; no threshold was reduced. Six Maestro CI/JUnit contract tests pass with no skips.
+- EN/IT extraction/compilation preserves all 656 prior IDs/translations and has **660 active IDs**
+  each. Desktop/mobile-width Playwright scenarios cover icons/legend, both detail tabs, read-only
+  table metadata, paging/failure/retry, contextual controls and explicit cancellation. Native
+  match/draft flows now check legend, tabs and contextual header/FAB behavior.
+  **These browser/device scenarios were not executed**: mocked fixtures, source contracts and
+  export are not native/provider acceptance. The UI-only pass did not rerun replica-set integration;
+  the preceding API/count pass retains 63 passing integrations. No remote CI result is claimed.
+- Guides used: component architecture/composition, existing Query and platform rendering guidance,
+  Expo navigation, HeroUI React/Native, Lingui/Uniwind and fresh web-design review. No package or
+  skill changes. The later request for wizard Back and a unified bookable table detail is pending.
+
+### Previous community event/organization cards and empty lists — local only
 
 - Same feature branch, signed local commit only. No push, PR synchronization, delegation,
   provisioning, migration or account/device changes. API and web environment-type files are

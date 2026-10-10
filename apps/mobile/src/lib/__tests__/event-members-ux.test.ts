@@ -114,7 +114,7 @@ it("keeps demonstrator Back in the header and gives table cards image/date/game/
   expect(editor).not.toContain("FloatingActions");
   expect(editor).toContain('mode="time"');
   expect(editor).toContain("beforeEnd");
-  const card = source("events/EventDraftTableCard.tsx");
+  const card = source("events/EventDraftTableCard.tsx") + source("events/EventTableCardBody.tsx");
   for (const field of ["imageUrl", "Clock3", "Trophy", "Dices", "UsersRound", "Presentation"])
     expect(card).toContain(field);
 });
@@ -133,10 +133,12 @@ it("keeps one day, two native time fields, counted table limit, and time-only fi
   expect(wizard).toContain("eventDraftTableCount");
   expect(wizard).toContain("tableCount >= MAX_EVENT_TABLES");
   expect(wizard).toContain("EventWizardSummary");
-  const card = source("events/EventDraftTableCard.tsx");
+  const card = source("events/EventTableCardBody.tsx");
+  expect(source("events/EventDraftTableCard.tsx")).toContain("<EventTableCardBody");
+  expect(source("events/EventTableCard.tsx")).toContain("<EventTableCardBody");
   expect(card).not.toContain("dateStyle");
   expect(card).toContain("width: 80, height: 80, flexShrink: 0");
-  expect(card).toContain("table.input.openSkill");
+  expect(card).toContain("table.openSkill");
 });
 it("retains bottom clearance without a submit separator and arranges camera/library horizontally", () => {
   const wizard = source("organizations/OrganizationWizard.tsx");

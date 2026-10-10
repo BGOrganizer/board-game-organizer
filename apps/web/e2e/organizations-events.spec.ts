@@ -221,7 +221,13 @@ async function fixture(page: Page) {
       if (path === "/api/events" || path === `/api/events/${eventId}`) {
         if (failSave)
           return route.fulfill({ status: 503, json: { error: "DEADLINE_SERVICE_UNAVAILABLE" } });
-        event = { ...event, ...body, adminUserId: viewer, version: event.version + 1 };
+        event = {
+          ...event,
+          ...body,
+          adminUserId: viewer,
+          version: event.version + 1,
+          ...(req.method() === "DELETE" ? { status: "CANCELLED" as const, canModify: false } : {}),
+        };
         return route.fulfill({ json: event });
       }
       if (path.endsWith("/bookings") || path.startsWith("/api/event-bookings/")) {
@@ -401,6 +407,7 @@ async function fixture(page: Page) {
   event.adminUserId = viewer;
   return {
     writes,
+    viewerId: () => viewer,
     organization: (patch: Partial<OrganizationResponse>) => {
       organization = { ...organization, ...patch };
     },
@@ -454,6 +461,153 @@ async function chooseLocation(page: Page, label = "Choose a verified address") {
 }
 
 function communityAcceptance() {
+  test("event details and tables share cards, keep header cancellation/FAB contextual, and paginate without editing rows", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    state.event({ tableCount: 2 });
+    let failTables = true,
+      tableReads = 0;
+    await page.route(
+      (url) => url.pathname === `/api/events/${eventId}/tables`,
+      (route) => {
+        tableReads++;
+        if (failTables) return route.fulfill({ status: 503, json: { error: "UNAVAILABLE" } });
+        const next = new URL(route.request().url()).searchParams.has("cursor");
+        return route.fulfill({
+          json: {
+            items: [
+              next
+                ? {
+                    ...baseTable,
+                    id: "33333333-3333-4333-8333-333333333334",
+                    name: "Dixit table",
+                    gameName: "Dixit",
+                  }
+                : { ...baseTable, openSkill: true },
+            ],
+            nextCursor: next ? null : "more",
+          },
+        });
+      },
+    );
+    await page.goto(`/events/${eventId}`);
+    const details = page.getByRole("tabpanel", { name: "Details", exact: true });
+    await expect(details.locator('img[src^="data:image/svg+xml,"]')).toBeVisible();
+    await expect(details.getByText(baseEvent.organizationName, { exact: true })).toHaveCount(0);
+    await expect(details.locator(".lucide-layout-grid")).toHaveCount(0);
+    await expect(details.getByText("3", { exact: true })).toBeVisible();
+    expect(tableReads).toBe(0);
+    const cancel = page.getByRole("button", { name: "Cancel event", exact: true });
+    await expect(cancel).toHaveText("");
+    await expect(page.locator("header").filter({ has: cancel })).toBeVisible();
+    const edit = page.getByRole("link", { name: "Edit event", exact: true });
+    await expect(edit).toHaveText("");
+    await page.getByRole("tab", { name: "Tables", exact: true }).click();
+    await expect(edit).toBeVisible();
+    const retry = page.getByRole("button", { name: "Could not load tables. Retry", exact: true });
+    await expect(retry).toBeVisible();
+    await expect(page.getByText("No tables found", { exact: true })).toHaveCount(0);
+    failTables = false;
+    await retry.click();
+    const table = page.getByRole("link", { name: "Open table: Azul table", exact: true });
+    await expect(table).toBeVisible();
+    await expect(table.getByRole("img", { name: "Global ratings enabled" })).toBeVisible();
+    await expect(table.getByText("2–4", { exact: true })).toBeVisible();
+    await expect(table.getByRole("button", { name: /Edit table|Remove table/ })).toHaveCount(0);
+    await table.scrollIntoViewIfNeeded();
+    const more = page.getByRole("button", { name: "Load more", exact: true });
+    if (await more.isVisible()) await more.click();
+    await expect(
+      page.getByRole("link", { name: "Open table: Dixit table", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: "Details", exact: true }).click();
+    await expect(edit).toBeVisible();
+    state.close();
+    await page.reload();
+    await expect(edit).toHaveCount(0);
+    await expect(cancel).toHaveCount(0);
+  });
+  test("event header cancellation confirms explicitly, survives failure and only navigates on success", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    await page.goto(`/events/${eventId}`);
+    await page.getByRole("button", { name: "Cancel event", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Cancel event", exact: true });
+    await expect(dialog).toBeVisible();
+    expect(state.writes).toHaveLength(0);
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByRole("button", { name: "Cancel event", exact: true }).click();
+    state.failSave();
+    await dialog.getByRole("button", { name: "Cancel event", exact: true }).click();
+    await expect
+      .poll(() => state.writes.filter((write) => write.method === "DELETE").length)
+      .toBe(1);
+    await expect(dialog.getByRole("button", { name: "Cancel event", exact: true })).toBeEnabled();
+    await expect(page).toHaveURL(new RegExp(`/events/${eventId}$`));
+    state.succeed();
+    await dialog.getByRole("button", { name: "Cancel event", exact: true }).click();
+    await expect(page).toHaveURL(/\/events$/);
+  });
+  test("match table list uses only the event icon below artwork and a crown/event help legend", async ({
+    page,
+  }) => {
+    const state = await fixture(page);
+    await page.route(
+      (url) => url.pathname === "/api/matches",
+      (route) =>
+        route.fulfill({
+          json: {
+            matches: [
+              {
+                id: "event-match",
+                name: "Azul event match",
+                adminUserId: state.viewerId(),
+                dates: [baseEvent.startsAt],
+                locations: [location],
+                minPlayers: 2,
+                maxPlayers: 4,
+                invitedUserIds: [],
+                gameIds: [1],
+                invitations: [],
+                status: "CREATED",
+                selectedDate: baseEvent.startsAt,
+                selectedGameId: 1,
+                selectedGameName: "Azul",
+                createdAt: now,
+                updatedAt: now,
+                eventTable: { eventId, tableId },
+              },
+            ],
+            nextCursor: null,
+          },
+        }),
+    );
+    await page.goto("/matches");
+    const table = page.getByRole("link", { name: /^Open match: Azul event match, Event table/ });
+    await expect(table.getByRole("img", { name: "Administrator", exact: true })).toBeVisible();
+    const badge = table.getByRole("img", { name: "Event table", exact: true });
+    await expect(badge).toBeVisible();
+    await expect(table.getByText("Event table", { exact: true })).toHaveCount(0);
+    await expect
+      .poll(async () => {
+        const icon = await badge.boundingBox(),
+          image = await table.locator("img.match-waves").boundingBox();
+        return Boolean(icon && image && icon.y >= image.y + image.height - 4);
+      })
+      .toBe(true);
+    await page.getByRole("button", { name: "Table list", exact: true }).click();
+    const legend = page.getByRole("dialog");
+    await expect(
+      legend.getByText("The crown identifies the match administrator.", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      legend.getByText("The calendar identifies a table belonging to an event.", { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(legend).toHaveCount(0);
+  });
   test("organization events use planets, approved identity, local times, counts and semantic badges", async ({
     page,
   }) => {

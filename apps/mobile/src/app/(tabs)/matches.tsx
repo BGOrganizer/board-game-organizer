@@ -15,6 +15,7 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { Chip } from "heroui-native/chip";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CalendarDays, Crown, Dices, MapPin, Medal, Plus, UsersRound } from "lucide-react-native";
@@ -36,6 +37,7 @@ import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
+import { MatchListLegend } from "@/components/matches/MatchListLegend";
 import { useT } from "@/lib/i18n";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -47,7 +49,16 @@ function apiUrl(): string {
 
 const wavesStyle = new Style(waves);
 
-function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string }) {
+function MatchArtwork({
+  name,
+  adminLabel,
+  eventLabel,
+}: {
+  name: string;
+  adminLabel?: string;
+  eventLabel?: string;
+}) {
+  const accent = useThemeColor("accent");
   const xml = useMemo(
     () => new DiceBearAvatar(wavesStyle, { seed: name, size: 72 }).toString(),
     [name],
@@ -66,7 +77,7 @@ function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string 
   }, [reducedMotion, shift]);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shift.get() }] }));
   return (
-    <View style={{ width: 64, height: 64, flexShrink: 0 }}>
+    <View style={{ width: 64, height: eventLabel ? 84 : 64, flexShrink: 0 }}>
       <View
         accessible={false}
         className="bg-accent/10"
@@ -91,6 +102,17 @@ function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string 
           <Crown size={16} color="#f59e0b" />
         </View>
       )}
+      {eventLabel ? (
+        <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={eventLabel}
+          testID="event-table-match-badge"
+          style={{ position: "absolute", bottom: 0, right: 0 }}
+        >
+          <CalendarDays size={16} color={accent} accessible={false} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -149,14 +171,17 @@ export default function MatchesScreen() {
             void matches.paging.fetchNextPage();
         }}
         ListHeaderComponent={
-          <ListSearchFilters
-            query={filters.query}
-            onQueryChange={filters.setQuery}
-            roles={filters.roles}
-            onToggle={filters.toggleRole}
-            label={t("Search matches")}
-            placeholder={t("Search matches")}
-          />
+          <View>
+            <ListSearchFilters
+              query={filters.query}
+              onQueryChange={filters.setQuery}
+              roles={filters.roles}
+              onToggle={filters.toggleRole}
+              label={t("Search matches")}
+              placeholder={t("Search matches")}
+            />
+            <MatchListLegend />
+          </View>
         }
         ListEmptyComponent={
           matches.list.isPending ? (
@@ -215,7 +240,7 @@ export default function MatchesScreen() {
           return (
             <LinkedListCard
               key={match.id}
-              label={`${t("Open match")}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t("Players")}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t("Winner") : t("Winners")}: ${card.winnerNames.join(", ")}` : ""}`}
+              label={`${t("Open match")}: ${match.name}${match.eventTable ? `, ${t("Event table")}` : ""}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t("Players")}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t("Winner") : t("Winners")}: ${card.winnerNames.join(", ")}` : ""}`}
               disabled={match.optimistic}
               onPress={() =>
                 router.push({ pathname: "/match/[matchId]", params: { matchId: match.id } })
@@ -244,15 +269,13 @@ export default function MatchesScreen() {
             >
               <MatchArtwork
                 name={match.name}
+                eventLabel={match.eventTable ? t("Event table") : undefined}
                 adminLabel={match.adminUserId === userId ? t("Administrator") : undefined}
               />
               <ListCardBody
                 title={match.name}
                 titleAccessory={
                   <>
-                    {match.eventTable ? (
-                      <Typography className="text-sm text-muted">{t("Event table")}</Typography>
-                    ) : null}
                     <Chip size="sm" variant="soft" color={matchCardStatusColor[match.status]}>
                       {statusLabels[match.status]}
                     </Chip>

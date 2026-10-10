@@ -17,9 +17,16 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCard } from "@/components/common/ui/ListCard";
 
 const style = new Style(planets);
-export function EventCard({ event }: { event: EventResponse }) {
+export function EventCard({
+  event,
+  presentation = "list",
+}: {
+  event: EventResponse;
+  presentation?: "list" | "detail";
+}) {
   const { t, i18n } = useLingui();
   const src = useMemo(
     () =>
@@ -48,23 +55,22 @@ export function EventCard({ event }: { event: EventResponse }) {
         : t`Cancelled`;
   const OrganizationIcon = event.organizationApproved ? BadgeCheck : Building2;
   const numbers = new Intl.NumberFormat(i18n.locale);
-  return (
-    <LinkedListCard
-      href={`/events/${event.id}`}
-      label={`${t`Open event`}: ${event.name}, ${event.organizationName}${event.organizationApproved ? `, ${t`Approved organization`}` : ""}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t`Tables`}: ${numbers.format(event.tableCount)}, ${t`Confirmed participants`}: ${numbers.format(event.confirmedParticipantCount)}`}
-    >
+  const content = (
+    <>
       <span className="size-16 shrink-0 overflow-hidden rounded-xl bg-accent/10" aria-hidden="true">
         {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG; no remote request. */}
         <img src={src} alt="" width={64} height={64} />
       </span>
       <div className="min-w-0 flex-1 space-y-2">
-        <p className="flex min-h-6 items-center gap-1 pr-24 font-semibold">
-          <OrganizationIcon className="size-4 shrink-0 text-default-500" aria-hidden />
-          <span className="truncate">{event.organizationName}</span>
-          {event.organizationApproved ? (
-            <span className="sr-only">{t`Approved organization`}</span>
-          ) : null}
-        </p>
+        {presentation === "list" ? (
+          <p className="flex min-h-6 items-center gap-1 pr-24 font-semibold">
+            <OrganizationIcon className="size-4 shrink-0 text-default-500" aria-hidden />
+            <span className="truncate">{event.organizationName}</span>
+            {event.organizationApproved ? (
+              <span className="sr-only">{t`Approved organization`}</span>
+            ) : null}
+          </p>
+        ) : null}
         <Chip
           size="sm"
           color={
@@ -79,7 +85,9 @@ export function EventCard({ event }: { event: EventResponse }) {
         >
           {label}
         </Chip>
-        <p className="flex items-center gap-1 font-medium">
+        <p
+          className={`flex items-center gap-1 font-medium ${presentation === "detail" ? "min-h-6 pr-24" : ""}`}
+        >
           <CalendarRange className="size-4 shrink-0 text-default-500" aria-hidden />
           <span className="truncate">{event.name}</span>
         </p>
@@ -107,11 +115,13 @@ export function EventCard({ event }: { event: EventResponse }) {
           </span>
         </p>
         <div className="flex items-center gap-4 text-sm tabular-nums">
-          <span className="flex items-center gap-1">
-            <LayoutGrid className="size-4 text-default-500" aria-hidden />
-            <span className="sr-only">{t`Tables`}: </span>
-            {numbers.format(event.tableCount)}
-          </span>
+          {presentation === "list" ? (
+            <span className="flex items-center gap-1">
+              <LayoutGrid className="size-4 text-default-500" aria-hidden />
+              <span className="sr-only">{t`Tables`}: </span>
+              {numbers.format(event.tableCount)}
+            </span>
+          ) : null}
           <span className="flex items-center gap-1">
             <UsersRound className="size-4 text-default-500" aria-hidden />
             <span className="sr-only">{t`Confirmed participants`}: </span>
@@ -119,6 +129,18 @@ export function EventCard({ event }: { event: EventResponse }) {
           </span>
         </div>
       </div>
+    </>
+  );
+  return presentation === "detail" ? (
+    <ListCard>
+      <div className="flex items-start gap-3 p-3">{content}</div>
+    </ListCard>
+  ) : (
+    <LinkedListCard
+      href={`/events/${event.id}`}
+      label={`${t`Open event`}: ${event.name}, ${event.organizationName}${event.organizationApproved ? `, ${t`Approved organization`}` : ""}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t`Tables`}: ${numbers.format(event.tableCount)}, ${t`Confirmed participants`}: ${numbers.format(event.confirmedParticipantCount)}`}
+    >
+      {content}
     </LinkedListCard>
   );
 }

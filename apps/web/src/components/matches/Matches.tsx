@@ -30,20 +30,29 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
+import { MatchListLegend } from "@/components/matches/MatchListLegend";
 import { MatchWizard } from "@/components/matches/MatchWizard";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 const wavesStyle = new Style(waves);
 
-function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string }) {
+function MatchArtwork({
+  name,
+  adminLabel,
+  eventLabel,
+}: {
+  name: string;
+  adminLabel?: string;
+  eventLabel?: string;
+}) {
   const src = useMemo(
     () =>
       `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(wavesStyle, { seed: name, size: 72 }).toString())}`,
     [name],
   );
   return (
-    <span className="relative size-16 shrink-0">
+    <span className={`relative w-16 shrink-0 ${eventLabel ? "h-[84px]" : "h-16"}`}>
       <span className="block size-16 overflow-hidden rounded-xl bg-accent/10" aria-hidden="true">
         {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG. */}
         <img src={src} alt="" className="match-waves relative -top-1 -left-1 size-[72px]" />
@@ -57,6 +66,11 @@ function MatchArtwork({ name, adminLabel }: { name: string; adminLabel?: string 
           <Crown className="h-4 w-4 text-warning" aria-hidden="true" />
         </span>
       )}
+      {eventLabel ? (
+        <span role="img" aria-label={eventLabel} className="absolute bottom-0 right-0 text-accent">
+          <CalendarDays className="size-4" aria-hidden />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -123,6 +137,7 @@ export function Matches() {
         placeholder={t`Search matches`}
       />
 
+      <MatchListLegend />
       {matches.list.isPending && (
         <div className="space-y-2">
           <Skeleton className="h-20 w-full rounded-xl" />
@@ -173,7 +188,7 @@ export function Matches() {
             <LinkedListCard
               key={match.id}
               href={match.optimistic ? "/matches" : `/matches/${match.id}`}
-              label={`${t`Open match`}: ${match.name}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
+              label={`${t`Open match`}: ${match.name}${match.eventTable ? `, ${t`Event table`}` : ""}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
               disabled={match.optimistic}
               actions={
                 !match.eventTable && invitation?.status === "PENDING" ? (
@@ -216,15 +231,13 @@ export function Matches() {
             >
               <MatchArtwork
                 name={match.name}
+                eventLabel={match.eventTable ? t`Event table` : undefined}
                 adminLabel={match.adminUserId === userId ? t`Administrator` : undefined}
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-semibold">{match.name}</p>
-                    {match.eventTable ? (
-                      <span className="text-sm text-muted">{t`Event table`}</span>
-                    ) : null}
                   </div>
                   <Chip
                     size="sm"

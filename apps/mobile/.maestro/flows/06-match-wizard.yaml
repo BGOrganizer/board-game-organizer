@@ -10,6 +10,10 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "No matches yet.*"
     timeout: 120000
+- tapOn: "Table list"
+- assertVisible: "The crown identifies the match administrator."
+- assertVisible: "The calendar identifies a table belonging to an event."
+- back
 - tapOn:
     id: "create-match-fab"
 - extendedWaitUntil:

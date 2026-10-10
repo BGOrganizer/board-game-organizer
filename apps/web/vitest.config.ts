@@ -100,6 +100,24 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
+        "src/components/events/{EventTableCardBody,EventTableCard,EventDetail}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/FloatingActions.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/matches/MatchListLegend.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/events/EventCard.tsx": {
           lines: 100,
           functions: 100,
