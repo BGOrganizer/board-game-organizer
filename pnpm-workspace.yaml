@@ -48,3 +48,6 @@ minimumReleaseAgeExclude:
   - expo-asset@57.0.19
   - expo-modules-autolinking@57.0.14
   - expo-linking@57.0.12
+
+patchedDependencies:
+  heroui-native@1.0.9: patches/heroui-native@1.0.9.patch

@@ -1,0 +1,24 @@
+diff --git a/lib/module/components/popover/popover.js b/lib/module/components/popover/popover.js
+index 0825189944a9950d74e5fba3792be580eb80ab93..161e02031268c659ae6a115bebf402d5e9678d84 100644
+--- a/lib/module/components/popover/popover.js
++++ b/lib/module/components/popover/popover.js
+@@ -244,6 +244,7 @@ const PopoverContentPopover = /*#__PURE__*/forwardRef(({
+         exiting: exiting,
+         collapsable: false,
+         pointerEvents: "box-none",
++        style: StyleSheet.absoluteFill,
+         children: /*#__PURE__*/_jsx(AnimatedContent, {
+           ref: ref,
+           placement: placement,
+diff --git a/src/components/popover/popover.tsx b/src/components/popover/popover.tsx
+index e0d93c930923959c6e6bf8c2c16232dff10767cd..12b70b8dde48c9151a0fb0bf8f4e96753965eebe 100644
+--- a/src/components/popover/popover.tsx
++++ b/src/components/popover/popover.tsx
+@@ -316,6 +316,7 @@ const PopoverContentPopover = forwardRef<
+             exiting={exiting}
+             collapsable={false}
+             pointerEvents="box-none"
++            style={StyleSheet.absoluteFill}
+           >
+             <AnimatedContent
+               ref={ref}

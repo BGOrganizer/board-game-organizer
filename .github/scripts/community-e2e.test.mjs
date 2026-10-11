@@ -79,6 +79,40 @@ test("PR native acceptance attempts every flow after a failure without weakening
   assert(watchdog.includes('select(.conclusion == "failure")'));
   assert.doesNotMatch(watchdog, /\.steps\[\]/);
 });
+test("managed HeroUI patch sizes the animated wrapper without hiding or remounting popover content", () => {
+  const patch = readFileSync(
+    new URL("../../patches/heroui-native@1.0.9.patch", import.meta.url),
+    "utf8",
+  );
+  assert.equal((patch.match(/^diff --git /gm) ?? []).length, 2);
+  assert.deepEqual(
+    patch.split("\n").filter((line) => line.startsWith("+") && !line.startsWith("+++")),
+    ["+        style: StyleSheet.absoluteFill,", "+            style={StyleSheet.absoluteFill}"],
+  );
+  const workspace = readFileSync(new URL("../../pnpm-workspace.yaml", import.meta.url), "utf8");
+  assert(workspace.includes("heroui-native@1.0.9: patches/heroui-native@1.0.9.patch"));
+  for (const [path, expected] of [
+    [
+      "src/components/popover/popover.tsx",
+      /pointerEvents="box-none"\s+style=\{StyleSheet\.absoluteFill\}/,
+    ],
+    [
+      "lib/module/components/popover/popover.js",
+      /pointerEvents: "box-none",\s+style: StyleSheet\.absoluteFill/,
+    ],
+  ]) {
+    const installed = readFileSync(
+      new URL(`../../node_modules/heroui-native/${path}`, import.meta.url),
+      "utf8",
+    );
+    const driven = installed.split("if (isDrivenEntering) {")[1].split("// Fallback path:")[0];
+    assert.match(driven, expected);
+    assert.match(driven, /exiting[=:]/);
+    assert.match(driven, /AnimatedContent/);
+    assert.match(driven, /rEnteringStyle/);
+    assert.doesNotMatch(driven, /no-hide-descendants|accessibilityElementsHidden/);
+  }
+});
 test("fresh native launch preserves real contacts and notification permission prompts", () => {
   const welcome = readFileSync(
     new URL("../../apps/mobile/.maestro/flows/01-launch-welcome.yaml", import.meta.url),

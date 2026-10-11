@@ -9,6 +9,9 @@ overrides:
   react-dom: 19.2.3
   utf-8-validate: 5.0.10
 
+patchedDependencies:
+  heroui-native@1.0.9: c25d4c041b85a6fbfa823fb78ee42a50a1debaf07a1849a1e15bf640aa8a4bbb
+
 importers:
 
   .:
@@ -241,7 +244,7 @@ importers:
         version: 57.0.1(expo@57.0.27)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10))(@types/react@19.2.18)(bufferutil@4.1.0)(react@19.2.3)(supports-color@8.1.1)(utf-8-validate@5.0.10))(react@19.2.3)
       heroui-native:
         specifier: ^1.0.9
-        version: 1.0.9(3486b3126faa3db88757798f98229c90)
+        version: 1.0.9(patch_hash=c25d4c041b85a6fbfa823fb78ee42a50a1debaf07a1849a1e15bf640aa8a4bbb)(3486b3126faa3db88757798f98229c90)
       lucide-react-native:
         specifier: ^1.41.0
         version: 1.41.0(react-native-svg@15.15.4(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10))(@types/react@19.2.18)(bufferutil@4.1.0)(react@19.2.3)(supports-color@8.1.1)(utf-8-validate@5.0.10))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10))(@types/react@19.2.18)(bufferutil@4.1.0)(react@19.2.3)(supports-color@8.1.1)(utf-8-validate@5.0.10))(react@19.2.3)
@@ -18583,7 +18586,7 @@ snapshots:
     dependencies:
       hermes-estree: 0.36.1
 
-  heroui-native@1.0.9(3486b3126faa3db88757798f98229c90):
+  heroui-native@1.0.9(patch_hash=c25d4c041b85a6fbfa823fb78ee42a50a1debaf07a1849a1e15bf640aa8a4bbb)(3486b3126faa3db88757798f98229c90):
     dependencies:
       react: 19.2.3
       react-native: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10))(@types/react@19.2.18)(bufferutil@4.1.0)(react@19.2.3)(supports-color@8.1.1)(utf-8-validate@5.0.10)
