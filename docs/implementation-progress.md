@@ -103,6 +103,15 @@ historical evidence, not the current push scope.
   video now covers the actual failing flow rather than only the first 30 minutes of the suite.
   No timeout, acceleration, authentication or acceptance policy changes are included. These local
   orchestration changes are not yet verified by a full CI run.
+- Run `38091991376` verified all initial gates, deployments, both APKs and **83/83 Playwright
+  tests**. Native preparation and the shared emulator survived the split steps, but the Welcome
+  flow failed; later flows were not executed. Both cleanup jobs passed. Recorded native timings
+  show 417 seconds for boot and 1,036 seconds for address-book seeding with CPU acceleration
+  explicitly disabled. Boot now requires a readable/writable `/dev/kvm`, applies the documented
+  ephemeral-runner udev rule, checks `emulator -accel-check` and uses `-accel on` without a silent
+  software fallback. Emulator lifetime, cold-state isolation, flow order and timeout/report gates
+  remain unchanged; no snapshot cache or parallel sessions are introduced. This requires verification
+  on the next real Linux runner and does not yet prove the native failure resolved.
 
 Status: **IMPLEMENTED; PR ACCEPTANCE INCOMPLETE**. Local quality gates and remote Branch CI
 pass; full PR/native acceptance remains pending. Do not describe the feature as production-ready or claim full acceptance

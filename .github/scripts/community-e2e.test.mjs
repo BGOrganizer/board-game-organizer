@@ -161,6 +161,22 @@ test("emulator survives successful boot only, with guaranteed job teardown", () 
   assert.match(action, /bash -e -o pipefail/);
   assert(script.startsWith("#!/usr/bin/env bash\nset -euo pipefail"));
 });
+test("native boot verifies KVM and never falls back to software CPU emulation", () => {
+  const emulator = readFileSync(
+    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    "utf8",
+  );
+  for (const guard of ["test -c /dev/kvm", "test -r /dev/kvm", "test -w /dev/kvm"])
+    assert(emulator.includes(guard));
+  assert(emulator.includes("sudo udevadm control --reload-rules"));
+  assert(emulator.includes("sudo udevadm trigger --name-match=kvm"));
+  assert(emulator.includes('"$ANDROID_HOME/emulator/emulator" -accel-check'));
+  assert(emulator.indexOf("-accel-check") < emulator.indexOf('nohup "$ANDROID_HOME'));
+  assert(emulator.includes("-accel on"));
+  assert.doesNotMatch(emulator, /-accel (?:off|auto)/);
+  for (const workflow of workflows)
+    assert.match(workflow.split("  e2e-maestro:")[1], /runs-on: ubuntu-latest/);
+});
 test("boot lifetime spans steps, but failed boot kills its process", () => {
   const emulator = readFileSync(
     new URL("../actions/android-emulator/action.yml", import.meta.url),

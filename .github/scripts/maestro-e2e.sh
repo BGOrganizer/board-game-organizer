@@ -52,7 +52,7 @@ case "${1:-}" in
     cat /tmp/clerk-hosted-callback.txt /tmp/clerk-oauth-callback.txt
     ;;
   warm)
-    # Pre-warm the app (first cold start on a software emulator is very slow)
+    # Pre-warm native modules before the first cold-start acceptance flow.
     adb shell am start -n com.bgo.mobile/.MainActivity || true
     sleep 60
     adb shell am force-stop com.bgo.mobile || true

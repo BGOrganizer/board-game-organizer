@@ -1,4 +1,4 @@
-name: Android Emulator (software-rendered)
+name: Android Emulator (KVM-accelerated)
 description: Install SDK, create AVD or boot a job-scoped emulator shared by subsequent steps.
 
 inputs:
@@ -53,11 +53,19 @@ runs:
       shell: bash
       run: |
         export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        # Fail early if this runner cannot provide hardware acceleration.
+        test -c /dev/kvm
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+        test -r /dev/kvm
+        test -w /dev/kvm
+        "$ANDROID_HOME/emulator/emulator" -accel-check
         # Keep the same emulator across job steps, not across jobs. Disconnect
         # shell streams so returning from this step does not wait for the daemon.
         nohup "$ANDROID_HOME/emulator/emulator" -avd test \
           -no-window -no-audio -no-boot-anim -no-snapshot \
-          -gpu swiftshader_indirect -memory 3072 -cores 4 -accel off \
+          -gpu swiftshader_indirect -memory 3072 -cores 4 -accel on \
           -port 5554 > /tmp/emulator.log 2>&1 < /dev/null &
         EMU_PID=$!
         EMULATOR_READY=0
