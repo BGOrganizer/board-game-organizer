@@ -25,6 +25,7 @@ test("native acceptance flows are invoked and require real, distinct JUnit repor
   for (const name of flows)
     assert(existsSync(new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url)));
   assert(script.includes('--output "/tmp/maestro-reports/$FLOW.xml"'));
+  assert(script.includes('--test-output-dir "/tmp/maestro-debug/$FLOW"'));
   assert(script.includes("trap persist EXIT"));
   const verification = script.slice(
     script.indexOf("python3 .github/scripts/verify-maestro-reports.py"),
@@ -362,6 +363,41 @@ test("each native flow preserves quoting, failure exit status and partial report
   assert(!failed.stdout.includes("finished"));
   assert.notEqual(run(0, "unrequested-flow").status, 0);
   assert.notEqual(run(0, "01-launch-welcome", "").status, 0);
+});
+
+test("failed native flows capture the assertion driver's hierarchy without reinstalling it", () => {
+  const capture = script.match(/capture\(\) \{([\s\S]*?)\n\}/)?.[1];
+  assert(capture);
+  assert(capture.includes("timeout 60 maestro hierarchy --no-reinstall-driver"));
+  assert(capture.includes("/tmp/maestro-debug/failure-hierarchy.json"));
+  assert(capture.indexOf("screencap") < capture.indexOf("maestro hierarchy"));
+});
+
+test("native command artifacts redact raw and JSON-escaped credentials before upload", () => {
+  const scrubber = script.match(/python3 - <<'PY'\n([\s\S]*?)\nPY/)?.[1];
+  assert(scrubber);
+  const folder = mkdtempSync(join(tmpdir(), "bgo-maestro-redaction-"));
+  const file = join(folder, "fail-logcat.txt");
+  const secret = 'fixture pass"word';
+  const run = () =>
+    spawnSync(process.platform === "win32" ? "python" : "python3", ["-c", scrubber], {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_WORKSPACE: folder, E2E_PASSWORD: secret },
+    });
+  try {
+    writeFileSync(file, `ordinary diagnostic\n${secret}\n${JSON.stringify(secret)}\n`);
+    const result = run();
+    assert.equal(result.status, 0, result.stderr);
+    const text = readFileSync(file, "utf8");
+    assert(text.includes("ordinary diagnostic"));
+    assert.doesNotMatch(text, /fixture pass/);
+    assert.equal((text.match(/\[redacted\]/g) ?? []).length, 2);
+    writeFileSync(file, Buffer.from([255, 254]));
+    assert.notEqual(run().status, 0);
+    assert(!existsSync(file), "Unreadable text must not survive for upload");
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
 });
 
 test("JUnit validation fails closed for absent, fabricated, skipped, failed, or malformed results", () => {

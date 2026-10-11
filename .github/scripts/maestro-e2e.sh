@@ -9,6 +9,33 @@ persist() {
   cp -r /tmp/maestro-reports/. "$GITHUB_WORKSPACE/maestro-reports/" || true
   cp -r /tmp/maestro-debug/. "$GITHUB_WORKSPACE/maestro-debug/" || true
   cp /tmp/fail-screen.png /tmp/ui-fail.xml /tmp/fail-logcat.txt /tmp/maestro-rec.mp4 "$GITHUB_WORKSPACE/" 2>/dev/null || true
+  # Command artifacts may contain resolved inputText credentials. Scrub before upload.
+  python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+root = Path(os.environ["GITHUB_WORKSPACE"])
+secrets = {
+    value for name, value in os.environ.items()
+    if any(word in name for word in ("PASSWORD", "SECRET", "TOKEN", "BYPASS")) and value
+}
+files = [root / "fail-logcat.txt", root / "ui-fail.xml"]
+for folder in (root / "maestro-debug", root / "maestro-reports"):
+    files.extend(folder.rglob("*"))
+for file in files:
+    if not file.is_file() or file.suffix not in (".json", ".log", ".txt", ".xml", ".html", ".csv"):
+        continue
+    try:
+        text = file.read_text(encoding="utf-8")
+        for value in sorted(secrets, key=len, reverse=True):
+            text = text.replace(value, "[redacted]").replace(json.dumps(value)[1:-1], "[redacted]")
+        file.write_text(text, encoding="utf-8")
+    except (UnicodeError, OSError):
+        # An unreadable text artifact must not be uploaded with unsanitized input.
+        file.unlink()
+        raise
+PY
 }
 trap persist EXIT
 stop_recording() {
@@ -18,6 +45,8 @@ stop_recording() {
 }
 capture() {
   adb exec-out screencap -p > /tmp/fail-screen.png || true
+  # Use the same accessibility driver as the assertion; uiautomator may never become idle.
+  timeout 60 maestro hierarchy --no-reinstall-driver > /tmp/maestro-debug/failure-hierarchy.json 2>/tmp/maestro-debug/failure-hierarchy.log || true
   adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true
   stop_recording
   adb pull /sdcard/maestro-rec.mp4 /tmp/maestro-rec.mp4 >/dev/null 2>&1 || true
@@ -133,6 +162,7 @@ case "${1:-}" in
     echo "Starting Maestro flow: $FLOW"
     maestro test --format junit --output "/tmp/maestro-reports/$FLOW.xml" \
       --debug-output /tmp/maestro-debug \
+      --test-output-dir "/tmp/maestro-debug/$FLOW" \
       -e "USERNAME=$E2E_USERNAME" -e "PASSWORD=$E2E_PASSWORD" \
       -e "EMAIL_2=$E2E_TARGET_EMAIL" -e "USERNAME_2=$E2E_TARGET_USERNAME" \
       -e "PASSWORD_2=$E2E_TARGET_PASSWORD" \

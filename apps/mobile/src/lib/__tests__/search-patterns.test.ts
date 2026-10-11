@@ -59,6 +59,30 @@ it("keeps IDs, optional input limits, touch targets and selected accessibility s
   );
 });
 
+it("exposes native help titles and children separately instead of grouping the whole dialog", () => {
+  const text = source("components/common/ui/HelpPopover.tsx");
+  const file = ts.createSourceFile(
+    "HelpPopover.tsx",
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const parts = new Map<string, string>();
+  function visit(node: ts.Node) {
+    if (ts.isJsxOpeningElement(node)) {
+      parts.set(node.tagName.getText(file), node.attributes.getText(file));
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  expect(parts.get("Popover.Content")).toContain("accessible={false}");
+  expect(parts.get("Popover.Title")).toContain('accessibilityRole="header"');
+  expect(parts.get("Popover.Title")).toContain('importantForAccessibility="yes"');
+  expect(text).not.toContain('importantForAccessibility="no-hide-descendants"');
+  expect(text).toContain("{children}");
+});
+
 it("preserves cancellation and invalidation of the verified address in the search change handler", () => {
   const text = source("components/locations/LocationPicker.tsx");
   const file = ts.createSourceFile(

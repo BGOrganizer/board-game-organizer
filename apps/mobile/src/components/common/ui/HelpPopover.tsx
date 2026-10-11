@@ -35,8 +35,16 @@ export function HelpPopover({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Overlay />
-        <Popover.Content presentation="popover" placement="bottom" align={align} width={width}>
-          <Popover.Title>{title}</Popover.Title>
+        <Popover.Content
+          presentation="popover"
+          placement="bottom"
+          align={align}
+          width={width}
+          accessible={false}
+        >
+          <Popover.Title accessibilityRole="header" importantForAccessibility="yes">
+            {title}
+          </Popover.Title>
           {children}
         </Popover.Content>
       </Popover.Portal>
