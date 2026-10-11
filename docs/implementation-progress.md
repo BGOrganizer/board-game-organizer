@@ -629,3 +629,29 @@ replace the actual executed acceptance reports above.
   browser/native acceptance: local E2E primary/target account credentials are absent. Windows WHPX
   is usable, but it cannot verify Linux runner KVM permissions. Full CI/runtime evidence remains
   required; no APK, provider, prerelease or Telegram success is inferred from export/build checks.
+- Actual isolated Chromium checks of the production UI primitives passed at 390px and 1280px:
+  four local SVG styles, reduced motion, 44px hit targets, normal-sized confirmation text,
+  Remove/Ban on one row, Cancel below and unobstructed hit targets. Screenshots and runnable
+  harness remain local under `.git/table-visual-browser-*`; no authentication/API path was bypassed
+  in the application. These component checks do not replace Playwright/Maestro acceptance.
+
+## PR #22 run 38124479841 and local CI follow-up
+
+- Run head `36b209172ab045ec55a45c443b6eec2fd79e30ed` completed **failure**. Initial quality gates,
+  both API deployments, web preview, user provisioning/mirroring, both APK builds and both cleanup
+  jobs succeeded. Publication/Telegram was skipped, not successful.
+- Playwright: 82/83 passed. The group-update assertion used `getByText("Updated Players")`, which
+  matched two elements. It now waits for the detail URL and targets the exact level-one saved
+  group heading; no forced click, timeout increase or suppressed assertion.
+- Maestro failed during the shared emulator boot, before flows or the accelerator probe. `/dev/kvm`
+  existed and the device rule was printed; the old script then exited 1 without a diagnostic.
+  The rule trigger did not await udev settlement before permission checks. The local fix adds
+  `--settle` for this device's events and explicit missing-device/permission diagnostics, retaining
+  readable/writable KVM, `-accel-check`, `-accel on`, process teardown and all flow/report gates.
+- All 41 workflow contracts passed, including execution of the extracted Bash permission guard
+  against simulated delayed-permission and denied-permission cases. This validates ordering and
+  fail-closed behavior, not actual Linux acceleration. Action/flow YAML and shell syntax are checked.
+- These fixes remain signed **local-only** commits on the existing branch. No rerun can verify new
+  source until push is authorized; rerunning the old SHA would not test these fixes. Authenticated
+  local E2E likewise requires explicitly configured primary/target test accounts. Do not recreate
+  accounts to bypass Device Trust, clear historical emulator state or infer full CI acceptance.

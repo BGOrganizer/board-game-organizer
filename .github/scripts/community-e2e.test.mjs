@@ -169,13 +169,79 @@ test("native boot verifies KVM and never falls back to software CPU emulation", 
   for (const guard of ["test -c /dev/kvm", "test -r /dev/kvm", "test -w /dev/kvm"])
     assert(emulator.includes(guard));
   assert(emulator.includes("sudo udevadm control --reload-rules"));
-  assert(emulator.includes("sudo udevadm trigger --name-match=kvm"));
+  assert(emulator.includes("sudo udevadm trigger --name-match=kvm --settle"));
+  assert(emulator.indexOf("--settle") < emulator.indexOf("test -r /dev/kvm"));
+  assert(emulator.includes("runner lacks read/write permission after udev settlement"));
   assert(emulator.includes('"$ANDROID_HOME/emulator/emulator" -accel-check'));
   assert(emulator.indexOf("-accel-check") < emulator.indexOf('nohup "$ANDROID_HOME'));
   assert(emulator.includes("-accel on"));
   assert.doesNotMatch(emulator, /-accel (?:off|auto)/);
   for (const workflow of workflows)
     assert.match(workflow.split("  e2e-maestro:")[1], /runs-on: ubuntu-latest/);
+});
+test("KVM permission checks await the triggered rule and fail before the accelerator probe when denied", () => {
+  const emulator = readFileSync(
+    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    "utf8",
+  );
+  const guards = emulator.match(/# Fail early[^\n]*\n([\s\S]*?)# Keep the same emulator/)[1];
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  for (const allowed of ["0", "1"]) {
+    const result = spawnSync(
+      bash,
+      [
+        "-e",
+        "-o",
+        "pipefail",
+        "-c",
+        `
+      ANDROID_HOME=$(mktemp -d)
+      trap 'rm -rf "$ANDROID_HOME"' EXIT
+      mkdir -p "$ANDROID_HOME/emulator"
+      printf '#!/bin/sh\\n[ "$1" = "-accel-check" ] && echo accelerator-probe\\n' > "$ANDROID_HOME/emulator/emulator"
+      chmod +x "$ANDROID_HOME/emulator/emulator"
+      KVM_READY=0
+      test() {
+        case "$*" in
+          '-c /dev/kvm') return 0 ;;
+          '-r /dev/kvm'|'-w /dev/kvm') [ "$KVM_READY" = 1 ] && [ '${allowed}' = 1 ] ;;
+          *) builtin test "$@" ;;
+        esac
+      }
+      sudo() {
+        case "$*" in
+          'tee /etc/udev/rules.d/99-kvm4all.rules') cat >/dev/null ;;
+          'udevadm control --reload-rules') return 0 ;;
+          'udevadm trigger --name-match=kvm --settle') KVM_READY=1 ;;
+          'udevadm trigger --name-match=kvm') KVM_READY=0 ;;
+          *) return 2 ;;
+        esac
+      }
+      ls() { echo fixture-kvm-mode; }
+      id() { echo fixture-runner-user; }
+      ${guards}
+    `,
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, allowed === "1" ? 0 : 1, result.stderr);
+    if (allowed === "1") assert.match(result.stdout, /accelerator-probe/);
+    else {
+      assert.doesNotMatch(result.stdout, /accelerator-probe/);
+      assert.match(result.stderr, /runner lacks read\/write permission after udev settlement/);
+    }
+  }
+});
+test("group update acceptance targets the saved detail heading instead of duplicate toast/form text", () => {
+  const groups = readFileSync(
+    new URL("../../apps/web/e2e/groups.spec.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(groups, /page\.getByText\("Updated Players"\)/);
+  assert.match(
+    groups,
+    /getByRole\("heading", \{ name: "Updated Players", exact: true, level: 1 \}\)/,
+  );
 });
 test("boot lifetime spans steps, but failed boot kills its process", () => {
   const emulator = readFileSync(

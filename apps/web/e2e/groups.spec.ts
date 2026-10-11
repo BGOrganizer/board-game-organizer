@@ -219,7 +219,10 @@ test("groups: empty, create, edit, archive and failed request", async ({ page })
   await expect(page.getByText("Could not update group")).toBeVisible();
   failUpdate = false;
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Updated Players")).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/groups/${id}$`));
+  await expect(
+    page.getByRole("heading", { name: "Updated Players", exact: true, level: 1 }),
+  ).toBeVisible();
   await expect(page.getByText(/^Private · 1 member$/)).toBeVisible();
   await page.getByRole("button", { name: "Remove from group: E2E Friend" }).click();
   const removeDialog = page.getByRole("dialog", { name: "Remove from group?" });
