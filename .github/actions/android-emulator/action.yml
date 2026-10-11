@@ -26,9 +26,9 @@ runs:
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
         yes | "$SDKMGR" --licenses > /dev/null || true
         "$SDKMGR" "platform-tools" "emulator" > /dev/null
-        # Prefer the lighter ATD image; retain the full-image fallback.
-        "$SDKMGR" "system-images;android-34;aosp_atd;x86_64" > /dev/null 2>&1 \
-          || "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
+        # ATD disables hardware rendering: native UI animations and captured
+        # screenshots/video require the standard AOSP image, even without a window.
+        "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
         ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
 
     - name: 🚀 Create AVD
@@ -36,7 +36,7 @@ runs:
       shell: bash
       run: |
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-        IMG=$(ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null | head -1)
+        IMG=default
         echo "using system image: $IMG"
         mkdir -p "$HOME/.android/avd"
         export ANDROID_AVD_HOME="$HOME/.android/avd"

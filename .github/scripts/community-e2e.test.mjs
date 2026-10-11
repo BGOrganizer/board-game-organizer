@@ -161,6 +161,45 @@ test("emulator survives successful boot only, with guaranteed job teardown", () 
   assert.match(action, /bash -e -o pipefail/);
   assert(script.startsWith("#!/usr/bin/env bash\nset -euo pipefail"));
 });
+test("native UI acceptance installs and selects rendering-enabled AOSP, never ATD", () => {
+  const emulator = readFileSync(
+    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  assert(emulator.includes('"$SDKMGR" "system-images;android-34;default;x86_64"'));
+  assert.doesNotMatch(emulator, /system-images;android-34;aosp_atd/);
+  const avd = emulator.match(
+    /- name: 🚀 Create AVD[\s\S]*?run: \|\n([\s\S]*?)\n {4}- name: 📱 Boot emulator/,
+  )?.[1];
+  assert(avd);
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const result = spawnSync(
+    bash,
+    [
+      "-e",
+      "-o",
+      "pipefail",
+      "-c",
+      `
+      HOME=$(mktemp -d)
+      trap 'rm -rf "$HOME"' EXIT
+      ANDROID_HOME="$HOME/sdk"
+      GITHUB_ENV="$HOME/github-env"
+      # A cached ATD sorts before default: selection must not depend on ls order.
+      mkdir -p "$ANDROID_HOME/system-images/android-34/"{aosp_atd,default}
+      avdmanager() {
+        printf '%s\\n' "$@"
+        if [ "$1" = create ]; then touch "$ANDROID_AVD_HOME/test.ini"; fi
+      }
+      ${avd.replaceAll("/tmp/avd-create.log", '"$HOME/avd-create.log"')}
+    `,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /system-images;android-34;default;x86_64/);
+  assert.doesNotMatch(result.stdout, /aosp_atd/);
+});
 test("native boot verifies KVM and never falls back to software CPU emulation", () => {
   const emulator = readFileSync(
     new URL("../actions/android-emulator/action.yml", import.meta.url),
