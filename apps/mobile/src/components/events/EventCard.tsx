@@ -6,7 +6,6 @@ import { Chip } from "heroui-native/chip";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import {
-  BadgeCheck,
   Building2,
   CalendarDays,
   CalendarRange,
@@ -24,9 +23,11 @@ import { useT } from "@/lib/i18n";
 export function EventCard({
   event,
   presentation = "list",
+  showOrganization = true,
 }: {
   event: EventResponse;
   presentation?: "list" | "detail";
+  showOrganization?: boolean;
 }) {
   const t = useT();
   const { i18n } = useLingui();
@@ -52,37 +53,32 @@ export function EventCard({
       : event.status === "PUBLISHED"
         ? t("Published")
         : t("Cancelled");
-  const OrganizationIcon = event.organizationApproved ? BadgeCheck : Building2;
   const numbers = new Intl.NumberFormat(i18n.locale);
+  const organizationIdentity = showOrganization
+    ? `, ${event.organizationName}${event.organizationApproved ? `, ${t("Approved organization")}` : ""}`
+    : "";
   const content = (
     <>
       <AnimatedDicebearArtwork seed={event.id} variant="planets" />
       <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-        {presentation === "list" ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              paddingRight: 84,
-              minHeight: 24,
-            }}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+            paddingRight: 84,
+            minHeight: 24,
+          }}
+        >
+          <CalendarRange size={16} color={muted} accessible={false} />
+          <Typography
+            className="font-semibold text-foreground"
+            numberOfLines={1}
+            style={{ flex: 1 }}
           >
-            <OrganizationIcon size={16} color={muted} />
-            <Typography
-              accessibilityLabel={
-                event.organizationApproved
-                  ? `${event.organizationName}, ${t("Approved organization")}`
-                  : event.organizationName
-              }
-              className="font-semibold text-foreground"
-              numberOfLines={1}
-              style={{ flex: 1 }}
-            >
-              {event.organizationName}
-            </Typography>
-          </View>
-        ) : null}
+            {event.name}
+          </Typography>
+        </View>
         <Chip
           size="sm"
           color={
@@ -97,20 +93,23 @@ export function EventCard({
         >
           <Chip.Label>{label}</Chip.Label>
         </Chip>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-            paddingRight: presentation === "detail" ? 84 : 0,
-            minHeight: 24,
-          }}
-        >
-          <CalendarRange size={16} color={muted} />
-          <Typography className="font-medium text-foreground" numberOfLines={1} style={{ flex: 1 }}>
-            {event.name}
-          </Typography>
-        </View>
+        {presentation === "list" && showOrganization ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Building2 size={16} color={muted} accessible={false} />
+            <Typography
+              accessibilityLabel={
+                event.organizationApproved
+                  ? `${event.organizationName}, ${t("Approved organization")}`
+                  : event.organizationName
+              }
+              className="font-medium text-foreground"
+              numberOfLines={1}
+              style={{ flex: 1 }}
+            >
+              {event.organizationName}
+            </Typography>
+          </View>
+        ) : null}
         <View
           style={{
             flexDirection: "row",
@@ -187,7 +186,7 @@ export function EventCard({
   ) : (
     <LinkedListCard
       onPress={() => router.push(`/event/${event.id}`)}
-      label={`${t("Open event")}: ${event.name}, ${event.organizationName}${event.organizationApproved ? `, ${t("Approved organization")}` : ""}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t("Tables")}: ${numbers.format(event.tableCount)}, ${t("Confirmed participants")}: ${numbers.format(event.confirmedParticipantCount)}`}
+      label={`${t("Open event")}: ${event.name}${organizationIdentity}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t("Tables")}: ${numbers.format(event.tableCount)}, ${t("Confirmed participants")}: ${numbers.format(event.confirmedParticipantCount)}`}
     >
       {content}
     </LinkedListCard>

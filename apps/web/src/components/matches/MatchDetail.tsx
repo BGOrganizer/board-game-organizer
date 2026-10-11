@@ -54,7 +54,6 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
 import { EventTableEditAction } from "@/components/events/EventTableEditAction";
-import { EventTableHeading } from "@/components/events/EventTableHeading";
 import { EventTableOverview } from "@/components/events/EventTableOverview";
 import { EventTablePlayers } from "@/components/events/EventTablePlayers";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -605,7 +604,11 @@ export function MatchDetail({
               <Tabs.Indicator />
             </Tabs.Tab>
             <Tabs.Tab id={match.status === "TERMINATED" ? "results" : "players"}>
-              {match.status === "TERMINATED" ? t`Results` : t`Players`}
+              {match.status === "TERMINATED"
+                ? t`Results`
+                : match.eventTable
+                  ? t`Seats`
+                  : t`Players`}
               <Tabs.Indicator />
             </Tabs.Tab>
             {canViewLeaderboard && (
@@ -619,17 +622,12 @@ export function MatchDetail({
 
         <Tabs.Panel id="overview">
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              {match.eventTable ? (
-                <EventTableHeading
-                  name={match.eventTable.tableName}
-                  ratingsEnabled={match.eventTable.openSkill}
-                />
-              ) : (
+            {!match.eventTable ? (
+              <div className="flex items-center gap-2">
                 <h1 className="text-xl font-semibold">{match.name}</h1>
-              )}
-              {!match.eventTable && match.status === "PLANNING" && summary && <VoteLegend />}
-            </div>
+                {match.status === "PLANNING" && summary && <VoteLegend />}
+              </div>
+            ) : null}
             {match.eventTable ? (
               <EventTableOverview
                 eventId={match.eventTable.eventId}

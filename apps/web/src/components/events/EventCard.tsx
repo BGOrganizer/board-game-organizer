@@ -4,7 +4,6 @@ import { formatLocationAddress } from "@board-game-organizer/shared";
 import { Chip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
-  BadgeCheck,
   Building2,
   CalendarDays,
   CalendarRange,
@@ -20,9 +19,11 @@ import { ListCard } from "@/components/common/ui/ListCard";
 export function EventCard({
   event,
   presentation = "list",
+  showOrganization = true,
 }: {
   event: EventResponse;
   presentation?: "list" | "detail";
+  showOrganization?: boolean;
 }) {
   const { t, i18n } = useLingui();
   const date = new Intl.DateTimeFormat(i18n.locale, {
@@ -45,21 +46,18 @@ export function EventCard({
       : event.status === "PUBLISHED"
         ? t`Published`
         : t`Cancelled`;
-  const OrganizationIcon = event.organizationApproved ? BadgeCheck : Building2;
   const numbers = new Intl.NumberFormat(i18n.locale);
+  const organizationIdentity = showOrganization
+    ? `, ${event.organizationName}${event.organizationApproved ? `, ${t`Approved organization`}` : ""}`
+    : "";
   const content = (
     <>
       <AnimatedDicebearArtwork seed={event.id} variant="planets" />
       <div className="min-w-0 flex-1 space-y-2">
-        {presentation === "list" ? (
-          <p className="flex min-h-6 items-center gap-1 pr-24 font-semibold">
-            <OrganizationIcon className="size-4 shrink-0 text-default-500" aria-hidden />
-            <span className="truncate">{event.organizationName}</span>
-            {event.organizationApproved ? (
-              <span className="sr-only">{t`Approved organization`}</span>
-            ) : null}
-          </p>
-        ) : null}
+        <p className="flex min-h-6 items-center gap-1 pr-24 font-semibold">
+          <CalendarRange className="size-4 shrink-0 text-default-500" aria-hidden />
+          <span className="truncate">{event.name}</span>
+        </p>
         <Chip
           size="sm"
           color={
@@ -74,12 +72,15 @@ export function EventCard({
         >
           {label}
         </Chip>
-        <p
-          className={`flex items-center gap-1 font-medium ${presentation === "detail" ? "min-h-6 pr-24" : ""}`}
-        >
-          <CalendarRange className="size-4 shrink-0 text-default-500" aria-hidden />
-          <span className="truncate">{event.name}</span>
-        </p>
+        {presentation === "list" && showOrganization ? (
+          <p className="flex items-center gap-1 font-medium">
+            <Building2 className="size-4 shrink-0 text-default-500" aria-hidden />
+            <span className="truncate">{event.organizationName}</span>
+            {event.organizationApproved ? (
+              <span className="sr-only">{t`Approved organization`}</span>
+            ) : null}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-1 text-xs tabular-nums">
           <span className="flex min-w-0 items-center gap-1">
             <CalendarDays className="size-3.5 shrink-0 text-default-500" aria-hidden />
@@ -127,7 +128,7 @@ export function EventCard({
   ) : (
     <LinkedListCard
       href={`/events/${event.id}`}
-      label={`${t`Open event`}: ${event.name}, ${event.organizationName}${event.organizationApproved ? `, ${t`Approved organization`}` : ""}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t`Tables`}: ${numbers.format(event.tableCount)}, ${t`Confirmed participants`}: ${numbers.format(event.confirmedParticipantCount)}`}
+      label={`${t`Open event`}: ${event.name}${organizationIdentity}, ${label}, ${date}, ${start}–${end}, ${event.location.name}, ${formatLocationAddress(event.location.address)}, ${t`Tables`}: ${numbers.format(event.tableCount)}, ${t`Confirmed participants`}: ${numbers.format(event.confirmedParticipantCount)}`}
     >
       {content}
     </LinkedListCard>

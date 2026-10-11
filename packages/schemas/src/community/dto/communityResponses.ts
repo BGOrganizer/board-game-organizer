@@ -60,9 +60,15 @@ export type EventTableResponse = EventTable & {
   reservedCount: number;
   myBooking: EventBooking | null;
   canBook: boolean;
-  demonstrator: { userId: string; username: string | null; avatarUrl: string | null } | null;
+  demonstrator: {
+    userId: string;
+    name?: string | null;
+    username: string | null;
+    avatarUrl: string | null;
+  } | null;
 };
 export type EventBookingResponse = EventBooking & {
+  name?: string | null;
   username: string | null;
   avatarUrl: string | null;
 };

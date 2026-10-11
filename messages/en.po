@@ -1491,6 +1491,148 @@ msgstr "Event location"
 msgid "Event name"
 msgstr "Event name"
 
+#: apps/mobile/src/components/events/EventTable.tsx
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/mobile/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Seats"
+msgstr "Seats"
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Table seats"
+msgstr "Table seats"
+
+#: apps/mobile/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Demonstrator help"
+msgstr "Demonstrator help"
+
+#: apps/mobile/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "The demonstrator explains the game and can record this table's results. This role does not automatically reserve a player seat."
+msgstr "The demonstrator explains the game and can record this table's results. This role does not automatically reserve a player seat."
+
+#: apps/mobile/src/components/events/EventTableHeading.tsx
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Confirmed players."
+msgstr "Confirmed players."
+
+#: apps/mobile/src/components/events/EventTableHeading.tsx
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Maximum seats here; free places in Seats."
+msgstr "Maximum seats here; free places in Seats."
+
+#: apps/mobile/src/components/events/EventTableHeading.tsx
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Reserved places, including pending requests."
+msgstr "Reserved places, including pending requests."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Confirmed participants, counted once across active tables."
+msgstr "Confirmed participants, counted once across active tables."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event tables, excluding cancelled tables."
+msgstr "Event tables, excluding cancelled tables."
+
+#: apps/mobile/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Name"
+msgstr "Name"
+
+#: apps/mobile/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Confirmed members"
+msgstr "Confirmed members"
+
+#: apps/mobile/src/components/organizations/OrganizationMembers.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Member list"
+msgstr "Member list"
+
+#: apps/mobile/src/components/events/EventTableHeading.tsx
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Table name help"
+msgstr "Table name help"
+
+#: apps/mobile/src/components/events/EventTableHeading.tsx
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Users icon: confirmed players. Armchair icon: maximum seats in the summary and free places in Players. Lock icon: reserved places, including pending requests."
+msgstr "Users icon: confirmed players. Armchair icon: maximum seats in the summary and free places in Players. Lock icon: reserved places, including pending requests."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event name help"
+msgstr "Event name help"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Users icon: distinct participants with a confirmed place at an active table. Each participant is counted once. Grid icon: event tables, excluding cancelled tables."
+msgstr "Users icon: distinct participants with a confirmed place at an active table. Each participant is counted once. Grid icon: event tables, excluding cancelled tables."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Number of participants"
+msgstr "Number of participants"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Number of tables"
+msgstr "Number of tables"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event date and time help"
+msgstr "Event date and time help"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event location help"
+msgstr "Event location help"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event participant count help"
+msgstr "Event participant count help"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event table count help"
+msgstr "Event table count help"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Booking deadline help"
+msgstr "Booking deadline help"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "The event date and start/end times are shown in the event's time zone."
+msgstr "The event date and start/end times are shown in the event's time zone."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "The verified venue and address where the event takes place."
+msgstr "The verified venue and address where the event takes place."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Participants with a confirmed place at one or more active tables are counted once. Pending requests are excluded."
+msgstr "Participants with a confirmed place at one or more active tables are counted once. Pending requests are excluded."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "All event tables are counted, except cancelled tables, including tables not yet loaded in the list."
+msgstr "All event tables are counted, except cancelled tables, including tables not yet loaded in the list."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "After this deadline, participation and table changes are closed. Times use the event's time zone."
+msgstr "After this deadline, participation and table changes are closed. Times use the event's time zone."
+
 #: apps/web/src/components/events/EventDetail.tsx
 msgid "Event sections"
 msgstr "Event sections"
@@ -2460,6 +2602,31 @@ msgstr "Organization moderation"
 msgid "Organization name"
 msgstr "Organization name"
 
+#: apps/mobile/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Organization name help"
+msgstr "Organization name help"
+
+#: apps/mobile/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "The organization's name and logo identify it. The badge shows approval or review status. Counts include confirmed members and published events."
+msgstr "The organization's name and logo identify it. The badge shows approval or review status. Counts include confirmed members and published events."
+
+#: apps/mobile/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Organization venue"
+msgstr "Organization venue"
+
+#: apps/mobile/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Organization venue help"
+msgstr "Organization venue help"
+
+#: apps/mobile/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "The organization's verified venue and full address."
+msgstr "The organization's verified venue and full address."
+
 #: apps/web/src/components/organizations/OrganizationDetail.tsx
 msgid "Organization sections"
 msgstr "Organization sections"
@@ -2809,6 +2976,41 @@ msgstr "Reserve a place"
 #: apps/web/src/components/events/EventTablePlayers.tsx
 msgid "Reserved place"
 msgstr "Reserved place"
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Why is this place reserved?"
+msgstr "Why is this place reserved?"
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Why can't I reserve this place?"
+msgstr "Why can't I reserve this place?"
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Bookings for this table are not open. Free places cannot currently be reserved."
+msgstr "Bookings for this table are not open. Free places cannot currently be reserved."
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "You already have a reservation or pending request for this table."
+msgstr "You already have a reservation or pending request for this table."
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Wait for the current action to finish before reserving a place."
+msgstr "Wait for the current action to finish before reserving a place."
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "This place is free, but booking is currently unavailable to you."
+msgstr "This place is free, but booking is currently unavailable to you."
+
+#: apps/mobile/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "This place is already reserved and cannot be selected. It may belong to a pending request or a player whose details are not currently shown."
+msgstr "This place is already reserved and cannot be selected. It may belong to a pending request or a player whose details are not currently shown."
 
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableOverview.tsx

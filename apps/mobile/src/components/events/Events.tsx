@@ -81,7 +81,7 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => <EventCard event={item} />}
+        renderItem={({ item }) => <EventCard event={item} showOrganization={!organizationId} />}
       />
     </ListPage>
   );

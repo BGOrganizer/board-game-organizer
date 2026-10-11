@@ -14,7 +14,7 @@ export function EventTableCard({
   const { t } = useLingui();
   const status =
     table.status === "PLANNING"
-      ? t`Planning`
+      ? null
       : table.status === "CREATED"
         ? t`Confirmed`
         : table.status === "TERMINATED"
@@ -32,16 +32,10 @@ export function EventTableCard({
           gameName={table.gameName}
           imageUrl={table.image}
           demonstrator={table.demonstrator}
+          confirmedCount={table.confirmedCount}
+          reservedCount={table.reservedCount}
         />
-        <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-          <span>
-            {table.confirmedCount}/{table.maxPlayers} {t`confirmed players`}
-          </span>
-          <span>
-            {table.reservedCount} {t`reserved places`}
-          </span>
-          <span>{status}</span>
-        </p>
+        {status ? <p className="text-sm">{status}</p> : null}
       </div>
     </LinkedListCard>
   );

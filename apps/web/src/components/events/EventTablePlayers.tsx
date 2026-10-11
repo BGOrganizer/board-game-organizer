@@ -1,13 +1,24 @@
 "use client";
 import type { MatchDetailResponse } from "@board-game-organizer/schemas";
 import { useEventTableParticipation } from "@board-game-organizer/shared";
-import { Avatar, Button, Skeleton } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Armchair, Check, ClipboardCheck, Clock3, LogOut, UserRoundMinus, X } from "lucide-react";
+import {
+  Armchair,
+  Check,
+  ClipboardCheck,
+  Clock3,
+  LockKeyhole,
+  LogOut,
+  UserRoundMinus,
+  X,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { MatchPlayerLimits } from "@/components/matches/MatchPlayerLimits";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -34,6 +45,14 @@ export function EventTablePlayers({
   });
   const byId = new Map(flow.live.map((row) => [row.id, row]));
   const limits = frozen?.match ?? flow.table;
+  const unavailableExplanation =
+    flow.joinUnavailableReason === "closed"
+      ? t`Bookings for this table are not open. Free places cannot currently be reserved.`
+      : flow.joinUnavailableReason === "already-booked"
+        ? t`You already have a reservation or pending request for this table.`
+        : flow.joinUnavailableReason === "busy"
+          ? t`Wait for the current action to finish before reserving a place.`
+          : t`This place is free, but booking is currently unavailable to you.`;
   const dialog = flow.dialog;
   const mode = dialog?.kind === "join" ? "join" : dialog?.mode;
   const run = (action?: Parameters<typeof flow.submit>[0]) => {
@@ -60,9 +79,15 @@ export function EventTablePlayers({
             ? t`This player's reserved place will become available again.`
             : t`Your reserved place will become available again.`;
   return (
-    <section aria-label={t`Players`} className="space-y-4">
+    <section aria-label={t`Seats`} className="space-y-4">
       {!flow.visitor && limits ? (
         <MatchPlayerLimits minPlayers={limits.minPlayers} maxPlayers={limits.maxPlayers} />
+      ) : null}
+      {!flow.visitor ? (
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Armchair className="size-4 text-default-500" aria-hidden />
+          {t`Table seats`}
+        </h2>
       ) : null}
       {flow.loading ? <Skeleton className="h-48 w-full rounded-xl" /> : null}
       {flow.error ? (
@@ -94,30 +119,26 @@ export function EventTablePlayers({
               >
                 {person ? (
                   <>
-                    <div className="relative shrink-0">
-                      <Avatar size="sm">
-                        <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
-                        <Avatar.Fallback>{name.slice(0, 2)}</Avatar.Fallback>
-                      </Avatar>
+                    <UserIdentity
+                      name={name}
+                      avatarUrl={person.avatarUrl}
+                      secondary={person.secondary ?? t`Username unavailable`}
+                      badge={
+                        booking?.status === "PENDING" ? (
+                          <Clock3
+                            role="img"
+                            aria-label={t`Pending`}
+                            className="absolute -right-1 -bottom-1 size-4 rounded-full bg-warning text-warning-foreground"
+                          />
+                        ) : null
+                      }
+                    >
                       {booking?.status === "PENDING" ? (
-                        <Clock3
-                          role="img"
-                          aria-label={t`Pending`}
-                          className="absolute -right-1 -bottom-1 size-4 rounded-full bg-warning text-warning-foreground"
-                        />
-                      ) : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{name}</p>
-                      {person.secondary ? (
-                        <p className="truncate text-sm text-default-500">{person.secondary}</p>
-                      ) : null}
-                      {booking?.status === "PENDING" ? (
-                        <p className="text-sm text-default-500">
+                        <span className="block text-sm text-default-500">
                           {booking.kind === "REQUEST" ? t`Awaiting admin approval` : t`Invited`}
-                        </p>
+                        </span>
                       ) : null}
-                    </div>
+                    </UserIdentity>
                     {booking && flow.canManage(booking) ? (
                       <Button
                         isIconOnly
@@ -173,22 +194,37 @@ export function EventTablePlayers({
                     ) : null}
                     {renderActions?.(person.userId)}
                   </>
-                ) : seat.reserved ? (
-                  <>
-                    <Armchair aria-hidden className="size-5 text-default-500" />
-                    <span className="text-default-500">{t`Reserved place`}</span>
-                  </>
                 ) : (
-                  <Button
-                    variant="ghost"
-                    className="min-h-11 w-full justify-start text-default-500"
-                    aria-label={`${t`Reserve a place`}: ${seat.index + 1}`}
-                    isDisabled={!flow.canJoin}
-                    onPress={() => flow.openJoin(seat.index)}
-                  >
-                    <Armchair aria-hidden className="size-5" />
-                    {t`Empty place`}
-                  </Button>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      className="min-h-11 min-w-0 flex-1 justify-start text-default-500"
+                      aria-label={`${seat.reserved ? t`Reserved place` : t`Reserve a place`}: ${seat.index + 1}`}
+                      isDisabled={seat.reserved || !flow.canJoin}
+                      onPress={() => flow.openJoin(seat.index)}
+                    >
+                      {seat.reserved ? (
+                        <LockKeyhole aria-hidden className="size-5" />
+                      ) : (
+                        <Armchair aria-hidden className="size-5" />
+                      )}
+                      {seat.reserved ? t`Reserved place` : t`Empty place`}
+                    </Button>
+                    {seat.reserved || !flow.canJoin ? (
+                      <HelpPopover
+                        label={`${seat.reserved ? t`Why is this place reserved?` : t`Why can't I reserve this place?`}: ${seat.index + 1}`}
+                        title={seat.reserved ? t`Reserved place` : t`Empty place`}
+                        placement="bottom end"
+                        className="max-w-xs"
+                      >
+                        <p>
+                          {seat.reserved
+                            ? t`This place is already reserved and cannot be selected. It may belong to a pending request or a player whose details are not currently shown.`
+                            : unavailableExplanation}
+                        </p>
+                      </HelpPopover>
+                    ) : null}
+                  </div>
                 )}
               </GroupedRow>
             );

@@ -68,6 +68,7 @@ export type ListMatchesResponse = z.infer<typeof listMatchesResponseSchema>;
 export const matchPlayerSchema = z.object({
   id: z.string(),
   name: z.string(),
+  username: z.string().nullable().optional(),
   email: z.string().nullable(),
   avatarUrl: z.string().nullable(),
 });

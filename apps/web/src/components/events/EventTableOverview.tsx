@@ -3,44 +3,21 @@ import type { MatchDetailResponse } from "@board-game-organizer/schemas";
 import { matchParticipants, useEventTableContext } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarDays, Gamepad2, type LucideIcon, MapPin, Presentation } from "lucide-react";
-import type { ReactNode } from "react";
+import {
+  Armchair,
+  CalendarDays,
+  Gamepad2,
+  LockKeyhole,
+  Presentation,
+  UsersRound,
+} from "lucide-react";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
-import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { InfoSection as TableSection } from "@/components/common/ui/InfoSection";
+import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { GameListRow } from "@/components/games/GameListRow";
-import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-
-function TableSection({
-  label,
-  helpLabel,
-  help,
-  icon: Icon,
-  children,
-}: {
-  label: string;
-  helpLabel: string;
-  help: string;
-  icon: LucideIcon;
-  children: ReactNode;
-}) {
-  return (
-    <section className="space-y-2" aria-label={label}>
-      <div className="flex items-center gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Icon className="size-4" aria-hidden />
-          {label}
-        </h2>
-        <HelpPopover label={helpLabel} title={label}>
-          {help}
-        </HelpPopover>
-      </div>
-      <GroupedList>{children}</GroupedList>
-    </section>
-  );
-}
+import { EventTableHeading } from "./EventTableHeading";
 
 export function EventTableOverview({
   eventId,
@@ -58,7 +35,6 @@ export function EventTableOverview({
   const end = table?.endsAt ?? match?.match.eventTable?.endsAt;
   const game = match?.games.find((game) => game.id === match.match.selectedGameId);
   const gameName = table?.gameName ?? game?.name;
-  const location = event?.location ?? match?.match.locations?.[0];
   const frozen =
     match && match.match.status !== "PLANNING" ? matchParticipants(match).length : undefined;
   const confirmed = table?.confirmedCount ?? frozen;
@@ -66,6 +42,33 @@ export function EventTableOverview({
   const max = table?.maxPlayers ?? match?.match.maxPlayers;
   return (
     <div className="space-y-4">
+      <div className="space-y-2">
+        <EventTableHeading
+          name={table?.name ?? match?.match.eventTable?.tableName ?? t`Table details`}
+          ratingsEnabled={table?.openSkill ?? match?.match.eventTable?.openSkill ?? false}
+        />
+        {confirmed !== undefined && max !== undefined && reserved !== undefined ? (
+          <div className="flex items-center gap-4 text-sm">
+            <span className="inline-flex items-center gap-1.5">
+              <UsersRound className="size-4 text-default-500" aria-hidden />
+              <span className="sr-only">{t`confirmed players`}: </span>
+              {confirmed}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Armchair className="size-4 text-default-500" aria-hidden />
+              <span className="sr-only">{t`Maximum players`}: </span>
+              {max}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <LockKeyhole className="size-4 text-default-500" aria-hidden />
+              <span className="sr-only">{t`reserved places`}: </span>
+              {reserved}
+            </span>
+          </div>
+        ) : (
+          <Skeleton className="h-5 w-64 rounded" />
+        )}
+      </div>
       {context.eventQuery.error || context.tableQuery.error ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load table`}</p>
@@ -93,20 +96,6 @@ export function EventTableOverview({
         </GroupedRow>
       </TableSection>
       <TableSection
-        label={t`Location`}
-        helpLabel={t`Table location help`}
-        help={t`This table uses the event's verified venue and address. There is no location voting.`}
-        icon={MapPin}
-      >
-        {location ? (
-          <LocationListRow name={location.name} address={location.address} />
-        ) : (
-          <GroupedRow>
-            <Skeleton className="h-10 w-64 rounded" />
-          </GroupedRow>
-        )}
-      </TableSection>
-      <TableSection
         label={t`Board games`}
         helpLabel={t`Table game help`}
         help={t`This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings.`}
@@ -126,18 +115,23 @@ export function EventTableOverview({
           </GroupedRow>
         )}
       </TableSection>
-      {confirmed !== undefined && reserved !== undefined ? (
-        <p className="text-sm text-default-500">
-          {confirmed}/{max} {t`confirmed players`} · {reserved} {t`reserved places`}
-        </p>
-      ) : (
-        <Skeleton className="h-5 w-64 rounded" />
-      )}
       {table?.demonstrator ? (
-        <p className="flex items-center gap-2 text-sm">
-          <Presentation className="size-4 text-default-500" aria-hidden />
-          {t`Demonstrator`}: {table.demonstrator.username ?? t`Username unavailable`}
-        </p>
+        <TableSection
+          label={t`Demonstrator`}
+          helpLabel={t`Demonstrator help`}
+          help={t`The demonstrator explains the game and can record this table's results. This role does not automatically reserve a player seat.`}
+          icon={Presentation}
+        >
+          <GroupedRow>
+            <UserIdentity
+              name={
+                table.demonstrator.name || table.demonstrator.username || t`Username unavailable`
+              }
+              secondary={table.demonstrator.username ?? t`Username unavailable`}
+              avatarUrl={table.demonstrator.avatarUrl}
+            />
+          </GroupedRow>
+        </TableSection>
       ) : null}
       {!context.open && event ? (
         <p className="text-sm text-default-500">{t`Bookings are closed. Results can still be recorded.`}</p>

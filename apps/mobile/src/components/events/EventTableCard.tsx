@@ -17,7 +17,7 @@ export function EventTableCard({
   const router = useRouter();
   const status =
     table.status === "PLANNING"
-      ? t("Planning")
+      ? null
       : table.status === "CREATED"
         ? t("Confirmed")
         : table.status === "TERMINATED"
@@ -40,16 +40,10 @@ export function EventTableCard({
           gameName={table.gameName}
           imageUrl={table.image}
           demonstrator={table.demonstrator}
+          confirmedCount={table.confirmedCount}
+          reservedCount={table.reservedCount}
         />
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          <Typography className="text-sm text-foreground">
-            {table.confirmedCount}/{table.maxPlayers} {t("confirmed players")}
-          </Typography>
-          <Typography className="text-sm text-foreground">
-            {table.reservedCount} {t("reserved places")}
-          </Typography>
-          <Typography className="text-sm text-foreground">{status}</Typography>
-        </View>
+        {status ? <Typography className="text-sm text-foreground">{status}</Typography> : null}
       </View>
     </LinkedListCard>
   );

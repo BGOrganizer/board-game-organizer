@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
+import { Typography } from "heroui-native/text";
 import {
   Ban,
   Check,
@@ -28,6 +29,7 @@ import {
   X,
 } from "lucide-react-native";
 import { useState } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
@@ -119,23 +121,31 @@ export function OrganizationMembers({ organization }: { organization: Organizati
         error={t("Could not load organization members")}
         skeleton={<Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />}
         header={
-          organization.role === "admin" ? (
-            <AddUserRow
-              label={t("Invite friends")}
-              description={
-                !organization.approved
-                  ? t("Invitations require an approved organization.")
-                  : undefined
-              }
-              isDisabled={!organization.approved || busy || !canViewPeople}
-              onPress={() =>
-                router.push({
-                  pathname: "/organization/invite",
-                  params: { organizationId: organization.id },
-                })
-              }
-            />
-          ) : null
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <UsersRound size={18} color={muted} accessible={false} />
+              <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                {t("Member list")}
+              </Typography>
+            </View>
+            {organization.role === "admin" ? (
+              <AddUserRow
+                label={t("Invite friends")}
+                description={
+                  !organization.approved
+                    ? t("Invitations require an approved organization.")
+                    : undefined
+                }
+                isDisabled={!organization.approved || busy || !canViewPeople}
+                onPress={() =>
+                  router.push({
+                    pathname: "/organization/invite",
+                    params: { organizationId: organization.id },
+                  })
+                }
+              />
+            ) : null}
+          </View>
         }
         renderRow={(person) => {
           const name = person.name ?? person.username ?? t("Username unavailable");

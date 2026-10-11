@@ -8,7 +8,6 @@ import { useState } from "react";
 import { MatchDetail } from "@/components/matches/MatchDetail";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableEditAction } from "./EventTableEditAction";
-import { EventTableHeading } from "./EventTableHeading";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTablePlayers } from "./EventTablePlayers";
 
@@ -77,14 +76,13 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
               <Tabs.Indicator />
             </Tabs.Tab>
             <Tabs.Tab id="players">
-              {t`Players`}
+              {t`Seats`}
               <Tabs.Indicator />
             </Tabs.Tab>
           </Tabs.List>
         </Tabs.ListContainer>
         <Tabs.Panel id="overview">
           <div className="space-y-4">
-            <EventTableHeading name={table.name} ratingsEnabled={table.openSkill} />
             <EventTableOverview eventId={eventId} tableId={tableId} />
           </div>
         </Tabs.Panel>

@@ -61,13 +61,14 @@ export function useEventTableParticipation(
         id: p.id,
         userId: p.id,
         name: p.name,
-        secondary: p.email,
+        secondary: p.username,
         avatarUrl: p.avatarUrl,
       }))
     : live.map((b) => ({
         id: b.id,
         userId: b.userId,
-        name: b.username ?? "",
+        name: b.name || b.username || "",
+        secondary: b.username,
         avatarUrl: b.avatarUrl,
       }));
   const maxPlayers = o.enabled === false ? 0 : (frozen?.match.maxPlayers ?? table?.maxPlayers ?? 0);
@@ -81,6 +82,15 @@ export function useEventTableParticipation(
   const canJoin = Boolean(
     o.enabled !== false && open && table?.canBook && !actions.busy && !visitor,
   );
+  const joinUnavailableReason: "closed" | "already-booked" | "busy" | "unavailable" | null = canJoin
+    ? null
+    : !windowOpen || table?.status !== "PLANNING" || frozen
+      ? "closed"
+      : mine
+        ? "already-booked"
+        : actions.busy
+          ? "busy"
+          : "unavailable";
   const admin = event?.role === "admin";
   const managed =
     dialog?.kind === "booking"
@@ -177,6 +187,7 @@ export function useEventTableParticipation(
     admin,
     busy: actions.busy,
     canJoin,
+    joinUnavailableReason,
     canManage,
     canLeave,
     canRespond,

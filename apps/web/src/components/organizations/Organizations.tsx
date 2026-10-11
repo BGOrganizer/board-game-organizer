@@ -9,7 +9,16 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Building2, Check, Crown, Mail, Send, UsersRound } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  Check,
+  Crown,
+  Mail,
+  MapPin,
+  Send,
+  UsersRound,
+} from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListPage } from "@/components/common/ui/ListPage";
@@ -17,6 +26,7 @@ import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { OrganizationArtwork } from "./OrganizationArtwork";
+import { OrganizationStatusBadge } from "./OrganizationStatusBadge";
 
 export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" }) {
   const { t } = useLingui();
@@ -69,21 +79,27 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
         >
           <OrganizationArtwork organization={organization} />
           <span className="min-w-0 flex-1 space-y-1">
-            <span className="block truncate font-semibold">{organization.name}</span>
-            <span className="block truncate text-sm text-default-500">
-              {formatLocationAddress(organization.location.address)}
+            <span className="flex items-center gap-1 font-semibold">
+              <Building2 className="size-4 shrink-0 text-default-500" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">{organization.name}</span>
+              <span className="shrink-0">
+                <OrganizationStatusBadge organization={organization} />
+              </span>
+            </span>
+            <span className="flex items-center gap-2 text-sm text-default-500">
+              <MapPin className="size-4 shrink-0" aria-hidden />
+              <span className="min-w-0 flex-1 break-words">
+                {formatLocationAddress(organization.location.address)}
+              </span>
             </span>
             <span className="flex items-center gap-1 text-sm text-default-500">
-              <UsersRound className="size-4" />
+              <UsersRound className="size-4" aria-hidden />
               {organization.memberCount} {t`members`}
             </span>
-            {organization.status === "PENDING" || organization.status === "MODIFIED" ? (
-              <span className="block text-xs text-warning">
-                {organization.reviewStatus === "REJECTED"
-                  ? t`Changes rejected`
-                  : t`Awaiting review`}
-              </span>
-            ) : null}
+            <span className="flex items-center gap-1 text-sm text-default-500">
+              <CalendarDays className="size-4" aria-hidden />
+              {organization.publishedEventCount} {t`Published events`}
+            </span>
             {organization.role === "invited" ? (
               <span className="block text-xs text-warning">{t`Invitation received`}</span>
             ) : organization.role === "requested" ? (

@@ -56,7 +56,6 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { UserActionsSheet } from "@/components/common/ui/UserActionsSheet";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { EventTableEditAction } from "@/components/events/EventTableEditAction";
-import { EventTableHeading } from "@/components/events/EventTableHeading";
 import { EventTableOverview } from "@/components/events/EventTableOverview";
 import { EventTablePlayers } from "@/components/events/EventTablePlayers";
 import { GameListRow } from "@/components/games/GameListRow";
@@ -451,7 +450,13 @@ export function MatchDetail({
               : undefined,
         }}
       />
-      <DetailsContainer testID="match-detail-scroll" style={{ flex: 1 }}>
+      <DetailsContainer
+        testID="match-detail-scroll"
+        style={{
+          flex: 1,
+          paddingTop: match?.eventTable && activeTab === "players" ? 20 : undefined,
+        }}
+      >
         {matches.detail.isPending && (
           <View style={{ gap: 12, width: "100%" }}>
             {matches.summary ? (
@@ -814,7 +819,13 @@ function MatchDetailContent({
                   : undefined
             }
           >
-            <Tabs.Label>{match.status === "TERMINATED" ? t("Results") : t("Players")}</Tabs.Label>
+            <Tabs.Label>
+              {match.status === "TERMINATED"
+                ? t("Results")
+                : match.eventTable
+                  ? t("Seats")
+                  : t("Players")}
+            </Tabs.Label>
           </Tabs.Trigger>
           {canViewLeaderboard && (
             <Tabs.Trigger value="leaderboard" style={{ flex: 1 }}>
@@ -826,17 +837,11 @@ function MatchDetailContent({
         <Tabs.Content value="overview">
           <View style={{ gap: 12 }}>
             {match.eventTable ? (
-              <>
-                <EventTableHeading
-                  name={match.eventTable.tableName}
-                  ratingsEnabled={match.eventTable.openSkill}
-                />
-                <EventTableOverview
-                  eventId={match.eventTable.eventId}
-                  tableId={match.eventTable.tableId}
-                  match={data}
-                />
-              </>
+              <EventTableOverview
+                eventId={match.eventTable.eventId}
+                tableId={match.eventTable.tableId}
+                match={data}
+              />
             ) : (
               <>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

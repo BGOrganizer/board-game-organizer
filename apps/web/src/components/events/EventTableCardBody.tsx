@@ -1,7 +1,16 @@
 "use client";
 import type { EventDraftTable } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
-import { Clock3, Dices, LayoutGrid, Presentation, Trophy, UsersRound } from "lucide-react";
+import {
+  Armchair,
+  Clock3,
+  Dices,
+  LayoutGrid,
+  LockKeyhole,
+  Presentation,
+  Trophy,
+  UsersRound,
+} from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 
 export function EventTableCardBody({
@@ -9,12 +18,16 @@ export function EventTableCardBody({
   timeZone,
   gameName,
   demonstrator,
+  confirmedCount,
+  reservedCount,
 }: {
   table: EventDraftTable["input"];
   timeZone: string;
   gameName: string;
   imageUrl?: string | null;
   demonstrator?: { username?: string | null; name?: string | null } | null;
+  confirmedCount?: number;
+  reservedCount?: number;
 }) {
   const { t, i18n } = useLingui();
   const dates = new Intl.DateTimeFormat(i18n.locale, { timeStyle: "short", timeZone });
@@ -22,15 +35,14 @@ export function EventTableCardBody({
     { Icon: Clock3, label: t`Start time`, value: dates.format(new Date(table.startsAt)) },
     { Icon: Clock3, label: t`End time`, value: dates.format(new Date(table.endsAt)) },
     { Icon: Dices, label: t`Board games`, value: gameName },
-    { Icon: UsersRound, label: t`Players`, value: `${table.minPlayers}–${table.maxPlayers}` },
-    ...(demonstrator
-      ? [
-          {
-            Icon: Presentation,
-            label: t`Demonstrator`,
-            value: demonstrator.username ?? demonstrator.name ?? t`Username unavailable`,
-          },
-        ]
+  ];
+  const playerFields = [
+    { Icon: Armchair, label: t`Players`, value: `${table.minPlayers}–${table.maxPlayers}` },
+    ...(confirmedCount !== undefined
+      ? [{ Icon: UsersRound, label: t`confirmed players`, value: String(confirmedCount) }]
+      : []),
+    ...(reservedCount !== undefined
+      ? [{ Icon: LockKeyhole, label: t`reserved places`, value: String(reservedCount) }]
       : []),
   ];
   return (
@@ -59,6 +71,24 @@ export function EventTableCardBody({
             <span className="min-w-0 flex-1 break-words">{value}</span>
           </p>
         ))}
+        <div className="flex items-center gap-3 text-sm">
+          {playerFields.map(({ Icon, label, value }) => (
+            <span key={label} className="inline-flex items-center gap-1.5">
+              <Icon className="size-4 shrink-0 text-default-500" aria-hidden />
+              <span className="sr-only">{label}: </span>
+              {value}
+            </span>
+          ))}
+        </div>
+        {demonstrator ? (
+          <p className="flex items-start gap-2 text-sm">
+            <Presentation className="size-4 shrink-0 text-default-500" aria-hidden />
+            <span className="sr-only">{t`Demonstrator`}: </span>
+            <span className="min-w-0 flex-1 break-words">
+              {demonstrator.username ?? demonstrator.name ?? t`Username unavailable`}
+            </span>
+          </p>
+        ) : null}
       </div>
     </div>
   );

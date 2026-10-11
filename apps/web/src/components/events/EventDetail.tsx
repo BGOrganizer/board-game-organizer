@@ -17,12 +17,12 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
-import { EventCard } from "./EventCard";
+import { EventOverview } from "./EventOverview";
 import { EventTableCard } from "./EventTableCard";
 
 export function EventDetail({ eventId }: { eventId: string }) {
   const router = useRouter();
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const options = useCommunityApi();
   const detail = useEvent(options, eventId);
   const event = communityAccessDenied(detail.error) ? undefined : detail.data;
@@ -91,21 +91,16 @@ export function EventDetail({ eventId }: { eventId: string }) {
           </Tabs.List>
         </Tabs.ListContainer>
         <Tabs.Panel id="details" className="space-y-4 pt-4">
-          <EventCard event={event} presentation="detail" />
-          <p className="text-sm">
-            {t`Booking deadline`}:{" "}
-            {new Intl.DateTimeFormat(i18n.locale, {
-              dateStyle: "medium",
-              timeStyle: "short",
-              timeZone: event.timeZone,
-            }).format(new Date(event.bookingClosesAt))}{" "}
-            · {event.timeZone}
-          </p>
+          <EventOverview event={event} />
           {!open && event.status === "PUBLISHED" ? (
             <p>{t`Bookings are closed. Results can still be recorded.`}</p>
           ) : null}
         </Tabs.Panel>
         <Tabs.Panel id="tables" className="space-y-3 pt-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <LayoutGrid className="size-4 text-default-500" aria-hidden />
+            {t`Table list`}
+          </h2>
           {tables.isPending && !tables.items.length ? (
             <Skeleton className="h-24 w-full rounded-xl" />
           ) : null}

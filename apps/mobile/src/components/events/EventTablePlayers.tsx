@@ -9,6 +9,7 @@ import {
   Check,
   ClipboardCheck,
   Clock3,
+  LockKeyhole,
   LogOut,
   UserRoundMinus,
   X,
@@ -17,6 +18,7 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { UserList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { MatchPlayerLimits } from "@/components/matches/MatchPlayerLimits";
@@ -44,6 +46,14 @@ export function EventTablePlayers({
   const dangerForeground = useThemeColor("danger-foreground");
   const byId = new Map(flow.live.map((row) => [row.id, row]));
   const limits = frozen?.match ?? flow.table;
+  const unavailableExplanation =
+    flow.joinUnavailableReason === "closed"
+      ? t("Bookings for this table are not open. Free places cannot currently be reserved.")
+      : flow.joinUnavailableReason === "already-booked"
+        ? t("You already have a reservation or pending request for this table.")
+        : flow.joinUnavailableReason === "busy"
+          ? t("Wait for the current action to finish before reserving a place.")
+          : t("This place is free, but booking is currently unavailable to you.");
   const dialog = flow.dialog;
   const mode = dialog?.kind === "join" ? "join" : dialog?.mode;
   const run = (action?: Parameters<typeof flow.submit>[0]) => {
@@ -108,34 +118,56 @@ export function EventTablePlayers({
         error={t("Could not load table players.")}
         skeleton={<Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />}
         header={
-          limits ? (
-            <MatchPlayerLimits minPlayers={limits.minPlayers} maxPlayers={limits.maxPlayers} />
-          ) : undefined
+          <View style={{ gap: 8 }}>
+            {limits ? (
+              <MatchPlayerLimits minPlayers={limits.minPlayers} maxPlayers={limits.maxPlayers} />
+            ) : null}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Armchair size={18} color={muted} accessible={false} />
+              <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                {t("Table seats")}
+              </Typography>
+            </View>
+          </View>
         }
         renderRow={(seat) => {
           const person = seat.user;
           if (!person)
             return (
               <GroupedRow>
-                {seat.reserved ? (
-                  <View
-                    style={{ flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44 }}
-                  >
-                    <Armchair size={20} color={muted} />
-                    <Typography className="text-muted">{t("Reserved place")}</Typography>
-                  </View>
-                ) : (
+                <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <Button
                     variant="ghost"
                     style={{ flex: 1, minHeight: 44, justifyContent: "flex-start" }}
-                    isDisabled={!flow.canJoin}
-                    accessibilityLabel={`${t("Reserve a place")}: ${seat.index + 1}`}
+                    isDisabled={seat.reserved || !flow.canJoin}
+                    accessibilityLabel={`${seat.reserved ? t("Reserved place") : t("Reserve a place")}: ${seat.index + 1}`}
                     onPress={() => flow.openJoin(seat.index)}
                   >
-                    <Armchair size={20} color={muted} />
-                    <Button.Label className="text-muted">{t("Empty place")}</Button.Label>
+                    {seat.reserved ? (
+                      <LockKeyhole size={20} color={muted} />
+                    ) : (
+                      <Armchair size={20} color={muted} />
+                    )}
+                    <Button.Label className="text-muted">
+                      {seat.reserved ? t("Reserved place") : t("Empty place")}
+                    </Button.Label>
                   </Button>
-                )}
+                  {seat.reserved || !flow.canJoin ? (
+                    <HelpPopover
+                      label={`${seat.reserved ? t("Why is this place reserved?") : t("Why can't I reserve this place?")}: ${seat.index + 1}`}
+                      title={seat.reserved ? t("Reserved place") : t("Empty place")}
+                      align="end"
+                    >
+                      <Typography className="text-foreground">
+                        {seat.reserved
+                          ? t(
+                              "This place is already reserved and cannot be selected. It may belong to a pending request or a player whose details are not currently shown.",
+                            )
+                          : unavailableExplanation}
+                      </Typography>
+                    </HelpPopover>
+                  ) : null}
+                </View>
               </GroupedRow>
             );
           const own = person.userId === options.userId;
@@ -145,7 +177,7 @@ export function EventTablePlayers({
             <UserListRow
               name={name}
               avatarUrl={person.avatarUrl}
-              secondary={person.secondary}
+              secondary={person.secondary ?? t("Username unavailable")}
               badge={
                 booking?.status === "PENDING"
                   ? { icon: Clock3, label: t("Pending"), color: "warning" }

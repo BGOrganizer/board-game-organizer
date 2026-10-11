@@ -39,7 +39,7 @@ export function Events({ organizationId = "" }: { organizationId?: string }) {
       />
       {list.isPending ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
       {(communityAccessDenied(list.error) ? [] : list.items).map((event) => (
-        <EventCard key={event.id} event={event} />
+        <EventCard key={event.id} event={event} showOrganization={!organizationId} />
       ))}
       {list.isError ? (
         <div role="alert">

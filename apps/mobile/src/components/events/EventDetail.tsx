@@ -5,7 +5,6 @@ import {
   useEventTables,
   useEventWindow,
 } from "@board-game-organizer/shared";
-import { useLingui } from "@lingui/react";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -23,12 +22,11 @@ import { TabBar } from "@/components/common/ui/TabBar";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
-import { EventCard } from "./EventCard";
+import { EventOverview } from "./EventOverview";
 import { EventTableCard } from "./EventTableCard";
 
 export function EventDetail({ eventId }: { eventId: string }) {
   const t = useT();
-  const { i18n } = useLingui();
   const [muted, onAccent, danger] = useThemeColor(["muted", "accent-foreground", "danger"]);
   const o = useCommunityApi();
   const router = useRouter();
@@ -70,7 +68,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: event.name, headerRight }} />
       <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <TabBar>
             <Tabs.Trigger value="details" testID="event-tab-details" style={{ flex: 1 }}>
               <Tabs.Label>{t("Details")}</Tabs.Label>
@@ -84,16 +82,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
           <ScreenScrollView
             contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: layout.paddingBottom }}
           >
-            <EventCard event={event} presentation="detail" />
-            <Typography className="text-sm text-foreground">
-              {t("Booking deadline")}:{" "}
-              {new Intl.DateTimeFormat(i18n.locale, {
-                dateStyle: "medium",
-                timeStyle: "short",
-                timeZone: event.timeZone,
-              }).format(new Date(event.bookingClosesAt))}{" "}
-              · {event.timeZone}
-            </Typography>
+            <EventOverview event={event} />
             {!open && event.status === "PUBLISHED" ? (
               <Typography className="text-foreground">
                 {t("Bookings are closed. Results can still be recorded.")}
@@ -124,9 +113,17 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 void tables.fetchNextPage();
             }}
             ListHeaderComponent={
-              tables.isPending && !tables.items.length ? (
-                <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
-              ) : null
+              <View style={{ gap: 12 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <LayoutGrid size={18} color={muted} accessible={false} />
+                  <Typography accessibilityRole="header" className="font-semibold text-foreground">
+                    {t("Table list")}
+                  </Typography>
+                </View>
+                {tables.isPending && !tables.items.length ? (
+                  <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
+                ) : null}
+              </View>
             }
             ListEmptyComponent={
               !tables.isPending && !tables.isError ? (

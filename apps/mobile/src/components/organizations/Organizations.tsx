@@ -10,18 +10,28 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Building2, Check, Crown, Mail, Plus, Send, UsersRound } from "lucide-react-native";
+import {
+  Building2,
+  CalendarDays,
+  Check,
+  Crown,
+  Mail,
+  MapPin,
+  Plus,
+  Send,
+  UsersRound,
+} from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
-import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { OrganizationArtwork } from "./OrganizationArtwork";
+import { OrganizationStatusBadge } from "./OrganizationStatusBadge";
 
 export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" }) {
   const options = useCommunityApi();
@@ -101,23 +111,42 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
             }
           >
             <OrganizationArtwork organization={organization} />
-            <ListCardBody title={organization.name}>
-              <Typography numberOfLines={2} className="text-muted" style={{ fontSize: 13 }}>
-                {formatLocationAddress(organization.location.address)}
-              </Typography>
+            <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Building2 size={16} color={foreground} accessible={false} />
+                <Typography
+                  numberOfLines={1}
+                  className="font-semibold text-foreground"
+                  style={{ flex: 1 }}
+                >
+                  {organization.name}
+                </Typography>
+                <View style={{ flexShrink: 0 }}>
+                  <OrganizationStatusBadge organization={organization} />
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <MapPin size={16} color={foreground} accessible={false} />
+                <Typography
+                  numberOfLines={2}
+                  className="text-muted"
+                  style={{ flex: 1, fontSize: 13 }}
+                >
+                  {formatLocationAddress(organization.location.address)}
+                </Typography>
+              </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <UsersRound size={14} color={foreground} />
                 <Typography className="text-muted" style={{ fontSize: 13 }}>
                   {organization.memberCount} {t("members")}
                 </Typography>
               </View>
-              {organization.status === "PENDING" || organization.status === "MODIFIED" ? (
-                <Typography className="text-warning" style={{ fontSize: 12 }}>
-                  {organization.reviewStatus === "REJECTED"
-                    ? t("Changes rejected")
-                    : t("Awaiting review")}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <CalendarDays size={14} color={foreground} accessible={false} />
+                <Typography className="text-muted" style={{ fontSize: 13 }}>
+                  {organization.publishedEventCount} {t("Published events")}
                 </Typography>
-              ) : null}
+              </View>
               {organization.role === "invited" ? (
                 <Typography className="text-warning" style={{ fontSize: 12 }}>
                   {t("Invitation received")}
@@ -127,7 +156,7 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
                   {t("Membership requested")}
                 </Typography>
               ) : null}
-            </ListCardBody>
+            </View>
           </LinkedListCard>
         )}
         ListFooterComponent={

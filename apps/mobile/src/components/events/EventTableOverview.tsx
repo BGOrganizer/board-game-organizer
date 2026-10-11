@@ -2,50 +2,25 @@ import type { MatchDetailResponse } from "@board-game-organizer/schemas";
 import { matchParticipants, useEventTableContext } from "@board-game-organizer/shared";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { Popover } from "heroui-native/popover";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarDays, Gamepad2, type LucideIcon, MapPin, Presentation } from "lucide-react-native";
-import type { ReactNode } from "react";
+import {
+  Armchair,
+  CalendarDays,
+  Gamepad2,
+  LockKeyhole,
+  Presentation,
+  UsersRound,
+} from "lucide-react-native";
 import { View } from "react-native";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
-import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { InfoSection as TableSection } from "@/components/common/ui/InfoSection";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { GameListRow } from "@/components/games/GameListRow";
-import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-
-function TableSection({
-  label,
-  helpLabel,
-  help,
-  icon: Icon,
-  children,
-}: {
-  label: string;
-  helpLabel: string;
-  help: string;
-  icon: LucideIcon;
-  children: ReactNode;
-}) {
-  const muted = useThemeColor("muted");
-  return (
-    <View style={{ gap: 8 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Icon size={18} color={muted} />
-        <Typography accessibilityRole="header" className="font-semibold text-foreground">
-          {label}
-        </Typography>
-        <HelpPopover label={helpLabel} title={label}>
-          <Popover.Description>{help}</Popover.Description>
-        </HelpPopover>
-      </View>
-      <GroupedList>{children}</GroupedList>
-    </View>
-  );
-}
+import { EventTableHeading } from "./EventTableHeading";
 
 export function EventTableOverview({
   eventId,
@@ -64,7 +39,6 @@ export function EventTableOverview({
   const end = table?.endsAt ?? match?.match.eventTable?.endsAt;
   const game = match?.games.find((game) => game.id === match.match.selectedGameId);
   const gameName = table?.gameName ?? game?.name;
-  const location = event?.location ?? match?.match.locations?.[0];
   const frozen =
     match && match.match.status !== "PLANNING" ? matchParticipants(match).length : undefined;
   const confirmed = table?.confirmedCount ?? frozen;
@@ -72,6 +46,45 @@ export function EventTableOverview({
   const max = table?.maxPlayers ?? match?.match.maxPlayers;
   return (
     <View style={{ gap: 16 }}>
+      <View style={{ gap: 8 }}>
+        <EventTableHeading
+          name={table?.name ?? match?.match.eventTable?.tableName ?? t("Table details")}
+          ratingsEnabled={table?.openSkill ?? match?.match.eventTable?.openSkill ?? false}
+        />
+        {confirmed !== undefined && max !== undefined && reserved !== undefined ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <UsersRound size={18} color={muted} />
+              <Typography
+                className="text-sm text-foreground"
+                accessibilityLabel={`${t("confirmed players")}: ${confirmed}`}
+              >
+                {confirmed}
+              </Typography>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Armchair size={18} color={muted} />
+              <Typography
+                className="text-sm text-foreground"
+                accessibilityLabel={`${t("Maximum players")}: ${max}`}
+              >
+                {max}
+              </Typography>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <LockKeyhole size={18} color={muted} />
+              <Typography
+                className="text-sm text-foreground"
+                accessibilityLabel={`${t("reserved places")}: ${reserved}`}
+              >
+                {reserved}
+              </Typography>
+            </View>
+          </View>
+        ) : (
+          <Skeleton style={{ width: "100%", height: 24, borderRadius: 4 }} />
+        )}
+      </View>
       {context.eventQuery.error || context.tableQuery.error ? (
         <View style={{ gap: 8 }}>
           <Typography accessibilityRole="alert" className="text-danger">
@@ -105,22 +118,6 @@ export function EventTableOverview({
         </GroupedRow>
       </TableSection>
       <TableSection
-        label={t("Location")}
-        helpLabel={t("Table location help")}
-        help={t(
-          "This table uses the event's verified venue and address. There is no location voting.",
-        )}
-        icon={MapPin}
-      >
-        {location ? (
-          <LocationListRow name={location.name} address={location.address} />
-        ) : (
-          <GroupedRow>
-            <Skeleton style={{ width: "100%", height: 48, borderRadius: 4 }} />
-          </GroupedRow>
-        )}
-      </TableSection>
-      <TableSection
         label={t("Board games")}
         helpLabel={t("Table game help")}
         help={t(
@@ -142,20 +139,23 @@ export function EventTableOverview({
           </GroupedRow>
         )}
       </TableSection>
-      {confirmed !== undefined && reserved !== undefined ? (
-        <Typography className="text-sm text-muted">
-          {confirmed}/{max} {t("confirmed players")} · {reserved} {t("reserved places")}
-        </Typography>
-      ) : (
-        <Skeleton style={{ width: "100%", height: 24, borderRadius: 4 }} />
-      )}
       {table?.demonstrator ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Presentation size={18} color={muted} />
-          <Typography className="text-sm text-foreground" style={{ flex: 1 }}>
-            {t("Demonstrator")}: {table.demonstrator.username ?? t("Username unavailable")}
-          </Typography>
-        </View>
+        <TableSection
+          label={t("Demonstrator")}
+          helpLabel={t("Demonstrator help")}
+          help={t(
+            "The demonstrator explains the game and can record this table's results. This role does not automatically reserve a player seat.",
+          )}
+          icon={Presentation}
+        >
+          <UserListRow
+            name={
+              table.demonstrator.name || table.demonstrator.username || t("Username unavailable")
+            }
+            secondary={table.demonstrator.username ?? t("Username unavailable")}
+            avatarUrl={table.demonstrator.avatarUrl}
+          />
+        </TableSection>
       ) : null}
       {!context.open && event ? (
         <Typography className="text-sm text-muted">

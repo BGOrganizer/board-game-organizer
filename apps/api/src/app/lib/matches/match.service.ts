@@ -482,6 +482,7 @@ export class MatchService {
       administrator: {
         id: match.clerkId,
         name: administrator?.name ?? match.clerkId,
+        username: administrator?.username ?? null,
         email: administrator?.email ?? null,
         avatarUrl: administrator?.avatarUrl ?? null,
       },
@@ -490,6 +491,7 @@ export class MatchService {
         return {
           id: invitation.inviteeUserId,
           name: user?.name ?? invitation.inviteeUserId,
+          username: user?.username ?? null,
           email: user?.email ?? null,
           avatarUrl: user?.avatarUrl ?? null,
           invitation,

@@ -15,7 +15,6 @@ import { MatchDetail } from "@/components/matches/MatchDetail";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableEditAction } from "./EventTableEditAction";
-import { EventTableHeading } from "./EventTableHeading";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTablePlayers } from "./EventTablePlayers";
 
@@ -105,14 +104,13 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
               <Tabs.Label>{t("Overview")}</Tabs.Label>
             </Tabs.Trigger>
             <Tabs.Trigger value="players" testID="table-players-tab" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Players")}</Tabs.Label>
+              <Tabs.Label>{t("Seats")}</Tabs.Label>
             </Tabs.Trigger>
           </TabBar>
         </View>
         <Tabs.Content value="overview" style={{ flex: 1 }}>
           {tab === "overview" ? (
             <ScreenScrollView>
-              <EventTableHeading name={table.name} ratingsEnabled={table.openSkill} />
               <EventTableOverview eventId={eventId} tableId={tableId} />
             </ScreenScrollView>
           ) : null}

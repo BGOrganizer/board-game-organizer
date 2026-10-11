@@ -2,7 +2,16 @@ import type { EventDraftTable } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { Clock3, Dices, LayoutGrid, Presentation, Trophy, UsersRound } from "lucide-react-native";
+import {
+  Armchair,
+  Clock3,
+  Dices,
+  LayoutGrid,
+  LockKeyhole,
+  Presentation,
+  Trophy,
+  UsersRound,
+} from "lucide-react-native";
 import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
@@ -13,12 +22,16 @@ export function EventTableCardBody({
   timeZone,
   gameName,
   demonstrator,
+  confirmedCount,
+  reservedCount,
 }: {
   table: EventDraftTable["input"];
   timeZone: string;
   gameName: string;
   imageUrl?: string | null;
   demonstrator?: { username?: string | null; name?: string | null } | null;
+  confirmedCount?: number;
+  reservedCount?: number;
 }) {
   const t = useT();
   const { i18n } = useLingui();
@@ -28,15 +41,14 @@ export function EventTableCardBody({
     { Icon: Clock3, label: t("Start time"), value: dates.format(new Date(table.startsAt)) },
     { Icon: Clock3, label: t("End time"), value: dates.format(new Date(table.endsAt)) },
     { Icon: Dices, label: t("Board games"), value: gameName },
-    { Icon: UsersRound, label: t("Players"), value: `${table.minPlayers}–${table.maxPlayers}` },
-    ...(demonstrator
-      ? [
-          {
-            Icon: Presentation,
-            label: t("Demonstrator"),
-            value: demonstrator.username ?? demonstrator.name ?? t("Username unavailable"),
-          },
-        ]
+  ];
+  const playerFields = [
+    { Icon: Armchair, label: t("Players"), value: `${table.minPlayers}–${table.maxPlayers}` },
+    ...(confirmedCount !== undefined
+      ? [{ Icon: UsersRound, label: t("confirmed players"), value: String(confirmedCount) }]
+      : []),
+    ...(reservedCount !== undefined
+      ? [{ Icon: LockKeyhole, label: t("reserved places"), value: String(reservedCount) }]
       : []),
   ];
   return (
@@ -67,6 +79,31 @@ export function EventTableCardBody({
             </Typography>
           </View>
         ))}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          {playerFields.map(({ Icon, label, value }) => (
+            <View key={label} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Icon size={16} color={muted} accessible={false} />
+              <Typography
+                accessibilityLabel={`${label}: ${value}`}
+                className="text-sm text-foreground"
+              >
+                {value}
+              </Typography>
+            </View>
+          ))}
+        </View>
+        {demonstrator ? (
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+            <Presentation size={16} color={muted} accessible={false} />
+            <Typography
+              className="text-sm text-foreground"
+              style={{ flex: 1 }}
+              accessibilityLabel={`${t("Demonstrator")}: ${demonstrator.username ?? demonstrator.name ?? t("Username unavailable")}`}
+            >
+              {demonstrator.username ?? demonstrator.name ?? t("Username unavailable")}
+            </Typography>
+          </View>
+        ) : null}
       </ListCardBody>
     </View>
   );

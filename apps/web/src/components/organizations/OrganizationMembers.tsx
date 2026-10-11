@@ -124,6 +124,10 @@ export function OrganizationMembers({ organization }: { organization: Organizati
       : t`Remove member`;
   return (
     <section className="space-y-4" aria-label={t`Members`}>
+      <h2 className="flex items-center gap-2 text-sm font-semibold">
+        <UsersRound className="size-4 text-default-500" aria-hidden />
+        {t`Member list`}
+      </h2>
       <GroupedList>
         {organization.role === "admin" ? (
           <GroupedRow>

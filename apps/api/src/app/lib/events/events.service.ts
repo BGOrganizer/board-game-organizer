@@ -437,6 +437,7 @@ export class EventsService {
         demonstrator && membership
           ? {
               userId: demonstrator.clerkId,
+              name: demonstrator.name ?? null,
               username: demonstrator.username ?? null,
               avatarUrl: demonstrator.avatarUrl ?? null,
             }
@@ -586,7 +587,12 @@ export class EventsService {
     const profiles = await this.users.findByIds(visible.map((row) => row.userId));
     const items: EventBookingResponse[] = visible.map((row) => {
       const profile = profiles.find((value) => value.clerkId === row.userId);
-      return { ...row, username: profile?.username ?? null, avatarUrl: profile?.avatarUrl ?? null };
+      return {
+        ...row,
+        name: profile?.name ?? null,
+        username: profile?.username ?? null,
+        avatarUrl: profile?.avatarUrl ?? null,
+      };
     });
     const last = rows[Math.min(rows.length, page.limit) - 1];
     return {
