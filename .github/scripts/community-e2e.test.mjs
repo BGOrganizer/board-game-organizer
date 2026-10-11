@@ -48,6 +48,37 @@ test("native acceptance flows are invoked and require real, distinct JUnit repor
   }
   assert.doesNotMatch(script, /all-flows-passed|summary\.xml/);
 });
+test("PR native acceptance attempts every flow after a failure without weakening its result", () => {
+  const native = workflows[0].split("  e2e-maestro:")[1].split(/\n {2}[\w-]+:/)[0];
+  assert.match(native, /id: maestro_ready[\s\S]*?phase: seed/);
+  const steps = native.split(/\n {6}- name:/).filter((step) => /phase: (flow|verify)\b/.test(step));
+  assert.equal(steps.length, 14);
+  for (const step of steps) {
+    const expression = step.match(/if: \$\{\{ (.+) \}\}/)?.[1];
+    assert.equal(expression, "!cancelled() && steps.maestro_ready.outcome == 'success'");
+    const evaluate = new Function("cancelled", "steps", `return ${expression}`);
+    for (const previous of ["success", "failure", "skipped"]) {
+      for (const ready of ["success", "failure", "skipped"]) {
+        for (const cancelled of [false, true]) {
+          assert.equal(
+            evaluate(() => cancelled, {
+              maestro_ready: { outcome: ready },
+              previous_flow: { outcome: previous },
+            }),
+            !cancelled && ready === "success",
+          );
+        }
+      }
+    }
+  }
+  assert.doesNotMatch(native, /continue-on-error/);
+  const watchdog = readFileSync(
+    new URL("../workflows/pr-ci-fail-fast.yml", import.meta.url),
+    "utf8",
+  );
+  assert(watchdog.includes('select(.conclusion == "failure")'));
+  assert.doesNotMatch(watchdog, /\.steps\[\]/);
+});
 test("fresh native launch preserves real contacts and notification permission prompts", () => {
   const welcome = readFileSync(
     new URL("../../apps/mobile/.maestro/flows/01-launch-welcome.yaml", import.meta.url),

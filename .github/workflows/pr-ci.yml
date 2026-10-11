@@ -638,75 +638,90 @@ jobs:
         with:
           phase: warm
       - name: 📒 Seed native address book
+        id: maestro_ready
         uses: ./.github/actions/maestro-e2e
         with:
           phase: seed
       - name: 🎬 01 Welcome
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 01-launch-welcome
       - name: 🎬 02 Login
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 02-login
       - name: 🎬 02 Startup deep link
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 02-startup-deep-link
       - name: 🎬 05 Contacts
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 05-contacts-follow-block
       - name: 🎬 03 Profile and logout
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 03-profile-logout
       - name: 🎬 07 Reauthentication
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 07-reauth-after-logout
       - name: 🎬 06 Match wizard
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 06-match-wizard
       - name: 🎬 08 Groups
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 08-groups
       - name: 🎬 09 Group invitations
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 09-group-invitations
       - name: 🎬 10 BGG collection
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 10-bgg-collection
       - name: 🎬 12 Organizations
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 12-organizations
       - name: 🎬 13 Event draft
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 13-event-draft
       - name: 🎬 04 Dark mode
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: flow
           flow: 04-dark-mode
       - name: 🔒 Verify all 13 real Maestro reports
+        if: ${{ !cancelled() && steps.maestro_ready.outcome == 'success' }}
         uses: ./.github/actions/maestro-e2e
         with:
           phase: verify
