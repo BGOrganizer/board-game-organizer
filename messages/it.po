@@ -732,6 +732,10 @@ msgstr "Pulisci ricerca"
 msgid "Close"
 msgstr "Chiudi"
 
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Closed"
+msgstr "Chiuso"
+
 #: apps/web/src/components/games/SearchGamePage.tsx
 msgid "Collection"
 msgstr "Collezione"
@@ -1253,6 +1257,14 @@ msgstr "Informazioni attualmente approvate"
 msgid "date"
 msgstr "data"
 
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Date and time"
+msgstr "Data e orario"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Date and time help"
+msgstr "Guida alla data e agli orari"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Date selection"
 msgstr "Selezione date"
@@ -1418,10 +1430,10 @@ msgstr "Posto libero"
 msgid "Enable push notifications"
 msgstr "Attiva notifiche push"
 
+#: apps/web/src/components/common/ui/DateTimeInfo.tsx
 #: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/events/EventTableOverview.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "End time"
@@ -1783,11 +1795,6 @@ msgstr "Invita membri del gruppo"
 msgid "Invite link created"
 msgstr "Link di invito creato"
 
-#: apps/web/src/components/events/EventTableInvitationPicker.tsx
-#: apps/web/src/components/events/EventTablePlayers.tsx
-msgid "Invite organization members"
-msgstr "Invita membri dell'organizzazione"
-
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/events/EventTablePlayers.tsx
 #: apps/web/src/components/groups/Groups.tsx
@@ -1850,8 +1857,8 @@ msgid "Leave organization"
 msgstr "Lascia organizzazione"
 
 #: apps/web/src/components/events/EventTablePlayers.tsx
-msgid "Leave table"
-msgstr "Abbandona tavolo"
+msgid "Leave place"
+msgstr "Lascia posto"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Left group"
@@ -2032,7 +2039,7 @@ msgid "Max must be at least min"
 msgstr "Il massimo deve essere almeno uguale al minimo"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/MatchPlayerLimits.tsx
 msgid "Maximum players"
 msgstr "Giocatori massimi"
 
@@ -2066,7 +2073,7 @@ msgid "Min"
 msgstr "Minimo"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/MatchPlayerLimits.tsx
 msgid "Minimum players"
 msgstr "Giocatori minimi"
 
@@ -2256,9 +2263,6 @@ msgstr "Nessuna organizzazione in attesa di revisione"
 msgid "No organizations found"
 msgstr "Nessuna organizzazione trovata"
 
-#~ msgid "No players"
-#~ msgstr "Nessun giocatore"
-
 #: apps/web/src/components/matches/MatchLeaderboard.tsx
 msgid "No rankings available"
 msgstr "Nessuna classifica disponibile"
@@ -2362,6 +2366,10 @@ msgstr "Solo i membri confermati dell’organizzazione possono vedere i giocator
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Only the admin can invite players to a private match."
 msgstr "Solo l'admin può invitare giocatori a un match privato."
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Open"
+msgstr "Aperto"
 
 #: apps/web/src/components/events/EventCard.tsx
 msgid "Open event"
@@ -2546,7 +2554,6 @@ msgstr "Giocatore rimosso dalla partita"
 
 #: apps/web/src/components/events/EventTable.tsx
 #: apps/web/src/components/events/EventTableCardBody.tsx
-#: apps/web/src/components/events/EventTableOverview.tsx
 #: apps/web/src/components/events/EventTablePlayers.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
@@ -2697,8 +2704,8 @@ msgid "Rejection reason"
 msgstr "Motivo del rifiuto"
 
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
-msgid "Remove and exclude"
-msgstr "Elimina-Blocca"
+msgid "Remove"
+msgstr "Elimina"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Remove demonstrator"
@@ -2719,10 +2726,6 @@ msgstr "Rimuovi dal gruppo"
 #: apps/web/src/components/groups/Groups.tsx
 msgid "Remove from group?"
 msgstr "Rimuovere dal gruppo?"
-
-#: apps/web/src/components/organizations/OrganizationMembers.tsx
-msgid "Remove from organization"
-msgstr "Elimina"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
@@ -3110,10 +3113,10 @@ msgstr "Registrati"
 #~ msgid "Standings"
 #~ msgstr "Classifica"
 
+#: apps/web/src/components/common/ui/DateTimeInfo.tsx
 #: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/events/EventTableOverview.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Start time"
@@ -3156,12 +3159,21 @@ msgid "Syncing BoardGameGeek collection"
 msgstr "Sincronizzazione della collezione BoardGameGeek in corso"
 
 #: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Table details"
 msgstr "Dettagli del tavolo"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table game help"
+msgstr "Guida al gioco del tavolo"
 
 #: apps/web/src/components/matches/MatchListLegend.tsx
 msgid "Table list"
 msgstr "Lista Tavoli"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table location help"
+msgstr "Guida al luogo del tavolo"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventTableHeading.tsx
@@ -3185,6 +3197,10 @@ msgstr "Il calendario identifica un tavolo di un evento."
 #: apps/web/src/components/matches/MatchListLegend.tsx
 msgid "The crown identifies the match administrator."
 msgstr "La corona identifica l’amministratore del match."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "The event day and this table's start and end times are fixed. There is no voting."
+msgstr "Il giorno dell’evento e gli orari di inizio e fine del tavolo sono fissi. Non si vota."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "The friend request will be declined."
@@ -3233,6 +3249,14 @@ msgstr "Questo rimuove l'invito e il giocatore dalla partita. Bloccare o rimuove
 #: apps/web/src/components/groups/Groups.tsx
 msgid "This removes the invitation or member from the group. You can invite them again."
 msgstr "Questo rimuove l'invito o il membro dal gruppo. Puoi invitarlo di nuovo."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "This table uses the event's verified venue and address. There is no location voting."
+msgstr "Il tavolo usa il luogo e l’indirizzo verificati dell’evento. Non si vota sul luogo."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
+msgstr "Il gioco del tavolo è fisso. Copertina, voto e posizione BoardGameGeek descrivono il gioco scelto, non il rating dei giocatori."
 
 #: apps/web/src/components/matches/MatchResultsEditor.tsx
 msgid "Tie-break applied"
@@ -3406,6 +3430,23 @@ msgstr "Il tuo posto riservato tornerà disponibile."
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "AAAA-MM-GGTHH:mm"
 
+
+#: apps/web/src/components/events/EventTableInvitationPicker.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Invite organization members"
+msgstr "Invita membri dell'organizzazione"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Leave table"
+msgstr "Abbandona tavolo"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove and exclude"
+msgstr "Elimina-Blocca"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove from organization"
+msgstr "Elimina"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
 msgid "Approve request"
@@ -3615,7 +3656,6 @@ msgstr "La fine dell'evento deve essere successiva all'inizio nello stesso giorn
 
 msgid "An event can have at most 20 tables."
 msgstr "Un evento può avere al massimo 20 tavoli."
-
 
 msgid "No players"
 msgstr "Nessun giocatore"

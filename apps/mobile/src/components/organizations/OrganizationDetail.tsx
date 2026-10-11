@@ -118,7 +118,7 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
                       return (
                         <Button
                           key={action}
-                          isIconOnly={destructive}
+                          isIconOnly
                           accessibilityLabel={t(organizationActionLabel(action, organization.role))}
                           isDisabled={actions.busy}
                           variant={destructive ? "danger-soft" : "primary"}
@@ -130,11 +130,6 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
                         >
                           {Icon ? (
                             <Icon size={18} color={destructive ? danger : accentForeground} />
-                          ) : null}
-                          {!destructive ? (
-                            <Button.Label>
-                              {t(organizationActionLabel(action, organization.role))}
-                            </Button.Label>
                           ) : null}
                         </Button>
                       );

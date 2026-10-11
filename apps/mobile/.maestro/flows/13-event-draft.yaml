@@ -201,9 +201,29 @@ appId: com.bgo.mobile
 - assertNotVisible: "Edit table: Cascadia event table"
 - assertNotVisible: "Remove table: Cascadia event table"
 - tapOn: "Open table: Cascadia event table"
+- assertVisible: "Table details"
 - assertVisible: "Table name"
 - assertVisible: "Cascadia event table"
+- assertVisible: "Date and time"
+- assertVisible: "Location"
+- assertVisible: "Board games"
+- assertVisible: "Cascadia"
 - assertNotVisible: "Open event table"
+- tapOn: "Date and time help"
+- extendedWaitUntil:
+    visible: "The event day and this table's start and end times are fixed. There is no voting."
+    timeout: 30000
+- back
+- tapOn: "Table location help"
+- extendedWaitUntil:
+    visible: "This table uses the event's verified venue and address. There is no location voting."
+    timeout: 30000
+- back
+- tapOn: "Table game help"
+- extendedWaitUntil:
+    visible: "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
+    timeout: 30000
+- back
 - assertVisible:
     id: "edit-event-table-fab"
 - tapOn:
@@ -217,6 +237,9 @@ appId: com.bgo.mobile
 - assertVisible:
     id: "event-table-players"
 - assertVisible: "Empty place"
+- assertVisible: "Minimum players"
+- assertVisible: "Maximum players"
+- assertNotVisible: "Invite organization members"
 # Private drafts do not permit booking. Published pending approvals need a moderated organization.
 - assertNotVisible: "Request a place"
 - back

@@ -2,7 +2,7 @@
 import { useEventTableContext, useEventTableMatch } from "@board-game-organizer/shared";
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { MatchDetail } from "@/components/matches/MatchDetail";
@@ -51,6 +51,10 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
   return (
     <section className="mx-auto max-w-3xl space-y-4 pb-28">
       {back}
+      <h1 className="flex items-center gap-2 text-lg font-semibold">
+        <LayoutGrid className="size-5" aria-hidden />
+        {t`Table details`}
+      </h1>
       {match.error ? (
         <div role="alert">
           <p>{t`Could not load match details`}</p>

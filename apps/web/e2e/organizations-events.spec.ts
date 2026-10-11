@@ -602,7 +602,7 @@ function communityAcceptance() {
             matches: [
               {
                 id: "event-match",
-                name: "Azul event match",
+                name: "Azul table · Summer games evening",
                 adminUserId: state.viewerId(),
                 dates: [baseEvent.startsAt],
                 locations: [location],
@@ -617,7 +617,16 @@ function communityAcceptance() {
                 selectedGameName: "Azul",
                 createdAt: now,
                 updatedAt: now,
-                eventTable: { eventId, tableId },
+                eventTable: {
+                  organizationId: orgId,
+                  eventId,
+                  tableId,
+                  eventName: baseEvent.name,
+                  tableName: "Azul table",
+                  openSkill: false,
+                  bookingClosesAt: baseEvent.bookingClosesAt,
+                  endsAt: baseEvent.endsAt,
+                },
               },
             ],
             nextCursor: null,
@@ -625,7 +634,19 @@ function communityAcceptance() {
         }),
     );
     await page.goto("/matches");
-    const table = page.getByRole("link", { name: /^Open match: Azul event match, Event table/ });
+    const table = page.getByRole("link", { name: /^Open match: Azul table, Event table/ });
+    await expect(table.getByText("Closed", { exact: true })).toBeVisible();
+    await expect(table.locator(".chip")).toHaveClass(/accent/);
+    const eventName = table.getByText(baseEvent.name, { exact: true });
+    await expect(eventName).toBeVisible();
+    await expect
+      .poll(async () => {
+        const title = await table.getByText("Azul table", { exact: true }).boundingBox();
+        const parent = await eventName.boundingBox();
+        const date = await table.locator("time").first().boundingBox();
+        return Boolean(title && parent && date && parent.y > title.y && date.y > parent.y);
+      })
+      .toBe(true);
     await expect(table.getByRole("img", { name: "Administrator", exact: true })).toBeVisible();
     const badge = table.getByRole("img", { name: "Event table", exact: true });
     await expect(badge).toBeVisible();
@@ -633,7 +654,7 @@ function communityAcceptance() {
     await expect
       .poll(async () => {
         const icon = await badge.boundingBox(),
-          image = await table.locator("img.match-waves").boundingBox();
+          image = await table.locator("img.table-shapes").boundingBox();
         return Boolean(icon && image && icon.y >= image.y + image.height - 4);
       })
       .toBe(true);
@@ -1112,10 +1133,8 @@ function communityAcceptance() {
     await requestDialog.getByRole("button", { name: "Accept", exact: true }).click();
     await page.getByRole("button", { name: "Remove member: Target Member", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Remove member", exact: true });
-    await expect(
-      dialog.getByRole("button", { name: "Remove from organization", exact: true }),
-    ).toBeVisible();
-    await dialog.getByRole("button", { name: "Remove and exclude", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "Remove", exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Ban", exact: true }).click();
     await page
       .getByRole("button", { name: "Revoke exclusion: Target Member", exact: true })
       .click();
@@ -1253,7 +1272,7 @@ function communityAcceptance() {
     await cancel.click();
     expect(state.writes.filter((row) => row.method === "PATCH")).toHaveLength(0);
     await page.getByRole("button", { name: "Remove member: Target Member", exact: true }).click();
-    await dialog.getByRole("button", { name: "Remove from organization", exact: true }).click();
+    await dialog.getByRole("button", { name: "Remove", exact: true }).click();
     await expect(page.getByText("Target Member", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Invite friends", exact: true })).toBeVisible();
     expect(
@@ -1361,6 +1380,7 @@ function communityAcceptance() {
     await page.getByRole("tab", { name: "Players", exact: true }).click();
     await page.getByRole("button", { name: "Reserve a place: 3", exact: true }).click();
     const reserve = page.getByRole("dialog", { name: "Reserve a place", exact: true });
+    await expectButtonsOnOneRow(reserve.getByRole("button"));
     await expect(reserve.getByText(/administrator reviews your request/)).toBeVisible();
     await expect(reserve.getByText(/notified when it is accepted or rejected/)).toBeVisible();
     await reserve.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -1378,12 +1398,13 @@ function communityAcceptance() {
         .nth(2)
         .getByText("browser_fixture", { exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: /Leave table:/ }).click();
-    const leave = page.getByRole("dialog", { name: "Leave table", exact: true });
+    await page.getByRole("button", { name: /Leave place:/ }).click();
+    const leave = page.getByRole("dialog", { name: "Leave place", exact: true });
+    await expectButtonsOnOneRow(leave.getByRole("button"));
     await leave.getByRole("button", { name: "Cancel", exact: true }).click();
     expect(state.writes.filter((r) => r.path.startsWith("/api/event-bookings/"))).toHaveLength(0);
-    await page.getByRole("button", { name: /Leave table:/ }).click();
-    await leave.getByRole("button", { name: "Leave table", exact: true }).click();
+    await page.getByRole("button", { name: /Leave place:/ }).click();
+    await leave.getByRole("button", { name: "Leave place", exact: true }).click();
     await expect
       .poll(() => state.writes.find((r) => r.path.startsWith("/api/event-bookings/"))?.body.action)
       .toBe("cancel");
@@ -1406,6 +1427,9 @@ function communityAcceptance() {
       await expect(page.getByText("Table name", { exact: true })).toBeVisible();
       await expect(page.getByText("Open event table", { exact: true })).toHaveCount(0);
       await page.getByRole("tab", { name: "Players", exact: true }).click();
+      await expect(
+        page.getByRole("button", { name: "Invite organization members", exact: true }),
+      ).toHaveCount(0);
       await page.getByRole("button", { name: "Reserve a place: 1", exact: true }).click();
       await page
         .getByRole("dialog", { name: "Reserve a place", exact: true })

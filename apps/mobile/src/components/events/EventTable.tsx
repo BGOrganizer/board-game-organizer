@@ -5,9 +5,10 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, LayoutGrid } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { MatchDetail } from "@/components/matches/MatchDetail";
@@ -31,6 +32,7 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
     <Stack.Screen
       options={{
         title: t("Table details"),
+        headerTitle: () => <HeaderTitle title={t("Table details")} icon={LayoutGrid} />,
         headerBackVisible: false,
         headerLeft: () => (
           <Button
@@ -97,14 +99,16 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
         </View>
       ) : null}
       <Tabs value={tab} onValueChange={setTab} variant="primary" style={{ flex: 1 }}>
-        <TabBar>
-          <Tabs.Trigger value="overview" style={{ flex: 1 }}>
-            <Tabs.Label>{t("Overview")}</Tabs.Label>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="players" testID="table-players-tab" style={{ flex: 1 }}>
-            <Tabs.Label>{t("Players")}</Tabs.Label>
-          </Tabs.Trigger>
-        </TabBar>
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <TabBar>
+            <Tabs.Trigger value="overview" style={{ flex: 1 }}>
+              <Tabs.Label>{t("Overview")}</Tabs.Label>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="players" testID="table-players-tab" style={{ flex: 1 }}>
+              <Tabs.Label>{t("Players")}</Tabs.Label>
+            </Tabs.Trigger>
+          </TabBar>
+        </View>
         <Tabs.Content value="overview" style={{ flex: 1 }}>
           {tab === "overview" ? (
             <ScreenScrollView>

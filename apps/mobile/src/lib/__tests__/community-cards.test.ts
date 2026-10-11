@@ -7,8 +7,13 @@ const source = (file: string) =>
   readFileSync(new URL(`../../components/${file}`, import.meta.url), "utf8");
 it("uses locally generated planets, explicit left artwork, semantic status and authoritative event metadata", () => {
   const card = source("events/EventCard.tsx");
-  expect(card).toContain("@dicebear/styles/planets.json");
-  expect(card).toContain("SvgXml");
+  expect(card).toContain('<AnimatedDicebearArtwork seed={event.id} variant="planets"');
+  const artwork = source("common/ui/AnimatedDicebearArtwork.tsx");
+  expect(artwork).toContain("@dicebear/styles/planets.json");
+  expect(artwork).toContain("SvgXml");
+  expect(artwork).toContain("useReducedMotion");
+  expect(artwork).toContain("ReduceMotion.System");
+  expect(artwork).toContain("cancelAnimation(shift)");
   expect(card).toContain("LinkedListCard");
   expect(card).toContain("event.organizationApproved");
   expect(card).toContain("event.confirmedParticipantCount");
@@ -28,7 +33,7 @@ it("uses locally generated planets, explicit left artwork, semantic status and a
   expect(card).toContain('position: "absolute"');
   expect(card).toContain('"warning"');
   expect(card).toContain('"success"');
-  expect(card).toContain("width: 64, height: 64");
+  expect(artwork).toContain("width: size, height: size");
 });
 it("composes shared card frames, total organization counts and contextual header/footer actions", () => {
   const detail = source("organizations/OrganizationDetail.tsx"),
@@ -42,7 +47,10 @@ it("composes shared card frames, total organization counts and contextual header
   expect(detail).toContain('testID="leave-organization-header"');
   expect(detail).toContain('presentation="choices"');
   expect(detail).toContain('organization.role !== "accepted"');
-  expect(detail).toContain("isIconOnly={destructive}");
+  expect(detail).toContain("isIconOnly");
+  expect(detail).toContain(
+    "accessibilityLabel={t(organizationActionLabel(action, organization.role))}",
+  );
   expect(source("organizations/OrganizationInvitationResponse.tsx")).toContain(
     'setChoice("decline")',
   );

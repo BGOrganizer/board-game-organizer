@@ -255,13 +255,15 @@ describe("organization detail and member interactions", () => {
     await screen.findByText("excluded Full Name");
     fireEvent.click(screen.getByRole("button", { name: "Remove member: confirmed Full Name" }));
     let dialog = screen.getByRole("dialog", { name: "Remove member" });
-    expect(within(dialog).getByRole("button", { name: "Remove from organization" })).toBeTruthy();
-    expect(within(dialog).getByRole("button", { name: "Remove and exclude" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Remove" }).className).toContain(
+      "danger-soft",
+    );
+    expect(within(dialog).getByRole("button", { name: "Ban" })).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(state.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Remove member: confirmed Full Name" }));
     dialog = screen.getByRole("dialog", { name: "Remove member" });
-    fireEvent.click(within(dialog).getByRole("button", { name: "Remove from organization" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(screen.queryByText("confirmed Full Name")).toBeNull());
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Remove member" })).toBeNull());
     expect(state.people.find((p) => p.userId === "confirmed")?.membership?.status).toBe("LEFT");
@@ -274,7 +276,7 @@ describe("organization detail and member interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove member: confirmed Full Name" }));
     fireEvent.click(
       within(screen.getByRole("dialog", { name: "Remove member" })).getByRole("button", {
-        name: "Remove and exclude",
+        name: "Ban",
       }),
     );
     await screen.findByRole("button", { name: "Revoke exclusion: confirmed Full Name" });
@@ -294,7 +296,7 @@ describe("organization detail and member interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove member: confirmed Full Name" }));
     fireEvent.click(
       within(screen.getByRole("dialog", { name: "Remove member" })).getByRole("button", {
-        name: "Remove from organization",
+        name: "Remove",
       }),
     );
     await waitFor(() =>
@@ -410,7 +412,7 @@ describe("organization detail and member interactions", () => {
       within(dialog)
         .getAllByRole("button")
         .map((b) => b.textContent),
-    ).toEqual(["Cancel", "Cancel organization invitation"]);
+    ).toEqual(["Cancel organization invitation", "Cancel"]);
     fireEvent.click(within(dialog).getByRole("button", { name: /^Cancel$/ }));
     expect(state.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
     fireEvent.click(

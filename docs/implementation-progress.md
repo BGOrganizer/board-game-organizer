@@ -604,3 +604,28 @@ Historical PR #22 gates are foundation evidence, not acceptance for this new fea
 `expo-dev-client`, `heroui-react`, `heroui-native`, `uniwind`, `tanstack-query-development`,
 `clerk` and `clerk-testing`. Only relevant references were used; static skill guidance does not
 replace the actual executed acceptance reports above.
+
+## Local-only table/organization visual pass
+
+- Existing `feat/social-api-refactor` only; no push, new PR or production changes. Unrelated
+  `.gitignore`, generated API types and private native services remain untouched.
+- Organization request controls are icon-only; medium confirmation actions use normal-size text,
+  danger-soft Reject/Remove, danger Ban and a separate bottom-right icon Cancel for management.
+- Reused match player limits and date/location/game rows on both clients. Table details has its own
+  header/icon, consistent Overview/Players, fixed-choice section help and BGG catalog metadata.
+  Reservation/Leave place confirmations keep icon Cancel beside the action; only rated tables expose
+  authorized leaderboards. Groups/events/tables/ordinary matches use reduced-motion-aware
+  landscape/planets/shapes/waves artwork respectively.
+- Table signup is voluntary: the shared service rejects every new administrator invitation with
+  403 `TABLE_INVITATIONS_DISABLED` before reads/writes/notifications. Legacy invitation responses
+  remain compatible. Match table cards show table then event then date, and derive Open/Closed from
+  authoritative reservations and the exact cutoff, not from event publication status.
+- Local validation: five coverage gates passed (web 507, mobile 162, API 541, schemas 92, shared 123
+  tests), plus 63 replica-set integration tests with no skips. New deterministic helpers/components
+  have 100% thresholds; existing gates unchanged. Typecheck, API/web production builds and Android
+  export (5,515 modules) passed. EN/IT contain 689 active IDs with all 678 prior IDs/translations
+  preserved. Generated API/web types were restored byte-for-byte.
+- Playwright/Maestro selectors and flows were updated. These local results are not authenticated
+  browser/native acceptance: local E2E primary/target account credentials are absent. Windows WHPX
+  is usable, but it cannot verify Linux runner KVM permissions. Full CI/runtime evidence remains
+  required; no APK, provider, prerelease or Telegram success is inferred from export/build checks.

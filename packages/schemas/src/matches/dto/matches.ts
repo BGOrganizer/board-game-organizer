@@ -36,7 +36,12 @@ export const matchResponseSchema = z.object({
   invitedUserIds: z.array(z.string()),
   gameIds: z.array(z.number()),
   groupId: z.uuid().optional(),
-  eventTable: matchEventTableSchema.optional(),
+  eventTable: matchEventTableSchema
+    .extend({
+      /** Live pending and confirmed bookings; never inferred from the visible roster. */
+      reservedCount: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
   isPublic: z.boolean().optional(),
   status: matchStatusSchema,
   selectedDate: z.string().optional(),

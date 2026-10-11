@@ -10,6 +10,7 @@ import type {
   SetMatchChoiceInput,
   UpdateMatchInput,
 } from "@board-game-organizer/schemas";
+import { eventBookingReservesSeat } from "@board-game-organizer/shared";
 import { normalizeMatchScore, rankMatchResults } from "@board-game-organizer/shared/matchResults";
 import { MongoServerError } from "mongodb";
 import type { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
@@ -226,6 +227,19 @@ export class MatchService {
     };
   }
 
+  private async withTableAvailability(response: MatchResponse): Promise<MatchResponse> {
+    if (!response.eventTable || response.status !== "PLANNING") return response;
+    if (!this.eventTables) throw new MatchError(503, "Event service unavailable");
+    const bookings = await this.eventTables.tableBookings(response.eventTable.tableId);
+    return {
+      ...response,
+      eventTable: {
+        ...response.eventTable,
+        reservedCount: bookings.filter(eventBookingReservesSeat).length,
+      },
+    };
+  }
+
   async create(userId: string, input: CreateMatchInput): Promise<MatchResponse> {
     if (input.groupId && input.isPublic) throw new MatchError(400, "Group matches must be private");
     if (input.invitedUserIds.length > input.maxPlayers - 1) {
@@ -286,6 +300,8 @@ export class MatchService {
         return [];
       return [this.toResponse(match, this.visibleInvitations(match, userId, matchInvitations))];
     });
+    for (let index = 0; index < visible.length; index++)
+      visible[index] = await this.withTableAvailability(visible[index]);
     const selectedIds = [
       ...new Set(
         visible.flatMap((match) =>
@@ -448,7 +464,7 @@ export class MatchService {
         : undefined;
 
     return {
-      match: this.toResponse(match, visibleInvitations),
+      match: await this.withTableAvailability(this.toResponse(match, visibleInvitations)),
       canRequestJoin,
       ...(gameRatings ? { gameRatings } : {}),
       choices: {

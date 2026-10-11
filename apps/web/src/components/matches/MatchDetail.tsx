@@ -8,7 +8,6 @@ import type {
 import {
   canRegisterMatchResults,
   communityAccessDenied,
-  formatLocationAddress,
   formatMatchDateTime,
   matchContactState,
   matchParticipants,
@@ -31,6 +30,7 @@ import {
   Crown,
   Ellipsis,
   Gamepad2,
+  LayoutGrid,
   LogOut,
   MapPin,
   Medal,
@@ -48,6 +48,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -56,9 +57,11 @@ import { EventTableEditAction } from "@/components/events/EventTableEditAction";
 import { EventTableHeading } from "@/components/events/EventTableHeading";
 import { EventTableOverview } from "@/components/events/EventTableOverview";
 import { EventTablePlayers } from "@/components/events/EventTablePlayers";
-import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
+import { GameListRow } from "@/components/games/GameListRow";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { MatchLeaderboard } from "@/components/matches/MatchLeaderboard";
+import { MatchPlayerLimits } from "@/components/matches/MatchPlayerLimits";
 import { MatchResultsEditor } from "@/components/matches/MatchResultsEditor";
 import { MatchStandingIdentity } from "@/components/matches/MatchStandingIdentity";
 import { MatchWizard } from "@/components/matches/MatchWizard";
@@ -285,7 +288,9 @@ export function MatchDetail({
   const { match, administrator, games } = matchData;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
   const isAdmin = match.adminUserId === userId;
-  const canViewLeaderboard = isAdmin || ownInvitation?.status === "ACCEPTED";
+  const canViewLeaderboard =
+    (!match.eventTable || match.eventTable.openSkill) &&
+    (isAdmin || ownInvitation?.status === "ACCEPTED");
   const canLeave =
     !match.eventTable && match.status === "PLANNING" && ownInvitation?.status === "ACCEPTED";
   const canChoose =
@@ -506,6 +511,12 @@ export function MatchDetail({
         </Link>
       </div>
 
+      {match.eventTable ? (
+        <h1 className="flex items-center gap-2 text-lg font-semibold">
+          <LayoutGrid className="size-5" aria-hidden />
+          {t`Table details`}
+        </h1>
+      ) : null}
       {matches.detail.isError ? (
         <p role="alert" className="text-sm text-danger">{t`Could not load match details`}</p>
       ) : null}
@@ -582,7 +593,7 @@ export function MatchDetail({
         </p>
       )}
       <Tabs
-        aria-label={t`Match details`}
+        aria-label={match.eventTable ? t`Table details` : t`Match details`}
         defaultSelectedKey={
           initialTab === "players" && match.status === "TERMINATED" ? "results" : initialTab
         }
@@ -640,12 +651,7 @@ export function MatchDetail({
                       : match.dates
                     ).map((date) => (
                       <GroupedRow key={date} className="flex-wrap">
-                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                          <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
-                          <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).date}</time>
-                          <Clock3 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                          <time dateTime={date}>{formatMatchDateTime(date, i18n.locale).time}</time>
-                        </div>
+                        <DateTimeInfo startsAt={date} />
                         {canChoose && (
                           <ChoiceDropdown
                             label={t`Choose date`}
@@ -683,37 +689,38 @@ export function MatchDetail({
                             match.status === "PLANNING" || location.id === match.selectedLocationId,
                         )
                         .map((location) => (
-                          <GroupedRow key={location.id} className="flex-wrap">
-                            <LocationFavoriteButton
-                              location={location}
-                              favorites={favorites}
-                              matchId={match.id}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium" title={location.name}>
-                                {location.name}
-                              </p>
-                              <p
-                                className="truncate text-xs text-default-500"
-                                title={location.address}
-                              >
-                                {formatLocationAddress(location.address)}
-                              </p>
-                            </div>
-                            {canChoose && (
-                              <ChoiceDropdown
-                                label={t`Choose location`}
-                                choice={matchData.choices?.locations?.[location.id] ?? "UNKNOWN"}
-                                pending={matches.setChoice.isPending}
-                                onChoose={(choice) =>
-                                  choose({ kind: "locations", itemId: location.id, choice })
-                                }
+                          <LocationListRow
+                            key={location.id}
+                            name={location.name}
+                            address={location.address}
+                            leading={
+                              <LocationFavoriteButton
+                                location={location}
+                                favorites={favorites}
+                                matchId={match.id}
                               />
-                            )}
-                            {match.status === "PLANNING" && summary?.locations?.[location.id] && (
-                              <VoteCounts counts={summary.locations[location.id]} />
-                            )}
-                          </GroupedRow>
+                            }
+                            actions={
+                              <>
+                                {canChoose && (
+                                  <ChoiceDropdown
+                                    label={t`Choose location`}
+                                    choice={
+                                      matchData.choices?.locations?.[location.id] ?? "UNKNOWN"
+                                    }
+                                    pending={matches.setChoice.isPending}
+                                    onChoose={(choice) =>
+                                      choose({ kind: "locations", itemId: location.id, choice })
+                                    }
+                                  />
+                                )}
+                                {match.status === "PLANNING" &&
+                                  summary?.locations?.[location.id] && (
+                                    <VoteCounts counts={summary.locations[location.id]} />
+                                  )}
+                              </>
+                            }
+                          />
                         ))}
                     </GroupedList>
                   </div>
@@ -734,55 +741,42 @@ export function MatchDetail({
                           (game) => match.status === "PLANNING" || game.id === match.selectedGameId,
                         )
                         .map((game) => (
-                          <GroupedRow key={game.id} className="flex-wrap">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
-                              {game.thumbnail ? (
-                                // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
-                                <img
-                                  src={game.thumbnail}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <Gamepad2 className="h-5 w-5 text-default-400" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className="max-w-[40ch] truncate text-sm font-medium"
-                                title={game.name}
-                              >
-                                {game.name}
-                              </p>
-                              <GameCatalogMetadata
-                                year={game.yearPublished}
-                                average={game.average}
-                                rank={game.rank}
-                              />
-                            </div>
-                            {match.status === "TERMINATED" && winnerNames && (
-                              <span className="inline-flex min-w-0 items-center gap-1 text-sm">
-                                <Medal
-                                  className="h-4 w-4 shrink-0 text-warning"
-                                  aria-label={t`Winner`}
-                                />
-                                <strong className="truncate">{winnerNames}</strong>
-                              </span>
-                            )}
-                            {canChoose && (
-                              <ChoiceDropdown
-                                label={t`Choose game`}
-                                choice={matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"}
-                                pending={matches.setChoice.isPending}
-                                onChoose={(choice) =>
-                                  choose({ kind: "games", itemId: game.id, choice })
-                                }
-                              />
-                            )}
-                            {match.status === "PLANNING" && summary?.games[String(game.id)] && (
-                              <VoteCounts counts={summary.games[String(game.id)]} />
-                            )}
-                          </GroupedRow>
+                          <GameListRow
+                            key={game.id}
+                            name={game.name}
+                            imageUrl={game.thumbnail}
+                            year={game.yearPublished}
+                            average={game.average}
+                            rank={game.rank}
+                            actions={
+                              <>
+                                {match.status === "TERMINATED" && winnerNames && (
+                                  <span className="inline-flex min-w-0 items-center gap-1 text-sm">
+                                    <Medal
+                                      className="h-4 w-4 shrink-0 text-warning"
+                                      aria-label={t`Winner`}
+                                    />
+                                    <strong className="truncate">{winnerNames}</strong>
+                                  </span>
+                                )}
+                                {canChoose && (
+                                  <ChoiceDropdown
+                                    label={t`Choose game`}
+                                    choice={
+                                      matchData.choices?.games?.[String(game.id)] ?? "UNKNOWN"
+                                    }
+                                    pending={matches.setChoice.isPending}
+                                    onChoose={(choice) =>
+                                      choose({ kind: "games", itemId: game.id, choice })
+                                    }
+                                  />
+                                )}
+                                {match.status === "PLANNING" && summary?.games[String(game.id)] && (
+                                  <VoteCounts counts={summary.games[String(game.id)]} />
+                                )}
+                              </>
+                            }
+                          />
                         ))}
                     </GroupedList>
                   )}
@@ -808,16 +802,7 @@ export function MatchDetail({
             ) : (
               <div className="space-y-5">
                 {match.status === "PLANNING" && (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-default-500">{t`Minimum players`}</p>
-                      <p className="font-semibold">{match.minPlayers}</p>
-                    </div>
-                    <div>
-                      <p className="text-default-500">{t`Maximum players`}</p>
-                      <p className="font-semibold">{match.maxPlayers}</p>
-                    </div>
-                  </div>
+                  <MatchPlayerLimits minPlayers={match.minPlayers} maxPlayers={match.maxPlayers} />
                 )}
                 <div>
                   <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">

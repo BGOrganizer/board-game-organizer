@@ -11,12 +11,11 @@ import {
   useMatches,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import waves from "@dicebear/styles/waves.json" with { type: "json" };
 import { Button, Chip, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   CalendarDays,
+  CalendarRange,
   Check,
   Crown,
   Dices,
@@ -26,7 +25,8 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListSearchFilters } from "@/components/common/ui/ListSearchFilters";
@@ -34,8 +34,6 @@ import { MatchListLegend } from "@/components/matches/MatchListLegend";
 import { MatchWizard } from "@/components/matches/MatchWizard";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
-
-const wavesStyle = new Style(waves);
 
 function MatchArtwork({
   name,
@@ -46,17 +44,9 @@ function MatchArtwork({
   adminLabel?: string;
   eventLabel?: string;
 }) {
-  const src = useMemo(
-    () =>
-      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(wavesStyle, { seed: name, size: 72 }).toString())}`,
-    [name],
-  );
   return (
     <span className={`relative w-16 shrink-0 ${eventLabel ? "h-[84px]" : "h-16"}`}>
-      <span className="block size-16 overflow-hidden rounded-xl bg-accent/10" aria-hidden="true">
-        {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG. */}
-        <img src={src} alt="" className="match-waves relative -top-1 -left-1 size-[72px]" />
-      </span>
+      <AnimatedDicebearArtwork seed={name} variant={eventLabel ? "shapes" : "waves"} />
       {adminLabel && (
         <span
           className="absolute top-0 left-0 rounded-br-lg bg-surface p-1 shadow-sm"
@@ -162,7 +152,10 @@ export function Matches() {
             (candidate) => candidate.inviteeUserId === userId,
           );
           const card = matchCardData(match);
+          const title = match.eventTable?.tableName ?? match.name;
           const statusLabels: Record<MatchCardStatus, string> = {
+            OPEN: t`Open`,
+            CLOSED: t`Closed`,
             PLANNING: t`Planning`,
             CREATED: t`Confirmed`,
             IN_PROGRESS: t`In progress`,
@@ -188,7 +181,7 @@ export function Matches() {
             <LinkedListCard
               key={match.id}
               href={match.optimistic ? "/matches" : `/matches/${match.id}`}
-              label={`${t`Open match`}: ${match.name}${match.eventTable ? `, ${t`Event table`}` : ""}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
+              label={`${t`Open match`}: ${title}${match.eventTable ? `, ${t`Event table`}: ${match.eventTable.eventName}` : ""}, ${statusLabels[card.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t`Players`}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t`Administrator`}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t`Winner` : t`Winners`}: ${card.winnerNames.join(", ")}` : ""}`}
               disabled={match.optimistic}
               actions={
                 !match.eventTable && invitation?.status === "PENDING" ? (
@@ -230,24 +223,30 @@ export function Matches() {
               }
             >
               <MatchArtwork
-                name={match.name}
+                name={title}
                 eventLabel={match.eventTable ? t`Event table` : undefined}
                 adminLabel={match.adminUserId === userId ? t`Administrator` : undefined}
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold">{match.name}</p>
+                    <p className="font-semibold">{title}</p>
                   </div>
                   <Chip
                     size="sm"
                     variant="soft"
-                    color={matchCardStatusColor[match.status]}
+                    color={matchCardStatusColor[card.status]}
                     className="shrink-0"
                   >
-                    {statusLabels[match.status]}
+                    {statusLabels[card.status]}
                   </Chip>
                 </div>
+                {match.eventTable ? (
+                  <p className="mt-2 flex min-w-0 items-center gap-1 text-xs text-default-600">
+                    <CalendarRange className="size-4 shrink-0" aria-hidden />
+                    <span className="truncate">{match.eventTable.eventName}</span>
+                  </p>
+                ) : null}
                 {card.date && dateLabel && (
                   <div className="mt-2 flex min-w-0 items-center gap-1 whitespace-nowrap text-xs text-default-600">
                     <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />

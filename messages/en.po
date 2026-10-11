@@ -732,6 +732,10 @@ msgstr "Clear search"
 msgid "Close"
 msgstr "Close"
 
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Closed"
+msgstr "Closed"
+
 #: apps/web/src/components/games/SearchGamePage.tsx
 msgid "Collection"
 msgstr "Collection"
@@ -1253,6 +1257,14 @@ msgstr "Currently approved information"
 msgid "date"
 msgstr "date"
 
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Date and time"
+msgstr "Date and time"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Date and time help"
+msgstr "Date and time help"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Date selection"
 msgstr "Date selection"
@@ -1418,10 +1430,10 @@ msgstr "Empty place"
 msgid "Enable push notifications"
 msgstr "Enable push notifications"
 
+#: apps/web/src/components/common/ui/DateTimeInfo.tsx
 #: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/events/EventTableOverview.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "End time"
@@ -1783,11 +1795,6 @@ msgstr "Invite group members"
 msgid "Invite link created"
 msgstr "Invite link created"
 
-#: apps/web/src/components/events/EventTableInvitationPicker.tsx
-#: apps/web/src/components/events/EventTablePlayers.tsx
-msgid "Invite organization members"
-msgstr "Invite organization members"
-
 #: apps/web/src/components/common/ui/ListSearchFilters.tsx
 #: apps/web/src/components/events/EventTablePlayers.tsx
 #: apps/web/src/components/groups/Groups.tsx
@@ -1850,8 +1857,8 @@ msgid "Leave organization"
 msgstr "Leave organization"
 
 #: apps/web/src/components/events/EventTablePlayers.tsx
-msgid "Leave table"
-msgstr "Leave table"
+msgid "Leave place"
+msgstr "Leave place"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Left group"
@@ -2032,7 +2039,7 @@ msgid "Max must be at least min"
 msgstr "Max must be at least min"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/MatchPlayerLimits.tsx
 msgid "Maximum players"
 msgstr "Maximum players"
 
@@ -2066,7 +2073,7 @@ msgid "Min"
 msgstr "Min"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/MatchPlayerLimits.tsx
 msgid "Minimum players"
 msgstr "Minimum players"
 
@@ -2256,9 +2263,6 @@ msgstr "No organizations awaiting review"
 msgid "No organizations found"
 msgstr "No organizations found"
 
-#~ msgid "No players"
-#~ msgstr "No players"
-
 #: apps/web/src/components/matches/MatchLeaderboard.tsx
 msgid "No rankings available"
 msgstr "No rankings available"
@@ -2362,6 +2366,10 @@ msgstr "Only confirmed organization members can view players and reserve places.
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Only the admin can invite players to a private match."
 msgstr "Only the admin can invite players to a private match."
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Open"
+msgstr "Open"
 
 #: apps/web/src/components/events/EventCard.tsx
 msgid "Open event"
@@ -2546,7 +2554,6 @@ msgstr "Player removed from match"
 
 #: apps/web/src/components/events/EventTable.tsx
 #: apps/web/src/components/events/EventTableCardBody.tsx
-#: apps/web/src/components/events/EventTableOverview.tsx
 #: apps/web/src/components/events/EventTablePlayers.tsx
 #: apps/web/src/components/matches/MatchDetail.tsx
 #: apps/web/src/components/matches/Matches.tsx
@@ -2697,8 +2704,8 @@ msgid "Rejection reason"
 msgstr "Rejection reason"
 
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
-msgid "Remove and exclude"
-msgstr "Remove and exclude"
+msgid "Remove"
+msgstr "Remove"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Remove demonstrator"
@@ -2719,10 +2726,6 @@ msgstr "Remove from group"
 #: apps/web/src/components/groups/Groups.tsx
 msgid "Remove from group?"
 msgstr "Remove from group?"
-
-#: apps/web/src/components/organizations/OrganizationMembers.tsx
-msgid "Remove from organization"
-msgstr "Remove from organization"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
@@ -3110,10 +3113,10 @@ msgstr "Sign Up"
 #~ msgid "Standings"
 #~ msgstr "Standings"
 
+#: apps/web/src/components/common/ui/DateTimeInfo.tsx
 #: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventTableCardBody.tsx
 #: apps/web/src/components/events/EventTableEditor.tsx
-#: apps/web/src/components/events/EventTableOverview.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Start time"
@@ -3156,12 +3159,21 @@ msgid "Syncing BoardGameGeek collection"
 msgstr "Syncing BoardGameGeek collection"
 
 #: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Table details"
 msgstr "Table details"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table game help"
+msgstr "Table game help"
 
 #: apps/web/src/components/matches/MatchListLegend.tsx
 msgid "Table list"
 msgstr "Table list"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table location help"
+msgstr "Table location help"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/events/EventTableHeading.tsx
@@ -3185,6 +3197,10 @@ msgstr "The calendar identifies a table belonging to an event."
 #: apps/web/src/components/matches/MatchListLegend.tsx
 msgid "The crown identifies the match administrator."
 msgstr "The crown identifies the match administrator."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "The event day and this table's start and end times are fixed. There is no voting."
+msgstr "The event day and this table's start and end times are fixed. There is no voting."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "The friend request will be declined."
@@ -3233,6 +3249,14 @@ msgstr "This removes the invitation and the player from this match. Blocking or 
 #: apps/web/src/components/groups/Groups.tsx
 msgid "This removes the invitation or member from the group. You can invite them again."
 msgstr "This removes the invitation or member from the group. You can invite them again."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "This table uses the event's verified venue and address. There is no location voting."
+msgstr "This table uses the event's verified venue and address. There is no location voting."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
+msgstr "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
 
 #: apps/web/src/components/matches/MatchResultsEditor.tsx
 msgid "Tie-break applied"
@@ -3406,6 +3430,23 @@ msgstr "Your reserved place will become available again."
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "YYYY-MM-DDTHH:mm"
 
+
+#: apps/web/src/components/events/EventTableInvitationPicker.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Invite organization members"
+msgstr "Invite organization members"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Leave table"
+msgstr "Leave table"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove and exclude"
+msgstr "Remove and exclude"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove from organization"
+msgstr "Remove from organization"
 
 #: apps/web/src/components/events/EventTableDetail.tsx
 msgid "Approve request"
@@ -3615,7 +3656,6 @@ msgstr "Event end must be after event start on the same day."
 
 msgid "An event can have at most 20 tables."
 msgstr "An event can have at most 20 tables."
-
 
 msgid "No players"
 msgstr "No players"

@@ -9,8 +9,6 @@ import {
   useListFilters,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import squircles from "@dicebear/styles/squircles.json" with { type: "json" };
 import {
   Avatar,
   Button,
@@ -45,7 +43,8 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -64,18 +63,10 @@ const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
 type InvitedUser = { id: string; name: string; email: string | null; avatarUrl: string | null };
 type Slot = { id: string; user: InvitedUser | null };
 const newSlot = (): Slot => ({ id: crypto.randomUUID(), user: null });
-const squirclesStyle = new Style(squircles);
-
 function GroupArtwork({ name, adminLabel }: { name: string; adminLabel?: string }) {
-  const src = useMemo(
-    () =>
-      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(squirclesStyle, { seed: name, size: 64 }).toString())}`,
-    [name],
-  );
   return (
     <span className="relative size-16 shrink-0">
-      {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG. */}
-      <img src={src} alt="" className="size-16 rounded-xl" />
+      <AnimatedDicebearArtwork seed={name} variant="landscape" />
       {adminLabel ? (
         <span
           className="absolute top-0 left-0 rounded-br-lg bg-surface p-1 shadow-sm"

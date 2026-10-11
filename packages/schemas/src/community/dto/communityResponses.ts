@@ -53,6 +53,9 @@ export type EventResponse = Event & {
 export type EventTableResponse = EventTable & {
   gameName: string;
   image: string | null;
+  yearPublished?: number | null;
+  average?: number | null;
+  rank?: number | null;
   confirmedCount: number;
   reservedCount: number;
   myBooking: EventBooking | null;

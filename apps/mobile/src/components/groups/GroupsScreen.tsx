@@ -1,6 +1,4 @@
 import { resolveApiUrl, useGroups, useListFilters } from "@board-game-organizer/shared";
-import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import squircles from "@dicebear/styles/squircles.json" with { type: "json" };
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
@@ -8,9 +6,9 @@ import { Button } from "heroui-native/button";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Crown, LockKeyhole, LockKeyholeOpen, Mail, Plus, UsersRound } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
-import { SvgXml } from "react-native-svg";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
@@ -24,19 +22,12 @@ import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
-const squirclesStyle = new Style(squircles);
 
 function GroupArtwork({ name, admin }: { name: string; admin: boolean }) {
   const t = useT();
-  const xml = useMemo(
-    () => new DiceBearAvatar(squirclesStyle, { seed: name, size: 64 }).toString(),
-    [name],
-  );
   return (
     <View style={{ width: 64, height: 64, flexShrink: 0 }}>
-      <View style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden" }}>
-        <SvgXml xml={xml} width={64} height={64} />
-      </View>
+      <AnimatedDicebearArtwork seed={name} variant="landscape" />
       {admin ? (
         <View
           accessible

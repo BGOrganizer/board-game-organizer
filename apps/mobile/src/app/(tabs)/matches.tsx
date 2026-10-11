@@ -8,8 +8,6 @@ import {
   useListFilters,
   useMatches,
 } from "@board-game-organizer/shared";
-import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import waves from "@dicebear/styles/waves.json" with { type: "json" };
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
@@ -18,19 +16,19 @@ import { Chip } from "heroui-native/chip";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { CalendarDays, Crown, Dices, MapPin, Medal, Plus, UsersRound } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import {
+  CalendarDays,
+  CalendarRange,
+  Crown,
+  Dices,
+  MapPin,
+  Medal,
+  Plus,
+  UsersRound,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { FlatList, View } from "react-native";
-import Animated, {
-  cancelAnimation,
-  ReduceMotion,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
-import { SvgXml } from "react-native-svg";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
@@ -47,8 +45,6 @@ function apiUrl(): string {
   return resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
 }
 
-const wavesStyle = new Style(waves);
-
 function MatchArtwork({
   name,
   adminLabel,
@@ -59,37 +55,9 @@ function MatchArtwork({
   eventLabel?: string;
 }) {
   const accent = useThemeColor("accent");
-  const xml = useMemo(
-    () => new DiceBearAvatar(wavesStyle, { seed: name, size: 72 }).toString(),
-    [name],
-  );
-  const reducedMotion = useReducedMotion();
-  const shift = useSharedValue(0);
-  useEffect(() => {
-    if (reducedMotion) {
-      shift.set(0);
-      return;
-    }
-    shift.set(
-      withRepeat(withTiming(4, { duration: 3000, reduceMotion: ReduceMotion.System }), -1, true),
-    );
-    return () => cancelAnimation(shift);
-  }, [reducedMotion, shift]);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shift.get() }] }));
   return (
     <View style={{ width: 64, height: eventLabel ? 84 : 64, flexShrink: 0 }}>
-      <View
-        accessible={false}
-        className="bg-accent/10"
-        style={{ width: 64, height: 64, borderRadius: 12, overflow: "hidden" }}
-      >
-        <Animated.View
-          testID="match-waves-image"
-          style={[{ position: "absolute", left: -4, top: -4 }, animatedStyle]}
-        >
-          <SvgXml xml={xml} width={72} height={72} />
-        </Animated.View>
-      </View>
+      <AnimatedDicebearArtwork seed={name} variant={eventLabel ? "shapes" : "waves"} />
       {adminLabel && (
         <View
           accessible
@@ -215,7 +183,10 @@ export default function MatchesScreen() {
             (candidate) => candidate.inviteeUserId === userId,
           );
           const card = matchCardData(match);
+          const title = match.eventTable?.tableName ?? match.name;
           const statusLabels: Record<MatchCardStatus, string> = {
+            OPEN: t("Open"),
+            CLOSED: t("Closed"),
             PLANNING: t("Planning"),
             CREATED: t("Confirmed"),
             IN_PROGRESS: t("In progress"),
@@ -240,7 +211,7 @@ export default function MatchesScreen() {
           return (
             <LinkedListCard
               key={match.id}
-              label={`${t("Open match")}: ${match.name}${match.eventTable ? `, ${t("Event table")}` : ""}, ${statusLabels[match.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t("Players")}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t("Winner") : t("Winners")}: ${card.winnerNames.join(", ")}` : ""}`}
+              label={`${t("Open match")}: ${title}${match.eventTable ? `, ${t("Event table")}: ${match.eventTable.eventName}` : ""}, ${statusLabels[card.status]}, ${dateLabel ? `${dateLabel.date} ${dateLabel.time}` : ""} ${extraDates}, ${t("Players")}: ${playersLabel}, ${gameLabel}${match.adminUserId === userId ? `, ${t("Administrator")}` : ""}${card.winnerNames?.length ? `, ${card.winnerNames.length === 1 ? t("Winner") : t("Winners")}: ${card.winnerNames.join(", ")}` : ""}`}
               disabled={match.optimistic}
               onPress={() =>
                 router.push({ pathname: "/match/[matchId]", params: { matchId: match.id } })
@@ -249,7 +220,7 @@ export default function MatchesScreen() {
                 !match.eventTable && invitation?.status === "PENDING" ? (
                   <InvitationActions
                     placement="card"
-                    name={match.name}
+                    name={title}
                     pending={matches.respondInvitation.isPending}
                     onDecline={() =>
                       matches.respondInvitation.mutate({
@@ -273,15 +244,27 @@ export default function MatchesScreen() {
                 adminLabel={match.adminUserId === userId ? t("Administrator") : undefined}
               />
               <ListCardBody
-                title={match.name}
+                title={title}
                 titleAccessory={
                   <>
-                    <Chip size="sm" variant="soft" color={matchCardStatusColor[match.status]}>
-                      {statusLabels[match.status]}
+                    <Chip size="sm" variant="soft" color={matchCardStatusColor[card.status]}>
+                      {statusLabels[card.status]}
                     </Chip>
                   </>
                 }
               >
+                {match.eventTable ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <CalendarRange size={14} color="#6b7280" />
+                    <Typography
+                      className="text-xs text-muted"
+                      numberOfLines={1}
+                      style={{ flex: 1 }}
+                    >
+                      {match.eventTable.eventName}
+                    </Typography>
+                  </View>
+                ) : null}
                 {card.date && dateLabel && (
                   <View
                     style={{

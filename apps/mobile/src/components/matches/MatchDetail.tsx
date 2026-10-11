@@ -30,6 +30,7 @@ import {
   Crown,
   Ellipsis,
   Gamepad2,
+  LayoutGrid,
   LogOut,
   MapPin,
   Medal,
@@ -43,6 +44,8 @@ import {
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -60,6 +63,7 @@ import { GameListRow } from "@/components/games/GameListRow";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { MatchLeaderboard } from "@/components/matches/MatchLeaderboard";
+import { MatchPlayerLimits } from "@/components/matches/MatchPlayerLimits";
 import { MatchStandingIdentity } from "@/components/matches/MatchStandingIdentity";
 import { VoteCounts } from "@/components/matches/VoteCounts";
 import { VoteLegend } from "@/components/matches/VoteLegend";
@@ -292,7 +296,10 @@ export function MatchDetail({
     <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
-          title: t("Match details"),
+          title: match?.eventTable ? t("Table details") : t("Match details"),
+          headerTitle: match?.eventTable
+            ? () => <HeaderTitle title={t("Table details")} icon={LayoutGrid} />
+            : undefined,
           headerRight:
             matchAction || (match && canRegisterMatchResults(match, userId))
               ? () => (
@@ -640,7 +647,6 @@ function MatchDetailContent({
   respond: (invitationId: string, decision: "accept" | "decline") => void;
 }) {
   const t = useT();
-  const { i18n } = useLingui();
   const [menuUserId, setMenuUserId] = useState<string | null>(null);
   const favoriteFeedback = useMutationFeedback();
   const favorites = useFavoriteLocations(
@@ -661,7 +667,9 @@ function MatchDetailContent({
   };
   const { match, administrator, games } = data;
   const ownInvitation = match.invitations.find((invitation) => invitation.inviteeUserId === userId);
-  const canViewLeaderboard = match.adminUserId === userId || ownInvitation?.status === "ACCEPTED";
+  const canViewLeaderboard =
+    (!match.eventTable || match.eventTable.openSkill) &&
+    (match.adminUserId === userId || ownInvitation?.status === "ACCEPTED");
   const canChoose =
     !match.eventTable &&
     match.status === "PLANNING" &&
@@ -855,23 +863,7 @@ function MatchDetailContent({
                     return (
                       <GroupedRow key={date}>
                         <View style={{ flex: 1, gap: 3 }}>
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              flexWrap: "wrap",
-                              gap: 8,
-                            }}
-                          >
-                            <CalendarDays size={16} color={muted} />
-                            <Typography className="text-sm text-foreground">
-                              {formatMatchDateTime(date, i18n.locale).date}
-                            </Typography>
-                            <Clock3 size={16} color={muted} />
-                            <Typography className="text-sm text-foreground">
-                              {formatMatchDateTime(date, i18n.locale).time}
-                            </Typography>
-                          </View>
+                          <DateTimeInfo startsAt={date} />
                           {match.status === "PLANNING" &&
                             data.voteSummary?.dates[String(Date.parse(date))] && (
                               <VoteCounts
@@ -1078,20 +1070,7 @@ function MatchDetailContent({
             ) : (
               <View style={{ gap: 12 }}>
                 {match.status === "PLANNING" && (
-                  <View style={{ flexDirection: "row", gap: 28 }}>
-                    <View>
-                      <Typography className="text-sm text-muted">{t("Minimum players")}</Typography>
-                      <Typography className="font-semibold text-foreground">
-                        {match.minPlayers}
-                      </Typography>
-                    </View>
-                    <View>
-                      <Typography className="text-sm text-muted">{t("Maximum players")}</Typography>
-                      <Typography className="font-semibold text-foreground">
-                        {match.maxPlayers}
-                      </Typography>
-                    </View>
-                  </View>
+                  <MatchPlayerLimits minPlayers={match.minPlayers} maxPlayers={match.maxPlayers} />
                 )}
 
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

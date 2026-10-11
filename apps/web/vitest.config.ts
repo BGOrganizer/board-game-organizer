@@ -85,13 +85,21 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/common/ui/{AnimatedDicebearArtwork,DateTimeInfo}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/{games/GameListRow,locations/LocationListRow,matches/MatchPlayerLimits}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/lib/events/eventWizardBackHref.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventTableHeading,EventTablePlayers,EventTableOverview,EventTableEditAction,EventTableInvitationPicker,EventTableEdit,EventTable}.tsx":
+        "src/components/events/{EventTableHeading,EventTablePlayers,EventTableOverview,EventTableEditAction,EventTableEdit,EventTable}.tsx":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/components/organizations/OrganizationMemberPicker.tsx": {
           lines: 100,

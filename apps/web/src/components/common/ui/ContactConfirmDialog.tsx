@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 
 interface DialogAction {
   label: string;
-  variant?: "primary" | "danger";
+  variant?: "primary" | "danger" | "danger-soft";
   icon?: ReactNode;
   onPress: () => void;
 }
@@ -45,7 +45,7 @@ export function ContactConfirmDialog({
 
   if (!mounted) return null;
   const buttonClassName = actionsInRow
-    ? "min-h-11 min-w-11 flex-1 flex-row gap-1 px-1 whitespace-normal text-center"
+    ? "min-h-11 min-w-11 flex-1 flex-row gap-2 px-2 whitespace-normal text-center text-base"
     : "w-full sm:w-auto";
   const cancel = (
     <Button
@@ -90,7 +90,7 @@ export function ContactConfirmDialog({
               key={action.label}
               className={buttonClassName}
               variant={action.variant ?? "primary"}
-              size={actionsInRow ? "sm" : undefined}
+              size="md"
               isDisabled={busy}
               onPress={action.onPress}
             >

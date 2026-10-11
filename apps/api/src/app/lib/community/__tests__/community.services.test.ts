@@ -74,6 +74,21 @@ describe("community transaction service invariants", () => {
     vi.setSystemTime(new Date(now));
   });
   afterEach(() => vi.useRealTimers());
+  it.each(["admin", "member", "outsider"])(
+    "rejects table invitations from %s before reads, writes or notifications",
+    async (actor) => {
+      const saveBooking = vi.fn();
+      const { eventService, events, notifications } = services({ saveBooking });
+      for (const target of ["member", actor, ""])
+        await expect(eventService.book(actor, "event", "table", target)).rejects.toMatchObject({
+          status: 403,
+          message: "TABLE_INVITATIONS_DISABLED",
+        });
+      expect(events.find).not.toHaveBeenCalled();
+      expect(saveBooking).not.toHaveBeenCalled();
+      expect(notifications.notifyMany).not.toHaveBeenCalled();
+    },
+  );
   it("caps new and retained tables before any event writes", async () => {
     const table = {
       name: "Table",
@@ -124,9 +139,7 @@ describe("community transaction service invariants", () => {
     const { eventService } = services({
       findBooking: vi.fn(async () => ({ id: "booking", eventId: "event" })),
     });
-    await expect(eventService.book("admin", "event", "table", "member")).rejects.toThrow(
-      "EVENT_CLOSED",
-    );
+    await expect(eventService.book("admin", "event", "table")).rejects.toThrow("EVENT_CLOSED");
     await expect(eventService.bookingAction("admin", "booking", "approve")).rejects.toThrow(
       "EVENT_CLOSED",
     );

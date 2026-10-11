@@ -256,9 +256,9 @@ export function OrganizationMembers({ organization }: { organization: Organizati
       {managed && managedActions.length > 0 ? (
         <ContactConfirmDialog
           title={managementTitle}
-          cancelLast={request}
-          actionsInRow={request}
-          cancelIcon={request ? <X className="size-4" aria-hidden /> : undefined}
+          cancelLast
+          actionsInRow
+          cancelIcon={<X className="size-4" aria-hidden />}
           description={
             request
               ? t`Accept or reject this membership request. Banning prevents rejoining this organization until revoked; global social blocking is separate.`
@@ -281,7 +281,7 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                   },
                   {
                     label: t`Reject`,
-                    variant: "danger",
+                    variant: "danger-soft",
                     icon: <X className="size-4" aria-hidden />,
                     onPress: () => run(managed, "reject"),
                   },
@@ -296,19 +296,22 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                 ? [
                     {
                       label: t`Cancel organization invitation`,
-                      variant: "danger",
+                      variant: "danger-soft",
+                      icon: <CircleX className="size-4" aria-hidden />,
                       onPress: () => run(managed, "remove"),
                     },
                   ]
                 : [
                     {
-                      label: t`Remove from organization`,
-                      variant: "danger",
+                      label: t`Remove`,
+                      variant: "danger-soft",
+                      icon: <UserRoundMinus className="size-4" aria-hidden />,
                       onPress: () => run(managed, "remove"),
                     },
                     {
-                      label: t`Remove and exclude`,
+                      label: t`Ban`,
                       variant: "danger",
+                      icon: <Ban className="size-4" aria-hidden />,
                       onPress: () => run(managed, "ban"),
                     },
                   ]

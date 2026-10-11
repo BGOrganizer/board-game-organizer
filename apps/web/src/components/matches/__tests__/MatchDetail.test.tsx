@@ -180,6 +180,20 @@ describe("MatchDetail", () => {
     bookingClosesAt: "2030-06-01T12:00:00Z",
     endsAt: "2030-06-12T20:00:00Z",
   };
+  it("hides rating controls for unrated tables even from the administrator", () => {
+    authMock.userId = "user_admin";
+    useMatchDetailMock.mockReturnValue(
+      result({
+        ...detail,
+        match: { ...detail.match, eventTable: { ...eventTable, openSkill: false } },
+      }),
+    );
+    renderWithI18n(<MatchDetail matchId={detail.match.id} />);
+    expect(screen.queryByRole("tab", { name: "Leaderboards" })).toBeNull();
+    expect(screen.queryByText("Rating")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Players" })).toBeTruthy();
+  });
   it("opens event matches directly in the canonical table overview/players without a second table view", () => {
     useMatchDetailMock.mockReturnValue(
       result({ ...detail, match: { ...detail.match, eventTable } }),

@@ -4,13 +4,13 @@ import { useEventTableParticipation } from "@board-game-organizer/shared";
 import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Armchair, Check, ClipboardCheck, Clock3, LogOut, UserRoundMinus, X } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { MatchPlayerLimits } from "@/components/matches/MatchPlayerLimits";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
-import { EventTableInvitationPicker } from "./EventTableInvitationPicker";
 
 export function EventTablePlayers({
   eventId,
@@ -26,7 +26,6 @@ export function EventTablePlayers({
   const { t } = useLingui();
   const options = useCommunityApi();
   const flow = useEventTableParticipation(options, eventId, tableId, frozen);
-  const [inviting, setInviting] = useState(false);
   const sentinel = useInfiniteScroll({
     hasNextPage: Boolean(flow.hasMore),
     isFetchingNextPage: flow.bookings.isFetchingNextPage,
@@ -34,6 +33,7 @@ export function EventTablePlayers({
     fetchNextPage: flow.advance,
   });
   const byId = new Map(flow.live.map((row) => [row.id, row]));
+  const limits = frozen?.match ?? flow.table;
   const dialog = flow.dialog;
   const mode = dialog?.kind === "join" ? "join" : dialog?.mode;
   const run = (action?: Parameters<typeof flow.submit>[0]) => {
@@ -48,7 +48,7 @@ export function EventTablePlayers({
           ? t`Respond to table invitation`
           : mode === "remove"
             ? t`Remove player`
-            : t`Leave table`;
+            : t`Leave place`;
   const description =
     mode === "join"
       ? t`Your place will be reserved while an administrator reviews your request. You will be notified when it is accepted or rejected.`
@@ -59,17 +59,11 @@ export function EventTablePlayers({
           : mode === "remove"
             ? t`This player's reserved place will become available again.`
             : t`Your reserved place will become available again.`;
-  if (inviting && flow.event && flow.table && flow.admin && flow.open)
-    return (
-      <EventTableInvitationPicker
-        event={flow.event}
-        table={flow.table}
-        occupied={flow.live.map((row) => row.userId)}
-        onClose={() => setInviting(false)}
-      />
-    );
   return (
     <section aria-label={t`Players`} className="space-y-4">
+      {!flow.visitor && limits ? (
+        <MatchPlayerLimits minPlayers={limits.minPlayers} maxPlayers={limits.maxPlayers} />
+      ) : null}
       {flow.loading ? <Skeleton className="h-48 w-full rounded-xl" /> : null}
       {flow.error ? (
         <div role="alert" className="space-y-2">
@@ -156,7 +150,7 @@ export function EventTablePlayers({
                         size="sm"
                         variant="danger"
                         className="min-h-11 min-w-11"
-                        aria-label={`${t`Leave table`}: ${name}`}
+                        aria-label={`${t`Leave place`}: ${name}`}
                         isDisabled={flow.busy || !booking || !flow.canLeave(booking)}
                         onPress={() => {
                           if (booking) flow.openBooking(booking, "cancel");
@@ -201,13 +195,6 @@ export function EventTablePlayers({
           })}
         </GroupedList>
       ) : null}
-      {flow.event && flow.table && flow.admin && flow.open && flow.event.status === "PUBLISHED" ? (
-        <Button
-          variant="secondary"
-          isDisabled={flow.busy || flow.table.reservedCount >= flow.table.maxPlayers}
-          onPress={() => setInviting(true)}
-        >{t`Invite organization members`}</Button>
-      ) : null}
       {flow.hasMore && !flow.visitor ? (
         <>
           <div ref={sentinel} aria-hidden className="h-1" />
@@ -230,8 +217,8 @@ export function EventTablePlayers({
           description={description}
           busy={flow.busy}
           onCancel={flow.dismiss}
-          cancelLast
-          actionsInRow={mode === "manage" || mode === "invitation"}
+          cancelLast={mode === "manage" || mode === "invitation" || mode === "remove"}
+          actionsInRow
           cancelIcon={<X aria-hidden className="size-4" />}
           actions={
             mode === "manage" || mode === "invitation"
@@ -244,7 +231,7 @@ export function EventTablePlayers({
                   },
                   {
                     label: t`Reject`,
-                    variant: "danger",
+                    variant: "danger-soft",
                     icon: <X className="size-4" />,
                     onPress: () => run(mode === "manage" ? "reject" : "decline"),
                   },
@@ -256,6 +243,8 @@ export function EventTablePlayers({
                     icon:
                       mode === "join" ? (
                         <Armchair className="size-4" />
+                      ) : mode === "remove" ? (
+                        <UserRoundMinus className="size-4" />
                       ) : (
                         <LogOut className="size-4" />
                       ),

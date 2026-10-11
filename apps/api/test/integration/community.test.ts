@@ -608,8 +608,12 @@ describe("community transactions on a MongoDB replica set", () => {
     };
     const pending = await add("Pending own request", "16:00", "17:00");
     await book(pending.row.id, pending.table.id, GUEST, false);
-    const invited = await add("Pending incoming invitation", "17:00", "18:00");
-    await transaction((s) => s.eventService.book(OWNER, invited.row.id, invited.table.id, GUEST));
+    const invited = await add("Another voluntary request", "17:00", "18:00");
+    await expect(
+      transaction((s) => s.eventService.book(OWNER, invited.row.id, invited.table.id, GUEST)),
+    ).rejects.toMatchObject({ status: 403, message: "TABLE_INVITATIONS_DISABLED" });
+    expect(await services().events.bookingForUser(invited.table.id, GUEST)).toBeNull();
+    await book(invited.row.id, invited.table.id, GUEST, false);
     const demonstration = await add("Assigned demonstration", "18:00", "19:00", GUEST);
     const unrelated = await add("Unrelated member event", "19:00", "20:00");
     const draft = await add("Private assigned draft", "18:00", "19:00", GUEST, "DRAFT");
@@ -635,7 +639,7 @@ describe("community transactions on a MongoDB replica set", () => {
       transaction((s) => s.eventService.cancel(GUEST, demonstration.row.id)),
     ).rejects.toMatchObject({ status: 403 });
     const invitation = await services().events.bookingForUser(invited.table.id, GUEST);
-    await transaction((s) => s.eventService.bookingAction(GUEST, invitation?.id ?? "", "decline"));
+    await transaction((s) => s.eventService.bookingAction(GUEST, invitation?.id ?? "", "cancel"));
     expect(
       (await services().eventService.list(GUEST, { limit: 20 })).items.map((row) => row.id),
     ).not.toContain(invited.row.id);

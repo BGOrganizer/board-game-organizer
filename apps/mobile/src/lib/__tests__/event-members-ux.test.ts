@@ -49,12 +49,14 @@ it("uses vertical social actions and one role-aware membership dialog, separate 
   expect(members).toContain("Respond to membership request");
   expect(members).toContain("Cancel organization invitation");
   expect(members).toContain('label: t("Ban")');
-  expect(members).toContain("actionsInRow={request}");
+  expect(members).toContain("actionsInRow");
+  expect(members).toContain('label: t("Remove")');
+  expect(members).toContain('variant: "danger-soft"');
   expect(members).toContain("Block user globally");
   expect(members).not.toContain("setRemoving");
   expect(members).not.toContain("socialRun");
   expect(members).not.toContain("friendLabel");
-  expect(members).toContain("cancelLast={request}");
+  expect(members).toContain("cancelLast");
   expect(source("common/ui/UserActionsSheet.tsx")).toContain("BottomSheet.Content");
   expect(source("common/ui/UserActionsSheet.tsx")).not.toContain("StyleSheet");
   const recipient = source("organizations/OrganizationInvitationResponse.tsx");

@@ -1,11 +1,18 @@
 import type { MatchResponse } from "@board-game-organizer/schemas";
 
-export type MatchCardStatus = MatchResponse["status"] | "IN_PROGRESS" | "CANCELLED";
+export type MatchCardStatus =
+  | MatchResponse["status"]
+  | "IN_PROGRESS"
+  | "CANCELLED"
+  | "OPEN"
+  | "CLOSED";
 
 export const matchCardStatusColor: Record<
   MatchCardStatus,
   "warning" | "success" | "accent" | "default" | "danger"
 > = {
+  OPEN: "warning",
+  CLOSED: "accent",
   PLANNING: "warning",
   CREATED: "success",
   IN_PROGRESS: "accent",
@@ -23,6 +30,15 @@ export function formatMatchDateTime(iso: string, locale: string) {
 
 export function matchCardData(match: MatchResponse, now = Date.now()) {
   const planning = match.status === "PLANNING";
+  const status: MatchCardStatus =
+    match.eventTable && match.status !== "TERMINATED"
+      ? planning &&
+        Date.parse(match.eventTable.bookingClosesAt) > now &&
+        match.eventTable.reservedCount !== undefined &&
+        match.eventTable.reservedCount < match.maxPlayers
+        ? "OPEN"
+        : "CLOSED"
+      : match.status;
   const dates = planning || !match.selectedDate ? match.dates : [match.selectedDate];
   const future = dates.filter((date) => Date.parse(date) >= now);
   const date = (future.length ? future : dates)
@@ -33,6 +49,7 @@ export function matchCardData(match: MatchResponse, now = Date.now()) {
     ? locations[0]
     : (locations.find((candidate) => candidate.id === match.selectedLocationId) ?? locations[0]);
   return {
+    status,
     date,
     additionalDates: Math.max(0, dates.length - 1),
     location,

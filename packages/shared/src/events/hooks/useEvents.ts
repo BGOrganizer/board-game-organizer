@@ -390,27 +390,6 @@ export function useEventActions(o: CommunityApiOptions) {
     onError: (e, _v, c) => undo(e, c, "request_event_booking"),
     onSettled: settle,
   });
-  const invite = useMutation({
-    mutationKey: root,
-    mutationFn: ({
-      eventId,
-      tableId,
-      userId,
-    }: {
-      eventId: string;
-      tableId: string;
-      userId: string;
-    }) =>
-      communityRequest<EventBooking>(
-        o,
-        `events/${encodeURIComponent(eventId)}/tables/${encodeURIComponent(tableId)}/invitations`,
-        "POST",
-        { userId },
-      ),
-    onMutate: () => begin("invite_event_player"),
-    onError: (e, _v, c) => undo(e, c, "invite_event_player"),
-    onSettled: settle,
-  });
   const booking = useMutation({
     mutationKey: root,
     mutationFn: ({ id, action }: { id: string; action: BookingAction; eventId: string }) =>
@@ -426,5 +405,5 @@ export function useEventActions(o: CommunityApiOptions) {
     onError: (e, v, c) => undo(e, c, bookingFeedback[v.action]),
     onSettled: settle,
   });
-  return { create, update, cancel, request, invite, booking, busy };
+  return { create, update, cancel, request, booking, busy };
 }

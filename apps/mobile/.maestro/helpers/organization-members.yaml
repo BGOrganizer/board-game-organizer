@@ -44,7 +44,7 @@ name: Organization members — isolated approved fixture
 - tapOn: "Cancel"
 - assertVisible: ${MEMBER_NAME}
 - tapOn: "Remove member: ${MEMBER_NAME}"
-- tapOn: "Remove and exclude"
+- tapOn: "Ban"
 - scrollUntilVisible:
     element:
       text: "Revoke exclusion: ${MEMBER_NAME}"
@@ -56,7 +56,7 @@ name: Organization members — isolated approved fixture
       text: "Remove member: ${REMOVE_MEMBER_NAME}"
     direction: UP
 - tapOn: "Remove member: ${REMOVE_MEMBER_NAME}"
-- tapOn: "Remove from organization"
+- tapOn: "Remove"
 - assertNotVisible: ${REMOVE_MEMBER_NAME}
 - scrollUntilVisible:
     element:

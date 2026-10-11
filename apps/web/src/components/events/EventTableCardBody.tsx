@@ -1,14 +1,13 @@
 "use client";
 import type { EventDraftTable } from "@board-game-organizer/shared";
-import { Avatar } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Clock3, Dices, LayoutGrid, Presentation, Trophy, UsersRound } from "lucide-react";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 
 export function EventTableCardBody({
   table,
   timeZone,
   gameName,
-  imageUrl,
   demonstrator,
 }: {
   table: EventDraftTable["input"];
@@ -37,12 +36,7 @@ export function EventTableCardBody({
   return (
     <div className="flex items-start gap-3">
       <div className="relative shrink-0" style={{ width: 80, height: 80 }}>
-        <Avatar className="rounded-xl" style={{ width: 80, height: 80 }}>
-          <Avatar.Image src={imageUrl ?? undefined} alt={gameName} className="object-contain" />
-          <Avatar.Fallback>
-            <Dices className="size-9" aria-hidden />
-          </Avatar.Fallback>
-        </Avatar>
+        <AnimatedDicebearArtwork seed={table.name} variant="shapes" size={80} />
         {table.openSkill ? (
           <span
             role="img"

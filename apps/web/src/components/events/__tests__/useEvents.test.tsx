@@ -473,12 +473,6 @@ describe("event mutations", () => {
         }),
       () => h.result.current.cancel.mutateAsync(event.id),
       () => h.result.current.request.mutateAsync({ eventId: event.id, tableId: table.id }),
-      () =>
-        h.result.current.invite.mutateAsync({
-          eventId: event.id,
-          tableId: table.id,
-          userId: "guest",
-        }),
     ])
       await act(async () => {
         await expect(op()).rejects.toThrow();
@@ -488,15 +482,11 @@ describe("event mutations", () => {
       pages: [{ items: [{ ...event, name: "Canonical title", version: 3 }], nextCursor: null }],
       pageParams: [""],
     });
-    expect(options.feedback?.onError).toHaveBeenCalledTimes(5);
+    expect(options.feedback?.onError).toHaveBeenCalledTimes(4);
+    expect(h.result.current).not.toHaveProperty("invite");
     fetch.mockImplementation(async () => response(booking));
     await act(async () => {
       await h.result.current.request.mutateAsync({ eventId: event.id, tableId: table.id });
-      await h.result.current.invite.mutateAsync({
-        eventId: event.id,
-        tableId: table.id,
-        userId: "guest",
-      });
       await h.result.current.cancel.mutateAsync(event.id);
     });
     expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);

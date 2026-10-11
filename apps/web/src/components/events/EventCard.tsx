@@ -1,8 +1,6 @@
 "use client";
 import type { EventResponse } from "@board-game-organizer/schemas";
 import { formatLocationAddress } from "@board-game-organizer/shared";
-import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import planets from "@dicebear/styles/planets.json" with { type: "json" };
 import { Chip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -15,11 +13,10 @@ import {
   MapPin,
   UsersRound,
 } from "lucide-react";
-import { useMemo } from "react";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCard } from "@/components/common/ui/ListCard";
 
-const style = new Style(planets);
 export function EventCard({
   event,
   presentation = "list",
@@ -28,11 +25,6 @@ export function EventCard({
   presentation?: "list" | "detail";
 }) {
   const { t, i18n } = useLingui();
-  const src = useMemo(
-    () =>
-      `data:image/svg+xml,${encodeURIComponent(new DiceBearAvatar(style, { seed: event.id, size: 64 }).toString())}`,
-    [event.id],
-  );
   const date = new Intl.DateTimeFormat(i18n.locale, {
     year: "numeric",
     month: "2-digit",
@@ -57,10 +49,7 @@ export function EventCard({
   const numbers = new Intl.NumberFormat(i18n.locale);
   const content = (
     <>
-      <span className="size-16 shrink-0 overflow-hidden rounded-xl bg-accent/10" aria-hidden="true">
-        {/* biome-ignore lint/performance/noImgElement: Locally generated DiceBear SVG; no remote request. */}
-        <img src={src} alt="" width={64} height={64} />
-      </span>
+      <AnimatedDicebearArtwork seed={event.id} variant="planets" />
       <div className="min-w-0 flex-1 space-y-2">
         {presentation === "list" ? (
           <p className="flex min-h-6 items-center gap-1 pr-24 font-semibold">

@@ -421,6 +421,9 @@ export class EventsService {
       matchId: table.status === "CANCELLED" ? undefined : table.matchId,
       gameName: game?.name ?? String(table.gameId),
       image: game?.image ?? null,
+      yearPublished: game?.yearPublished ?? null,
+      average: game?.average ?? null,
+      rank: game?.rank ?? null,
       confirmedCount: confirmedEventPlayers(bookings).length,
       reservedCount,
       myBooking: mine,
@@ -460,9 +463,10 @@ export class EventsService {
     };
   }
   async book(userId: string, id: string, tableId: string, invitee?: string) {
-    const { event, organization } = await this.locked(userId, id, Boolean(invitee));
+    if (invitee !== undefined) throw new CommunityError(403, "TABLE_INVITATIONS_DISABLED");
+    const { event, organization } = await this.locked(userId, id);
     if (event.status !== "PUBLISHED") throw new CommunityError(409, "EVENT_NOT_PUBLISHED");
-    const target = invitee ?? userId;
+    const target = userId;
     await this.member(organization, target);
     const table = await this.events.findTable(tableId);
     if (!table || table.eventId !== id || table.status !== "PLANNING")
@@ -476,19 +480,13 @@ export class EventsService {
       eventId: id,
       tableId,
       userId: target,
-      kind: invitee ? "INVITATION" : "REQUEST",
+      kind: "REQUEST",
       status: "PENDING",
       createdAt: current?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     await this.events.saveBooking(booking);
-    await this.notify(
-      invitee ? "event_updated" : "event_booking_requested",
-      event,
-      userId,
-      [invitee ?? event.adminUserId],
-      table,
-    );
+    await this.notify("event_booking_requested", event, userId, [event.adminUserId], table);
     if (!canModifyEvent(event, Date.now())) throw new CommunityError(409, "EVENT_CLOSED");
     return booking;
   }

@@ -1,7 +1,5 @@
 import type { EventResponse } from "@board-game-organizer/schemas";
 import { formatLocationAddress } from "@board-game-organizer/shared";
-import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
-import planets from "@dicebear/styles/planets.json" with { type: "json" };
 import { useLingui } from "@lingui/react";
 import { useRouter } from "expo-router";
 import { Chip } from "heroui-native/chip";
@@ -17,14 +15,12 @@ import {
   MapPin,
   UsersRound,
 } from "lucide-react-native";
-import { useMemo } from "react";
 import { View } from "react-native";
-import { SvgXml } from "react-native-svg";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { useT } from "@/lib/i18n";
 
-const style = new Style(planets);
 export function EventCard({
   event,
   presentation = "list",
@@ -36,10 +32,6 @@ export function EventCard({
   const { i18n } = useLingui();
   const router = useRouter();
   const muted = useThemeColor("muted");
-  const xml = useMemo(
-    () => new DiceBearAvatar(style, { seed: event.id, size: 64 }).toString(),
-    [event.id],
-  );
   const date = new Intl.DateTimeFormat(i18n.locale, {
     year: "numeric",
     month: "2-digit",
@@ -64,14 +56,7 @@ export function EventCard({
   const numbers = new Intl.NumberFormat(i18n.locale);
   const content = (
     <>
-      <View
-        accessible={false}
-        importantForAccessibility="no-hide-descendants"
-        className="bg-accent/10"
-        style={{ width: 64, height: 64, flexShrink: 0, borderRadius: 12, overflow: "hidden" }}
-      >
-        <SvgXml xml={xml} width={64} height={64} />
-      </View>
+      <AnimatedDicebearArtwork seed={event.id} variant="planets" />
       <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
         {presentation === "list" ? (
           <View

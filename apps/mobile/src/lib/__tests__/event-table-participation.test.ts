@@ -20,6 +20,11 @@ it("keeps framework entries small and points both entrances at the canonical tab
     expect(match).toContain(component);
   expect(match).not.toContain('t("Open event table")');
   expect(match).toContain('match?.status === "TERMINATED" && activeTab === "players"');
+  expect(match).toContain("!match.eventTable || match.eventTable.openSkill");
+  expect(match).toContain('HeaderTitle title={t("Table details")} icon={LayoutGrid}');
+  expect(table).toContain('HeaderTitle title={t("Table details")} icon={LayoutGrid}');
+  expect(source("components/groups/GroupsScreen.tsx")).toContain('variant="landscape"');
+  expect(source("components/events/EventTableCardBody.tsx")).toContain('variant="shapes"');
 });
 it("virtualizes event participants outside the ordinary match scroll container", () => {
   const players = source("components/events/EventTablePlayers.tsx");
@@ -45,6 +50,11 @@ it("uses seat icons, pending status and membership-style decisions without organ
   expect(players).toContain("You will be notified when it is accepted or rejected.");
   expect(players).not.toContain('t("Ban")');
   expect(players).toContain('mode === "manage" ? "approve" : "accept"');
+  expect(players).toContain('t("Leave place")');
+  expect(players).toContain("<MatchPlayerLimits");
+  expect(players).not.toContain("EventTableInvitationPicker");
+  expect(players).not.toContain('t("Invite organization members")');
+  expect(players).toContain('variant: "danger-soft"');
 });
 it("uses the creator-only contextual table editor, never an ordinary match edit route", () => {
   const fab = source("components/events/EventTableEditAction.tsx");

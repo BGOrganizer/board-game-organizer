@@ -67,6 +67,8 @@ describe("matchCardData", () => {
   });
   it("keeps semantic colors ready for future match states", () => {
     expect(matchCardStatusColor).toEqual({
+      OPEN: "warning",
+      CLOSED: "accent",
       PLANNING: "warning",
       CREATED: "success",
       IN_PROGRESS: "accent",
@@ -76,6 +78,7 @@ describe("matchCardData", () => {
   });
   it("shows min/max, all dates, and game count while planning", () => {
     expect(matchCardData(match, Date.parse("2026-09-01T00:00:00Z"))).toEqual({
+      status: "PLANNING",
       date: match.dates[0],
       additionalDates: 1,
       location: undefined,
@@ -98,6 +101,7 @@ describe("matchCardData", () => {
         selectedGameName: "Cascadia",
       }),
     ).toEqual({
+      status: "CREATED",
       date: match.dates[1],
       additionalDates: 0,
       location: undefined,
@@ -125,6 +129,39 @@ describe("matchCardData", () => {
     ).toBe(1);
   });
 
+  it("uses authoritative reservations for table availability, respecting the exact cutoff and frozen status", () => {
+    const table = {
+      ...match,
+      eventTable: {
+        organizationId: "org",
+        eventId: "event",
+        tableId: "table",
+        eventName: "Event",
+        tableName: "Table",
+        openSkill: false,
+        bookingClosesAt: "2030-06-12T10:00:00Z",
+        endsAt: "2030-06-12T18:00:00Z",
+        reservedCount: 4,
+      },
+    };
+    const before = Date.parse("2030-06-12T09:59:59.999Z");
+    expect(matchCardData(table, before).status).toBe("OPEN");
+    expect(
+      matchCardData({ ...table, eventTable: { ...table.eventTable, reservedCount: 5 } }, before)
+        .status,
+    ).toBe("CLOSED");
+    expect(
+      matchCardData(
+        { ...table, eventTable: { ...table.eventTable, reservedCount: undefined } },
+        before,
+      ).status,
+    ).toBe("CLOSED");
+    expect(matchCardData(table, Date.parse(table.eventTable.bookingClosesAt)).status).toBe(
+      "CLOSED",
+    );
+    expect(matchCardData({ ...table, status: "CREATED" }, before).status).toBe("CLOSED");
+    expect(matchCardData({ ...table, status: "TERMINATED" }, before).status).toBe("TERMINATED");
+  });
   it("exposes only terminated winners", () => {
     expect(matchCardData({ ...match, winnerNames: ["Guest Player"] }).winnerNames).toBeUndefined();
     expect(

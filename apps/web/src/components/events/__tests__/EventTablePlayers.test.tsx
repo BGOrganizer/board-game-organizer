@@ -2,6 +2,7 @@ import type {
   EventBookingResponse,
   EventResponse,
   EventTableResponse,
+  MatchDetailResponse,
 } from "@board-game-organizer/schemas";
 import type { useEventTableParticipation } from "@board-game-organizer/shared";
 import { setupI18n } from "@lingui/core";
@@ -30,19 +31,6 @@ vi.mock("@board-game-organizer/shared", async (original) => ({
 }));
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => ({ userId: "me" }) }));
 vi.mock("@/lib/useInfiniteScroll", () => ({ useInfiniteScroll: () => vi.fn() }));
-vi.mock("../EventTableInvitationPicker", () => ({
-  EventTableInvitationPicker: ({
-    onClose,
-    occupied,
-  }: {
-    onClose: () => void;
-    occupied: string[];
-  }) => (
-    <button type="button" onClick={onClose}>
-      Close picker {occupied.join(",")}
-    </button>
-  ),
-}));
 const booking = (patch: Partial<EventBookingResponse> = {}): EventBookingResponse => ({
   id: "one",
   eventId: "event",
@@ -56,7 +44,7 @@ const booking = (patch: Partial<EventBookingResponse> = {}): EventBookingRespons
   updatedAt: "2030-01-01T00:00:00Z",
   ...patch,
 });
-function mount(actions = false) {
+function mount(actions = false, frozen?: MatchDetailResponse) {
   const i18n = setupI18n({ locale: "en", messages: { en: messages } });
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <I18nProvider i18n={i18n}>{children}</I18nProvider>
@@ -65,6 +53,7 @@ function mount(actions = false) {
     <EventTablePlayers
       eventId="event"
       tableId="table"
+      frozen={frozen}
       renderActions={actions ? (id) => <span>Social {id}</span> : undefined}
     />
   );
@@ -78,7 +67,7 @@ beforeEach(() => {
   s.advance.mockResolvedValue(undefined);
   s.flow = {
     event: { role: "admin", status: "PUBLISHED" } as EventResponse,
-    table: { maxPlayers: 4, reservedCount: 2 } as EventTableResponse,
+    table: { minPlayers: 2, maxPlayers: 4, reservedCount: 2 } as EventTableResponse,
     live: [booking()],
     seats: [
       {
@@ -193,7 +182,7 @@ it.each(["cancel", "remove"] as const)(
     expect(within(dialog).getByText(/place will become available again/)).toBeTruthy();
     await user.click(
       within(dialog).getByRole("button", {
-        name: mode === "remove" ? "Remove player" : "Leave table",
+        name: mode === "remove" ? "Remove player" : "Leave place",
       }),
     );
     expect(s.submit).toHaveBeenCalledWith(mode);
@@ -212,7 +201,7 @@ it("shows recipient invitation controls and safe own-name fallback", async () =>
   expect(screen.getByText("Invited")).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Respond to table invitation: You" }));
   expect(s.openBooking).toHaveBeenLastCalledWith(s.flow.live[0], "invitation");
-  await user.click(screen.getByRole("button", { name: "Leave table: You" }));
+  await user.click(screen.getByRole("button", { name: "Leave place: You" }));
   expect(s.openBooking).toHaveBeenLastCalledWith(s.flow.live[0], "cancel");
 });
 it("keeps frozen users visible and prevents leave/removal without a live authorized booking", () => {
@@ -231,7 +220,7 @@ it("keeps frozen users visible and prevents leave/removal without a live authori
   ];
   mount();
   expect(screen.getByText("Username unavailable")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Leave table: You" }).hasAttribute("disabled")).toBe(
+  expect(screen.getByRole("button", { name: "Leave place: You" }).hasAttribute("disabled")).toBe(
     true,
   );
   expect(screen.getByRole("button", { name: "Reserve a place: 3" }).hasAttribute("disabled")).toBe(
@@ -253,8 +242,7 @@ it("disables busy, forbidden-leave, full-table and next-page controls", () => {
   for (const name of [
     "Respond to participation request: Ada",
     "Respond to table invitation: Ada",
-    "Leave table: Ada",
-    "Invite organization members",
+    "Leave place: Ada",
     "Load more",
   ])
     expect(screen.getByRole("button", { name }).hasAttribute("disabled")).toBe(true);
@@ -279,12 +267,16 @@ it("retains cached players on failure and retries only permitted resources", asy
   view.refresh();
   expect(screen.queryByText("Ada")).toBeNull();
 });
-it("opens the reused organization-member picker and restores the players view on Back", async () => {
-  const user = { click: fireEvent.click };
+it("shows shared player limits, never offers administrative invitations", () => {
   mount();
-  await user.click(screen.getByRole("button", { name: "Invite organization members" }));
-  await user.click(screen.getByRole("button", { name: "Close picker other" }));
-  expect(screen.getByText("Ada")).toBeTruthy();
+  expect(screen.getByText("Minimum players")).toBeTruthy();
+  expect(screen.getByText("Maximum players")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Invite organization members" })).toBeNull();
+});
+it("uses frozen match limits rather than mutable table limits", () => {
+  mount(false, { match: { minPlayers: 3, maxPlayers: 6 } } as MatchDetailResponse);
+  expect(screen.getByText("Minimum players").parentElement?.textContent).toBe("Minimum players3");
+  expect(screen.getByText("Maximum players").parentElement?.textContent).toBe("Maximum players6");
 });
 it("pages on demand and lets explicit retry recover a failed page without automatic loops", async () => {
   s.flow.hasMore = true;

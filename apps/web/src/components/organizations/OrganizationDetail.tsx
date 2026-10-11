@@ -11,7 +11,6 @@ import {
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, LogOut, Pencil, Plus, UserRoundPlus, X } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -122,7 +121,7 @@ export function OrganizationDetail({
                     return (
                       <Button
                         key={action}
-                        isIconOnly={action === "cancel"}
+                        isIconOnly
                         aria-label={label}
                         isDisabled={actions.busy}
                         variant={action === "cancel" ? "danger-soft" : "primary"}
@@ -131,7 +130,6 @@ export function OrganizationDetail({
                         }
                       >
                         {Icon ? <Icon className="size-4" aria-hidden /> : null}
-                        {action !== "cancel" ? label : null}
                       </Button>
                     );
                   })

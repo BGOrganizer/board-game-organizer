@@ -3,7 +3,8 @@ import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { Clock3, Dices, LayoutGrid, Presentation, Trophy, UsersRound } from "lucide-react-native";
-import { Image, View } from "react-native";
+import { View } from "react-native";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
 
@@ -11,7 +12,6 @@ export function EventTableCardBody({
   table,
   timeZone,
   gameName,
-  imageUrl,
   demonstrator,
 }: {
   table: EventDraftTable["input"];
@@ -42,18 +42,7 @@ export function EventTableCardBody({
   return (
     <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start" }}>
       <View style={{ width: 80, height: 80, flexShrink: 0 }}>
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            resizeMode="contain"
-            accessibilityLabel={gameName}
-            style={{ width: 80, height: 80, borderRadius: 12 }}
-          />
-        ) : (
-          <View style={{ width: 80, height: 80, alignItems: "center", justifyContent: "center" }}>
-            <Dices size={36} color={muted} />
-          </View>
-        )}
+        <AnimatedDicebearArtwork seed={table.name} variant="shapes" size={80} />
         {table.openSkill ? (
           <View
             accessible

@@ -228,9 +228,9 @@ export function OrganizationMembers({ organization }: { organization: Organizati
       {managed && managedActions.length > 0 ? (
         <CommunityConfirm
           title={managementTitle}
-          cancelLast={request}
-          actionsInRow={request}
-          cancelIcon={request ? <X size={18} color={foreground} /> : undefined}
+          cancelLast
+          actionsInRow
+          cancelIcon={<X size={18} color={foreground} />}
           description={
             request
               ? t(
@@ -259,8 +259,8 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                   },
                   {
                     label: t("Reject"),
-                    variant: "danger",
-                    icon: <X size={18} color={accentForeground} />,
+                    variant: "danger-soft",
+                    icon: <X size={18} color={danger} />,
                     onPress: () => run(managed, "reject"),
                   },
                   {
@@ -274,19 +274,22 @@ export function OrganizationMembers({ organization }: { organization: Organizati
                 ? [
                     {
                       label: t("Cancel organization invitation"),
-                      variant: "danger",
+                      variant: "danger-soft",
+                      icon: <CircleX size={18} color={danger} />,
                       onPress: () => run(managed, "remove"),
                     },
                   ]
                 : [
                     {
-                      label: t("Remove from organization"),
-                      variant: "danger",
+                      label: t("Remove"),
+                      variant: "danger-soft",
+                      icon: <UserRoundMinus size={18} color={danger} />,
                       onPress: () => run(managed, "remove"),
                     },
                     {
-                      label: t("Remove and exclude"),
+                      label: t("Ban"),
                       variant: "danger",
+                      icon: <Ban size={18} color={accentForeground} />,
                       onPress: () => run(managed, "ban"),
                     },
                   ]

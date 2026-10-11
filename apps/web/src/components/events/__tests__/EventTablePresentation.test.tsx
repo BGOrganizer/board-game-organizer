@@ -47,6 +47,9 @@ beforeEach(() => {
       startsAt: "2030-06-12T15:00:00Z",
       endsAt: "2030-06-12T16:00:00Z",
       gameName: "Azul",
+      yearPublished: 2017,
+      average: 7.8,
+      rank: 85,
       image: "https://example.test/cover",
       minPlayers: 2,
       maxPlayers: 4,
@@ -71,9 +74,15 @@ it("keeps an icon-bearing Table name label, the name below, optional blue Rating
 it("shows authorized timezone, cover/game, location, counts and demonstrator while cached fields survive errors", () => {
   const v = mount(<EventTableOverview eventId="event" tableId="table" />);
   expect(screen.getByText("Azul")).toBeTruthy();
+  expect(screen.getByRole("img", { name: "Average: 7.80" })).toBeTruthy();
+  expect(screen.getByRole("img", { name: "Rank: 85" })).toBeTruthy();
   expect(screen.getByText("Club")).toBeTruthy();
   expect(screen.getByText("Verified address")).toBeTruthy();
-  expect(screen.getByText("2–4")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Date and time" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Location" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Board games" })).toBeTruthy();
+  for (const label of ["Date and time help", "Table location help", "Table game help"])
+    expect(screen.getByRole("button", { name: label })).toBeTruthy();
   expect(screen.getByText(/1\/4 confirmed players.*3 reserved places/)).toBeTruthy();
   expect(screen.getByText("Demonstrator: Demo")).toBeTruthy();
   expect(screen.getByText(/5:00 PM/)).toBeTruthy();

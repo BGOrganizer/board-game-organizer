@@ -51,7 +51,16 @@ function setup(status = "PLANNING", openSkill = false, tableRepository = true) {
     currentForPlayers: vi.fn(async () => []),
     matchStats: vi.fn(async () => new Map()),
   };
-  const tables = { markTerminated: vi.fn() };
+  const tables = {
+    markTerminated: vi.fn(),
+    tableBookings: vi.fn(async () => [
+      { id: "a", kind: "REQUEST", status: "PENDING" },
+      { id: "b", kind: "REQUEST", status: "CONFIRMED" },
+      { id: "c", kind: "INVITATION", status: "PENDING" },
+      { id: "d", kind: "REQUEST", status: "CANCELLED" },
+      { id: "e", kind: "REQUEST", status: "DECLINED" },
+    ]),
+  };
   const service = new MatchService(
     matches as never,
     invitations as never,
@@ -67,6 +76,24 @@ function setup(status = "PLANNING", openSkill = false, tableRepository = true) {
   return { service, matches, ratings, tables };
 }
 describe("event table match boundaries", () => {
+  it("returns authoritative pending-plus-confirmed table counts without exposing the private pending roster", async () => {
+    const { service, matches, tables } = setup();
+    (await matches.findById()).eventTable.bookingClosesAt = "2099-06-12T10:00:00Z";
+    const detail = await service.detail("admin", "match");
+    expect(detail.match.eventTable?.reservedCount).toBe(3);
+    expect(detail.invitedPlayers.map((player) => player.id)).toEqual(["p1", "p2"]);
+    expect(tables.tableBookings).toHaveBeenCalledWith("table");
+  });
+  it("does not read mutable bookings for frozen table details and fails closed if live counts cannot be read", async () => {
+    const fixed = setup("CREATED");
+    await fixed.service.detail("admin", "match");
+    expect(fixed.tables.tableBookings).not.toHaveBeenCalled();
+    const live = setup("PLANNING", false, false);
+    (await live.matches.findById()).eventTable.bookingClosesAt = "2099-06-12T10:00:00Z";
+    await expect(live.service.detail("admin", "match")).rejects.toThrow(
+      "Event service unavailable",
+    );
+  });
   it("omits unbooked administrator from table leaderboard", async () => {
     const { service, ratings } = setup("CREATED");
     await service.leaderboard("p1", "match", 1);
