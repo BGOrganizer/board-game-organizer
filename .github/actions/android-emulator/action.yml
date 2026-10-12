@@ -23,6 +23,14 @@ runs:
       shell: bash
       run: |
         : "${ANDROID_HOME:?ANDROID_HOME is required}"
+        # Preinstalled SDK directories can be root-owned. Cache tar must be able
+        # to restore timestamps/modes, not just download/extract the image.
+        for path in "$ANDROID_HOME/system-images/android-34/default/x86_64" \
+                    "$ANDROID_HOME/emulator" "$ANDROID_HOME/platform-tools"; do
+          if [[ -d "$path" ]]; then
+            sudo chown -R "$(id -u):$(id -g)" "$path"
+          fi
+        done
         echo "BGO_ANDROID_SDK=$ANDROID_HOME" >> "$GITHUB_ENV"
 
     - name: ♻️ Restore Android SDK image and tools

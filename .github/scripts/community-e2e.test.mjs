@@ -244,8 +244,19 @@ test("native country search verifies complete input before empty and short-code 
     new URL("../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
-  for (const value of ["zzzz", "DE", "IT"])
-    assert(login.includes(`- inputText: "${value}"\n      - assertVisible: "^${value}$"`));
+  for (const [character, prefix] of [
+    ["z", "z"],
+    ["z", "zz"],
+    ["z", "zzz"],
+    ["z", "zzzz"],
+    ["D", "D"],
+    ["E", "DE"],
+    ["I", "I"],
+    ["T", "IT"],
+  ])
+    assert(login.includes(`- inputText: "${character}"\n      - assertVisible: "^${prefix}$"`));
+  assert.equal(login.match(/- inputText: "z"/g)?.length, 4);
+  assert(!login.includes('- inputText: "zzzz"'));
   assert(login.includes('assertVisible: "No countries found"'));
   assert(login.includes('tapOn: "Germany"'));
   assert(login.includes('tapOn: "Italy"'));

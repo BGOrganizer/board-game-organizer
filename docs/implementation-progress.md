@@ -1,5 +1,27 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38280268845` (`3700551`)
+
+- Both APKs now built successfully with the Gradle memory configuration; Branch CI, quality,
+  integration, previews and browser acceptance passed. Native remains 1/13. Owned-user and
+  isolated-database cleanup both succeeded; publication was skipped. Full acceptance is still open.
+- The strengthened first country-input assertion failed: `inputText: zzzz` produced `zz` in the
+  focused search field. Disabling autocorrection and stabilizing the clear slot did not resolve
+  rapid injected-key loss. This matches documented [Maestro issue #395](https://github.com/mobile-dev-inc/Maestro/issues/395),
+  not weakened country validation. The country flow now sends each character separately and
+  acknowledges every prefix before the next key. Empty and DE/IT outcomes, complete values and
+  country/calling-code assertions remain mandatory; no retries, sleeps or increased timeout budgets.
+- SDK archive download hit the previous key but tar restoration failed on root-owned runner
+  `platform-tools` timestamps/modes. Cache ownership is now prepared for only the three cached SDK
+  directories before restore; AVD/userdata and unrelated directories remain excluded. A shell
+  regression verifies the exact directory allowlist and ordering. A successful restore is not yet
+  claimed merely from the earlier lookup/download hit.
+- These changes do not alter mobile runtime/build inputs, so the successful internal APK from this
+  failed-acceptance run is eligible for reuse only after source, current configuration and checksum
+  validation. All current quality, browser and 13 native gates still rerun.
+- Local validation: 60 workflow regressions, scoped Biome, parsed action/flow YAML and clean diff
+  checks. No additional mobile runtime change or local native-acceptance claim.
+
 ## PR #22 follow-up after run `38271024819` (`d9f1d72`)
 
 - Branch CI, quality/integration/build/Preview gates, internal APK and all 83 browser tests passed.

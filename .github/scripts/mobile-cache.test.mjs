@@ -165,6 +165,41 @@ test("cold native builds configure client and daemon memory separately without o
   }
 });
 
+test("SDK cache prepares only its three directories before restoring root-owned runner tools", () => {
+  const prepare = emulator.runs.steps.find((step) => step.name === "Resolve SDK cache path");
+  const restore = emulator.runs.steps.find((step) => step.uses === "actions/cache/restore@v4");
+  assert(emulator.runs.steps.indexOf(prepare) < emulator.runs.steps.indexOf(restore));
+  const folder = mkdtempSync(join(tmpdir(), "bgo-sdk-owner-"));
+  const sdk = join(folder, "SDK root").replaceAll("\\", "/");
+  const targets = ["system-images/android-34/default/x86_64", "emulator", "platform-tools"];
+  for (const target of [...targets, "unrelated", ".android/avd"])
+    mkdirSync(`${sdk}/${target}`, { recursive: true });
+  const log = join(folder, "ownership.txt").replaceAll("\\", "/");
+  const envFile = join(folder, "env.txt").replaceAll("\\", "/");
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  try {
+    const result = spawnSync(
+      bash,
+      ["-e", "-c", 'sudo() { printf "%s\\n" "$@" >> "$OWNER_LOG"; }\n' + prepare.run],
+      {
+        encoding: "utf8",
+        env: { ...process.env, ANDROID_HOME: sdk, GITHUB_ENV: envFile, OWNER_LOG: log },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const calls = readFileSync(log, "utf8").trim().split("\n");
+    assert.equal(calls.length, 12);
+    for (const [index, target] of targets.entries()) {
+      assert.deepEqual(calls.slice(index * 4, index * 4 + 2), ["chown", "-R"]);
+      assert.match(calls[index * 4 + 2], /^\d+:\d+$/);
+      assert.equal(calls[index * 4 + 3], `${sdk}/${target}`);
+    }
+    assert.equal(readFileSync(envFile, "utf8").trim(), `BGO_ANDROID_SDK=${sdk}`);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
 test("SDK cache survives failed acceptance without persisting emulator identity or snapshots", () => {
   const restore = emulator.runs.steps.find((step) => step.uses === "actions/cache/restore@v4");
   const save = emulator.runs.steps.find((step) => step.uses === "actions/cache/save@v4");
