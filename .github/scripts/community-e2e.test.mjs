@@ -203,13 +203,15 @@ test("native device verification uses Clerk development fixtures, without disabl
   for (const workflow of workflows)
     assert.match(workflow.split("  e2e-maestro:")[1].split(/\n {2}[\w-]+:/)[0], /E2E_EMAIL:/);
 });
-test("native sign-in replaces remembered email and password before authenticating", () => {
+test("native sign-in fully replaces remembered actor/target credentials before authenticating", () => {
+  const targetEmail = "e2e_target.38247581797.1.abcdef+clerk_test@gmail.com";
+  assert(targetEmail.length > 50 && targetEmail.length <= 100);
   const signIn = readFileSync(
     new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
   for (const field of ["EMAIL", "PASSWORD"]) {
-    assert(signIn.includes(`- eraseText\n- inputText: \${AUTH_${field}}`));
+    assert(signIn.includes(`- eraseText: 100\n- inputText: \${AUTH_${field}}`));
   }
   assert.match(signIn, /inputText: \$\{AUTH_EMAIL\}\n- tapOn: "Continue"/);
 });
@@ -230,6 +232,27 @@ test("native password entry selects the input placeholder, never the heading or 
   ])
     assert.doesNotMatch(other, passwordInput);
   assert(signIn.includes(`visible: "${selector}"`));
+});
+test("native social flows select the search input and named actions, never the help trigger", () => {
+  for (const name of ["05-contacts-follow-block", "09-group-invitations"]) {
+    const flow = readFileSync(
+      new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    assert.doesNotMatch(flow, /tapOn: "\.\*\[Ss\]earch\.\*users\.\*"|tapOn: "Actions"/);
+    assert(flow.includes('- tapOn: "^Search users by name or email$"\n- eraseText: 100'));
+    for (const actor of ["Test", "Target"]) {
+      assert(flow.includes(`- tapOn: "^Actions: E2E ${actor}$"`));
+    }
+    assert.doesNotMatch(
+      flow,
+      /"Friend requests"|respond-friend-request-btn|respond-accept-friend-request-btn/,
+    );
+    assert(flow.includes('id: "confirm-accept_friend_request-btn"'));
+  }
+  const input = /^Search users by name or email$/;
+  assert.match("Search users by name or email", input);
+  assert.doesNotMatch("Search users by name or email: Search help", input);
 });
 test("native profile completion reaches Continue while the keyboard stays open", () => {
   const flow = readFileSync(

@@ -88,15 +88,17 @@ appId: com.bgo.mobile
     timeout: 30000
 - back
 - extendedWaitUntil:
-    visible: ".*[Ss]earch.*users.*"
+    visible: "^Search users by name or email$"
     timeout: 30000
-- tapOn: ".*[Ss]earch.*users.*"
+- tapOn: "^Search users by name or email$"
+- eraseText: 100
 - inputText: ${EMAIL_2}
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
 # Send and confirm a friend request.
-- tapOn: "Actions"
+- hideKeyboard
+- tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "Send friend request"
     timeout: 30000
@@ -123,7 +125,7 @@ appId: com.bgo.mobile
     timeout: 30000
 - assertVisible: "Sent"
 # Cancel the outgoing request from its menu, then send it again.
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - tapOn: "Cancel friend request"
 - tapOn:
     id: "confirm-cancel_friend_request-btn"
@@ -134,7 +136,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - tapOn: "Send friend request"
 - tapOn:
     id: "confirm-friend-request-btn"
@@ -190,7 +192,7 @@ appId: com.bgo.mobile
     visible: "E2E Test"
     timeout: 60000
 - assertVisible: "Received"
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Test$"
 - tapOn: "Decline friend request"
 - tapOn:
     id: "confirm-reject_friend_request-btn"
@@ -234,12 +236,14 @@ appId: com.bgo.mobile
     timeout: 120000
 - tapOn: "Contacts"
 - tapOn: "Search"
-- tapOn: ".*[Ss]earch.*users.*"
+- tapOn: "^Search users by name or email$"
+- eraseText: 100
 - inputText: ${EMAIL_2}
+- hideKeyboard
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - tapOn: "Send friend request"
 - tapOn:
     id: "confirm-friend-request-btn"
@@ -267,7 +271,7 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "E2E Test"
     timeout: 60000
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Test$"
 - tapOn: "Accept friend request"
 - tapOn:
     id: "confirm-accept_friend_request-btn"
@@ -301,7 +305,7 @@ appId: com.bgo.mobile
     timeout: 30000
 - assertVisible: "Friends"
 # One menu action removes friendship and refreshes every list.
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - tapOn: "Remove friend"
 - tapOn:
     id: "confirm-unfriend-btn"
@@ -309,12 +313,14 @@ appId: com.bgo.mobile
     notVisible: "Friends"
     timeout: 30000
 - tapOn: "Search"
-- tapOn: ".*[Ss]earch.*users.*"
+- tapOn: "^Search users by name or email$"
+- eraseText: 100
 - inputText: ${EMAIL_2}
+- hideKeyboard
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "Follow"
     timeout: 30000
@@ -324,13 +330,13 @@ appId: com.bgo.mobile
     visible: "Following"
     timeout: 30000
 - tapOn: "Search"
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "Unfollow"
     timeout: 30000
 - tapOn: "Unfollow"
 # Block hides the target.
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "Block"
     timeout: 30000
@@ -351,7 +357,7 @@ appId: com.bgo.mobile
     visible: "E2E Target"
     timeout: 30000
 - assertVisible: "Blocked"
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "Unblock"
     timeout: 30000

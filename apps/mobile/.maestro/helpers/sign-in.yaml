@@ -15,8 +15,9 @@ appId: com.bgo.mobile
     visible: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
     timeout: 120000
 - tapOn: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
-# Clerk preserves Last used after logout; replace it rather than appending.
-- eraseText
+# Clerk preserves Last used after logout. Target fixture emails exceed
+# Maestro's default 50-character clear; use its supported 100-character bound.
+- eraseText: 100
 - inputText: ${AUTH_EMAIL}
 - tapOn: "Continue"
 - extendedWaitUntil:
@@ -24,7 +25,7 @@ appId: com.bgo.mobile
     timeout: 60000
 # The heading and account hint also contain "password"; only the input says "your".
 - tapOn: "^[Ee]nter your [Pp]assword$"
-- eraseText
+- eraseText: 100
 - inputText: ${AUTH_PASSWORD}
 - tapOn: "Continue"
 - runFlow: "verify-clerk-device.yaml"

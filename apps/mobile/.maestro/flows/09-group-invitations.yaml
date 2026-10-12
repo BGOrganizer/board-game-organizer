@@ -4,12 +4,14 @@ appId: com.bgo.mobile
 # Flow 05 removes friendship; create it again here so this flow does not depend on its final state.
 - tapOn: "Contacts"
 - tapOn: "Search"
-- tapOn: ".*[Ss]earch.*users.*"
+- tapOn: "^Search users by name or email$"
+- eraseText: 100
 - inputText: ${EMAIL_2}
+- hideKeyboard
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
-- tapOn: "Actions"
+- tapOn: "^Actions: E2E Target$"
 - tapOn: "Send friend request"
 - tapOn:
     id: "confirm-friend-request-btn"
@@ -27,14 +29,14 @@ appId: com.bgo.mobile
     visible: "Matches"
     timeout: 120000
 - tapOn: "Contacts"
-- tapOn: "Friend requests"
+- tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Test"
     timeout: 60000
+- tapOn: "^Actions: E2E Test$"
+- tapOn: "Accept friend request"
 - tapOn:
-    id: "respond-friend-request-btn"
-- tapOn:
-    id: "respond-accept-friend-request-btn"
+    id: "confirm-accept_friend_request-btn"
 - tapOn: "Profile"
 - tapOn: "Logout"
 - extendedWaitUntil:

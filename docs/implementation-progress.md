@@ -1,5 +1,21 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38247581797` (`3e1829f`)
+
+- Branch CI, PR quality/build/Preview/APK gates and browser acceptance succeeded. Native seed
+  verification succeeded, and Contacts exercised named unregistered contacts and later-page
+  rendering. Native acceptance still failed: 3/13 flows passed; user/database cleanup succeeded;
+  publication was skipped.
+- The first Contacts failure was not authentication: its broad search selector tapped the help
+  trigger rather than the field, so the visible target was the device suggestion and the popover
+  obscured actions. Exact input and user-qualified action labels now drive both social flows;
+  subsequent group acceptance uses the current Requests/shared-action confirmation controls.
+  The original search-help and action assertions remain, with no forced clicks or skipped flows.
+- Clerk clear behavior is bounded: Maestro's default removes only 50 characters, while target
+  fixture emails contain 52. Shared sign-in uses the documented maximum of 100 before entering
+  actor/target credentials. Local checks pass: all 52 workflow contracts, scoped Biome and three
+  changed Maestro YAMLs. Another full real acceptance run is required.
+
 ## PR #22 follow-up after run `38240730642` (`7be0731`)
 
 - Branch CI and all PR quality/build/Preview gates succeeded. Playwright passed all 83 tests.
