@@ -20,6 +20,14 @@ appId: com.bgo.mobile
 - back
 - tapOn:
     id: "enable-contacts-btn"
+- assertVisible: "Access to contacts"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible: "Access to contacts"
+- tapOn:
+    id: "enable-contacts-btn"
+- assertVisible: "Access to contacts"
+- assertVisible: "Yes"
 - tapOn: "Yes"
 - extendedWaitUntil:
     visible: ".*[Aa]llow.*contacts.*"
@@ -196,7 +204,15 @@ appId: com.bgo.mobile
 - tapOn:
     id: "delete-notification-.*"
 - assertVisible: "Delete notification?"
-- tapOn: "Delete notification"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible: "Delete notification?"
+- assertVisible: "New friend request"
+- tapOn:
+    id: "delete-notification-.*"
+- assertVisible: "Delete notification?"
+- tapOn:
+    id: "confirmation-action-0"
 - extendedWaitUntil:
     notVisible: "New friend request"
     timeout: 30000

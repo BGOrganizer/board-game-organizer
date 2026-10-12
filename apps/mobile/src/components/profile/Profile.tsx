@@ -24,7 +24,8 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useCallback, useState } from "react";
-import { Alert, Image, ScrollView, View } from "react-native";
+import { Image, ScrollView, View } from "react-native";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -103,6 +104,7 @@ export function Profile() {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -287,22 +289,8 @@ export function Profile() {
                 variant="danger-soft"
                 style={{ minWidth: 44, minHeight: 44 }}
                 accessibilityLabel={t("Disconnect BoardGameGeek")}
-                onPress={() =>
-                  Alert.alert(
-                    t("Disconnect BoardGameGeek?"),
-                    t(
-                      "Synced collection games will be removed from your profile. Existing matches remain unchanged.",
-                    ),
-                    [
-                      { text: t("Cancel"), style: "cancel" },
-                      {
-                        text: t("Disconnect"),
-                        style: "destructive",
-                        onPress: () => bgg.unlink.mutate(),
-                      },
-                    ],
-                  )
-                }
+                isDisabled={bgg.unlink.isPending}
+                onPress={() => setDisconnectOpen(true)}
               >
                 <Unlink2 size={18} color="#f31260" />
               </Button>
@@ -330,6 +318,24 @@ export function Profile() {
           </Button>
         </View>
       </Surface>
+      {disconnectOpen ? (
+        <ConfirmDialog
+          title={t("Disconnect BoardGameGeek?")}
+          description={t(
+            "Synced collection games will be removed from your profile. Existing matches remain unchanged.",
+          )}
+          busy={bgg.unlink.isPending}
+          onCancel={() => setDisconnectOpen(false)}
+          actions={[
+            {
+              label: t("Disconnect"),
+              variant: "danger",
+              onPress: () =>
+                bgg.unlink.mutate(undefined, { onSuccess: () => setDisconnectOpen(false) }),
+            },
+          ]}
+        />
+      ) : null}
       <Dialog isOpen={dialogOpen} onOpenChange={setDialogOpen}>
         <Dialog.Portal>
           <Dialog.Overlay />

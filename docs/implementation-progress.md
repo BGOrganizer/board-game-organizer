@@ -1,5 +1,26 @@
 # Organizations/events implementation checkpoint
 
+## Native confirmation-dialog consolidation (local, after `67d9251`)
+
+- The operator's simplified `CommunityConfirm` is now the generic native
+  `common/ui/ConfirmDialog`, used by contacts consent/social decisions, groups, ordinary matches,
+  result registration, notification deletion, BGG unlinking and organization/event/table actions.
+  Small buttons share one row; labeled Close replaces the separate Cancel button and invokes
+  cancellation only through HeroUI's open-state handler. Busy actions block submission and every
+  dismissal path. Callers retain validation, mutation feedback/rollback and failure retry state.
+- Date/time and native permission APIs remain native. `EventDateTimeField` opens Android's picker
+  directly; its presentation dialog only hosts the iOS native spinner. BGG connection forms and
+  ordinary social menus are not converted into confirmation dialogs.
+- `UserActionsSheet` is shared by Contacts, Groups, Matches and OrganizationMembers. Its
+  confirmation is a sibling `ConfirmDialog`, never sheet content; a close-state guard preserves
+  the selected user while the menu closes to show the dialog. Regressions verify the four shared
+  callers, outside-sheet placement and busy/confirmation-aware dismissal.
+- Mobile typecheck, 166 unit/source/pure-handler tests with coverage and scoped Biome pass.
+  Maestro flows cover Close cancellation before contacts permission, notification deletion,
+  group archive/removal/departure, match deletion and BGG disconnection, retaining social action
+  IDs. Real native execution of this local refactor is still pending; source checks are not native
+  acceptance. Existing PR CI for `67d9251` does not include these uncommitted changes.
+
 ## PR #22 quality and acceptance repair after `5895cc5`
 
 - The failed quality gate exposed native source contracts that still described the old cards,

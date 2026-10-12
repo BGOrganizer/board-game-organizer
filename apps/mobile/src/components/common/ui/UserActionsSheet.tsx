@@ -2,7 +2,6 @@ import type { ContactUser } from "@board-game-organizer/shared";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { Typography } from "heroui-native/text";
 import {
   Ban,
   Check,
@@ -16,6 +15,7 @@ import {
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import {
   type FriendRequestContext,
   type UserActionKey,
@@ -167,101 +167,87 @@ export function UserActionsSheet({
         ? [confirmAction]
         : [];
   return (
-    <BottomSheet
-      isOpen={visible && Boolean(user)}
-      onOpenChange={(open) => {
-        if (!open && !busy) onClose();
-      }}
-    >
-      <BottomSheet.Portal>
-        <BottomSheet.Overlay />
-        <BottomSheet.Content enablePanDownToClose={!busy}>
-          <View style={{ gap: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
-            <BottomSheet.Title>{user?.name}</BottomSheet.Title>
-            {confirmation ? (
-              <>
-                <Typography className="font-semibold text-foreground">
-                  {confirmation.title}
-                </Typography>
-                <BottomSheet.Description>
-                  {confirmation.text}
-                  {confirmAction === "block" && matchContext
-                    ? ` ${t("Players remain in this match until they leave or are removed.")}`
-                    : ""}
-                </BottomSheet.Description>
-                {confirmKeys.map((key) => {
+    <>
+      <BottomSheet
+        isOpen={visible && Boolean(user) && !confirmation}
+        onOpenChange={(open) => {
+          // Closing the menu to show a confirmation must retain the selected user.
+          if (!open && !busy && !confirmation) onClose();
+        }}
+      >
+        <BottomSheet.Portal>
+          <BottomSheet.Overlay />
+          <BottomSheet.Content enablePanDownToClose={!busy}>
+            <View style={{ gap: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
+              <BottomSheet.Title>{user?.name}</BottomSheet.Title>
+              {(user ? userActionKeys(user, canSendFriendRequest, friendRequest) : []).map(
+                (key) => {
                   const Icon = icons[key];
                   return (
                     <Button
                       key={key}
-                      isDisabled={busy}
-                      variant={destructive(key) ? "danger" : "primary"}
-                      testID={
-                        confirmAction === "respond_friend_request"
-                          ? key === "accept_friend_request"
-                            ? "respond-accept-friend-request-btn"
-                            : "respond-reject-friend-request-btn"
-                          : key === "block"
-                            ? "confirm-block-btn"
-                            : key === "friend_request"
-                              ? "confirm-friend-request-btn"
-                              : `confirm-${key}-btn`
-                      }
-                      onPress={() => run(key)}
+                      variant="ghost"
+                      isDisabled={busy || key === "profile"}
+                      style={{ justifyContent: "flex-start", minHeight: 44 }}
+                      onPress={() => {
+                        if (key === "profile" || busy) return;
+                        if (key === "follow" || key === "unfollow") run(key);
+                        else setConfirmAction(key);
+                      }}
                     >
-                      <Icon size={18} color={accentForeground} />
-                      <Button.Label>
-                        {confirmAction === "respond_friend_request"
-                          ? key === "accept_friend_request"
-                            ? t("Accept")
-                            : t("Decline")
-                          : confirmation.label}
-                      </Button.Label>
+                      <Icon
+                        size={18}
+                        color={key === "profile" ? muted : destructive(key) ? danger : foreground}
+                      />
+                      <Button.Label>{labels[key]}</Button.Label>
                     </Button>
                   );
-                })}
-                <Button
-                  variant="ghost"
-                  isDisabled={busy}
-                  testID="cancel-confirmation-btn"
-                  onPress={() => setConfirmAction(null)}
-                >
-                  <X size={18} color={foreground} />
-                  <Button.Label>{t("Cancel")}</Button.Label>
-                </Button>
-              </>
-            ) : (
-              (user ? userActionKeys(user, canSendFriendRequest, friendRequest) : []).map((key) => {
-                const Icon = icons[key];
-                return (
-                  <Button
-                    key={key}
-                    variant="ghost"
-                    isDisabled={busy || key === "profile"}
-                    style={{ justifyContent: "flex-start", minHeight: 44 }}
-                    onPress={() => {
-                      if (key === "profile" || busy) return;
-                      if (key === "follow" || key === "unfollow") run(key);
-                      else setConfirmAction(key);
-                    }}
-                  >
-                    <Icon
-                      size={18}
-                      color={key === "profile" ? muted : destructive(key) ? danger : foreground}
-                    />
-                    <Button.Label>{labels[key]}</Button.Label>
-                  </Button>
-                );
-              })
-            )}
-            {!confirmation ? (
+                },
+              )}
               <Button variant="ghost" isDisabled={busy} onPress={onClose}>
                 {t("Cancel")}
               </Button>
-            ) : null}
-          </View>
-        </BottomSheet.Content>
-      </BottomSheet.Portal>
-    </BottomSheet>
+            </View>
+          </BottomSheet.Content>
+        </BottomSheet.Portal>
+      </BottomSheet>
+      {visible && user && confirmation ? (
+        <ConfirmDialog
+          title={confirmation.title}
+          description={`${user.name}\n${confirmation.text}${
+            confirmAction === "block" && matchContext
+              ? ` ${t("Players remain in this match until they leave or are removed.")}`
+              : ""
+          }`}
+          busy={busy}
+          onCancel={() => setConfirmAction(null)}
+          cancelTestID="cancel-confirmation-btn"
+          actions={confirmKeys.map((key) => {
+            const Icon = icons[key];
+            return {
+              label:
+                confirmAction === "respond_friend_request"
+                  ? key === "accept_friend_request"
+                    ? t("Accept")
+                    : t("Decline")
+                  : confirmation.label,
+              variant: destructive(key) ? "danger" : "primary",
+              icon: <Icon size={18} color={accentForeground} />,
+              testID:
+                confirmAction === "respond_friend_request"
+                  ? key === "accept_friend_request"
+                    ? "respond-accept-friend-request-btn"
+                    : "respond-reject-friend-request-btn"
+                  : key === "block"
+                    ? "confirm-block-btn"
+                    : key === "friend_request"
+                      ? "confirm-friend-request-btn"
+                      : `confirm-${key}-btn`,
+              onPress: () => run(key),
+            };
+          })}
+        />
+      ) : null}
+    </>
   );
 }

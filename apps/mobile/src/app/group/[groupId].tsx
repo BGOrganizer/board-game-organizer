@@ -25,8 +25,9 @@ import {
   UserRoundX,
   UsersRound,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Alert, View } from "react-native";
+import { type ComponentProps, useEffect, useState } from "react";
+import { View } from "react-native";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -54,6 +55,10 @@ export default function GroupDetailScreen() {
   const [menuUserId, setMenuUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("settings");
   const [exiting, setExiting] = useState(false);
+  const [confirmation, setConfirmation] = useState<Pick<
+    ComponentProps<typeof ConfirmDialog>,
+    "title" | "description" | "actions"
+  > | null>(null);
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     let active = true;
@@ -149,21 +154,22 @@ export default function GroupDetailScreen() {
   };
   const confirm = (action: "delete" | "leave", id = groupId) => {
     if (groups.archive.isPending || groups.leave.isPending) return;
-    Alert.alert(
-      action === "delete" ? t("Delete group?") : t("Leave group?"),
-      action === "delete"
-        ? t("Group will be archived. Existing confirmed match results and ratings remain.")
-        : t("You will need a new invitation to rejoin."),
-      [
-        { text: t("Cancel"), style: "cancel" },
+    setConfirmation({
+      title: action === "delete" ? t("Delete group?") : t("Leave group?"),
+      description:
+        action === "delete"
+          ? t("Group will be archived. Existing confirmed match results and ratings remain.")
+          : t("You will need a new invitation to rejoin."),
+      actions: [
         {
-          text: action === "delete" ? t("Delete group") : t("Leave group"),
-          style: "destructive",
+          label: action === "delete" ? t("Delete group") : t("Leave group"),
+          variant: "danger",
           onPress: async () => {
             setExiting(true);
             try {
               if (action === "delete") await groups.archive.mutateAsync(id);
               else await groups.leave.mutateAsync(id);
+              setConfirmation(null);
               router.back();
             } catch {
               setExiting(false); // Shared mutation feedback shows failure.
@@ -171,25 +177,24 @@ export default function GroupDetailScreen() {
           },
         },
       ],
-    );
+    });
   };
   const remove = (id: string) => {
     if (groups.removeInvitation.isPending) return;
-    Alert.alert(
-      t("Remove from group?"),
-      t("This removes the invitation or member from the group. You can invite them again."),
-      [
-        { text: t("Cancel"), style: "cancel" },
+    setConfirmation({
+      title: t("Remove from group?"),
+      description: t(
+        "This removes the invitation or member from the group. You can invite them again.",
+      ),
+      actions: [
         {
-          text: t("Remove from group"),
-          style: "destructive",
+          label: t("Remove from group"),
+          variant: "danger",
           onPress: () =>
-            void groups.removeInvitation.mutateAsync(id).catch(() => {
-              // Shared mutation feedback shows failure and rolls back.
-            }),
+            groups.removeInvitation.mutate(id, { onSuccess: () => setConfirmation(null) }),
         },
       ],
-    );
+    });
   };
   return (
     <View style={{ flex: 1 }}>
@@ -414,6 +419,15 @@ export default function GroupDetailScreen() {
         >
           <Pencil color="#fff" size={26} />
         </FloatingActions>
+      ) : null}
+      {confirmation ? (
+        <ConfirmDialog
+          {...confirmation}
+          busy={
+            groups.archive.isPending || groups.leave.isPending || groups.removeInvitation.isPending
+          }
+          onCancel={() => setConfirmation(null)}
+        />
       ) : null}
       <UserActionsSheet
         visible={selectedContact !== null}

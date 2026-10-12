@@ -78,7 +78,14 @@ appId: com.bgo.mobile
 - assertVisible: "Pending"
 - tapOn: "Remove from group: E2E Target"
 - assertVisible: "Remove from group?"
-- tapOn: "Remove from group"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible: "Remove from group?"
+- assertVisible: "Pending"
+- tapOn: "Remove from group: E2E Target"
+- assertVisible: "Remove from group?"
+- tapOn:
+    id: "confirmation-action-0"
 - assertVisible: "Person removed from group"
 - assertVisible: "No invitations"
 - tapOn: "Edit group"
@@ -136,7 +143,14 @@ appId: com.bgo.mobile
 - assertVisible: "E2E Target"
 - tapOn: "Leave group"
 - assertVisible: "Leave group?"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible: "Leave group?"
+- assertVisible: "E2E Target"
 - tapOn: "Leave group"
+- assertVisible: "Leave group?"
+- tapOn:
+    id: "confirmation-action-0"
 - extendedWaitUntil:
     visible: "No groups yet"
     timeout: 30000

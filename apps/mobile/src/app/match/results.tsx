@@ -19,9 +19,10 @@ import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { ArrowDown, ArrowUp, Check, ListOrdered, Pencil, Undo2, X } from "lucide-react-native";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, ScrollView, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { MatchStandingIdentity } from "@/components/matches/MatchStandingIdentity";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -179,6 +180,7 @@ function ResultsForm({
     players.map((player) => ({ userId: player.id, rawScore: "", notParticipated: false })),
   );
   const [scorePlayerId, setScorePlayerId] = useState<string | null>(null);
+  const [submission, setSubmission] = useState<RegisterMatchResultsInput | null>(null);
   const [lowerWins, setLowerWins] = useState(false);
   const [tieBreaks, setTieBreaks] = useState<RegisterMatchResultsInput["tieBreaks"]>([]);
   const [editingTie, setEditingTie] = useState<
@@ -228,18 +230,7 @@ function ResultsForm({
   };
   const confirm = () => {
     if (!preview.valid || busy || editingTie) return;
-    Alert.alert(
-      t("Register match?"),
-      t("Results and standings will become final and cannot be edited."),
-      [
-        { text: t("Cancel"), style: "cancel" },
-        {
-          text: t("Register match"),
-          onPress: () =>
-            onSubmit({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks }),
-        },
-      ],
-    );
+    setSubmission({ lowerWins, entries: preview.entries, tieBreaks: preview.tieBreaks });
   };
   return (
     <View style={{ flex: 1 }} className="bg-background">
@@ -460,6 +451,17 @@ function ResultsForm({
           </Switch>
         </View>
       </ScrollView>
+      {submission ? (
+        <ConfirmDialog
+          title={t("Register match?")}
+          description={t("Results and standings will become final and cannot be edited.")}
+          busy={busy}
+          onCancel={() => setSubmission(null)}
+          actions={[
+            { label: t("Register match"), variant: "primary", onPress: () => onSubmit(submission) },
+          ]}
+        />
+      ) : null}
       <BottomSheet
         isOpen={scorePlayerId !== null}
         onOpenChange={(open) => {

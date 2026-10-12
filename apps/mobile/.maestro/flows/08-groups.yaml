@@ -113,7 +113,14 @@ appId: com.bgo.mobile
 - tapOn: "Open group: Weekend Games"
 - tapOn: "Delete group"
 - assertVisible: "Delete group?"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible: "Delete group?"
+- assertVisible: "Weekend Games"
 - tapOn: "Delete group"
+- assertVisible: "Delete group?"
+- tapOn:
+    id: "confirmation-action-0"
 - extendedWaitUntil:
     notVisible: "Delete group?"
     timeout: 30000

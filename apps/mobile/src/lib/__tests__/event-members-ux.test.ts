@@ -1,8 +1,9 @@
 // Source contracts only: Maestro owns actual native dialogs, keyboard and picker acceptance.
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
+import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 
 const source = (path: string) =>
   readFileSync(new URL(`../../components/${path}`, import.meta.url), "utf8");
@@ -49,30 +50,123 @@ it("uses vertical social actions and one role-aware membership dialog, separate 
   expect(members).toContain("Respond to membership request");
   expect(members).toContain("Cancel organization invitation");
   expect(members).toContain('label: t("Ban")');
-  expect(members).toContain("actionsInRow");
   expect(members).toContain('label: t("Remove")');
   expect(members).toContain('variant: "danger-soft"');
   expect(members).toContain("Block user globally");
   expect(members).not.toContain("setRemoving");
   expect(members).not.toContain("socialRun");
   expect(members).not.toContain("friendLabel");
-  expect(members).toContain("cancelLast");
   expect(source("common/ui/UserActionsSheet.tsx")).toContain("BottomSheet.Content");
   expect(source("common/ui/UserActionsSheet.tsx")).not.toContain("StyleSheet");
   const recipient = source("organizations/OrganizationInvitationResponse.tsx");
-  expect(recipient).toContain("CommunityConfirm");
+  expect(recipient).toContain("ConfirmDialog");
   expect(recipient).toContain('onAction("accept")');
   expect(recipient).toContain('onAction("decline")');
 });
-it("keeps request icons/text inline with Cancel below without changing other confirmation layouts", () => {
-  const confirm = source("common/ui/CommunityConfirm.tsx");
-  expect(confirm).toContain("actionsInRow = false");
-  expect(confirm).toContain('flexDirection: cancelLast && !actionsInRow ? "column" : "row"');
-  expect(confirm).toContain('flexWrap: actionsInRow ? "nowrap" : "wrap"');
+it("uses one compact row of confirmation actions and delegates cancellation only to HeroUI Close", () => {
+  const confirm = source("common/ui/ConfirmDialog.tsx");
+  expect(confirm).toContain('flexDirection: "row"');
+  expect(confirm).not.toContain("flexWrap");
+  expect(confirm).toContain('size="sm"');
   expect(confirm).toContain("minWidth: 44");
   expect(confirm).toContain("minHeight: 44");
-  expect(confirm).toContain('flexDirection: "row" as const');
-  expect(confirm).toContain("{cancelLast && actionsInRow ? cancel : null}");
+  expect(confirm).toContain("flexShrink: 1");
+  expect(confirm).toContain('accessibilityLabel={t("Cancel")}');
+  expect(confirm).toContain("if (!open && !busy) onCancel()");
+  expect(confirm).toContain("if (!busy) action.onPress()");
+  expect(confirm).toContain("isCloseOnPress={!busy}");
+  expect(confirm).toContain("isSwipeable={!busy}");
+  expect(confirm).not.toContain("actionsInRow");
+  const ast = ts.createSourceFile(
+    "ConfirmDialog.tsx",
+    confirm,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let closeCount = 0;
+  const handlers = new Map<string, string>();
+  function visit(node: ts.Node) {
+    if (ts.isJsxOpeningElement(node)) {
+      const tag = node.tagName.getText(ast);
+      const name = tag === "Dialog" ? "onOpenChange" : tag === "Button" ? "onPress" : null;
+      for (const property of node.attributes.properties) {
+        if (
+          ts.isJsxAttribute(property) &&
+          property.name.getText(ast) === name &&
+          property.initializer &&
+          ts.isJsxExpression(property.initializer) &&
+          property.initializer.expression
+        )
+          handlers.set(tag, property.initializer.expression.getText(ast));
+      }
+    }
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(ast) === "Dialog.Close") {
+      closeCount++;
+      expect(
+        node.attributes.properties.some(
+          (p) => ts.isJsxAttribute(p) && p.name.getText(ast) === "onPress",
+        ),
+      ).toBe(false);
+      expect(
+        node.attributes.properties.some(
+          (p) => ts.isJsxAttribute(p) && p.name.getText(ast) === "isDisabled",
+        ),
+      ).toBe(true);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  expect(closeCount).toBe(1);
+  expect(handlers.size).toBe(2);
+  // Execute only the real pure event handlers, not native components or mocked UI.
+  for (const busy of [false, true]) {
+    const onCancel = vi.fn();
+    const dismiss = runInNewContext(`(${handlers.get("Dialog")})`, { busy, onCancel });
+    dismiss(true);
+    expect(onCancel).not.toHaveBeenCalled();
+    dismiss(false);
+    expect(onCancel).toHaveBeenCalledTimes(busy ? 0 : 1);
+    const action = { onPress: vi.fn() };
+    runInNewContext(`(${handlers.get("Button")})`, { busy, action })();
+    expect(action.onPress).toHaveBeenCalledTimes(busy ? 0 : 1);
+  }
+});
+it("routes every native confirmation through the common dialog without replacing date pickers or system permissions", () => {
+  for (const path of [
+    "common/ui/UserActionsSheet.tsx",
+    "matches/MatchDetail.tsx",
+    "profile/Profile.tsx",
+    "events/EventDetail.tsx",
+    "events/EventTableEdit.tsx",
+    "events/EventTablePlayers.tsx",
+    "events/EventWizard.tsx",
+    "organizations/OrganizationDetail.tsx",
+    "organizations/OrganizationMembers.tsx",
+    "organizations/OrganizationInvitationResponse.tsx",
+  ]) {
+    const text = source(path);
+    expect(text, path).toContain("<ConfirmDialog");
+    expect(text, path).not.toContain("Alert.alert");
+    expect(text, path).not.toContain("CommunityConfirm");
+  }
+  for (const path of [
+    "(tabs)/contacts.tsx",
+    "group/[groupId].tsx",
+    "match/results.tsx",
+    "notifications.tsx",
+  ]) {
+    const text = readFileSync(new URL(`../../app/${path}`, import.meta.url), "utf8");
+    expect(text, path).toContain("<ConfirmDialog");
+    expect(text, path).not.toContain("Alert.alert");
+  }
+  const contacts = readFileSync(new URL("../../app/(tabs)/contacts.tsx", import.meta.url), "utf8");
+  expect(contacts).toContain("Contacts.requestPermissionsAsync()");
+  expect(contacts).toContain("setContactsConsentOpen(false)");
+  const field = source("events/EventDateTimeField.tsx");
+  expect(field).toContain("DateTimePickerAndroid.open(");
+  expect(field).toContain("<DateTimePicker");
+  expect(field).not.toContain("ConfirmDialog");
 });
 it("wraps every review button's translated text in a native label, including icon-bearing actions", () => {
   const review = source("organizations/OrganizationReview.tsx");
@@ -124,9 +218,83 @@ it("keeps demonstrator Back in the header and gives table cards image/date/game/
 it("mounts the social sheet closed even with no selected user, allowing the first open transition", () => {
   const sheet = source("common/ui/UserActionsSheet.tsx");
   expect(sheet).not.toContain("if (!user) return null");
-  expect(sheet).toContain("isOpen={visible && Boolean(user)}");
+  expect(sheet).toContain("isOpen={visible && Boolean(user) && !confirmation}");
+  expect(sheet).toContain('cancelTestID="cancel-confirmation-btn"');
+  expect(sheet).toContain("onCancel={() => setConfirmAction(null)}");
   expect(sheet).toContain("user ? userActionKeys");
   expect(sheet).toContain("BottomSheet.Title>{user?.name}");
+});
+it("keeps social confirmations outside every bottom sheet and preserves the selected user while the menu closes", () => {
+  const paths = ["common/ui/UserActionsSheet.tsx", "matches/MatchDetail.tsx"];
+  let confirms = 0;
+  for (const path of paths) {
+    const text = source(path);
+    const ast = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    function visit(node: ts.Node, inSheet = false) {
+      const tag = ts.isJsxElement(node)
+        ? node.openingElement.tagName.getText(ast)
+        : ts.isJsxSelfClosingElement(node)
+          ? node.tagName.getText(ast)
+          : "";
+      if (tag === "ConfirmDialog") {
+        confirms++;
+        expect(inSheet, path).toBe(false);
+      }
+      ts.forEachChild(node, (child) => visit(child, inSheet || tag === "BottomSheet"));
+    }
+    visit(ast);
+  }
+  expect(confirms).toBe(2);
+  const sheet = source("common/ui/UserActionsSheet.tsx");
+  expect(sheet).not.toContain("BottomSheet.Description");
+  expect(sheet).not.toContain("<Dialog");
+  const ast = ts.createSourceFile(
+    "UserActionsSheet.tsx",
+    sheet,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let handler = "";
+  function findHandler(node: ts.Node) {
+    if (ts.isJsxOpeningElement(node) && node.tagName.getText(ast) === "BottomSheet") {
+      for (const attr of node.attributes.properties)
+        if (
+          ts.isJsxAttribute(attr) &&
+          attr.name.getText(ast) === "onOpenChange" &&
+          attr.initializer &&
+          ts.isJsxExpression(attr.initializer) &&
+          attr.initializer.expression
+        )
+          handler = attr.initializer.expression.getText(ast);
+    }
+    ts.forEachChild(node, findHandler);
+  }
+  findHandler(ast);
+  expect(handler).not.toBe("");
+  for (const busy of [false, true]) {
+    for (const confirmation of [null, { title: "Confirm" }]) {
+      const onClose = vi.fn();
+      const change = runInNewContext(`(${handler})`, { busy, confirmation, onClose });
+      change(true);
+      expect(onClose).not.toHaveBeenCalled();
+      change(false);
+      expect(onClose).toHaveBeenCalledTimes(!busy && !confirmation ? 1 : 0);
+    }
+  }
+});
+it("reuses the same social action sheet for contacts, groups, matches and organizations", () => {
+  for (const path of [
+    "app/(tabs)/contacts.tsx",
+    "app/group/[groupId].tsx",
+    "components/matches/MatchDetail.tsx",
+    "components/organizations/OrganizationMembers.tsx",
+  ]) {
+    const text = readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+    expect(text, path).toContain('from "@/components/common/ui/UserActionsSheet"');
+    expect(text.match(/<UserActionsSheet\b/g), path).toHaveLength(1);
+    expect(text, path).not.toContain("function UserActionsSheet");
+  }
 });
 it("keeps one day, two native time fields, counted table limit, and time-only fixed-size cards", () => {
   const wizard = source("events/EventWizard.tsx");

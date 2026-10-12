@@ -2,7 +2,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Check, ClipboardCheck, X } from "lucide-react-native";
 import { useState } from "react";
-import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
 
 export function OrganizationInvitationResponse({
@@ -15,11 +15,7 @@ export function OrganizationInvitationResponse({
   onAction: (action: "accept" | "decline") => void;
 }) {
   const t = useT();
-  const [foreground, accentForeground, danger] = useThemeColor([
-    "foreground",
-    "accent-foreground",
-    "danger",
-  ]);
+  const [accentForeground, danger] = useThemeColor(["accent-foreground", "danger"]);
   const [open, setOpen] = useState(false);
   const [choice, setChoice] = useState<"accept" | "decline" | null>(null);
   return (
@@ -67,7 +63,7 @@ export function OrganizationInvitationResponse({
         </Button>
       )}
       {open ? (
-        <CommunityConfirm
+        <ConfirmDialog
           title={
             choice === "accept"
               ? t("Accept organization invitation")
@@ -79,8 +75,6 @@ export function OrganizationInvitationResponse({
             choice ? t("Are you sure?") : t("Accept or reject this organization invitation.")
           }
           busy={busy}
-          cancelLast
-          cancelIcon={<X size={18} color={foreground} />}
           onCancel={() => {
             if (!busy) setOpen(false);
           }}

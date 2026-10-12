@@ -40,7 +40,7 @@ import { ArrowLeft, ArrowRight, LayoutGrid, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -654,14 +654,20 @@ function Editor({ event, organizationId }: { event?: EventResponse; organization
         </FloatingActions>
       ) : null}
       {pending ? (
-        <CommunityConfirm
+        <ConfirmDialog
           title={t("Reset reservations")}
           description={t(
             "Affected bookings and invitations will be cancelled. Players must request or accept a place again.",
           )}
           busy={actions.busy}
           onCancel={() => setPending(null)}
-          onConfirm={() => void save(pending)}
+          actions={[
+            {
+              label: t("Reset reservations"),
+              variant: "danger",
+              onPress: () => void save(pending),
+            },
+          ]}
         />
       ) : null}
     </KeyboardAvoidingView>

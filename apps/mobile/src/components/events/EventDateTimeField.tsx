@@ -63,6 +63,7 @@ export function EventDateTimeField({
   const pick = () => {
     setPickerError("");
     if (Platform.OS !== "android") {
+      // iOS embeds its native picker in a host; only Android offers an imperative dialog API.
       setDraft(initial);
       return;
     }

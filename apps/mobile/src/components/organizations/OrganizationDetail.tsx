@@ -16,7 +16,7 @@ import { Typography } from "heroui-native/text";
 import { LogOut, Pencil, Plus, UserRoundPlus, X } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
-import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
@@ -187,7 +187,7 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
         </FloatingActions>
       ) : null}
       {confirm ? (
-        <CommunityConfirm
+        <ConfirmDialog
           title={t(organizationActionLabel(confirm, organization?.role))}
           description={t(
             "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain.",
@@ -196,7 +196,13 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
           onCancel={() => {
             if (!actions.busy) setConfirm(null);
           }}
-          onConfirm={() => run(confirm)}
+          actions={[
+            {
+              label: t(organizationActionLabel(confirm, organization?.role)),
+              variant: "danger",
+              onPress: () => run(confirm),
+            },
+          ]}
         />
       ) : null}
     </View>

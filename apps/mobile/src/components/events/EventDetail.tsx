@@ -14,7 +14,7 @@ import { Typography } from "heroui-native/text";
 import { LayoutGrid, Pencil, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { FlatList, View } from "react-native";
-import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
@@ -162,20 +162,26 @@ export function EventDetail({ eventId }: { eventId: string }) {
         </FloatingActions>
       ) : null}
       {cancel ? (
-        <CommunityConfirm
+        <ConfirmDialog
           title={t("Cancel event")}
           description={t("All unfinished tables and reservations will be cancelled.")}
           busy={actions.busy}
           onCancel={() => {
             if (!actions.busy) setCancel(false);
           }}
-          onConfirm={() => {
-            if (!editable || actions.busy) return;
-            void actions.cancel
-              .mutateAsync(eventId)
-              .then(() => router.replace("/events"))
-              .catch(() => {});
-          }}
+          actions={[
+            {
+              label: t("Cancel event"),
+              variant: "danger",
+              onPress: () => {
+                if (!editable || actions.busy) return;
+                void actions.cancel
+                  .mutateAsync(eventId)
+                  .then(() => router.replace("/events"))
+                  .catch(() => {});
+              },
+            },
+          ]}
         />
       ) : null}
     </View>

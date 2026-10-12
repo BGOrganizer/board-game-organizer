@@ -32,7 +32,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
-import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import {
   type UserActionConfirmation,
   UserActionsSheet,
@@ -236,11 +236,8 @@ export function OrganizationMembers({ organization }: { organization: Organizati
         }}
       />
       {managed && managedActions.length > 0 ? (
-        <CommunityConfirm
+        <ConfirmDialog
           title={managementTitle}
-          cancelLast
-          actionsInRow
-          cancelIcon={<X size={18} color={foreground} />}
           description={
             request
               ? t(

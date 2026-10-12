@@ -33,7 +33,8 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
+import { AppState, FlatList, Linking, Pressable, Share, View } from "react-native";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
@@ -122,6 +123,8 @@ export default function ContactsScreen() {
     "checking" | "undetermined" | "granted" | "denied"
   >("checking");
   const [syncingContacts, setSyncingContacts] = useState(false);
+  const [contactsConsentOpen, setContactsConsentOpen] = useState(false);
+  const [requestingContacts, setRequestingContacts] = useState(false);
   const contactsSyncRef = useRef<Promise<void> | null>(null);
   const devicePageRef = useRef<Promise<void> | null>(null);
   const deviceOffsetRef = useRef(0);
@@ -386,18 +389,8 @@ export default function ContactsScreen() {
     await syncContactsData();
   }, [syncContactsData]);
 
-  // Confirmation dialog BEFORE the real permission request. "No" closes the
-  // dialog and keeps the CTA; "Yes" fires the system permission prompt.
-  const confirmAndRequestContacts = useCallback(() => {
-    Alert.alert(
-      t("Access to contacts"),
-      t("Allow Board Game Organizer to access your contacts to find your friends?"),
-      [
-        { text: t("No"), style: "cancel" },
-        { text: t("Yes"), onPress: () => void requestContactsAccess() },
-      ],
-    );
-  }, [requestContactsAccess, t]);
+  // App consent remains separate from the real native permission prompt.
+  const confirmAndRequestContacts = () => setContactsConsentOpen(true);
 
   // Native permission is the only source of truth; OS already persists it.
   useEffect(() => {
@@ -698,6 +691,7 @@ export default function ContactsScreen() {
                       variant="outline"
                       accessibilityLabel={t("Add contacts")}
                       onPress={confirmAndRequestContacts}
+                      isDisabled={requestingContacts || syncingContacts}
                       testID="enable-contacts-btn"
                     >
                       <BookUser size={18} color="#111" />
@@ -898,6 +892,27 @@ export default function ContactsScreen() {
         </Tabs.Content>
       </Tabs>
 
+      {contactsConsentOpen ? (
+        <ConfirmDialog
+          title={t("Access to contacts")}
+          description={t(
+            "Allow Board Game Organizer to access your contacts to find your friends?",
+          )}
+          busy={requestingContacts || syncingContacts}
+          onCancel={() => setContactsConsentOpen(false)}
+          actions={[
+            {
+              label: t("Yes"),
+              variant: "primary",
+              onPress: () => {
+                setContactsConsentOpen(false);
+                setRequestingContacts(true);
+                void requestContactsAccess().finally(() => setRequestingContacts(false));
+              },
+            },
+          ]}
+        />
+      ) : null}
       <UserActionsSheet
         visible={menuUser !== null}
         user={menuUser}

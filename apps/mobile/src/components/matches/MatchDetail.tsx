@@ -42,9 +42,10 @@ import {
   UserRoundX,
   UsersRound,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { type ComponentProps, useEffect, useState } from "react";
+import { Pressable, View } from "react-native";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -143,6 +144,10 @@ export function MatchDetail({
   );
   const [activeChoice, setActiveChoice] = useState<ActiveChoice | null>(null);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const [confirmation, setConfirmation] = useState<Pick<
+    ComponentProps<typeof ConfirmDialog>,
+    "title" | "description" | "actions"
+  > | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -221,50 +226,52 @@ export function MatchDetail({
     const game =
       matches.detail.data?.games.find((item) => item.id === summary?.selectedGameId)?.name ??
       String(summary?.selectedGameId ?? "");
-    Alert.alert(
-      creating ? t("Confirm match?") : t("Back to planning?"),
-      creating
+    setConfirmation({
+      title: creating ? t("Confirm match?") : t("Back to planning?"),
+      description: creating
         ? `${t("Confirm match with")} ${date} · ${game}${match.locations?.length ? ` · ${t("Location")}: ${match.locations.find((item) => item.id === summary?.selectedLocationId)?.name ?? ""}` : ""}?`
         : t(
             "Reopen planning? Pending invitees will regain access and accepted players will be notified.",
           ),
-      [
-        { text: t("Cancel"), style: "cancel" },
+      actions: [
         {
-          text: creating ? t("Confirm match") : t("Back to planning"),
-          onPress: () => matches.setStatus.mutate(creating ? "CREATED" : "PLANNING"),
+          label: creating ? t("Confirm match") : t("Back to planning"),
+          variant: "primary",
+          onPress: () =>
+            matches.setStatus.mutate(creating ? "CREATED" : "PLANNING", {
+              onSuccess: () => setConfirmation(null),
+            }),
         },
       ],
-    );
+    });
   };
   const confirmMatchAction = () => {
-    if (!matchAction) return;
+    if (!matchAction || matchActionPending) return;
     const deleting = matchAction === "delete";
-    Alert.alert(
-      deleting ? t("Delete match?") : t("Leave match?"),
-      deleting
+    setConfirmation({
+      title: deleting ? t("Delete match?") : t("Leave match?"),
+      description: deleting
         ? t("This deletes the match and all invitations. This action cannot be undone.")
         : t("You will leave this match. The administrator can invite you again."),
-      [
-        { text: t("Cancel"), style: "cancel" },
+      actions: [
         {
-          text: deleting ? t("Delete match") : t("Leave match"),
-          style: "destructive",
+          label: deleting ? t("Delete match") : t("Leave match"),
+          variant: "danger",
           onPress: () => {
+            const onSuccess = () => {
+              setConfirmation(null);
+              router.replace("/matches");
+            };
             if (deleting) {
               if (!matchId) return;
-              matches.deleteMatch.mutate(matchId, {
-                onSuccess: () => router.replace("/matches"),
-              });
+              matches.deleteMatch.mutate(matchId, { onSuccess });
             } else if (ownInvitation) {
-              matches.leaveMatch.mutate(ownInvitation.id, {
-                onSuccess: () => router.replace("/matches"),
-              });
+              matches.leaveMatch.mutate(ownInvitation.id, { onSuccess });
             }
           },
         },
       ],
-    );
+    });
   };
 
   const confirmRemovePlayer = (invitationId: string) => {
@@ -275,20 +282,20 @@ export function MatchDetail({
       matches.removePlayer.isPending
     )
       return;
-    Alert.alert(
-      t("Remove player?"),
-      t(
+    setConfirmation({
+      title: t("Remove player?"),
+      description: t(
         "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them.",
       ),
-      [
-        { text: t("Cancel"), style: "cancel" },
+      actions: [
         {
-          text: t("Remove player"),
-          style: "destructive",
-          onPress: () => matches.removePlayer.mutate(invitationId),
+          label: t("Remove player"),
+          variant: "danger",
+          onPress: () =>
+            matches.removePlayer.mutate(invitationId, { onSuccess: () => setConfirmation(null) }),
         },
       ],
-    );
+    });
   };
 
   return (
@@ -520,6 +527,13 @@ export function MatchDetail({
           />
         )}
       </DetailsContainer>
+      {confirmation ? (
+        <ConfirmDialog
+          {...confirmation}
+          busy={matchActionPending || matches.setStatus.isPending || matches.setChoice.isPending}
+          onCancel={() => setConfirmation(null)}
+        />
+      ) : null}
       <BottomSheet
         isOpen={activeChoice !== null}
         onOpenChange={(open) => {

@@ -15,7 +15,7 @@ import { Typography } from "heroui-native/text";
 import { ArrowLeft } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
-import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableEditor } from "./EventTableEditor";
@@ -137,7 +137,7 @@ function TableForm({
         }}
       />
       {pending ? (
-        <CommunityConfirm
+        <ConfirmDialog
           title={t("Reset reservations")}
           description={t(
             "Affected bookings and invitations will be cancelled. Players must request or accept a place again.",

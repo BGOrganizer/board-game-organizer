@@ -45,10 +45,12 @@ appId: com.bgo.mobile
 - assertVisible: "bgg-e2e"
 - tapOn: "Disconnect BoardGameGeek"
 - assertVisible: "Disconnect BoardGameGeek?"
-- tapOn: "Cancel"
+- tapOn:
+    id: "confirmation-cancel"
 - assertVisible: "bgg-e2e"
 - tapOn: "Disconnect BoardGameGeek"
-- tapOn: "Disconnect"
+- tapOn:
+    id: "confirmation-action-0"
 - extendedWaitUntil:
     visible: "Sync with BoardGameGeek"
     timeout: 30000

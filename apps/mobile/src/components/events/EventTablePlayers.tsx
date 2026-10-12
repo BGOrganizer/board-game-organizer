@@ -9,14 +9,14 @@ import {
   Check,
   ClipboardCheck,
   Clock3,
+  CopyX,
   LockKeyhole,
   LogOut,
   UserRoundMinus,
-  X,
 } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { CommunityConfirm } from "@/components/common/ui/CommunityConfirm";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { UserList } from "@/components/common/ui/UserList";
@@ -39,7 +39,6 @@ export function EventTablePlayers({
   const t = useT();
   const options = useCommunityApi();
   const flow = useEventTableParticipation(options, eventId, tableId, frozen);
-  const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent-foreground");
   const danger = useThemeColor("danger");
@@ -252,14 +251,11 @@ export function EventTablePlayers({
         }}
       />
       {dialog ? (
-        <CommunityConfirm
+        <ConfirmDialog
           title={title}
           description={description}
           busy={flow.busy}
           onCancel={flow.dismiss}
-          cancelLast={mode === "manage" || mode === "invitation" || mode === "remove"}
-          actionsInRow
-          cancelIcon={<X size={18} color={foreground} />}
           actions={
             mode === "manage" || mode === "invitation"
               ? [
@@ -272,7 +268,7 @@ export function EventTablePlayers({
                   {
                     label: t("Reject"),
                     variant: "danger-soft",
-                    icon: <X size={18} color={danger} />,
+                    icon: <CopyX size={18} color={danger} />,
                     onPress: () => run(mode === "manage" ? "reject" : "decline"),
                   },
                 ]

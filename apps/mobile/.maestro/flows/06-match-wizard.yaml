@@ -397,7 +397,17 @@ appId: com.bgo.mobile
 - tapOn:
     id: "delete-match-action"
 - assertVisible: "Delete match?"
-- tapOn: "Delete match"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible: "Delete match?"
+- assertVisible: "Updated game night"
+- tapOn:
+    id: "more-match-actions"
+- tapOn:
+    id: "delete-match-action"
+- assertVisible: "Delete match?"
+- tapOn:
+    id: "confirmation-action-0"
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 30000
