@@ -1419,6 +1419,7 @@ describe("MatchService", () => {
     expect(result.administrator).toEqual({
       id: "user_admin",
       name: "Admin Player",
+      username: null,
       email: "admin@example.com",
       avatarUrl: "https://example.com/admin.png",
     });
@@ -1426,6 +1427,7 @@ describe("MatchService", () => {
       {
         id: "user_accepted",
         name: "Accepted Player",
+        username: null,
         email: "accepted@example.com",
         avatarUrl: "https://example.com/accepted.png",
         invitation: accepted,

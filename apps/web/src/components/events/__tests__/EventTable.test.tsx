@@ -7,6 +7,7 @@ import { cloneElement, type ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { messages } from "../../../../../../messages/en.js";
 import { EventTable } from "../EventTable";
+import { EventTableHeading } from "../EventTableHeading";
 
 const s = vi.hoisted(() => ({
   ctx: {} as ReturnType<typeof useEventTableContext>,
@@ -37,7 +38,14 @@ vi.mock("@/components/matches/MatchDetail", () => ({
   ),
 }));
 vi.mock("../EventTablePlayers", () => ({ EventTablePlayers: () => <div>Table players</div> }));
-vi.mock("../EventTableOverview", () => ({ EventTableOverview: () => <div>Table overview</div> }));
+vi.mock("../EventTableOverview", () => ({
+  EventTableOverview: () => (
+    <>
+      <EventTableHeading name={s.ctx.table?.name ?? "Table details"} ratingsEnabled={false} />
+      <div>Table overview</div>
+    </>
+  ),
+}));
 vi.mock("../EventTableEditAction", () => ({ EventTableEditAction: () => null }));
 function mount() {
   const i18n = setupI18n({ locale: "en", messages: { en: messages } });
@@ -60,7 +68,7 @@ beforeEach(() => {
     typeof useEventTableMatch
   >;
 });
-it("uses the same table content, Players tab and contextual Back without an intermediate table button", () => {
+it("uses the same table content, Seats tab and contextual Back without an intermediate table button", () => {
   mount();
   expect(screen.getByRole("link", { name: "Back to event" }).getAttribute("href")).toBe(
     "/events/event%2Fa",
@@ -68,13 +76,13 @@ it("uses the same table content, Players tab and contextual Back without an inte
   expect(screen.getByText("Table overview")).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Table title" })).toBeTruthy();
   expect(screen.queryByText("Open event table")).toBeNull();
-  fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Seats" }));
   expect(screen.getByText("Table players")).toBeTruthy();
 });
-it("preserves the selected Players tab when match authorization arrives, including frozen former participants", () => {
+it("preserves the selected Seats tab when match authorization arrives, including frozen former participants", () => {
   s.ctx.table = { ...s.ctx.table, matchId: "match" } as EventTableResponse;
   const v = mount();
-  fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Seats" }));
   s.ctx.event = { role: "visitor" } as EventResponse;
   s.match.data = { match: { id: "match" } } as NonNullable<typeof s.match.data>;
   v.refresh();

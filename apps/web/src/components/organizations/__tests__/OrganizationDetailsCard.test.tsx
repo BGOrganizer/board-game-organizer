@@ -33,16 +33,20 @@ it.each([
   ["PENDING", "Awaiting review", undefined],
   ["REJECTED", "Changes rejected", "Please update the logo"],
 ] as const)(
-  "renders status %s, address and server counts in the common card",
+  "renders status %s, address and server counts in labeled detail sections",
   (reviewStatus, label, rejectionReason) => {
     const { container } = renderWithI18n(
       <OrganizationDetailsCard organization={{ ...organization, reviewStatus, rejectionReason }} />,
     );
-    expect(screen.getByRole("heading", { name: "Game club" })).toBeTruthy();
+    expect(screen.getByText("Game club")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Name" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Organization venue" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Organization name help" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Organization venue help" })).toBeTruthy();
     expect(screen.getByText(label)).toBeTruthy();
     expect(screen.getByText("Club venue")).toBeTruthy();
-    expect(screen.getByText("Approved members: 4")).toBeTruthy();
-    expect(screen.getByText("Published events: 12")).toBeTruthy();
+    expect(screen.getByText("4 Confirmed members")).toBeTruthy();
+    expect(screen.getByText("12 Published events")).toBeTruthy();
     expect(container.querySelector(".lucide-map-pin")).toBeTruthy();
     expect(container.querySelector(".lucide-users-round")).toBeTruthy();
     expect(container.querySelector(".lucide-calendar-days")).toBeTruthy();
@@ -60,8 +64,8 @@ it("formats larger authoritative counts for the active locale", () => {
       organization={{ ...organization, memberCount: 1200, publishedEventCount: 12345 }}
     />,
   );
-  expect(screen.getByText("Approved members: 1,200")).toBeTruthy();
-  expect(screen.getByText("Published events: 12,345")).toBeTruthy();
+  expect(screen.getByText("1,200 Confirmed members")).toBeTruthy();
+  expect(screen.getByText("12,345 Published events")).toBeTruthy();
 });
 it("composes bottom-right actions without claiming an unapproved proposal is operational", () => {
   const { container } = renderWithI18n(
@@ -74,7 +78,9 @@ it("composes bottom-right actions without claiming an unapproved proposal is ope
   expect(screen.getByRole("button", { name: "Cancel request" }).parentElement?.className).toContain(
     "justify-end",
   );
-  expect(container.firstElementChild?.className).toContain("rounded-xl");
+  expect(container.firstElementChild?.className).toBe("space-y-4");
+  expect(screen.getByRole("heading", { name: "Name" })).toBeTruthy();
+  expect(screen.getByText("Awaiting review")).toBeTruthy();
   expect(
     screen.queryByText("Approved information remains visible while changes are reviewed."),
   ).toBeNull();

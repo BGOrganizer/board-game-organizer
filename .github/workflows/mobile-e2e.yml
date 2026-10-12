@@ -281,6 +281,7 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       E2E_USERNAME: ${{ needs.provision.outputs.username }}
+      E2E_EMAIL: ${{ needs.provision.outputs.email }}
       E2E_PASSWORD: ${{ needs.provision.outputs.password }}
       E2E_TARGET_EMAIL: ${{ needs.provision.outputs.email_2 }}
       E2E_TARGET_USERNAME: ${{ needs.provision.outputs.username_2 }}

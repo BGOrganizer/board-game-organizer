@@ -25,7 +25,15 @@ it("places guarded cancellation in the header, and keeps the shared edit FAB out
   expect(detail).toContain("<TabBar>");
   expect(detail).toContain("<FlatList");
   expect(detail).toContain('tab === "tables" &&');
-  expect(detail).toContain('<EventCard event={event} presentation="detail"');
+  expect(detail).toContain("<EventOverview event={event}");
+  expect(detail).not.toContain("<EventCard");
+  expect(detail).toContain('t("Table list")');
+  const overview = source("components/events/EventOverview.tsx");
+  expect(overview).toContain("event.confirmedParticipantCount");
+  expect(overview).toContain("event.tableCount");
+  expect(overview).toContain("<IconLegend");
+  expect(overview).toContain("icon: UsersRound");
+  expect(overview).toContain("icon: LayoutGrid");
   expect(detail).toContain("<EventTableCard");
   expect(detail.indexOf('testID="edit-event-fab"')).toBeGreaterThan(detail.indexOf("</Tabs>"));
   expect(detail).toContain("if (!editable || actions.busy) return");

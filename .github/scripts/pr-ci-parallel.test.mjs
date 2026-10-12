@@ -54,6 +54,59 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   }
 });
 
+test("parallel web and native acceptance use separate mirrored user pairs, BGG fixtures and complete cleanup", () => {
+  const provision = jobs.provision;
+  const calls = provision.steps.filter(
+    (item) => item.uses === "./.github/actions/provision-e2e-user",
+  );
+  assert.deepEqual(
+    calls.map((item) => item.id),
+    ["provision", "native"],
+  );
+  for (const field of [
+    "username",
+    "email",
+    "password",
+    "user_id",
+    "username_2",
+    "email_2",
+    "phone_2",
+    "password_2",
+    "user_id_2",
+  ]) {
+    assert.equal(provision.outputs[`native_${field}`], `\${{ steps.native.outputs.${field} }}`);
+  }
+  const native = jobs["e2e-maestro"].env;
+  for (const [name, field] of [
+    ["E2E_USERNAME", "username"],
+    ["E2E_EMAIL", "email"],
+    ["E2E_PASSWORD", "password"],
+    ["E2E_TARGET_EMAIL", "email_2"],
+    ["E2E_TARGET_USERNAME", "username_2"],
+    ["E2E_TARGET_PASSWORD", "password_2"],
+    ["E2E_TARGET_PHONE", "phone_2"],
+  ])
+    assert.equal(native[name], `\${{ needs.provision.outputs.native_${field} }}`);
+  assert.doesNotMatch(JSON.stringify(native), /needs\.provision\.outputs\.(?!native_)/);
+  const browser = jobs["e2e-playwright"].steps.find((item) => item.env?.E2E_EMAIL);
+  assert.equal(browser.env.E2E_EMAIL, `\${{ needs.provision.outputs.email }}`);
+  assert.equal(browser.env.E2E_EMAIL_2, `\${{ needs.provision.outputs.email_2 }}`);
+  const sync = jobs["sync-e2e-users"].steps.find((item) => item.env?.USER_ID);
+  assert(sync.run.includes("native_user_id"));
+  assert(sync.run.includes("native_user_id_2"));
+  assert(sync.run.includes('for actor in "$USER_ID" "$NATIVE_USER_ID"'));
+  assert(sync.run.includes("set -euo pipefail"));
+  const cleanupUsers = jobs["cleanup-e2e-user"].steps.find((item) => item.env?.USER_ID);
+  assert.equal(cleanupUsers.env.NATIVE_USER_ID, `\${{ needs.provision.outputs.native_user_id }}`);
+  assert.equal(
+    cleanupUsers.env.NATIVE_USER_ID_2,
+    `\${{ needs.provision.outputs.native_user_id_2 }}`,
+  );
+  assert(
+    cleanupUsers.run.includes('"$USER_ID" "$USER_ID_2" "$NATIVE_USER_ID" "$NATIVE_USER_ID_2"'),
+  );
+});
+
 test("PR publishes the verified development APK to EAS and keeps GitHub and Telegram links", () => {
   const steps = jobs["draft-release"].steps;
   const upload = steps.find((item) => item.id === "eas");

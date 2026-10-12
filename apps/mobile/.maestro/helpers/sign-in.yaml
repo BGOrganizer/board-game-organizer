@@ -1,0 +1,26 @@
+appId: com.bgo.mobile
+---
+# AuthView may show its provider chooser again after logout. Select the email
+# method if present, then target the input placeholder, never a method button.
+- tapOn: "Sign in / Register"
+- extendedWaitUntil:
+    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    timeout: 120000
+- runFlow:
+    when:
+      visible: "^Email address$"
+    commands:
+      - tapOn: "^Email address$"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
+    timeout: 120000
+- tapOn: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
+- inputText: ${AUTH_EMAIL}
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: ".*[Ee]nter (your )?[Pp]assword.*"
+    timeout: 60000
+- tapOn: ".*[Ee]nter (your )?[Pp]assword.*"
+- inputText: ${AUTH_PASSWORD}
+- tapOn: "Continue"
+- runFlow: "verify-clerk-device.yaml"

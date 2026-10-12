@@ -140,6 +140,7 @@ case "${1:-}" in
       *) echo "Unknown Maestro flow" >&2; exit 2 ;;
     esac
     test -n "$E2E_USERNAME"
+    test -n "${E2E_EMAIL:?Actor email required}"
     test -n "$E2E_PASSWORD"
     test -n "$E2E_TARGET_EMAIL"
     test -n "$E2E_TARGET_USERNAME"
@@ -163,7 +164,7 @@ case "${1:-}" in
     maestro test --format junit --output "/tmp/maestro-reports/$FLOW.xml" \
       --debug-output /tmp/maestro-debug \
       --test-output-dir "/tmp/maestro-debug/$FLOW" \
-      -e "USERNAME=$E2E_USERNAME" -e "PASSWORD=$E2E_PASSWORD" \
+      -e "USERNAME=$E2E_USERNAME" -e "EMAIL=$E2E_EMAIL" -e "PASSWORD=$E2E_PASSWORD" \
       -e "EMAIL_2=$E2E_TARGET_EMAIL" -e "USERNAME_2=$E2E_TARGET_USERNAME" \
       -e "PASSWORD_2=$E2E_TARGET_PASSWORD" \
       "apps/mobile/.maestro/flows/$FLOW.yaml" || { capture; exit 1; }

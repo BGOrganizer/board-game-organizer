@@ -98,9 +98,20 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-vi.mock("@/components/events/EventTableOverview", () => ({
-  EventTableOverview: () => <div>Canonical table overview</div>,
-}));
+vi.mock("@/components/events/EventTableOverview", async () => {
+  const { EventTableHeading } = await import("@/components/events/EventTableHeading");
+  return {
+    EventTableOverview: ({ match }: { match: MatchDetailResponse }) => (
+      <>
+        <EventTableHeading
+          name={match.match.eventTable?.tableName ?? "Table details"}
+          ratingsEnabled={match.match.eventTable?.openSkill ?? false}
+        />
+        <div>Canonical table overview</div>
+      </>
+    ),
+  };
+});
 vi.mock("@/components/events/EventTablePlayers", () => ({
   EventTablePlayers: ({ frozen }: { frozen?: MatchDetailResponse }) => (
     <div>{frozen ? `Frozen table roster ${frozen.match.status}` : "Live table roster"}</div>
@@ -192,7 +203,7 @@ describe("MatchDetail", () => {
     expect(screen.queryByRole("tab", { name: "Leaderboards" })).toBeNull();
     expect(screen.queryByText("Rating")).toBeNull();
     expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Players" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Seats" })).toBeTruthy();
   });
   it("opens event matches directly in the canonical table overview/players without a second table view", () => {
     useMatchDetailMock.mockReturnValue(
@@ -208,7 +219,7 @@ describe("MatchDetail", () => {
     expect(screen.getByRole("link", { name: "Back to event" }).getAttribute("href")).toBe(
       "/events/event",
     );
-    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Seats" }));
     expect(screen.getByText("Live table roster")).toBeTruthy();
     expect(screen.getByText("Contextual table edit")).toBeTruthy();
   });
@@ -246,7 +257,7 @@ describe("MatchDetail", () => {
     );
     renderWithI18n(<MatchDetail matchId={detail.match.id} />);
     expect(screen.getByRole("tab", { name: "Leaderboards" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Seats" }));
     expect(screen.getByText("Live table roster")).toBeTruthy();
     expect(screen.queryByText("Admin Player")).toBeNull();
   });

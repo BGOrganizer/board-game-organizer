@@ -25,6 +25,7 @@ import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useT } from "@/lib/i18n";
@@ -111,20 +112,15 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
             }
           >
             <OrganizationArtwork organization={organization} />
-            <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Building2 size={16} color={foreground} accessible={false} />
-                <Typography
-                  numberOfLines={1}
-                  className="font-semibold text-foreground"
-                  style={{ flex: 1 }}
-                >
-                  {organization.name}
-                </Typography>
+            <ListCardBody
+              title={organization.name}
+              titleIcon={<Building2 size={16} color={foreground} accessible={false} />}
+              titleAccessory={
                 <View style={{ flexShrink: 0 }}>
                   <OrganizationStatusBadge organization={organization} />
                 </View>
-              </View>
+              }
+            >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <MapPin size={16} color={foreground} accessible={false} />
                 <Typography
@@ -156,7 +152,7 @@ export function Organizations({ scope = "mine" }: { scope?: "mine" | "public" })
                   {t("Membership requested")}
                 </Typography>
               ) : null}
-            </View>
+            </ListCardBody>
           </LinkedListCard>
         )}
         ListFooterComponent={

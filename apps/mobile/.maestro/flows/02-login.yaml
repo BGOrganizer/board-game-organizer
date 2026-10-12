@@ -2,20 +2,11 @@ appId: com.bgo.mobile
 ---
 # 2. Sign-in with the provisioned E2E test user.
 #    Clerk's sign-in is multi-step: identifier → Continue → password → Continue.
-- tapOn: "Sign in / Register"
-- extendedWaitUntil:
-    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
-    timeout: 120000
-- tapOn: ".*[Ee]mail.*|.*[Uu]sername.*"
-- inputText: ${USERNAME}
-- tapOn: "Continue"
-- extendedWaitUntil:
-    visible: ".*[Ee]nter your [Pp]assword.*"
-    timeout: 60000
-- tapOn: ".*[Ee]nter your [Pp]assword.*"
-- inputText: ${PASSWORD}
-- tapOn: "Continue"
-- runFlow: "../helpers/verify-clerk-device.yaml"
+- runFlow:
+    file: "../helpers/sign-in.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
 - extendedWaitUntil:
     visible: "Mobile number|Matches"
     timeout: 120000

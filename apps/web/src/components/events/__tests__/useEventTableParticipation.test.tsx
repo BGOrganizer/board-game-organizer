@@ -405,6 +405,7 @@ it("uses the authoritative frozen roster even after membership departure; never 
       {
         id: "me",
         name: "Frozen player",
+        username: "frozen_nick",
         email: "frozen@example.test",
         avatarUrl: null,
         invitation: { status: "ACCEPTED" },
@@ -420,7 +421,7 @@ it("uses the authoritative frozen roster even after membership departure; never 
   expect(view.result.current.seats[0].user).toMatchObject({
     userId: "me",
     name: "Frozen player",
-    secondary: "frozen@example.test",
+    secondary: "frozen_nick",
   });
   expect(view.result.current.seats.filter((s) => s.reserved)).toHaveLength(1);
   expect(view.result.current.loading).toBe(false);

@@ -191,15 +191,15 @@ describe("organization detail and member interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(state.fetch.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
-  it("puts pending self-request cancellation in the card footer, preserving its confirmation", async () => {
+  it("puts pending self-request cancellation below detail sections, preserving its confirmation", async () => {
     const state = setup({ role: "requested", adminUserId: "another" });
     const button = await screen.findByRole("button", {
       name: "Cancel request",
     });
     expect(button.textContent).toBe("");
     expect(button.parentElement?.className).toContain("justify-end");
-    expect(screen.getByText("Approved members: 2")).toBeTruthy();
-    expect(screen.getByText("Published events: 5")).toBeTruthy();
+    expect(screen.getByText("2 Confirmed members")).toBeTruthy();
+    expect(screen.getByText("5 Published events")).toBeTruthy();
     fireEvent.click(button);
     const dialog = screen.getByRole("dialog", { name: "Cancel request" });
     fireEvent.click(within(dialog).getByRole("button", { name: /^Cancel$/ }));
@@ -237,7 +237,8 @@ describe("organization detail and member interactions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Invite friends" }));
     expect(mocks.push).toHaveBeenCalledWith("/organizations/org/invite");
     expect(screen.queryByRole("button", { name: "Follow: confirmed Full Name" })).toBeNull();
-    const confirmedRow = screen.getByText("confirmed Full Name").closest("li")!;
+    const confirmedRow = screen.getByText("confirmed Full Name").closest("li");
+    if (!confirmedRow) throw new Error("Missing confirmed member row");
     fireEvent.click(within(confirmedRow).getByRole("button", { name: "Actions" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Follow" }));
     await waitFor(() =>
@@ -342,7 +343,8 @@ describe("organization detail and member interactions", () => {
       const state = setup();
       await members();
       await screen.findByText("excluded Full Name");
-      const row = screen.getByText("requested Full Name").closest("li")!;
+      const row = screen.getByText("requested Full Name").closest("li");
+      if (!row) throw new Error("Missing requested member row");
       expect(within(row).getAllByRole("button")).toHaveLength(2);
       expect(
         within(row).queryByRole("button", { name: /Follow|Unfollow|Send friend request/ }),

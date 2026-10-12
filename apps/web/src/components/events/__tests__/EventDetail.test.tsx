@@ -1,5 +1,5 @@
 import type { EventResponse, EventTableResponse } from "@board-game-organizer/schemas";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -155,7 +155,14 @@ it("defaults to details, reserves table fetching for its tab and keeps edit outs
   expect(mocks.tableOptions.mock.lastCall?.[0].enabled).toBe(false);
   expect(screen.queryByText("Game club")).toBeNull();
   expect(screen.getByText("3")).toBeTruthy();
-  expect(container.querySelector(".lucide-layout-grid")).toBeNull();
+  expect(container.querySelector(".lucide-layout-grid")).toBeTruthy();
+  expect(container.querySelector(".lucide-users-round")).toBeTruthy();
+  expect(screen.getByText("Number of tables:").parentElement?.textContent).toBe(
+    "Number of tables: 1",
+  );
+  expect(screen.getByText("Number of participants:").parentElement?.textContent).toBe(
+    "Number of participants: 3",
+  );
   const cancel = screen.getByRole("button", { name: "Cancel event" });
   expect(cancel.closest("header")).toBeTruthy();
   expect(cancel.textContent).toBe("");
@@ -183,7 +190,20 @@ it.each(["PLANNING", "CREATED", "TERMINATED", "CANCELLED"] as const)(
     expect(screen.getByText("Demo")).toBeTruthy();
     expect(screen.getByRole("img", { name: "Global ratings enabled" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Edit table|Remove table/ })).toBeNull();
-    expect(screen.getByText("2/4 confirmed players")).toBeTruthy();
+    const card = screen.getByRole("link", { name: "Open table: Azul table" });
+    expect(within(card).getByText("confirmed players:").parentElement?.textContent).toBe(
+      "confirmed players: 2",
+    );
+    expect(within(card).getByText("reserved places:").parentElement?.textContent).toBe(
+      "reserved places: 3",
+    );
+    expect(Boolean(within(card).queryByText("Planning"))).toBe(false);
+    if (status !== "PLANNING")
+      expect(
+        within(card).getByText(
+          status === "CREATED" ? "Confirmed" : status === "TERMINATED" ? "Finished" : "Cancelled",
+        ),
+      ).toBeTruthy();
   },
 );
 it("keeps table failures observable, retries them and loads/retries subsequent pages", () => {

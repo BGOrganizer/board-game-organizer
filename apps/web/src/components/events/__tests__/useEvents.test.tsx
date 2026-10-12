@@ -578,7 +578,7 @@ describe("event mutations", () => {
   });
   it("refreshes personal participation after booking changes without fetching unrelated organization lists", async () => {
     const { wrapper } = setup();
-    const fetch = vi.fn(async (url: string, init: RequestInit) =>
+    const fetch = vi.fn(async (_url: string, init: RequestInit) =>
       init.method === "POST" ? response(booking) : response({ items: [event], nextCursor: null }),
     );
     vi.stubGlobal("fetch", fetch);

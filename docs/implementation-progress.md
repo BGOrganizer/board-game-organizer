@@ -1,5 +1,27 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 quality and acceptance repair after `5895cc5`
+
+- The failed quality gate exposed native source contracts that still described the old cards,
+  table-heading ownership and Players labels. Contracts now assert the implemented sections,
+  actual icon legends, Seats-only table labels and full-name/username identity. Native organization
+  rows reuse the existing `ListCardBody` with an optional title icon.
+- Added web acceptance-unit paths for contextual cards without organization identity and every
+  disabled-seat explanation. Existing 100% table/card coverage thresholds remain unchanged.
+  Local coverage passes: mobile 163, web 512, API 541, schemas 92 and shared 123 tests (1,431 total).
+  Typecheck and all 47 workflow contracts pass. One full web run hit the existing five-second
+  country-selector test limit; the unchanged test passed on rerun, without timeout increases.
+- Run `38170603100` produced real native reports but failed Contacts and reauthentication.
+  Contacts expected an empty connection list while browser acceptance mutated the same users.
+  PR provisioning now creates separate web/native actor-target pairs, mirrors all four identities,
+  seeds each actor's BGG fixture and explicitly cleans up all four IDs. Native login now selects
+  the email method and input placeholders through one shared helper; caller credentials and Clerk
+  device verification remain intact. Main/manual callers receive the actor email too.
+- These are repairs awaiting a new full PR run, not green native acceptance. Local replica-set
+  integration verification did not complete within the command window; CI remains authoritative
+  for integrations, real browser/native execution, deployment, cleanup and publication.
+  Concurrent mobile edits and private/generated configuration stay outside this repair commit.
+
 ## Current table-participation and navigation pass
 
 The operator authorized updating existing PR #22 on `feat/social-api-refactor`, monitoring its

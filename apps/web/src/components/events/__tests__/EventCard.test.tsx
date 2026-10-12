@@ -46,6 +46,17 @@ it("reuses planets/details without a self link, organization identity or table c
   expect(container.querySelector('img[src^="data:image/svg+xml,"]')).toBeTruthy();
 });
 
+it("omits the organization from contextual cards and their accessible link names", () => {
+  const { container } = renderWithI18n(<EventCard event={event} showOrganization={false} />);
+  expect(
+    screen.getByRole("link", { name: /^Open event: Evening games/ }).getAttribute("aria-label"),
+  ).not.toContain("Game club");
+  expect(screen.queryByText("Game club")).toBeNull();
+  expect(screen.queryByText("Approved organization")).toBeNull();
+  expect(container.querySelector(".lucide-building2")).toBeNull();
+  expect(screen.getByText("Evening games")).toBeTruthy();
+});
+
 it.each([
   ["PUBLISHED", "Published", "success", true],
   ["DRAFT", "Draft", "warning", false],

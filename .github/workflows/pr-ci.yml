@@ -315,7 +315,7 @@ jobs:
 
   # ------------------------------------------------ provision E2E test user
   provision:
-    name: 👤 Provision E2E test users (Clerk API)
+    name: 👤 Provision isolated web and mobile E2E users (Clerk API)
     needs: [deploy-preview-api]
     runs-on: ubuntu-latest
     environment: development
@@ -329,6 +329,15 @@ jobs:
       phone_2: ${{ steps.provision.outputs.phone_2 }}
       password_2: ${{ steps.provision.outputs.password_2 }}
       user_id_2: ${{ steps.provision.outputs.user_id_2 }}
+      native_username: ${{ steps.native.outputs.username }}
+      native_email: ${{ steps.native.outputs.email }}
+      native_password: ${{ steps.native.outputs.password }}
+      native_user_id: ${{ steps.native.outputs.user_id }}
+      native_username_2: ${{ steps.native.outputs.username_2 }}
+      native_email_2: ${{ steps.native.outputs.email_2 }}
+      native_phone_2: ${{ steps.native.outputs.phone_2 }}
+      native_password_2: ${{ steps.native.outputs.password_2 }}
+      native_user_id_2: ${{ steps.native.outputs.user_id_2 }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -338,8 +347,14 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
-      - name: 👤 Provision E2E user
+      - name: 👤 Provision web E2E users
         id: provision
+        uses: ./.github/actions/provision-e2e-user
+        with:
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+
+      - name: 👤 Provision mobile E2E users
+        id: native
         uses: ./.github/actions/provision-e2e-user
         with:
           clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
@@ -543,14 +558,16 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: 🔄 Sync actor + target into the preview users collection
+      - name: 🔄 Sync isolated web/mobile actors and targets into the preview users collection
         env:
           API_URL: ${{ needs.deploy-preview-api.outputs.url }}
           BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           USER_ID: ${{ needs.provision.outputs.user_id }}
+          NATIVE_USER_ID: ${{ needs.provision.outputs.native_user_id }}
           DB_NAME: ${{ needs.deploy-preview-api.outputs.db-name }}
         run: |
+          set -euo pipefail
           # The signed webhook skips E2E users; sync them only into this run's
           # isolated database via the authenticated admin endpoint.
           # (Bearer == CLERK_SECRET_KEY).
@@ -564,9 +581,19 @@ jobs:
             -H "$AUTH" -H "Content-Type: application/json" \
             -d '{"clerkId":"${{ needs.provision.outputs.user_id_2 }}","email":"${{ needs.provision.outputs.email_2 }}","name":"E2E Target","mobileNumber":"${{ needs.provision.outputs.phone_2 }}"}' \
             && echo "target synced"
-          jq -cn --arg userId "$USER_ID" --arg name "$DB_NAME" '{action:"seed-bgg",databaseName:$name,userId:$userId}' |
-            curl -fsS -X POST "$API_URL/api/admin/ci-db?$Q" \
-              -H "$AUTH" -H 'Content-Type: application/json' -d @- > /dev/null
+          curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
+            -H "$AUTH" -H "Content-Type: application/json" \
+            -d '{"clerkId":"${{ needs.provision.outputs.native_user_id }}","email":"${{ needs.provision.outputs.native_email }}","name":"E2E Test"}' \
+            && echo "mobile actor synced"
+          curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
+            -H "$AUTH" -H "Content-Type: application/json" \
+            -d '{"clerkId":"${{ needs.provision.outputs.native_user_id_2 }}","email":"${{ needs.provision.outputs.native_email_2 }}","name":"E2E Target","mobileNumber":"${{ needs.provision.outputs.native_phone_2 }}"}' \
+            && echo "mobile target synced"
+          for actor in "$USER_ID" "$NATIVE_USER_ID"; do
+            jq -cn --arg userId "$actor" --arg name "$DB_NAME" '{action:"seed-bgg",databaseName:$name,userId:$userId}' |
+              curl -fsS -X POST "$API_URL/api/admin/ci-db?$Q" \
+                -H "$AUTH" -H 'Content-Type: application/json' -d @- > /dev/null
+          done
 
   # ------------------------------------------------------------- Maestro E2E
   e2e-maestro:
@@ -577,12 +604,13 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      E2E_USERNAME: ${{ needs.provision.outputs.username }}
-      E2E_PASSWORD: ${{ needs.provision.outputs.password }}
-      E2E_TARGET_EMAIL: ${{ needs.provision.outputs.email_2 }}
-      E2E_TARGET_USERNAME: ${{ needs.provision.outputs.username_2 }}
-      E2E_TARGET_PASSWORD: ${{ needs.provision.outputs.password_2 }}
-      E2E_TARGET_PHONE: ${{ needs.provision.outputs.phone_2 }}
+      E2E_USERNAME: ${{ needs.provision.outputs.native_username }}
+      E2E_EMAIL: ${{ needs.provision.outputs.native_email }}
+      E2E_PASSWORD: ${{ needs.provision.outputs.native_password }}
+      E2E_TARGET_EMAIL: ${{ needs.provision.outputs.native_email_2 }}
+      E2E_TARGET_USERNAME: ${{ needs.provision.outputs.native_username_2 }}
+      E2E_TARGET_PASSWORD: ${{ needs.provision.outputs.native_password_2 }}
+      E2E_TARGET_PHONE: ${{ needs.provision.outputs.native_phone_2 }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -811,8 +839,10 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           USER_ID: ${{ needs.provision.outputs.user_id }}
           USER_ID_2: ${{ needs.provision.outputs.user_id_2 }}
+          NATIVE_USER_ID: ${{ needs.provision.outputs.native_user_id }}
+          NATIVE_USER_ID_2: ${{ needs.provision.outputs.native_user_id_2 }}
         run: |
-          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2"
+          bash .github/scripts/cleanup-e2e-clerk-users.sh "$USER_ID" "$USER_ID_2" "$NATIVE_USER_ID" "$NATIVE_USER_ID_2"
 
   # -------------------------------------------------- isolated DB cleanup
   cleanup-e2e-db:

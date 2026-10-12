@@ -6,7 +6,7 @@ import type {
 import type { useEventTableContext } from "@board-game-organizer/shared";
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { messages } from "../../../../../../messages/en.js";
@@ -55,36 +55,52 @@ beforeEach(() => {
       maxPlayers: 4,
       confirmedCount: 1,
       reservedCount: 3,
-      demonstrator: { userId: "demo", username: "Demo", avatarUrl: null },
+      demonstrator: { userId: "demo", name: "Demo Player", username: "demo_nick", avatarUrl: null },
     } as EventTableResponse,
     open: true,
     eventQuery: { error: null, refetch: s.eventRetry },
     tableQuery: { error: null, refetch: s.tableRetry },
   } as unknown as ReturnType<typeof useEventTableContext>;
 });
-it("keeps an icon-bearing Table name label, the name below, optional blue Rating and no legend", () => {
+it("keeps an icon-bearing Table name label, the name below, optional blue Rating and an actual-icon legend", async () => {
   const v = mount(<EventTableHeading name="A long table name" ratingsEnabled />);
   expect(screen.getByText("Table name")).toBeTruthy();
   expect(screen.getByRole("heading", { name: "A long table name" })).toBeTruthy();
   expect(screen.getByText("Rating").closest("span")?.className).toContain("chip");
-  expect(screen.queryByRole("button")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Table name help" }));
+  const legend = await screen.findByRole("dialog");
+  expect(within(legend).getByText("Confirmed players.")).toBeTruthy();
+  expect(within(legend).getByText("Maximum seats here; free places in Seats.")).toBeTruthy();
+  expect(within(legend).getByText("Reserved places, including pending requests.")).toBeTruthy();
+  for (const icon of ["users-round", "armchair", "lock-keyhole"])
+    expect(legend.querySelector(`.lucide-${icon}`)).toBeTruthy();
   v.refresh(<EventTableHeading name="A long table name" ratingsEnabled={false} />);
   expect(screen.queryByText("Rating")).toBeNull();
 });
-it("shows authorized timezone, cover/game, location, counts and demonstrator while cached fields survive errors", () => {
+it("shows authorized timezone, cover/game, counts and full demonstrator identity without repeating the venue; cached fields survive errors", () => {
   const v = mount(<EventTableOverview eventId="event" tableId="table" />);
   expect(screen.getByText("Azul")).toBeTruthy();
   expect(screen.getByRole("img", { name: "Average: 7.80" })).toBeTruthy();
   expect(screen.getByRole("img", { name: "Rank: 85" })).toBeTruthy();
-  expect(screen.getByText("Club")).toBeTruthy();
-  expect(screen.getByText("Verified address")).toBeTruthy();
+  expect(screen.queryByText("Club")).toBeNull();
+  expect(screen.queryByText("Verified address")).toBeNull();
   expect(screen.getByRole("heading", { name: "Date and time" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Location" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Location" })).toBeNull();
+  expect(screen.getByRole("heading", { name: "Demonstrator" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Board games" })).toBeTruthy();
-  for (const label of ["Date and time help", "Table location help", "Table game help"])
+  for (const label of ["Date and time help", "Table game help", "Demonstrator help"])
     expect(screen.getByRole("button", { name: label })).toBeTruthy();
-  expect(screen.getByText(/1\/4 confirmed players.*3 reserved places/)).toBeTruthy();
-  expect(screen.getByText("Demonstrator: Demo")).toBeTruthy();
+  expect(screen.getByText("confirmed players:").parentElement?.textContent).toBe(
+    "confirmed players: 1",
+  );
+  expect(screen.getByText("Maximum players:").parentElement?.textContent).toBe(
+    "Maximum players: 4",
+  );
+  expect(screen.getByText("reserved places:").parentElement?.textContent).toBe(
+    "reserved places: 3",
+  );
+  expect(screen.getByText("Demo Player")).toBeTruthy();
+  expect(screen.getByText("demo_nick")).toBeTruthy();
   expect(screen.getByText(/5:00 PM/)).toBeTruthy();
   s.ctx.eventQuery.error = new Error("network");
   v.refresh();
@@ -101,7 +117,7 @@ it("shows authorized timezone, cover/game, location, counts and demonstrator whi
     demonstrator: { userId: "demo", username: null, avatarUrl: null },
   } as EventTableResponse;
   v.refresh();
-  expect(screen.getByText("Demonstrator: Username unavailable")).toBeTruthy();
+  expect(screen.getAllByText("Username unavailable")).toHaveLength(2);
   expect(screen.getByText("Bookings are closed. Results can still be recorded.")).toBeTruthy();
 });
 it("uses partial skeletons, preserving frozen match fields and never inventing a confirmed administrator seat", () => {
@@ -132,8 +148,17 @@ it("uses partial skeletons, preserving frozen match fields and never inventing a
   } as MatchDetailResponse;
   const v = mount(<EventTableOverview eventId="event" tableId="table" match={match} />);
   expect(screen.getByText("Frozen game")).toBeTruthy();
-  expect(screen.getByText("Frozen venue")).toBeTruthy();
-  expect(screen.getByText(/1\/4 confirmed players.*1 reserved places/)).toBeTruthy();
+  expect(screen.queryByText("Frozen venue")).toBeNull();
+  expect(screen.queryByText("Historic address")).toBeNull();
+  expect(screen.getByText("confirmed players:").parentElement?.textContent).toBe(
+    "confirmed players: 1",
+  );
+  expect(screen.getByText("Maximum players:").parentElement?.textContent).toBe(
+    "Maximum players: 4",
+  );
+  expect(screen.getByText("reserved places:").parentElement?.textContent).toBe(
+    "reserved places: 1",
+  );
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   expect(s.tableRetry).not.toHaveBeenCalled();
   v.refresh(

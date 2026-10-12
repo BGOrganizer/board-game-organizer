@@ -170,26 +170,38 @@ test("native device verification uses Clerk development fixtures, without disabl
   );
   assert(helper.includes('visible: "Check your email|Mobile number|Matches"'));
   assert(helper.includes('inputText: "424242"'));
-  for (const name of [
-    "02-login",
-    "05-contacts-follow-block",
-    "07-reauth-after-logout",
-    "09-group-invitations",
+  const signIn = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
+    "utf8",
+  );
+  assert(signIn.includes('visible: "^Email address$"'));
+  assert(signIn.includes("[Ee]nter your [Ee]mail"));
+  assert(signIn.includes(`inputText: \${AUTH_EMAIL}`));
+  assert.match(
+    signIn,
+    /inputText: \$\{AUTH_PASSWORD\}\n- tapOn: "Continue"\n- runFlow: "verify-clerk-device.yaml"/,
+  );
+  for (const [name, expected] of [
+    ["02-login", 1],
+    ["05-contacts-follow-block", 4],
+    ["07-reauth-after-logout", 1],
+    ["09-group-invitations", 3],
   ]) {
     const flow = readFileSync(
       new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url),
       "utf8",
-    );
-    for (const match of flow.matchAll(
-      /- inputText: \$\{PASSWORD(?:_2)?\}\n- tapOn: "Continue"\n/g,
-    )) {
-      assert(
-        flow
-          .slice(match.index + match[0].length)
-          .startsWith('- runFlow: "../helpers/verify-clerk-device.yaml"'),
-      );
-    }
+    ).replace(/\r\n/g, "\n");
+    const calls = [
+      ...flow.matchAll(
+        /file: "\.\.\/helpers\/sign-in.yaml"\n {4}env:\n {6}AUTH_EMAIL: \$\{EMAIL(_2)?\}\n {6}AUTH_PASSWORD: \$\{PASSWORD(_2)?\}/g,
+      ),
+    ];
+    assert.equal(calls.length, expected, name);
+    for (const call of calls) assert.equal(call[1], call[2], name);
+    assert.doesNotMatch(flow, /inputText: \$\{USERNAME/);
   }
+  for (const workflow of workflows)
+    assert.match(workflow.split("  e2e-maestro:")[1].split(/\n {2}[\w-]+:/)[0], /E2E_EMAIL:/);
 });
 test("native event acceptance uses the catalog game actually seeded by CI", () => {
   const flow = readFileSync(
@@ -407,6 +419,7 @@ test("each native flow preserves quoting, failure exit status and partial report
           TEST_EXIT: String(exit),
           TEST_FLOW: name,
           E2E_USERNAME: username,
+          E2E_EMAIL: "fixture.actor@example.invalid",
           E2E_PASSWORD: "fixture password with spaces",
           E2E_TARGET_EMAIL: "fixture@example.invalid",
           E2E_TARGET_USERNAME: "fixture target",
@@ -417,6 +430,7 @@ test("each native flow preserves quoting, failure exit status and partial report
   const ok = run(0);
   assert.equal(ok.status, 0, ok.stderr);
   assert(ok.stdout.includes("USERNAME=fixture $(not-expanded)"));
+  assert(ok.stdout.includes("EMAIL=fixture.actor@example.invalid"));
   assert(ok.stdout.includes("PASSWORD=fixture password with spaces"));
   assert(ok.stdout.includes("/tmp/maestro-reports/01-launch-welcome.xml"));
   assert(ok.stdout.includes("persisted"));

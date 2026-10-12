@@ -219,7 +219,8 @@ it("keeps frozen users visible and prevents leave/removal without a live authori
     { index: 2, reserved: false },
   ];
   mount();
-  expect(screen.getByText("Username unavailable")).toBeTruthy();
+  expect(screen.getAllByText("Username unavailable")).toHaveLength(3);
+  expect(screen.getByRole("heading", { name: "Table seats" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Leave place: You" }).hasAttribute("disabled")).toBe(
     true,
   );
@@ -267,6 +268,27 @@ it("retains cached players on failure and retries only permitted resources", asy
   view.refresh();
   expect(screen.queryByText("Ada")).toBeNull();
 });
+it.each([
+  ["closed", "Bookings for this table are not open. Free places cannot currently be reserved."],
+  ["already-booked", "You already have a reservation or pending request for this table."],
+  ["busy", "Wait for the current action to finish before reserving a place."],
+  ["unavailable", "This place is free, but booking is currently unavailable to you."],
+] as const)(
+  "explains the %s disabled seat without enabling booking",
+  async (reason, explanation) => {
+    s.flow.canJoin = false;
+    s.flow.joinUnavailableReason = reason;
+    mount();
+    expect(
+      screen.getByRole("button", { name: "Reserve a place: 3" }).hasAttribute("disabled"),
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Why can't I reserve this place?: 3" }));
+    expect(await screen.findByText(explanation)).toBeTruthy();
+    expect(s.openJoin).not.toHaveBeenCalled();
+    expect(s.submit).not.toHaveBeenCalled();
+  },
+);
+
 it("shows shared player limits, never offers administrative invitations", () => {
   mount();
   expect(screen.getByText("Minimum players")).toBeTruthy();

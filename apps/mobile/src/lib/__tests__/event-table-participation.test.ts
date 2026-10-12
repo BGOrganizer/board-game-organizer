@@ -11,13 +11,18 @@ it("keeps framework entries small and points both entrances at the canonical tab
   expect(table).toContain("<MatchDetail");
   expect(table).toContain('testID="table-players-tab"');
   const match = source("components/matches/MatchDetail.tsx");
-  for (const component of [
-    "<EventTableHeading",
-    "<EventTableOverview",
-    "<EventTablePlayers",
-    "<EventTableEditAction",
-  ])
+  for (const component of ["<EventTableOverview", "<EventTablePlayers", "<EventTableEditAction"])
     expect(match).toContain(component);
+  const overview = source("components/events/EventTableOverview.tsx");
+  expect(overview).toContain("<EventTableHeading");
+  expect(match).not.toContain("<EventTableHeading");
+  expect(table).not.toContain("<EventTableHeading");
+  expect(table).toContain('t("Seats")');
+  expect(match).toMatch(/match\.eventTable\s*\? t\("Seats"\)\s*:\s*t\("Players"\)/);
+  expect(overview).toContain("<UserListRow");
+  expect(overview).toContain("table.demonstrator.name || table.demonstrator.username");
+  expect(overview).toContain('label={t("Demonstrator")}');
+  expect(overview).not.toContain("<LocationListRow");
   expect(match).not.toContain('t("Open event table")');
   expect(match).toContain('match?.status === "TERMINATED" && activeTab === "players"');
   expect(match).toContain("!match.eventTable || match.eventTable.openSkill");
@@ -52,6 +57,8 @@ it("uses seat icons, pending status and membership-style decisions without organ
   expect(players).toContain('mode === "manage" ? "approve" : "accept"');
   expect(players).toContain('t("Leave place")');
   expect(players).toContain("<MatchPlayerLimits");
+  expect(players).toContain('t("Table seats")');
+  expect(players).toContain('secondary={person.secondary ?? t("Username unavailable")}');
   expect(players).not.toContain("EventTableInvitationPicker");
   expect(players).not.toContain('t("Invite organization members")');
   expect(players).toContain('variant: "danger-soft"');
@@ -74,6 +81,9 @@ it("keeps the label/icon/name and accent Rating badge free of the voting legend"
   for (const text of ["LayoutGrid", 't("Table name")', 't("Rating")', 'color="accent"', "Trophy"])
     expect(heading).toContain(text);
   expect(heading).not.toContain("VoteLegend");
+  expect(heading).toContain("<IconLegend");
+  for (const icon of ["UsersRound", "Armchair", "LockKeyhole"])
+    expect(heading).toContain(`icon: ${icon}`);
 });
 it("keeps page Back separate from table/location and wizard-step Back", () => {
   const wizard = source("components/events/EventWizard.tsx");

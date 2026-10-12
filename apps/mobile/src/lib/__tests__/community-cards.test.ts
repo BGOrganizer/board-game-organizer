@@ -21,7 +21,7 @@ it("uses locally generated planets, explicit left artwork, semantic status and a
   expect(card).toContain("timeZone: event.timeZone");
   expect(card).toContain("i18n.locale");
   for (const icon of [
-    "BadgeCheck",
+    "Building2",
     "CalendarDays",
     "CalendarRange",
     "Clock3",
@@ -30,15 +30,26 @@ it("uses locally generated planets, explicit left artwork, semantic status and a
     "UsersRound",
   ])
     expect(card).toContain(icon);
+  const content = card.slice(card.indexOf("const content ="));
+  expect(content.indexOf("{event.name}")).toBeLessThan(content.indexOf("{event.organizationName}"));
+  expect(card).toContain("showOrganization = true");
+  expect(source("events/Events.tsx")).toContain("showOrganization={!organizationId}");
   expect(card).toContain('position: "absolute"');
   expect(card).toContain('"warning"');
   expect(card).toContain('"success"');
   expect(artwork).toContain("width: size, height: size");
 });
-it("composes shared card frames, total organization counts and contextual header/footer actions", () => {
+it("composes labeled organization sections, total counts and contextual header/footer actions", () => {
   const detail = source("organizations/OrganizationDetail.tsx"),
     card = source("organizations/OrganizationDetailsCard.tsx");
-  expect(card).toContain("<ListCard>");
+  expect(card).toContain("<InfoSection");
+  expect(card).not.toContain("<ListCard");
+  expect(card).toContain("<GameListRow");
+  expect(card).toContain("<LocationListRow");
+  expect(card).toContain('label={t("Name")}');
+  expect(card).toContain("headerAccessory={<OrganizationStatusBadge");
+  expect(card).toContain('t("Confirmed members")');
+  expect(card).toContain('t("Published events")');
   expect(source("common/ui/LinkedListCard.tsx")).toContain("<ListCard>");
   expect(source("common/ui/ListCard.tsx")).toContain("padding: 0");
   expect(card).toContain("organization.publishedEventCount");
