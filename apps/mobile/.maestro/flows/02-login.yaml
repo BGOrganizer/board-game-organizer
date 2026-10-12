@@ -32,6 +32,11 @@ appId: com.bgo.mobile
       - tapOn:
           id: "mobile-number-input"
       - inputText: "not a formatted phone"
+      # Exercise submission with the keyboard open; the form must remain scrollable.
+      - scrollUntilVisible:
+          element:
+            text: "Continue"
+          direction: DOWN
       - tapOn: "Continue"
 - extendedWaitUntil:
     visible: "Matches"

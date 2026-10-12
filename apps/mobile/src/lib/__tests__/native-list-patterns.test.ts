@@ -62,6 +62,20 @@ describe("native list component ownership", () => {
     expect(content).toContain("<LinkedListCard");
     expect(content).toContain("<ListCardBody");
   });
+  it("keeps mobile-number submission in a shared scroll container that avoids the native keyboard", () => {
+    const screen = source("app/mobile-number.tsx");
+    expect(screen).toContain("<KeyboardAvoidingView");
+    expect(screen).toContain('behavior={Platform.OS === "ios" ? "padding" : "height"}');
+    expect(screen).toContain("keyboardVerticalOffset={insets.top + 56}");
+    expect(screen).toContain("flexGrow: 1");
+    const form = screen.split("<ScreenScrollView")[1]?.split("</ScreenScrollView>")[0];
+    expect(form).toContain("<Input");
+    expect(form).toContain("<Button");
+    expect(form).toContain("saveMobileNumber()");
+    expect(source("components/common/ui/ScreenScrollView.tsx")).toContain(
+      'keyboardShouldPersistTaps="handled"',
+    );
+  });
   it("keeps event metadata domain-owned while reusing the common card frame", () => {
     expect(source("components/events/Events.tsx")).toContain("<EventCard");
     expect(source("components/events/EventCard.tsx")).toContain("<LinkedListCard");

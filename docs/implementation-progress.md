@@ -1,5 +1,21 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38234502015` (`db428ac`)
+
+- Branch CI succeeded. PR quality/coverage/integrations, both API Previews, web Preview and both
+  APK builds succeeded. Browser acceptance reached 75/83; remaining failures exposed labeled
+  player-limit text, a venue sharing its organization's name, header-owned Leave, and a booking
+  fixture missing the distinct profile name. Selectors now preserve those real layout semantics;
+  reservation acceptance checks both full name and nickname, without email exposure.
+- The password selector repair worked: real Clerk sign-in and device verification reached the
+  mobile-number form. Native acceptance then failed because the open keyboard covered Continue,
+  causing dependent flows to fail. The form now reuses `ScreenScrollView` inside the established
+  keyboard-avoiding layout; Maestro scrolls to Continue without dismissing the keyboard. No phone
+  validation, authentication, Device Trust, time budget or real-report requirement is weakened.
+- Both owned-user and isolated-database cleanup jobs succeeded. Publication was skipped, not green.
+  Local mobile coverage: 167 tests; web/mobile typecheck and scoped Biome pass; all 49 workflow
+  contracts pass. New real browser/native execution remains required.
+
 ## PR #22 acceptance follow-up after run `38225313430`
 
 - Head `67d9251`: Branch CI succeeded; PR CI failed in browser/native acceptance after quality,

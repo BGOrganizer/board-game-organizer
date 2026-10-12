@@ -19,8 +19,10 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Globe } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { KeyboardAvoidingView, Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useT } from "@/lib/i18n";
@@ -29,6 +31,7 @@ export default function MobileNumberScreen() {
   const { isLoaded, user } = useUser();
   const router = useRouter();
   const t = useT();
+  const insets = useSafeAreaInsets();
   const muted = useThemeColor("muted");
   const { i18n } = useLingui();
   const [mobileNumber, setMobileNumber] = useState("");
@@ -87,112 +90,123 @@ export default function MobileNumberScreen() {
   }
 
   return (
-    <View className="flex-1 bg-background p-6" style={{ justifyContent: "center", gap: 16 }}>
-      <Typography style={{ fontSize: 28, fontWeight: "700" }}>
-        {t("Complete your profile")}
-      </Typography>
-      <Typography className="text-foreground/60">
-        {t("Add your mobile number to continue.")}
-      </Typography>
-      <View style={{ gap: 8 }}>
-        <Typography style={{ fontWeight: "600" }}>{t("Mobile number")}</Typography>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Select
-            presentation="bottom-sheet"
-            style={{ width: 124 }}
-            value={
-              selected
-                ? { value: selected.code, label: `${selected.name} ${selected.callingCode}` }
-                : undefined
-            }
-            onValueChange={(value) => {
-              if (value) setCountry(value.value as PhoneCountryCode);
-            }}
-            onOpenChange={(open) => {
-              if (!open) {
-                setSearch("");
-                setDebouncedSearch("");
-              }
-            }}
-          >
-            <Select.Trigger
-              accessibilityLabel={`${t("Country calling code")}: ${selected?.name ?? country} ${selected?.callingCode ?? ""}`}
-              testID="country-calling-code-select"
-              style={{ width: 124, flexDirection: "row", alignItems: "center", gap: 4 }}
-            >
-              <Typography className="text-foreground">{selected?.flag}</Typography>
-              <Typography className="flex-1 text-foreground">{selected?.callingCode}</Typography>
-              <Select.TriggerIndicator />
-            </Select.Trigger>
-            <Select.Portal>
-              <Select.Overlay />
-              <Select.Content
-                presentation="bottom-sheet"
-                snapPoints={["70%"]}
-                enableDynamicSizing={false}
-                keyboardBehavior="extend"
-              >
-                <SearchHelpLabel
-                  label={t("Search countries")}
-                  help={t("Search countries by name or code")}
-                />
-                <SearchInput
-                  value={search}
-                  onChange={setSearch}
-                  label={t("Search countries by name or code")}
-                  placeholder={t("Search countries")}
-                />
-                <BottomSheetFlatList
-                  data={options}
-                  keyExtractor={(item) => item.code}
-                  keyboardShouldPersistTaps="handled"
-                  style={{ flex: 1 }}
-                  ListEmptyComponent={
-                    <EmptyList icon={<Globe size={28} color={muted} />}>
-                      {t("No countries found")}
-                    </EmptyList>
-                  }
-                  renderItem={({ item }) => (
-                    <Select.Item value={item.code} label={`${item.name} ${item.callingCode}`}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                        <Typography className="text-foreground">{item.flag}</Typography>
-                        <Typography className="flex-1 text-foreground" numberOfLines={1}>
-                          {item.name}
-                        </Typography>
-                        <Typography className="text-muted">{item.callingCode}</Typography>
-                      </View>
-                      <Select.ItemIndicator />
-                    </Select.Item>
-                  )}
-                />
-              </Select.Content>
-            </Select.Portal>
-          </Select>
-          <Input
-            accessibilityLabel={t("Mobile number")}
-            autoComplete="tel-national"
-            keyboardType="phone-pad"
-            onChangeText={setMobileNumber}
-            testID="mobile-number-input"
-            value={mobileNumber}
-            style={{ flex: 1 }}
-          />
-        </View>
-      </View>
-      {error ? (
-        <Typography accessibilityRole="alert" className="text-danger">
-          {error}
-        </Typography>
-      ) : null}
-      <Button
-        variant="primary"
-        isDisabled={isSaving || !mobileNumber.trim()}
-        onPress={() => void saveMobileNumber()}
+    <KeyboardAvoidingView
+      className="bg-background"
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={insets.top + 56}
+    >
+      <ScreenScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24, gap: 16 }}
       >
-        <Typography className="text-primary-foreground">
-          {isSaving ? t("Saving…") : t("Continue")}
+        <Typography style={{ fontSize: 28, fontWeight: "700" }}>
+          {t("Complete your profile")}
         </Typography>
-      </Button>
-    </View>
+        <Typography className="text-foreground/60">
+          {t("Add your mobile number to continue.")}
+        </Typography>
+        <View style={{ gap: 8 }}>
+          <Typography style={{ fontWeight: "600" }}>{t("Mobile number")}</Typography>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Select
+              presentation="bottom-sheet"
+              style={{ width: 124 }}
+              value={
+                selected
+                  ? { value: selected.code, label: `${selected.name} ${selected.callingCode}` }
+                  : undefined
+              }
+              onValueChange={(value) => {
+                if (value) setCountry(value.value as PhoneCountryCode);
+              }}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setSearch("");
+                  setDebouncedSearch("");
+                }
+              }}
+            >
+              <Select.Trigger
+                accessibilityLabel={`${t("Country calling code")}: ${selected?.name ?? country} ${selected?.callingCode ?? ""}`}
+                testID="country-calling-code-select"
+                style={{ width: 124, flexDirection: "row", alignItems: "center", gap: 4 }}
+              >
+                <Typography className="text-foreground">{selected?.flag}</Typography>
+                <Typography className="flex-1 text-foreground">{selected?.callingCode}</Typography>
+                <Select.TriggerIndicator />
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Overlay />
+                <Select.Content
+                  presentation="bottom-sheet"
+                  snapPoints={["70%"]}
+                  enableDynamicSizing={false}
+                  keyboardBehavior="extend"
+                >
+                  <SearchHelpLabel
+                    label={t("Search countries")}
+                    help={t("Search countries by name or code")}
+                  />
+                  <SearchInput
+                    value={search}
+                    onChange={setSearch}
+                    label={t("Search countries by name or code")}
+                    placeholder={t("Search countries")}
+                  />
+                  <BottomSheetFlatList
+                    data={options}
+                    keyExtractor={(item) => item.code}
+                    keyboardShouldPersistTaps="handled"
+                    style={{ flex: 1 }}
+                    ListEmptyComponent={
+                      <EmptyList icon={<Globe size={28} color={muted} />}>
+                        {t("No countries found")}
+                      </EmptyList>
+                    }
+                    renderItem={({ item }) => (
+                      <Select.Item value={item.code} label={`${item.name} ${item.callingCode}`}>
+                        <View
+                          style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}
+                        >
+                          <Typography className="text-foreground">{item.flag}</Typography>
+                          <Typography className="flex-1 text-foreground" numberOfLines={1}>
+                            {item.name}
+                          </Typography>
+                          <Typography className="text-muted">{item.callingCode}</Typography>
+                        </View>
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    )}
+                  />
+                </Select.Content>
+              </Select.Portal>
+            </Select>
+            <Input
+              accessibilityLabel={t("Mobile number")}
+              autoComplete="tel-national"
+              keyboardType="phone-pad"
+              onChangeText={setMobileNumber}
+              testID="mobile-number-input"
+              value={mobileNumber}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </View>
+        {error ? (
+          <Typography accessibilityRole="alert" className="text-danger">
+            {error}
+          </Typography>
+        ) : null}
+        <Button
+          variant="primary"
+          isDisabled={isSaving || !mobileNumber.trim()}
+          onPress={() => void saveMobileNumber()}
+        >
+          <Typography className="text-primary-foreground">
+            {isSaving ? t("Saving…") : t("Continue")}
+          </Typography>
+        </Button>
+      </ScreenScrollView>
+    </KeyboardAvoidingView>
   );
 }

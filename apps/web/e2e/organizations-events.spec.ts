@@ -250,6 +250,7 @@ async function fixture(page: Page) {
             userId: viewer,
             kind: "REQUEST",
             status: "PENDING",
+            name: "Browser fixture",
             username: "browser_fixture",
             avatarUrl: null,
             createdAt: now,
@@ -565,7 +566,9 @@ function communityAcceptance() {
     const table = page.getByRole("link", { name: "Open table: Azul table", exact: true });
     await expect(table).toBeVisible();
     await expect(table.getByRole("img", { name: "Global ratings enabled" })).toBeVisible();
-    await expect(table.getByText("2–4", { exact: true })).toBeVisible();
+    await expect(table.getByText("Players: 2–4", { exact: true })).toBeVisible();
+    await expect(table.getByText("confirmed players: 0", { exact: true })).toBeVisible();
+    await expect(table.getByText("reserved places: 0", { exact: true })).toBeVisible();
     await expect(table.getByRole("button", { name: /Edit table|Remove table/ })).toHaveCount(0);
     await table.scrollIntoViewIfNeeded();
     const more = page.getByRole("button", { name: "Load more", exact: true });
@@ -694,7 +697,8 @@ function communityAcceptance() {
     await page.getByRole("tab", { name: "Events", exact: true }).click();
     const card = page.getByRole("link", { name: /^Open event: Summer games evening/ });
     await expect(card.locator("img")).toHaveAttribute("src", /^data:image\/svg\+xml,/);
-    await expect(card.getByText(baseOrganization.name, { exact: true })).toHaveCount(0);
+    // Venue deliberately shares the organization's name; it must still appear once.
+    await expect(card.getByText(baseEvent.location.name, { exact: true })).toHaveCount(1);
     await expect(card).not.toHaveAccessibleName(/Approved organization/);
     await expect(card.locator(".lucide-building-2")).toHaveCount(0);
     await expect(card.locator(".lucide-calendar-range")).toBeVisible();
@@ -737,10 +741,13 @@ function communityAcceptance() {
     const leave = page.getByRole("button", { name: "Leave organization", exact: true });
     await expect(leave).toHaveText("");
     await expect(
-      page
-        .getByRole("tabpanel", { name: "Overview", exact: true })
-        .getByRole("button", { name: "Leave organization", exact: true }),
+      leave.locator("..").getByRole("heading", { name: "Organization details", exact: true }),
     ).toBeVisible();
+    await expect(
+      page
+        .getByRole("tabpanel", { name: "Details", exact: true })
+        .getByRole("button", { name: "Leave organization", exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Name", exact: true })).toBeVisible();
     await leave.click();
     await page
@@ -1422,13 +1429,13 @@ function communityAcceptance() {
       .poll(() => state.writes.filter((r) => r.path.endsWith("/bookings")).length)
       .toBe(1);
     await expect(page.getByText("Awaiting admin approval", { exact: true })).toBeVisible();
-    await expect(
-      page
-        .getByRole("tabpanel", { name: "Seats", exact: true })
-        .getByRole("listitem")
-        .nth(2)
-        .getByText("browser_fixture", { exact: true }),
-    ).toBeVisible();
+    const ownSeat = page
+      .getByRole("tabpanel", { name: "Seats", exact: true })
+      .getByRole("listitem")
+      .nth(2);
+    await expect(ownSeat.getByText("Browser fixture", { exact: true })).toBeVisible();
+    await expect(ownSeat.getByText("browser_fixture", { exact: true })).toBeVisible();
+    await expect(ownSeat.getByText("fixture@example.test", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: /Leave place:/ }).click();
     const leave = page.getByRole("dialog", { name: "Leave place", exact: true });
     await expectButtonsOnOneRow(leave.getByRole("button"));

@@ -221,6 +221,20 @@ test("native password entry selects the input placeholder, never the heading or 
     assert.doesNotMatch(other, passwordInput);
   assert(signIn.includes(`visible: "${selector}"`));
 });
+test("native profile completion reaches Continue while the keyboard stays open", () => {
+  const flow = readFileSync(
+    new URL("../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  const completion = flow.split('- inputText: "not a formatted phone"')[1];
+  assert(completion);
+  assert.match(
+    completion,
+    /scrollUntilVisible:\s+element:\s+text: "Continue"\s+direction: DOWN\s+- tapOn: "Continue"/,
+  );
+  assert.doesNotMatch(completion.split('- tapOn: "Continue"')[0], /hideKeyboard/);
+  assert.match(completion, /visible: "Matches"\s+timeout: 120000/);
+});
 test("native event acceptance uses the catalog game actually seeded by CI", () => {
   const flow = readFileSync(
     new URL("../../apps/mobile/.maestro/flows/13-event-draft.yaml", import.meta.url),
