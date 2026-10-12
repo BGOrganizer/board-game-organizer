@@ -59,6 +59,37 @@ it("keeps IDs, optional input limits, touch targets and selected accessibility s
   );
 });
 
+it("keeps clear-button padding registered from the first keystroke and disables search autocorrection", () => {
+  const file = ts.createSourceFile(
+    "SearchInput.tsx",
+    source("components/common/ui/SearchInput.tsx"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let clearButtons = 0;
+  let inputAttributes = "";
+  function visit(node: ts.Node) {
+    if (ts.isJsxSelfClosingElement(node)) {
+      if (node.tagName.getText(file) === "SearchField.ClearButton") {
+        clearButtons++;
+        let parent = node.parent;
+        while (parent) {
+          expect(ts.isConditionalExpression(parent)).toBe(false);
+          parent = parent.parent;
+        }
+      }
+      if (node.tagName.getText(file) === "SearchField.Input")
+        inputAttributes = node.attributes.getText(file);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  expect(clearButtons).toBe(1);
+  expect(inputAttributes).toContain("autoCorrect={false}");
+  expect(inputAttributes).toContain('autoCapitalize="none"');
+});
+
 it("exposes native help titles and children separately instead of grouping the whole dialog", () => {
   const text = source("components/common/ui/HelpPopover.tsx");
   const file = ts.createSourceFile(

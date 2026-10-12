@@ -239,6 +239,17 @@ test("native sign-in fully replaces remembered actor/target credentials before a
     assert.doesNotMatch(leftover, exactEmail);
   }
 });
+test("native country search verifies complete input before empty and short-code outcomes", () => {
+  const login = readFileSync(
+    new URL("../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  for (const value of ["zzzz", "DE", "IT"])
+    assert(login.includes(`- inputText: "${value}"\n      - assertVisible: "^${value}$"`));
+  assert(login.includes('assertVisible: "No countries found"'));
+  assert(login.includes('tapOn: "Germany"'));
+  assert(login.includes('tapOn: "Italy"'));
+});
 test("native password entry selects the input placeholder, never the heading or account hint", () => {
   const signIn = readFileSync(
     new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),

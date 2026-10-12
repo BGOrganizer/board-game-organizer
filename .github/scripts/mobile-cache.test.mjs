@@ -121,6 +121,50 @@ test("reused APK must match API, private/public configuration digest and actual 
   }
 });
 
+test("cold native builds configure client and daemon memory separately without overwriting unrelated Gradle properties", () => {
+  const configure = build.runs.steps.find(
+    (step) => step.name === "🧠 Configure Gradle for cold native builds",
+  );
+  const compile = build.runs.steps.find((step) => step.name.startsWith("📱 Build"));
+  assert.equal(compile.env.JAVA_OPTS, "-Xmx512m");
+  assert(build.runs.steps.indexOf(configure) < build.runs.steps.indexOf(compile));
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  for (const customHome of [false, true]) {
+    const folder = mkdtempSync(join(tmpdir(), "bgo-gradle-memory-"));
+    const home = join(folder, customHome ? "custom-gradle" : ".gradle");
+    mkdirSync(home, { recursive: true });
+    const properties = join(home, "gradle.properties");
+    writeFileSync(properties, "unrelated=keep\norg.gradle.jvmargs=-Xmx2048m\n");
+    const env = { ...process.env, HOME: folder.replaceAll("\\", "/") };
+    delete env.GRADLE_USER_HOME;
+    if (customHome) env.GRADLE_USER_HOME = home.replaceAll("\\", "/");
+    try {
+      const result = spawnSync(bash, ["-e", "-c", configure.run], {
+        encoding: "utf8",
+        env,
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const settings = Object.fromEntries(
+        readFileSync(properties, "utf8")
+          .trim()
+          .split("\n")
+          .map((line) => {
+            const index = line.indexOf("=");
+            return [line.slice(0, index), line.slice(index + 1)];
+          }),
+      );
+      assert.equal(settings.unrelated, "keep");
+      assert.equal(
+        settings["org.gradle.jvmargs"],
+        "-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8",
+      );
+      assert.equal(settings["org.gradle.workers.max"], "2");
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+});
+
 test("SDK cache survives failed acceptance without persisting emulator identity or snapshots", () => {
   const restore = emulator.runs.steps.find((step) => step.uses === "actions/cache/restore@v4");
   const save = emulator.runs.steps.find((step) => step.uses === "actions/cache/save@v4");

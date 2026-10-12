@@ -115,7 +115,8 @@ describe("community notification destinations", () => {
       "utf8",
     );
     expect(input).toContain("<SearchField.ClearButton");
-    expect(input).toContain("value ?");
+    // HeroUI hides the empty clear control while preserving its registered padding.
+    expect(input).not.toContain("value ?");
     expect(chips).toContain("accessibilityState={{ selected: active }}");
     const tabs = readFileSync(
       new URL("../../components/community/CommunitySection.tsx", import.meta.url),

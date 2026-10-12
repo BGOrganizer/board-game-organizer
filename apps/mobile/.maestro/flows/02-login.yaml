@@ -18,15 +18,18 @@ appId: com.bgo.mobile
           id: "country-calling-code-select"
       - tapOn: "Search countries by name or code"
       - inputText: "zzzz"
+      - assertVisible: "^zzzz$"
       - assertVisible: "No countries found"
       - tapOn: "Clear search"
       - inputText: "DE"
+      - assertVisible: "^DE$"
       - tapOn: "Germany"
       - assertVisible: "+49"
       - tapOn:
           id: "country-calling-code-select"
       - tapOn: "Search countries by name or code"
       - inputText: "IT"
+      - assertVisible: "^IT$"
       - tapOn: "Italy"
       - assertVisible: "+39"
       - tapOn:

@@ -31,16 +31,13 @@ export function SearchInput({
         <SearchField.Input
           testID={testID}
           accessibilityLabel={label}
+          autoCorrect={false}
+          autoCapitalize="none"
           placeholder={placeholder}
           maxLength={maxLength}
           style={inputStyle}
         />
-        {value ? (
-          <SearchField.ClearButton
-            accessibilityLabel={t("Clear search")}
-            style={clearButtonStyle}
-          />
-        ) : null}
+        <SearchField.ClearButton accessibilityLabel={t("Clear search")} style={clearButtonStyle} />
         {children}
       </SearchField.Group>
     </SearchField>

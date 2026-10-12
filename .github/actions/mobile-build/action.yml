@@ -116,6 +116,17 @@ runs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
+    - name: 🧠 Configure Gradle for cold native builds
+      shell: bash
+      run: |
+        GRADLE_CONFIG_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
+        mkdir -p "$GRADLE_CONFIG_HOME"
+        # User-home properties override generated project defaults. Keep this
+        # configuration outside cached dependency/wrapper directories.
+        printf '%s\n' \
+          'org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8' \
+          'org.gradle.workers.max=2' >> "$GRADLE_CONFIG_HOME/gradle.properties"
+
     - name: 🏷️ Extract version & build metadata
       id: meta
       shell: bash
@@ -143,6 +154,8 @@ runs:
         GOOGLE_SERVICES_JSON_CONTENT: ${{ inputs.google-services-json }}
         NODE_ENV: ${{ inputs.profile == 'development' && 'development' || 'production' }}
         NODE_OPTIONS: --openssl-legacy-provider --max_old_space_size=4096
+        # Gradle wrapper client defaults to 64 MiB, separate from the build daemon.
+        JAVA_OPTS: -Xmx512m
         # EAS repeats Doctor; keep the same mandatory installed-SDK compatibility gate above.
         EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'
       run: |

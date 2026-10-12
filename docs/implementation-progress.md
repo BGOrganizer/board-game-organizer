@@ -1,5 +1,33 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38271024819` (`d9f1d72`)
+
+- Branch CI, quality/integration/build/Preview gates, internal APK and all 83 browser tests passed.
+  The development APK failed; Maestro passed 1/13. Owned-user and isolated-database cleanup
+  both succeeded; publication was skipped. No full-green or native-acceptance claim is made.
+- Development's cold Gradle build reported a 2 GiB heap/512 MiB metaspace, exhausted metaspace,
+  then a client `OutOfMemoryError` and `:app:packageRelease` failure. The shared build action now
+  uses 4 GiB build heap/1 GiB metaspace, two workers and a separate 512 MiB client heap. Gradle
+  user-home properties override generated project defaults without overwriting unrelated settings;
+  that configuration remains outside dependency caches. Verified against Gradle 9.3.1 docs:
+  [build environment](https://docs.gradle.org/9.3.1/userguide/build_environment.html) and
+  [client/build JVM memory](https://docs.gradle.org/9.3.1/userguide/config_gradle.html).
+- Native email script, password and device-verification path reached profile completion. The first
+  native failure was country search: the command entered `zzzz`, but hierarchy/screenshot showed
+  `zzz`, so the four-character minimum correctly retained the complete list. Other authenticated
+  flows then failed behind the unfinished profile form; no provider or authorization bypass added.
+- Shared native `SearchInput` now disables autocorrection/capitalization and keeps HeroUI's
+  ClearButton composed even for empty text. HeroUI hides it while retaining registered padding,
+  avoiding the first-keystroke layout change caused by the old conditional composition. All seven
+  caller contracts remain; country E2E additionally asserts complete `zzzz`, `DE` and `IT` input
+  before checking empty/Germany/Italy results. Search thresholds and debounce are unchanged.
+- SDK/system-image cache was actually saved before the failing native acceptance job completed.
+  Internal APK configuration digest/checksum generation also passed in the real build. Dependency
+  caches exclude Gradle task build outputs, runtime identities, private config and snapshots.
+- Local checks: 168 mobile tests with unchanged coverage gates, mobile typecheck, 59 workflow
+  tests (including executable Gradle-property and APK-provenance cases), scoped Biome and YAML.
+  These are not real native acceptance; both APKs and all 13 native reports must pass on new source.
+
 ## PR #22 follow-up after run `38261827367` (`bbf923f`)
 
 - Branch CI and PR quality/build/Preview/APK/browser gates passed. Maestro passed 2/13:
