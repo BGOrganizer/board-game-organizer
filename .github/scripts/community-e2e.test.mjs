@@ -203,6 +203,16 @@ test("native device verification uses Clerk development fixtures, without disabl
   for (const workflow of workflows)
     assert.match(workflow.split("  e2e-maestro:")[1].split(/\n {2}[\w-]+:/)[0], /E2E_EMAIL:/);
 });
+test("native sign-in replaces remembered email and password before authenticating", () => {
+  const signIn = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  for (const field of ["EMAIL", "PASSWORD"]) {
+    assert(signIn.includes(`- eraseText\n- inputText: \${AUTH_${field}}`));
+  }
+  assert.match(signIn, /inputText: \$\{AUTH_EMAIL\}\n- tapOn: "Continue"/);
+});
 test("native password entry selects the input placeholder, never the heading or account hint", () => {
   const signIn = readFileSync(
     new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
@@ -419,6 +429,64 @@ test("boot lifetime spans steps, but failed boot kills its process", () => {
     );
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stdout.trim(), ready === "1" ? "alive" : "stopped");
+  }
+});
+test("address-book seed preserves spaced names through adb's remote shell and verifies them", () => {
+  const body = script.match(/\n {2}seed\)\n([\s\S]*?)\n {4};;/)?.[1];
+  assert(body);
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const folder = mkdtempSync(join(tmpdir(), "bgo-contact-seed-"));
+  const file = join(folder, "names.txt");
+  const run = (empty) =>
+    spawnSync(
+      bash,
+      [
+        "-e",
+        "-o",
+        "pipefail",
+        "-c",
+        `
+    content() {
+      case "$1" in
+        insert)
+          for arg in "$@"; do
+            case "$arg" in data1:s:*) printf '%s\\n' "\${arg#data1:s:}" >> "$NAMES_FILE";; esac
+          done;;
+        query)
+          if [[ "$*" == *raw_contacts* ]]; then
+            echo 'Row: 0 _id=1'
+          elif [ "$EMPTY_QUERY" = 0 ]; then
+            while IFS= read -r name; do printf 'display_name=%s\\n' "$name"; done < "$NAMES_FILE"
+          fi;;
+      esac
+    }
+    adb() { shift; (eval "$*"); }
+    ${body}
+  `,
+      ],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          NAMES_FILE: file.replaceAll("\\", "/"),
+          EMPTY_QUERY: String(empty),
+          E2E_TARGET_PHONE: "+199999999000001",
+        },
+      },
+    );
+  try {
+    const ok = run(0);
+    assert.equal(ok.status, 0, ok.stderr);
+    const names = readFileSync(file, "utf8").trim().split(/\r?\n/);
+    assert(names.includes("E2E Unregistered"));
+    for (let i = 1; i <= 43; i++) assert(names.includes(`ZZ Page ${i}`));
+    assert.notEqual(
+      run(1).status,
+      0,
+      "Missing native names must fail seeding, not later UI acceptance",
+    );
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
   }
 });
 test("each native flow preserves quoting, failure exit status and partial reports", () => {

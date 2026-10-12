@@ -1,5 +1,23 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38240730642` (`7be0731`)
+
+- Branch CI and all PR quality/build/Preview gates succeeded. Playwright passed all 83 tests.
+  Both APKs built successfully. Native Welcome, Login (including profile completion with the
+  keyboard open), Startup deep link, Profile/logout and Dark mode passed. Eight native flows
+  failed; this is not native acceptance or publication success.
+- Contacts reached real permission cancellation/approval and help legends, then stopped at the
+  address-book fixture. ADB's second shell split spaced names; Android `content` printed
+  `Unsupported argument: Unregistered` (and analogous page-name errors) while returning zero.
+  Seed bindings now retain remote-shell quotes and verify native display names before acceptance.
+  A shell-executed regression reproduces ADB argument joining and rejects missing names.
+- Reauthentication appended the actor email to Clerk's remembered Last used field, so no password
+  screen appeared and later authenticated flows failed. Shared sign-in now clears both credential
+  fields before entering the selected actor/target values; real authentication/device verification
+  remains mandatory. All 51 workflow contracts, shell syntax and login YAML checks pass locally.
+- Owned-user and isolated-database cleanup succeeded. Browser/native acceptance still needs a
+  new complete run before the draft prerelease and Telegram gates may be claimed green.
+
 ## PR #22 follow-up after run `38234502015` (`db428ac`)
 
 - Branch CI succeeded. PR quality/coverage/integrations, both API Previews, web Preview and both

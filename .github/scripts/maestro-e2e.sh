@@ -109,7 +109,7 @@ case "${1:-}" in
       adb shell content insert --uri content://com.android.contacts/data \
         --bind raw_contact_id:i:"$INVITE_CONTACT_ID" \
         --bind mimetype:s:vnd.android.cursor.item/name \
-        --bind data1:s:"E2E Unregistered"
+        --bind "data1:s:'E2E Unregistered'"
       adb shell content insert --uri content://com.android.contacts/data \
         --bind raw_contact_id:i:"$INVITE_CONTACT_ID" \
         --bind mimetype:s:vnd.android.cursor.item/phone_v2 \
@@ -125,12 +125,18 @@ case "${1:-}" in
         adb shell content insert --uri content://com.android.contacts/data \
           --bind raw_contact_id:i:"$PAGE_CONTACT_ID" \
           --bind mimetype:s:vnd.android.cursor.item/name \
-          --bind data1:s:"ZZ Page $i"
+          --bind "data1:s:'ZZ Page $i'"
         adb shell content insert --uri content://com.android.contacts/data \
           --bind raw_contact_id:i:"$PAGE_CONTACT_ID" \
           --bind mimetype:s:vnd.android.cursor.item/phone_v2 \
           --bind data1:s:"+1999999999$(printf '%05d' "$i")" --bind data2:i:2
       done
+      # adb joins arguments for a second shell. Verify spaced names survived;
+      # Android content can print usage errors but still exit successfully.
+      CONTACT_NAMES=$(adb shell content query \
+        --uri content://com.android.contacts/contacts --projection display_name)
+      grep -Fq 'E2E Unregistered' <<< "$CONTACT_NAMES"
+      grep -Fq 'ZZ Page 43' <<< "$CONTACT_NAMES"
     fi
     ;;
   flow)

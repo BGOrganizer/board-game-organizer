@@ -15,6 +15,8 @@ appId: com.bgo.mobile
     visible: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
     timeout: 120000
 - tapOn: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
+# Clerk preserves Last used after logout; replace it rather than appending.
+- eraseText
 - inputText: ${AUTH_EMAIL}
 - tapOn: "Continue"
 - extendedWaitUntil:
@@ -22,6 +24,7 @@ appId: com.bgo.mobile
     timeout: 60000
 # The heading and account hint also contain "password"; only the input says "your".
 - tapOn: "^[Ee]nter your [Pp]assword$"
+- eraseText
 - inputText: ${AUTH_PASSWORD}
 - tapOn: "Continue"
 - runFlow: "verify-clerk-device.yaml"
