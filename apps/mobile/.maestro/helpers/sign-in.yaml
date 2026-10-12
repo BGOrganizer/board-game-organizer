@@ -39,7 +39,8 @@ appId: com.bgo.mobile
             - tapOn: "[Ss]elect [Aa]ll"
       - eraseText: 1
 - inputText: ${AUTH_EMAIL}
-- assertVisible: ${"^" + AUTH_EMAIL.replace(/[.+]/g, "\\$&") + "$"}
+- runScript: "auth-email.js"
+- assertVisible: ${output.authEmailPattern}
 - tapOn: "Continue"
 - extendedWaitUntil:
     visible: "^[Ee]nter your [Pp]assword$"

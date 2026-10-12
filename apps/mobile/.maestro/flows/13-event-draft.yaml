@@ -205,7 +205,8 @@ appId: com.bgo.mobile
 - assertVisible: "Table name"
 - assertVisible: "Cascadia event table"
 - assertVisible: "Date and time"
-- assertVisible: "Location"
+# Table overview must not repeat the event venue.
+- assertNotVisible: "Table location help"
 - assertVisible: "Board games"
 - assertVisible: "Cascadia"
 - assertNotVisible: "Open event table"
@@ -214,10 +215,12 @@ appId: com.bgo.mobile
     visible: "The event day and this table's start and end times are fixed. There is no voting."
     timeout: 30000
 - back
-- tapOn: "Table location help"
+- tapOn: "Table name help"
 - extendedWaitUntil:
-    visible: "This table uses the event's verified venue and address. There is no location voting."
+    visible: "Confirmed players."
     timeout: 30000
+- assertVisible: "Maximum seats here; free places in Seats."
+- assertVisible: "Reserved places, including pending requests."
 - back
 - tapOn: "Table game help"
 - extendedWaitUntil:

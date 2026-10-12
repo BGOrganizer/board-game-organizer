@@ -221,11 +221,15 @@ test("native sign-in fully replaces remembered actor/target credentials before a
   assert(signIn.includes("- eraseText: 100\n- inputText: ${AUTH_PASSWORD}"));
   assert.match(
     signIn,
-    /inputText: \$\{AUTH_EMAIL\}\n- assertVisible: \$\{[^\n]+\}\n- tapOn: "Continue"/,
+    /inputText: \$\{AUTH_EMAIL\}\n- runScript: "auth-email.js"\n- assertVisible: \$\{output.authEmailPattern\}\n- tapOn: "Continue"/,
   );
-  const assertion = signIn.match(/^- assertVisible: \$\{([^\n]+)\}$/m)?.[1];
-  assert(assertion);
-  const exactEmail = new RegExp(runInNewContext(assertion, { AUTH_EMAIL: targetEmail }));
+  const script = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/auth-email.js", import.meta.url),
+    "utf8",
+  );
+  const output = {};
+  runInNewContext(script, { AUTH_EMAIL: targetEmail, output });
+  const exactEmail = new RegExp(output.authEmailPattern);
   assert.match(targetEmail, exactEmail);
   for (const leftover of [
     `prefix${targetEmail}`,
@@ -287,6 +291,27 @@ test("native profile completion reaches Continue while the keyboard stays open",
   );
   assert.doesNotMatch(completion.split('- tapOn: "Continue"')[0], /hideKeyboard/);
   assert.match(completion, /visible: "Matches"\s+timeout: 120000/);
+});
+test("native community acceptance follows confirmed counts and table-only legends without a repeated venue", () => {
+  const organization = readFileSync(
+    new URL("../../apps/mobile/.maestro/flows/12-organizations.yaml", import.meta.url),
+    "utf8",
+  );
+  const table = readFileSync(
+    new URL("../../apps/mobile/.maestro/flows/13-event-draft.yaml", import.meta.url),
+    "utf8",
+  );
+  assert(organization.includes('assertVisible: "Confirmed members: 1"'));
+  assert(!organization.includes('assertVisible: "Approved members: 1"'));
+  assert(table.includes('assertNotVisible: "Table location help"'));
+  assert(!table.includes('tapOn: "Table location help"'));
+  assert(table.includes('tapOn: "Table name help"'));
+  for (const legend of [
+    "Confirmed players.",
+    "Maximum seats here; free places in Seats.",
+    "Reserved places, including pending requests.",
+  ])
+    assert(table.includes(`"${legend}"`));
 });
 test("native event acceptance uses the catalog game actually seeded by CI", () => {
   const flow = readFileSync(

@@ -18,6 +18,24 @@ runs:
           sdk|avd|boot) ;;
           *) echo "Unknown emulator phase" >&2; exit 2 ;;
         esac
+    - name: Resolve SDK cache path
+      if: inputs.phase == 'sdk'
+      shell: bash
+      run: |
+        : "${ANDROID_HOME:?ANDROID_HOME is required}"
+        echo "BGO_ANDROID_SDK=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+    - name: ♻️ Restore Android SDK image and tools
+      if: inputs.phase == 'sdk'
+      id: sdk-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/default/x86_64
+          ${{ env.BGO_ANDROID_SDK }}/emulator
+          ${{ env.BGO_ANDROID_SDK }}/platform-tools
+        key: ${{ runner.os }}-${{ runner.arch }}-android-34-default-x86_64-v1-${{ hashFiles('.github/actions/android-emulator/action.yml') }}
+
     - name: 🛠️ Install SDK components
       if: inputs.phase == 'sdk'
       shell: bash
@@ -30,6 +48,18 @@ runs:
         # screenshots/video require the standard AOSP image, even without a window.
         "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
         ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
+
+    # Save immediately after SDK setup, even if later native acceptance fails.
+    # Never cache AVD userdata, accounts, permissions, snapshots or test fixtures.
+    - name: 💾 Save Android SDK image and tools
+      if: inputs.phase == 'sdk' && steps.sdk-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/default/x86_64
+          ${{ env.BGO_ANDROID_SDK }}/emulator
+          ${{ env.BGO_ANDROID_SDK }}/platform-tools
+        key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
 
     - name: 🚀 Create AVD
       if: inputs.phase == 'avd'

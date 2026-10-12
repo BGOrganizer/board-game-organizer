@@ -227,25 +227,21 @@ jobs:
       - name: 🧰 Setup workspace
         uses: ./.github/actions/setup-pnpm
 
-      - name: ♻️ Find last successful APK
+      - name: ♻️ Find last successful APK build
         id: reuse
-        if: needs.detect-mobile-changes.outputs.changed == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           RUN_ID=""
-          # NOTE: the API ignores conclusion=success as a query filter, so we
-          # must select it in jq — otherwise failed runs (which can still have
-          # an APK artifact when only e.g. lint failed) get picked up.
+          # A failed acceptance run may contain a successful, reusable build.
+          # Require the build job itself to pass; rerun every acceptance gate.
           RUNS_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=$GITHUB_HEAD_REF&event=pull_request&per_page=100" 2>/dev/null) || RUNS_JSON='{}'
           RUNS=$(echo "$RUNS_JSON" | jq -r --argjson pr "${{ github.event.pull_request.number }}" \
-            '.workflow_runs[]? | select(.path == ".github/workflows/pr-ci.yml" and .conclusion == "success" and any(.pull_requests[]?; .number == $pr)) | .id') || RUNS=''
+            '.workflow_runs[]? | select(.path == ".github/workflows/pr-ci.yml" and .status == "completed" and any(.pull_requests[]?; .number == $pr)) | .id') || RUNS=''
           # ONLY reuse an APK whose SHA has ZERO mobile-relevant diff vs HEAD.
-          # A success run with an APK can be OLDER than the last green SHA the
-          # detect step diffed against (interleaved cancelled/failed runs never
-          # produce an APK), and reusing it would ship stale code silently.
+          # Compare each artifact's own SHA, never only the last green run.
           for id in $RUNS; do
             RUN_SHA=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.head_sha' 2>/dev/null) || continue
             # A rewritten/rebased SHA may no longer exist → skip the candidate
@@ -256,7 +252,10 @@ jobs:
               echo "APK run $id ($RUN_SHA) has stale mobile inputs — skipping"
               continue
             fi
-            ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal") | .id' 2>/dev/null || true)
+            BUILD_OK=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100" \
+              --jq 'any(.jobs[]; .name == "📱 Mobile APK (internal) — build or reuse" and .conclusion == "success")' 2>/dev/null) || continue
+            [ "$BUILD_OK" = 'true' ] || continue
+            ART=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '.artifacts[] | select(.name=="apk-internal" and .expired==false) | .id' 2>/dev/null || true)
             if [ -n "$ART" ]; then RUN_ID="$id"; break; fi
           done
           echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
@@ -272,13 +271,26 @@ jobs:
           run-id: ${{ steps.reuse.outputs.run-id }}
           github-token: ${{ github.token }}
 
+      - name: 🔑 Fingerprint current APK configuration
+        env:
+          MOBILE_BUILD_PROFILE: internal
+          EXPO_PUBLIC_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_MAPTILER_API_KEY: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+          GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: node .github/scripts/mobile-build-inputs.mjs > "$RUNNER_TEMP/expected-apk-inputs.sha256"
+
       - name: 🔎 Verify reused APK targets this PR branch
         id: verify-apk
         if: steps.reuse.outputs.run-id != ''
         env:
           EXPECTED_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
         run: |
-          if [ -n "$EXPECTED_API_URL" ] && [ "$(cat apps/mobile/build-output/api-url.txt 2>/dev/null)" = "$EXPECTED_API_URL" ]; then
+          if [ -n "$EXPECTED_API_URL" ] && [ "$(cat apps/mobile/build-output/api-url.txt 2>/dev/null)" = "$EXPECTED_API_URL" ] \
+            && cmp -s "$RUNNER_TEMP/expected-apk-inputs.sha256" apps/mobile/build-output/build-inputs.sha256 \
+            && (cd apps/mobile/build-output && test -s apk.sha256 && sha256sum --check apk.sha256); then
             echo "reused=true" >> "$GITHUB_OUTPUT"
           else
             echo "reused=false" >> "$GITHUB_OUTPUT"

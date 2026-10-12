@@ -1,5 +1,32 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38261827367` (`bbf923f`)
+
+- Branch CI and PR quality/build/Preview/APK/browser gates passed. Maestro passed 2/13:
+  Welcome and Dark mode. Login failed because the complex inline email-regex expression
+  remained a literal selector in Maestro; authenticated flows subsequently failed. Owned-user
+  and isolated-database cleanup both succeeded; publication was skipped.
+- Exact email verification now computes the pattern in a Maestro JavaScript file and interpolates
+  only `output.authEmailPattern` in YAML. Native remembered-text selection, password placeholder,
+  timeout budgets and real Device Trust verification remain unchanged.
+- Reviewed the downstream native flows against current UI. Organization acceptance now checks
+  `Confirmed members`; table acceptance checks the canonical name/count legend and deliberately
+  absent repeated venue, retaining fixed date/game help, editing and destructive confirmations.
+- Internal APK discovery can use a successful build job from a failed acceptance run. Each
+  candidate still requires its own unchanged mobile source/dependency graph, current API URL,
+  profile/public/private configuration digest and matching APK checksum. Every current quality
+  and acceptance gate reruns. Missing/expired/stale metadata triggers a fresh build.
+- Development APKs still embed the immutable development API deployment URL: a new deployment
+  changes that build input and therefore requires rebuilding, even without mobile code changes.
+- GitHub Actions caches only Android SDK/system-image/tool directories, saving immediately after
+  SDK installation so later Maestro failure does not discard the cache. AVD userdata/accounts,
+  permissions and snapshots are never cached; fresh AVD, cold boot, KVM guards and teardown stay.
+  Gradle caches/wrapper remain cached; removed the unused EAS-local directory cache (builds use
+  temporary working directories). No credentials, project build outputs or APKs enter these caches.
+- All 57 workflow tests pass locally, including executable checksum/configuration rejection paths,
+  plus scoped Biome and changed YAML validation. These checks do not prove native acceptance;
+  all 13 real reports and complete PR publication remain required on the next pushed SHA.
+
 ## PR #22 follow-up after run `38254813355` (`feaf149`)
 
 - Branch CI and PR quality/build/Preview/APK/browser gates succeeded. Native passed 4/13;

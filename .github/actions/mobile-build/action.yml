@@ -106,18 +106,12 @@ runs:
         EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'
       run: pnpm exec expo-doctor
 
-    - name: 📦 Cache EAS local build
-      uses: actions/cache@v4
-      with:
-        path: ~/.eas-build-local
-        key: ${{ runner.os }}-eas-build-local-${{ hashFiles('apps/mobile/package.json', 'apps/mobile/eas.json', 'pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-eas-build-local-
-
     - name: 📦 Cache Gradle
       uses: actions/cache@v4
       with:
-        path: ~/.gradle
+        path: |
+          ~/.gradle/caches/modules-2
+          ~/.gradle/wrapper
         key: ${{ runner.os }}-gradle-${{ hashFiles('apps/mobile/package.json', 'pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
@@ -140,6 +134,7 @@ runs:
       working-directory: apps/mobile
       env:
         EXPO_TOKEN: ${{ inputs.expo-token }}
+        MOBILE_BUILD_PROFILE: ${{ inputs.profile }}
         EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}
         EXPO_PUBLIC_MAPTILER_API_KEY: ${{ inputs.maptiler-api-key }}
@@ -165,5 +160,7 @@ runs:
           --local \
           --non-interactive \
           --output "./build-output/${{ steps.meta.outputs.artifact-name }}"
+        node ../../.github/scripts/mobile-build-inputs.mjs > build-output/build-inputs.sha256
+        (cd build-output && sha256sum -- *.apk > apk.sha256)
         echo "✅ ${{ inputs.profile }} APK built:"
         ls -lh build-output/
