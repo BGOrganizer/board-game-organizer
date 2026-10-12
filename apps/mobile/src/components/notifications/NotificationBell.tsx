@@ -109,7 +109,9 @@ export function NotificationBell() {
   }, [refreshPermissionAndRegister]);
 
   const requestPermissionFromBell = useCallback(async () => {
-    const result = await requestMobilePushPermission();
+    // Do not mount a dismissible popover underneath the OS permission dialog.
+    // Open the inbox once the native prompt settles, even if push is unavailable.
+    const result = await requestMobilePushPermission().finally(() => setIsOpen(true));
     setPermission({
       status:
         result.status === "granted"
@@ -135,11 +137,12 @@ export function NotificationBell() {
   };
 
   const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
-    if (open) {
-      setPushError(false);
-      requestPermissionFromBell().catch(() => setPushError(true));
+    if (!open) {
+      setIsOpen(false);
+      return;
     }
+    setPushError(false);
+    return requestPermissionFromBell().catch(() => setPushError(true));
   };
   const countLabel = notifications.unreadCount > 99 ? "99+" : String(notifications.unreadCount);
 

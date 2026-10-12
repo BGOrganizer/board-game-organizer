@@ -1,5 +1,27 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38288214637` (`0757693`)
+
+- Branch CI, quality/integration/previews, browser acceptance and development APK passed. Internal
+  APK was actually reused after the provenance/configuration/checksum checks; the real checksum
+  verified the previous `20261012170046-internal.apk`. Native passed Welcome, complete country/login
+  flow and startup deep link (3/13). User/database cleanup succeeded; publication was skipped.
+- The next first failure was Contacts after switching to the target: the real Android notification
+  permission dialog appeared, `Allow` completed, but `View all notifications` did not return. The
+  failure hierarchy showed the Matches screen without a popover. Earlier social actions and target
+  authentication reached this point; later shared-session failures are not independent acceptance.
+- NotificationBell now opens its controlled popover only after the native permission request
+  settles. This avoids mounting a dismissible overlay underneath the system prompt. Inbox access
+  is retained on denial/unsupported/native errors and does not wait for push-token synchronization.
+  Registration, fresh authorization, permission refresh, invalidation and error feedback remain.
+  The existing real permission/menu assertions are unchanged: no extra tap or permission bypass.
+- Four executable callback regressions cover pending permission, grant with blocked registration,
+  denial/unsupported, close, and native-request failure without loading RN UI in Vitest. Local
+  checks passed: 172 mobile tests with unchanged coverage gates, mobile types, 60 workflow tests
+  and scoped Biome. Native UI acceptance still requires a new real run/APK for this runtime change.
+- The SDK ownership preparation saved the new image/tools key before acceptance. A restore of
+  that exact new key remains pending verification; lookup/download alone is not a restore claim.
+
 ## PR #22 follow-up after run `38280268845` (`3700551`)
 
 - Both APKs now built successfully with the Gradle memory configuration; Branch CI, quality,
