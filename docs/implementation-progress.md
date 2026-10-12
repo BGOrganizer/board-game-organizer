@@ -1,6 +1,22 @@
 # Organizations/events implementation checkpoint
 
-## Native confirmation-dialog consolidation (local, after `67d9251`)
+## PR #22 acceptance follow-up after run `38225313430`
+
+- Head `67d9251`: Branch CI succeeded; PR CI failed in browser/native acceptance after quality,
+  coverage, replica-set integrations, builds, Preview deployments and APK builds passed.
+  Playwright passed 71/83; the 12 failures refer to outdated event/organization card, badge,
+  count and Players-tab expectations. Tests now cover labeled sections, authoritative inline
+  counts, contextual organization omission, status beside the organization name and Seats.
+- Maestro reached password entry, but its broad regex matched the heading "Enter password"
+  before the field "Enter your password". The screenshot/hierarchy shows the editable field
+  unfocused and empty. The shared login helper now targets only the anchored input placeholder;
+  a runnable regression rejects heading, account-hint and password-action text. Credential entry,
+  Development Device Trust verification, time budgets and all 13 real-report gates remain intact.
+- Local web coverage: 512 tests; native confirmation coverage: 166 tests; web/mobile typecheck
+  and scoped Biome pass. Real acceptance on the new commits is still required, not inferred
+  from these checks. Native confirmation consolidation is signed as `376c955`.
+
+## Native confirmation-dialog consolidation (local, signed `376c955`)
 
 - The operator's simplified `CommunityConfirm` is now the generic native
   `common/ui/ConfirmDialog`, used by contacts consent/social decisions, groups, ordinary matches,
@@ -19,7 +35,7 @@
   Maestro flows cover Close cancellation before contacts permission, notification deletion,
   group archive/removal/departure, match deletion and BGG disconnection, retaining social action
   IDs. Real native execution of this local refactor is still pending; source checks are not native
-  acceptance. Existing PR CI for `67d9251` does not include these uncommitted changes.
+  acceptance. Existing PR CI for `67d9251` does not include this signed local commit.
 
 ## PR #22 quality and acceptance repair after `5895cc5`
 

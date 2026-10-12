@@ -18,9 +18,10 @@ appId: com.bgo.mobile
 - inputText: ${AUTH_EMAIL}
 - tapOn: "Continue"
 - extendedWaitUntil:
-    visible: ".*[Ee]nter (your )?[Pp]assword.*"
+    visible: "^[Ee]nter your [Pp]assword$"
     timeout: 60000
-- tapOn: ".*[Ee]nter (your )?[Pp]assword.*"
+# The heading and account hint also contain "password"; only the input says "your".
+- tapOn: "^[Ee]nter your [Pp]assword$"
 - inputText: ${AUTH_PASSWORD}
 - tapOn: "Continue"
 - runFlow: "verify-clerk-device.yaml"

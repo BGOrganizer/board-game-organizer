@@ -500,7 +500,7 @@ async function chooseLocation(page: Page, label = "Choose a verified address") {
 }
 
 function communityAcceptance() {
-  test("event details and tables share cards, keep header cancellation/FAB contextual, and paginate without editing rows", async ({
+  test("event details use labeled sections, keep header cancellation/FAB contextual, and paginate tables without editing rows", async ({
     page,
   }) => {
     const state = await fixture(page);
@@ -532,11 +532,23 @@ function communityAcceptance() {
     );
     await page.goto(`/events/${eventId}`);
     const details = page.getByRole("tabpanel", { name: "Details", exact: true });
-    await expect(details.locator('img[src^="data:image/svg+xml,"]')).toBeVisible();
+    await expect(details.locator('img[src^="data:image/svg+xml,"]')).toHaveCount(0);
+    for (const name of ["Event name", "Date and time", "Location", "Booking deadline"])
+      await expect(details.getByRole("heading", { name, exact: true })).toBeVisible();
+    await expect(details.getByText(baseEvent.name, { exact: true })).toHaveCount(1);
     await expect(details.getByText(baseEvent.location.name, { exact: true })).toHaveCount(1);
     await expect(details.getByRole("heading", { name: baseEvent.organizationName })).toHaveCount(0);
-    await expect(details.locator(".lucide-layout-grid")).toHaveCount(0);
-    await expect(details.getByText("Confirmed participants: 3", { exact: true })).toBeVisible();
+    await expect(details.locator(".lucide-layout-grid")).toHaveCount(1);
+    await expect(details.getByText("Number of participants: 3", { exact: true })).toBeVisible();
+    await expect(details.getByText("Number of tables: 2", { exact: true })).toBeVisible();
+    await details.getByRole("button", { name: "Event name help", exact: true }).click();
+    await expect(
+      page.getByText("Confirmed participants, counted once across active tables.", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Event tables, excluding cancelled tables.", { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     expect(tableReads).toBe(0);
     const cancel = page.getByRole("button", { name: "Cancel event", exact: true });
     await expect(cancel).toHaveText("");
@@ -674,10 +686,18 @@ function communityAcceptance() {
   }) => {
     const state = await fixture(page);
     await page.goto(`/organizations/${orgId}`);
+    await expect(
+      page
+        .getByRole("region", { name: "Name", exact: true })
+        .getByText("Approved", { exact: true }),
+    ).toBeVisible();
     await page.getByRole("tab", { name: "Events", exact: true }).click();
     const card = page.getByRole("link", { name: /^Open event: Summer games evening/ });
     await expect(card.locator("img")).toHaveAttribute("src", /^data:image\/svg\+xml,/);
-    await expect(card.locator(".lucide-badge-check")).toBeVisible();
+    await expect(card.getByText(baseOrganization.name, { exact: true })).toHaveCount(0);
+    await expect(card).not.toHaveAccessibleName(/Approved organization/);
+    await expect(card.locator(".lucide-building-2")).toHaveCount(0);
+    await expect(card.locator(".lucide-calendar-range")).toBeVisible();
     await expect(card.getByText("06/12/2030", { exact: true })).toBeVisible();
     await expect(card.getByText("14:00", { exact: true })).toBeVisible();
     await expect(card.getByText("18:00", { exact: true })).toBeVisible();
@@ -698,19 +718,30 @@ function communityAcceptance() {
     await expect(card.getByText("Draft", { exact: true })).toBeVisible();
     await expect(card.locator(".chip")).toHaveClass(/warning/);
   });
-  test("organization details reuse the card and keep destructive self-actions contextual and confirmed", async ({
+  test("organization details use labeled name and venue sections and keep destructive self-actions contextual and confirmed", async ({
     page,
   }) => {
     const state = await fixture(page);
     state.organization({ role: "accepted", adminUserId: "another" });
     await page.goto(`/organizations/${orgId}`);
-    await expect(page.getByText("Approved members: 1", { exact: true })).toBeVisible();
-    await expect(page.getByText("Published events: 2", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 Confirmed members", { exact: true })).toBeVisible();
+    await expect(page.getByText("2 Published events", { exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole("region", { name: "Name", exact: true })
+        .getByText("Approved", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Organization venue", exact: true }),
+    ).toBeVisible();
     const leave = page.getByRole("button", { name: "Leave organization", exact: true });
     await expect(leave).toHaveText("");
     await expect(
-      leave.locator("..").getByRole("heading", { name: "Organization details" }),
+      page
+        .getByRole("tabpanel", { name: "Overview", exact: true })
+        .getByRole("button", { name: "Leave organization", exact: true }),
     ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Name", exact: true })).toBeVisible();
     await leave.click();
     await page
       .getByRole("dialog", { name: "Leave organization", exact: true })
@@ -1377,7 +1408,7 @@ function communityAcceptance() {
     const state = await fixture(page);
     state.member();
     await page.goto(`/events/${eventId}/tables/${tableId}`);
-    await page.getByRole("tab", { name: "Players", exact: true }).click();
+    await page.getByRole("tab", { name: "Seats", exact: true }).click();
     await page.getByRole("button", { name: "Reserve a place: 3", exact: true }).click();
     const reserve = page.getByRole("dialog", { name: "Reserve a place", exact: true });
     await expectButtonsOnOneRow(reserve.getByRole("button"));
@@ -1393,7 +1424,7 @@ function communityAcceptance() {
     await expect(page.getByText("Awaiting admin approval", { exact: true })).toBeVisible();
     await expect(
       page
-        .getByRole("tabpanel", { name: "Players", exact: true })
+        .getByRole("tabpanel", { name: "Seats", exact: true })
         .getByRole("listitem")
         .nth(2)
         .getByText("browser_fixture", { exact: true }),
@@ -1413,7 +1444,7 @@ function communityAcceptance() {
     await expect(
       page.getByText("Bookings are closed. Results can still be recorded.", { exact: true }),
     ).toBeVisible();
-    await page.getByRole("tab", { name: "Players", exact: true }).click();
+    await page.getByRole("tab", { name: "Seats", exact: true }).click();
     for (const button of await page.getByRole("button", { name: /Reserve a place:/ }).all())
       await expect(button).toBeDisabled();
     await expect(page.getByRole("link", { name: "Edit table", exact: true })).toHaveCount(0);
@@ -1426,7 +1457,7 @@ function communityAcceptance() {
       await page.goto(`/events/${eventId}/tables/${tableId}`);
       await expect(page.getByText("Table name", { exact: true })).toBeVisible();
       await expect(page.getByText("Open event table", { exact: true })).toHaveCount(0);
-      await page.getByRole("tab", { name: "Players", exact: true }).click();
+      await page.getByRole("tab", { name: "Seats", exact: true }).click();
       await expect(
         page.getByRole("button", { name: "Invite organization members", exact: true }),
       ).toHaveCount(0);

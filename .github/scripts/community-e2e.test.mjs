@@ -203,6 +203,24 @@ test("native device verification uses Clerk development fixtures, without disabl
   for (const workflow of workflows)
     assert.match(workflow.split("  e2e-maestro:")[1].split(/\n {2}[\w-]+:/)[0], /E2E_EMAIL:/);
 });
+test("native password entry selects the input placeholder, never the heading or account hint", () => {
+  const signIn = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
+    "utf8",
+  );
+  const selector = signIn.match(/^- tapOn: "([^"\n]*assword[^"\n]*)"$/m)?.[1];
+  assert(selector);
+  const passwordInput = new RegExp(selector);
+  assert.match("Enter your password", passwordInput);
+  for (const other of [
+    "Enter password",
+    "Enter the password associated with your account",
+    "Show password",
+    "Forgot password?",
+  ])
+    assert.doesNotMatch(other, passwordInput);
+  assert(signIn.includes(`visible: "${selector}"`));
+});
 test("native event acceptance uses the catalog game actually seeded by CI", () => {
   const flow = readFileSync(
     new URL("../../apps/mobile/.maestro/flows/13-event-draft.yaml", import.meta.url),
