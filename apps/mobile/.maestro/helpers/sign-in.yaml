@@ -15,10 +15,31 @@ appId: com.bgo.mobile
     visible: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
     timeout: 120000
 - tapOn: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
-# Clerk preserves Last used after logout. Target fixture emails exceed
-# Maestro's default 50-character clear; use its supported 100-character bound.
-- eraseText: 100
+# The floating label focuses a remembered field with the caret in the middle.
+# Select the whole old fixture email before deleting, not only its prefix.
+- runFlow:
+    when:
+      visible: "Last used"
+    commands:
+      - longPressOn: ".*clerk_test@gmail.com$"
+      - runFlow:
+          when:
+            notVisible: "[Ss]elect [Aa]ll"
+          commands:
+            - runFlow:
+                when:
+                  visible: "More options"
+                commands:
+                  - tapOn: "More options"
+      # Android may already select the entire email, omitting Select all.
+      - runFlow:
+          when:
+            visible: "[Ss]elect [Aa]ll"
+          commands:
+            - tapOn: "[Ss]elect [Aa]ll"
+      - eraseText: 1
 - inputText: ${AUTH_EMAIL}
+- assertVisible: ${"^" + AUTH_EMAIL.replace(/[.+]/g, "\\$&") + "$"}
 - tapOn: "Continue"
 - extendedWaitUntil:
     visible: "^[Ee]nter your [Pp]assword$"

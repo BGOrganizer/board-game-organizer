@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 const action = readFileSync(
   new URL("../actions/maestro-e2e/action.yml", import.meta.url),
@@ -210,10 +211,29 @@ test("native sign-in fully replaces remembered actor/target credentials before a
     new URL("../../apps/mobile/.maestro/helpers/sign-in.yaml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
-  for (const field of ["EMAIL", "PASSWORD"]) {
-    assert(signIn.includes(`- eraseText: 100\n- inputText: \${AUTH_${field}}`));
+  assert(signIn.includes('visible: "Last used"'));
+  assert(signIn.includes('- longPressOn: ".*clerk_test@gmail.com$"'));
+  assert(signIn.includes('- tapOn: "[Ss]elect [Aa]ll"'));
+  const selectAll = signIn.indexOf('- tapOn: "[Ss]elect [Aa]ll"');
+  const deletion = signIn.indexOf("- eraseText: 1", selectAll);
+  const entry = signIn.indexOf("- inputText: ${AUTH_EMAIL}", deletion);
+  assert(selectAll < deletion && deletion < entry);
+  assert(signIn.includes("- eraseText: 100\n- inputText: ${AUTH_PASSWORD}"));
+  assert.match(
+    signIn,
+    /inputText: \$\{AUTH_EMAIL\}\n- assertVisible: \$\{[^\n]+\}\n- tapOn: "Continue"/,
+  );
+  const assertion = signIn.match(/^- assertVisible: \$\{([^\n]+)\}$/m)?.[1];
+  assert(assertion);
+  const exactEmail = new RegExp(runInNewContext(assertion, { AUTH_EMAIL: targetEmail }));
+  assert.match(targetEmail, exactEmail);
+  for (const leftover of [
+    `prefix${targetEmail}`,
+    `${targetEmail}suffix`,
+    targetEmail.replace("+", ""),
+  ]) {
+    assert.doesNotMatch(leftover, exactEmail);
   }
-  assert.match(signIn, /inputText: \$\{AUTH_EMAIL\}\n- tapOn: "Continue"/);
 });
 test("native password entry selects the input placeholder, never the heading or account hint", () => {
   const signIn = readFileSync(

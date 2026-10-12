@@ -1,5 +1,21 @@
 # Organizations/events implementation checkpoint
 
+## PR #22 follow-up after run `38254813355` (`feaf149`)
+
+- Branch CI and PR quality/build/Preview/APK/browser gates succeeded. Native passed 4/13;
+  owned-user and isolated-database cleanup succeeded; publication remained skipped.
+- Contacts passed the repaired search/action path and cancelled/resubmitted a real friend
+  request. Its first switch to the target failed at Clerk password entry: the floating email
+  label positioned the caret inside the remembered actor email, so backspace removed only its
+  prefix and target input retained a suffix. The screenshot establishes malformed input, not
+  a provider/authentication or Device Trust rejection. Later authenticated failures followed.
+- Remembered email entry now long-presses the actual fixture value, selects all when the native
+  toolbar offers it (including overflow), and deletes the selection. The helper asserts an
+  escaped, exact email match before Continue; a VM-executed regression rejects prefix/suffix
+  remnants and a missing literal plus. Password selection and real device verification remain.
+  All 52 workflow contracts, scoped Biome and helper YAML validation pass locally; full real
+  native execution remains required.
+
 ## PR #22 follow-up after run `38247581797` (`3e1829f`)
 
 - Branch CI, PR quality/build/Preview/APK gates and browser acceptance succeeded. Native seed
