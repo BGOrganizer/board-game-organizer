@@ -50,7 +50,14 @@ capture() {
     free -m
     ps -eo pid,ppid,rss,comm --sort=-rss | head -20 || true
     timeout 10 sudo -n dmesg | grep -Ei 'out of memory|oom|killed process|segfault' | tail -60 || true
+    for file in /sys/fs/cgroup/memory.events /sys/fs/cgroup/memory.max; do
+      if [ -r "$file" ]; then
+        printf '%s\n' "$file"
+        head -20 "$file"
+      fi
+    done
   } > /tmp/maestro-debug/failure-host.txt 2>&1
+  cp /tmp/maestro-debug/failure-host.txt "/tmp/maestro-debug/$FLOW-host.txt"
   # A lost emulator must fail, not leave adb waiting forever before reports persist.
   if ! timeout 10 adb get-state >/dev/null 2>&1; then
     printf '%s\n' 'Android device unavailable after Maestro failure' > /tmp/maestro-debug/failure-device.txt

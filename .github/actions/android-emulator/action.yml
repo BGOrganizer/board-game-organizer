@@ -107,11 +107,26 @@ runs:
         "$ANDROID_HOME/emulator/emulator" -accel-check
         # Keep the same emulator across job steps, not across jobs. Disconnect
         # shell streams so returning from this step does not wait for the daemon.
-        nohup "$ANDROID_HOME/emulator/emulator" -avd test \
+        # swiftshader_indirect is deprecated since Emulator 36.4.9.
+        # https://developer.android.com/studio/run/emulator-acceleration
+        nohup bash -c '
+          "$ANDROID_HOME/emulator/emulator" "$@" &
+          pid=$!
+          printf "%s\n" "$pid" > /tmp/bgo-emulator.pid
+          code=0
+          wait "$pid" || code=$?
+          printf "Emulator exit code: %s\n" "$code"
+          exit "$code"
+        ' _ -avd test \
           -no-window -no-audio -no-boot-anim -no-snapshot \
-          -gpu swiftshader_indirect -memory 3072 -cores 4 -accel on \
+          -gpu swiftshader -memory 3072 -cores 4 -accel on \
           -port 5554 > /tmp/emulator.log 2>&1 < /dev/null &
-        EMU_PID=$!
+        for i in $(seq 1 50); do
+          test -s /tmp/bgo-emulator.pid && break
+          sleep 0.1
+        done
+        read -r EMU_PID < /tmp/bgo-emulator.pid
+        [[ "$EMU_PID" =~ ^[0-9]+$ ]] || { echo "Emulator PID unavailable" >&2; exit 1; }
         EMULATOR_READY=0
         trap 'if [ "$EMULATOR_READY" != "1" ]; then kill "$EMU_PID" 2>/dev/null || true; fi' EXIT
         timeout 300 adb wait-for-device || { echo "NO DEVICE"; tail -20 /tmp/emulator.log; exit 1; }

@@ -14,10 +14,7 @@ appId: com.bgo.mobile
 - tapOn:
     id: "contact-search-input"
 - runScript: contact-email.js
-# CI key injection is slower than the search debounce; paste the complete fixture
-# through the native clipboard so typing does not exhaust the API search limit.
-- setClipboard: ${CONTACT_EMAIL}
-- pasteText
+- inputText: ${CONTACT_EMAIL}
 - assertVisible:
     id: "contact-search-input"
     text: ${output.contactEmailPattern}

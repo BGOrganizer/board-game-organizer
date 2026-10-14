@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -546,10 +546,8 @@ test("contact searches wait for API results, not an already-visible address-book
   assert(contains(steps, "tapOn", { id: "contact-search-input" }));
   assert(!contains(steps, "tapOn", "^Search users by name or email$"));
   const cleared = steps.findIndex((step) => step.assertNotVisible === "Clear search");
-  const pasted = steps.findIndex((step) => step.setClipboard === "${CONTACT_EMAIL}");
-  assert(cleared >= 0 && cleared < pasted);
-  assert.deepEqual(steps[pasted + 1], { pasteText: null });
-  assert(!contains(steps, "inputText", "${CONTACT_EMAIL}"));
+  const typed = steps.findIndex((step) => step.inputText === "${CONTACT_EMAIL}");
+  assert(cleared >= 0 && cleared < typed);
   assert(
     contains(steps, "assertVisible", {
       id: "contact-search-input",
@@ -656,13 +654,53 @@ test("emulator survives successful boot only, with guaranteed job teardown", () 
     new URL("../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
-  assert(emulator.includes('nohup "$ANDROID_HOME/emulator/emulator"'));
+  assert(emulator.includes("nohup bash -c '"));
+  assert(emulator.includes('"$ANDROID_HOME/emulator/emulator" "$@" &'));
+  assert(emulator.includes("read -r EMU_PID < /tmp/bgo-emulator.pid"));
   assert(emulator.includes('echo "BGO_EMULATOR_PID=$EMU_PID" >> "$GITHUB_ENV"'));
   assert(emulator.includes('if [ "$EMULATOR_READY" != "1" ]; then kill "$EMU_PID"'));
   assert(script.includes('kill "$BGO_EMULATOR_PID"'));
   assert.match(action, /bash -e -o pipefail/);
   assert(script.startsWith("#!/usr/bin/env bash\nset -euo pipefail"));
 });
+test("emulator watcher records the real child PID and exit status with supported software rendering", () => {
+  const emulator = readFileSync(
+    new URL("../actions/android-emulator/action.yml", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  assert.match(emulator, /-gpu swiftshader -memory/);
+  assert.doesNotMatch(emulator, /-gpu swiftshader_indirect/);
+  const wrapper = emulator.match(/nohup bash -c '\n([\s\S]*?)\n {8}' _ -avd/)?.[1];
+  assert(wrapper);
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  for (const code of [0, 139]) {
+    const folder = mkdtempSync(join(tmpdir(), "bgo-emulator-exit-"));
+    try {
+      mkdirSync(join(folder, "emulator"));
+      const executable = join(folder, "emulator/emulator");
+      // Unit-only process fixture: never starts an Android device.
+      writeFileSync(executable, `#!/usr/bin/env bash\nexit ${code}\n`, { mode: 0o755 });
+      const result = spawnSync(
+        bash,
+        ["-e", "-c", wrapper.replaceAll("/tmp/bgo-emulator.pid", '"$PID_FILE"')],
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            ANDROID_HOME: folder.replaceAll("\\", "/"),
+            PID_FILE: join(folder, "pid").replaceAll("\\", "/"),
+          },
+        },
+      );
+      assert.equal(result.status, code, result.stderr);
+      assert.match(result.stdout, new RegExp(`Emulator exit code: ${code}`));
+      assert.match(readFileSync(join(folder, "pid"), "utf8"), /^\d+\n$/);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+});
+
 test("native UI acceptance installs and selects rendering-enabled Google APIs for Expo Location, never ATD", () => {
   const emulator = readFileSync(
     new URL("../actions/android-emulator/action.yml", import.meta.url),
@@ -715,7 +753,7 @@ test("native boot verifies KVM and never falls back to software CPU emulation", 
   assert(emulator.indexOf("--settle") < emulator.indexOf("test -r /dev/kvm"));
   assert(emulator.includes("runner lacks read/write permission after udev settlement"));
   assert(emulator.includes('"$ANDROID_HOME/emulator/emulator" -accel-check'));
-  assert(emulator.indexOf("-accel-check") < emulator.indexOf('nohup "$ANDROID_HOME'));
+  assert(emulator.indexOf("-accel-check") < emulator.indexOf("nohup bash"));
   assert(emulator.includes("-accel on"));
   assert.doesNotMatch(emulator, /-accel (?:off|auto)/);
   for (const workflow of workflows)
@@ -1177,6 +1215,35 @@ test("native journeys never assert or tap disappearing feedback; durable inbox c
   assert(contains(journey("09-group-invitations"), "tapOn", "New group invitation"));
 });
 
+test("device contact sharing scrolls the actionable row into view and restores the search field", () => {
+  const steps = nativeSteps("helpers/contacts-permissions.yaml");
+  assert(
+    contains(steps, "scrollUntilVisible", {
+      element: "ZZ Page 43",
+      direction: "DOWN",
+      timeout: 90000,
+    }),
+  );
+  assert(
+    contains(steps, "scrollUntilVisible", {
+      element: "Send invite: E2E Unregistered",
+      direction: "UP",
+      timeout: 90000,
+    }),
+  );
+  assert(contains(steps, "assertVisible", "E2E Unregistered"));
+  const invite = steps.findIndex((step) => step.tapOn === "Send invite: E2E Unregistered");
+  assert(invite >= 0);
+  assert(
+    contains(steps.slice(invite), "scrollUntilVisible", {
+      element: { id: "contact-search-input" },
+      direction: "UP",
+      timeout: 30000,
+    }),
+  );
+  assert.deepEqual(steps.at(-1), { assertVisible: { id: "contact-search-input" } });
+});
+
 test("shared address selection checks exact input after closing the covering IME", () => {
   const steps = nativeSteps("helpers/select-address.yaml", {
     ADDRESS_QUERY: "Via Roma Milano",
@@ -1362,7 +1429,12 @@ test("native failure diagnostics stay bounded when the emulator disappears", () 
         ],
         {
           encoding: "utf8",
-          env: { ...process.env, DIAG_ROOT: root.replaceAll("\\", "/"), DEVICE_STATE: state },
+          env: {
+            ...process.env,
+            DIAG_ROOT: root.replaceAll("\\", "/"),
+            DEVICE_STATE: state,
+            FLOW: "05-contacts-follow-block",
+          },
         },
       );
       assert.equal(result.status, 0, result.stderr);
@@ -1374,6 +1446,10 @@ test("native failure diagnostics stay bounded when the emulator disappears", () 
       const host = readFileSync(join(root, "maestro-debug/failure-host.txt"), "utf8");
       assert.match(host, /Mem: 16000 12000 4000/);
       assert.match(host, /Out of memory: Killed process 42/);
+      assert.equal(
+        readFileSync(join(root, "maestro-debug/05-contacts-follow-block-host.txt"), "utf8"),
+        host,
+      );
       if (state === "ready") {
         assert(commands.includes("screencap"));
         assert(deadlines.includes("30 adb shell uiautomator dump"));

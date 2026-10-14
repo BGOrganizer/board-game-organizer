@@ -71,7 +71,7 @@ appId: com.bgo.mobile
     timeout: 90000
 - assertVisible: "ZZ Page 43"
 - scrollUntilVisible:
-    element: "E2E Unregistered"
+    element: "Send invite: E2E Unregistered"
     direction: UP
     timeout: 90000
 - assertVisible: "E2E Unregistered"
@@ -85,7 +85,10 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     notVisible: "^(Copy|Copy to clipboard|Copy link)$"
     timeout: 30000
-- extendedWaitUntil:
-    visible:
+- scrollUntilVisible:
+    element:
       id: "contact-search-input"
+    direction: UP
     timeout: 30000
+- assertVisible:
+    id: "contact-search-input"
