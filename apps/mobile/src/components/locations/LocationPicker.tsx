@@ -267,6 +267,23 @@ export default function LocationPicker({
               </Marker>
             )}
           </MapLibreMap>
+          <Button
+            testID="location-map-locate"
+            isIconOnly
+            size="sm"
+            variant="secondary"
+            // Leave native map attribution reachable below the GPS control.
+            style={{ position: "absolute", right: 12, bottom: 40, minWidth: 44, minHeight: 44 }}
+            isDisabled={locating}
+            accessibilityLabel={
+              !permission.granted && !permission.canAskAgain
+                ? t("Open settings")
+                : t("Center map on my location")
+            }
+            onPress={() => void locate()}
+          >
+            <LocateFixed size={20} color={foreground} />
+          </Button>
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t("Map by MapTiler")}
@@ -440,26 +457,7 @@ export default function LocationPicker({
         testID="location-address-input"
         label={t("Search address")}
         placeholder={t("Search address")}
-        inputStyle={{ paddingEnd: 100 }}
-        clearButtonStyle={{ end: 48 }}
-      >
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          hitSlop={4}
-          style={{ position: "absolute", right: 4 }}
-          isDisabled={locating}
-          accessibilityLabel={
-            !permission.granted && !permission.canAskAgain
-              ? t("Open settings")
-              : t("Center map on my location")
-          }
-          onPress={() => void locate()}
-        >
-          <LocateFixed size={20} color={foreground} />
-        </Button>
-      </SearchInput>
+      />
       {(searching || locating) && (
         <Skeleton
           isLoading

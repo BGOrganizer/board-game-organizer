@@ -418,6 +418,10 @@ msgstr "All unfinished tables and reservations will be cancelled."
 msgid "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
 msgstr "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
 
+#: apps/mobile/src/components/organizations/OrganizationReview.tsx
+msgid "Approve"
+msgstr "Approve"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Approve join request"
 msgstr "Approve join request"

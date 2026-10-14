@@ -59,7 +59,12 @@ appId: com.bgo.mobile
 - assertVisible: "Published events: 0"
 - tapOn:
     id: "organization-tab-members"
+- assertVisible: "Invite friends"
+- assertNotVisible: "Invitations require an approved organization."
+- tapOn: "Invite friends: Field help"
 - assertVisible: "Invitations require an approved organization."
+- back
+- assertNotVisible: "Invitations require an approved organization."
 - tapOn:
     id: "organization-tab-details"
 - tapOn: "Edit organization"

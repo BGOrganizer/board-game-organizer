@@ -5,6 +5,16 @@ tags: [isolated-fixture, moderation]
 - assertTrue: ${REVIEW_LINK.startsWith("bgo://") && REVIEW_LINK.includes("/moderation/")}
 - assertTrue: ${["Approve", "Reject"].includes(DECISION)}
 - assertTrue: ${REASON.trim().length > 0}
+# Enter through the list so successful moderation must pop its detail, not duplicate the list.
+- openLink: "bgo:///groups?section=organizations"
+- extendedWaitUntil:
+    visible:
+      id: "community-tab-organizations"
+    timeout: 30000
+- openLink: "bgo:///moderation"
+- extendedWaitUntil:
+    visible: "Organization moderation"
+    timeout: 30000
 - openLink: ${REVIEW_LINK}
 - extendedWaitUntil:
     visible: "Manage organization"
@@ -25,3 +35,7 @@ tags: [isolated-fixture, moderation]
     visible: "Organization moderation"
     timeout: 30000
 - assertVisible: "Organization moderation"
+- back
+- assertVisible:
+    id: "community-tab-organizations"
+- assertNotVisible: "Organization moderation"

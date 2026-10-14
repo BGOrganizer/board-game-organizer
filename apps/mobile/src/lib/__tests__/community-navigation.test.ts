@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { URL } from "node:url";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("expo-device", () => ({ isDevice: false }));
@@ -61,6 +63,57 @@ describe("community notification destinations", () => {
       expect(source).toContain(`router.dismissTo(\`/${resource}/\${row.id}\`)`);
       expect(source).not.toContain(`router.replace(\`/${resource}/\${row.id}\`)`);
     }
+  });
+  it("dismisses a completed review to the existing moderation list, without replacing another entry", () => {
+    const text = readFileSync(
+      new URL("../../components/organizations/OrganizationReview.tsx", import.meta.url),
+      "utf8",
+    );
+    const ast = ts.createSourceFile(
+      "review.tsx",
+      text,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    let callback = "";
+    function visit(node: ts.Node) {
+      if (ts.isPropertyAssignment(node) && node.name.getText(ast) === "onSuccess") {
+        callback = node.initializer.getText(ast);
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(ast);
+    const router = { dismissTo: vi.fn(), replace: vi.fn(), back: vi.fn() };
+    runInNewContext(`(${callback})()`, { router });
+    expect(router.dismissTo).toHaveBeenCalledExactlyOnceWith("/moderation");
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.back).not.toHaveBeenCalled();
+  });
+  it("keeps Community labels single-line with room for the full Organizations label", () => {
+    const text = readFileSync(
+      new URL("../../components/community/CommunitySection.tsx", import.meta.url),
+      "utf8",
+    );
+    const ast = ts.createSourceFile(
+      "community.tsx",
+      text,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    let labels = 0;
+    function visit(node: ts.Node) {
+      if (ts.isJsxOpeningElement(node) && node.tagName.getText(ast) === "Tabs.Label") {
+        labels++;
+        expect(node.getText(ast)).toContain("numberOfLines={1}");
+        expect(node.getText(ast)).toContain("fontSize: 13");
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(ast);
+    expect(labels).toBe(3);
+    expect(text).toContain("flex: 1.5");
   });
   it("keeps organization creation accessible and event creation inside its owning organization", () => {
     const organizations = readFileSync(

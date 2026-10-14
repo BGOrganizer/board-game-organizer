@@ -126,7 +126,10 @@ it("preserves cancellation and invalidation of the verified address in the searc
   );
   let handler = "";
   function visit(node: ts.Node) {
-    if (ts.isJsxOpeningElement(node) && node.tagName.getText(file) === "SearchInput") {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.tagName.getText(file) === "SearchInput"
+    ) {
       const change = node.attributes.properties.find(
         (prop) => ts.isJsxAttribute(prop) && prop.name.getText(file) === "onChange",
       );
@@ -143,7 +146,7 @@ it("preserves cancellation and invalidation of the verified address in the searc
     "setResults([])",
   ])
     expect(handler).toContain(call);
-  expect(text).toContain("clearButtonStyle={{ end: 48 }}");
-  expect(text).toContain("inputStyle={{ paddingEnd: 100 }}");
-  expect(text).not.toContain("clearButtonStyle={{ right:");
+  expect(text).not.toContain("clearButtonStyle=");
+  expect(text).not.toContain("inputStyle=");
+  expect(source("components/common/ui/SearchInput.tsx")).toContain("<SearchField.ClearButton");
 });

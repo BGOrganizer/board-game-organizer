@@ -42,7 +42,7 @@ export function OrganizationReview({ organizationId }: { organizationId: string 
             ? { decision, version: organization.version }
             : { decision, version: organization.version, reason: reason.trim() },
       },
-      { onSuccess: () => router.replace("/moderation") },
+      { onSuccess: () => router.dismissTo("/moderation") },
     );
   }
   return (
@@ -115,37 +115,23 @@ export function OrganizationReview({ organizationId }: { organizationId: string 
                 <View style={{ flexDirection: "row", gap: 12 }}>
                   <Button
                     variant="primary"
-                    style={{
-                      flex: 1,
-                      minWidth: 44,
-                      minHeight: 64,
-                      flexDirection: "column",
-                      gap: 4,
-                    }}
+                    accessibilityLabel={t("Approve organization")}
+                    style={{ flex: 1, minHeight: 44, flexDirection: "row", gap: 8 }}
                     isDisabled={actions.busy}
                     onPress={() => review("approve")}
                   >
                     <Check size={16} color={accentForeground} />
-                    <Button.Label style={{ textAlign: "center", alignSelf: "stretch" }}>
-                      {t("Approve organization")}
-                    </Button.Label>
+                    <Button.Label>{t("Approve")}</Button.Label>
                   </Button>
                   <Button
                     variant="danger"
-                    style={{
-                      flex: 1,
-                      minWidth: 44,
-                      minHeight: 64,
-                      flexDirection: "column",
-                      gap: 4,
-                    }}
+                    accessibilityLabel={t("Reject organization")}
+                    style={{ flex: 1, minHeight: 44, flexDirection: "row", gap: 8 }}
                     isDisabled={actions.busy || !reason.trim()}
                     onPress={() => review("reject")}
                   >
                     <X size={16} color={dangerForeground} />
-                    <Button.Label style={{ textAlign: "center", alignSelf: "stretch" }}>
-                      {t("Reject organization")}
-                    </Button.Label>
+                    <Button.Label>{t("Reject")}</Button.Label>
                   </Button>
                 </View>
               </>

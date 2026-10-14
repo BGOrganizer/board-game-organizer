@@ -62,6 +62,9 @@ describe("translate (runtime)", () => {
     ["Remove location from favorites", "Rimuovi location dai preferiti"],
     ["Center map on my location", "Centra la mappa sulla mia posizione"],
     ["Location name", "Nome del luogo"],
+    ["Approve", "Approva"],
+    ["Reject", "Rifiuta"],
+    ["Approved", "Approvata"],
   ])("translates location control %s on both clients", (english, italian) => {
     expect(translate(createAppI18n("en"), english)).toBe(english);
     expect(translate(createAppI18n("it"), english)).toBe(italian);

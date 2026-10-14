@@ -83,7 +83,9 @@ export function OrganizationDetail({ organizationId }: { organizationId: string 
         </View>
       ) : null}
       {!organization && detail.isPending ? (
-        <Skeleton style={{ width: "100%", height: 192, borderRadius: 12 }} />
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <Skeleton style={{ width: "100%", height: 192, borderRadius: 12 }} />
+        </View>
       ) : null}
       {organization ? (
         <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>

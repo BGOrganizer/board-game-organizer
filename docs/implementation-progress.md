@@ -1,5 +1,23 @@
 # Organizations/events implementation checkpoint
 
+## Mobile organization presentation and location controls — PR #22
+
+- Mobile-only correction requested by the operator: moderation dismisses to the existing list
+  instead of replacing its detail with a duplicate list; compact Approve/Reject buttons retain
+  full accessible labels, busy guards and the mandatory rejection reason.
+- Community labels stay on one line with more room for Organizations. Organization detail
+  skeletons have horizontal page padding; status badges retain natural text width and padding.
+  Pending friend invitations remain disabled, with their explanation in the existing help popover.
+- The shared native location picker moves GPS to the map's lower-right above attribution;
+  address search retains its independent clear control. Permission, verified-address and save
+  validation behavior is unchanged. Matches, organization and event pickers use this same control.
+- EN/IT catalogs compiled; mobile typecheck, 184 mobile unit tests, 512 web unit tests,
+  88 CI policy tests and 15 Maestro syntax checks passed. Updated native scenarios cover the
+  invitation help and one-Back return from completed moderation; they are not executed acceptance.
+- Live native validation was blocked by HTTP 404 for an owned local Clerk fixture during
+  read-only ownership attestation. No account was recreated and no device/fixture reset occurred.
+  Both PR E2E jobs remain explicitly disabled by operator request; main/manual gates are unchanged.
+
 ## PR #22 follow-up after run `38288214637` (`0757693`)
 
 - Branch CI, quality/integration/previews, browser acceptance and development APK passed. Internal

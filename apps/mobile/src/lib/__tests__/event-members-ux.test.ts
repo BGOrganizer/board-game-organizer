@@ -203,6 +203,47 @@ it("wraps every review button's translated text in a native label, including ico
   expect(review).toContain('label={t("Manage organization")}');
   expect(review).toContain('placeholder={t("Reject reason")}');
   expect(review).toContain('flexDirection: "row", gap: 12');
+  expect(review).not.toContain('flexDirection: "column"');
+  expect(review).toContain('accessibilityLabel={t("Approve organization")}');
+  expect(review).toContain('accessibilityLabel={t("Reject organization")}');
+  expect(review).toContain('<Button.Label>{t("Approve")}</Button.Label>');
+  expect(review).toContain('<Button.Label>{t("Reject")}</Button.Label>');
+  expect(review).toContain("isDisabled={actions.busy || !reason.trim()}");
+});
+it("explains pending organization invitations through a reachable help action, not a long row description", () => {
+  const members = source("organizations/OrganizationMembers.tsx");
+  expect(members).toContain("<HelpPopover");
+  expect(members).toContain('label={`${t("Invite friends")}: ${t("Field help")}`}');
+  expect(members).toContain('t("Invitations require an approved organization.")');
+  const ast = ts.createSourceFile(
+    "members.tsx",
+    members,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let invitationRow = "";
+  function visit(node: ts.Node) {
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(ast) === "AddUserRow") {
+      invitationRow = node.getText(ast);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  expect(invitationRow).toContain("<HelpPopover");
+  expect(invitationRow).not.toContain("description={");
+  expect(members).toContain("isDisabled={!organization.approved || busy || !canViewPeople}");
+});
+it("keeps organization badges unshrunk and detail skeletons inside horizontal page padding", () => {
+  const badge = source("organizations/OrganizationStatusBadge.tsx");
+  expect(badge).toContain("flexShrink: 0");
+  expect(badge).toContain("paddingHorizontal: 8");
+  expect(badge).toContain("paddingVertical: 2");
+  expect(badge).toContain("numberOfLines={1} style={{ flexShrink: 0, paddingEnd: 2 }}");
+  const detail = source("organizations/OrganizationDetail.tsx");
+  expect(detail).toMatch(
+    /!organization && detail.isPending \? \(\s*<View style=\{\{ paddingHorizontal: 20, paddingTop: 20 \}\}>\s*<Skeleton/,
+  );
 });
 it("keeps demonstrator Back in the header and gives table cards image/date/game/player/demonstrator fields", () => {
   const picker = source("organizations/OrganizationMemberPicker.tsx");

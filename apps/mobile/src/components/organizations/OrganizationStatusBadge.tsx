@@ -11,9 +11,21 @@ export function OrganizationStatusBadge({ organization }: { organization: Organi
   const color = useThemeColor(rejected ? "danger" : pending ? "warning" : "success");
   const Icon = rejected ? CircleX : pending ? Clock3 : CircleCheck;
   return (
-    <Chip size="sm" color={rejected ? "danger" : pending ? "warning" : "success"} variant="soft">
+    <Chip
+      size="sm"
+      color={rejected ? "danger" : pending ? "warning" : "success"}
+      variant="soft"
+      style={{
+        flexShrink: 0,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+      }}
+    >
       <Icon size={14} color={color} accessible={false} />
-      <Chip.Label>
+      <Chip.Label numberOfLines={1} style={{ flexShrink: 0, paddingEnd: 2 }}>
         {rejected ? t("Changes rejected") : pending ? t("Awaiting review") : t("Approved")}
       </Chip.Label>
     </Chip>

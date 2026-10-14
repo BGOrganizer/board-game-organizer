@@ -42,6 +42,44 @@ it("anchors favorite sheets above system bars with viewport sizing", () => {
   expect(found).toBe(true);
 });
 
+it("places the GPS action on the map above attribution and leaves the search clear control independent", () => {
+  const text = readFileSync(
+    new URL("../../components/locations/LocationPicker.tsx", import.meta.url),
+    "utf8",
+  );
+  const ast = ts.createSourceFile(
+    "location.tsx",
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let gps = 0,
+    search = 0;
+  function visit(node: ts.Node) {
+    if (
+      ts.isJsxElement(node) &&
+      node.openingElement.tagName.getText(ast) === "Button" &&
+      node.openingElement.getText(ast).includes('testID="location-map-locate"')
+    ) {
+      gps++;
+      expect(node.openingElement.getText(ast)).toContain("right: 12, bottom: 40");
+      expect(node.openingElement.getText(ast)).toContain("onPress={() => void locate()}");
+      expect(node.parent.getText(ast)).toContain("<MapLibreMap");
+      expect(node.parent.getText(ast)).toContain("attribution");
+    }
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(ast) === "SearchInput") {
+      search++;
+      expect(node.getText(ast)).not.toContain("clearButtonStyle");
+      expect(node.getText(ast)).not.toContain("inputStyle");
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  expect(gps).toBe(1);
+  expect(search).toBe(1);
+});
+
 it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB clearance", () => {
   const scroll = readFileSync(
     new URL("../../components/common/ui/ScreenScrollView.tsx", import.meta.url),

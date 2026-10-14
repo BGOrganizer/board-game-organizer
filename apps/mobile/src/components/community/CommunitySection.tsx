@@ -23,18 +23,32 @@ export function CommunitySection() {
         >
           <Tabs.List style={{ width: "100%" }}>
             <Tabs.Indicator />
-            <Tabs.Trigger testID="community-tab-groups" value="groups" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Groups")}</Tabs.Label>
+            <Tabs.Trigger
+              testID="community-tab-groups"
+              value="groups"
+              style={{ flex: 1, minWidth: 0, paddingHorizontal: 8 }}
+            >
+              <Tabs.Label numberOfLines={1} style={{ fontSize: 13 }}>
+                {t("Groups")}
+              </Tabs.Label>
             </Tabs.Trigger>
             <Tabs.Trigger
               testID="community-tab-organizations"
               value="organizations"
-              style={{ flex: 1 }}
+              style={{ flex: 1.5, minWidth: 0, paddingHorizontal: 8 }}
             >
-              <Tabs.Label>{t("Organizations")}</Tabs.Label>
+              <Tabs.Label numberOfLines={1} style={{ fontSize: 13 }}>
+                {t("Organizations")}
+              </Tabs.Label>
             </Tabs.Trigger>
-            <Tabs.Trigger testID="community-tab-search" value="search" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Search")}</Tabs.Label>
+            <Tabs.Trigger
+              testID="community-tab-search"
+              value="search"
+              style={{ flex: 1, minWidth: 0, paddingHorizontal: 8 }}
+            >
+              <Tabs.Label numberOfLines={1} style={{ fontSize: 13 }}>
+                {t("Search")}
+              </Tabs.Label>
             </Tabs.Trigger>
           </Tabs.List>
         </Tabs>

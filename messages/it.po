@@ -418,6 +418,10 @@ msgstr "Tutti i tavoli non conclusi e le prenotazioni saranno annullati."
 msgid "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
 msgstr "Chiunque abbia il link al match può chiedere di partecipare durante la pianificazione, se ci sono posti liberi. L'admin approva le richieste."
 
+#: apps/mobile/src/components/organizations/OrganizationReview.tsx
+msgid "Approve"
+msgstr "Approva"
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Approve join request"
 msgstr "Approva richiesta di partecipazione"

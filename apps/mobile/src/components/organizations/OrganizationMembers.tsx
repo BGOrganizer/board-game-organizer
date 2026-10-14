@@ -33,6 +33,7 @@ import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import {
   type UserActionConfirmation,
   UserActionsSheet,
@@ -131,10 +132,17 @@ export function OrganizationMembers({ organization }: { organization: Organizati
             {organization.role === "admin" ? (
               <AddUserRow
                 label={t("Invite friends")}
-                description={
-                  !organization.approved
-                    ? t("Invitations require an approved organization.")
-                    : undefined
+                actions={
+                  !organization.approved ? (
+                    <HelpPopover
+                      label={`${t("Invite friends")}: ${t("Field help")}`}
+                      title={t("Invite friends")}
+                    >
+                      <Typography className="text-foreground">
+                        {t("Invitations require an approved organization.")}
+                      </Typography>
+                    </HelpPopover>
+                  ) : undefined
                 }
                 isDisabled={!organization.approved || busy || !canViewPeople}
                 onPress={() =>
