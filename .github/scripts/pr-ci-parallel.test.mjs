@@ -54,6 +54,47 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   }
 });
 
+test("PR Maestro is retained but explicitly skipped; other native pipelines remain enabled", () => {
+  const native = jobs["e2e-maestro"];
+  assert.equal(native.if, "${{ false }}");
+  assert(native.steps.length > 0);
+  assert(native.steps.some((item) => item.with?.flow === "13-event-draft"));
+  assert(native.steps.some((item) => item.with?.phase === "verify"));
+  assert.equal(jobs["cleanup-e2e-user"].if, "always()");
+  for (const name of ["main-ci.yml", "mobile-e2e.yml"]) {
+    const workflow = parse(readFileSync(`.github/workflows/${name}`, "utf8"));
+    assert.notEqual(workflow.jobs["e2e-maestro"].if, "${{ false }}", name);
+  }
+});
+
+test("draft publication tolerates only the intentional Maestro skip, never a failed or missing gate", () => {
+  const release = jobs["draft-release"];
+  const expression = release.if.replace(
+    /needs\.([\w-]+)\.result/g,
+    (_, key) => `results["${key}"]`,
+  );
+  const success = Object.fromEntries(release.needs.map((name) => [name, "success"]));
+  const allowed = (results, cancelled = false) =>
+    runInNewContext(expression, {
+      results,
+      always: () => true,
+      cancelled: () => cancelled,
+    });
+  assert.equal(allowed(success), true);
+  const skippedMaestro = { ...success, "e2e-maestro": "skipped" };
+  assert.equal(allowed(skippedMaestro), true);
+  assert.equal(allowed(skippedMaestro, true), false);
+  for (const gate of release.needs) {
+    for (const result of ["failure", "cancelled", "skipped", undefined]) {
+      assert.equal(
+        allowed({ ...skippedMaestro, [gate]: result }),
+        gate === "e2e-maestro" && result === "skipped",
+        `${gate}: ${result}`,
+      );
+    }
+  }
+});
+
 test("parallel web and native acceptance use separate mirrored user pairs, BGG fixtures and complete cleanup", () => {
   const provision = jobs.provision;
   const calls = provision.steps.filter(
