@@ -54,20 +54,25 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   }
 });
 
-test("PR Maestro is retained but explicitly skipped; other native pipelines remain enabled", () => {
+test("PR E2E jobs are retained but explicitly skipped; other pipelines remain enabled", () => {
   const native = jobs["e2e-maestro"];
   assert.equal(native.if, "${{ false }}");
   assert(native.steps.length > 0);
   assert(native.steps.some((item) => item.with?.flow === "13-event-draft"));
   assert(native.steps.some((item) => item.with?.phase === "verify"));
   assert.equal(jobs["cleanup-e2e-user"].if, "always()");
+  const browser = jobs["e2e-playwright"];
+  assert.equal(browser.if, "${{ false }}");
+  assert(browser.steps.some((item) => item.run === "pnpm test:e2e"));
+  const main = parse(readFileSync(".github/workflows/main-ci.yml", "utf8"));
+  assert.notEqual(main.jobs["e2e-playwright"].if, "${{ false }}");
   for (const name of ["main-ci.yml", "mobile-e2e.yml"]) {
     const workflow = parse(readFileSync(`.github/workflows/${name}`, "utf8"));
     assert.notEqual(workflow.jobs["e2e-maestro"].if, "${{ false }}", name);
   }
 });
 
-test("draft publication tolerates only the intentional Maestro skip, never a failed or missing gate", () => {
+test("draft publication tolerates only intentional E2E skips, never a failed or missing gate", () => {
   const release = jobs["draft-release"];
   const expression = release.if.replace(
     /needs\.([\w-]+)\.result/g,
@@ -81,17 +86,28 @@ test("draft publication tolerates only the intentional Maestro skip, never a fai
       cancelled: () => cancelled,
     });
   assert.equal(allowed(success), true);
-  const skippedMaestro = { ...success, "e2e-maestro": "skipped" };
-  assert.equal(allowed(skippedMaestro), true);
-  assert.equal(allowed(skippedMaestro, true), false);
+  for (const native of ["success", "skipped"]) {
+    for (const browser of ["success", "skipped"]) {
+      assert.equal(allowed({ ...success, "e2e-maestro": native, "e2e-playwright": browser }), true);
+    }
+  }
+  const skippedE2E = { ...success, "e2e-maestro": "skipped", "e2e-playwright": "skipped" };
+  assert.equal(allowed(skippedE2E, true), false);
   for (const gate of release.needs) {
     for (const result of ["failure", "cancelled", "skipped", undefined]) {
       assert.equal(
-        allowed({ ...skippedMaestro, [gate]: result }),
-        gate === "e2e-maestro" && result === "skipped",
+        allowed({ ...skippedE2E, [gate]: result }),
+        ["e2e-maestro", "e2e-playwright"].includes(gate) && result === "skipped",
         `${gate}: ${result}`,
       );
     }
+  }
+});
+
+test("intentional E2E skips cannot race fixture mirroring or CI API consumers with cleanup", () => {
+  assert(jobs["cleanup-e2e-user"].needs.includes("sync-e2e-users"));
+  for (const consumer of ["cleanup-e2e-user", "build-mobile-internal", "deploy-preview-web"]) {
+    assert(jobs["cleanup-e2e-db"].needs.includes(consumer), consumer);
   }
 });
 

@@ -798,6 +798,8 @@ jobs:
   # ---------------------------------------------------------- Playwright E2E
   e2e-playwright:
     name: 🎭 Playwright E2E (web)
+    # Disabled by operator request. Keep the job and suite; skipped is not web acceptance.
+    if: ${{ false }}
     needs: [deploy-preview-web, sync-e2e-users, provision, deploy-development-api]
     runs-on: ubuntu-latest
     environment: development
@@ -839,7 +841,8 @@ jobs:
   # ------------------------------------------------ cleanup E2E test users
   cleanup-e2e-user:
     name: 🗑️ Cleanup E2E test user
-    needs: [provision, e2e-maestro, e2e-playwright]
+    # With both E2E jobs skipped, wait for mirroring before deleting their fixtures.
+    needs: [provision, sync-e2e-users, e2e-maestro, e2e-playwright]
     if: always()
     # Cleanup failure must stay visible; otherwise leaked Clerk users accumulate silently.
     runs-on: ubuntu-latest
@@ -861,7 +864,8 @@ jobs:
   # -------------------------------------------------- isolated DB cleanup
   cleanup-e2e-db:
     name: 🗑️ Drop isolated PR E2E database
-    needs: [deploy-preview-api, cleanup-e2e-user]
+    # Skipped E2E must not let cleanup race remaining CI API consumers.
+    needs: [deploy-preview-api, cleanup-e2e-user, build-mobile-internal, deploy-preview-web]
     if: always() && needs.deploy-preview-api.outputs.url != ''
     runs-on: ubuntu-latest
     environment: development
@@ -965,7 +969,7 @@ jobs:
   # ----------------------------------------------------------- draft release
   draft-release:
     name: 📦 Draft prerelease (APK + changelog) → Telegram
-    # Only Maestro may be intentionally skipped. Every other gate remains mandatory.
+    # Only the two E2E jobs may be intentionally skipped. Every other gate remains mandatory.
     if: >-
       always() && !cancelled() &&
       (needs.e2e-maestro.result == 'success' || needs.e2e-maestro.result == 'skipped') &&
@@ -979,7 +983,7 @@ jobs:
       needs.build-mobile-internal.result == 'success' &&
       needs.deploy-preview-api.result == 'success' &&
       needs.deploy-preview-web.result == 'success' &&
-      needs.e2e-playwright.result == 'success' &&
+      (needs.e2e-playwright.result == 'success' || needs.e2e-playwright.result == 'skipped') &&
       needs.cleanup-e2e-user.result == 'success' &&
       needs.cleanup-e2e-db.result == 'success' &&
       needs.deploy-development-api.result == 'success' &&

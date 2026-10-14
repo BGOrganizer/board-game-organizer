@@ -754,7 +754,7 @@ No builds, deployments, or E2E.
 
 ### `pr-ci.yml`
 
-Runs pull-request gates (Maestro is currently retained but explicitly disabled by operator request):
+Runs pull-request gates (Maestro and Playwright are retained but explicitly disabled by operator request):
 
 1. commitlint, Biome, typecheck, unit coverage/Codecov, API integration tests, API/web builds, and
    mobile-change detection start in parallel;
@@ -764,9 +764,10 @@ Runs pull-request gates (Maestro is currently retained but explicitly disabled b
    the CI APK (or verified reuse) targets the moving per-PR API alias;
 4. deploy Preview web against the immutable CI API URL, seed `bgo_ci_<run_id>_<attempt>`, and
    synchronize two test users;
-5. run Playwright E2E, skip the retained Maestro job, then clean up CI users and database even on failure;
+5. skip the retained Maestro and Playwright jobs; wait for fixture mirroring and CI API consumers
+   before cleaning up CI users and database, even on failure;
 6. publish only the development-API APK to the draft prerelease and Telegram after every enabled gate
-   and cleanup passes. A green PR run is not native acceptance; main and manual Maestro gates remain enabled.
+   and cleanup passes. A green PR run is not E2E acceptance; main E2E and manual Maestro gates remain enabled.
 
 A new PR commit cancels the previous run. A trusted `workflow_run` watchdog polls for job failures
 and cancels the entire PR run; GitHub marks the run `cancelled`, while the failing job retains its
