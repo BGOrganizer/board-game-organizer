@@ -86,6 +86,15 @@ publication likewise select `development` for Expo, release and Telegram credent
 does not select an Infisical environment: the deployed API reads the Vercel Preview value supplied
 by its existing sync. No credentials were deleted, rotated or synchronized as part of this code change.
 
+## EAS registration quota
+
+APK builds still run locally and must pass their existing checks. EAS registration through `eas upload`
+can exhaust the account's free monthly local-build quota even after the APK is built successfully.
+PR/main workflows skip only that registration when exit 4 contains the explicit provider quota message;
+the verified APK remains attached to GitHub and Telegram omits the unavailable EAS link. Other upload
+errors and malformed/non-HTTPS responses fail normally. This exception never substitutes an APK,
+reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablement.
+
 ## Location and native gates
 
 - API address verification uses server-only `MAPTILER_GEOCODING_KEY`; web/mobile use their documented public MapTiler keys. Preserve canonical returned addresses/coordinates and attribution.

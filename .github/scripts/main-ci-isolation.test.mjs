@@ -151,12 +151,14 @@ test("main uploads the gated production APK to EAS before publishing GitHub and 
   assert.ok(steps.indexOf(publish) > steps.indexOf(upload));
   assert.equal(upload.env.EXPO_TOKEN, `\${{ secrets.EXPO_TOKEN }}`);
   assert.match(upload.run, /find .*apk.*\.apk/);
-  assert.match(upload.run, /eas upload --platform android --build-path .* --json/);
+  assert.match(upload.run, /node .*eas-upload\.mjs "\$APK"/);
   assert.equal(jobs["publish-release"].outputs.eas_build_url, `\${{ steps.eas.outputs.url }}`);
   const links = step("publish-release", "🔗 Append production links to the release body");
   assert.equal(links.env.EAS_BUILD_URL, `\${{ steps.eas.outputs.url }}`);
   assert.match(links.run, /Build EAS:.*EAS_BUILD_URL/);
-  assert.match(step("notify-telegram", "🔗 Compose Telegram links").run, /eas_build_url/);
+  const notify = step("notify-telegram", "🔗 Compose Telegram links");
+  assert.equal(notify.env.EAS_BUILD_URL, `\${{ needs.publish-release.outputs.eas_build_url }}`);
+  assert.match(notify.run, /if \[ -n "\$EAS_BUILD_URL" \]/);
   assert.equal(step("publish-release", "📥 Download internal APK").with.name, "apk-internal-main");
 });
 

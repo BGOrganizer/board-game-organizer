@@ -710,8 +710,7 @@ jobs:
           APK=$(find "$GITHUB_WORKSPACE/apk" -name '*.apk' -print -quit)
           test -n "$APK"
           npm install -g eas-cli@latest
-          URL=$(eas upload --platform android --build-path "$APK" --json | jq -er '.url')
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          node ../../.github/scripts/eas-upload.mjs "$APK"
 
       - name: 📦 Create the GitHub release (changelog from the bump commit)
         id: publish
@@ -752,7 +751,10 @@ jobs:
           REL_ID=$(jq -r .id /tmp/release.json)
           BODY=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/releases/$REL_ID" | jq -r .body)
-          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release\n- **Build EAS:** %s' "$BODY" "$EAS_BUILD_URL")
+          NEW_BODY=$(printf '%s\n\n## 🚀 Production\n- **Web:** https://board-game-organizer.com\n- **API:** https://api.board-game-organizer.com\n- **APK:** allegato alla release' "$BODY")
+          if [ -n "$EAS_BUILD_URL" ]; then
+            NEW_BODY=$(printf '%s\n- **Build EAS:** %s' "$NEW_BODY" "$EAS_BUILD_URL")
+          fi
           PAYLOAD=$(jq -n --arg body "$NEW_BODY" '{body:$body}')
           curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -808,13 +810,16 @@ jobs:
         env:
           VERSION: ${{ needs.release.outputs.version }}
           RELEASE_URL: ${{ needs.publish-release.outputs.release_url }}
+          EAS_BUILD_URL: ${{ needs.publish-release.outputs.eas_build_url }}
         run: |
           cat > /tmp/telegram-links.html <<EOF
           📱 <a href="$RELEASE_URL">APK (GitHub)</a>
-          ☁️ <a href="${{ needs.publish-release.outputs.eas_build_url }}">Build (EAS production)</a>
           🌐 <a href="https://board-game-organizer.com">Web (produzione)</a>
           🔌 <a href="https://api.board-game-organizer.com">API (produzione)</a>
           EOF
+          if [ -n "$EAS_BUILD_URL" ]; then
+            printf '☁️ <a href="%s">Build (EAS production)</a>\n' "$EAS_BUILD_URL" >> /tmp/telegram-links.html
+          fi
 
       - name: 📤 Send Telegram notification
         uses: ./.github/actions/telegram-notify

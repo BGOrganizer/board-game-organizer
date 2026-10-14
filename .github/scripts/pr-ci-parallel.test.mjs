@@ -176,13 +176,15 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   assert.ok(steps.indexOf(publish) > steps.indexOf(upload));
   assert.equal(upload.env.EXPO_TOKEN, `\${{ secrets.EXPO_TOKEN }}`);
   assert.equal(upload.env.APK_PATH, `\${{ steps.meta.outputs.apk-path }}`);
-  assert.match(upload.run, /eas upload --platform android --build-path .* --json/);
+  assert.match(upload.run, /node .*eas-upload\.mjs "\$GITHUB_WORKSPACE\/\$APK_PATH"/);
   assert.equal(publish.with["eas-build-url"], `\${{ steps.eas.outputs.url }}`);
   assert.equal(publish.with["apk-path"], `\${{ steps.meta.outputs.apk-path }}`);
   assert.match(notify.run, /steps\.draft\.outputs\.apk_url/);
-  assert.match(notify.run, /steps\.eas\.outputs\.url/);
+  assert.equal(notify.env.EAS_BUILD_URL, `\${{ steps.eas.outputs.url }}`);
+  assert.match(notify.run, /if \[ -n "\$EAS_BUILD_URL" \]/);
   const action = parse(readFileSync(".github/actions/publish-draft-release/action.yml", "utf8"));
-  assert.equal(action.inputs["eas-build-url"].required, true);
+  assert.equal(action.inputs["eas-build-url"].required, false);
+  assert.equal(action.inputs["eas-build-url"].default, "");
   assert.match(JSON.stringify(action.runs.steps), /__EAS_BUILD__/);
 });
 

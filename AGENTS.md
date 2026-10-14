@@ -769,6 +769,11 @@ Runs pull-request gates (Maestro and Playwright are retained but explicitly disa
 6. publish only the development-API APK to the draft prerelease and Telegram after every enabled gate
    and cleanup passes. A green PR run is not E2E acceptance; main E2E and manual Maestro gates remain enabled.
 
+EAS artifact registration is optional only for its explicit exhausted local monthly quota (exit 4
+and the matching provider message). APK builds, validation, E2E policy and cleanup remain mandatory.
+PR/main publication and Telegram continue with the verified GitHub APK but omit the unavailable EAS
+link. Generic GraphQL, authentication, malformed responses and other upload errors still fail.
+
 A new PR commit cancels the previous run. A trusted `workflow_run` watchdog polls for job failures
 and cancels the entire PR run; GitHub marks the run `cancelled`, while the failing job retains its
 failure. A separate trusted `workflow_run` cleanup removes exact-run CI users and the isolated
