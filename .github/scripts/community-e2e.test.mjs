@@ -1321,6 +1321,9 @@ test("native failure diagnostics stay bounded when the emulator disappears", () 
           "-c",
           `
             mkdir -p "$DIAG_ROOT/maestro-debug"
+            free() { echo "Mem: 16000 12000 4000"; }
+            ps() { echo "42 1 8000000 qemu-system-x86"; }
+            sudo() { echo "Out of memory: Killed process 42 (qemu-system-x86)"; }
             adb() {
               printf '%s\\n' "$*" >> "$DIAG_ROOT/commands.txt"
               if [ "$1" = get-state ] && [ "$DEVICE_STATE" != ready ]; then return 1; fi
@@ -1345,8 +1348,12 @@ test("native failure diagnostics stay bounded when the emulator disappears", () 
       assert.equal(result.status, 0, result.stderr);
       const commands = readFileSync(join(root, "commands.txt"), "utf8");
       const deadlines = readFileSync(join(root, "deadlines.txt"), "utf8");
+      assert(deadlines.includes("10 sudo -n dmesg"));
       assert(deadlines.includes("10 adb get-state"));
       assert(deadlines.includes("15 adb shell pkill -f screenrecord"));
+      const host = readFileSync(join(root, "maestro-debug/failure-host.txt"), "utf8");
+      assert.match(host, /Mem: 16000 12000 4000/);
+      assert.match(host, /Out of memory: Killed process 42/);
       if (state === "ready") {
         assert(commands.includes("screencap"));
         assert(deadlines.includes("30 adb shell uiautomator dump"));

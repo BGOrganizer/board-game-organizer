@@ -222,3 +222,63 @@ test("SDK cache survives failed acceptance without persisting emulator identity 
   assert.equal(gradle.with.path.trim(), "~/.gradle/caches/modules-2\n~/.gradle/wrapper");
   assert.doesNotMatch(JSON.stringify(build), /~\/\.eas-build-local/);
 });
+
+test("native acceptance preserves normal animations and Android failure dialogs", () => {
+  const boot = emulator.runs.steps.find((step) => step.name === "📱 Boot emulator").run;
+  for (const setting of [
+    "window_animation_scale",
+    "transition_animation_scale",
+    "animator_duration_scale",
+  ])
+    assert.match(boot, new RegExp(`settings put global ${setting} 1\\.0\\n`));
+  assert.match(boot, /settings put global hide_error_dialogs 0\n/);
+});
+
+test("lost-device capture retains bounded host memory/kernel evidence without command arguments or secrets", () => {
+  const script = readFileSync(".github/scripts/maestro-e2e.sh", "utf8");
+  const capture = script.slice(script.indexOf("capture() {"), script.indexOf('case "${1:-}" in'));
+  assert.match(capture, /timeout 10 sudo -n dmesg/);
+  assert.match(capture, /ps -eo pid,ppid,rss,comm --sort=-rss/);
+  const folder = mkdtempSync(join(tmpdir(), "bgo-emulator-host-"));
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  try {
+    const result = spawnSync(
+      bash,
+      [
+        "-e",
+        "-o",
+        "pipefail",
+        "-c",
+        `
+      free() { echo "Mem: 16000 12000 4000"; }
+      ps() { echo "42 1 8000000 qemu-system-x86"; }
+      sudo() { echo "Out of memory: Killed process 42 (qemu-system-x86)"; }
+      timeout() { shift; "$@"; }
+      adb() { return 1; }
+      stop_recording() { :; }
+      ${capture.replaceAll("/tmp/maestro-debug/", '"$HOST_FIXTURE/"')}
+      capture
+    `,
+      ],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          HOST_FIXTURE: folder.replaceAll("\\", "/"),
+          E2E_PASSWORD: "fixture-private-password",
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const evidence = readFileSync(join(folder, "failure-host.txt"), "utf8");
+    assert.match(evidence, /Mem: 16000 12000 4000/);
+    assert.match(evidence, /Out of memory: Killed process 42/);
+    assert.doesNotMatch(evidence, /fixture-private-password/);
+    assert.equal(
+      readFileSync(join(folder, "failure-device.txt"), "utf8").trim(),
+      "Android device unavailable after Maestro failure",
+    );
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});

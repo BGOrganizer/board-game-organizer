@@ -127,10 +127,12 @@ runs:
         fi
         sleep 45 # let the input service settle before interacting
         adb shell input keyevent 82 || true
-        adb shell settings put global window_animation_scale 0.0 || true
-        adb shell settings put global transition_animation_scale 0.0 || true
-        adb shell settings put global animator_duration_scale 0.0 || true
-        adb shell settings put global hide_error_dialogs 1 || true
+        # Acceptance exercises normal motion and exposes Android crash/ANR dialogs.
+        adb shell settings put global window_animation_scale 1.0
+        adb shell settings put global transition_animation_scale 1.0
+        adb shell settings put global animator_duration_scale 1.0
+        adb shell settings put global hide_error_dialogs 0
+        free -m
         adb logcat -c
         echo "BGO_EMULATOR_PID=$EMU_PID" >> "$GITHUB_ENV"
         EMULATOR_READY=1

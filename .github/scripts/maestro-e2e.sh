@@ -44,6 +44,13 @@ stop_recording() {
   timeout 15 adb shell pkill -f screenrecord >/dev/null 2>&1 || true
 }
 capture() {
+  # Host evidence remains available when Android itself has disappeared. Never log args/env.
+  {
+    date -u
+    free -m
+    ps -eo pid,ppid,rss,comm --sort=-rss | head -20 || true
+    timeout 10 sudo -n dmesg | grep -Ei 'out of memory|oom|killed process|segfault' | tail -60 || true
+  } > /tmp/maestro-debug/failure-host.txt 2>&1
   # A lost emulator must fail, not leave adb waiting forever before reports persist.
   if ! timeout 10 adb get-state >/dev/null 2>&1; then
     printf '%s\n' 'Android device unavailable after Maestro failure' > /tmp/maestro-debug/failure-device.txt
