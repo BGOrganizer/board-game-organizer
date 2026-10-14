@@ -51,3 +51,4 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   heroui-native@1.0.9: patches/heroui-native@1.0.9.patch
+  react-native-screens@4.26.2: patches/react-native-screens@4.26.2.patch

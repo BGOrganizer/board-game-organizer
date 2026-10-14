@@ -1,0 +1,36 @@
+appId: com.bgo.mobile
+---
+# Caller opens an empty address search. Only a provider result may be confirmed.
+- extendedWaitUntil:
+    visible: "Search address"
+    timeout: 30000
+- assertVisible: "Map by MapTiler"
+- tapOn: "Location name"
+- eraseText: 100
+- inputText: ${LOCATION_NAME}
+- hideKeyboard
+- tapOn: "Search address"
+- inputText: ${ADDRESS_QUERY}
+- assertVisible:
+    id: "location-address-input"
+    text: ${ADDRESS_QUERY}
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "address-result-0"
+    timeout: 30000
+- tapOn:
+    id: "address-result-0"
+- scrollUntilVisible:
+    element: "Confirm location"
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    id: "location-address-input"
+    text: ".*(Roma|Rome).*"
+- tapOn: "Confirm location"
+- extendedWaitUntil:
+    notVisible:
+      id: "location-address-input"
+    timeout: 30000
+- assertVisible: ${LOCATION_NAME}

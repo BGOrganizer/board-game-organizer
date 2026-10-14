@@ -879,3 +879,153 @@ replace the actual executed acceptance reports above.
   source until push is authorized; rerunning the old SHA would not test these fixes. Authenticated
   local E2E likewise requires explicitly configured primary/target test accounts. Do not recreate
   accounts to bypass Device Trust, clear historical emulator state or infer full CI acceptance.
+
+## Native Maestro replacement — acceptance pending
+
+- Operator requested replacement of the existing native suite, not a parallel second suite.
+  All 14 flow entrypoints and their helpers were rewritten; configuration still discovers only
+  the same 13 ordered CI journeys and stops on failure. Public-match and extra organization
+  scenarios require their own isolated fixtures and do not count toward those reports.
+- Reviewed and project-locked `maestro-mobile-testing` from
+  [foreztgump/maestro-mobile-testing-skill](https://github.com/foreztgump/maestro-mobile-testing-skill),
+  whose guide declares verification against Maestro 2.11.0. Pi discovery was checked explicitly.
+  Official version-matched documentation, domain rules and CI gates remain authoritative;
+  community examples do not authorize mocked responses, optional required actions, synthetic
+  visibility markers, animation disabling or cloud dependencies.
+- Current structural evidence: 41 YAML files parse, referenced flows/scripts resolve, all
+  **80 script-policy tests pass**, all **14 entrypoints pass Maestro CLI syntax**, scoped Biome
+  and diff checks pass. Assertion floors now exclude only explicitly removed transient feedback;
+  policies preserve exact actor authentication, Device Trust, real permission/share actions,
+  native calendar validation, overlay closure and all 13 distinct non-skipped JUnit gates.
+  These are structural safeguards, not native acceptance.
+- Latest clean local batch: **6/13 canonical journeys passed** — Welcome, required onboarding,
+  startup deep link, **full Contacts (891.777 seconds)**, Profile/logout and reauthentication.
+  Six distinct successful non-skipped JUnit reports were verified against the unchanged Maestro
+  source fingerprint. A subsequent fresh ordered 13-flow suite repeated all six passes, then
+  failed at Match; separate Match reruns still lose the required four-second feedback sequence
+  although creation persists. A separate full Groups journey passed. Group invitations exposed
+  an actual Android notification-consent prompt: the flow now completes it and waits for the
+  inbox automatically opened by the app, without a second bell tap that would close it.
+  Earlier invitation-tail diagnosis did not expose the inbox; consent handling alone had not
+  established its pass. Subsequent complete invitation/BGG passes are recorded below. Separate full Organizations and Event draft journeys passed with
+  successful non-skipped JUnit reports. Organizations now waits for the authenticated runtime
+  before setup navigation after launch. The subsequent night-mode cold-start journey failed:
+  Android exit history and tombstone confirm native SIGSEGV in Fabric MountingCoordinator,
+  not a missing Maestro selector alone. A subsequent patched-APK cold-start/logout journey passed
+  as described below; full Match remains unresolved.
+  Separate runs and helper revisions are not aggregated into a full 13/13 claim.
+- Earlier Contacts failures exposed native Copy link labeling, address-book/API target duplicates,
+  concatenated search emails and ambiguous navigation waits. Search now targets the actual
+  `contact-search-input`, clears with the real Clear search action, requires an exact escaped
+  literal input value and waits for API results. The existing `contacts?tab=search` route and
+  actual input replace static tab-label waits. Real diagnostic probes helped isolate these
+  failures; only the subsequent complete clean Contacts JUnit report establishes its pass.
+  Fresh mobile units **175/175** and mobile typecheck also passed after those corrections.
+- Match runtime review exposed keyboard restoration after native date/time dialogs, real Android
+  location/provider consents, and edit navigation while a preference sheet was present. Helpers now
+  close only a visible native keyboard, handle actual consent dialogs, require preference-sheet
+  opening/closure and target the real edit FAB. Real date/GPS and complete edit/delete diagnostic
+  tails passed; **full rewritten Match remains pending**. Refreshed supporting checks: script
+  policies **78/78**, Maestro CLI syntax **17/17**. Neither establishes native acceptance.
+- The native crash signature matches the upstream Screens listener-lifetime race described in
+  [Screens #4654](https://github.com/software-mansion/react-native-screens/issues/4654).
+  Backported the official four-file Android/C++ fix from
+  [Screens #4413](https://github.com/software-mansion/react-native-screens/pull/4413) through pnpm's
+  managed patch, retaining **react-native-screens 4.26.2** and Expo-compatible versions. No renderer,
+  animation, Sentry/privacy or acceptance checks were disabled. A fresh frozen graph installation
+  passed after retaining interrupted Windows hoisted-layout modules privately. The new debug APK
+  compiled successfully with local serialized native compilation after a retained compiler
+  out-of-memory failure. Private Metro setup now excludes private Git/worktree archives from its
+  file map; the first bundle then completed in 15 seconds. The complete **04-dark-mode** journey
+  passed on that APK, with one verified successful non-skipped JUnit testcase. This is one real
+  cold-start/logout pass, not proof that every intermittent crash is eliminated or that CI/full-suite
+  acceptance is complete. Refreshed checks: **79/79** script policies, **175/175** mobile units,
+  mobile typecheck, Expo compatibility, scoped Biome and diff checks. Owned-domain testing continues.
+- Subsequent complete **09-group-invitations (574.833 seconds)** and
+  **10-bgg-collection (264.602 seconds)** passed on the patched APK. Their distinct JUnit reports
+  each contain one successful testcase and no failures, errors or skipped cases; XML validation
+  also checked suite skip counts. The Game cafe favorite was created through actual Match UI before
+  its feedback failure and retained through actual diagnostic-match deletion, not fabricated for BGG.
+  Only full **06-match-wizard** still lacks a pass. Its save tap took 9.2 seconds while the feedback
+  duration remains 4 seconds. A separate update/title/close diagnostic passed, but subsequent
+  creation video proves a saved Match card followed by a delayed close tap opening the Profile
+  button underneath the expired toast. A passed disappearance assertion alone is insufficient.
+  Testing now compares hardware GPU rendering on the same owned emulator, retaining WHPX,
+  viewport, APK, source, animations and toast duration. No successful full Match claim is made.
+  These independent passes still do not establish one unchanged-source, clean ordered 13/13 run.
+- **Historical operator pause.** The hardware-GPU Match attempt still failed on the transient close.
+  Owned API/Metro processes were stopped; the owned emulator was already offline at pause
+  verification. Fixture/database/AVD data and evidence remain preserved; original/shared resources
+  were not changed. The operator's next scope explicitly removes native E2E disappearing-toast
+  assertions/taps in favor of persisted feature outcomes. This supersedes the previous mandatory
+  transient title/close acceptance requirement; product feedback/duration, durable inbox
+  notifications and feature/authorization/permission coverage remain unchanged.
+- **Explicitly resumed by operator; transient acceptance removed.** Native journeys no longer
+  assert/tap disappearing mutation toasts, progress labels or short tap-settling overrides.
+  Existing persisted match cards/headings, vote values/counts, roster changes and deletion outcomes
+  remain mandatory, as do durable inbox notifications, actual native consent/dialog closure and
+  domain date/time validation. Product feedback, duration and animations are untouched. Floors were
+  reduced only by the removed feedback assertions (Contacts 3, Match 5, Invitations 1), without
+  count padding. Same two Development fixtures re-attested; only owned services/AVD resume.
+  Refreshed mobile units **175/175** and mobile typecheck pass. Initial database preparation was
+  blocked by localhost MongoDB connection refusal and the absent Docker Linux daemon. Operator
+  subsequently started Docker and explicitly authorized MongoDB startup: Mongo 7 now reuses the
+  existing data volume, with replica set `rs0` writable and no automatic catalog import/deletion.
+  Only the attested CI-pattern database and owned fixtures are reset for native runs.
+- **Complete Match now passed (457.944 seconds).** Actual preference sheets use the titles
+  Choose date/game/location, not the fallback Choose preference. Editing is verified in the list
+  and reopened detail before destructive menu actions. Full creation, all three votes, unavailable
+  confirmation, leaderboard, editing and cancel/confirm deletion passed with one successful
+  non-skipped JUnit testcase. Earlier title/menu failures and the diagnostic tail remain retained;
+  neither is counted as a full pass.
+- Fresh ordered runs stopped at onboarding: text had reached the country search rather than the
+  phone input. Country closure now targets the actual Search countries heading; native keyboard
+  closure happens before selecting Germany/Italy and before Continue. The exact phone-input value
+  remains mandatory, with all country/search/auth/onboarding assertions retained. A subsequent
+  complete **02-login** passed; **80/80** policies, scoped Biome and syntax checks pass. The next
+  ordered run passed Welcome/login/startup and stopped at Contacts' first permission prompt:
+  retained Android user flags and Expo's `didAsk` cache no longer represented a fresh install.
+  Owned preparation now resets only contacts/notification request-history metadata and denial
+  flags, with the app stopped, permissions still denied, other preferences/auth/address book
+  preserved and actual consent steps unchanged. The failed run is retained, not counted as green.
+  Required next evidence remains one clean unchanged-source ordered 13/13 run. No new commit,
+  push or CI dispatch.
+- The next ordered attempt passed its first eight journeys, then failed at the contacts menu in
+  **09-group-invitations**; it is not a 13/13 result. The controlled shared sheet no longer depends
+  on layout of its own closed content. The managed HeroUI 1.0.9 source/distributed-JS patch now
+  honors the controlled initial index and reports swipe closure only after actual pan activation;
+  versions, feedback and animation settings are unchanged. Deterministic tests execute the real
+  index expression and closure handler. Friendship setup uses real removal only if necessary,
+  followed by unconditional request and acceptance. An initial private probe incorrectly expected
+  Remove friend when the actual menu correctly offered Send friend request; diagnostic logs were
+  removed before the clean cold-menu/back probe and **complete 09** passed, with one successful
+  non-skipped testcase at `runs/1791979068286-09-group-invitations/report.xml` (private artifacts).
+  Refreshed checks pass: **80/80** policies, **1,444** unit tests (mobile 176, web 512, API 541,
+  schemas 92, shared 123), all four typecheck tasks and scoped intended-source Biome. The frozen
+  serial installation recovered a temporary pnpm ENOENT import failure; no versions were upgraded.
+  After real logout and attested isolated reset/denied-permission preparation, fresh ordered run
+  `1791980052956` stopped at Match after six passes: Android ANR during native dialog focus change.
+  Private bugreport shows the main thread waiting for RenderProxy and RenderThread blocked in the
+  emulator's EGL window-surface creation; JavaScript was idle. Date/time checks remained required.
+- **Clean ordered local native acceptance: 13/13.** At the operator's request, run `1791982842944`
+  attempted all thirteen canonical journeys without fail-fast, after an owned-only restart with
+  identical host GPU/WHPX/settings and fresh owned preparation. Every journey passed once; thirteen
+  distinct JUnit reports were independently parsed, with zero failures, skips, timeouts or
+  between-journey recoveries/retries. Source digest before/after is
+  `b57b40fcad0da154150b2b34876538f77f23aed9d766ef76ee3529ba08b20ee5`; the installed APK matches
+  `bb5b174d4b507237aacfabf9311688435db3e1e1cc4499f892cfe9c0e88efd09` and the patched local build.
+  GPU renderer, product feedback, animations and date/time assertions were unchanged. Private
+  report and verification artifacts remain under `.git/local-maestro/`; historical failures are
+  retained and not aggregated. The operator subsequently authorized signed commit/push and
+  exact-SHA PR CI monitoring/fixes; remote acceptance is still required.
+- Local native work reuses the same two attested owned Development fixtures, isolated CI-pattern
+  database and separately owned emulator. Original emulator, physical devices, shared MongoDB,
+  private configuration and real accounts remain untouched. Local API 37 debug/WHPX execution
+  does not replace CI API 34 release/KVM acceptance.
+- Before this rewrite, the pushed head was `8553a0016aab1b098a37f59d5cdc2eec75a9ffcd`.
+  PR run `38293771332` was cancelled after native failure: browser **83/83**, quality gates,
+  integration, previews and both APK builds passed; native passed its first three journeys,
+  then failed and lost the emulator. Owned fixture/database cleanup passed; publication and
+  Telegram were cancelled. Branch run `38293768035` succeeded. These historical runs do not
+  verify the rewrite. Local 13/13 is now recorded above; remaining evidence is exact-SHA PR CI
+  through native/browser acceptance, cleanup and publication.

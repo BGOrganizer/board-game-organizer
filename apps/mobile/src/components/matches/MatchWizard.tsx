@@ -329,7 +329,13 @@ export function MatchWizard({ initialData }: { initialData?: MatchDetailResponse
             <Typography style={{ fontSize: 18, fontWeight: "600" }}>
               {initialData ? t("Edit match") : t("New match")}
             </Typography>
-            <Input value={name} onChangeText={setName} placeholder={t("e.g. Friday night games")} />
+            <Input
+              testID="match-name-input"
+              accessibilityLabel={t("Match name")}
+              value={name}
+              onChangeText={setName}
+              placeholder={t("e.g. Friday night games")}
+            />
             {name.trim().length > 0 && name.trim().length < 5 && (
               <Typography style={{ color: "#f31260", fontSize: 13 }}>
                 {t("At least 5 characters")}

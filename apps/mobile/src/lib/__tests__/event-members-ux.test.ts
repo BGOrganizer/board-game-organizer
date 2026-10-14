@@ -1,5 +1,7 @@
 // Source contracts only: Maestro owns actual native dialogs, keyboard and picker acceptance.
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
@@ -219,11 +221,118 @@ it("mounts the social sheet closed even with no selected user, allowing the firs
   const sheet = source("common/ui/UserActionsSheet.tsx");
   expect(sheet).not.toContain("if (!user) return null");
   expect(sheet).toContain("isOpen={visible && Boolean(user) && !confirmation}");
+  expect(sheet).not.toContain("menuReady");
   expect(sheet).toContain('cancelTestID="cancel-confirmation-btn"');
   expect(sheet).toContain("onCancel={() => setConfirmAction(null)}");
   expect(sheet).toContain("user ? userActionKeys");
   expect(sheet).toContain("BottomSheet.Title>{user?.name}");
 });
+it("removes the social portal without a visible selected user while keeping the root ready for first open", () => {
+  const text = source("common/ui/UserActionsSheet.tsx");
+  const ast = ts.createSourceFile(
+    "UserActionsSheet.tsx",
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let condition = "";
+  function visit(node: ts.Node) {
+    if (
+      ts.isConditionalExpression(node) &&
+      node.whenTrue.getText(ast).includes("<BottomSheet.Portal>")
+    )
+      condition = node.condition.getText(ast);
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  expect(condition).not.toBe("");
+  for (const visible of [false, true]) {
+    for (const user of [null, { id: "selected" }]) {
+      expect(Boolean(runInNewContext(condition, { visible, user }))).toBe(visible && user !== null);
+    }
+  }
+  let open = "";
+  function findLifecycle(node: ts.Node) {
+    if (ts.isJsxAttribute(node) && node.initializer && ts.isJsxExpression(node.initializer)) {
+      const expression = node.initializer.expression;
+      if (expression && node.name.getText(ast) === "isOpen") open = expression.getText(ast);
+      expect(node.name.getText(ast)).not.toBe("onLayout");
+    }
+    ts.forEachChild(node, findLifecycle);
+  }
+  findLifecycle(ast);
+  expect(open).not.toBe("");
+  // The controlled open intent cannot depend on layout of content kept closed by that intent.
+  for (const visible of [false, true]) {
+    for (const user of [null, { id: "selected" }]) {
+      for (const confirmation of [null, { title: "Confirm" }]) {
+        expect(Boolean(runInNewContext(open, { visible, user, confirmation }))).toBe(
+          visible && user !== null && confirmation === null,
+        );
+      }
+    }
+  }
+});
+
+it("opens controlled native sheets on first mount and reports only an actual completed pan as swipe closure", () => {
+  const entry = createRequire(import.meta.url).resolve("heroui-native/bottom-sheet");
+  const modules = dirname(dirname(dirname(entry)));
+  const content = readFileSync(
+    join(modules, "helpers/internal/components/bottom-sheet-content.js"),
+    "utf8",
+  );
+  const container = readFileSync(
+    join(modules, "helpers/internal/components/bottom-sheet-content-container.js"),
+    "utf8",
+  );
+  let index = "";
+  const ast = ts.createSourceFile("content.js", content, ts.ScriptTarget.Latest, true);
+  function findIndex(node: ts.Node) {
+    if (ts.isPropertyAssignment(node) && node.name.getText(ast) === "index")
+      index = node.initializer.getText(ast);
+    ts.forEachChild(node, findIndex);
+  }
+  findIndex(ast);
+  expect(index).not.toBe("");
+  for (const isOpen of [false, true]) {
+    for (const initialIndex of [undefined, 0, 1]) {
+      expect(runInNewContext(index, { isOpen, initialIndex })).toBe(
+        isOpen ? (initialIndex ?? 0) : -1,
+      );
+    }
+  }
+  let reaction = "";
+  const callbackAst = ts.createSourceFile("container.js", container, ts.ScriptTarget.Latest, true);
+  function findReaction(node: ts.Node) {
+    if (ts.isCallExpression(node) && node.expression.getText(callbackAst) === "useAnimatedReaction")
+      reaction = node.arguments[1].getText(callbackAst);
+    ts.forEachChild(node, findReaction);
+  }
+  findReaction(callbackAst);
+  expect(reaction).not.toBe("");
+  for (const value of [1, 1.5, 1.8, 2]) {
+    for (const pan of [false, true]) {
+      for (const dragging of [false, true]) {
+        for (const closing of [false, true]) {
+          const closeBottomSheet = vi.fn();
+          const shared = (value: boolean) => ({ get: () => value, set: vi.fn() });
+          runInNewContext(`(${reaction})`, {
+            isPanActivated: shared(pan),
+            isDragging: shared(dragging),
+            isClosingOnSwipe: shared(closing),
+            scheduleOnRN: (callback: () => void) => callback(),
+            closeBottomSheet,
+          })(value);
+          expect(closeBottomSheet).toHaveBeenCalledTimes(
+            pan && value > 1.5 && !dragging && !closing ? 1 : 0,
+          );
+        }
+      }
+    }
+  }
+});
+
 it("keeps social confirmations outside every bottom sheet and preserves the selected user while the menu closes", () => {
   const paths = ["common/ui/UserActionsSheet.tsx", "matches/MatchDetail.tsx"];
   let confirms = 0;
@@ -296,6 +405,13 @@ it("reuses the same social action sheet for contacts, groups, matches and organi
     expect(text, path).not.toContain("function UserActionsSheet");
   }
 });
+it("gives the native match name input a translated accessible label in creation and editing", () => {
+  const wizard = source("matches/MatchWizard.tsx");
+  expect(wizard).toMatch(
+    /<Input\s+testID="match-name-input"\s+accessibilityLabel=\{t\("Match name"\)\}\s+value=\{name\}\s+onChangeText=\{setName\}/,
+  );
+});
+
 it("keeps one day, two native time fields, counted table limit, and time-only fixed-size cards", () => {
   const wizard = source("events/EventWizard.tsx");
   expect(wizard.match(/mode="date"/g)).toHaveLength(1);

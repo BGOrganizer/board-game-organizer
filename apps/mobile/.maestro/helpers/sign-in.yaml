@@ -1,10 +1,10 @@
 appId: com.bgo.mobile
 ---
-# AuthView may show its provider chooser again after logout. Select the email
-# method if present, then target the input placeholder, never a method button.
+- runScript: auth-email.js
+- assertVisible: "Sign in / Register"
 - tapOn: "Sign in / Register"
 - extendedWaitUntil:
-    visible: ".*[Ee]mail.*|.*[Uu]sername.*"
+    visible: "^Email address$|.*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
     timeout: 120000
 - runFlow:
     when:
@@ -15,13 +15,12 @@ appId: com.bgo.mobile
     visible: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
     timeout: 120000
 - tapOn: ".*[Ee]nter your [Ee]mail.*|.*[Ee]mail or username.*"
-# The floating label focuses a remembered field with the caret in the middle.
-# Select the whole old fixture email before deleting, not only its prefix.
+# Clerk may retain an identifier. Native Select all avoids deleting only a suffix.
 - runFlow:
     when:
       visible: "Last used"
     commands:
-      - longPressOn: ".*clerk_test@gmail.com$"
+      - longPressOn: '^[^\s@]+@[^\s@]+$'
       - runFlow:
           when:
             notVisible: "[Ss]elect [Aa]ll"
@@ -31,7 +30,6 @@ appId: com.bgo.mobile
                   visible: "More options"
                 commands:
                   - tapOn: "More options"
-      # Android may already select the entire email, omitting Select all.
       - runFlow:
           when:
             visible: "[Ss]elect [Aa]ll"
@@ -39,15 +37,13 @@ appId: com.bgo.mobile
             - tapOn: "[Ss]elect [Aa]ll"
       - eraseText: 1
 - inputText: ${AUTH_EMAIL}
-- runScript: "auth-email.js"
 - assertVisible: ${output.authEmailPattern}
 - tapOn: "Continue"
 - extendedWaitUntil:
     visible: "^[Ee]nter your [Pp]assword$"
     timeout: 60000
-# The heading and account hint also contain "password"; only the input says "your".
 - tapOn: "^[Ee]nter your [Pp]assword$"
 - eraseText: 100
 - inputText: ${AUTH_PASSWORD}
 - tapOn: "Continue"
-- runFlow: "verify-clerk-device.yaml"
+- runFlow: verify-clerk-device.yaml

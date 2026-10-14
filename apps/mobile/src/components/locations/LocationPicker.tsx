@@ -440,8 +440,8 @@ export default function LocationPicker({
         testID="location-address-input"
         label={t("Search address")}
         placeholder={t("Search address")}
-        inputStyle={{ paddingRight: 100 }}
-        clearButtonStyle={{ right: 48 }}
+        inputStyle={{ paddingEnd: 100 }}
+        clearButtonStyle={{ end: 48 }}
       >
         <Button
           isIconOnly

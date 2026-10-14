@@ -1,0 +1,130 @@
+appId: com.bgo.mobile
+---
+- assertNotVisible: "^Choose (date|game|location)$"
+- tapOn:
+    id: "edit-match-fab"
+- extendedWaitUntil:
+    visible:
+      id: "match-name-input"
+    timeout: 30000
+- assertVisible: "Edit match"
+- tapOn:
+    id: "match-name-input"
+- eraseText: 100
+- inputText: "Updated game night"
+- assertVisible:
+    id: "match-name-input"
+    text: "^Updated game night$"
+- hideKeyboard
+- tapOn:
+    id: "remove-date-slot"
+- assertNotVisible:
+    id: "remove-date-slot"
+- assertVisible: "Pick date and time"
+- runFlow: match-date-time.yaml
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 30000
+- assertVisible: "Game cafe.*"
+- tapOn:
+    id: "location-slot-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-select"
+    timeout: 30000
+- tapOn: "Location name"
+- eraseText: 100
+- inputText: "Temporary name"
+- scrollUntilVisible:
+    element:
+      id: "favorite-location-select"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-select"
+- assertVisible: "Favorite locations"
+- extendedWaitUntil:
+    visible:
+      id: "favorite-location-0"
+    timeout: 30000
+- tapOn:
+    id: "favorite-location-0"
+- assertVisible: "Game cafe"
+- scrollUntilVisible:
+    element: "Confirm location"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Confirm location"
+- extendedWaitUntil:
+    visible: "Locations"
+    timeout: 30000
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 30000
+- tapOn:
+    id: "next-step-fab"
+- extendedWaitUntil:
+    visible: "Board games"
+    timeout: 30000
+- assertVisible: "Cascadia"
+- tapOn:
+    id: "remove-game-slot"
+- assertVisible: "Select a board game"
+- tapOn: "Select a board game"
+- tapOn:
+    id: "game-search-input"
+- inputText: "Cascadia"
+- extendedWaitUntil:
+    visible: "Select: Cascadia.*"
+    timeout: 30000
+- tapOn: "Select: Cascadia.*"
+- assertVisible: "Cascadia"
+- tapOn: "Save changes"
+- extendedWaitUntil:
+    visible:
+      id: "more-match-actions"
+    timeout: 30000
+- assertVisible: "Updated game night"
+# Verify the saved edit in the list and reopened detail before destructive actions.
+- openLink: bgo:///matches
+- extendedWaitUntil:
+    visible: "Updated game night"
+    timeout: 30000
+- assertNotVisible: "Friday night games"
+- tapOn: "Updated game night"
+- extendedWaitUntil:
+    visible:
+      id: "more-match-actions"
+    timeout: 30000
+- assertVisible: "Updated game night"
+- tapOn:
+    id: "more-match-actions"
+- assertVisible: "Delete match"
+- tapOn:
+    id: "delete-match-action"
+- assertVisible: '^Delete match\?$'
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "Updated game night"
+- tapOn:
+    id: "more-match-actions"
+- tapOn:
+    id: "delete-match-action"
+- assertVisible: '^Delete match\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirmation-dialog"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 30000
+- assertNotVisible: "Updated game night"

@@ -1,0 +1,59 @@
+appId: com.bgo.mobile
+---
+- tapOn:
+    id: "event-tab-tables"
+- assertVisible:
+    id: "edit-event-fab"
+- assertNotVisible: "Edit table: Cascadia event table"
+- assertNotVisible: "Remove table: Cascadia event table"
+- tapOn: "Open table: Cascadia event table"
+- assertVisible: "Table details"
+- assertVisible: "Table name"
+- assertVisible: "Cascadia event table"
+- assertVisible: "Date and time"
+- assertNotVisible: "Table location help"
+- assertVisible: "Board games"
+- assertVisible: "Cascadia"
+- assertNotVisible: "Open event table"
+- tapOn: "Date and time help"
+- extendedWaitUntil:
+    visible: "The event day and this table's start and end times are fixed. There is no voting."
+    timeout: 30000
+- back
+- assertNotVisible: "The event day and this table's start and end times are fixed. There is no voting."
+- tapOn: "Table name help"
+- extendedWaitUntil:
+    visible: "Confirmed players."
+    timeout: 30000
+- assertVisible: "Maximum seats here; free places in Seats."
+- assertVisible: "Reserved places, including pending requests."
+- back
+- assertNotVisible: "Confirmed players."
+- tapOn: "Table game help"
+- extendedWaitUntil:
+    visible: "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
+    timeout: 30000
+- back
+- assertNotVisible: "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
+- assertVisible:
+    id: "edit-event-table-fab"
+- tapOn:
+    id: "edit-event-table-fab"
+- assertVisible:
+    id: "event-table-header-back"
+- tapOn:
+    id: "event-table-header-back"
+- tapOn:
+    id: "table-players-tab"
+- assertVisible:
+    id: "event-table-players"
+- assertVisible: "Empty place"
+- assertVisible: "Minimum players"
+- assertVisible: "Maximum players"
+- assertNotVisible: "Invite organization members"
+- assertNotVisible: "Request a place"
+- back
+- tapOn:
+    id: "event-tab-details"
+- assertVisible:
+    id: "edit-event-fab"

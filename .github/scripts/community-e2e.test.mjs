@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
+import { parseAllDocuments } from "yaml";
 
 const action = readFileSync(
   new URL("../actions/maestro-e2e/action.yml", import.meta.url),
@@ -19,6 +20,164 @@ const workflows = ["pr-ci.yml", "main-ci.yml", "mobile-e2e.yml"].map((name) =>
   readFileSync(new URL(`../workflows/${name}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"),
 );
 const flows = [...workflows[0].matchAll(/^\s+flow: ([\w-]+)$/gm)].map((match) => match[1]);
+
+// Read actual reachable subflows with their declared parameters, not unused helper text.
+function nativeSteps(name, env = {}, stack = []) {
+  const url = new URL(`../../apps/mobile/.maestro/${name}`, import.meta.url);
+  assert(!stack.includes(url.href), `Recursive native flow: ${name}`);
+  const docs = parseAllDocuments(readFileSync(url, "utf8"));
+  for (const doc of docs) assert.deepEqual(doc.errors, []);
+  assert.equal(docs.length, 2);
+  assert.equal(docs[0].toJSON().appId, "com.bgo.mobile");
+  const result = [];
+  const resolve = (value) => {
+    if (typeof value === "string")
+      return value.replace(/\$\{([A-Z][A-Z0-9_]*)\}/g, (match, key) => env[key] ?? match);
+    if (Array.isArray(value)) return value.map(resolve);
+    if (value && typeof value === "object")
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, resolve(item)]));
+    return value;
+  };
+  function visit(commands) {
+    for (const raw of commands) {
+      const step = typeof raw === "string" ? { [raw]: null } : resolve(raw);
+      result.push(step);
+      const call = step.runFlow;
+      const file = typeof call === "string" ? call : call?.file;
+      if (file) {
+        const child = new URL(file, url);
+        const relative = child.pathname.split("/.maestro/")[1];
+        assert(relative && !relative.startsWith("../"));
+        result.push(...nativeSteps(relative, { ...env, ...call.env }, [...stack, url.href]));
+      }
+      if (call?.commands) visit(call.commands);
+      if (step.repeat?.commands) visit(step.repeat.commands);
+    }
+  }
+  visit(docs[1].toJSON());
+  return result;
+}
+const journey = (name) => nativeSteps(`flows/${name}.yaml`);
+const contains = (steps, command, value) =>
+  steps.some((step) => JSON.stringify(step[command]) === JSON.stringify(value));
+test("workspace discovers only the canonical ordered journeys, never helpers or missing-fixture scenarios", () => {
+  const docs = parseAllDocuments(
+    readFileSync(new URL("../../apps/mobile/.maestro/config.yaml", import.meta.url), "utf8"),
+  );
+  assert.equal(docs.length, 1);
+  assert.deepEqual(docs[0].errors, []);
+  const config = docs[0].toJSON();
+  assert.deepEqual(
+    config.flows,
+    flows.map((name) => `flows/${name}.yaml`),
+  );
+  assert.deepEqual(config.executionOrder.flowsOrder, flows);
+  assert.equal(config.executionOrder.continueOnFailure, false);
+});
+
+test("rewritten journeys preserve feature assertion budgets without transient feedback or hidden acceptance", () => {
+  // Original floors minus explicitly removed toast/progress assertions: 05 (-3), 06 (-5), 09 (-1).
+  const minimum = {
+    "01-launch-welcome": 1,
+    "02-login": 12,
+    "02-startup-deep-link": 0,
+    "03-profile-logout": 7,
+    "04-dark-mode": 1,
+    "05-contacts-follow-block": 44,
+    "06-match-wizard": 95,
+    "07-reauth-after-logout": 2,
+    "08-groups": 36,
+    "09-group-invitations": 30,
+    "10-bgg-collection": 17,
+    "12-organizations": 18,
+    "13-event-draft": 67,
+  };
+  for (const name of flows) {
+    const steps = journey(name);
+    const assertions = steps.filter((step) =>
+      Object.keys(step).some((key) => key.startsWith("assert")),
+    );
+    assert(assertions.length >= minimum[name], `${name}: acceptance assertions removed`);
+    for (const step of steps) {
+      assert(!("retry" in step) && !("sleep" in step));
+      assert.notEqual(step.launchApp?.clearState, true);
+      const inspect = (value) => {
+        if (!value || typeof value !== "object") return;
+        for (const [key, item] of Object.entries(value)) {
+          assert(!(key === "optional" && item === true));
+          assert(!(key === "disableAnimations" && item === true));
+          assert.notEqual(key, "point");
+          assert.notEqual(key, "waitToSettleTimeoutMs");
+          inspect(item);
+        }
+      };
+      inspect(step);
+    }
+  }
+});
+
+test("actor changes require completed logout, real sign-in and exact API-backed profile identity", () => {
+  const steps = nativeSteps("helpers/switch-actor.yaml");
+  const guest = steps.findIndex(
+    (step) => step.extendedWaitUntil?.visible === "Welcome to Board Game Organizer",
+  );
+  const signin = steps.findIndex((step) => step.tapOn === "Sign in / Register");
+  const identity = steps.findLastIndex(
+    (step) => step.assertVisible === "${output.authEmailPattern}",
+  );
+  assert(guest >= 0 && guest < signin && signin < identity);
+  assert(
+    contains(steps, "scrollUntilVisible", {
+      element: { text: "^Logout$" },
+      direction: "DOWN",
+      timeout: 60000,
+    }),
+  );
+  assert(contains(steps.slice(identity), "openLink", "bgo:///matches"));
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      notVisible: { id: "confirmation-dialog" },
+      timeout: 30000,
+    }),
+  );
+});
+
+test("native photo variants converge on required uploaded organization artwork", () => {
+  const steps = journey("12-organizations");
+  const selected = steps.findIndex((step) => step.tapOn?.text === "Photo taken.*");
+  const artwork = steps.findIndex(
+    (step, index) => index > selected && step.extendedWaitUntil?.visible === "Organization logo",
+  );
+  const submitted = steps.findIndex((step) => step.tapOn === "Submit for review");
+  assert(selected >= 0 && selected < artwork && artwork < submitted);
+  assert(contains(steps, "assertVisible", "Camera permission is required"));
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      visible: { id: "edit-organization-fab" },
+      timeout: 30000,
+    }),
+  );
+});
+
+test("native calendar scripts reject impossible dates, including non-leap February", () => {
+  const source = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/event-date.js", import.meta.url),
+    "utf8",
+  );
+  for (const DATE of ["02/29/2030", "02/30/2032", "04/31/2030", "01/01/1999"])
+    assert.throws(() =>
+      runInNewContext(source, { DATE, maestro: { copiedText: "Tue, Oct 13" }, output: {} }),
+    );
+  const context = {
+    DATE: "02/29/2032",
+    maestro: { copiedText: "Tuesday, October 13" },
+    output: {},
+  };
+  runInNewContext(source, context);
+  assert.equal(context.output.eventCalendarDay, "29 February 2032");
+  assert.equal(context.output.eventCalendarMonthOffset, -8);
+});
+
 test("native acceptance flows are invoked and require real, distinct JUnit reports", () => {
   assert.equal(flows.length, 13);
   for (const name of ["08-groups", "09-group-invitations", "12-organizations", "13-event-draft"])
@@ -80,15 +239,24 @@ test("PR native acceptance attempts every flow after a failure without weakening
   assert(watchdog.includes('select(.conclusion == "failure")'));
   assert.doesNotMatch(watchdog, /\.steps\[\]/);
 });
-test("managed HeroUI patch sizes the animated wrapper without hiding or remounting popover content", () => {
+test("managed HeroUI patch preserves popup sizing, controlled initial sheet index and genuine pan closure", () => {
   const patch = readFileSync(
     new URL("../../patches/heroui-native@1.0.9.patch", import.meta.url),
     "utf8",
   );
-  assert.equal((patch.match(/^diff --git /gm) ?? []).length, 2);
+  assert.equal((patch.match(/^diff --git /gm) ?? []).length, 8);
   assert.deepEqual(
     patch.split("\n").filter((line) => line.startsWith("+") && !line.startsWith("+++")),
-    ["+        style: StyleSheet.absoluteFill,", "+            style={StyleSheet.absoluteFill}"],
+    [
+      "+        style: StyleSheet.absoluteFill,",
+      "+      style: StyleSheet.absoluteFill,",
+      "+    if (isPanActivated.get() && value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
+      "+      index: isOpen ? initialIndex ?? 0 : -1,",
+      "+            style={StyleSheet.absoluteFill}",
+      "+          style={StyleSheet.absoluteFill}",
+      "+      if (isPanActivated.get() && value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
+      "+          index={isOpen ? (initialIndex ?? 0) : -1}",
+    ],
   );
   const workspace = readFileSync(new URL("../../pnpm-workspace.yaml", import.meta.url), "utf8");
   assert(workspace.includes("heroui-native@1.0.9: patches/heroui-native@1.0.9.patch"));
@@ -101,6 +269,14 @@ test("managed HeroUI patch sizes the animated wrapper without hiding or remounti
       "lib/module/components/popover/popover.js",
       /pointerEvents: "box-none",\s+style: StyleSheet\.absoluteFill/,
     ],
+    [
+      "src/components/select/select.tsx",
+      /pointerEvents="box-none"\s+style=\{StyleSheet\.absoluteFill\}/,
+    ],
+    [
+      "lib/module/components/select/select.js",
+      /pointerEvents: "box-none",\s+style: StyleSheet\.absoluteFill/,
+    ],
   ]) {
     const installed = readFileSync(
       new URL(`../../node_modules/heroui-native/${path}`, import.meta.url),
@@ -109,9 +285,41 @@ test("managed HeroUI patch sizes the animated wrapper without hiding or remounti
     const driven = installed.split("if (isDrivenEntering) {")[1].split("// Fallback path:")[0];
     assert.match(driven, expected);
     assert.match(driven, /exiting[=:]/);
-    assert.match(driven, /AnimatedContent/);
+    assert.match(driven, /Animated(?:Popover)?Content/);
     assert.match(driven, /rEnteringStyle/);
     assert.doesNotMatch(driven, /no-hide-descendants|accessibilityElementsHidden/);
+  }
+  assert.deepEqual(
+    patch.split("\n").filter((line) => line.startsWith("-") && !line.startsWith("---")),
+    [
+      "-    if (value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
+      "-      index: -1,",
+      "-      if (value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {",
+      "-          index={-1}",
+    ],
+  );
+  for (const [path, expected] of [
+    [
+      "src/helpers/internal/components/bottom-sheet-content.tsx",
+      /index=\{isOpen \? \(initialIndex \?\? 0\) : -1\}/,
+    ],
+    [
+      "lib/module/helpers/internal/components/bottom-sheet-content.js",
+      /index: isOpen \? initialIndex \?\? 0 : -1/,
+    ],
+    [
+      "src/helpers/internal/components/bottom-sheet-content-container.tsx",
+      /isPanActivated\.get\(\) && value > 1\.5/,
+    ],
+    [
+      "lib/module/helpers/internal/components/bottom-sheet-content-container.js",
+      /isPanActivated\.get\(\) && value > 1\.5/,
+    ],
+  ]) {
+    assert.match(
+      readFileSync(new URL(`../../node_modules/heroui-native/${path}`, import.meta.url), "utf8"),
+      expected,
+    );
   }
 });
 test("fresh native launch preserves real contacts and notification permission prompts", () => {
@@ -124,39 +332,39 @@ test("fresh native launch preserves real contacts and notification permission pr
   assert.match(launch, /^\s+contacts: deny$/m);
   assert.match(launch, /^\s+notifications: deny$/m);
   assert.doesNotMatch(launch, /clearState: true|contacts: allow|notifications: allow/);
-  const contacts = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/05-contacts-follow-block.yaml", import.meta.url),
-    "utf8",
+  const contacts = journey("05-contacts-follow-block");
+  assert.equal(
+    contacts.filter((step) => step.extendedWaitUntil?.visible === ".*[Aa]llow.*contacts.*").length,
+    2,
   );
-  assert.equal((contacts.match(/visible: ".*\[Aa\]llow.*contacts.*"/g) ?? []).length, 2);
-  assert(contacts.includes('- tapOn: "Don.t allow"'));
-  assert(contacts.indexOf('"Don.t allow"') < contacts.indexOf('id: "enable-contacts-btn"'));
-  assert(contacts.includes('- tapOn: "Yes"'));
-  assert(contacts.includes('- tapOn: "Allow"'));
+  for (const action of ["Don.t allow", "Yes", "Allow"]) assert(contains(contacts, "tapOn", action));
+  assert(contains(contacts, "tapOn", { id: "confirmation-cancel" }));
+  assert(
+    contains(contacts, "extendedWaitUntil", {
+      notVisible: { id: "enable-contacts-btn" },
+      timeout: 30000,
+    }),
+  );
 });
 test("native help and legends wait for visible portal content without dropping assertions", () => {
   for (const name of ["05-contacts-follow-block", "06-match-wizard", "12-organizations"]) {
-    const flow = readFileSync(
-      new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url),
-      "utf8",
-    ).replace(/\r\n/g, "\n");
-    assert.match(
-      flow,
-      /Search help"\n(?:#[^\n]*\n)?- extendedWaitUntil:\n {4}visible: "Search help"\n {4}timeout: 30000/,
-    );
-    assert(flow.includes('- assertVisible: "Type at least 4 characters to search"'));
+    const steps = journey(name);
+    assert(contains(steps, "extendedWaitUntil", { visible: "Search help", timeout: 30000 }));
+    assert(contains(steps, "assertVisible", "Type at least 4 characters to search"));
+    assert(contains(steps, "assertNotVisible", "Search help"));
   }
-  const contacts = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/05-contacts-follow-block.yaml", import.meta.url),
-    "utf8",
-  ).replace(/\r\n/g, "\n");
+  const contacts = journey("05-contacts-follow-block");
   for (const title of ["Friendship accepted.", "Requests awaiting your reply."])
-    assert(
-      contacts.includes(
-        `- extendedWaitUntil:\n    visible: "${title}"\n    timeout: 30000\n- assertVisible: "${title}"`,
-      ),
-    );
-  assert(contacts.includes('- assertVisible: "Search help"'));
+    assert(contains(contacts, "extendedWaitUntil", { visible: title, timeout: 30000 }));
+  for (const text of [
+    "People you follow.",
+    "People who follow you.",
+    "People you have blocked.",
+    "Online",
+    "Offline",
+    "Requests awaiting their reply.",
+  ])
+    assert(contains(contacts, "assertVisible", text));
 });
 test("native device verification uses Clerk development fixtures, without disabling Device Trust", () => {
   const provision = readFileSync(
@@ -180,7 +388,7 @@ test("native device verification uses Clerk development fixtures, without disabl
   assert(signIn.includes(`inputText: \${AUTH_EMAIL}`));
   assert.match(
     signIn,
-    /inputText: \$\{AUTH_PASSWORD\}\n- tapOn: "Continue"\n- runFlow: "verify-clerk-device.yaml"/,
+    /inputText: \$\{AUTH_PASSWORD\}\n- tapOn: "Continue"\n- runFlow: verify-clerk-device.yaml/,
   );
   for (const [name, expected] of [
     ["02-login", 1],
@@ -188,18 +396,23 @@ test("native device verification uses Clerk development fixtures, without disabl
     ["07-reauth-after-logout", 1],
     ["09-group-invitations", 3],
   ]) {
-    const flow = readFileSync(
-      new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url),
-      "utf8",
-    ).replace(/\r\n/g, "\n");
-    const calls = [
-      ...flow.matchAll(
-        /file: "\.\.\/helpers\/sign-in.yaml"\n {4}env:\n {6}AUTH_EMAIL: \$\{EMAIL(_2)?\}\n {6}AUTH_PASSWORD: \$\{PASSWORD(_2)?\}/g,
-      ),
-    ];
-    assert.equal(calls.length, expected, name);
-    for (const call of calls) assert.equal(call[1], call[2], name);
-    assert.doesNotMatch(flow, /inputText: \$\{USERNAME/);
+    const steps = journey(name);
+    const emails = steps.filter(
+      (step, index) =>
+        (step.inputText === "${EMAIL}" || step.inputText === "${EMAIL_2}") &&
+        steps[index + 1]?.assertVisible === "${output.authEmailPattern}",
+    );
+    assert.equal(emails.length, expected, name);
+    const passwords = steps.filter(
+      (step) => step.inputText === "${PASSWORD}" || step.inputText === "${PASSWORD_2}",
+    );
+    assert.equal(passwords.length, expected, name);
+    for (let index = 0; index < expected; index++)
+      assert.equal(
+        emails[index].inputText.endsWith("_2}"),
+        passwords[index].inputText.endsWith("_2}"),
+      );
+    assert(!steps.some((step) => String(step.inputText).includes("USERNAME")));
   }
   for (const workflow of workflows)
     assert.match(workflow.split("  e2e-maestro:")[1].split(/\n {2}[\w-]+:/)[0], /E2E_EMAIL:/);
@@ -212,7 +425,15 @@ test("native sign-in fully replaces remembered actor/target credentials before a
     "utf8",
   ).replace(/\r\n/g, "\n");
   assert(signIn.includes('visible: "Last used"'));
-  assert(signIn.includes('- longPressOn: ".*clerk_test@gmail.com$"'));
+  const rememberedPattern = signIn.match(/- longPressOn: '([^']+)'/)?.[1];
+  assert(rememberedPattern);
+  const rememberedEmail = new RegExp(rememberedPattern);
+  for (const email of [targetEmail, "previous.development@example.invalid"]) {
+    assert.match(email, rememberedEmail);
+  }
+  for (const label of ["Last used", "Email address", "Enter your email", "user@host extra"]) {
+    assert.doesNotMatch(label, rememberedEmail);
+  }
   assert(signIn.includes('- tapOn: "[Ss]elect [Aa]ll"'));
   const selectAll = signIn.indexOf('- tapOn: "[Ss]elect [Aa]ll"');
   const deletion = signIn.indexOf("- eraseText: 1", selectAll);
@@ -221,14 +442,21 @@ test("native sign-in fully replaces remembered actor/target credentials before a
   assert(signIn.includes("- eraseText: 100\n- inputText: ${AUTH_PASSWORD}"));
   assert.match(
     signIn,
-    /inputText: \$\{AUTH_EMAIL\}\n- runScript: "auth-email.js"\n- assertVisible: \$\{output.authEmailPattern\}\n- tapOn: "Continue"/,
+    /inputText: \$\{AUTH_EMAIL\}\n- assertVisible: \$\{output.authEmailPattern\}\n- tapOn: "Continue"/,
   );
   const script = readFileSync(
     new URL("../../apps/mobile/.maestro/helpers/auth-email.js", import.meta.url),
     "utf8",
   );
   const output = {};
-  runInNewContext(script, { AUTH_EMAIL: targetEmail, output });
+  runInNewContext(script, { AUTH_EMAIL: targetEmail, AUTH_PASSWORD: "fixture-password", output });
+  for (const AUTH_EMAIL of ["", "not-email", "user@host extra"])
+    assert.throws(() =>
+      runInNewContext(script, { AUTH_EMAIL, AUTH_PASSWORD: "fixture-password", output: {} }),
+    );
+  assert.throws(() =>
+    runInNewContext(script, { AUTH_EMAIL: targetEmail, AUTH_PASSWORD: "", output: {} }),
+  );
   const exactEmail = new RegExp(output.authEmailPattern);
   assert.match(targetEmail, exactEmail);
   for (const leftover of [
@@ -254,12 +482,22 @@ test("native country search verifies complete input before empty and short-code 
     ["I", "I"],
     ["T", "IT"],
   ])
-    assert(login.includes(`- inputText: "${character}"\n      - assertVisible: "^${prefix}$"`));
+    assert(login.includes(`- inputText: "${character}"\n- assertVisible: "^${prefix}$"`));
   assert.equal(login.match(/- inputText: "z"/g)?.length, 4);
   assert(!login.includes('- inputText: "zzzz"'));
   assert(login.includes('assertVisible: "No countries found"'));
   assert(login.includes('tapOn: "Germany"'));
   assert(login.includes('tapOn: "Italy"'));
+  assert.equal((login.match(/notVisible: "\^Search countries\$"/g) ?? []).length, 2);
+  assert.match(login, /visible: "Mobile number"\s+timeout: 120000/);
+  const commands = parseAllDocuments(login)[1].toJSON();
+  const conditional = commands.filter((step) => step.runFlow?.when);
+  assert.equal(conditional.length, 3);
+  for (const step of conditional)
+    assert.deepEqual(step.runFlow, {
+      when: { visible: { id: ".*inputmethod.*:id/.*" } },
+      commands: ["hideKeyboard"],
+    });
 });
 test("native password entry selects the input placeholder, never the heading or account hint", () => {
   const signIn = readFileSync(
@@ -281,26 +519,64 @@ test("native password entry selects the input placeholder, never the heading or 
 });
 test("native social flows select the search input and named actions, never the help trigger", () => {
   for (const name of ["05-contacts-follow-block", "09-group-invitations"]) {
-    const flow = readFileSync(
-      new URL(`../../apps/mobile/.maestro/flows/${name}.yaml`, import.meta.url),
-      "utf8",
-    ).replace(/\r\n/g, "\n");
-    assert.doesNotMatch(flow, /tapOn: "\.\*\[Ss\]earch\.\*users\.\*"|tapOn: "Actions"/);
-    assert(flow.includes('- tapOn: "^Search users by name or email$"\n- eraseText: 100'));
-    for (const actor of ["Test", "Target"]) {
-      assert(flow.includes(`- tapOn: "^Actions: E2E ${actor}$"`));
-    }
-    assert.doesNotMatch(
-      flow,
-      /"Friend requests"|respond-friend-request-btn|respond-accept-friend-request-btn/,
-    );
-    assert(flow.includes('id: "confirm-accept_friend_request-btn"'));
+    const steps = journey(name);
+    assert(contains(steps, "tapOn", { id: "contact-search-input" }));
+    assert(contains(steps, "eraseText", 100));
+    for (const actor of ["Test", "Target"])
+      assert(contains(steps, "tapOn", `^Actions: E2E ${actor}$`));
+    assert(contains(steps, "tapOn", { id: "confirm-accept_friend_request-btn" }));
+    assert(!contains(steps, "tapOn", "Actions"));
+    assert(!contains(steps, "tapOn", ".*[Ss]earch.*users.*"));
+    assert(!JSON.stringify(steps).includes("respond-accept-friend-request-btn"));
   }
   const input = /^Search users by name or email$/;
   assert.match("Search users by name or email", input);
   assert.doesNotMatch("Search users by name or email: Search help", input);
 });
-test("native profile completion reaches Continue while the keyboard stays open", () => {
+test("contact searches wait for API results, not an already-visible address-book duplicate", () => {
+  const steps = nativeSteps("helpers/contact-search.yaml");
+  const target = {
+    text: "${CONTACT_ACTIONS}",
+    below: { text: "^Search results$" },
+    above: { text: "^Device Contacts$" },
+  };
+  assert(contains(steps, "extendedWaitUntil", { visible: target, timeout: 90000 }));
+  assert(contains(steps, "assertVisible", target));
+  assert(!contains(steps, "extendedWaitUntil", { visible: "${CONTACT_ACTIONS}", timeout: 90000 }));
+  assert(contains(steps, "tapOn", { id: "contact-search-input" }));
+  assert(!contains(steps, "tapOn", "^Search users by name or email$"));
+  const cleared = steps.findIndex((step) => step.assertNotVisible === "Clear search");
+  const typed = steps.findIndex((step) => step.inputText === "${CONTACT_EMAIL}");
+  assert(cleared >= 0 && cleared < typed);
+  assert(
+    contains(steps, "assertVisible", {
+      id: "contact-search-input",
+      text: "${output.contactEmailPattern}",
+    }),
+  );
+  assert(contains(steps, "openLink", "bgo:///contacts?tab=search"));
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      visible: { id: "contact-search-input" },
+      timeout: 30000,
+    }),
+  );
+  assert(contains(steps, "runScript", "contact-email.js"));
+  const script = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/contact-email.js", import.meta.url),
+    "utf8",
+  );
+  const context = { CONTACT_EMAIL: "fixture+clerk_test@example.test", output: {} };
+  runInNewContext(script, context);
+  const exact = new RegExp(context.output.contactEmailPattern);
+  assert(exact.test(context.CONTACT_EMAIL));
+  assert(!exact.test(context.CONTACT_EMAIL.repeat(2)));
+  assert(!exact.test("fixtureclerk_test@example.test"));
+  for (const CONTACT_EMAIL of [undefined, "", "invalid"])
+    assert.throws(() => runInNewContext(script, { CONTACT_EMAIL, output: {} }));
+});
+
+test("native profile completion closes only the actual keyboard before Continue", () => {
   const flow = readFileSync(
     new URL("../../apps/mobile/.maestro/flows/02-login.yaml", import.meta.url),
     "utf8",
@@ -309,44 +585,58 @@ test("native profile completion reaches Continue while the keyboard stays open",
   assert(completion);
   assert.match(
     completion,
-    /scrollUntilVisible:\s+element:\s+text: "Continue"\s+direction: DOWN\s+- tapOn: "Continue"/,
+    /scrollUntilVisible:\s+element:\s+text: "\^Continue\$"\s+direction: DOWN\s+- tapOn: "\^Continue\$"/,
   );
-  assert.doesNotMatch(completion.split('- tapOn: "Continue"')[0], /hideKeyboard/);
+  const steps = journey("02-login");
+  const input = steps.findIndex((step) => step.inputText === "not a formatted phone");
+  assert.deepEqual(steps[input + 1].assertVisible, {
+    id: "mobile-number-input",
+    text: "^not a formatted phone$",
+  });
+  const keyboard = steps[input + 2].runFlow;
+  assert.deepEqual(keyboard.when, { visible: { id: ".*inputmethod.*:id/.*" } });
+  assert.deepEqual(keyboard.commands, ["hideKeyboard"]);
+  const gone = steps.findIndex(
+    (step, index) =>
+      index > input && step.extendedWaitUntil?.notVisible?.id === keyboard.when.visible.id,
+  );
+  const proceed = steps.findIndex((step, index) => index > input && step.tapOn === "^Continue$");
+  assert(input < gone && gone < proceed);
+  for (const country of ["Germany", "Italy"]) {
+    const selected = steps.findIndex((step) => step.tapOn === country);
+    assert.equal(steps[selected - 1].extendedWaitUntil.notVisible.id, keyboard.when.visible.id);
+    assert.deepEqual(steps[selected - 3].runFlow, keyboard);
+    assert.equal(steps[selected + 1].extendedWaitUntil.notVisible, "^Search countries$");
+  }
   assert.match(completion, /visible: "Matches"\s+timeout: 120000/);
 });
 test("native community acceptance follows confirmed counts and table-only legends without a repeated venue", () => {
-  const organization = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/12-organizations.yaml", import.meta.url),
-    "utf8",
-  );
-  const table = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/13-event-draft.yaml", import.meta.url),
-    "utf8",
-  );
-  assert(organization.includes('assertVisible: "Confirmed members: 1"'));
-  assert(!organization.includes('assertVisible: "Approved members: 1"'));
-  assert(table.includes('assertNotVisible: "Table location help"'));
-  assert(!table.includes('tapOn: "Table location help"'));
-  assert(table.includes('tapOn: "Table name help"'));
+  const organization = journey("12-organizations");
+  const table = journey("13-event-draft");
+  assert(contains(organization, "assertVisible", "Confirmed members: 1"));
+  assert(!contains(organization, "assertVisible", "Approved members: 1"));
+  assert(contains(table, "assertNotVisible", "Table location help"));
+  assert(!contains(table, "tapOn", "Table location help"));
+  assert(contains(table, "tapOn", "Table name help"));
   for (const legend of [
     "Confirmed players.",
     "Maximum seats here; free places in Seats.",
     "Reserved places, including pending requests.",
   ])
-    assert(table.includes(`"${legend}"`));
+    assert(
+      contains(table, "assertVisible", legend) ||
+        contains(table, "extendedWaitUntil", { visible: legend, timeout: 30000 }),
+    );
 });
 test("native event acceptance uses the catalog game actually seeded by CI", () => {
-  const flow = readFileSync(
-    new URL("../../apps/mobile/.maestro/flows/13-event-draft.yaml", import.meta.url),
-    "utf8",
-  );
+  const steps = journey("13-event-draft");
   const seed = readFileSync(
     new URL("../../apps/api/src/app/api/admin/ci-db/route.ts", import.meta.url),
     "utf8",
   );
   assert(seed.includes('name: "Cascadia"'));
-  assert(flow.includes('"Select: Cascadia"'));
-  assert(!flow.includes('"Select: Catan"'));
+  assert(contains(steps, "tapOn", "Select: Cascadia"));
+  assert(!contains(steps, "tapOn", "Select: Catan"));
 });
 test("the gallery fixture is committed and pushed to the emulator before community acceptance", () => {
   const push = script.indexOf(
@@ -634,12 +924,445 @@ test("each native flow preserves quoting, failure exit status and partial report
   assert.notEqual(run(0, "01-launch-welcome", "").status, 0);
 });
 
+test("native invite sharing requires the actual clipboard action across Android sharesheet labels", () => {
+  const steps = journey("05-contacts-follow-block");
+  const pattern = steps.find(
+    (step) => step.extendedWaitUntil?.visible === "^(Copy|Copy to clipboard|Copy link)$",
+  )?.extendedWaitUntil.visible;
+  assert(contains(steps, "tapOn", pattern));
+  assert(contains(steps, "extendedWaitUntil", { notVisible: pattern, timeout: 30000 }));
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      visible: { id: "contact-search-input" },
+      timeout: 30000,
+    }),
+  );
+  assert(pattern);
+  const clipboard = new RegExp(pattern);
+  for (const label of ["Copy", "Copy to clipboard", "Copy link"]) assert(clipboard.test(label));
+  for (const label of ["Sharing link", "Chrome", "Copy failed", "Clipboard unavailable"]) {
+    assert(!clipboard.test(label));
+  }
+});
+
+test("native event acceptance targets real controls, fixed footers and completed save transitions", () => {
+  const clock = nativeSteps("helpers/event-time.yaml");
+  assert(contains(clock, "tapOn", { id: "android:id/toggle_mode" }));
+  const steps = journey("13-event-draft");
+  assert(contains(steps, "tapOn", "Global ratings enabled, off"));
+  assert.equal(
+    steps.filter(
+      (step) =>
+        step.assertVisible?.text === "Global ratings enabled, on" &&
+        step.assertVisible.checked === true,
+    ).length,
+    2,
+  );
+  const footer = steps.findIndex((step) => step.assertVisible?.id === "event-navigation-bar");
+  assert.equal(steps[footer + 1].assertVisible, "Publish event");
+  assert.equal(steps[footer + 2].tapOn, "Publish event");
+  assert(!steps.some((step) => step.scrollUntilVisible?.element?.text === "Publish event"));
+  const save = steps.findLastIndex((step) => step.tapOn?.id === "confirmation-action-0");
+  assert.deepEqual(steps[save + 1].extendedWaitUntil, {
+    visible: { id: "edit-event-fab" },
+    timeout: 30000,
+  });
+  assert(contains(steps.slice(save), "assertNotVisible", { id: "confirmation-dialog" }));
+  for (let index = 0; index < steps.length - 1; index++)
+    if (steps[index].tapOn === "Clear search") assert(!("hideKeyboard" in steps[index + 1]));
+});
+
+test("final dark-mode acceptance signs out explicitly without clearing authenticated app state", () => {
+  const steps = journey("04-dark-mode");
+  assert.equal(steps[0].launchApp.stopApp, true);
+  assert.equal(steps[0].launchApp.clearState, false);
+  assert(contains(steps, "tapOn", "^Logout$"));
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      visible: "Welcome to Board Game Organizer",
+      timeout: 180000,
+    }),
+  );
+  assert(contains(steps, "assertVisible", "Sign in / Register"));
+  assert(contains(steps, "assertNotVisible", { id: "profile-button" }));
+});
+
+test("native event date selects the real calendar year, month and fully qualified day", () => {
+  const source = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/event-date.js", import.meta.url),
+    "utf8",
+  );
+  const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+  for (const [index, month] of months.entries()) {
+    const context = { DATE: "06/12/2030", maestro: { copiedText: `Tue, ${month} 13` }, output: {} };
+    runInNewContext(source, context);
+    assert.equal(context.output.eventCalendarYear, "2030");
+    assert.equal(context.output.eventCalendarMonthOffset, 5 - index);
+    assert.equal(context.output.eventCalendarDay, "12 June 2030");
+  }
+  for (const [DATE, copiedText] of [
+    ["invalid", "Tue, Oct 13"],
+    ["06/12/2030", "invalid"],
+    ["00/12/2030", "Tue, Oct 13"],
+    ["13/12/2030", "Tue, Oct 13"],
+    ["06/00/2030", "Tue, Oct 13"],
+    ["06/32/2030", "Tue, Oct 13"],
+  ])
+    assert.throws(() => runInNewContext(source, { DATE, maestro: { copiedText }, output: {} }));
+  const helper = readFileSync(
+    new URL("../../apps/mobile/.maestro/helpers/event-date.yaml", import.meta.url),
+    "utf8",
+  );
+  assert(helper.includes('id: "android:id/date_picker_header_date"'));
+  assert(helper.includes('id: "android:id/date_picker_header_year"'));
+  assert(helper.includes("output.eventCalendarDay"));
+  assert(!helper.includes("Switch to text input"));
+});
+
+test("native BGG collection uses its seeded actor and the current four-step match wizard", () => {
+  const steps = journey("10-bgg-collection");
+  assert(contains(steps, "inputText", "${EMAIL}"));
+  assert(contains(steps, "inputText", "${PASSWORD}"));
+  const login = steps.findIndex((step) => step.inputText === "${EMAIL}");
+  const seeded = steps.findIndex((step) => step.extendedWaitUntil?.visible === "bgg-e2e");
+  assert(login < seeded);
+  assert(contains(steps.slice(login, seeded), "assertVisible", "${output.authEmailPattern}"));
+  assert(contains(steps, "tapOn", { id: "favorite-location-select" }));
+  const phases = ["Locations", "Players", "Board games"].map((text) =>
+    steps.findIndex((step) => step.extendedWaitUntil?.visible === text),
+  );
+  assert(phases[0] >= 0 && phases[0] < phases[1] && phases[1] < phases[2]);
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      visible: { id: "android:id/timePicker" },
+      timeout: 30000,
+    }),
+  );
+  assert(contains(steps, "assertNotVisible", "BGG collection match"));
+});
+
+test("native group invitations settle confirmations, handle permission and verify removal on the actual group list", () => {
+  const setup = parseAllDocuments(
+    readFileSync(
+      new URL("../../apps/mobile/.maestro/helpers/friendship-create.yaml", import.meta.url),
+      "utf8",
+    ),
+  )[1].toJSON();
+  const reset = setup.find((step) => step.runFlow?.when?.visible === "^Remove friend$");
+  assert.deepEqual(reset.runFlow.commands, [
+    { tapOn: "^Remove friend$" },
+    { extendedWaitUntil: { visible: { id: "confirm-unfriend-btn" }, timeout: 30000 } },
+    { tapOn: { id: "confirm-unfriend-btn" } },
+    { extendedWaitUntil: { notVisible: { id: "confirmation-dialog" }, timeout: 30000 } },
+  ]);
+  const decisions = setup.filter((step) => step.runFlow?.file === "contact-action.yaml");
+  assert.deepEqual(
+    decisions.map((step) => step.runFlow.env.ACTION_LABEL),
+    ["^Send friend request$", "^Accept friend request$"],
+  );
+  assert(decisions.every((step) => !step.runFlow.when));
+  const steps = journey("09-group-invitations");
+  for (const action of ["friend-request", "accept_friend_request"]) {
+    const index = steps.findIndex((step) => step.tapOn?.id === `confirm-${action}-btn`);
+    assert(index >= 0);
+    assert.deepEqual(steps[index + 1].extendedWaitUntil, {
+      notVisible: { id: "confirmation-dialog" },
+      timeout: 30000,
+    });
+  }
+  assert(contains(journey("05-contacts-follow-block"), "tapOn", "Allow"));
+  assert(contains(steps, "tapOn", { id: "notifications-button" }));
+  assert(
+    contains(steps, "tapOn", { id: "com.android.permissioncontroller:id/permission_allow_button" }),
+  );
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      notVisible: { id: "com.android.permissioncontroller:id/permission_message" },
+      timeout: 30000,
+    }),
+  );
+  assert(
+    contains(steps, "assertNotVisible", {
+      id: "com.android.permissioncontroller:id/permission_message",
+    }),
+  );
+  assert(contains(steps, "extendedWaitUntil", { visible: "^· 2 members$", timeout: 30000 }));
+  const leave = steps.findLastIndex((step) => step.tapOn?.id === "confirmation-action-0");
+  assert(contains(steps.slice(leave), "openLink", "bgo:///groups"));
+  assert(
+    contains(steps.slice(leave), "extendedWaitUntil", { visible: "No groups yet", timeout: 30000 }),
+  );
+  assert(
+    contains(journey("08-groups"), "extendedWaitUntil", {
+      visible: "No organizations found",
+      timeout: 30000,
+    }),
+  );
+});
+
+test("canonical match flow verifies saved feature states instead of transient feedback", () => {
+  const steps = journey("06-match-wizard");
+  assert(contains(steps, "assertNotVisible", "Clear search"));
+  assert(
+    contains(steps, "assertVisible", {
+      id: "location-address-input",
+      text: "Piazza del Colosseo 1 Roma",
+    }),
+  );
+  const creation = nativeSteps("helpers/match-create.yaml");
+  const save = creation.findIndex((step) => step.tapOn?.id === "save-match-fab");
+  assert(save >= 0);
+  assert.deepEqual(creation[save + 1].extendedWaitUntil, {
+    visible: "Friday night games",
+    timeout: 60000,
+  });
+  const edit = nativeSteps("helpers/match-edit-delete.yaml");
+  const update = edit.findIndex((step) => step.tapOn === "Save changes");
+  assert(update >= 0);
+  assert.deepEqual(edit[update + 1].extendedWaitUntil, {
+    visible: { id: "more-match-actions" },
+    timeout: 30000,
+  });
+  assert.equal(edit[update + 2].assertVisible, "Updated game night");
+  assert.equal(edit[update + 3].openLink, "bgo:///matches");
+  assert.deepEqual(edit[update + 4].extendedWaitUntil, {
+    visible: "Updated game night",
+    timeout: 30000,
+  });
+  assert.equal(edit[update + 5].assertNotVisible, "Friday night games");
+  assert.equal(edit[update + 6].tapOn, "Updated game night");
+  assert.deepEqual(edit[update + 7].extendedWaitUntil, {
+    visible: { id: "more-match-actions" },
+    timeout: 30000,
+  });
+  assert.equal(edit[update + 9].tapOn.id, "more-match-actions");
+  for (const label of ["Choose date: Yes", "Choose game: If I have to", "Choose location: Yes"])
+    assert(contains(steps, "assertVisible", label));
+  assert(contains(steps, "assertVisible", ".*Not enough accepted players.*"));
+  assert(contains(steps, "assertNotVisible", "Updated game night"));
+  assert(!JSON.stringify(steps).includes("disableAnimations"));
+});
+
+test("native journeys never assert or tap disappearing feedback; durable inbox coverage stays", () => {
+  const paths = [
+    ...flows.map((name) => `flows/${name}.yaml`),
+    "flows/11-match-join-requests.yaml",
+    "helpers/organization-invitation.yaml",
+    "helpers/organization-members.yaml",
+    "helpers/organization-review.yaml",
+  ];
+  const transient = [
+    "dismiss-notification",
+    "Dismiss notification",
+    "Match created",
+    "Match updated",
+    "Choice saved",
+    "Person removed from group",
+    "Join request approved",
+    "Action failed",
+    "Sharing link",
+  ];
+  for (const path of paths) {
+    const steps = nativeSteps(path);
+    for (const label of transient)
+      assert(!JSON.stringify(steps).includes(label), `${path}: ${label}`);
+    assert(!JSON.stringify(steps).includes("waitToSettleTimeoutMs"), path);
+  }
+  const contacts = journey("05-contacts-follow-block");
+  assert(contains(contacts, "tapOn", { id: "notifications-button" }));
+  assert(contains(contacts, "tapOn", "Friend request accepted"));
+  assert(contains(journey("09-group-invitations"), "tapOn", "New group invitation"));
+});
+
+test("ordinary match date slots confirm both Android native dialogs before creation or editing", () => {
+  const helper = nativeSteps("helpers/match-date-time.yaml");
+  const date = helper.findIndex(
+    (step) => step.extendedWaitUntil?.visible?.id === "android:id/datePicker",
+  );
+  const time = helper.findIndex(
+    (step) => step.extendedWaitUntil?.visible?.id === "android:id/timePicker",
+  );
+  assert(date >= 0 && date < time);
+  assert.deepEqual(helper[date + 1].tapOn, { id: "android:id/button1" });
+  assert.deepEqual(helper[time + 1].tapOn, { id: "android:id/button1" });
+  assert(
+    contains(helper, "extendedWaitUntil", {
+      notVisible: { id: "android:id/timePicker" },
+      timeout: 30000,
+    }),
+  );
+  const keyboard = helper.find((step) => step.runFlow?.when?.visible?.id?.includes("inputmethod"));
+  assert(keyboard);
+  const ime = keyboard.runFlow.when.visible.id;
+  assert(new RegExp(ime).test("com.google.android.inputmethod.latin:id/key_pos_space"));
+  assert(new RegExp(ime).test("com.android.inputmethod.latin:id/keyboard_view"));
+  assert(!new RegExp(ime).test("match-name-input"));
+  assert(keyboard.runFlow.commands.includes("hideKeyboard"));
+  assert(contains(helper, "extendedWaitUntil", { notVisible: { id: ime }, timeout: 30000 }));
+  assert.equal(
+    journey("06-match-wizard").filter((step) => step.tapOn === "Pick date and time").length,
+    3,
+  );
+});
+
+test("match GPS handles real native location permission and provider consent, never simulated grants", () => {
+  const steps = nativeSteps("helpers/match-create.yaml");
+  const permission = steps.find(
+    (step) =>
+      step.runFlow?.when?.visible?.id ===
+      "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
+  );
+  assert(permission);
+  assert(contains(steps, "tapOn", "Precise"));
+  assert(
+    contains(steps, "tapOn", {
+      id: "com.android.permissioncontroller:id/permission_allow_foreground_only_button",
+    }),
+  );
+  const providers = steps.find(
+    (step) => step.runFlow?.when?.visible?.id === "com.google.android.gms:id/message",
+  );
+  assert(providers);
+  assert.equal(providers.runFlow.when.visible.text, ".*Location Accuracy.*");
+  assert(contains(steps, "tapOn", "Turn on"));
+  assert(providers.runFlow.commands.some((step) => step.setLocation?.latitude === 41.8902));
+  assert(
+    contains(steps, "extendedWaitUntil", {
+      visible: { id: "location-address-input", text: ".*(Roma|Rome).*" },
+      timeout: 30000,
+    }),
+  );
+  assert(!steps.some((step) => "setPermissions" in step));
+});
+
+test("match preferences require the actual sheet to open and close before editing", () => {
+  const votes = nativeSteps("helpers/match-planning.yaml");
+  const choices = votes.filter((step) => step.tapOn === "^Yes$" || step.tapOn === "^If I have to$");
+  assert.equal(choices.length, 3);
+  const detail = readFileSync(
+    new URL("../../apps/mobile/src/components/matches/MatchDetail.tsx", import.meta.url),
+    "utf8",
+  );
+  for (const [position, kind] of ["date", "game", "location"].entries()) {
+    const index = votes.indexOf(choices[position]);
+    assert.deepEqual(votes[index - 2].tapOn, { id: `choose-${kind}` });
+    assert.equal(votes[index - 1].assertVisible, `^Choose ${kind}$`);
+    assert.deepEqual(votes[index + 1].extendedWaitUntil, {
+      notVisible: `^Choose ${kind}$`,
+      timeout: 30000,
+    });
+    assert(detail.includes(`title: t("Choose ${kind}")`));
+  }
+  const edit = nativeSteps("helpers/match-edit-delete.yaml");
+  assert.equal(edit[0].assertNotVisible, "^Choose (date|game|location)$");
+  assert.deepEqual(edit[1].tapOn, { id: "edit-match-fab" });
+});
+
+test("native confirmation titles match literal question marks, not background action buttons", () => {
+  const paths = [
+    ...flows.map((name) => `flows/${name}.yaml`),
+    "flows/11-match-join-requests.yaml",
+    "helpers/organization-invitation.yaml",
+    "helpers/organization-members.yaml",
+  ];
+  const titles = new Set();
+  for (const path of paths) {
+    for (const step of nativeSteps(path)) {
+      for (const pattern of [
+        step.assertVisible,
+        step.assertNotVisible,
+        step.extendedWaitUntil?.visible,
+        step.extendedWaitUntil?.notVisible,
+      ]) {
+        if (typeof pattern !== "string" || !pattern.includes("?")) continue;
+        assert(pattern.startsWith("^") && pattern.endsWith("\\?$"), `${path}: ${pattern}`);
+        const title = `${pattern.slice(1, -3)}?`;
+        const matcher = new RegExp(pattern);
+        assert(matcher.test(title));
+        for (const other of [title.slice(0, -1), `Other ${title}`, `${title} Other`])
+          assert(!matcher.test(other));
+        titles.add(title);
+      }
+    }
+  }
+  for (const title of [
+    "Delete notification?",
+    "Delete match?",
+    "Delete group?",
+    "Remove from group?",
+    "Leave group?",
+    "Disconnect BoardGameGeek?",
+    "Remove player?",
+    "Are you sure?",
+  ])
+    assert(titles.has(title), title);
+});
+
 test("failed native flows capture the assertion driver's hierarchy without reinstalling it", () => {
   const capture = script.match(/capture\(\) \{([\s\S]*?)\n\}/)?.[1];
   assert(capture);
   assert(capture.includes("timeout 60 maestro hierarchy --no-reinstall-driver"));
   assert(capture.includes("/tmp/maestro-debug/failure-hierarchy.json"));
   assert(capture.indexOf("screencap") < capture.indexOf("maestro hierarchy"));
+});
+
+test("native failure diagnostics stay bounded when the emulator disappears", () => {
+  const functions = script
+    .slice(script.indexOf("stop_recording() {"), script.indexOf('case "${1:-}" in'))
+    .replaceAll("/tmp/", '"$DIAG_ROOT"/');
+  for (const state of ["ready", "gone", "timeout"]) {
+    const root = mkdtempSync(join(tmpdir(), "bgo-native-diagnostics-"));
+    try {
+      const result = spawnSync(
+        "bash",
+        [
+          "-euo",
+          "pipefail",
+          "-c",
+          `
+            mkdir -p "$DIAG_ROOT/maestro-debug"
+            adb() {
+              printf '%s\\n' "$*" >> "$DIAG_ROOT/commands.txt"
+              if [ "$1" = get-state ] && [ "$DEVICE_STATE" != ready ]; then return 1; fi
+              printf '%s\\n' AndroidRuntime
+            }
+            maestro() { echo hierarchy; }
+            timeout() {
+              printf '%s\\n' "$*" >> "$DIAG_ROOT/deadlines.txt"
+              if [ "$DEVICE_STATE" = timeout ] && [ "$2 $3" = 'adb get-state' ]; then return 124; fi
+              shift
+              "$@"
+            }
+            ${functions}
+            capture
+          `,
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, DIAG_ROOT: root.replaceAll("\\", "/"), DEVICE_STATE: state },
+        },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const commands = readFileSync(join(root, "commands.txt"), "utf8");
+      const deadlines = readFileSync(join(root, "deadlines.txt"), "utf8");
+      assert(deadlines.includes("10 adb get-state"));
+      assert(deadlines.includes("15 adb shell pkill -f screenrecord"));
+      if (state === "ready") {
+        assert(commands.includes("screencap"));
+        assert(deadlines.includes("30 adb shell uiautomator dump"));
+        assert(deadlines.includes("15 adb logcat -d"));
+      } else {
+        assert(!commands.includes("screencap"));
+        assert(!commands.includes("uiautomator"));
+        assert.match(
+          readFileSync(join(root, "maestro-debug/failure-device.txt"), "utf8"),
+          /Android device unavailable/,
+        );
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
 });
 
 test("native command artifacts redact raw and JSON-escaped credentials before upload", () => {

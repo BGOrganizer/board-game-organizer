@@ -1,0 +1,35 @@
+appId: com.bgo.mobile
+---
+- tapOn:
+    id: "edit-event-fab"
+- assertVisible: "Event detail"
+- tapOn:
+    id: "event-next-fab"
+- tapOn: "Remove table: Cascadia event table"
+- assertNotVisible: "Cascadia event table"
+- tapOn:
+    id: "event-next-fab"
+- tapOn: "Save draft"
+- assertVisible: "Reset reservations"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "Save draft"
+- tapOn: "Save draft"
+- assertVisible: "Reset reservations"
+- tapOn:
+    id: "confirmation-action-0"
+# Background wizard already contains the event name. Only detail action proves navigation.
+- extendedWaitUntil:
+    visible:
+      id: "edit-event-fab"
+    timeout: 30000
+- assertVisible: "Maestro summer event"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- back
+- extendedWaitUntil:
+    visible:
+      id: "events-scroll"
+    timeout: 30000

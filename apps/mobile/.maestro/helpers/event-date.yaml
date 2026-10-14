@@ -1,9 +1,33 @@
 appId: com.bgo.mobile
 ---
-# Android native date-only dialog. DATE is MM/DD/YYYY. No conditional skips.
-- tapOn: "Switch to text input mode|Switch to keyboard input"
+- extendedWaitUntil:
+    visible:
+      id: "android:id/date_picker_header_date"
+    timeout: 30000
+- copyTextFrom:
+    id: "android:id/date_picker_header_date"
+- runScript: event-date.js
+- assertTrue: ${output.eventCalendarYear === DATE.slice(6)}
 - tapOn:
-    id: "android:id/edit_text"
-- eraseText
-- inputText: ${DATE}
-- tapOn: "OK"
+    id: "android:id/date_picker_header_year"
+- scrollUntilVisible:
+    element:
+      text: ${output.eventCalendarYear}
+    direction: DOWN
+    timeout: 30000
+- tapOn: ${output.eventCalendarYear}
+- repeat:
+    times: ${Math.abs(output.eventCalendarMonthOffset)}
+    commands:
+      - tapOn:
+          id: '${output.eventCalendarMonthOffset < 0 ? "android:id/prev" : "android:id/next"}'
+- tapOn: ${output.eventCalendarDay}
+- assertVisible:
+    id: "android:id/date_picker_header_year"
+    text: ${output.eventCalendarYear}
+- tapOn:
+    id: "android:id/button1"
+- extendedWaitUntil:
+    notVisible:
+      id: "android:id/datePicker"
+    timeout: 30000

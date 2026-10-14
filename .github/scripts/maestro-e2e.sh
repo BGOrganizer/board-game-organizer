@@ -41,16 +41,22 @@ trap persist EXIT
 stop_recording() {
   kill "${REC_PID:-}" 2>/dev/null || true
   REC_PID=""
-  adb shell pkill -f screenrecord >/dev/null 2>&1 || true
+  timeout 15 adb shell pkill -f screenrecord >/dev/null 2>&1 || true
 }
 capture() {
-  adb exec-out screencap -p > /tmp/fail-screen.png || true
+  # A lost emulator must fail, not leave adb waiting forever before reports persist.
+  if ! timeout 10 adb get-state >/dev/null 2>&1; then
+    printf '%s\n' 'Android device unavailable after Maestro failure' > /tmp/maestro-debug/failure-device.txt
+    stop_recording
+    return
+  fi
+  timeout 15 adb exec-out screencap -p > /tmp/fail-screen.png || true
   # Use the same accessibility driver as the assertion; uiautomator may never become idle.
   timeout 60 maestro hierarchy --no-reinstall-driver > /tmp/maestro-debug/failure-hierarchy.json 2>/tmp/maestro-debug/failure-hierarchy.log || true
-  adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true
+  timeout 30 adb shell uiautomator dump /sdcard/ui-fail.xml > /dev/null 2>&1 && timeout 15 adb pull /sdcard/ui-fail.xml /tmp/ui-fail.xml > /dev/null 2>&1 || true
   stop_recording
-  adb pull /sdcard/maestro-rec.mp4 /tmp/maestro-rec.mp4 >/dev/null 2>&1 || true
-  adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true
+  timeout 15 adb pull /sdcard/maestro-rec.mp4 /tmp/maestro-rec.mp4 >/dev/null 2>&1 || true
+  timeout 15 adb logcat -d | grep -E 'ReactNativeJS|Clerk|bgo|AndroidRuntime|FATAL' > /tmp/fail-logcat.txt || true
 }
 case "${1:-}" in
   install)

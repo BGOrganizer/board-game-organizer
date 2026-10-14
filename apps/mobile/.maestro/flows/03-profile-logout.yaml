@@ -1,11 +1,12 @@
 appId: com.bgo.mobile
+tags: [ci, profile, auth]
 ---
-# 3. Header profile button opens API-backed profile and logout returns to welcome.
-#    Clerk sign-out on a slow emulator can take a while — generous timeout.
+# 05 leaves the primary actor on the tab root. Exercise header navigation, not setup.
+- assertVisible: "Contacts"
 - tapOn:
     id: "profile-button"
 - extendedWaitUntil:
-    visible: "Logout"
+    visible: "E2E Test"
     timeout: 120000
 - assertVisible: "E2E Test"
 - assertVisible: "Friends"
@@ -14,7 +15,16 @@ appId: com.bgo.mobile
 - assertVisible: "Matches played"
 - assertVisible: "Admin groups"
 - assertVisible: "Joined groups"
-- tapOn: "Logout"
+- scrollUntilVisible:
+    element:
+      text: "^Logout$"
+    direction: DOWN
+    timeout: 120000
+- assertVisible: "Powered by BoardGameGeek"
+- tapOn: "^Logout$"
 - extendedWaitUntil:
     visible: "Welcome to Board Game Organizer"
     timeout: 180000
+- assertVisible: "Sign in / Register"
+- assertNotVisible:
+    id: "profile-button"

@@ -1,0 +1,91 @@
+appId: com.bgo.mobile
+---
+- tapOn: "Contacts"
+- extendedWaitUntil:
+    visible: ".*[Aa]llow.*contacts.*"
+    timeout: 30000
+- tapOn: "Don.t allow"
+- tapOn: "Search"
+- assertVisible: "Search results"
+- tapOn: "Search users by name or email: Search help"
+- extendedWaitUntil:
+    visible: "Search help"
+    timeout: 30000
+- assertVisible: "Type at least 4 characters to search"
+- back
+- assertNotVisible: "Search help"
+- tapOn:
+    id: "enable-contacts-btn"
+- assertVisible: "Access to contacts"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible: "Access to contacts"
+- assertVisible:
+    id: "enable-contacts-btn"
+- tapOn:
+    id: "enable-contacts-btn"
+- assertVisible: "Access to contacts"
+- tapOn: "Yes"
+- extendedWaitUntil:
+    visible: ".*[Aa]llow.*contacts.*"
+    timeout: 30000
+- tapOn: "Allow"
+- extendedWaitUntil:
+    notVisible:
+      id: "enable-contacts-btn"
+    timeout: 30000
+- tapOn: "Connections"
+- assertVisible: "No connections yet"
+- tapOn: "Connections: Icon legend"
+- extendedWaitUntil:
+    visible: "Friendship accepted."
+    timeout: 30000
+- assertVisible: "People you follow."
+- assertVisible: "People who follow you."
+- assertVisible: "People you have blocked."
+- assertVisible: "Online"
+- assertVisible: "Offline"
+- back
+- assertNotVisible: "Friendship accepted."
+- assertNotVisible: "Contacts on BGO"
+- assertNotVisible: "Add contacts"
+- assertNotVisible: "Allow address book access to find your friends here."
+- tapOn: "Requests"
+- assertVisible: "No friend requests"
+- tapOn: "Requests: Icon legend"
+- extendedWaitUntil:
+    visible: "Requests awaiting your reply."
+    timeout: 30000
+- assertVisible: "Requests awaiting their reply."
+- back
+- assertNotVisible: "Requests awaiting your reply."
+- assertNotVisible: "Blocked"
+- tapOn: "Search"
+- assertVisible: "Device Contacts"
+- extendedWaitUntil:
+    visible: "E2E Target"
+    timeout: 90000
+- scrollUntilVisible:
+    element: "ZZ Page 43"
+    direction: DOWN
+    timeout: 90000
+- assertVisible: "ZZ Page 43"
+- scrollUntilVisible:
+    element: "E2E Unregistered"
+    direction: UP
+    timeout: 90000
+- assertVisible: "E2E Unregistered"
+- assertNotVisible: "Send invite: E2E Target"
+- assertNotVisible: "^Send$"
+- tapOn: "Send invite: E2E Unregistered"
+- extendedWaitUntil:
+    visible: "^(Copy|Copy to clipboard|Copy link)$"
+    timeout: 30000
+- tapOn: "^(Copy|Copy to clipboard|Copy link)$"
+- extendedWaitUntil:
+    notVisible: "^(Copy|Copy to clipboard|Copy link)$"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "contact-search-input"
+    timeout: 30000

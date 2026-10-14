@@ -84,6 +84,32 @@ test("compatible locked packages pass with remote version metadata unreachable",
   assert.equal(JSON.parse(result.stdout).upToDate, true);
 });
 
+test("Screens keeps Expo version and upstream Fabric listener lifetime backport", () => {
+  const pkg = mobile("react-native-screens/package.json");
+  assert.equal(pkg.version, "4.26.2");
+  const patch = readFileSync(join(repo, "patches/react-native-screens@4.26.2.patch"), "utf8");
+  const files = [...patch.matchAll(/^diff --git a\/(\S+) b\/\S+$/gm)].map((match) => match[1]);
+  assert.deepEqual(files.sort(), [
+    "android/src/main/cpp/NativeProxy.cpp",
+    "android/src/main/cpp/NativeProxy.h",
+    "cpp/RNSScreenRemovalListener.cpp",
+    "cpp/RNSScreenRemovalListener.h",
+  ]);
+  assert.match(patch, /https:\/\/github\.com\/software-mansion\/react-native-screens\/pull\/4413/);
+  const screensRoot = dirname(mobile.resolve("react-native-screens/package.json"));
+  const proxy = readFileSync(join(screensRoot, "android/src/main/cpp/NativeProxy.cpp"), "utf8");
+  assert.match(proxy, /static const std::shared_ptr<RNSScreenRemovalListener> instance/);
+  assert.match(proxy, /setListener\(\[javaPart = javaPart_\]/);
+  assert.match(proxy, /clearListener\(removalListenerToken_\)/);
+  assert.doesNotMatch(proxy, /screenRemovalListener_/);
+  const listener = readFileSync(join(screensRoot, "cpp/RNSScreenRemovalListener.cpp"), "utf8");
+  assert.match(listener, /return \+\+currentToken_/);
+  assert.match(listener, /if \(token == currentToken_\)/);
+  assert.match(listener, /listener = listenerFunction_/);
+  assert.match(listener, /if \(!listener\)/);
+  assert.match(listener, /listener\(mutation\.oldChildShadowView\.tag\)/);
+});
+
 test("incompatible installed packages still fail the mandatory SDK gate", () => {
   const result = checkSdk("999.0.0");
   assert.equal(result.status, 1, result.stdout + result.stderr);

@@ -1,8 +1,7 @@
 appId: com.bgo.mobile
+tags: [ci, auth]
 ---
-# Re-authenticate in the same app process after Clerk sign-out.
-# Guards against AuthView/native client state leaking across mounts and returning
-# to the provider chooser instead of publishing the new session to Expo Router.
+- assertVisible: "Welcome to Board Game Organizer"
 - runFlow:
     file: "../helpers/sign-in.yaml"
     env:
@@ -11,4 +10,12 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Matches"
     timeout: 120000
-- assertNotVisible: "Sign in / Register"
+- assertNotVisible: "Mobile number"
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: ${output.authEmailPattern}
+    timeout: 120000
+- assertVisible: ${output.authEmailPattern}
+- openLink: bgo:///matches
+- assertVisible:
+    id: "profile-button"

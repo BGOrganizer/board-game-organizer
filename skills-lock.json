@@ -163,6 +163,12 @@
       "skillPath": "skills/lingui-best-practices/SKILL.md",
       "computedHash": "234185e667c8b53767fe0b5c625949f4a0384d29ec1a13e1a70c260efed6a65b"
     },
+    "maestro-mobile-testing": {
+      "source": "foreztgump/maestro-mobile-testing-skill",
+      "sourceType": "github",
+      "skillPath": "skills/maestro-mobile-testing/SKILL.md",
+      "computedHash": "cc5ca78e24b5282ca878a9a9899f3b1254b4727eb05946214a6081a6978cc362"
+    },
     "maptiler": {
       "source": "maptiler/maptiler-skills",
       "sourceType": "github",

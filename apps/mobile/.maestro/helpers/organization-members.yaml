@@ -1,80 +1,113 @@
 appId: com.bgo.mobile
-name: Organization members — isolated approved fixture
+tags: [isolated-fixture, organizations]
 ---
-# Manual acceptance only. Use an isolated E2E organization, never production.
-# Requires signed-in creator, ORGANIZATION_LINK, MEMBER_NAME (accepted nonfriend),
-# REMOVE_MEMBER_NAME (another accepted member), REQUEST_NAME and REJECT_NAME
-# (pending requests), BAN_REQUEST_NAME (another pending request), FRIEND_USERNAME
-# (eligible friend for invitation), INVITED_NAME (that friend's displayed full name).
-# Missing fixture values fail; no auth/permission bypass or conditional skips.
+# Approved owned ORGANIZATION_LINK; genuinely signed-in creator.
+# MEMBER_NAME and REMOVE_MEMBER_NAME: distinct accepted nonfriends.
+# REQUEST_NAME, REJECT_NAME, BAN_REQUEST_NAME: distinct pending requesters.
+# FRIEND_USERNAME and INVITED_NAME: eligible friend's username and display name.
+# Every participant belongs to this isolated fixture; no production mutation.
+- assertTrue: ${ORGANIZATION_LINK.startsWith("bgo://") && ORGANIZATION_LINK.includes("/organization/")}
 - openLink: ${ORGANIZATION_LINK}
-- assertVisible:
-    id: "edit-organization-fab"
+- extendedWaitUntil:
+    visible:
+      id: "edit-organization-fab"
+    timeout: 30000
 - tapOn:
     id: "organization-tab-members"
 - assertVisible: "Invite friends"
 - assertVisible: "Organization admin"
 - tapOn: "Respond to membership request: ${REQUEST_NAME}"
 - assertVisible: "Ban"
-- tapOn: "Cancel"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
 - assertVisible: "Respond to membership request: ${REQUEST_NAME}"
 - tapOn: "Respond to membership request: ${REQUEST_NAME}"
-- tapOn: "Accept"
-- assertNotVisible: "Respond to membership request: ${REQUEST_NAME}"
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible: "Respond to membership request: ${REQUEST_NAME}"
+    timeout: 30000
 - tapOn: "Respond to membership request: ${REJECT_NAME}"
-- tapOn: "Reject"
-- assertNotVisible: ${REJECT_NAME}
+- tapOn:
+    id: "confirmation-action-1"
+- extendedWaitUntil:
+    notVisible: ${REJECT_NAME}
+    timeout: 30000
 - tapOn: "Respond to membership request: ${BAN_REQUEST_NAME}"
-- tapOn: "Ban"
-- assertVisible: "Revoke exclusion: ${BAN_REQUEST_NAME}"
+- tapOn:
+    id: "confirmation-action-2"
+- extendedWaitUntil:
+    visible: "Revoke exclusion: ${BAN_REQUEST_NAME}"
+    timeout: 30000
 - tapOn: "Actions: ${MEMBER_NAME}"
 - tapOn: "Follow"
+- extendedWaitUntil:
+    notVisible: "^Follow$"
+    timeout: 30000
 - tapOn: "Actions: ${MEMBER_NAME}"
 - assertVisible: "Unfollow"
 - tapOn: "Block user globally"
 - assertVisible: "Block contact"
-- tapOn: "Block user globally"
-# Global block does not remove organization membership.
+- tapOn:
+    id: "confirm-block-btn"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirmation-dialog"
+    timeout: 30000
 - assertVisible: "Remove member: ${MEMBER_NAME}"
-- tapOn: "Actions: ${MEMBER_NAME}"
-- tapOn: "Unblock"
-- assertVisible: "Unblock contact?"
-- tapOn: "Unblock"
+- runFlow:
+    file: contact-action.yaml
+    env:
+      CONTACT_ACTIONS: "Actions: ${MEMBER_NAME}"
+      ACTION_LABEL: "^Unblock$"
+      CONFIRM_ID: "confirm-unblock-btn"
 - tapOn: "Remove member: ${MEMBER_NAME}"
-- tapOn: "Cancel"
+- tapOn:
+    id: "confirmation-cancel"
 - assertVisible: ${MEMBER_NAME}
 - tapOn: "Remove member: ${MEMBER_NAME}"
-- tapOn: "Ban"
+- tapOn:
+    id: "confirmation-action-1"
 - scrollUntilVisible:
-    element:
-      text: "Revoke exclusion: ${MEMBER_NAME}"
+    element: "Revoke exclusion: ${MEMBER_NAME}"
     direction: DOWN
+    timeout: 30000
 - tapOn: "Revoke exclusion: ${MEMBER_NAME}"
-- assertNotVisible: ${MEMBER_NAME}
+- extendedWaitUntil:
+    notVisible: ${MEMBER_NAME}
+    timeout: 30000
 - scrollUntilVisible:
-    element:
-      text: "Remove member: ${REMOVE_MEMBER_NAME}"
+    element: "Remove member: ${REMOVE_MEMBER_NAME}"
     direction: UP
+    timeout: 30000
 - tapOn: "Remove member: ${REMOVE_MEMBER_NAME}"
-- tapOn: "Remove"
-- assertNotVisible: ${REMOVE_MEMBER_NAME}
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible: ${REMOVE_MEMBER_NAME}
+    timeout: 30000
 - scrollUntilVisible:
-    element:
-      text: "Invite friends"
+    element: "Invite friends"
     direction: UP
+    timeout: 30000
 - tapOn: "Invite friends"
 - tapOn: ${FRIEND_USERNAME}
-- assertVisible: "Invited"
+- extendedWaitUntil:
+    visible: "Invited"
+    timeout: 30000
 - assertVisible: "Invite friends"
 - tapOn: "Cancel organization invitation: ${INVITED_NAME}"
-- tapOn: "Cancel"
+- tapOn:
+    id: "confirmation-cancel"
 - assertVisible: "Invited"
 - tapOn: "Cancel organization invitation: ${INVITED_NAME}"
-# The heading and destructive confirmation have the same label.
 - tapOn:
-    text: "Cancel organization invitation"
-    index: 1
-- assertNotVisible: "Invited"
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible: "Invited"
+    timeout: 30000
 - tapOn:
     id: "organization-tab-events"
 - assertVisible:

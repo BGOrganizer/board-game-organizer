@@ -1,13 +1,7 @@
 appId: com.bgo.mobile
+tags: [ci, auth]
 ---
-# 1. Fresh install: the app launches and shows the welcome screen.
-#    First cold start on a software emulator is slow — generous timeout.
-#    Dismiss any system ANR dialog ("Wait") that may overlay the app.
-- tapOn:
-    text: "Wait"
-    optional: true
-# Maestro grants all permissions by default. Leave these ungranted so flow 05
-# exercises the real contacts denial/retry and notification permission prompts.
+# Fixture: signed-out app, primary onboarding unset, owned address book seeded.
 - launchApp:
     stopApp: true
     clearState: false
@@ -18,3 +12,5 @@ appId: com.bgo.mobile
     visible: "Welcome to Board Game Organizer"
     timeout: 120000
 - assertVisible: "Sign in / Register"
+- assertNotVisible:
+    id: "profile-button"

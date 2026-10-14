@@ -175,41 +175,43 @@ export function UserActionsSheet({
           if (!open && !busy && !confirmation) onClose();
         }}
       >
-        <BottomSheet.Portal>
-          <BottomSheet.Overlay />
-          <BottomSheet.Content enablePanDownToClose={!busy}>
-            <View style={{ gap: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
-              <BottomSheet.Title>{user?.name}</BottomSheet.Title>
-              {(user ? userActionKeys(user, canSendFriendRequest, friendRequest) : []).map(
-                (key) => {
-                  const Icon = icons[key];
-                  return (
-                    <Button
-                      key={key}
-                      variant="ghost"
-                      isDisabled={busy || key === "profile"}
-                      style={{ justifyContent: "flex-start", minHeight: 44 }}
-                      onPress={() => {
-                        if (key === "profile" || busy) return;
-                        if (key === "follow" || key === "unfollow") run(key);
-                        else setConfirmAction(key);
-                      }}
-                    >
-                      <Icon
-                        size={18}
-                        color={key === "profile" ? muted : destructive(key) ? danger : foreground}
-                      />
-                      <Button.Label>{labels[key]}</Button.Label>
-                    </Button>
-                  );
-                },
-              )}
-              <Button variant="ghost" isDisabled={busy} onPress={onClose}>
-                {t("Cancel")}
-              </Button>
-            </View>
-          </BottomSheet.Content>
-        </BottomSheet.Portal>
+        {visible && user ? (
+          <BottomSheet.Portal>
+            <BottomSheet.Overlay />
+            <BottomSheet.Content enablePanDownToClose={!busy}>
+              <View style={{ gap: 12, paddingBottom: Math.max(insets.bottom, 16) }}>
+                <BottomSheet.Title>{user?.name}</BottomSheet.Title>
+                {(user ? userActionKeys(user, canSendFriendRequest, friendRequest) : []).map(
+                  (key) => {
+                    const Icon = icons[key];
+                    return (
+                      <Button
+                        key={key}
+                        variant="ghost"
+                        isDisabled={busy || key === "profile"}
+                        style={{ justifyContent: "flex-start", minHeight: 44 }}
+                        onPress={() => {
+                          if (key === "profile" || busy) return;
+                          if (key === "follow" || key === "unfollow") run(key);
+                          else setConfirmAction(key);
+                        }}
+                      >
+                        <Icon
+                          size={18}
+                          color={key === "profile" ? muted : destructive(key) ? danger : foreground}
+                        />
+                        <Button.Label>{labels[key]}</Button.Label>
+                      </Button>
+                    );
+                  },
+                )}
+                <Button variant="ghost" isDisabled={busy} onPress={onClose}>
+                  {t("Cancel")}
+                </Button>
+              </View>
+            </BottomSheet.Content>
+          </BottomSheet.Portal>
+        ) : null}
       </BottomSheet>
       {visible && user && confirmation ? (
         <ConfirmDialog

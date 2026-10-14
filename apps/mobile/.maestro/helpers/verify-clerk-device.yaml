@@ -1,10 +1,9 @@
 appId: com.bgo.mobile
 ---
-# Provisioning uses development-only +clerk_test emails. Clerk keeps Device Trust
-# enabled; its documented test OTP completes the real native verification UI.
 - extendedWaitUntil:
     visible: "Check your email|Mobile number|Matches"
     timeout: 120000
+# Device Trust remains enabled. Only Clerk's Development test OTP is used.
 - runFlow:
     when:
       visible: "Check your email"
@@ -13,3 +12,4 @@ appId: com.bgo.mobile
       - extendedWaitUntil:
           visible: "Mobile number|Matches"
           timeout: 120000
+- assertNotVisible: "Check your email"

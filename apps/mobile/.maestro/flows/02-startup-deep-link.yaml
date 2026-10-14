@@ -1,12 +1,18 @@
 appId: com.bgo.mobile
+tags: [ci, startup]
 ---
-# Cold start from a deep link must prioritize its destination, then leave tabs usable.
+# Fixture: primary actor completed onboarding; no ordinary matches exist yet.
 - killApp
 - openLink: bgo:///groups
 - extendedWaitUntil:
     visible: "Search groups"
     timeout: 120000
+- assertVisible:
+    id: "profile-button"
 - tapOn: "Matches"
 - extendedWaitUntil:
     visible: "No matches yet — create your first one!"
     timeout: 30000
+- assertVisible: "No matches yet — create your first one!"
+- assertVisible:
+    id: "create-match-fab"

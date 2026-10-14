@@ -81,7 +81,7 @@ Load skills by affected task:
 | Query keys/hooks/mutations/paging/hydration | `tanstack-query-development`; preserve Section 6 ownership, fresh tokens, cancellation, and selective rollback |
 | Local state/drafts | `zustand-state-management`; never mirror Query data |
 | Web Playwright tests/debugging | `playwright-best-practices`; add `clerk-testing` for authenticated flows; mocks/skips/fabricated reports are not real acceptance |
-| Native Maestro flows | Existing flows/CI rules and version-matched official docs; no unreviewed community skill or Limrun/cloud dependency |
+| Native Maestro flows | `maestro-mobile-testing` (project-locked, reviewed against Maestro 2.11); current acceptance contracts/CI gates and version-matched official docs remain authoritative; no mocked acceptance, optional required steps, synthetic visibility markers, animation disabling, or Limrun/cloud dependency |
 | Lingui/localization | `lingui-best-practices`; web macros, mobile `useT`/`translate`, EN/IT source and compiled catalogs; no mobile Babel or suggested ESLint plugin |
 | Existing native Sentry integration | `sentry-react-native-sdk`; verify installed SDK/Expo APIs and existing release/Fabric safeguards; no new web/API instrumentation or SDK upgrade |
 | Development secret injection | `infisical-user-setup-guide`, with its CLI local-development reference; explicit per-app/environment scope, not a root Turbo process receiving every app's secrets |

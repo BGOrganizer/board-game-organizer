@@ -6,6 +6,11 @@ const source = (path: string) => readFileSync(new URL(`../../${path}`, import.me
 
 // Structural regression checks only. Maestro/device acceptance remains separate.
 describe("native list component ownership", () => {
+  it("keeps game-picker clear, filter and selection taps actionable while the keyboard is open", () => {
+    expect(source("components/games/GamePicker.tsx")).toMatch(
+      /<FlatList\s+keyboardShouldPersistTaps="handled"/,
+    );
+  });
   it.each([
     "app/(tabs)/contacts.tsx",
     "app/group/[groupId].tsx",

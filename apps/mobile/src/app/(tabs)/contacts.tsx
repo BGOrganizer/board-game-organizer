@@ -676,6 +676,7 @@ export default function ContactsScreen() {
                       help={t("Type at least 4 characters to search")}
                     />
                     <SearchInput
+                      testID="contact-search-input"
                       value={query}
                       onChange={(value) => {
                         setQuery(value);

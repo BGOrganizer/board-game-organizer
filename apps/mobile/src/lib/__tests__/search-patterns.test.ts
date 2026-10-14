@@ -49,6 +49,7 @@ it("keeps IDs, optional input limits, touch targets and selected accessibility s
   expect(chips).toContain("minWidth: 44");
   expect(chips).toContain("minHeight: 44");
   expect(source("components/common/ui/HelpPopover.tsx")).toContain("minHeight: 44");
+  expect(source("app/(tabs)/contacts.tsx")).toContain('testID="contact-search-input"');
   expect(source("components/games/GamePicker.tsx")).toContain('testID="game-search-input"');
   expect(source("components/locations/LocationPicker.tsx")).toContain(
     'testID="location-address-input"',
@@ -142,6 +143,7 @@ it("preserves cancellation and invalidation of the verified address in the searc
     "setResults([])",
   ])
     expect(handler).toContain(call);
-  expect(text).toContain("clearButtonStyle={{ right: 48 }}");
-  expect(text).toContain("inputStyle={{ paddingRight: 100 }}");
+  expect(text).toContain("clearButtonStyle={{ end: 48 }}");
+  expect(text).toContain("inputStyle={{ paddingEnd: 100 }}");
+  expect(text).not.toContain("clearButtonStyle={{ right:");
 });

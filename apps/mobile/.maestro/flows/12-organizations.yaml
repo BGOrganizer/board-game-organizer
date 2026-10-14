@@ -1,10 +1,23 @@
 appId: com.bgo.mobile
+tags: [ci, organizations]
 ---
-# Preserve the authenticated account while making permission denial deterministic.
+# Camera denial is real OS state; account and address book remain intact.
 - launchApp:
+    clearState: false
     permissions:
       camera: deny
-- tapOn: "Community"
+      contacts: allow
+      notifications: allow
+# Wait for the authenticated runtime before opening a setup route after launch.
+- extendedWaitUntil:
+    visible:
+      id: "profile-button"
+    timeout: 120000
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible:
+      id: "community-tab-organizations"
+    timeout: 30000
 - tapOn:
     id: "community-tab-organizations"
 - assertVisible:
@@ -33,8 +46,10 @@ appId: com.bgo.mobile
 - extendedWaitUntil:
     visible: "Search help"
     timeout: 30000
+- assertVisible: "Search help"
 - assertVisible: "Type at least 4 characters to search"
 - back
+- assertNotVisible: "Search help"
 - tapOn:
     id: "list-search-input"
 - inputText: "maestro-no-match-organization"
@@ -43,86 +58,8 @@ appId: com.bgo.mobile
     visible: "No organizations found"
     timeout: 30000
 - tapOn: "Clear search"
-- hideKeyboard
 - assertNotVisible: "Clear search"
-- tapOn: "New organization"
-- assertVisible: "New organization"
-- tapOn: "Organization name"
-- inputText: "Maestro community club"
-- hideKeyboard
-- tapOn: "Upload organization logo"
-- tapOn: "Camera"
-- runFlow:
-    when:
-      visible:
-        id: ".*:id/permission_deny.*button"
-    commands:
-      - tapOn:
-          id: ".*:id/permission_deny.*button"
-- assertVisible: "Camera permission is required"
-- tapOn: "Upload organization logo"
-- tapOn: "Photo library"
-- extendedWaitUntil:
-    visible: "Photo taken.*"
-    timeout: 30000
-- tapOn:
-    text: "Photo taken.*"
-    index: 0
-# System picker exposes only the selected image; no library permission request.
-- tapOn:
-    text: "Done"
-    optional: true
-- tapOn:
-    text: "Photo taken.*"
-    index: 0
-    optional: true
-- tapOn:
-    text: "Done"
-    optional: true
-- extendedWaitUntil:
-    visible: "Organization logo"
-    timeout: 30000
-- tapOn: "Choose a verified address"
-- tapOn: "Location name"
-- inputText: "Community club"
-- tapOn: "Search address"
-- inputText: "Via Roma Milano"
-- hideKeyboard
-- extendedWaitUntil:
-    visible:
-      id: "address-result-0"
-    timeout: 30000
-- tapOn:
-    id: "address-result-0"
-- tapOn: "Confirm location"
-- assertVisible:
-    id: "organization-submit-bar"
-- tapOn: "Submit for review"
-- extendedWaitUntil:
-    visible: "Edit organization"
-    timeout: 30000
-- assertVisible: "Maestro community club"
-- assertVisible: "Awaiting review"
-- assertVisible: "Confirmed members: 1"
-- assertVisible: "Published events: 0"
-- tapOn:
-    id: "organization-tab-members"
-- assertVisible: "Invitations require an approved organization."
-- tapOn:
-    id: "organization-tab-details"
-# Updating a pending proposal still requires a versioned final submission.
-- tapOn: "Edit organization"
-- tapOn: "Organization name"
-- eraseText
-- inputText: "Maestro community club updated"
-- hideKeyboard
-- assertVisible:
-    id: "organization-submit-bar"
-- tapOn: "Submit for review"
-- extendedWaitUntil:
-    visible: "Edit organization"
-    timeout: 30000
-- assertVisible: "Maestro community club updated"
+- runFlow: ../helpers/organization-create-edit.yaml
 - back
 - extendedWaitUntil:
     visible:
@@ -146,5 +83,4 @@ appId: com.bgo.mobile
     visible: "No results found"
     timeout: 30000
 - tapOn: "Clear search"
-- hideKeyboard
 - assertNotVisible: "Clear search"
