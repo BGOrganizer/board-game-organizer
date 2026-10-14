@@ -25,7 +25,7 @@ runs:
         : "${ANDROID_HOME:?ANDROID_HOME is required}"
         # Preinstalled SDK directories can be root-owned. Cache tar must be able
         # to restore timestamps/modes, not just download/extract the image.
-        for path in "$ANDROID_HOME/system-images/android-34/default/x86_64" \
+        for path in "$ANDROID_HOME/system-images/android-34/google_apis/x86_64" \
                     "$ANDROID_HOME/emulator" "$ANDROID_HOME/platform-tools"; do
           if [[ -d "$path" ]]; then
             sudo chown -R "$(id -u):$(id -g)" "$path"
@@ -39,10 +39,10 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: |
-          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/default/x86_64
+          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/google_apis/x86_64
           ${{ env.BGO_ANDROID_SDK }}/emulator
           ${{ env.BGO_ANDROID_SDK }}/platform-tools
-        key: ${{ runner.os }}-${{ runner.arch }}-android-34-default-x86_64-v1-${{ hashFiles('.github/actions/android-emulator/action.yml') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-android-34-google_apis-x86_64-v1-${{ hashFiles('.github/actions/android-emulator/action.yml') }}
 
     - name: 🛠️ Install SDK components
       if: inputs.phase == 'sdk'
@@ -52,9 +52,9 @@ runs:
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
         yes | "$SDKMGR" --licenses > /dev/null || true
         "$SDKMGR" "platform-tools" "emulator" > /dev/null
-        # ATD disables hardware rendering: native UI animations and captured
-        # screenshots/video require the standard AOSP image, even without a window.
-        "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
+        # Expo Location requires Google Play Services' FusedLocation provider.
+        # Use a rendering-enabled Google APIs image, never ATD.
+        "$SDKMGR" "system-images;android-34;google_apis;x86_64" > /dev/null
         ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
 
     # Save immediately after SDK setup, even if later native acceptance fails.
@@ -64,7 +64,7 @@ runs:
       uses: actions/cache/save@v4
       with:
         path: |
-          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/default/x86_64
+          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/google_apis/x86_64
           ${{ env.BGO_ANDROID_SDK }}/emulator
           ${{ env.BGO_ANDROID_SDK }}/platform-tools
         key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
@@ -74,7 +74,7 @@ runs:
       shell: bash
       run: |
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-        IMG=default
+        IMG=google_apis
         echo "using system image: $IMG"
         mkdir -p "$HOME/.android/avd"
         export ANDROID_AVD_HOME="$HOME/.android/avd"
@@ -125,6 +125,9 @@ runs:
         if [ "$BOOTED" != "1" ]; then
           echo "EMULATOR FAILED TO BOOT"; tail -30 /tmp/emulator.log; exit 1
         fi
+        # Fail before acceptance if the required native location provider is absent.
+        adb shell pm path com.google.android.gms | grep -q '^package:' || {
+          echo "Google Play Services unavailable: Expo Location cannot resolve GPS" >&2; exit 1; }
         sleep 45 # let the input service settle before interacting
         adb shell input keyevent 82 || true
         # Acceptance exercises normal motion and exposes Android crash/ANR dialogs.

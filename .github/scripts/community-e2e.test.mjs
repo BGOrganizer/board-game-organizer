@@ -546,8 +546,10 @@ test("contact searches wait for API results, not an already-visible address-book
   assert(contains(steps, "tapOn", { id: "contact-search-input" }));
   assert(!contains(steps, "tapOn", "^Search users by name or email$"));
   const cleared = steps.findIndex((step) => step.assertNotVisible === "Clear search");
-  const typed = steps.findIndex((step) => step.inputText === "${CONTACT_EMAIL}");
-  assert(cleared >= 0 && cleared < typed);
+  const pasted = steps.findIndex((step) => step.setClipboard === "${CONTACT_EMAIL}");
+  assert(cleared >= 0 && cleared < pasted);
+  assert.deepEqual(steps[pasted + 1], { pasteText: null });
+  assert(!contains(steps, "inputText", "${CONTACT_EMAIL}"));
   assert(
     contains(steps, "assertVisible", {
       id: "contact-search-input",
@@ -661,13 +663,14 @@ test("emulator survives successful boot only, with guaranteed job teardown", () 
   assert.match(action, /bash -e -o pipefail/);
   assert(script.startsWith("#!/usr/bin/env bash\nset -euo pipefail"));
 });
-test("native UI acceptance installs and selects rendering-enabled AOSP, never ATD", () => {
+test("native UI acceptance installs and selects rendering-enabled Google APIs for Expo Location, never ATD", () => {
   const emulator = readFileSync(
     new URL("../actions/android-emulator/action.yml", import.meta.url),
     "utf8",
   ).replace(/\r\n/g, "\n");
-  assert(emulator.includes('"$SDKMGR" "system-images;android-34;default;x86_64"'));
-  assert.doesNotMatch(emulator, /system-images;android-34;aosp_atd/);
+  assert(emulator.includes('"$SDKMGR" "system-images;android-34;google_apis;x86_64"'));
+  assert.doesNotMatch(emulator, /system-images;android-34;(aosp_atd|google_atd|default)/);
+  assert.match(emulator, /adb shell pm path com\.google\.android\.gms \| grep -q '\^package:'/);
   const avd = emulator.match(
     /- name: 🚀 Create AVD[\s\S]*?run: \|\n([\s\S]*?)\n {4}- name: 📱 Boot emulator/,
   )?.[1];
@@ -685,8 +688,8 @@ test("native UI acceptance installs and selects rendering-enabled AOSP, never AT
       trap 'rm -rf "$HOME"' EXIT
       ANDROID_HOME="$HOME/sdk"
       GITHUB_ENV="$HOME/github-env"
-      # A cached ATD sorts before default: selection must not depend on ls order.
-      mkdir -p "$ANDROID_HOME/system-images/android-34/"{aosp_atd,default}
+      # Cached AOSP/ATD must not override the required Google Play Services image.
+      mkdir -p "$ANDROID_HOME/system-images/android-34/"{aosp_atd,default,google_apis}
       avdmanager() {
         printf '%s\\n' "$@"
         if [ "$1" = create ]; then touch "$ANDROID_AVD_HOME/test.ini"; fi
@@ -697,7 +700,7 @@ test("native UI acceptance installs and selects rendering-enabled AOSP, never AT
     { encoding: "utf8" },
   );
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /system-images;android-34;default;x86_64/);
+  assert.match(result.stdout, /system-images;android-34;google_apis;x86_64/);
   assert.doesNotMatch(result.stdout, /aosp_atd/);
 });
 test("native boot verifies KVM and never falls back to software CPU emulation", () => {
@@ -1172,6 +1175,23 @@ test("native journeys never assert or tap disappearing feedback; durable inbox c
   assert(contains(contacts, "tapOn", { id: "notifications-button" }));
   assert(contains(contacts, "tapOn", "Friend request accepted"));
   assert(contains(journey("09-group-invitations"), "tapOn", "New group invitation"));
+});
+
+test("shared address selection checks exact input after closing the covering IME", () => {
+  const steps = nativeSteps("helpers/select-address.yaml", {
+    ADDRESS_QUERY: "Via Roma Milano",
+    LOCATION_NAME: "Community club",
+  });
+  const input = steps.findIndex((step) => step.inputText === "Via Roma Milano");
+  assert(input >= 0);
+  assert.deepEqual(steps[input + 1], { hideKeyboard: null });
+  assert.deepEqual(steps[input + 2].assertVisible, {
+    id: "location-address-input",
+    text: "Via Roma Milano",
+  });
+  assert(contains(steps, "tapOn", { id: "address-result-0" }));
+  for (const name of ["06-match-wizard", "12-organizations", "13-event-draft"])
+    assert(contains(journey(name), "tapOn", { id: "address-result-0" }), name);
 });
 
 test("ordinary match date slots confirm both Android native dialogs before creation or editing", () => {

@@ -11,10 +11,10 @@ appId: com.bgo.mobile
 - hideKeyboard
 - tapOn: "Search address"
 - inputText: ${ADDRESS_QUERY}
+- hideKeyboard
 - assertVisible:
     id: "location-address-input"
     text: ${ADDRESS_QUERY}
-- hideKeyboard
 - extendedWaitUntil:
     visible:
       id: "address-result-0"

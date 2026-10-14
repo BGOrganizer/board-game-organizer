@@ -171,7 +171,7 @@ test("SDK cache prepares only its three directories before restoring root-owned 
   assert(emulator.runs.steps.indexOf(prepare) < emulator.runs.steps.indexOf(restore));
   const folder = mkdtempSync(join(tmpdir(), "bgo-sdk-owner-"));
   const sdk = join(folder, "SDK root").replaceAll("\\", "/");
-  const targets = ["system-images/android-34/default/x86_64", "emulator", "platform-tools"];
+  const targets = ["system-images/android-34/google_apis/x86_64", "emulator", "platform-tools"];
   for (const target of [...targets, "unrelated", ".android/avd"])
     mkdirSync(`${sdk}/${target}`, { recursive: true });
   const log = join(folder, "ownership.txt").replaceAll("\\", "/");
@@ -208,7 +208,7 @@ test("SDK cache survives failed acceptance without persisting emulator identity 
   assert.equal(save.with.key, "${{ steps.sdk-cache.outputs.cache-primary-key }}");
   assert.match(save.if, /inputs.phase == 'sdk'/);
   assert.match(save.if, /cache-hit != 'true'/);
-  assert.match(restore.with.path, /system-images\/android-34\/default\/x86_64/);
+  assert.match(restore.with.path, /system-images\/android-34\/google_apis\/x86_64/);
   assert.doesNotMatch(restore.with.path, /\.android|avd|userdata|snapshot/);
   assert(
     emulator.runs.steps.indexOf(save) <
