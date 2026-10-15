@@ -66,19 +66,37 @@ function execute(result, file = { isFile: () => true, size: 123 }) {
   return { writes, calls, warnings, errors, error, status: process.exitCode };
 }
 
-test("only reported monthly local quota exit 4 skips EAS registration, never APK build or acceptance", () => {
-  for (const stream of ["stdout", "stderr"]) {
-    const result = execute({ status: 4, stdout: "", stderr: "", [stream]: quota });
-    assert.equal(result.error, undefined);
-    assert.equal(result.status, 0);
-    assert.equal(result.writes.output, "url=\nquota-exhausted=true\n");
-    assert.match(result.warnings[0], /::warning::EAS upload skipped/);
-    assert.match(result.writes.summary, /APK build and quality gates remain mandatory/);
-    assert.doesNotMatch(
-      JSON.stringify(result.writes) + result.warnings.join(),
-      /unit-private-token/,
-    );
+test("reported monthly local quota exits 1 and 4 skip only EAS registration", () => {
+  for (const status of [1, 4]) {
+    for (const stream of ["stdout", "stderr"]) {
+      const result = execute({ status, stdout: "", stderr: "", [stream]: quota });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0);
+      assert.equal(result.writes.output, "url=\nquota-exhausted=true\n");
+      assert.match(result.warnings[0], /::warning::EAS upload skipped/);
+      assert.match(result.writes.summary, /APK build and quality gates remain mandatory/);
+      assert.doesNotMatch(
+        JSON.stringify(result.writes) + result.warnings.join(),
+        /unit-private-token/,
+      );
+    }
   }
+});
+
+test("replays the CI quota transcript with the observed process exit 1", () => {
+  const cli = spawnSync(
+    process.execPath,
+    [
+      "-e",
+      `process.stderr.write(${JSON.stringify(`${quota}\nError: GraphQL request failed.\n`)}); process.exit(1);`,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(cli.status, 1);
+  const run = execute(cli);
+  assert.equal(run.error, undefined);
+  assert.equal(run.status, 0);
+  assert.equal(run.writes.output, "url=\nquota-exhausted=true\n");
 });
 
 test("successful EAS JSON exposes its real HTTPS URL; invalid replies remain fatal", () => {
@@ -103,10 +121,12 @@ test("successful EAS JSON exposes its real HTTPS URL; invalid replies remain fat
 
 test("generic GraphQL, auth, other quotas, wrong exit, launch/signal errors and missing APK cannot pass", () => {
   for (const result of [
+    { status: 1, stdout: "", stderr: "GraphQL request failed" },
     { status: 4, stdout: "", stderr: "GraphQL request failed" },
+    { status: 1, stdout: "", stderr: "Unauthorized" },
     { status: 4, stdout: "", stderr: "Unauthorized" },
     { status: 4, stdout: "", stderr: "Cloud build quota exhausted" },
-    { status: 1, stdout: quota, stderr: "" },
+    { status: 2, stdout: quota, stderr: "" },
     { status: null, stdout: "", stderr: "terminated" },
   ]) {
     const run = execute(result);

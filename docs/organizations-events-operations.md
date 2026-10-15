@@ -90,7 +90,7 @@ by its existing sync. No credentials were deleted, rotated or synchronized as pa
 
 APK builds still run locally and must pass their existing checks. EAS registration through `eas upload`
 can exhaust the account's free monthly local-build quota even after the APK is built successfully.
-PR/main workflows skip only that registration when exit 4 contains the explicit provider quota message;
+PR/main workflows skip only that registration when exit 1 or 4 contains the explicit provider quota message;
 the verified APK remains attached to GitHub and Telegram omits the unavailable EAS link. Other upload
 errors and malformed/non-HTTPS responses fail normally. This exception never substitutes an APK,
 reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablement.

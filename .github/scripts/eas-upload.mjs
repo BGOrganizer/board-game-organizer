@@ -23,7 +23,7 @@ if (result.status === 0) {
   }
   appendFileSync(output, `url=${url}\nquota-exhausted=false\n`);
 } else if (
-  result.status === 4 &&
+  [1, 4].includes(result.status) &&
   `${result.stdout}${result.stderr}`.includes(
     "This account has used its local builds from the free plan this month,",
   )
