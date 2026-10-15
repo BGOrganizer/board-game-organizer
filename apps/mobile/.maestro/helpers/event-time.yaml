@@ -1,0 +1,23 @@
+appId: com.bgo.mobile
+---
+- assertTrue: ${Number(HOUR) >= 0 && Number(HOUR) < 24 && Number(MINUTE) >= 0 && Number(MINUTE) < 60}
+- extendedWaitUntil:
+    visible:
+      id: "android:id/timePicker"
+    timeout: 30000
+- tapOn:
+    id: "android:id/toggle_mode"
+- tapOn:
+    id: "android:id/input_hour"
+- eraseText: 2
+- inputText: ${HOUR}
+- tapOn:
+    id: "android:id/input_minute"
+- eraseText: 2
+- inputText: ${MINUTE}
+- tapOn:
+    id: "android:id/button1"
+- extendedWaitUntil:
+    notVisible:
+      id: "android:id/timePicker"
+    timeout: 30000

@@ -1,0 +1,75 @@
+appId: com.bgo.mobile
+tags: [isolated-fixture, matches]
+---
+# Additional link scenario, not one of CI's 13 canonical reports.
+# Requires primary-owned PUBLIC PLANNING match with a free slot and no target invitation.
+- assertTrue: ${PUBLIC_MATCH_LINK.startsWith("bgo://match/")}
+- runFlow:
+    file: "../helpers/switch-actor.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Request to join"
+    timeout: 60000
+- tapOn: "Request to join"
+- extendedWaitUntil:
+    visible: "Your join request is waiting for admin approval."
+    timeout: 30000
+- assertNotVisible: "Accept"
+- assertNotVisible: "Leaderboards"
+- assertNotVisible: "Request to join"
+- runFlow:
+    file: "../helpers/switch-actor.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 60000
+- tapOn: "Players"
+- tapOn: "Approve join request: E2E Target"
+- assertNotVisible: "Approve join request: E2E Target"
+- tapOn: "Remove player: E2E Target"
+- assertVisible: '^Remove player\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+# Removal must free capacity and let the same user make a new voluntary request.
+- runFlow:
+    file: "../helpers/switch-actor.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Request to join"
+    timeout: 60000
+- tapOn: "Request to join"
+- extendedWaitUntil:
+    visible: "Your join request is waiting for admin approval."
+    timeout: 30000
+- runFlow:
+    file: "../helpers/switch-actor.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- openLink: ${PUBLIC_MATCH_LINK}
+- extendedWaitUntil:
+    visible: "Players"
+    timeout: 60000
+- tapOn: "Players"
+- assertVisible: "Approve join request: E2E Target"
+- tapOn: "Remove player: E2E Target"
+- assertVisible: '^Remove player\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible: "E2E Target"
+    timeout: 30000
+- assertNotVisible: "Approve join request: E2E Target"
+- openLink: bgo:///matches

@@ -1,0 +1,75 @@
+appId: com.bgo.mobile
+tags: [ci, events]
+---
+# Primary actor; 12 created a pending organization. Pending must never publish.
+- openLink: bgo:///events
+- assertNotVisible: "New event"
+- assertVisible:
+    id: "list-filter-future"
+- assertVisible:
+    id: "list-filter-past"
+- tapOn:
+    id: "list-filter-future"
+- tapOn:
+    id: "list-filter-past"
+- extendedWaitUntil:
+    visible: "No events found"
+    timeout: 30000
+- tapOn:
+    id: "list-filter-future"
+- tapOn:
+    id: "list-filter-past"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-event"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No events found"
+    timeout: 30000
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- openLink: bgo:///groups
+- tapOn:
+    id: "community-tab-organizations"
+- extendedWaitUntil:
+    visible: "Maestro community club updated"
+    timeout: 30000
+- tapOn: "Maestro community club updated"
+- tapOn:
+    id: "organization-tab-events"
+- assertVisible:
+    id: "events-scroll"
+- tapOn:
+    id: "new-organization-event-fab"
+- runFlow: ../helpers/event-create.yaml
+- runFlow: ../helpers/event-table-configure.yaml
+- tapOn:
+    id: "event-next-fab"
+- assertVisible: "Maestro summer event"
+- assertVisible: "Event day.*"
+- assertVisible: "Event location"
+- assertVisible: "Tables"
+- assertVisible:
+    id: "event-navigation-bar"
+- assertVisible: "Publish event"
+- tapOn: "Publish event"
+- extendedWaitUntil:
+    visible: "Could not save event. Check your connection and event permissions, then try again."
+    timeout: 30000
+- assertVisible: "Maestro summer event.*"
+- tapOn: "Save draft"
+- extendedWaitUntil:
+    visible:
+      id: "edit-event-fab"
+    timeout: 30000
+- assertVisible: "Maestro summer event"
+- assertVisible:
+    id: "event-tab-details"
+- assertVisible:
+    id: "cancel-event-header"
+- runFlow: ../helpers/event-table-readonly.yaml
+- runFlow: ../helpers/event-draft-edit.yaml
+- assertVisible:
+    id: "events-scroll"
+- assertVisible: "Open event: Maestro summer event,.*Draft.*Tables: 0, Confirmed participants: 0"

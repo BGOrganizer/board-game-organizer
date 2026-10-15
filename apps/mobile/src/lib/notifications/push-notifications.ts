@@ -1,0 +1,106 @@
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+
+export type MobilePushPermissionResult =
+  | { status: "granted" }
+  | { status: "denied"; canAskAgain: boolean }
+  | { status: "unsupported" };
+
+export type MobilePushResult =
+  | { status: "granted"; token: string; platform: "android" | "ios" }
+  | { status: "denied"; canAskAgain: boolean }
+  | { status: "unsupported" };
+
+export function configureNotificationHandler() {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
+
+export async function requestMobilePushPermission(): Promise<MobilePushPermissionResult> {
+  if (Platform.OS !== "android" && Platform.OS !== "ios") return { status: "unsupported" };
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "Notifications",
+      importance: Notifications.AndroidImportance.HIGH,
+      showBadge: true,
+      vibrationPattern: [0, 250, 250, 250],
+    });
+  }
+
+  let permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== "granted" && permission.canAskAgain) {
+    permission = await Notifications.requestPermissionsAsync();
+  }
+  return permission.status === "granted"
+    ? { status: "granted" }
+    : { status: "denied", canAskAgain: permission.canAskAgain };
+}
+
+export async function registerMobilePush(): Promise<MobilePushResult> {
+  const permission = await requestMobilePushPermission();
+  if (permission.status !== "granted") return permission;
+  const token = await Notifications.getDevicePushTokenAsync();
+  return {
+    status: "granted",
+    token: String(token.data),
+    platform: Platform.OS === "android" ? "android" : "ios",
+  };
+}
+
+export function notificationHref(
+  data: unknown,
+):
+  | "/contacts"
+  | "/contacts?tab=connections"
+  | "/contacts?tab=requests"
+  | "/matches"
+  | "/groups"
+  | "/notifications"
+  | `/match/${string}`
+  | `/group/${string}`
+  | `/organization/${string}`
+  | `/event/${string}`
+  | `/event/table?eventId=${string}&tableId=${string}`
+  | "/events"
+  | "/moderation" {
+  if (!data || typeof data !== "object") return "/notifications";
+  const { href, kind } = data as { href?: unknown; kind?: unknown };
+  if (typeof href === "string") {
+    const detail =
+      /^\/(matches|groups)\/([a-f\d]{24}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href);
+    if (detail) return detail[1] === "matches" ? `/match/${detail[2]}` : `/group/${detail[2]}`;
+  }
+  const organization =
+    typeof href === "string"
+      ? /^\/organizations\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href)
+      : null;
+  if (organization) return `/organization/${organization[1]}`;
+  if (typeof href === "string") {
+    const event =
+      /^\/events\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})(?:\/tables\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}))?$/i.exec(
+        href,
+      );
+    if (event)
+      return event[2]
+        ? `/event/table?eventId=${event[1]}&tableId=${event[2]}`
+        : `/event/${event[1]}`;
+  }
+  if (href === "/events") return "/events";
+  if (href === "/moderation") return "/moderation";
+  if (href === "/contacts" && kind === "friend_request") return "/contacts?tab=requests";
+  if (href === "/contacts" && kind === "friend_request_accepted") {
+    return "/contacts?tab=connections";
+  }
+  return href === "/contacts" ||
+    href === "/matches" ||
+    href === "/groups" ||
+    href === "/notifications"
+    ? href
+    : "/notifications";
+}

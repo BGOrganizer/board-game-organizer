@@ -10,6 +10,12 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/matches",
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
+vi.mock("@/components/common/startup/WebDataWarmup", () => ({ WebDataWarmup: () => null }));
+vi.mock("@/components/notifications/NotificationBell", () => ({
+  NotificationBell: () => <button type="button" aria-label="Notifications" />,
 }));
 
 vi.mock("@clerk/nextjs", () => ({
@@ -23,7 +29,10 @@ vi.mock("@clerk/nextjs", () => ({
     fallback: React.ReactNode;
     children: React.ReactNode;
   }) => (when === "signed-in" ? children : fallback),
-  useUser: () => ({ user: null }),
+  useUser: () => ({
+    isLoaded: true,
+    user: { unsafeMetadata: { mobileNumber: "e2e" } },
+  }),
   SignInButton: ({ children }: { children: React.ReactNode }) => (
     <button type="button">{children}</button>
   ),
@@ -33,8 +42,8 @@ vi.mock("@clerk/nextjs", () => ({
   UserButton: () => null,
 }));
 
-vi.mock("@board-game-organizer/query", () => ({
-  QueryProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+vi.mock("@/components/common/providers/SessionQueryProvider", () => ({
+  SessionQueryProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 describe("RootLayout", () => {
@@ -51,5 +60,12 @@ describe("TabsLayout", () => {
     renderWithI18n(await TabsLayout({ children: <p>inner</p> }));
     expect(screen.getByText("Board Game Organizer")).toBeTruthy();
     expect(screen.getByText("inner")).toBeTruthy();
+    const content = document.getElementById("tab-content-scroll");
+    expect(content?.className).toContain("overflow-y-auto");
+    expect(content?.className).toContain("min-h-0");
+    expect(content?.className).toContain("flex-1");
+    expect(content?.className).toContain("pb-28");
+    expect(content?.parentElement?.className).toContain("h-dvh");
+    expect(content?.parentElement?.className).toContain("overflow-hidden");
   });
 });

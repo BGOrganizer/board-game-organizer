@@ -1,9 +1,11 @@
+import { getBgoRole } from "@board-game-organizer/schemas";
 import { clerkClient } from "@clerk/nextjs/server";
 
 export interface Profile {
   id: string;
   fullName: string | null;
   username: string | null;
+  bgoRole?: "ADMIN";
   imageUrl: string;
   emailAddress: string | null;
 }
@@ -12,6 +14,7 @@ export const toProfile = (u: any): Profile => ({
   id: u.id,
   fullName: [u.firstName, u.lastName].filter(Boolean).join(" ") || null,
   username: u.username,
+  ...(getBgoRole(u.publicMetadata) ? { bgoRole: "ADMIN" as const } : {}),
   imageUrl: u.imageUrl,
   emailAddress: u.emailAddresses[0]?.emailAddress ?? null,
 });

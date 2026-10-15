@@ -1,0 +1,40 @@
+appId: com.bgo.mobile
+tags: [isolated-fixture, organizations]
+---
+# Signed-in invited recipient; approved owned organization; one explicit decision.
+- assertTrue: ${ORGANIZATION_LINK.startsWith("bgo://") && ORGANIZATION_LINK.includes("/organization/")}
+- assertTrue: ${["Accept", "Reject"].includes(DECISION)}
+- assertTrue: ${EXPECTED_ACTION.length > 0}
+- openLink: ${ORGANIZATION_LINK}
+- extendedWaitUntil:
+    visible:
+      id: "organization-tab-details"
+    timeout: 30000
+- tapOn:
+    id: "organization-tab-details"
+- assertVisible: "Confirmed members:.*"
+- assertVisible: "Published events:.*"
+- assertVisible: "Accept organization invitation"
+- assertVisible: "Reject organization invitation"
+- tapOn: "${DECISION} organization invitation"
+- assertVisible: '^Are you sure\?$'
+- assertNotVisible: "Ban from organization"
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "Accept organization invitation"
+- assertVisible: "Reject organization invitation"
+- tapOn: "${DECISION} organization invitation"
+- assertVisible: '^Are you sure\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirmation-dialog"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: ${EXPECTED_ACTION}
+    timeout: 30000
+- assertNotVisible: "Accept organization invitation"
+- assertNotVisible: "Reject organization invitation"

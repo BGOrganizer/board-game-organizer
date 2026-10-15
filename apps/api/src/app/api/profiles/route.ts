@@ -1,6 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { enrichSingleUser } from "@/app/lib/clerk";
+import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
+import { RelationshipService } from "@/app/lib/contacts/relationship.service";
+import { getDb } from "@/app/lib/db";
+import { GroupsRepository } from "@/app/lib/groups/groups.repository";
+import { MatchesRepository } from "@/app/lib/matches/matches.repository";
 
 function getCorsHeaders(request: NextRequest) {
   const origin = request.headers.get("origin") ?? "";
@@ -43,17 +48,40 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const db = await getDb();
+  const relationships = new RelationshipService(new RelationshipRepository(db));
+  const groupsRepository = new GroupsRepository(db);
+  const [friends, followers, following, playedMatches, groups] = await Promise.all([
+    relationships.list(userId, "friends"),
+    relationships.list(userId, "followers"),
+    relationships.list(userId, "following"),
+    new MatchesRepository(db).countPlayedByUser(userId),
+    groupsRepository.listInvitationsForUser(userId).then((invitations) =>
+      groupsRepository.listForUser(
+        userId,
+        invitations
+          .filter((invitation) => invitation.status === "ACCEPTED")
+          .map((invitation) => invitation.groupId),
+      ),
+    ),
+  ]);
+
   const profile = {
     id: clerkProfile.id,
     name: clerkProfile.fullName ?? clerkProfile.emailAddress ?? "Unknown",
+    username: clerkProfile.username ?? null,
+    ...(clerkProfile.bgoRole ? { bgoRole: clerkProfile.bgoRole } : {}),
     email: clerkProfile.emailAddress ?? "",
     avatarUrl: clerkProfile.imageUrl ?? "",
     preferredLanguage: "it",
     plan: "free",
     stats: {
-      gamesOwned: 0,
-      gamesPlayed: 0,
-      friends: 0,
+      friends: friends.length,
+      followers: followers.length,
+      following: following.length,
+      playedMatches,
+      adminGroups: groups.filter((group) => group.adminUserId === userId).length,
+      joinedGroups: groups.filter((group) => group.adminUserId !== userId).length,
     },
   };
 

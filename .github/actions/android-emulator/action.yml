@@ -1,62 +1,134 @@
-name: Android Emulator (software-rendered)
-description: >
-  Installs the Android SDK components, creates an AVD and boots a
-  software-rendered emulator (GitHub-hosted runners have no KVM), then runs
-  the provided `script` input in the SAME shell so the emulator stays alive
-  for the whole script. Collects /tmp/emulator.log and /tmp/avd-create.log
-  on failure.
+name: Android Emulator (KVM-accelerated)
+description: Install SDK, create AVD or boot a job-scoped emulator shared by subsequent steps.
 
 inputs:
-  script:
-    description: Commands to run after the emulator has fully booted
+  phase:
+    description: sdk, avd or boot
     required: true
 
 runs:
   using: composite
   steps:
+    - name: Validate emulator phase
+      shell: bash
+      env:
+        EMULATOR_PHASE: ${{ inputs.phase }}
+      run: |
+        case "$EMULATOR_PHASE" in
+          sdk|avd|boot) ;;
+          *) echo "Unknown emulator phase" >&2; exit 2 ;;
+        esac
+    - name: Resolve SDK cache path
+      if: inputs.phase == 'sdk'
+      shell: bash
+      run: |
+        : "${ANDROID_HOME:?ANDROID_HOME is required}"
+        # Preinstalled SDK directories can be root-owned. Cache tar must be able
+        # to restore timestamps/modes, not just download/extract the image.
+        for path in "$ANDROID_HOME/system-images/android-34/google_apis/x86_64" \
+                    "$ANDROID_HOME/emulator" "$ANDROID_HOME/platform-tools"; do
+          if [[ -d "$path" ]]; then
+            sudo chown -R "$(id -u):$(id -g)" "$path"
+          fi
+        done
+        echo "BGO_ANDROID_SDK=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+    - name: ♻️ Restore Android SDK image and tools
+      if: inputs.phase == 'sdk'
+      id: sdk-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/google_apis/x86_64
+          ${{ env.BGO_ANDROID_SDK }}/emulator
+          ${{ env.BGO_ANDROID_SDK }}/platform-tools
+        key: ${{ runner.os }}-${{ runner.arch }}-android-34-google_apis-x86_64-v1-${{ hashFiles('.github/actions/android-emulator/action.yml') }}
+
     - name: 🛠️ Install SDK components
+      if: inputs.phase == 'sdk'
       shell: bash
       run: |
         SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
         yes | "$SDKMGR" --licenses > /dev/null || true
         "$SDKMGR" "platform-tools" "emulator" > /dev/null
-        # ATD (Automated Test Device) images are lighter and less ANR-prone on
-        # software emulators; fall back to the full default image.
-        "$SDKMGR" "system-images;android-34;aosp_atd;x86_64" > /dev/null 2>&1 \
-          || "$SDKMGR" "system-images;android-34;default;x86_64" > /dev/null
+        # Expo Location requires Google Play Services' FusedLocation provider.
+        # Use a rendering-enabled Google APIs image, never ATD.
+        "$SDKMGR" "system-images;android-34;google_apis;x86_64" > /dev/null
         ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null || true
 
+    # Save immediately after SDK setup, even if later native acceptance fails.
+    # Never cache AVD userdata, accounts, permissions, snapshots or test fixtures.
+    - name: 💾 Save Android SDK image and tools
+      if: inputs.phase == 'sdk' && steps.sdk-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ${{ env.BGO_ANDROID_SDK }}/system-images/android-34/google_apis/x86_64
+          ${{ env.BGO_ANDROID_SDK }}/emulator
+          ${{ env.BGO_ANDROID_SDK }}/platform-tools
+        key: ${{ steps.sdk-cache.outputs.cache-primary-key }}
+
     - name: 🚀 Create AVD
+      if: inputs.phase == 'avd'
       shell: bash
       run: |
         export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-        IMG=$(ls "$ANDROID_HOME/system-images/android-34" 2>/dev/null | head -1)
+        IMG=google_apis
         echo "using system image: $IMG"
         mkdir -p "$HOME/.android/avd"
-        # Export in the SAME shell (avdmanager needs it during creation) AND
-        # persist for the next step via GITHUB_ENV.
         export ANDROID_AVD_HOME="$HOME/.android/avd"
         echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
         echo no | avdmanager create avd --force -n test \
           --package "system-images;android-34;$IMG;x86_64" --device pixel_6 \
           2>&1 | tee /tmp/avd-create.log
-        echo "--- avd list ---"
         avdmanager list avd
-        echo "--- avd dir ---"
-        ls -la "$ANDROID_AVD_HOME"
         test -f "$ANDROID_AVD_HOME/test.ini" || {
           echo "AVD CREATION FAILED"; cat /tmp/avd-create.log; exit 1; }
 
-    - name: 📱 Boot emulator & run script
+    - name: 📱 Boot emulator
+      if: inputs.phase == 'boot'
       shell: bash
       run: |
         export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-        "$ANDROID_HOME/emulator/emulator" -avd test \
+        # Fail early if this runner cannot provide hardware acceleration.
+        test -c /dev/kvm || { echo "KVM device unavailable on this runner" >&2; exit 1; }
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        # Trigger is asynchronous by default: wait for this device's rules before
+        # checking permissions. Do not fall back to software CPU emulation.
+        sudo udevadm trigger --name-match=kvm --settle
+        if ! test -r /dev/kvm || ! test -w /dev/kvm; then
+          echo "KVM device exists but runner lacks read/write permission after udev settlement" >&2
+          ls -l /dev/kvm >&2
+          id >&2
+          exit 1
+        fi
+        "$ANDROID_HOME/emulator/emulator" -accel-check
+        # Keep the same emulator across job steps, not across jobs. Disconnect
+        # shell streams so returning from this step does not wait for the daemon.
+        # swiftshader_indirect is deprecated since Emulator 36.4.9.
+        # https://developer.android.com/studio/run/emulator-acceleration
+        nohup bash -c '
+          "$ANDROID_HOME/emulator/emulator" "$@" &
+          pid=$!
+          printf "%s\n" "$pid" > /tmp/bgo-emulator.pid
+          code=0
+          wait "$pid" || code=$?
+          printf "Emulator exit code: %s\n" "$code"
+          exit "$code"
+        ' _ -avd test \
           -no-window -no-audio -no-boot-anim -no-snapshot \
-          -gpu swiftshader_indirect -memory 3072 -cores 4 -accel off \
-          -port 5554 > /tmp/emulator.log 2>&1 &
-        EMU_PID=$!
+          -gpu swiftshader -memory 3072 -cores 4 -accel on \
+          -port 5554 > /tmp/emulator.log 2>&1 < /dev/null &
+        for i in $(seq 1 50); do
+          test -s /tmp/bgo-emulator.pid && break
+          sleep 0.1
+        done
+        read -r EMU_PID < /tmp/bgo-emulator.pid
+        [[ "$EMU_PID" =~ ^[0-9]+$ ]] || { echo "Emulator PID unavailable" >&2; exit 1; }
+        EMULATOR_READY=0
+        trap 'if [ "$EMULATOR_READY" != "1" ]; then kill "$EMU_PID" 2>/dev/null || true; fi' EXIT
         timeout 300 adb wait-for-device || { echo "NO DEVICE"; tail -20 /tmp/emulator.log; exit 1; }
         BOOTED=0
         for i in $(seq 1 150); do
@@ -68,20 +140,17 @@ runs:
         if [ "$BOOTED" != "1" ]; then
           echo "EMULATOR FAILED TO BOOT"; tail -30 /tmp/emulator.log; exit 1
         fi
+        # Fail before acceptance if the required native location provider is absent.
+        adb shell pm path com.google.android.gms | grep -q '^package:' || {
+          echo "Google Play Services unavailable: Expo Location cannot resolve GPS" >&2; exit 1; }
         sleep 45 # let the input service settle before interacting
         adb shell input keyevent 82 || true
-        adb shell settings put global window_animation_scale 0.0 || true
-        adb shell settings put global transition_animation_scale 0.0 || true
-        adb shell settings put global animator_duration_scale 0.0 || true
-        # Hide ANR/crash dialogs: on software-rendered emulators the system
-        # process ANRs and its dialog would block the UI (and Maestro).
-        adb shell settings put global hide_error_dialogs 1 || true
+        # Acceptance exercises normal motion and exposes Android crash/ANR dialogs.
+        adb shell settings put global window_animation_scale 1.0
+        adb shell settings put global transition_animation_scale 1.0
+        adb shell settings put global animator_duration_scale 1.0
+        adb shell settings put global hide_error_dialogs 0
+        free -m
         adb logcat -c
-        echo "::group::Running workflow script"
-        # Caller scripts must avoid DOUBLE quotes (they break the -c wrapping);
-        # single quotes are fine.
-        bash -e -c "${{ inputs.script }}"
-        SCRIPT_EXIT=$?
-        echo "::endgroup::"
-        kill $EMU_PID 2>/dev/null
-        exit $SCRIPT_EXIT
+        echo "BGO_EMULATOR_PID=$EMU_PID" >> "$GITHUB_ENV"
+        EMULATOR_READY=1

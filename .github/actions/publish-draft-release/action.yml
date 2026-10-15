@@ -29,6 +29,10 @@ inputs:
   apk-name:
     description: File name of the APK asset
     required: true
+  eas-build-url:
+    description: Shareable EAS link; empty when registration is skipped for exhausted monthly quota
+    required: false
+    default: ''
   web-preview-url:
     description: Vercel preview URL of the web app
     required: true
@@ -55,6 +59,7 @@ runs:
       shell: bash
       env:
         GH: ${{ inputs.github-token }}
+        EAS_BUILD_URL: ${{ inputs.eas-build-url }}
       run: |
         set -euo pipefail
         API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
@@ -67,12 +72,13 @@ runs:
 
         # 2) Release body
         cat > /tmp/release-body.md <<'EOF'
-        ## ✅ PR CI/CD completato — tutti i gate passati
+        ## ✅ PR CI/CD completato
 
         **PR:** #__PR__ — __PR_TITLE__
 
         ### 📱 APK (PR)
         - __APK_NAME__ — allegato a questa release
+        - **Build EAS:** __EAS_BUILD__
 
         ### 🌐 Preview Vercel
         - **Web:** __WEB__
@@ -82,10 +88,12 @@ runs:
 
         EOF
         cat /tmp/pr-changelog.md >> /tmp/release-body.md
+        if [ -z "$EAS_BUILD_URL" ]; then sed -i '/__EAS_BUILD__/d' /tmp/release-body.md; fi
         sed -i \
           -e "s|__PR__|${{ inputs.pr-number }}|g" \
           -e "s|__PR_TITLE__|${{ inputs.pr-title }}|g" \
           -e "s|__APK_NAME__|${{ inputs.apk-name }}|g" \
+          -e "s|__EAS_BUILD__|$EAS_BUILD_URL|g" \
           -e "s|__WEB__|${{ inputs.web-preview-url }}|g" \
           -e "s|__API__|${{ inputs.api-preview-url }}|g" \
           /tmp/release-body.md

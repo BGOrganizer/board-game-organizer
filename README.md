@@ -3,125 +3,181 @@
 ![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)
 ![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)
 
-Multi-platform app to organize board game sessions, collections, groups, and player stats —
-web, API, and mobile, all in one TypeScript monorepo.
+Web and native mobile clients for board-game contacts, collections, matches, groups,
+organizations, and events, backed by a shared TypeScript API.
+
+## Current functionality
+
+- Clerk authentication, required post-signup mobile-number step, profile and logout.
+- Friends, follows, requests, blocks, user search, presence, permission-gated mobile contact
+  suggestions, and shareable seven-day invites.
+- Match planning, verified locations and personal location favorites, game/date voting,
+  invitations and link-based participation requests, confirmation, and immutable results.
+- Groups with friend invitations, membership, editing/archival, public discovery, group matches,
+  and per-game OpenSkill leaderboards.
+- MongoDB-backed BoardGameGeek catalog search, account linking and collection synchronization.
+- Durable notification inbox, unread state, optional push delivery, light/dark theme, and EN/IT.
+- Organizations with verified addresses, logos, moderation, membership and exclusions; events
+  with drafts, tables, invitations/bookings, cutoff enforcement and fixed matches.
+
+**Organizations/events are implemented in this branch, but full PR/native acceptance is incomplete.**
+They are not production-verified. Draft saving and publication do not require Inngest; exact cutoff
+checks and authorized-read closure remain active. Autonomous closure requires a configured worker;
+real Inngest registration/delivery has not been attested. See the
+[implementation checkpoint](docs/implementation-progress.md) and
+[operational gates](docs/organizations-events-operations.md).
 
 ## Stack
 
-| Layer | Tech |
-|-------|------|
-| Monorepo | pnpm workspaces + Turborepo |
-| Web | Next.js 16 (App Router, React 19) · Tailwind CSS v4 · HeroUI |
-| API | Next.js 16 route handlers · Clerk auth · MongoDB (raw driver) · zod |
-| Mobile | Expo SDK 56 (React Native, Expo Router) · Clerk · Sentry · heroui-native + uniwind |
-| Shared | `@board-game-organizer/store` (Zustand, UI state) · `@board-game-organizer/query` (TanStack Query) · `@board-game-organizer/shared` (types, API client, hooks) · `@board-game-organizer/schemas` (DB models + zod DTOs) |
-| i18n | **LinguiJS** (it + en catalogs, web + mobile) — see AGENTS.md |
-| Tooling | TypeScript · Biome (lint + format) · Vitest (+ coverage ≥ 50% per app) · commitlint · Maestro · Playwright |
+| Area | Technologies |
+| --- | --- |
+| Workspace | pnpm 11.25, Turborepo; Node.js 26 in CI |
+| Web | Next.js 16 App Router, React 19, HeroUI 3, Tailwind CSS 4, Clerk |
+| API | Next.js route handlers, Clerk, MongoDB driver 7, zod 4, OpenSkill 5, Sharp 0.35, Inngest 4 |
+| Native mobile | Expo SDK 57, React Native 0.86, Expo Router, HeroUI Native 1, Uniwind 1, Clerk, Sentry |
+| Maps | MapTiler SDK 4 on web; MapLibre React Native 11 with MapTiler tiles on mobile |
+| State | TanStack Query 5 for remote data; Zustand 5 for UI and unsaved drafts |
+| Localization | Lingui 6, shared English/Italian source and compiled catalogs |
+| Quality | Biome, Vitest 3.2, Playwright, Maestro, commitlint |
+| TypeScript | 7 in non-mobile workspaces; Expo-compatible 6 on mobile |
 
-## Features
+Expo web is not a supported product target. Native MapLibre requires a development build, not Expo Go.
 
-**Implemented**
-- Clerk authentication on web and mobile (sign-in / sign-up, Google OAuth)
-- Profile screen (avatar, user info, stats) powered by the API (`GET /api/profiles`, deployed on
-  Vercel) with **logout**; specular web/mobile implementation
-- Light/dark theme follows the device (HeroUI + uniwind)
-- Profile endpoint and follow / friend-request / friend / block "relationships" API (MongoDB)
-- App shells with Matches · Groups · Organizations · Contacts · Profile navigation (web + mobile)
-- **Contacts tab** (web + mobile): Following/Followers/Blocked lists, follow/unfollow,
-  address-book suggestions (mobile: permission-gated, matched registered users persisted
-  in `contactLinks`; 'Add contacts' CTA re-prompts when denied), prefix search (with block
-  policy + rate limit), presence green-dot (heartbeat), coherent follow state across
-  sections (TanStack Query cache invalidation), block/unblock with confirmation via a
-  kebab action menu (mobile bottom sheet / web dropdown)
-- **Invites** (Phase 3): shareable invite links with 7-day TTL (`POST /api/invites`,
-  `POST /api/invites/claim`); claiming makes both users MUTUAL followers/friends. UI: an
-  `InviteCard` (card + button, no email form) above the Contacts tabs. The link ALWAYS points
-  at the **API** that generated it (preview API → preview link, production → production link);
-  claim happens on the public page `/invite/<token>` HOSTED BY THE API (Clerk sign-in modal +
-  Bearer claim). Icons via lucide-react / lucide-react-native.
-- E2E tests with **Maestro** (mobile) and **Playwright** (web) in CI — test users are
-  provisioned via the Clerk API per run and deleted afterwards (never accumulate)
+## Repository and component structure
 
-**Planned**
-- Collection management, session logging, player statistics, game catalog (BGG import)
-- Groups, match scheduling, venues, ELO rankings, marketplace
+There are three apps and six shared/configuration workspace packages, plus the root project.
 
-**Release 2 (deferred)** — see `plan.md`: friend requests UI + expired-invite
-cleanup job.
+```text
+apps/
+  api/                  Routes, services, repositories, migrations and integration tests
+  web/                  Next.js routes and web-owned feature components
+  mobile/               Expo Router routes and native-owned feature components
+packages/
+  schemas/              MongoDB models and zod DTOs
+  shared/               Pure domain logic, API helpers and reusable Query hooks
+  query/                Query client and provider
+  store/                Local UI and unsaved draft state
+  biome-config/         Shared Biome configuration
+  typescript-config/    Shared TypeScript configuration
+messages/               EN/IT Lingui catalogs
+scripts/release/        Versioning, changelog and release helpers
+docker/mongodb/         Local replica-set startup and catalog import
+data/                   Ignored local CSV; tracked setup notes
+docs/                   Domain specifications, operations and implementation evidence
+.github/                CI workflows, composite actions and regression scripts
+.agents/skills/         Managed project skills
+.pi/skills/             Pi skills, including the tracked BGO architecture guide
+skills-lock.json        Managed skill sources and integrity
+```
 
-## Prerequisites
+Both clients use this platform-owned component layout:
 
-- **Node.js ≥ 22** (CI uses 26)
-- **pnpm ≥ 11.6** (`corepack enable && corepack prepare pnpm@11.6.0 --activate`, or `npm i -g pnpm`)
-- **MongoDB** running (transactions require a replica set: `mongod --replSet rs0` + `rs.initiate()`)
-- Accounts/keys: [Clerk](https://clerk.com) (publishable + secret keys); Sentry DSN only for mobile
+```text
+src/
+  app/                  Next.js or Expo Router entries
+  components/
+    contacts/
+    matches/
+    groups/
+    organizations/
+    events/
+    profile/
+    common/ui/          Only proven cross-feature reuse
+  lib/                  Platform adapters and local helpers
+```
 
-## Setup & Run
+Components and their tests are organized by feature on both clients, without a universal web/native
+renderer. Shared logic/hooks and schema models/DTOs also live in domain folders. API HTTP helpers,
+services and repositories are grouped inside `apps/api/src/app/lib/<domain>`; route handlers remain
+the controllers and keep their existing URLs. Query/configuration packages stay flat and Zustand
+retains its slices. See [AGENTS.md](AGENTS.md) for ownership rules and
+[the refactoring evidence](docs/skills-and-component-architecture-plan.md#9-feature-organization-execution)
+for verification and acceptance limits.
+
+## Local setup
+
+Use Node.js 26 to match CI, pnpm 11.25, Clerk keys and a MongoDB replica set.
+Map display needs each client's public MapTiler key; address verification uses the server-only key.
+Sentry and push credentials are optional. Deployment configuration comes from Infisical;
+local files must remain private.
 
 ```bash
-pnpm install          # install all workspace dependencies
-
-# 1. Create env files from the per-app examples
+pnpm install --frozen-lockfile
 cp apps/web/.env.example apps/web/.env.local
 cp apps/api/.env.example apps/api/.env.local
 cp apps/mobile/.env.example apps/mobile/.env
-
-pnpm dev              # run all apps
 ```
 
-- Web: http://localhost:3000
-- API: http://localhost:4000
-- Mobile: `pnpm --filter mobile dev` (Expo dev client / emulator)
-
-Per-app: `pnpm --filter web dev`, `pnpm --filter api dev`, `pnpm --filter mobile dev`.
-
-## Quality
+Fill the documented placeholders, then run the clients you need:
 
 ```bash
-pnpm lint         # biome check
-pnpm typecheck    # tsc --noEmit across apps
-pnpm format       # biome format --write .
-pnpm --filter <app> test             # vitest (unit)
-pnpm --filter <app> test:coverage    # vitest + coverage report
-pnpm --filter api test:integration   # integration tests (testcontainers / Docker)
-pnpm --filter web test:e2e           # Playwright E2E (needs CLERK_SECRET_KEY +
-                                   #   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY for the Clerk
-                                   #   testing token; PLAYWRIGHT_BASE_URL for the target)
-pnpm commitlint                      # conventional-commit check
-pnpm release                        # semantic-release (version bump + changelog, on main)
+pnpm --filter api dev       # http://localhost:4000
+pnpm --filter web dev       # http://localhost:3000
+pnpm --filter mobile dev    # Expo development client
+# pnpm dev runs all workspace development tasks through Turbo
 ```
 
-## Git Workflow & CI/CD
+Use your machine's LAN address for a physical device's API URL. `NEXT_PUBLIC_*` and
+`EXPO_PUBLIC_*` values are public, even when a secret manager labels them Secret.
+Never commit populated env files, credentials, private MCP configuration or service-account files.
 
-- **`main` is protected** — no direct pushes; every change goes through a **pull request**
-  with at least 1 approval (branch protection: Settings → Branches → `main`).
-- **Branch pushes run `branch-ci.yml`** (fast subset: commitlint, Biome, typecheck, unit +
-  integration tests) — quick feedback while implementing; **the PR is opened only when the
-  whole feature is done** (on request) and runs the full `pr-ci.yml` below.
-- **PRs run `pr-ci.yml`**: commitlint → Biome → typecheck → unit tests with coverage → API
-  integration tests (testcontainers) → mobile APK build (internal) → api/web builds → Vercel
-  **preview** deploys → E2E **Maestro** (mobile) + **Playwright** (web).
-- If every gate passes, a **draft prerelease** (`v<version>-pr.<PR>`) is created/updated with
-  the PR **changelog** (from conventional commits), the internal APK and the preview links,
-  and a **Telegram notification** is sent (changelog + preview links + PR APK).
-- Merging to main runs `main-ci.yml`: **semantic-release** bumps the **semver** version from
-  the conventional commits (breaking → major, `feat` → minor, `fix` → patch), generates
-  **`CHANGELOG.md`**, syncs the version across api/web/mobile + the APK, creates the GitHub
-  release `v<version>` with the changelog, attaches the internal APK, deploys api/web to
-  **Vercel production** and posts the release to the **Telegram channel**.
-- The **development APK** is built only manually from main (`mobile-development.yml`) and
-  attached to the latest release.
+### MongoDB and BoardGameGeek
 
-See `AGENTS.md` for the full spec, env vars, and the signed git/commit workflow.
+Download/extract the BGG `bg_ranks` CSV to `data/boardgames_ranks.csv`, then:
 
-## Board automation (pi-board-agent)
+```bash
+docker compose up -d --wait --wait-timeout 600
+docker compose logs -f mongodb
+pnpm --filter api migrate
+```
 
-Autonomous execution of the GitHub project board (story refine → sub-issue tasks →
-implementation in worktrees → PR per plan → CI fixes → Telegram): the config lives in
- (gitignored) and the runtime in a separate Docker container.
-See  → *Board automation* for the full config + the gh token permissions
-needed to initialize the project ().
+`compose.yaml` initializes a MongoDB 7 replica set and imports the CSV before reporting healthy.
+Use the API example's replica-set URI and `MONGODB_DB_NAME`. Migrations create social, group,
+rating, location, organization and event indexes before writes.
+
+Catalog imports upsert by BGG ID without deleting absent games or match history. To re-import a
+local CSV, use `BGG_CSV_PATH` with `docker compose up -d --force-recreate --wait`.
+`docker compose down` preserves data; add `-v` only when deletion is explicitly intended.
+
+Remote imports use `.github/workflows/import-boardgames.yml` or
+`apps/api/scripts/import-boardgames.mjs`; direct Preview database imports use
+`apps/api/scripts/import-boardgames-direct.ts`. Verify the exact target and credentials before
+running either. BGG account validation/synchronization uses the API's `BGG_TOKEN`.
+
+## Checks and delivery
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm --filter <workspace> test
+pnpm --filter <workspace> test:coverage
+pnpm --filter api test:integration   # Docker/Testcontainers replica set
+pnpm --filter web test:e2e           # Isolated API/Clerk and explicit E2E configuration
+pnpm build
+pnpm i18n:extract
+pnpm i18n:compile
+```
+
+There is no root `test` script. Mobile Vitest focuses on pure logic; Maestro covers native UI.
+Missing authenticated E2E configuration must fail, not silently skip. Written flows and static
+checks do not establish runtime acceptance.
+
+Branch CI runs quality/unit/integration checks. PR CI adds isolated Preview deployments, separate
+CI/development APKs, browser/native E2E and cleanup before draft publication. Main CI verifies
+isolated E2E and cleanup before release and production deployment. Vercel builds uploaded source
+with app-specific build commands; deployment-local overrides preserve database isolation.
+
+`main` is protected. Use signed Conventional Commits; open a PR only on explicit request.
+See [AGENTS.md](AGENTS.md) and the current [workflow files](.github/workflows) for operational rules.
+
+## Domain and operational references
+
+- [Organizations/events behavior](docs/organizations-events.md)
+- [Moderation, deadline workers, Infisical and deployment isolation](docs/organizations-events-operations.md)
+- [Implementation evidence and incomplete acceptance](docs/implementation-progress.md)
+
+These documents hold the detailed specifications and procedures; this README does not duplicate them.
 
 ## License
 
-MIT
+MIT is the declared license; a standalone `LICENSE` file is not currently included.

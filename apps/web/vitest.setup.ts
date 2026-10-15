@@ -16,6 +16,8 @@ class ResizeObserverStub {
   disconnect() {}
 }
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
+// jsdom has no Web Animations; React Aria inspects running animations on tab changes.
+Element.prototype.getAnimations ??= () => [];
 
 if (!globalThis.matchMedia) {
   // jsdom + HeroUI dark-mode toggles read `matchMedia("(prefers-color-scheme: dark)")`.

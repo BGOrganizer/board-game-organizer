@@ -1,0 +1,100 @@
+diff --git a/lib/module/components/popover/popover.js b/lib/module/components/popover/popover.js
+index 0825189944a9950d74e5fba3792be580eb80ab93..161e02031268c659ae6a115bebf402d5e9678d84 100644
+--- a/lib/module/components/popover/popover.js
++++ b/lib/module/components/popover/popover.js
+@@ -244,6 +244,7 @@ const PopoverContentPopover = /*#__PURE__*/forwardRef(({
+         exiting: exiting,
+         collapsable: false,
+         pointerEvents: "box-none",
++        style: StyleSheet.absoluteFill,
+         children: /*#__PURE__*/_jsx(AnimatedContent, {
+           ref: ref,
+           placement: placement,
+diff --git a/lib/module/components/select/select.js b/lib/module/components/select/select.js
+index ac5bc493af27f79642b1836615e46c3c01e0e0f2..7d2bd3cf96503c5de55215dc172fe33698142956 100644
+--- a/lib/module/components/select/select.js
++++ b/lib/module/components/select/select.js
+@@ -357,6 +357,7 @@ const SelectContentPopover = /*#__PURE__*/forwardRef(({
+       exiting: exiting,
+       collapsable: false,
+       pointerEvents: "box-none",
++      style: StyleSheet.absoluteFill,
+       children: /*#__PURE__*/_jsx(AnimatedPopoverContent, {
+         ref: ref,
+         placement: placement,
+diff --git a/lib/module/helpers/internal/components/bottom-sheet-content-container.js b/lib/module/helpers/internal/components/bottom-sheet-content-container.js
+index f9ea035e3b30eafe5eb281e8c0b9aae8149d9daf..1a976ee6bcf064f21ad6393308cbe735df9997b1 100644
+--- a/lib/module/helpers/internal/components/bottom-sheet-content-container.js
++++ b/lib/module/helpers/internal/components/bottom-sheet-content-container.js
+@@ -39,7 +39,7 @@ export function BottomSheetContentContainer({
+     onOpenChange(false);
+   };
+   useAnimatedReaction(() => progress.get(), value => {
+-    if (value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {
++    if (isPanActivated.get() && value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {
+       isClosingOnSwipe.set(true);
+       scheduleOnRN(closeBottomSheet);
+     }
+diff --git a/lib/module/helpers/internal/components/bottom-sheet-content.js b/lib/module/helpers/internal/components/bottom-sheet-content.js
+index 62a7fc7ecf64d48bc555f7dd14c854b2c75cc34e..e0cd93a2c60ed652ab0b0012b5efac951e0222f1 100644
+--- a/lib/module/helpers/internal/components/bottom-sheet-content.js
++++ b/lib/module/helpers/internal/components/bottom-sheet-content.js
+@@ -144,7 +144,7 @@ export const BottomSheetContent = /*#__PURE__*/forwardRef(({
+     },
+     children: /*#__PURE__*/_jsx(StyledBottomSheet, {
+       ref: ref,
+-      index: -1,
++      index: isOpen ? initialIndex ?? 0 : -1,
+       backgroundClassName: contentBackgroundClassName,
+       backgroundStyle: backgroundStyle,
+       handleIndicatorClassName: contentHandleIndicatorClassName,
+diff --git a/src/components/popover/popover.tsx b/src/components/popover/popover.tsx
+index e0d93c930923959c6e6bf8c2c16232dff10767cd..12b70b8dde48c9151a0fb0bf8f4e96753965eebe 100644
+--- a/src/components/popover/popover.tsx
++++ b/src/components/popover/popover.tsx
+@@ -316,6 +316,7 @@ const PopoverContentPopover = forwardRef<
+             exiting={exiting}
+             collapsable={false}
+             pointerEvents="box-none"
++            style={StyleSheet.absoluteFill}
+           >
+             <AnimatedContent
+               ref={ref}
+diff --git a/src/components/select/select.tsx b/src/components/select/select.tsx
+index e9f86ec7aff695e30d82ccf00d0ba7f97215e059..e951de6b4c62b7cc9a47388e09967b19f9479856 100644
+--- a/src/components/select/select.tsx
++++ b/src/components/select/select.tsx
+@@ -481,6 +481,7 @@ const SelectContentPopover = forwardRef<
+           exiting={exiting}
+           collapsable={false}
+           pointerEvents="box-none"
++          style={StyleSheet.absoluteFill}
+         >
+           <AnimatedPopoverContent
+             ref={ref}
+diff --git a/src/helpers/internal/components/bottom-sheet-content-container.tsx b/src/helpers/internal/components/bottom-sheet-content-container.tsx
+index 23de843229d5420194ae3e9eef5a19b94c22fe02..b793e186305e207d22748dc5f7c3294d6694e8ac 100644
+--- a/src/helpers/internal/components/bottom-sheet-content-container.tsx
++++ b/src/helpers/internal/components/bottom-sheet-content-container.tsx
+@@ -39,7 +39,7 @@ export function BottomSheetContentContainer({
+   useAnimatedReaction(
+     () => progress.get(),
+     (value) => {
+-      if (value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {
++      if (isPanActivated.get() && value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {
+         isClosingOnSwipe.set(true);
+         scheduleOnRN(closeBottomSheet);
+       }
+diff --git a/src/helpers/internal/components/bottom-sheet-content.tsx b/src/helpers/internal/components/bottom-sheet-content.tsx
+index dd9ebcc316ff621254249138d3bfa5636f976ea0..93a546b553fa751e513c8d557b6e041b34d025f9 100644
+--- a/src/helpers/internal/components/bottom-sheet-content.tsx
++++ b/src/helpers/internal/components/bottom-sheet-content.tsx
+@@ -195,7 +195,7 @@ export const BottomSheetContent = forwardRef<
+       <BottomSheetIsDraggingProvider value={{ isDragging }}>
+         <StyledBottomSheet
+           ref={ref}
+-          index={-1}
++          index={isOpen ? (initialIndex ?? 0) : -1}
+           backgroundClassName={contentBackgroundClassName}
+           backgroundStyle={backgroundStyle}
+           handleIndicatorClassName={contentHandleIndicatorClassName}
