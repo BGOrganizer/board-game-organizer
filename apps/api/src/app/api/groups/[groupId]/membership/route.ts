@@ -1,13 +1,15 @@
-import { z } from "zod";
-import { runGroupOperation } from "@/app/lib/groups/group.http";
-import { badMatchRequest, hasValidMatchQuery, matchOptions } from "@/app/lib/matches/match.http";
-
-export const OPTIONS = matchOptions;
-
-/** An accepted member can leave; admin remains until archiving the group. */
-export async function DELETE(request: Request, context: { params: Promise<{ groupId: string }> }) {
-  const parsed = z.uuid().safeParse((await context.params).groupId);
-  if (!hasValidMatchQuery(request) || !parsed.success)
-    return badMatchRequest(request, "Invalid group id");
-  return runGroupOperation(request, async (userId, service) => service.leave(userId, parsed.data));
+import { communityId, runRecordOperation } from "@/app/lib/community/record-http";
+import { emptyRecordQuery, recordQuery } from "@/app/lib/community/record-query";
+import { corsOptions } from "@/app/lib/cors";
+export const OPTIONS = corsOptions;
+/** Public membership requests are always attributed to the authenticated actor. */
+export function POST(request: Request, context: { params: Promise<{ groupId: string }> }) {
+  return runRecordOperation(
+    request,
+    async (userId, { groups }) => {
+      recordQuery(request, emptyRecordQuery);
+      return groups.request(userId, communityId((await context.params).groupId));
+    },
+    201,
+  );
 }

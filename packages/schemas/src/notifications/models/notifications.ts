@@ -1,6 +1,18 @@
 import type { ObjectId } from "mongodb";
 
 export const COMMUNITY_NOTIFICATION_KINDS = [
+  "group_membership_requested",
+  "group_membership_updated",
+  "group_review_requested",
+  "group_reviewed",
+  "group_banned",
+  "group_ban_revoked",
+  "table_invitation",
+  "event_agreement_ready",
+  "event_agreement_blocked",
+  "event_confirmed",
+  "event_replanning",
+  "event_terminated",
   "organization_invitation",
   "organization_join_requested",
   "organization_membership_changed",

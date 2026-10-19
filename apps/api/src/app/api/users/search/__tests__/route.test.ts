@@ -68,6 +68,7 @@ describe("GET /api/users/search", () => {
   it("searches the users collection and applies the block policy", async () => {
     authMock.mockResolvedValueOnce({ userId: "viewer" });
     const findMock = vi.fn<(filter: unknown) => unknown>(() => ({
+      sort: vi.fn().mockReturnThis(),
       limit: vi.fn(() => ({
         toArray: async () => [
           fakeUser({ name: "Alessandro Mancini" }),

@@ -28,6 +28,8 @@ interface Props {
     year: number | null;
     average?: number | null;
     rank?: number | null;
+    minPlayMinutes?: number | null;
+    maxPlayMinutes?: number | null;
   }) => void;
   onClose: () => void;
 }
@@ -93,6 +95,8 @@ export function SearchGamePage({
         year: details.year,
         average: details.average,
         rank: details.rank,
+        minPlayMinutes: details.minPlayMinutes,
+        maxPlayMinutes: details.maxPlayMinutes,
       });
     } catch {
       setError(t`Could not load game details`);

@@ -3,29 +3,30 @@
 ![CI](https://github.com/BGOrganizer/board-game-organizer/actions/workflows/pr-ci.yml/badge.svg)
 ![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)
 
-Web and native mobile clients for board-game contacts, collections, matches, groups,
-organizations, and events, backed by a shared TypeScript API.
+Web and native mobile clients for board-game contacts, collections, groups, events and tables,
+backed by a shared TypeScript API. Main navigation is Tables / Groups / Events / Contacts.
 
 ## Current functionality
 
 - Clerk authentication, required post-signup mobile-number step, profile and logout.
 - Friends, follows, requests, blocks, user search, presence, permission-gated mobile contact
   suggestions, and shareable seven-day invites.
-- Match planning, verified locations and personal location favorites, game/date voting,
-  invitations and link-based participation requests, confirmation, and immutable results.
-- Groups with friend invitations, membership, editing/archival, public discovery, group matches,
-  and per-game OpenSkill leaderboards.
+- Immutable private/public Groups, friend invitations and consent, public membership requests,
+  verified venues/logos, moderation, timed/permanent group exclusions and per-game leaderboards.
+- Standalone or grouped Events with Tables: unsaved multi-step editors, explicit registrations,
+  reserved invitations/waiting priorities, date/location/game voting and manual confirmation.
+- Exact public-event cutoffs, verified locations/favorites, BGG/manual durations, overlap checks,
+  atomic whole-event results and GLOBAL/GROUP OpenSkill ratings. Pending invitees never vote.
 - MongoDB-backed BoardGameGeek catalog search, account linking and collection synchronization.
 - Durable notification inbox, unread state, optional push delivery, light/dark theme, and EN/IT.
-- Organizations with verified addresses, logos, moderation, membership and exclusions; events
-  with drafts, tables, invitations/bookings, cutoff enforcement and fixed matches.
 
-**Organizations/events are implemented in this branch, but full PR/native acceptance is incomplete.**
-They are not production-verified. Draft saving and publication do not require Inngest; exact cutoff
-checks and authorized-read closure remain active. Autonomous closure requires a configured worker;
-real Inngest registration/delivery has not been attested. See the
-[implementation checkpoint](docs/implementation-progress.md) and
-[operational gates](docs/organizations-events-operations.md).
+The [unified domain contract](docs/groups-events-refactor.md) describes this branch. Legacy
+Match/Organization writers return authenticated `410`; old UI links redirect without treating old
+IDs as new resources. Automatic legacy deadline functions are unregistered; confirmation is manual.
+Legacy database documents are retained and excluded from unified readers. **No database reset or
+provider deployment is authorized by this refactor.** This is not production or E2E acceptance:
+retained suites/jobs were not modified. See the [verification checkpoint](docs/implementation-progress.md)
+and [deployment isolation](docs/organizations-events-operations.md).
 
 ## Stack
 
@@ -77,9 +78,7 @@ src/
   app/                  Next.js or Expo Router entries
   components/
     contacts/
-    matches/
     groups/
-    organizations/
     events/
     profile/
     common/ui/          Only proven cross-feature reuse
@@ -172,7 +171,8 @@ See [AGENTS.md](AGENTS.md) and the current [workflow files](.github/workflows) f
 
 ## Domain and operational references
 
-- [Organizations/events behavior](docs/organizations-events.md)
+- [Unified Groups / Events / Tables](docs/groups-events-refactor.md)
+- [Retired organization/event contract](docs/organizations-events.md)
 - [Moderation, deadline workers, Infisical and deployment isolation](docs/organizations-events-operations.md)
 - [Implementation evidence and incomplete acceptance](docs/implementation-progress.md)
 

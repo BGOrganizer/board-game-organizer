@@ -1,14 +1,12 @@
-import { communityPage } from "@/app/lib/community.http";
-import { runGroupOperation } from "@/app/lib/groups/group.http";
-import { badMatchRequest, matchOptions } from "@/app/lib/matches/match.http";
-export const OPTIONS = matchOptions;
+import { runRecordOperation } from "@/app/lib/community/record-http";
+import { recordPageQuery, recordQuery } from "@/app/lib/community/record-query";
+import { CommunityError } from "@/app/lib/community.error";
+import { corsOptions } from "@/app/lib/cors";
+export const OPTIONS = corsOptions;
 export function GET(request: Request) {
-  let page: ReturnType<typeof communityPage>;
-  try {
-    page = communityPage(request);
-  } catch {
-    return badMatchRequest(request, "Invalid query");
-  }
-  if (!page.query) return badMatchRequest(request, "Search requires at least four characters");
-  return runGroupOperation(request, (_userId, service) => service.discover(page));
+  return runRecordOperation(request, (userId, { groups }) => {
+    const page = recordQuery(request, recordPageQuery);
+    if (!page.query) throw new CommunityError(400, "SEARCH_REQUIRED");
+    return groups.list(userId, "public", page);
+  });
 }

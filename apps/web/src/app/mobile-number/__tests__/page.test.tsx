@@ -42,7 +42,7 @@ describe("MobileNumberPage", () => {
   it("redirects an already complete user", async () => {
     mocks.clerk.user = { unsafeMetadata: { mobileNumber: "existing" }, update: mocks.update };
     renderWithI18n(<MobileNumberPage />);
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/matches"));
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/tables"));
   });
 
   it("starts with the browser region, including an Italian-only locale", async () => {
@@ -84,7 +84,7 @@ describe("MobileNumberPage", () => {
         unsafeMetadata: { existing: true, mobileNumber: "+1 not a formatted phone" },
       }),
     );
-    expect(mocks.replace).toHaveBeenCalledWith("/matches");
+    expect(mocks.replace).toHaveBeenCalledWith("/tables");
   });
 
   it("selects a country by name and stores its prefix with the national number", async () => {

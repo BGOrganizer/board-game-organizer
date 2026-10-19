@@ -1,5 +1,4 @@
-import { Groups } from "@/components/groups/Groups";
-
-export default function NewGroupPage() {
-  return <Groups mode="new" />;
+import { GroupWizard } from "@/components/groups/GroupWizard";
+export default function Page() {
+  return <GroupWizard />;
 }

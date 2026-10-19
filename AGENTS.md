@@ -133,6 +133,15 @@ secrets into images. Client `NEXT_PUBLIC_*`/`EXPO_PUBLIC_*` values are public ev
 
 ## 2. Product and current scope
 
+**Current branch domain override:** [Unified Groups / Events / Tables](docs/groups-events-refactor.md)
+is the active implementation contract. PRIVATE/PUBLIC Groups replace Groups + Organizations;
+Events containing Tables replace operational Matches + Events. Navigation is Tables / Groups /
+Events / Contacts. The legacy domain notes explicitly labeled below are historical, not authority
+for reintroducing old writers, archival/type conversion, server event drafts, automatic organizer
+seats or automatic deadline confirmation. No database deletion/reset or provider mutation is
+part of this refactor. Legacy documents remain intact and are excluded from unified readers.
+E2E suites/jobs are intentionally unchanged; local checks are not native/E2E acceptance.
+
 Board Game Organizer is a TypeScript monorepo for board-game contacts, matches, groups,
 organizations, and events across web and native mobile clients.
 
@@ -143,27 +152,26 @@ Implemented product areas:
 - Social graph: follows, friend requests, friendships, blocks, user search, presence, and
   contact-based suggestions.
 - Shareable invites with seven-day expiry and authenticated claim flow.
-- Match creation, listing, detail, and invitation lifecycle, including date slots, player limits,
-  friend invitations, board-game selection, and immutable result registration with standings.
+- Unified Event/Table creation, listing, detail, explicit registration/invitation consent,
+  date/location/game votes, manual confirmation and atomic immutable whole-event results.
 - Durable notification inboxes, unread state, and optional FCM/APNs push delivery.
 - BoardGameGeek catalog import, MongoDB-backed game search, and user collection synchronization.
 - English and Italian localization.
 - Web Playwright and mobile Maestro end-to-end coverage.
 
-Groups support friend-only invitations, accepted membership, public/private visibility metadata,
-admin editing and archival, optional attachment to planning matches, and per-game member
-leaderboards.
+Groups have immutable PRIVATE/PUBLIC type and a sole creator/admin, friend-only consented
+invitations, public requests, approved public venues/logos, group-only timed/permanent exclusions,
+and source-paged per-game member leaderboards. No archival or type conversion is exposed.
 
-Public-group and approved-organization discovery uses paginated, four-character searches.
-Organizations include verified addresses, logos, moderation, membership, ordinary removal, and
-organization-only exclusions; global social blocking remains separate. Events
-include private drafts, table configuration, invitations/bookings, exact-cutoff closure, and fixed
-matches with immutable results.
+Public Group discovery uses paginated four-character searches. Pending membership never grants
+group Event/ranking/social access. Group exclusions remain distinct from global blocking. Events
+are standalone or grouped, with unsaved client drafts, Tables, explicit consent, exact public
+cutoffs, duration/overlap constraints, manual agreement confirmation and immutable results.
 
-Organizations/events are **implemented in this branch; acceptance is incomplete**, not
-production-verified. Publication does not require Inngest: exact-cutoff guards and authorized-read
-closure remain active. Inngest configuration is required for autonomous deadline execution.
-Read [the domain specification](docs/organizations-events.md) for behavior,
+Unified Groups/Events/Tables are **implemented in this branch; acceptance is incomplete**, not
+production-verified. Legacy automatic deadline functions are unregistered. Confirmation stays
+manual; exact-cutoff server guards remain active. Database deletion and provider changes are
+excluded. Read [the domain specification](docs/groups-events-refactor.md) for behavior,
 [operational gates](docs/organizations-events-operations.md) for deployment and provider requirements,
 and [the implementation checkpoint](docs/implementation-progress.md) for evidence. Historical
 checkpoint authorization is not permission to push, provision, or mutate services in a new task.
@@ -348,8 +356,8 @@ Vercel preview protection bypass is a **query parameter**, not a custom header. 
 
 ### TanStack Query
 
-TanStack Query owns all server data: profiles, contacts, relationships, suggestions, matches,
-groups, organizations, memberships, events, tables, bookings, games, notifications, and invite results.
+TanStack Query owns all server data: profiles, contacts, relationships, suggestions, groups,
+memberships, exclusions, events, tables, registrations, games, notifications, and invite results.
 
 Scope authenticated Query keys by API URL, stable Clerk user ID, and resource parameters, not a
 rotating session JWT. Clear/cancel private caches when the user or session changes. Clerk session
@@ -358,8 +366,8 @@ request.
 
 Do not retain a token snapshot for later network calls.
 
-On an ordinary authenticated mobile launch, start loading the profile, first pages of matches,
-groups, each social list, and BGO contact suggestions, plus the first local address-book page if
+On an ordinary authenticated mobile launch, start loading the profile, first pages of tables,
+events, groups, each social list, and BGO contact suggestions, plus the first local address-book page if
 permission was already granted. Never request contacts permission at startup. A deep link
 prioritizes its own detail instead; other lists may warm afterward. Keep the existing five-second
 **total** splash limit: unfinished requests continue without blocking navigation. Paginate API lists
@@ -370,9 +378,8 @@ syncing in the background.
 Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 
 Reuse cached data between lists and details when the server-authorized response actually contains
-all required fields. Fetch a missing match or group through its individual detail endpoint, prefetch
-likely next details with bounded concurrency, and keep cached fields visible while missing fields
-load.
+all required fields. Fetch missing Event/Table/Group detail through its individual endpoint, prefetch likely next
+details with bounded concurrency, and keep cached fields visible while missing fields load.
 
 Keep per-resource stale and retention times deliberate. Revalidate stale data in the background on
 navigation, rather than polling every list. Notifications alone watch for unrelated remote events
@@ -381,8 +388,8 @@ narrow exceptions. Relevant notification events may mark affected data stale wit
 inactive query.
 
 Every relationship mutation must mark the `['contacts']` prefix stale; if search is active,
-`useContacts` must rerun the last query so action state updates without manual refresh. Match
-creation must mark `['matches']` stale. Explicit remote mutations update owned Query caches
+`useContacts` must rerun the last query so action state updates without manual refresh. Event/Table/registration
+mutations reconcile the affected `['events']` and `['groups']` scopes, not retired Match caches. Explicit remote mutations update owned Query caches
 optimistically when cached state exists, cancel conflicting requests first, then reconcile from the
 server response and refetch only affected active data when necessary. Show an action-specific
 default toast after the optimistic update; on failure restore affected cache snapshots and show an
@@ -477,7 +484,9 @@ URL(request.url).origin`; preview APIs create preview links and production creat
 Claim UI is hosted by the API at `/invite/[token]`, uses Clerk modal sign-in, and claims with a
 Bearer token. Successful claim connects both users.
 
-### Matches
+### Matches (retired historical contract)
+
+Do not expose these legacy writers. Current behavior is the unified contract linked in Section 2.
 
 The planning/invitation rules below describe ordinary matches. Event-table matches are fixed by
 cutoff closure and managed through event bookings, not ordinary planning/voting/deletion endpoints.
@@ -576,10 +585,11 @@ complete CSV before enabling the search filter on an older catalog without `isEx
 interactive state or browser APIs. Auth middleware leaves `/`, sign-in, and sign-up public and
 protects application routes.
 
-Navigation exposes Matches, Community, Events, Contacts, and Profile. Groups, Organizations,
-and discovery are sections of Community. Its lists share platform-specific page/search/filter patterns.
-The main Events list contains own bookings (confirmed or pending), administration and demonstrations;
-event creation remains contextual to organizations. Past/Future uses the exact event end instant. Do not repeat a page or section title inside tab
+Navigation exposes Tables, Groups, Events and Contacts, with Profile separate. Group discovery
+and BGO moderation are contextual Group destinations. Its lists share platform-specific page/search/filter patterns.
+The main Events list contains participation, administration and demonstrations; standalone creation
+starts there and grouped creation is contextual to Groups. Past/Future uses the chosen local day;
+unchosen dates belong to both. Do not repeat a page or section title inside tab
 content; main navigation already identifies the section.
 
 Use `@heroui/react` and Tailwind CSS. When HeroUI provides an appropriate component, use it instead
@@ -900,7 +910,12 @@ read/write.
 
 Never store this token in the repository.
 
-## Groups and ranking domain
+## Historical Groups and match-rating domain
+
+Group archival/invitation and Match lifecycle statements below are retained historical context, not
+current product instructions. Follow [the unified contract](docs/groups-events-refactor.md).
+OpenSkill defaults and uncertainty rules still apply to rated physical Tables; no synthetic Match
+is written and all-ND/fewer-than-two-finisher Tables affect no rating/statistics counters.
 
 A group has one administrator (its creator); administrator counts as a member. Its other members are
 accepted invitees. Only friends may be invited into a group, although friendship is not required

@@ -54,10 +54,10 @@ describe("useNotifications", () => {
     );
   });
 
-  it("marks only owning organization and event caches stale when remote membership changes", async () => {
+  it("marks only owning group and event caches stale when remote membership changes", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const current = ["organizations", options.apiUrl, options.userId, "detail", "org"];
-    const foreign = ["organizations", options.apiUrl, "other", "detail", "org"];
+    const current = ["groups", options.apiUrl, options.userId, "detail", "group"];
+    const foreign = ["groups", options.apiUrl, "other", "detail", "group"];
     const events = ["events", options.apiUrl, options.userId, "mine"];
     for (const key of [current, foreign, events]) client.setQueryData(key, { name: "Cached" });
     const { result } = renderHook(() => useNotifications(options), { wrapper: wrapper(client) });
@@ -68,9 +68,7 @@ describe("useNotifications", () => {
         async () =>
           new Response(
             JSON.stringify({
-              notifications: [
-                { ...item("new-community"), kind: "organization_membership_changed" },
-              ],
+              notifications: [{ ...item("new-community"), kind: "group_membership_updated" }],
               unreadCount: 1,
               nextCursor: null,
             }),
@@ -141,16 +139,9 @@ describe("useNotifications", () => {
 
   it("marks cached social data stale when a new notification arrives without polling it", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const matchesKey = [
-      "matches",
-      "paged",
-      options.apiUrl,
-      options.userId,
-      "",
-      "admin,invited,accepted",
-    ];
-    client.setQueryData(matchesKey, {
-      pages: [{ matches: [], nextCursor: null }],
+    const friendsKey = ["contacts", "friends", options.apiUrl, options.userId];
+    client.setQueryData(friendsKey, {
+      pages: [{ rows: [], nextCursor: null }],
       pageParams: [""],
     });
     const { result } = renderHook(() => useNotifications(options), { wrapper: wrapper(client) });
@@ -168,7 +159,7 @@ describe("useNotifications", () => {
         ),
       });
     });
-    await waitFor(() => expect(client.getQueryState(matchesKey)?.isInvalidated).toBe(true));
+    await waitFor(() => expect(client.getQueryState(friendsKey)?.isInvalidated).toBe(true));
     expect(vi.mocked(fetch).mock.calls.filter(([, init]) => !init?.method)).toHaveLength(1);
   });
 

@@ -11,6 +11,7 @@ import { cursorSchema, limitSchema } from "../../common/dto/common";
  */
 export const searchContactsParamsSchema = z.object({
   query: z.string().trim().min(1).max(100),
+  friendsOnly: z.enum(["true", "false"]).optional(),
   cursor: cursorSchema.optional(),
   limit: limitSchema,
 });

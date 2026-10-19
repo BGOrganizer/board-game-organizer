@@ -1,72 +1,58 @@
 import { ObjectId } from "mongodb";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  auth: vi.fn(async () => ({ userId: "user_1" })),
-  after: vi.fn((work: () => unknown) => work()),
-  dispatch: vi.fn(async () => undefined),
-  requireCurrentUser: vi.fn(async () => undefined),
-  ensureCurrentUser: vi.fn(async () => undefined),
+const m = vi.hoisted(() => ({
+  after: [] as Array<() => unknown>,
+  dispatch: vi.fn(),
+  ids: [] as unknown[],
+  transaction: vi.fn(),
 }));
-
-vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
-vi.mock("next/server", () => ({ after: mocks.after }));
+vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ userId: "user_owner" }) }));
+vi.mock("next/server", () => ({ after: (task: () => unknown) => m.after.push(task) }));
 vi.mock("@/app/lib/db", () => ({
-  withTransaction: vi.fn(async (work) => work({ id: "session" }, {})),
-  getDb: vi.fn(async () => ({})),
+  getDb: async () => ({}),
+  withTransaction: (fn: unknown) => m.transaction(fn),
 }));
-vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: mocks.ensureCurrentUser }));
-vi.mock("@/app/lib/notifications/push", () => ({ dispatchNotifications: mocks.dispatch }));
-vi.mock("@/app/lib/notifications/notifications.repository", () => ({
-  NotificationsRepository: vi.fn((_db, _session, createdIds?: ObjectId[]) => {
-    createdIds?.push(new ObjectId("0123456789abcdef01234567"));
-    return {};
-  }),
-}));
-vi.mock("@/app/lib/contacts/relationship.repository", () => ({ RelationshipRepository: vi.fn() }));
+vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
+vi.mock("@/app/lib/contacts/relationship.repository", () => ({ RelationshipRepository: class {} }));
 vi.mock("@/app/lib/contacts/relationship.service", () => ({
+  RelationshipService: class {
+    async requireCurrentUser() {}
+  },
   RelationshipError: class extends Error {},
-  RelationshipService: vi.fn(() => ({ requireCurrentUser: mocks.requireCurrentUser })),
 }));
-vi.mock("@/app/lib/matches/matches.repository", () => ({ MatchesRepository: vi.fn() }));
-vi.mock("@/app/lib/events/events.repository", () => ({ EventsRepository: class {} }));
-vi.mock("@/app/lib/organizations/organizations.repository", () => ({
-  OrganizationsRepository: class {},
+vi.mock("@/app/lib/notifications/notifications.repository", () => ({
+  NotificationsRepository: class {
+    constructor(_db: unknown, _session: unknown, ids: unknown[]) {
+      ids.push(...m.ids);
+    }
+  },
 }));
-vi.mock("@/app/lib/organizations/organization-assets.repository", () => ({
-  OrganizationAssetsRepository: class {},
-}));
-vi.mock("@/app/lib/matches/match-invitations.repository", () => ({
-  MatchInvitationsRepository: vi.fn(),
-}));
-vi.mock("@/app/lib/users/users.repository", () => ({ UsersRepository: vi.fn() }));
-vi.mock("@/app/lib/games/boardGames.repository", () => ({ BoardGamesRepository: vi.fn() }));
-vi.mock("@/app/lib/matches/match.service", () => ({
-  MatchError: class extends Error {},
-  MatchService: vi.fn(() => ({ requireCurrentUser: mocks.requireCurrentUser })),
-}));
+vi.mock("@/app/lib/notifications/push", () => ({ dispatchNotifications: m.dispatch }));
 
 import { runRelationshipOperation } from "../../contacts/relationship.http";
-import { runMatchOperation } from "../../matches/match.http";
 
-describe("post-commit notification delivery", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("dispatches match notification ids after transaction success", async () => {
-    const response = await runMatchOperation(new Request("http://x"), async () => ({ ok: true }));
-    expect(response.status).toBe(200);
-    expect(mocks.ensureCurrentUser).toHaveBeenCalledWith("user_1", {});
-    expect(mocks.after).toHaveBeenCalledOnce();
-    expect(mocks.dispatch).toHaveBeenCalledWith([new ObjectId("0123456789abcdef01234567")]);
+beforeEach(() => {
+  m.after = [];
+  m.ids = [new ObjectId()];
+  vi.clearAllMocks();
+  m.transaction.mockImplementation(async (fn) => fn({}, {}));
+});
+it("dispatches committed social notifications only through the post-response hook", async () => {
+  const response = await runRelationshipOperation(new Request("https://api.test"), async () => ({
+    ok: true,
+  }));
+  expect(response.status).toBe(200);
+  expect(m.dispatch).not.toHaveBeenCalled();
+  expect(m.after).toHaveLength(1);
+  await m.after[0]();
+  expect(m.dispatch).toHaveBeenCalledWith(m.ids);
+});
+it("never dispatches notifications from a rolled-back relationship mutation", async () => {
+  const response = await runRelationshipOperation(new Request("https://api.test"), async () => {
+    throw Error("failure");
   });
-
-  it("dispatches relationship notification ids after transaction success", async () => {
-    const response = await runRelationshipOperation(new Request("http://x"), async () => ({
-      ok: true,
-    }));
-    expect(response.status).toBe(200);
-    expect(mocks.ensureCurrentUser).toHaveBeenCalledWith("user_1", {});
-    expect(mocks.after).toHaveBeenCalledOnce();
-    expect(mocks.dispatch).toHaveBeenCalledWith([new ObjectId("0123456789abcdef01234567")]);
-  });
+  expect(response.status).toBe(500);
+  expect(m.after).toHaveLength(0);
+  expect(m.dispatch).not.toHaveBeenCalled();
 });

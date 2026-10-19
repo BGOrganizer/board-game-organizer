@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { BggSearchItem } from "../../matches/dto/matches";
 import type { BggIdentity } from "../models/bggCollection";
+import type { BggSearchItem } from "./boardGames";
 
 export const bggUsernameSchema = z.string().trim().min(1).max(64);
 

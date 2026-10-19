@@ -1,88 +1,99 @@
-import { eventPeriods } from "@board-game-organizer/schemas";
-import { communityAccessDenied, useEventList, useListSearch } from "@board-game-organizer/shared";
+import {
+  communityAccessDenied,
+  useEventRecords,
+  useListSearch,
+} from "@board-game-organizer/shared";
+import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
-import { CalendarClock, CalendarDays, History } from "lucide-react-native";
+import { Typography } from "heroui-native/text";
+import { CalendarDays, History, Plus } from "lucide-react-native";
 import { FlatList, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { EmptyList } from "@/components/common/ui/EmptyList";
-import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventCard } from "./EventCard";
-
-export function Events({ organizationId = "" }: { organizationId?: string }) {
-  const t = useT();
-  const o = useCommunityApi();
-  const muted = useThemeColor("muted");
-  const insets = useSafeAreaInsets();
-  const layout = useFloatingActionLayout();
-  const filters = useListSearch(eventPeriods);
-  const list = useEventList(o, organizationId, filters.search, filters.selected);
+export function Events({ groupId, canCreate = true }: { groupId?: string; canCreate?: boolean }) {
+  const t = useT(),
+    router = useRouter(),
+    o = useCommunityApi(),
+    layout = useFloatingActionLayout(),
+    accent = useThemeColor("accent-foreground"),
+    filters = useListSearch(["past", "future"] as const),
+    list = useEventRecords(o, { groupId, periods: filters.selected, query: filters.search });
   return (
-    <ListPage>
+    <View style={{ flex: 1 }}>
       <FlatList
-        testID="events-scroll"
         style={{ flex: 1 }}
         data={communityAccessDenied(list.error) ? [] : list.items}
         keyExtractor={(row) => row.id}
-        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          ...listPageContentStyle,
-          paddingTop: organizationId ? 0 : 20,
-          paddingBottom: organizationId ? layout.paddingBottom : insets.bottom + 20,
+          padding: 20,
+          gap: 12,
+          flexGrow: 1,
+          paddingBottom: layout.paddingBottom,
         }}
+        ListHeaderComponent={
+          <ListSearch
+            query={filters.query}
+            onQueryChange={filters.setQuery}
+            label={t("Search events")}
+            placeholder={t("Search events")}
+            selected={filters.selected}
+            onToggle={filters.toggle}
+            options={[
+              { key: "past", label: t("Past"), icon: History },
+              { key: "future", label: t("Future"), icon: CalendarDays },
+            ]}
+          />
+        }
+        renderItem={({ item }) => <EventCard event={item} />}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage && !list.isFetchNextPageError)
             void list.fetchNextPage();
         }}
-        ListHeaderComponent={
-          <View style={{ gap: 12 }}>
-            <ListSearch
-              query={filters.query}
-              onQueryChange={filters.setQuery}
-              label={t("Search events")}
-              placeholder={t("Search events")}
-              selected={filters.selected}
-              onToggle={filters.toggle}
-              options={[
-                { key: "future", label: t("Future"), icon: CalendarClock },
-                { key: "past", label: t("Past"), icon: History },
-              ]}
-            />
-            {list.isPending ? (
-              <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
-            ) : null}
-          </View>
-        }
         ListEmptyComponent={
-          !list.isPending && !list.isError ? (
-            <EmptyList icon={<CalendarDays size={28} color={muted} />}>
-              {t("No events found")}
-            </EmptyList>
+          list.isPending ? (
+            <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
+          ) : !list.isError ? (
+            <Typography className="text-foreground">{t("No events found")}</Typography>
           ) : null
         }
         ListFooterComponent={
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: 12 }}>
             {list.isError ? (
-              <Button onPress={() => void list.refetch()}>
-                {t("Could not load events. Retry")}
-              </Button>
+              <>
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t("Could not load events")}
+                </Typography>
+                <Button variant="outline" onPress={() => void list.refetch()}>
+                  <Button.Label>{t("Try again")}</Button.Label>
+                </Button>
+              </>
             ) : null}
             {list.isFetchingNextPage ? (
-              <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
-            ) : null}
-            {list.isFetchNextPageError ? (
-              <Button onPress={() => void list.fetchNextPage()}>{t("Retry")}</Button>
+              <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
+            ) : list.hasNextPage ? (
+              <Button variant="outline" onPress={() => void list.fetchNextPage()}>
+                <Button.Label>{t("Load more")}</Button.Label>
+              </Button>
             ) : null}
           </View>
         }
-        renderItem={({ item }) => <EventCard event={item} showOrganization={!organizationId} />}
       />
-    </ListPage>
+      {canCreate ? (
+        <FloatingActions
+          label={t("Create event")}
+          onPress={() =>
+            router.push({ pathname: "/event/wizard", params: groupId ? { groupId } : {} })
+          }
+        >
+          <Plus size={24} color={accent} />
+        </FloatingActions>
+      ) : null}
+    </View>
   );
 }

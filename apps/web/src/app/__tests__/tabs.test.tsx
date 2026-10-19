@@ -1,163 +1,55 @@
-import { screen } from "@testing-library/react";
-import { redirect } from "next/navigation";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import Contacts from "@/app/(tabs)/contacts/page";
-import CommunityOrganizations from "@/app/(tabs)/groups/organizations/page";
-import Groups from "@/app/(tabs)/groups/page";
-import Matches from "@/app/(tabs)/matches/page";
-import Notifications from "@/app/(tabs)/notifications/page";
-import Organizations from "@/app/(tabs)/organizations/page";
-import ProfilePage from "@/app/(tabs)/profile/page";
-import { renderWithI18n } from "@/test-utils";
+import { render, screen } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
 
-vi.mock("@/components/notifications/NotificationsPage", () => ({
-  NotificationsPage: () => <p>notification inbox</p>,
+vi.mock("@/components/groups/GroupList", () => ({
+  GroupList: ({ scope = "mine" }: { scope?: string }) => <p>groups:{scope}</p>,
+}));
+vi.mock("@/components/groups/GroupDetail", () => ({
+  GroupDetail: ({ groupId }: { groupId: string }) => <p>{groupId}</p>,
+}));
+vi.mock("@/components/events/Tables", () => ({ Tables: () => <p>tables</p> }));
+vi.mock("@/components/events/Events", () => ({ Events: () => <p>events</p> }));
+vi.mock("@/components/events/EventDetail", () => ({
+  EventDetail: ({ eventId }: { eventId: string }) => <p>{eventId}</p>,
+}));
+vi.mock("next/navigation", () => ({
+  redirect: (to: string) => {
+    throw new Error(`redirect:${to}`);
+  },
 }));
 
-vi.mock("next/headers", () => ({
-  headers: () => ({ get: () => null }),
-}));
-vi.mock("next/navigation", () => ({ redirect: vi.fn(), useRouter: () => ({ push: vi.fn() }) }));
+import Event from "../(tabs)/events/[eventId]/page";
+import Events from "../(tabs)/events/page";
+import Group from "../(tabs)/groups/[groupId]/page";
+import Groups from "../(tabs)/groups/page";
+import Search from "../(tabs)/groups/search/page";
+import OldMatches from "../(tabs)/matches/page";
+import OldOrganizations from "../(tabs)/organizations/page";
+import Tables from "../(tabs)/tables/page";
 
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({
-    isLoaded: true,
-    isSignedIn: true,
-    userId: "user_1",
-    getToken: vi.fn().mockResolvedValue("token"),
-  }),
-  useClerk: () => ({ signOut: vi.fn() }),
-}));
-
-vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
-  resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
-  useOrganizationList: () => ({
-    items: [],
-    isPending: false,
-    isError: false,
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    isFetchNextPageError: false,
-    fetchNextPage: vi.fn(),
-    refetch: vi.fn(),
-  }),
-  useGroups: () => ({
-    list: { data: [], isPending: false, isError: false },
-    create: { mutateAsync: vi.fn(), isPending: false },
-    update: { mutateAsync: vi.fn(), isPending: false },
-    archive: { mutateAsync: vi.fn(), isPending: false },
-    leave: { mutateAsync: vi.fn(), isPending: false },
-    respond: { mutate: vi.fn(), isPending: false },
-  }),
-  useMatches: () => ({
-    list: { isPending: false, isError: false, data: [] },
-    create: { isError: false, mutateAsync: vi.fn(), isPending: false },
-    update: { isError: false, mutateAsync: vi.fn(), isPending: false },
-    search: { isPending: false, isError: false, mutate: vi.fn(), data: null },
-    thing: { isPending: false, isError: false, mutate: vi.fn(), data: null },
-    respondInvitation: { isPending: false, isError: false, mutate: vi.fn() },
-  }),
-  useBggAccount: () => ({
-    account: { data: { active: null, pending: null }, isError: false, refetch: vi.fn() },
-    link: { mutateAsync: vi.fn(), isPending: false },
-    sync: { mutate: vi.fn(), isPending: false },
-    unlink: { mutate: vi.fn(), isPending: false },
-  }),
-  useProfileQuery: () => ({
-    data: {
-      id: "user_1",
-      name: "A",
-      email: "a@b.it",
-      avatarUrl: "",
-      preferredLanguage: "en",
-      plan: "free",
-      stats: {
-        friends: 3,
-        followers: 4,
-        following: 2,
-        playedMatches: 1,
-        adminGroups: 0,
-        joinedGroups: 0,
-      },
-    },
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
-  useContacts: () => ({
-    following: { data: [], isLoading: false },
-    followers: { data: [], isLoading: false },
-    friends: { data: [], isLoading: false },
-    pending: { data: [], isLoading: false, isSuccess: true },
-    sent: { data: [], isLoading: false, isSuccess: true },
-    blocked: { data: [], isLoading: false },
-    suggestions: { data: { users: [], hasContacts: false }, isLoading: false },
-    follow: { mutate: vi.fn(), isPending: false },
-    unfollow: { mutate: vi.fn(), isPending: false },
-    unfriend: { mutate: vi.fn(), isPending: false, isError: false },
-    friendRequest: { mutate: vi.fn(), isPending: false, isError: false },
-    cancelFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
-    acceptFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
-    rejectFriendRequest: { mutate: vi.fn(), isPending: false, isError: false },
-    block: { mutate: vi.fn(), isPending: false },
-    unblock: { mutate: vi.fn(), isPending: false },
-    syncContacts: { mutateAsync: vi.fn(), mutate: vi.fn(), isPending: false },
-    search: { mutate: vi.fn(), data: undefined, isLoading: false },
-    runSearch: vi.fn(),
-    refreshContacts: vi.fn(),
-  }),
-  useInvites: () => ({
-    mutate: vi.fn(),
-    isPending: false,
-    data: null,
-    isError: false,
-    error: null,
-  }),
-  reportPresence: vi.fn().mockResolvedValue({ success: true }),
-}));
-
-describe("tab pages", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("renders group and organization lists without repeating tab titles", async () => {
-    renderWithI18n(await Contacts());
-    expect(screen.getByRole("tab", { name: "Connections" })).toBeTruthy();
-
-    const { unmount: unmountGroups } = renderWithI18n(await Groups());
-    expect(screen.getByText("No groups yet")).toBeTruthy();
-    unmountGroups();
-
-    const { unmount: unmountOrgs } = renderWithI18n(await CommunityOrganizations());
-    expect(screen.getByText("No organizations found")).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Organizations" }).getAttribute("aria-selected")).toBe(
-      "true",
-    );
-    unmountOrgs();
-  });
-
-  it("keeps the organization list inside Community when using its direct URL", () => {
-    Organizations();
-    expect(redirect).toHaveBeenCalledWith("/groups/organizations");
-  });
-
-  it("renders the matches page with the create button", async () => {
-    const { getByLabelText } = renderWithI18n(await Matches());
-    expect(getByLabelText(/create a match/i)).toBeTruthy();
-  });
-
-  it("renders the notification inbox page", () => {
-    renderWithI18n(<Notifications />);
-    expect(screen.getByText("notification inbox")).toBeTruthy();
-  });
-
-  it("renders the profile page with the profile card", async () => {
-    const { getByText, getAllByText } = renderWithI18n(await ProfilePage());
-    expect(getByText("Logout")).toBeTruthy();
-    // Name appears both as the heading and as the avatar fallback.
-    expect(getAllByText("A").length).toBeGreaterThan(0);
-  });
+it("owns four client section entrypoints and public search", () => {
+  render(
+    <>
+      <Groups />
+      <Search />
+      <Tables />
+      <Events />
+    </>,
+  );
+  for (const value of ["groups:mine", "groups:public", "tables", "events"])
+    expect(screen.getByText(value)).not.toBeNull();
+});
+it("awaits framework params for unified detail routes", async () => {
+  render(
+    <>
+      {await Group({ params: Promise.resolve({ groupId: "group-id" }) })}
+      {await Event({ params: Promise.resolve({ eventId: "event-id" }) })}
+    </>,
+  );
+  expect(screen.getByText("group-id")).not.toBeNull();
+  expect(screen.getByText("event-id")).not.toBeNull();
+});
+it("legacy navigation cannot resurrect old editors or models", () => {
+  expect(() => OldMatches()).toThrow("redirect:/tables");
+  expect(() => OldOrganizations()).toThrow("redirect:/groups");
 });

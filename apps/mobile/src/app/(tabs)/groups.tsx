@@ -1,4 +1,4 @@
-import { CommunitySection } from "@/components/community/CommunitySection";
-export default function GroupsScreen() {
-  return <CommunitySection />;
+import { GroupList } from "@/components/groups/GroupList";
+export default function Screen() {
+  return <GroupList />;
 }

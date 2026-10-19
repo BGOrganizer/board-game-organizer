@@ -1,13 +1,13 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import {
+  eventRecordQuery,
+  eventRecordsQuery,
   fetchRelationshipPageWithToken,
   fetchSuggestionPageWithToken,
-  groupsPageQuery,
-  listRoles,
-  matchDetailQuery,
-  matchesPageQuery,
+  groupRecordsPageQuery,
   notificationsPageQuery,
   profileQueryOptions,
+  recordTablesQuery,
   resolveApiUrl,
 } from "@board-game-organizer/shared";
 import { useAuth, useUser } from "@clerk/expo";
@@ -33,7 +33,6 @@ import {
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
 const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
-const initialFilters = { query: "", roles: listRoles, limit: 20 };
 
 export function Startup({
   startedAt,
@@ -59,7 +58,7 @@ export function Startup({
   const previousSession = useRef<string | null>(null);
   const warmedSession = useRef<string | null>(null);
   const syncedSession = useRef<string | null>(null);
-  const prefetchedMatches = useRef(new Set<string>());
+  const prefetchedEvents = useRef(new Set<string>());
   const eligible =
     isAuthLoaded &&
     isRestoredSignedIn &&
@@ -104,7 +103,7 @@ export function Startup({
     if (!isAuthLoaded) return;
     if (previousSession.current && previousSession.current !== sessionId) {
       queryClient.clear();
-      prefetchedMatches.current.clear();
+      prefetchedEvents.current.clear();
     }
     previousSession.current = sessionId ?? null;
   }, [isAuthLoaded, sessionId, queryClient]);
@@ -170,9 +169,8 @@ export function Startup({
     warmedSession.current = sessionId;
     let cancelled = false;
     void (async () => {
-      const token = await getToken();
-      if (!token || cancelled) return;
-      const options = { apiUrl, token, getToken, userId, listFilters: initialFilters };
+      if (cancelled) return;
+      const options = { apiUrl, getToken, userId };
       const tasks = [
         async () => {
           try {
@@ -198,14 +196,15 @@ export function Startup({
           }
         },
         () => queryClient.prefetchQuery(profileQueryOptions({ apiUrl, getToken, userId })),
-        () => queryClient.prefetchInfiniteQuery(matchesPageQuery(options)),
-        () => queryClient.prefetchInfiniteQuery(groupsPageQuery(options)),
+        () => queryClient.prefetchInfiniteQuery(recordTablesQuery(options, null)),
+        () => queryClient.prefetchInfiniteQuery(groupRecordsPageQuery(options)),
+        () => queryClient.prefetchInfiniteQuery(eventRecordsQuery(options)),
         ...startupRelationshipTypes.map(
           (type) => () =>
             queryClient.prefetchInfiniteQuery({
               queryKey: ["contacts", type, apiUrl, userId],
               queryFn: ({ pageParam }) =>
-                fetchRelationshipPageWithToken(apiUrl, token, getToken, type, pageParam),
+                fetchRelationshipPageWithToken(apiUrl, null, getToken, type, pageParam),
               initialPageParam: "",
               getNextPageParam: (page: { nextCursor: string | null }) =>
                 page.nextCursor ?? undefined,
@@ -216,7 +215,7 @@ export function Startup({
           queryClient.prefetchInfiniteQuery({
             queryKey: ["contacts", "suggestions", apiUrl, userId],
             queryFn: ({ pageParam }) =>
-              fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam),
+              fetchSuggestionPageWithToken(apiUrl, null, getToken, pageParam),
             initialPageParam: "",
             getNextPageParam: (page: { nextCursor: string | null }) => page.nextCursor ?? undefined,
             staleTime: 5 * 60_000,
@@ -269,20 +268,14 @@ export function Startup({
     let active = true;
     const prefetchVisible = () => {
       if (!active) return;
-      const data = queryClient.getQueryData<{ pages: Array<{ matches: Array<{ id: string }> }> }>([
-        "matches",
-        "paged",
-        apiUrl,
-        userId,
-        "",
-        listRoles.join(","),
-      ]);
-      for (const match of data?.pages[0]?.matches.slice(0, 2) ?? []) {
-        if (prefetchedMatches.current.has(match.id)) continue;
-        prefetchedMatches.current.add(match.id);
-        void queryClient.prefetchQuery(
-          matchDetailQuery({ apiUrl, token: null, getToken, userId, matchId: match.id }),
-        );
+      const options = { apiUrl, getToken, userId };
+      const data = queryClient.getQueryData(recordTablesQuery(options, null).queryKey);
+      for (const eventId of [
+        ...new Set(data?.pages[0]?.items.map((row) => row.eventId) ?? []),
+      ].slice(0, 2)) {
+        if (prefetchedEvents.current.has(eventId)) continue;
+        prefetchedEvents.current.add(eventId);
+        void queryClient.prefetchQuery(eventRecordQuery(options, eventId));
       }
     };
     prefetchVisible();

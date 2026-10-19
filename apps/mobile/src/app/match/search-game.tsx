@@ -1,4 +1,4 @@
-import GamePicker from "@/components/games/GamePicker";
-export default function SearchGameScreen() {
-  return <GamePicker />;
+import { Redirect } from "expo-router";
+export default function Screen() {
+  return <Redirect href="/tables" />;
 }

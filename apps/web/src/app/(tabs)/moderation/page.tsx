@@ -1,4 +1,4 @@
-import { OrganizationModeration } from "@/components/organizations/OrganizationModeration";
-export default function ModerationPage() {
-  return <OrganizationModeration />;
+import { GroupModeration } from "@/components/groups/GroupModeration";
+export default function Page() {
+  return <GroupModeration />;
 }

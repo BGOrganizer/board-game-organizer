@@ -1,10 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
-import { OrganizationDetail } from "@/components/organizations/OrganizationDetail";
-export default function OrganizationDetailScreen() {
-  const { organizationId } = useLocalSearchParams<{ organizationId: string | string[] }>();
-  return (
-    <OrganizationDetail
-      organizationId={Array.isArray(organizationId) ? organizationId[0] : organizationId}
-    />
-  );
+import { Redirect } from "expo-router";
+export default function Screen() {
+  return <Redirect href="/groups" />;
 }

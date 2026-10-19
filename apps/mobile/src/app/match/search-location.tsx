@@ -1,4 +1,4 @@
-import LocationPicker from "@/components/locations/LocationPicker";
-export default function SearchLocationScreen() {
-  return <LocationPicker />;
+import { Redirect } from "expo-router";
+export default function Screen() {
+  return <Redirect href="/tables" />;
 }

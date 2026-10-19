@@ -1322,14 +1322,10 @@ test("match GPS handles real native location permission and provider consent, ne
   assert(!steps.some((step) => "setPermissions" in step));
 });
 
-test("match preferences require the actual sheet to open and close before editing", () => {
+test("retained legacy preference flow requires explicit sheet closure before editing", () => {
   const votes = nativeSteps("helpers/match-planning.yaml");
   const choices = votes.filter((step) => step.tapOn === "^Yes$" || step.tapOn === "^If I have to$");
   assert.equal(choices.length, 3);
-  const detail = readFileSync(
-    new URL("../../apps/mobile/src/components/matches/MatchDetail.tsx", import.meta.url),
-    "utf8",
-  );
   for (const [position, kind] of ["date", "game", "location"].entries()) {
     const index = votes.indexOf(choices[position]);
     assert.deepEqual(votes[index - 2].tapOn, { id: `choose-${kind}` });
@@ -1338,11 +1334,21 @@ test("match preferences require the actual sheet to open and close before editin
       notVisible: `^Choose ${kind}$`,
       timeout: 30000,
     });
-    assert(detail.includes(`title: t("Choose ${kind}")`));
   }
   const edit = nativeSteps("helpers/match-edit-delete.yaml");
   assert.equal(edit[0].assertNotVisible, "^Choose (date|game|location)$");
   assert.deepEqual(edit[1].tapOn, { id: "edit-match-fab" });
+});
+
+test("unified table scores retain real native sheet focus and keyboard interactions", () => {
+  const editor = readFileSync(
+    new URL("../../apps/mobile/src/components/events/TableScoreEditor.tsx", import.meta.url),
+    "utf8",
+  );
+  assert(editor.includes("useBottomSheetAwareHandlers"));
+  assert(editor.includes('keyboardBehavior="extend"'));
+  assert(editor.includes("onFocus={onFocus}"));
+  assert(editor.includes("onBlur={onBlur}"));
 });
 
 test("native confirmation titles match literal question marks, not background action buttons", () => {

@@ -96,15 +96,9 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
   expect(fab).toContain("bottom: layout.bottom");
   expect(fab).not.toContain("extraBottom");
   for (const [path, component] of [
-    ["../../components/matches/MatchDetail.tsx", "DetailsContainer"],
-    ["../../app/group/[groupId].tsx", "ScreenScrollView"],
-    ["../../app/(tabs)/matches.tsx", "FlatList"],
-    ["../../components/groups/GroupsScreen.tsx", "FlatList"],
-    ["../../components/organizations/Organizations.tsx", "FlatList"],
     ["../../components/events/Events.tsx", "FlatList"],
-    ["../../components/matches/MatchWizard.tsx", "ScreenScrollView"],
-    ["../../components/groups/GroupWizard.tsx", "ScreenScrollView"],
-    ["../../components/organizations/OrganizationDetail.tsx", "ScreenScrollView"],
+    ["../../components/groups/GroupWizard.tsx", "FlatList"],
+    ["../../components/groups/GroupList.tsx", "FlatList"],
   ] as const) {
     const source = ts.createSourceFile(
       path,
@@ -136,12 +130,13 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
     visit(source);
     expect(found, path).toBe(true);
   }
-  const match = readFileSync(
-    new URL("../../components/matches/MatchDetail.tsx", import.meta.url),
+  const group = readFileSync(
+    new URL("../../components/groups/GroupDetail.tsx", import.meta.url),
     "utf8",
   );
-  for (const tab of ["overview", "players", "leaderboard", "results"])
-    expect(match).toContain(`<Tabs.Content value="${tab}"`);
+  expect(group).toContain("<TabBar>");
+  expect(group).toContain("<GroupMembers");
+  expect(group).toContain("<Events");
   const leaderboard = readFileSync(
     new URL("../../components/groups/GroupLeaderboard.tsx", import.meta.url),
     "utf8",
@@ -152,9 +147,9 @@ it("bounds match/group scroll regions and reserves the exact safe-area-aware FAB
 
 it("keeps text inside explicit labels when native location buttons contain icons", () => {
   for (const path of [
-    "../../components/matches/MatchWizard.tsx",
+    "../../components/events/EventWizard.tsx",
     "../../components/locations/LocationPicker.tsx",
-    "../../components/matches/MatchDetail.tsx",
+    "../../components/events/EventTable.tsx",
     "../../components/contacts/ContactLegend.tsx",
   ]) {
     const source = ts.createSourceFile(

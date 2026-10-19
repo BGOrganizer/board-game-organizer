@@ -1,4 +1,4 @@
-import { OrganizationWizard } from "@/components/organizations/OrganizationWizard";
-export default function NewOrganizationPage() {
-  return <OrganizationWizard />;
+import { redirect } from "next/navigation";
+export default function Page() {
+  redirect("/groups");
 }

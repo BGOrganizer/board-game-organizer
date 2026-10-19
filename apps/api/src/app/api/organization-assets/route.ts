@@ -1,15 +1,4 @@
-import { startOrganizationLogoSchema } from "@board-game-organizer/schemas";
+import { retiredRecordOperation } from "@/app/lib/community/record-http";
 import { corsOptions } from "@/app/lib/cors";
-import {
-  communityBody,
-  runOrganizationAssetOperation,
-} from "@/app/lib/organizations/organization-assets.http";
 export const OPTIONS = corsOptions;
-export function POST(request: Request) {
-  return runOrganizationAssetOperation(
-    request,
-    async (userId, service) =>
-      service.start(userId, await communityBody(request, startOrganizationLogoSchema)),
-    201,
-  );
-}
+export const POST = retiredRecordOperation;

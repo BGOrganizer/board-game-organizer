@@ -59,7 +59,7 @@ export function notificationHref(
   | "/contacts"
   | "/contacts?tab=connections"
   | "/contacts?tab=requests"
-  | "/matches"
+  | "/tables"
   | "/groups"
   | "/notifications"
   | `/match/${string}`
@@ -74,13 +74,13 @@ export function notificationHref(
   if (typeof href === "string") {
     const detail =
       /^\/(matches|groups)\/([a-f\d]{24}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href);
-    if (detail) return detail[1] === "matches" ? `/match/${detail[2]}` : `/group/${detail[2]}`;
+    if (detail) return detail[1] === "matches" ? "/tables" : `/group/${detail[2]}`;
   }
   const organization =
     typeof href === "string"
       ? /^\/organizations\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href)
       : null;
-  if (organization) return `/organization/${organization[1]}`;
+  if (organization) return "/groups";
   if (typeof href === "string") {
     const event =
       /^\/events\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})(?:\/tables\/([a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}))?$/i.exec(
@@ -92,15 +92,13 @@ export function notificationHref(
         : `/event/${event[1]}`;
   }
   if (href === "/events") return "/events";
+  if (href === "/tables" || href === "/matches") return "/tables";
   if (href === "/moderation") return "/moderation";
   if (href === "/contacts" && kind === "friend_request") return "/contacts?tab=requests";
   if (href === "/contacts" && kind === "friend_request_accepted") {
     return "/contacts?tab=connections";
   }
-  return href === "/contacts" ||
-    href === "/matches" ||
-    href === "/groups" ||
-    href === "/notifications"
+  return href === "/contacts" || href === "/groups" || href === "/notifications"
     ? href
     : "/notifications";
 }

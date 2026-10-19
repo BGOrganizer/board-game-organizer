@@ -1,309 +1,338 @@
-import type { EventResponse, EventTableResponse } from "@board-game-organizer/schemas";
+import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
+import { eventRecordKeys } from "@board-game-organizer/shared";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import type { ComponentProps } from "react";
-import { beforeEach, expect, it, vi } from "vitest";
-import type { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { eventId, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventDetail } from "../EventDetail";
 
-const mocks = vi.hoisted(() => ({
-  denied: false,
-  open: true,
-  busy: false,
-  pending: false,
-  data: undefined as EventResponse | undefined,
-  items: [] as EventTableResponse[],
-  tablePending: false,
-  tableError: false,
-  next: false,
-  nextPending: false,
-  nextError: false,
-  refetch: vi.fn(),
-  tableRefetch: vi.fn(),
-  fetchNext: vi.fn(),
-  cancel: vi.fn(),
-  replace: vi.fn(),
-  tableOptions: vi.fn(),
-  scrollOptions: vi.fn(),
-  confirm: undefined as ComponentProps<typeof ContactConfirmDialog> | undefined,
-}));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: mocks.replace }) }));
+const mocks = vi.hoisted(() => ({ feedback: { onOptimisticUpdate: vi.fn(), onError: vi.fn() } }));
 vi.mock("@/lib/useCommunityApi", () => ({
-  useCommunityApi: () => ({ apiUrl: "https://api.test", userId: "admin" }),
-}));
-vi.mock("@/lib/useInfiniteScroll", () => ({
-  useInfiniteScroll: (o: unknown) => {
-    mocks.scrollOptions(o);
-    return null;
-  },
-}));
-vi.mock("@board-game-organizer/shared", async (original) => ({
-  ...(await original<typeof import("@board-game-organizer/shared")>()),
-  communityAccessDenied: () => mocks.denied,
-  useEvent: () => ({
-    data: mocks.data,
-    isPending: mocks.pending,
-    error: null,
-    refetch: mocks.refetch,
+  useCommunityApi: () => ({
+    apiUrl: "https://api.test",
+    userId: "owner",
+    getToken: async () => "fresh",
+    feedback: mocks.feedback,
   }),
-  useEventWindow: () => mocks.open,
-  useEventActions: () => ({ busy: mocks.busy, cancel: { mutateAsync: mocks.cancel } }),
-  useEventTables: (o: unknown) => {
-    mocks.tableOptions(o);
-    return {
-      items: mocks.items,
-      isPending: mocks.tablePending,
-      isError: mocks.tableError,
-      hasNextPage: mocks.next,
-      isFetchingNextPage: mocks.nextPending,
-      isFetchNextPageError: mocks.nextError,
-      refetch: mocks.tableRefetch,
-      fetchNextPage: mocks.fetchNext,
-    };
-  },
 }));
-vi.mock("@/components/common/ui/ContactConfirmDialog", () => ({
-  ContactConfirmDialog: (props: ComponentProps<typeof ContactConfirmDialog>) => {
-    mocks.confirm = props;
-    return (
-      <div role="dialog" aria-label={props.title}>
-        <p>{props.description}</p>
-        <button type="button" disabled={props.busy} onClick={props.onCancel}>
-          Cancel
-        </button>
-        <button type="button" disabled={props.busy} onClick={props.actions[0].onPress}>
-          Confirm cancellation
-        </button>
-      </div>
-    );
-  },
-}));
-
-const event: EventResponse = {
-  id: "event",
-  organizationId: "org",
-  adminUserId: "admin",
-  name: "Games evening",
-  organizationName: "Game club",
-  logo: "",
-  organizationApproved: true,
-  tableCount: 1,
-  confirmedParticipantCount: 3,
-  role: "admin",
-  canModify: true,
-  canPublish: true,
-  status: "PUBLISHED",
-  location: {
-    id: "venue",
-    name: "Club venue",
-    address: "Via Roma 1, Italia",
-    latitude: 41,
-    longitude: 12,
-  },
-  timeZone: "UTC",
-  startsAt: "2030-06-12T14:00:00.000Z",
-  endsAt: "2030-06-12T18:00:00.000Z",
-  bookingClosesAt: "2030-06-11T14:00:00.000Z",
-  version: 1,
-  createdAt: "2030-01-01T00:00:00.000Z",
-  updatedAt: "2030-01-01T00:00:00.000Z",
-};
-const table: EventTableResponse = {
-  id: "table",
-  eventId: "event",
-  name: "Azul table",
-  gameId: 1,
-  gameName: "Azul",
-  image: null,
-  startsAt: "2030-06-12T14:01:00.000Z",
-  endsAt: "2030-06-12T17:59:00.000Z",
-  minPlayers: 2,
-  maxPlayers: 4,
-  openSkill: true,
-  status: "PLANNING",
-  confirmedCount: 2,
-  reservedCount: 3,
-  myBooking: null,
-  canBook: true,
-  demonstrator: { userId: "demo", username: "Demo", avatarUrl: null },
-  createdAt: event.createdAt,
-  updatedAt: event.updatedAt,
-};
-const tablesTab = () => fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
-const detailsTab = () => fireEvent.click(screen.getByRole("tab", { name: "Details" }));
+let event: PlannedEventResponse,
+  tables: PlannedTableResponse[],
+  fail = false,
+  failWrite = false,
+  fetcher: ReturnType<typeof vi.fn>;
+function mount() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      <EventDetail eventId={eventId} />
+    </QueryClientProvider>,
+  );
+  return client;
+}
 beforeEach(() => {
   vi.clearAllMocks();
-  Object.assign(mocks, {
-    denied: false,
-    open: true,
-    busy: false,
-    pending: false,
-    data: event,
-    items: [],
-    tablePending: false,
-    tableError: false,
-    next: false,
-    nextPending: false,
-    nextError: false,
-    confirm: undefined,
+  event = { ...plannedEvent };
+  tables = [{ ...plannedTable }];
+  fail = false;
+  failWrite = false;
+  fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (fail) return new Response("{}", { status: 503 });
+    if (init?.method === "PATCH") {
+      if (failWrite) return new Response('{"error":"EVENT_CHANGED"}', { status: 409 });
+      const input = JSON.parse(String(init.body));
+      if (url.endsWith("/state")) {
+        event = {
+          ...event,
+          status: input.action === "confirm" ? "CONFIRMED" : "PLANNING",
+          version: event.version + 1,
+          canConfirm: false,
+          canEdit: false,
+          canReplan: true,
+        };
+      } else if (url.endsWith("/votes"))
+        event = {
+          ...event,
+          myVotes: { dateVotes: { [input.optionId]: input.vote }, locationVotes: {} },
+        };
+      return new Response(JSON.stringify(event));
+    }
+    return new Response(
+      JSON.stringify(url.includes("/tables?") ? { items: tables, nextCursor: null } : event),
+    );
   });
-  mocks.cancel.mockResolvedValue(event);
+  vi.stubGlobal("fetch", fetcher);
 });
-
-it("defaults to details, reserves table fetching for its tab and keeps edit outside both panels", () => {
-  const { container } = renderWithI18n(<EventDetail eventId="event" />);
-  expect(mocks.tableOptions.mock.lastCall?.[0].enabled).toBe(false);
-  expect(screen.queryByText("Game club")).toBeNull();
-  expect(screen.getByText("3")).toBeTruthy();
-  expect(container.querySelector(".lucide-layout-grid")).toBeTruthy();
-  expect(container.querySelector(".lucide-users-round")).toBeTruthy();
-  expect(screen.getByText("Number of tables:").parentElement?.textContent).toBe(
-    "Number of tables: 1",
-  );
-  expect(screen.getByText("Number of participants:").parentElement?.textContent).toBe(
-    "Number of participants: 3",
-  );
-  const cancel = screen.getByRole("button", { name: "Cancel event" });
-  expect(cancel.closest("header")).toBeTruthy();
-  expect(cancel.textContent).toBe("");
-  expect(screen.getByRole("link", { name: "Edit event" }).getAttribute("href")).toBe(
-    "/events/event/edit",
-  );
-  tablesTab();
-  expect(mocks.tableOptions.mock.lastCall?.[0].enabled).toBe(true);
-  expect(screen.getByText("No tables found")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Edit event" }).closest('[role="tabpanel"]')).toBeNull();
-  detailsTab();
-  expect(screen.getByRole("link", { name: "Edit event" })).toBeTruthy();
+afterEach(() => vi.unstubAllGlobals());
+it("keeps terminated events read-only when no planning agreement is returned", async () => {
+  event = {
+    ...event,
+    status: "TERMINATED",
+    agreement: undefined,
+    canVote: false,
+    canEdit: false,
+    canConfirm: false,
+    canReplan: false,
+    canFinalize: false,
+  };
+  tables = [];
+  mount();
+  expect(await screen.findByText(/Terminated/)).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Reopen planning" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Yes/ })).toBeNull();
 });
-it.each(["PLANNING", "CREATED", "TERMINATED", "CANCELLED"] as const)(
-  "shares read-only draft-card content for %s without row edit/delete",
-  (status) => {
-    mocks.items = [{ ...table, status }];
-    renderWithI18n(<EventDetail eventId="event" />);
-    tablesTab();
-    expect(screen.getByRole("link", { name: "Open table: Azul table" }).getAttribute("href")).toBe(
-      "/events/event/tables/table",
-    );
-    expect(screen.getByText("Azul")).toBeTruthy();
-    expect(screen.getByText("2–4")).toBeTruthy();
-    expect(screen.getByText("Demo")).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Global ratings enabled" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Edit table|Remove table/ })).toBeNull();
-    const card = screen.getByRole("link", { name: "Open table: Azul table" });
-    expect(within(card).getByText("confirmed players:").parentElement?.textContent).toBe(
-      "confirmed players: 2",
-    );
-    expect(within(card).getByText("reserved places:").parentElement?.textContent).toBe(
-      "reserved places: 3",
-    );
-    expect(Boolean(within(card).queryByText("Planning"))).toBe(false);
-    if (status !== "PLANNING")
-      expect(
-        within(card).getByText(
-          status === "CREATED" ? "Confirmed" : status === "TERMINATED" ? "Finished" : "Cancelled",
-        ),
-      ).toBeTruthy();
-  },
-);
-it("keeps table failures observable, retries them and loads/retries subsequent pages", () => {
-  mocks.tableError = true;
-  mocks.next = true;
-  mocks.nextError = true;
-  renderWithI18n(<EventDetail eventId="event" />);
-  tablesTab();
-  expect(screen.queryByText("No tables found")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Could not load tables. Retry" }));
-  expect(mocks.tableRefetch).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  expect(mocks.fetchNext).toHaveBeenCalledOnce();
-  mocks.scrollOptions.mock.lastCall?.[0].fetchNextPage();
-  expect(mocks.fetchNext).toHaveBeenCalledTimes(2);
-  mocks.tableError = false;
-  mocks.nextError = false;
-  mocks.nextPending = true;
-  detailsTab();
-  tablesTab();
-  expect(screen.getByRole("button", { name: "Load more" }).hasAttribute("disabled")).toBe(true);
-  mocks.nextPending = false;
-  detailsTab();
-  tablesTab();
-  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-  expect(mocks.fetchNext).toHaveBeenCalledTimes(3);
+it("hides an inaccessible event rather than retaining private content after authorization failure", async () => {
+  fetcher.mockImplementation(async () => new Response('{"error":"FORBIDDEN"}', { status: 403 }));
+  mount();
+  expect(await screen.findByText("Could not load event")).not.toBeNull();
+  expect(screen.queryByRole("heading", { name: plannedEvent.name })).toBeNull();
 });
-it("uses initial skeletons without replacing cached table rows", () => {
-  mocks.tablePending = true;
-  renderWithI18n(<EventDetail eventId="event" />);
-  tablesTab();
-  expect(screen.queryByText("No tables found")).toBeNull();
-  mocks.items = [table];
-  detailsTab();
-  tablesTab();
-  expect(screen.getByText("Azul table")).toBeTruthy();
-});
-it.each(["closed", "readonly", "draft"])(
-  "respects deadline and server modification rights: %s",
-  (mode) => {
-    mocks.open = mode === "readonly";
-    mocks.data = {
-      ...event,
-      canModify: mode !== "readonly",
-      status: mode === "draft" ? "DRAFT" : "PUBLISHED",
+it("hydrates missing agreement/table fields from a canonical list summary without enabling confirmation early", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+    summary = {
+      ...plannedEvent,
+      groupId: "55555555-5555-4555-8555-555555555555",
+      groupName: null,
+      canConfirm: true,
+      agreement: undefined,
     };
-    renderWithI18n(<EventDetail eventId="event" />);
-    expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Cancel event" })).toBeNull();
-    expect(Boolean(screen.queryByText("Bookings are closed. Results can still be recorded."))).toBe(
-      mode === "closed",
-    );
-  },
-);
-it("shows loading, retryable detail failure and hides unauthorized cached details", () => {
-  mocks.data = undefined;
-  mocks.pending = true;
-  renderWithI18n(<EventDetail eventId="event" />);
-  expect(screen.queryByRole("alert")).toBeNull();
+  client.setQueryData(eventRecordKeys.list({ apiUrl: "https://api.test", userId: "owner" }), {
+    pages: [{ items: [summary], nextCursor: null }],
+    pageParams: [""],
+  });
+  let release!: () => void;
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.includes("/tables?"))
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    return original(url, init);
+  });
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      <EventDetail eventId={eventId} />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("heading", { name: plannedEvent.name })).not.toBeNull();
+  expect(
+    (screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  await waitFor(() => expect(release).toBeTypeOf("function"));
+  await act(async () => release());
+  expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
 });
-it.each([false, true])("retries a missing/unauthorized detail, denied=%s", (denied) => {
-  mocks.denied = denied;
-  mocks.data = denied ? event : undefined;
-  renderWithI18n(<EventDetail eventId="event" />);
-  expect(screen.getByRole("alert")).toBeTruthy();
-  expect(screen.queryByText("Games evening")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  expect(mocks.refetch).toHaveBeenCalledOnce();
+it("retries uncached event and table failures instead of turning them into empty success", async () => {
+  fail = true;
+  mount();
+  expect(await screen.findByText("Could not load event")).not.toBeNull();
+  fail = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("heading", { name: plannedEvent.name })).not.toBeNull();
+  const retry = screen.queryByRole("button", { name: "Try again" });
+  if (retry) fireEvent.click(retry);
+  expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
 });
-it("requires confirmation, permits dismissal and navigates only after successful cancellation", async () => {
-  renderWithI18n(<EventDetail eventId="event" />);
-  fireEvent.click(screen.getByRole("button", { name: "Cancel event" }));
-  expect(mocks.cancel).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+it("confirms manually, permits replan after cutoff, and keeps failed transitions actionable", async () => {
+  event = {
+    ...event,
+    status: "CONFIRMED",
+    canVote: false,
+    canEdit: false,
+    canConfirm: false,
+    canReplan: true,
+    canFinalize: true,
+    groupId: "55555555-5555-4555-8555-555555555555",
+    groupName: "Our group",
+    groupType: "PUBLIC",
+    bookingClosesAt: "2000-01-01T00:00:00Z",
+    endsAt: "2030-06-04T01:00:00Z",
+    confirmed: {
+      dateId: plannedEvent.dates[0].id,
+      locationId: plannedEvent.locations[0].id,
+      at: "2030-06-01T12:00:00Z",
+    },
+  };
+  mount();
+  expect(await screen.findByRole("link", { name: "Our group" })).not.toBeNull();
+  expect(screen.getByRole("link", { name: "Register results" }).getAttribute("href")).toContain(
+    "/results",
+  );
+  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Reopen planning" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Cancel event" }));
-  fireEvent.click(screen.getByRole("button", { name: "Confirm cancellation" }));
-  await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/events"));
-  expect(mocks.cancel).toHaveBeenCalledWith("event");
+  failWrite = true;
+  fireEvent.click(screen.getByRole("button", { name: "Reopen planning" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+  expect(
+    await screen.findByText("Could not change event state. Refresh and try again."),
+  ).not.toBeNull();
+  failWrite = false;
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(
+    fetcher.mock.calls.some(
+      ([url, init]) => url.endsWith("/state") && JSON.parse(String(init?.body)).action === "replan",
+    ),
+  ).toBe(true);
 });
-it("keeps failure confirmation open, blocks repeated submission/dismissal and rechecks cutoff", async () => {
-  mocks.cancel.mockRejectedValue(new Error("network"));
-  renderWithI18n(<EventDetail eventId="event" />);
-  fireEvent.click(screen.getByRole("button", { name: "Cancel event" }));
-  await act(async () => {
-    mocks.confirm?.actions[0].onPress();
+it("renders pending/unavailable agreements, location votes, paging and manual confirmation", async () => {
+  event = {
+    ...event,
+    canVote: true,
+    canConfirm: true,
+    myVotes: undefined,
+    agreement: {
+      agreed: true,
+      dateId: plannedEvent.dates[0].id,
+      locationId: plannedEvent.locations[0].id,
+      tables: [],
+      reasons: [
+        { tableId: plannedTable.id, code: "PENDING_RESERVATIONS" },
+        { tableId: "77777777-7777-4777-8777-777777777777", code: "GAME_DISAGREEMENT" },
+        { tableId: "88888888-8888-4888-8888-888888888888", code: "NO_AGREEMENT" },
+      ],
+    },
+  };
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.includes("/tables?"))
+      return new Response(
+        JSON.stringify(
+          new URL(url).searchParams.has("cursor")
+            ? {
+                items: [
+                  {
+                    ...plannedTable,
+                    id: "77777777-7777-4777-8777-777777777777",
+                    name: "Second table",
+                  },
+                ],
+                nextCursor: null,
+              }
+            : { items: tables, nextCursor: "0" },
+        ),
+      );
+    return original(url, init);
   });
-  expect(screen.getByRole("dialog")).toBeTruthy();
-  expect(mocks.replace).not.toHaveBeenCalled();
-  mocks.busy = true;
-  tablesTab();
-  act(() => {
-    mocks.confirm?.onCancel();
-    mocks.confirm?.actions[0].onPress();
-  });
-  expect(screen.getByRole("dialog")).toBeTruthy();
-  expect(mocks.cancel).toHaveBeenCalledOnce();
-  mocks.busy = false;
-  mocks.open = false;
-  detailsTab();
-  act(() => mocks.confirm?.actions[0].onPress());
-  expect(mocks.cancel).toHaveBeenCalledOnce();
+  mount();
+  expect(
+    await screen.findByText("Agreement available. Confirmation remains manual."),
+  ).not.toBeNull();
+  expect(screen.getByText(/Pending invitations still reserve places/)).not.toBeNull();
+  expect(screen.getByText(/No compatible accepted players/)).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  expect(await screen.findByRole("link", { name: "Open table: Second table" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: `${plannedEvent.locations[0].name}: Yes` }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url, init]) =>
+          url.endsWith("/votes") && JSON.parse(String(init?.body)).kind === "location",
+      ),
+    ).toBe(true),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Confirm event" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+it("opens unified event/table routes and uses one voting legend with no legacy draft/delete actions", async () => {
+  mount();
+  expect(await screen.findByRole("heading", { name: event.name })).not.toBeNull();
+  expect(screen.getAllByRole("button", { name: "Voting legend" })).toHaveLength(1);
+  expect(screen.getByRole("link", { name: "Edit event" }).getAttribute("href")).toBe(
+    `/events/${eventId}/edit`,
+  );
+  expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Confirm event/ })).toBeNull();
+});
+it("only accepted players may vote, and voting never creates a table registration", async () => {
+  event = { ...event, canVote: true };
+  mount();
+  const vote = await screen.findByRole("button", { name: "2030-06-03: Yes" });
+  fireEvent.click(vote);
+  await waitFor(() =>
+    expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("set_event_vote"),
+  );
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url, init]) => url.endsWith("/votes") && JSON.parse(String(init?.body)).kind === "date",
+      ),
+    ).toBe(true),
+  );
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/registrations"))).toBe(false);
+});
+it("explains seated game disagreement without replacing players by waiters", async () => {
+  event = {
+    ...event,
+    agreement: {
+      agreed: false,
+      tables: [],
+      reasons: [{ tableId: plannedTable.id, code: "GAME_DISAGREEMENT" }],
+    },
+  };
+  mount();
+  expect(await screen.findByText(/Seated players agree on date and location/)).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
+});
+it("requires explicit manual confirmation and freezes only server-authorized agreement", async () => {
+  event = { ...event, canConfirm: true, agreement: { agreed: true, tables: [], reasons: [] } };
+  const client = mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Confirm event" }));
+  const dialog = screen.getByRole("dialog");
+  expect(dialog.textContent).toContain("Other tables and invitations are retained but excluded.");
+  expect(fetcher.mock.calls.some(([url]) => url.endsWith("/state"))).toBe(false);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Confirm" }));
+  await waitFor(() =>
+    expect(
+      client.getQueryData(
+        eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+      ),
+    ).toMatchObject({ status: "CONFIRMED" }),
+  );
+  expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("confirm_event");
+});
+it("leaves failed confirmation actionable and selectively restores optimistic capabilities", async () => {
+  event = { ...event, canConfirm: true };
+  failWrite = true;
+  const client = mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Confirm event" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+  expect(
+    await screen.findByText("Could not change event state. Refresh and try again."),
+  ).not.toBeNull();
+  expect(screen.getByRole("dialog")).not.toBeNull();
+  expect(
+    client.getQueryData(
+      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+    ),
+  ).toMatchObject({ status: "PLANNING", canConfirm: true });
+  expect(mocks.feedback.onError).toHaveBeenCalled();
+});
+it("preserves an observable error/retry path instead of treating failures as empty success", async () => {
+  fail = true;
+  mount();
+  expect(await screen.findByText("Could not load event")).not.toBeNull();
+  fail = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("heading", { name: event.name })).not.toBeNull();
+});
+it("closed public cutoff blocks editing/voting without preventing manual confirmation", async () => {
+  event = {
+    ...event,
+    groupType: "PUBLIC",
+    bookingClosesAt: "2000-01-01T00:00:00Z",
+    canVote: true,
+    canConfirm: true,
+  };
+  mount();
+  expect(await screen.findByRole("button", { name: "Confirm event" })).not.toBeNull();
+  expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "2030-06-03: Yes" })).toBeNull();
 });

@@ -132,23 +132,17 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     const latest = list.data?.pages[0]?.notifications[0];
     if (!latest) return;
     if (lastSeen.current?.userId === options.userId && lastSeen.current.id !== latest.id) {
-      for (const prefix of ["contacts", "groups", "matches"])
-        void queryClient.invalidateQueries({ queryKey: [prefix], refetchType: "none" });
-    }
-    if (
-      lastSeen.current?.userId === options.userId &&
-      lastSeen.current.id !== latest.id &&
-      (latest.kind.startsWith("organization_") || latest.kind.startsWith("event_"))
-    ) {
-      if (latest.kind.startsWith("organization_"))
-        void queryClient.invalidateQueries({
-          queryKey: ["organizations", options.apiUrl, options.userId],
-          refetchType: "none",
-        });
+      if (/^(follow|friend|block|contact)/.test(latest.kind))
+        void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
       void queryClient.invalidateQueries({
-        queryKey: ["events", options.apiUrl, options.userId],
+        queryKey: ["groups", options.apiUrl, options.userId],
         refetchType: "none",
       });
+      if (/^(event_|table_|group_)/.test(latest.kind))
+        void queryClient.invalidateQueries({
+          queryKey: ["events", options.apiUrl, options.userId],
+          refetchType: "none",
+        });
     }
     lastSeen.current = { userId: options.userId, id: latest.id };
   }, [list.data, options.userId, options.apiUrl, queryClient]);

@@ -1,165 +1,219 @@
 "use client";
 import {
   communityAccessDenied,
-  useEvent,
-  useEventActions,
-  useEventTables,
-  useEventWindow,
+  useEventCutoff,
+  useEventRecord,
+  useEventRecordActions,
+  useRecordTables,
 } from "@board-game-organizer/shared";
-import { Button, Skeleton, Tabs } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, LayoutGrid, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
-import { EmptyList } from "@/components/common/ui/EmptyList";
-import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
-import { EventOverview } from "./EventOverview";
 import { EventTableCard } from "./EventTableCard";
-
+import { EventVoteButtons } from "./EventVoteButtons";
+import { EventVoteLegend } from "./EventVoteLegend";
 export function EventDetail({ eventId }: { eventId: string }) {
-  const router = useRouter();
-  const { t } = useLingui();
-  const options = useCommunityApi();
-  const detail = useEvent(options, eventId);
-  const event = communityAccessDenied(detail.error) ? undefined : detail.data;
-  const open = useEventWindow(event);
-  const actions = useEventActions(options);
-  const [tab, setTab] = useState("details");
-  const [cancel, setCancel] = useState(false);
-  const tables = useEventTables(
-    { ...options, enabled: Boolean(event) && tab === "tables" },
-    eventId,
-  );
-  const endRef = useInfiniteScroll({
-    hasNextPage: tab === "tables" && tables.hasNextPage,
-    isFetchingNextPage: tables.isFetchingNextPage,
-    isFetchNextPageError: tables.isFetchNextPageError,
-    fetchNextPage: () => tables.fetchNextPage(),
-  });
-  const editable = Boolean(event?.canModify && open);
+  const { t } = useLingui(),
+    o = useCommunityApi(),
+    q = useEventRecord(o, eventId),
+    a = useEventRecordActions(o, eventId),
+    tables = useRecordTables(o, eventId),
+    [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
+    [error, setError] = useState(false),
+    event = communityAccessDenied(q.error) ? undefined : q.data,
+    end = useInfiniteScroll({
+      hasNextPage: !!tables.hasNextPage,
+      isFetchingNextPage: tables.isFetchingNextPage,
+      isFetchNextPageError: tables.isFetchNextPageError,
+      fetchNextPage: tables.fetchNextPage,
+    });
+  const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   if (!event)
-    return (
-      <div>
-        {detail.isPending ? (
-          <Skeleton className="h-48 w-full rounded-xl" />
-        ) : (
-          <div role="alert">
-            <p>{t`Could not load event`}</p>
-            <Button onPress={() => void detail.refetch()}>{t`Retry`}</Button>
-          </div>
-        )}
+    return q.isPending ? (
+      <Skeleton className="h-40 w-full rounded-xl" />
+    ) : (
+      <div role="alert">
+        <p className="text-danger">{t`Could not load event`}</p>
+        <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
       </div>
     );
+  const transition = async (action: "confirm" | "replan") => {
+    setError(false);
+    try {
+      await a.transition.mutateAsync({ action, version: event.version });
+      setConfirm(null);
+    } catch {
+      setError(true);
+    }
+  };
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-4 pb-28">
-      <header className="flex items-center gap-3">
-        <Link
-          href="/events"
-          aria-label={t`Back`}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          <ArrowLeft aria-hidden />
+    <div className="mx-auto max-w-4xl space-y-5 pb-24">
+      <Link href="/events" className="inline-flex items-center gap-2 text-accent">
+        <ArrowLeft className="size-4" />
+        {t`Back`}
+      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">{event.name}</h1>
+        <EventVoteLegend />
+      </div>
+      <p>
+        {event.status === "PLANNING"
+          ? t`Planning`
+          : event.status === "CONFIRMED"
+            ? t`Confirmed`
+            : t`Terminated`}{" "}
+        · {event.startTime} ({event.timeZone})
+      </p>
+      {event.groupName ? (
+        <Link href={`/groups/${event.groupId}`} className="text-accent">
+          {event.groupName}
         </Link>
-        <h1 className="min-w-0 flex-1 break-words text-xl font-semibold">{event.name}</h1>
-        {editable ? (
-          <Button
-            isIconOnly
-            variant="danger-soft"
-            aria-label={t`Cancel event`}
-            isDisabled={actions.busy}
-            onPress={() => setCancel(true)}
+      ) : null}
+      <div className="flex flex-wrap gap-3">
+        {event.canEdit && !closed ? (
+          <Link
+            href={`/events/${event.id}/edit`}
+            className="inline-flex items-center gap-2 text-accent"
           >
-            <Trash2 className="size-5" aria-hidden />
-          </Button>
+            <Pencil className="size-4" />
+            {t`Edit event`}
+          </Link>
         ) : null}
-      </header>
-      <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))}>
-        <Tabs.ListContainer>
-          <Tabs.List aria-label={t`Event sections`}>
-            <Tabs.Tab id="details">
-              {t`Details`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab id="tables">
-              {t`Tables`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
-          </Tabs.List>
-        </Tabs.ListContainer>
-        <Tabs.Panel id="details" className="space-y-4 pt-4">
-          <EventOverview event={event} />
-          {!open && event.status === "PUBLISHED" ? (
-            <p>{t`Bookings are closed. Results can still be recorded.`}</p>
-          ) : null}
-        </Tabs.Panel>
-        <Tabs.Panel id="tables" className="space-y-3 pt-4">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <LayoutGrid className="size-4 text-default-500" aria-hidden />
-            {t`Table list`}
-          </h2>
-          {tables.isPending && !tables.items.length ? (
-            <Skeleton className="h-24 w-full rounded-xl" />
-          ) : null}
-          {tables.items.map((table) => (
-            <EventTableCard key={table.id} table={table} timeZone={event.timeZone} />
-          ))}
-          {!tables.isPending && !tables.isError && !tables.items.length ? (
-            <EmptyList icon={<LayoutGrid className="size-7" />}>{t`No tables found`}</EmptyList>
-          ) : null}
-          {tables.isError ? (
-            <Button onPress={() => void tables.refetch()}>{t`Could not load tables. Retry`}</Button>
-          ) : null}
-          {tables.hasNextPage ? (
-            <Button
-              isDisabled={tables.isFetchingNextPage}
-              onPress={() => void tables.fetchNextPage()}
+        {event.canConfirm ? (
+          <Button
+            isDisabled={a.busy || q.isPlaceholderData}
+            onPress={() => setConfirm("confirm")}
+          >{t`Confirm event`}</Button>
+        ) : null}
+        {event.canReplan ? (
+          <Button
+            variant="secondary"
+            isDisabled={a.busy}
+            onPress={() => setConfirm("replan")}
+          >{t`Reopen planning`}</Button>
+        ) : null}
+        {event.canFinalize ? (
+          <Link
+            href={`/events/${event.id}/results`}
+            className="text-accent"
+          >{t`Register results`}</Link>
+        ) : null}
+      </div>
+      <section aria-label={t`Dates`} className="space-y-3">
+        <h2 className="font-semibold">{t`Dates`}</h2>
+        {event.dates
+          .filter((row) => !event.confirmed || row.id === event.confirmed.dateId)
+          .map((row) => (
+            <div
+              key={row.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-default-100 p-3"
             >
-              {tables.isFetchNextPageError ? t`Retry` : t`Load more`}
-            </Button>
-          ) : null}
-          {tables.isFetchingNextPage ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
-          <div ref={endRef} className="h-1" aria-hidden />
-        </Tabs.Panel>
-      </Tabs>
-      {editable ? (
-        <FloatingActions
-          href={`/events/${event.id}/edit`}
-          label={t`Edit event`}
-          isDisabled={actions.busy}
-        >
-          <Pencil className="size-6" aria-hidden />
-        </FloatingActions>
+              <span>{row.day}</span>
+              {event.canVote && !closed ? (
+                <EventVoteButtons
+                  label={row.day}
+                  value={event.myVotes?.dateVotes[row.id]}
+                  busy={a.busy || q.isPlaceholderData}
+                  onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+                />
+              ) : null}
+            </div>
+          ))}
+      </section>
+      <section aria-label={t`Locations`} className="space-y-3">
+        <h2 className="font-semibold">{t`Locations`}</h2>
+        {event.locations
+          .filter((row) => !event.confirmed || row.id === event.confirmed.locationId)
+          .map((row) => (
+            <div key={row.id} className="space-y-2 rounded-xl bg-default-100 p-3">
+              <LocationListRow name={row.name} address={row.address} />
+              {event.canVote && !closed ? (
+                <EventVoteButtons
+                  label={row.name}
+                  value={event.myVotes?.locationVotes[row.id]}
+                  busy={a.busy || q.isPlaceholderData}
+                  onChange={(vote) => a.vote.mutate({ kind: "location", optionId: row.id, vote })}
+                />
+              ) : null}
+            </div>
+          ))}
+      </section>
+      {event.bookingClosesAt ? (
+        <p>
+          {t`Booking cutoff`}: {new Date(event.bookingClosesAt).toLocaleString()} · {t`Event end`}:{" "}
+          {event.endsAt ? new Date(event.endsAt).toLocaleString() : "—"}
+        </p>
       ) : null}
-      {cancel ? (
+      {event.agreement ? (
+        <section aria-label={t`Agreement`} className="space-y-2">
+          <h2 className="font-semibold">{t`Agreement`}</h2>
+          <p>
+            {event.agreement.agreed
+              ? t`Agreement available. Confirmation remains manual.`
+              : t`No complete agreement yet.`}
+          </p>
+          {event.agreement.reasons.map((reason) => (
+            <p key={reason.tableId}>
+              {tables.items.find((row) => row.id === reason.tableId)?.name ?? t`Table`}:{" "}
+              {reason.code === "PENDING_RESERVATIONS"
+                ? t`Pending invitations still reserve places.`
+                : reason.code === "GAME_DISAGREEMENT"
+                  ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
+                  : t`No compatible accepted players for this table.`}
+            </p>
+          ))}
+        </section>
+      ) : q.isPlaceholderData ? (
+        <Skeleton className="h-20 w-full rounded-xl" />
+      ) : null}
+      <section aria-label={t`Tables`} className="space-y-3">
+        <h2 className="font-semibold">{t`Tables`}</h2>
+        {tables.items.map((row) => (
+          <EventTableCard key={row.id} table={row} />
+        ))}
+        {tables.isPending ? <Skeleton className="h-32 w-full rounded-xl" /> : null}
+        {tables.isError ? (
+          <div role="alert">
+            <p className="text-danger">{t`Could not load tables`}</p>
+            <Button onPress={() => void tables.refetch()}>{t`Try again`}</Button>
+          </div>
+        ) : null}
+        <div ref={end} />
+        {tables.hasNextPage ? (
+          <Button
+            isDisabled={tables.isFetchingNextPage}
+            onPress={() => void tables.fetchNextPage()}
+          >{t`Load more`}</Button>
+        ) : null}
+      </section>
+      {confirm ? (
         <ContactConfirmDialog
-          title={t`Cancel event`}
-          description={t`All unfinished tables and reservations will be cancelled.`}
-          busy={actions.busy}
-          onCancel={() => {
-            if (!actions.busy) setCancel(false);
-          }}
+          title={confirm === "confirm" ? t`Confirm event` : t`Reopen planning`}
+          description={
+            confirm === "confirm"
+              ? t`Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.`
+              : t`Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.`
+          }
+          busy={a.busy}
+          onCancel={() => setConfirm(null)}
           actions={[
-            {
-              label: t`Cancel event`,
-              variant: "danger",
-              onPress: () => {
-                if (!editable || actions.busy) return;
-                void actions.cancel
-                  .mutateAsync(event.id)
-                  .then(() => {
-                    setCancel(false);
-                    router.replace("/events");
-                  })
-                  .catch(() => {});
-              },
-            },
+            { label: t`Confirm`, variant: "primary", onPress: () => void transition(confirm) },
           ]}
-        />
+        >
+          {error ? (
+            <p
+              role="alert"
+              className="text-danger"
+            >{t`Could not change event state. Refresh and try again.`}</p>
+          ) : null}
+        </ContactConfirmDialog>
       ) : null}
-    </section>
+    </div>
   );
 }

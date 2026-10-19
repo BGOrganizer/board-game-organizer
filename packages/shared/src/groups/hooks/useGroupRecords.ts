@@ -1,0 +1,413 @@
+import type {
+  BanGroupUserInput,
+  CommunityPageResponse,
+  CreateGroupRecordInput,
+  DecideGroupMembershipInput,
+  DecideGroupReviewInput,
+  EditGroupRecordInput,
+  GroupBan,
+  GroupMembership,
+  GroupPersonResponse,
+  GroupRecordListRole,
+  GroupRecordResponse,
+} from "@board-game-organizer/schemas";
+import { groupRecordListRoles } from "@board-game-organizer/schemas";
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useInfiniteQuery,
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { MutationFeedbackAction } from "../../common/mutationFeedback";
+import {
+  type CommunityApiOptions,
+  communityPagePath,
+  communityRequest,
+} from "../../community/communityApi";
+import { mapCommunityCache, restoreCommunityFields } from "../../community/queryCache";
+export type GroupRecordScope = "mine" | "public" | "moderation";
+export type GroupPeopleScope = "accepted" | "pending" | "bans";
+type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
+export const groupRecordKeys = {
+  root: (options: KeyOwner) => ["groups", options.apiUrl, options.userId] as const,
+  list: (
+    options: KeyOwner,
+    scope: GroupRecordScope,
+    query = "",
+    roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+  ) =>
+    [
+      ...groupRecordKeys.root(options),
+      "list",
+      scope,
+      query,
+      ...(scope === "mine"
+        ? [groupRecordListRoles.filter((role) => roles.includes(role)).join(",")]
+        : []),
+    ] as const,
+  detail: (options: KeyOwner, id: string, review = false) =>
+    [...groupRecordKeys.root(options), "detail", id, ...(review ? ["review"] : [])] as const,
+  people: (options: CommunityApiOptions, id: string, mode: GroupPeopleScope, query: string) =>
+    [...groupRecordKeys.root(options), "people", id, mode, query] as const,
+};
+export function groupRecordsPageQuery(
+  options: CommunityApiOptions,
+  scope: GroupRecordScope = "mine",
+  query = "",
+  roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+) {
+  const selected = groupRecordListRoles.filter((role) => roles.includes(role));
+  return infiniteQueryOptions({
+    queryKey: groupRecordKeys.list(options, scope, query, selected),
+    queryFn: ({ pageParam, signal }) =>
+      communityRequest<CommunityPageResponse<GroupRecordResponse>>(
+        options,
+        communityPagePath(
+          `groups?scope=${scope}${scope === "mine" ? `&roles=${selected.join(",")}` : ""}`,
+          query,
+          pageParam,
+        ),
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: Boolean(
+      options.apiUrl &&
+        options.userId &&
+        options.enabled !== false &&
+        (scope !== "public" || query.length >= 4),
+    ),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+  });
+}
+export function useGroupRecords(
+  options: CommunityApiOptions,
+  scope: GroupRecordScope = "mine",
+  query = "",
+  roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+) {
+  const paging = useInfiniteQuery(groupRecordsPageQuery(options, scope, query, roles));
+  return { ...paging, items: paging.data?.pages.flatMap((page) => page.items) ?? [] };
+}
+export function groupRecordDetailQuery(options: CommunityApiOptions, id: string, review = false) {
+  return queryOptions({
+    queryKey: groupRecordKeys.detail(options, id, review),
+    queryFn: ({ signal }) =>
+      communityRequest<GroupRecordResponse>(
+        options,
+        `groups/${encodeURIComponent(id)}${review ? "/review" : ""}`,
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: Boolean(options.apiUrl && options.userId && id && options.enabled !== false),
+    staleTime: review ? 0 : 5 * 60_000,
+    gcTime: 30 * 60_000,
+  });
+}
+export function useGroupRecord(options: CommunityApiOptions, id: string, review = false) {
+  const client = useQueryClient();
+  // List responses contain every group-detail field. Moderator proposals are never seeded from ordinary lists.
+  const lists = review
+    ? []
+    : client.getQueriesData<{ pages: Array<CommunityPageResponse<GroupRecordResponse>> }>({
+        queryKey: groupRecordKeys.root(options),
+        predicate: (query) => query.queryKey[3] === "list" && query.queryKey[4] !== "moderation",
+      });
+  const cached = lists
+    .flatMap(
+      ([key, data]) => data?.pages.flatMap((page) => page.items.map((row) => ({ row, key }))) ?? [],
+    )
+    .find((item) => item.row.id === id);
+  return useQuery({
+    ...groupRecordDetailQuery(options, id, review),
+    ...(cached
+      ? {
+          initialData: cached.row,
+          initialDataUpdatedAt: client.getQueryState(cached.key)?.dataUpdatedAt,
+        }
+      : {}),
+  });
+}
+export function useGroupPeople(
+  options: CommunityApiOptions,
+  id: string,
+  mode: GroupPeopleScope = "accepted",
+  query = "",
+) {
+  const paging = useInfiniteQuery({
+    queryKey: groupRecordKeys.people(options, id, mode, query),
+    queryFn: ({ pageParam, signal }) =>
+      communityRequest<CommunityPageResponse<GroupPersonResponse>>(
+        options,
+        communityPagePath(
+          `groups/${encodeURIComponent(id)}/members?mode=${mode}`,
+          query,
+          pageParam,
+        ),
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: Boolean(options.apiUrl && options.userId && id && options.enabled !== false),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+  });
+  return {
+    ...paging,
+    items:
+      paging.data?.pages
+        .flatMap((page) => page.items)
+        .filter((person) =>
+          mode === "bans"
+            ? Boolean(person.ban)
+            : person.isAdmin ||
+              person.membership?.status === (mode === "accepted" ? "ACCEPTED" : "PENDING"),
+        ) ?? [],
+  };
+}
+export function groupMembershipFeedback(
+  action: DecideGroupMembershipInput["action"],
+): MutationFeedbackAction {
+  return {
+    accept: "accept_group_invitation",
+    decline: "decline_group_invitation",
+    approve: "approve_group_join",
+    reject: "reject_group_join",
+    cancel: "leave_group",
+    remove: "remove_group_member",
+  }[action] as MutationFeedbackAction;
+}
+export function useGroupRecordActions(options: CommunityApiOptions) {
+  const client = useQueryClient(),
+    root = groupRecordKeys.root(options);
+  const busy = useIsMutating({ mutationKey: root }) > 0;
+  async function begin(
+    action: MutationFeedbackAction,
+    id?: string,
+    groupChange?: (row: GroupRecordResponse) => GroupRecordResponse,
+    personChange?: (row: GroupPersonResponse) => GroupPersonResponse,
+  ) {
+    await client.cancelQueries({
+      queryKey: root,
+      predicate: (query) => query.queryKey[3] === "list" || query.queryKey[4] === id,
+    });
+    const undo: Array<() => void> = [];
+    for (const [key, data] of client.getQueriesData({ queryKey: root })) {
+      if (
+        groupChange &&
+        (key[3] === "list" || (key[3] === "detail" && key[4] === id && key.length === 5))
+      )
+        client.setQueryData(
+          key,
+          mapCommunityCache<GroupRecordResponse>(data, (row) => {
+            if (row.id !== id) return row;
+            const optimistic = groupChange(row);
+            undo.push(() =>
+              client.setQueryData(key, (current: unknown) =>
+                mapCommunityCache<GroupRecordResponse>(current, (value) =>
+                  value.id === id ? restoreCommunityFields(value, row, optimistic) : value,
+                ),
+              ),
+            );
+            return optimistic;
+          }),
+        );
+      if (personChange && key[3] === "people" && key[4] === id)
+        client.setQueryData(
+          key,
+          mapCommunityCache<GroupPersonResponse>(data, (row) => {
+            const optimistic = personChange(row);
+            if (optimistic === row) return row;
+            undo.push(() =>
+              client.setQueryData(key, (current: unknown) =>
+                mapCommunityCache<GroupPersonResponse>(current, (value) =>
+                  value.userId === row.userId
+                    ? restoreCommunityFields(value, row, optimistic)
+                    : value,
+                ),
+              ),
+            );
+            return optimistic;
+          }),
+        );
+    }
+    options.feedback?.onOptimisticUpdate?.(action);
+    return { undo, action, id };
+  }
+  function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
+    for (const restore of context?.undo ?? []) restore();
+    if (context) options.feedback?.onError?.(error, context.action);
+  }
+  async function settle(
+    _data: unknown,
+    _error: Error | null,
+    _input: unknown,
+    context: Awaited<ReturnType<typeof begin>> | undefined,
+  ) {
+    await client.invalidateQueries({
+      queryKey: root,
+      predicate: (query) => query.queryKey[3] === "list" || query.queryKey[4] === context?.id,
+    });
+    await client.invalidateQueries({
+      predicate: (query) =>
+        ["events", "tables"].includes(String(query.queryKey[0])) &&
+        query.queryKey[1] === options.apiUrl &&
+        query.queryKey[2] === options.userId &&
+        (query.queryKey[3] === "list" ||
+          Boolean(
+            query.state.data &&
+              typeof query.state.data === "object" &&
+              "groupId" in query.state.data &&
+              query.state.data.groupId === context?.id,
+          )),
+    });
+  }
+  function reconcile(row: GroupRecordResponse) {
+    for (const [key, data] of client.getQueriesData({ queryKey: root }))
+      if (key[3] === "list")
+        client.setQueryData(
+          key,
+          mapCommunityCache<GroupRecordResponse>(data, (value) =>
+            value.id === row.id ? row : value,
+          ),
+        );
+    client.setQueryData(groupRecordKeys.detail(options, row.id), row);
+  }
+  const create = useMutation({
+    mutationKey: root,
+    mutationFn: (input: CreateGroupRecordInput) =>
+      communityRequest<GroupRecordResponse>(options, "groups", "POST", input),
+    onMutate: (input) => begin(input.type === "PUBLIC" ? "submit_group_review" : "create_group"),
+    onSuccess: reconcile,
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const update = useMutation({
+    mutationKey: root,
+    mutationFn: ({ id, input }: { id: string; input: EditGroupRecordInput }) =>
+      communityRequest<GroupRecordResponse>(
+        options,
+        `groups/${encodeURIComponent(id)}`,
+        "PATCH",
+        input,
+      ),
+    onMutate: ({ id, input }) => begin("update_group", id, (row) => ({ ...row, name: input.name })),
+    onSuccess: reconcile,
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const review = useMutation({
+    mutationKey: root,
+    mutationFn: ({ id, input }: { id: string; input: DecideGroupReviewInput }) =>
+      communityRequest<GroupRecordResponse>(
+        options,
+        `groups/${encodeURIComponent(id)}/review`,
+        "PATCH",
+        input,
+      ),
+    onMutate: ({ id, input }) =>
+      begin(input.decision === "approve" ? "approve_group" : "reject_group", id),
+    onSuccess: (row) => client.setQueryData(groupRecordKeys.detail(options, row.id, true), row),
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const requestJoin = useMutation({
+    mutationKey: root,
+    mutationFn: (id: string) =>
+      communityRequest<GroupMembership>(
+        options,
+        `groups/${encodeURIComponent(id)}/membership`,
+        "POST",
+        {},
+      ),
+    onMutate: (id) => begin("request_group_join", id),
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const invite = useMutation({
+    mutationKey: root,
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      communityRequest<GroupMembership>(
+        options,
+        `groups/${encodeURIComponent(id)}/members`,
+        "POST",
+        { userId },
+      ),
+    onMutate: ({ id }) => begin("invite_group_member", id),
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const membership = useMutation({
+    mutationKey: root,
+    mutationFn: ({
+      id,
+      userId,
+      input,
+    }: {
+      id: string;
+      userId: string;
+      input: DecideGroupMembershipInput;
+    }) =>
+      communityRequest<GroupMembership>(
+        options,
+        `groups/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`,
+        "PATCH",
+        input,
+      ),
+    onMutate: ({ id, userId, input }) =>
+      begin(groupMembershipFeedback(input.action), id, undefined, (person) =>
+        person.userId === userId &&
+        person.membership &&
+        (input.action === "remove" ||
+          input.action === "cancel" ||
+          input.action === "reject" ||
+          input.action === "decline")
+          ? {
+              ...person,
+              membership: {
+                ...person.membership,
+                status:
+                  input.action === "decline" || input.action === "reject" ? "DECLINED" : "LEFT",
+              },
+            }
+          : person,
+      ),
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const ban = useMutation({
+    mutationKey: root,
+    mutationFn: ({ id, input }: { id: string; input: BanGroupUserInput }) =>
+      communityRequest<GroupBan>(options, `groups/${encodeURIComponent(id)}/bans`, "POST", input),
+    onMutate: ({ id, input }) =>
+      begin("ban_group_member", id, undefined, (person) =>
+        person.userId === input.userId && person.membership
+          ? { ...person, membership: { ...person.membership, status: "LEFT" } }
+          : person,
+      ),
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const revoke = useMutation({
+    mutationKey: root,
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      communityRequest<GroupBan>(
+        options,
+        `groups/${encodeURIComponent(id)}/bans/${encodeURIComponent(userId)}`,
+        "DELETE",
+      ),
+    onMutate: ({ id }) => begin("revoke_group_ban", id),
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  return { create, update, review, requestJoin, invite, membership, ban, revoke, busy };
+}

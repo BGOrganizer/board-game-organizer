@@ -18,7 +18,7 @@ const { useUserMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/matches",
+  usePathname: () => "/tables",
 }));
 
 vi.mock("@/components/notifications/NotificationBell", () => ({
@@ -57,22 +57,22 @@ describe("Header", () => {
   it("shows the brand and the main navigation for signed-in users", () => {
     renderWithI18n(<Header />);
     expect(screen.getByText("Board Game Organizer")).toBeTruthy();
-    const activeLink = screen.getByRole("link", { name: "Matches" });
+    const activeLink = screen.getByRole("link", { name: "Tables" });
     expect(activeLink.getAttribute("aria-current")).toBe("page");
     expect(activeLink.querySelector('a, [role="link"]')).toBeNull();
     for (const [label, icon] of [
-      ["Matches", "lucide-dices"],
-      ["Community", "lucide-users-round"],
+      ["Tables", "lucide-dices"],
+      ["Groups", "lucide-users-round"],
       ["Events", "lucide-calendar-days"],
       ["Contacts", "lucide-contact-round"],
-      ["Profile", "lucide-user-round"],
     ]) {
       expect(
         screen.getAllByText(label)[0]?.closest("a")?.querySelector(`svg.${icon}`),
       ).toBeTruthy();
     }
     expect(screen.getByText("Alessandro")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Organization moderation" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Group moderation" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Profile" }).getAttribute("href")).toBe("/profile");
     // Signed-in: no Sign In / Sign Up CTAs in the desktop bar.
     expect(screen.queryByText("Sign In")).toBeNull();
   });
@@ -82,7 +82,7 @@ describe("Header", () => {
       user: { firstName: "Moderator", publicMetadata: { bgoRole: "ADMIN" }, emailAddresses: [] },
     });
     renderWithI18n(<Header />);
-    const link = screen.getByRole("link", { name: "Organization moderation" });
+    const link = screen.getByRole("link", { name: "Group moderation" });
     expect(link.getAttribute("href")).toBe("/moderation");
     expect(
       screen.getByRole("button", { name: "Notifications" }).compareDocumentPosition(link) &

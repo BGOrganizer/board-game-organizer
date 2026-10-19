@@ -1,4 +1,36 @@
 export const COMMUNITY_FEEDBACK_MESSAGES = {
+  upload_group_logo: { success: "Logo upload started", error: "Could not upload logo" },
+  submit_group_review: { success: "Group submitted for review", error: "Could not submit group" },
+  approve_group: { success: "Group approved", error: "Could not approve group" },
+  reject_group: { success: "Group rejected", error: "Could not reject group" },
+  request_group_join: {
+    success: "Group join request sent",
+    error: "Could not request group membership",
+  },
+  invite_group_member: { success: "Group invitation sent", error: "Could not invite group member" },
+  approve_group_join: {
+    success: "Group join request approved",
+    error: "Could not approve membership",
+  },
+  reject_group_join: {
+    success: "Group join request rejected",
+    error: "Could not reject membership",
+  },
+  remove_group_member: { success: "Group member removed", error: "Could not remove group member" },
+  ban_group_member: { success: "Group ban applied", error: "Could not apply group ban" },
+  revoke_group_ban: { success: "Group ban revoked", error: "Could not revoke group ban" },
+  confirm_event: { success: "Event confirmed", error: "Could not confirm event" },
+  replan_event: {
+    success: "Event returned to planning",
+    error: "Could not return event to planning",
+  },
+  finalize_event: {
+    success: "Event results registered",
+    error: "Could not register event results",
+  },
+  set_event_vote: { success: "Vote updated", error: "Could not update vote" },
+  join_table: { success: "Table registration sent", error: "Could not join table" },
+  leave_table: { success: "You left the table", error: "Could not leave table" },
   upload_organization_logo: { success: "Logo upload started", error: "Could not upload logo" },
   create_event: { success: "Event saved", error: "Could not create event" },
   update_event: { success: "Event updated", error: "Could not update event" },

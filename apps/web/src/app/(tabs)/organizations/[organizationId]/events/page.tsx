@@ -1,9 +1,4 @@
-import { Events } from "@/components/events/Events";
-export default async function OrganizationEventsPage({
-  params,
-}: {
-  params: Promise<{ organizationId: string }>;
-}) {
-  const { organizationId } = await params;
-  return <Events organizationId={organizationId} />;
+import { redirect } from "next/navigation";
+export default function Page() {
+  redirect("/groups");
 }

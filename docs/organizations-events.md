@@ -1,5 +1,9 @@
 # Organizations and events — approved implementation contract
 
+> Historical contract only. The active source contract is [Unified Groups / Events / Tables](groups-events-refactor.md).
+> Organizations and operational Matches are retired; automatic legacy writers are unregistered.
+> This document is not permission to restore them or delete any database.
+
 This feature branch is based on PR #22, as explicitly authorized. No new PR is opened.
 
 ## Organizations

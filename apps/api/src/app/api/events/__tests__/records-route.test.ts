@@ -1,0 +1,172 @@
+import { beforeEach, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  auth: vi.fn(),
+  transaction: vi.fn(),
+  factory: vi.fn(),
+  after: vi.fn(),
+}));
+vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
+vi.mock("next/server", async (original) => ({
+  ...(await original<typeof import("next/server")>()),
+  after: mocks.after,
+}));
+vi.mock("@/app/lib/db", () => ({ getDb: async () => ({}), withTransaction: mocks.transaction }));
+vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: async () => {} }));
+vi.mock("@/app/lib/community/record-services", () => ({ recordServices: mocks.factory }));
+vi.mock("@/app/lib/notifications/push", () => ({ dispatchNotifications: vi.fn() }));
+
+import * as oldBooking from "../../event-bookings/[bookingId]/route";
+import * as response from "../../table-registrations/[registrationId]/route";
+import * as mine from "../../tables/route";
+import * as result from "../[eventId]/results/route";
+import * as detail from "../[eventId]/route";
+import * as state from "../[eventId]/state/route";
+import * as oldBookings from "../[eventId]/tables/[tableId]/bookings/route";
+import * as invitation from "../[eventId]/tables/[tableId]/invitations/route";
+import * as registration from "../[eventId]/tables/[tableId]/registrations/route";
+import * as table from "../[eventId]/tables/[tableId]/route";
+import * as seats from "../[eventId]/tables/[tableId]/seats/route";
+import * as tables from "../[eventId]/tables/route";
+import * as vote from "../[eventId]/votes/route";
+import * as root from "../route";
+
+const id = "11111111-1111-4111-8111-111111111111",
+  tableId = "22222222-2222-4222-8222-222222222222";
+const context = { params: Promise.resolve({ eventId: id, tableId, registrationId: id }) };
+const input = {
+  groupId: null,
+  name: "Friday games",
+  timeZone: "Europe/Rome",
+  startTime: "20:00",
+  dates: [{ id, day: "2030-06-03" }],
+  locations: [{ id, name: "Club venue", address: "Via Roma 1", latitude: 41.9, longitude: 12.5 }],
+  tables: [
+    {
+      name: "Table one",
+      minPlayers: 2,
+      maxPlayers: 4,
+      games: [{ gameId: 1 }],
+      rankingEnabled: true,
+    },
+  ],
+};
+const request = (method = "GET", body?: unknown, query = "") =>
+  new Request(`https://api.test/api/events${query}`, {
+    method,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+const events = {
+  list: vi.fn(),
+  create: vi.fn(),
+  detail: vi.fn(),
+  update: vi.fn(),
+  tables: vi.fn(),
+  tableDetail: vi.fn(),
+  register: vi.fn(),
+  registrationAction: vi.fn(),
+  seats: vi.fn(),
+  vote: vi.fn(),
+  transition: vi.fn(),
+  finalize: vi.fn(),
+  personalTables: vi.fn(),
+};
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.auth.mockResolvedValue({ userId: "actor" });
+  mocks.transaction.mockImplementation(async (fn) => fn({}, {}));
+  mocks.factory.mockReturnValue({ events });
+  for (const method of Object.values(events)) method.mockReset().mockResolvedValue({ id });
+});
+it("passes strict unified event create/edit contracts without legacy drafts or partial table deletion", async () => {
+  expect((await root.POST(request("POST", input))).status).toBe(201);
+  expect(events.create).toHaveBeenCalledWith("actor", input);
+  const { groupId: _group, ...values } = input,
+    update = { ...values, tables: [], removedTableIds: [tableId], version: 2 };
+  expect((await detail.PATCH(request("PATCH", update), context)).status).toBe(200);
+  expect(events.update).toHaveBeenCalledWith("actor", id, update);
+  expect(
+    (await detail.PATCH(request("PATCH", { ...update, removedTableIds: undefined }), context))
+      .status,
+  ).toBe(400);
+  expect((await root.POST(request("POST", { ...input, status: "DRAFT" }))).status).toBe(400);
+  expect("DELETE" in detail).toBe(false);
+  expect("POST" in tables).toBe(false);
+  expect("PATCH" in table).toBe(false);
+});
+it("source-pages event/table feeds with explicit periods and UUID-scoped detail", async () => {
+  await root.GET(request("GET", undefined, `?groupId=${id}&periods=future&limit=2`));
+  expect(events.list).toHaveBeenCalledWith("actor", { limit: 2, periods: ["future"] }, id);
+  await mine.GET(request("GET", undefined, "?periods=past"));
+  expect(events.personalTables).toHaveBeenCalledWith("actor", { limit: 20, periods: ["past"] });
+  expect((await mine.GET(request("GET", undefined, `?groupId=${id}`))).status).toBe(400);
+  await detail.GET(request(), context);
+  expect(events.detail).toHaveBeenCalledWith("actor", id);
+  await tables.GET(request("GET", undefined, "?query=table"), context);
+  expect(events.tables).toHaveBeenCalledWith("actor", id, { limit: 20, query: "table" });
+  await table.GET(request(), context);
+  expect(events.tableDetail).toHaveBeenCalledWith("actor", id, tableId);
+  expect((await root.OPTIONS(request("OPTIONS"))).status).toBe(204);
+});
+it("keeps explicit registrations, invitations and invitation consent distinct", async () => {
+  expect((await registration.POST(request("POST"), context)).status).toBe(201);
+  expect(events.register).toHaveBeenLastCalledWith("actor", id, tableId);
+  expect((await invitation.POST(request("POST", { userId: "friend" }), context)).status).toBe(201);
+  expect(events.register).toHaveBeenLastCalledWith("actor", id, tableId, "friend");
+  await response.PATCH(request("PATCH", { action: "accept", version: 1 }), context);
+  expect(events.registrationAction).toHaveBeenCalledWith("actor", id, {
+    action: "accept",
+    version: 1,
+  });
+  const cursor = `2030-06-01T12:00:00.000Z|3|${id}`;
+  await seats.GET(
+    request("GET", undefined, `?pending=true&cursor=${encodeURIComponent(cursor)}`),
+    context,
+  );
+  expect(events.seats).toHaveBeenCalledWith("actor", id, tableId, { limit: 20, cursor }, true);
+});
+it("delegates voting, authoritative state transitions and whole-event results without inventing participants", async () => {
+  const choice = { kind: "game", tableId, gameId: 1, vote: "YES" };
+  await vote.PATCH(request("PATCH", choice), context);
+  expect(events.vote).toHaveBeenCalledWith("actor", id, choice);
+  expect(events.register).not.toHaveBeenCalled();
+  await state.PATCH(request("PATCH", { action: "confirm", version: 2 }), context);
+  expect(events.transition).toHaveBeenCalledWith("actor", id, { action: "confirm", version: 2 });
+  const outcome = {
+    version: 3,
+    results: [
+      {
+        tableId,
+        lowerWins: false,
+        entries: [
+          { userId: "actor", score: "12.50" },
+          { userId: "guest", score: null },
+        ],
+        tieBreaks: [],
+      },
+    ],
+  };
+  await result.POST(request("POST", outcome), context);
+  expect(events.finalize).toHaveBeenCalledWith(
+    "actor",
+    id,
+    expect.objectContaining({ version: 3, results: expect.any(Array) }),
+  );
+  expect(
+    (await vote.PATCH(request("PATCH", { ...choice, participantIds: ["forged"] }), context)).status,
+  ).toBe(400);
+  expect(
+    (await state.PATCH(request("PATCH", { action: "publish", version: 2 }), context)).status,
+  ).toBe(400);
+});
+it("retired booking URLs cannot invoke legacy writers; new mutations still require auth and valid IDs", async () => {
+  expect((await oldBooking.PATCH(request("PATCH"))).status).toBe(410);
+  expect((await oldBookings.POST(request("POST"))).status).toBe(410);
+  expect((await oldBookings.GET(request())).status).toBe(410);
+  expect(mocks.transaction).not.toHaveBeenCalled();
+  mocks.auth.mockResolvedValueOnce({ userId: null });
+  expect((await root.POST(request("POST", input))).status).toBe(401);
+  expect(
+    (await detail.GET(request(), { params: Promise.resolve({ eventId: "bad" }) })).status,
+  ).toBe(400);
+});

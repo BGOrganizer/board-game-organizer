@@ -8,6 +8,14 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       thresholds: {
+        "src/{groups/models/groupRecord,groups/models/groupAssets,groups/dto/groupRecords,events/models/eventRecord,events/dto/eventRecords,games/dto/boardGames}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/{games/models/boardGames,locations/models/locations,ratings/models/results}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/dto/eventList.ts": {
           lines: 100,
           functions: 100,

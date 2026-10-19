@@ -12,6 +12,9 @@ type GameRow = {
   rank?: number | null;
   image?: string | null;
   imageCheckedAt?: string;
+  minPlayMinutes?: number | null;
+  maxPlayMinutes?: number | null;
+  durationCheckedAt?: string;
 };
 
 // Older imports guessed this URL from the game ID; it is not a BGG cover.
@@ -32,12 +35,15 @@ function bggImage(url: string | null | undefined): string | null {
 
 /** One XML request per five seconds across API instances; never block a search waiting for quota. */
 // ponytail: cold searches can show placeholders; prewarm popular games if that becomes common.
-export async function hydrateGames(db: Db, games: GameRow[]): Promise<void> {
+export async function hydrateGames(db: Db, games: GameRow[], durations = false): Promise<void> {
   const token = process.env.BGG_TOKEN;
   const missing = games.filter(
     (game) =>
-      !cover(game.image) &&
-      (!game.imageCheckedAt || Date.now() - Date.parse(game.imageCheckedAt) > 7 * 86400_000),
+      (!cover(game.image) &&
+        (!game.imageCheckedAt || Date.now() - Date.parse(game.imageCheckedAt) > 7 * 86400_000)) ||
+      (durations &&
+        (!game.durationCheckedAt ||
+          Date.now() - Date.parse(game.durationCheckedAt) > 7 * 86400_000)),
   );
   if (!token || missing.length === 0) return;
 
@@ -80,14 +86,29 @@ export async function hydrateGames(db: Db, games: GameRow[]): Promise<void> {
     const document = new DOMParser().parseFromString(await response.text(), "text/xml");
     if (document.documentElement?.tagName !== "items") return;
     const items = document.getElementsByTagName("item");
-    const found = new Map<number, string | null>();
+    const found = new Map<
+      number,
+      { image: string | null; min: number | null; max: number | null }
+    >();
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const id = Number(item.getAttribute("id"));
       if (!missing.some((game) => game.id === id)) continue;
       const image = bggImage(item.getElementsByTagName("image").item(0)?.textContent);
       const thumbnail = bggImage(item.getElementsByTagName("thumbnail").item(0)?.textContent);
-      found.set(id, image ?? thumbnail);
+      const minutes = (name: string) => {
+        const value = Number(item.getElementsByTagName(name).item(0)?.getAttribute("value"));
+        return Number.isSafeInteger(value) && value > 0 ? value : null;
+      };
+      const playing = minutes("playingtime");
+      const min = minutes("minplaytime") ?? playing;
+      const max = minutes("maxplaytime") ?? playing;
+      const valid = min === null || max === null || min <= max;
+      found.set(id, {
+        image: image ?? thumbnail,
+        min: valid ? min : null,
+        max: valid ? max : null,
+      });
     }
     const checkedAt = new Date().toISOString();
     await db.collection<GameRow>(COLLECTIONS.BOARD_GAMES).bulkWrite(
@@ -96,15 +117,24 @@ export async function hydrateGames(db: Db, games: GameRow[]): Promise<void> {
           filter: { id: game.id },
           update: {
             $set: {
-              image: found.get(game.id) ?? null,
+              image: found.get(game.id)?.image ?? cover(game.image),
               imageCheckedAt: checkedAt,
+              minPlayMinutes: found.get(game.id)?.min ?? game.minPlayMinutes ?? null,
+              maxPlayMinutes: found.get(game.id)?.max ?? game.maxPlayMinutes ?? null,
+              durationCheckedAt: checkedAt,
             },
           },
         },
       })),
     );
     for (const game of missing)
-      Object.assign(game, { image: found.get(game.id) ?? null, imageCheckedAt: checkedAt });
+      Object.assign(game, {
+        image: found.get(game.id)?.image ?? cover(game.image),
+        imageCheckedAt: checkedAt,
+        minPlayMinutes: found.get(game.id)?.min ?? game.minPlayMinutes ?? null,
+        maxPlayMinutes: found.get(game.id)?.max ?? game.maxPlayMinutes ?? null,
+        durationCheckedAt: checkedAt,
+      });
   } catch (error) {
     // Cover delivery is optional: BGG outages must not break local catalog search.
     console.warn("BGG cover lookup failed", error instanceof Error ? error.name : "unknown error");
@@ -136,6 +166,9 @@ export async function searchGames(
           rank: 1,
           image: 1,
           imageCheckedAt: 1,
+          minPlayMinutes: 1,
+          maxPlayMinutes: 1,
+          durationCheckedAt: 1,
         },
       },
     )
@@ -152,13 +185,15 @@ export async function searchGames(
     average: row.average ?? null,
     rank: row.rank ?? null,
     imageUrl: cover(row.image),
+    ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),
+    ...(row.maxPlayMinutes ? { maxPlayMinutes: row.maxPlayMinutes } : {}),
   }));
 }
 
 export async function gameDetails(db: Db, id: number): Promise<BggThingResponse> {
   const row = await db.collection<GameRow>(COLLECTIONS.BOARD_GAMES).findOne({ id });
   if (!row) throw new Error(`Game ${id} not found`);
-  await hydrateGames(db, [row]);
+  await hydrateGames(db, [row], true);
   return {
     id: row.id,
     name: row.name,
@@ -167,6 +202,8 @@ export async function gameDetails(db: Db, id: number): Promise<BggThingResponse>
     bayesAverage: row.bayesAverage ?? null,
     average: row.average ?? null,
     rank: row.rank ?? null,
+    ...(row.minPlayMinutes ? { minPlayMinutes: row.minPlayMinutes } : {}),
+    ...(row.maxPlayMinutes ? { maxPlayMinutes: row.maxPlayMinutes } : {}),
   };
 }
 

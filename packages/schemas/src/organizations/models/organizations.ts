@@ -1,10 +1,16 @@
 import { z } from "zod";
 import { targetUserIdSchema } from "../../common/dto/common";
+import {
+  GROUP_LOGO_MAX_BYTES as ORGANIZATION_LOGO_MAX_BYTES,
+  groupLogoMimeSchema as organizationLogoMimeSchema,
+} from "../../groups/models/groupAssets";
 import { matchLocationSchema } from "../../matches/models/matches";
 
-export const ORGANIZATION_LOGO_MAX_BYTES = 5_000_000;
-export const ORGANIZATION_LOGO_CHUNK_BYTES = 256_000;
-export const organizationLogoMimeSchema = z.enum(["image/jpeg", "image/png", "image/webp"]);
+export {
+  GROUP_LOGO_CHUNK_BYTES as ORGANIZATION_LOGO_CHUNK_BYTES,
+  GROUP_LOGO_MAX_BYTES as ORGANIZATION_LOGO_MAX_BYTES,
+  groupLogoMimeSchema as organizationLogoMimeSchema,
+} from "../../groups/models/groupAssets";
 
 export const organizationRevisionSchema = z.object({
   name: z.string().trim().min(5).max(120),

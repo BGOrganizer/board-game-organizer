@@ -1,188 +1,245 @@
 import {
   communityAccessDenied,
-  useEvent,
-  useEventActions,
-  useEventTables,
-  useEventWindow,
+  useEventCutoff,
+  useEventRecord,
+  useEventRecordActions,
+  useRecordTables,
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
-import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { LayoutGrid, Pencil, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { FlatList, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
-import { EmptyList } from "@/components/common/ui/EmptyList";
-import { FloatingActions } from "@/components/common/ui/FloatingActions";
-import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
-import { TabBar } from "@/components/common/ui/TabBar";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
-import { EventOverview } from "./EventOverview";
 import { EventTableCard } from "./EventTableCard";
-
+import { EventVoteButtons } from "./EventVoteButtons";
+import { EventVoteLegend } from "./EventVoteLegend";
 export function EventDetail({ eventId }: { eventId: string }) {
-  const t = useT();
-  const [muted, onAccent, danger] = useThemeColor(["muted", "accent-foreground", "danger"]);
-  const o = useCommunityApi();
-  const router = useRouter();
-  const layout = useFloatingActionLayout();
-  const detail = useEvent(o, eventId);
-  const event = communityAccessDenied(detail.error) ? undefined : detail.data;
-  const open = useEventWindow(event);
-  const actions = useEventActions(o);
-  const [tab, setTab] = useState("details");
-  const [cancel, setCancel] = useState(false);
-  const tables = useEventTables({ ...o, enabled: Boolean(event) && tab === "tables" }, eventId);
-  const editable = Boolean(event?.canModify && open);
-  const headerRight = editable
-    ? () => (
-        <Button
-          isIconOnly
-          variant="danger-soft"
-          accessibilityLabel={t("Cancel event")}
-          testID="cancel-event-header"
-          isDisabled={actions.busy}
-          onPress={() => setCancel(true)}
-        >
-          <Trash2 size={20} color={danger} />
-        </Button>
-      )
-    : undefined;
+  const t = useT(),
+    o = useCommunityApi(),
+    router = useRouter(),
+    insets = useSafeAreaInsets(),
+    q = useEventRecord(o, eventId),
+    a = useEventRecordActions(o, eventId),
+    tables = useRecordTables(o, eventId),
+    [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
+    [error, setError] = useState(false),
+    event = communityAccessDenied(q.error) ? undefined : q.data;
+  const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   if (!event)
     return (
       <View style={{ padding: 20 }}>
-        <Stack.Screen options={{ title: t("Events"), headerRight: undefined }} />
-        {detail.isPending ? (
+        {q.isPending ? (
           <Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />
         ) : (
-          <Button onPress={() => void detail.refetch()}>{t("Could not load event. Retry")}</Button>
+          <>
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Could not load event")}
+            </Typography>
+            <Button onPress={() => void q.refetch()}>
+              <Button.Label>{t("Try again")}</Button.Label>
+            </Button>
+          </>
         )}
       </View>
     );
+  const transition = async () => {
+    if (!confirm) return;
+    setError(false);
+    try {
+      await a.transition.mutateAsync({ action: confirm, version: event.version });
+      setConfirm(null);
+    } catch {
+      setError(true);
+    }
+  };
+  const header = (
+    <View style={{ gap: 16 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <Typography className="font-semibold text-foreground" style={{ flex: 1 }}>
+          {event.name}
+        </Typography>
+        <EventVoteLegend />
+      </View>
+      <Typography className="text-foreground">
+        {event.status === "PLANNING"
+          ? t("Planning")
+          : event.status === "CONFIRMED"
+            ? t("Confirmed")
+            : t("Terminated")}{" "}
+        · {event.startTime} ({event.timeZone})
+      </Typography>
+      {event.groupName ? (
+        <Button
+          variant="ghost"
+          onPress={() =>
+            router.push({ pathname: "/group/[groupId]", params: { groupId: event.groupId! } })
+          }
+        >
+          <Button.Label>{event.groupName}</Button.Label>
+        </Button>
+      ) : null}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {event.canEdit && !closed ? (
+          <Button
+            variant="outline"
+            onPress={() =>
+              router.push({ pathname: "/event/wizard", params: { eventId: event.id } })
+            }
+          >
+            <Button.Label>{t("Edit event")}</Button.Label>
+          </Button>
+        ) : null}
+        {event.canConfirm ? (
+          <Button isDisabled={a.busy || q.isPlaceholderData} onPress={() => setConfirm("confirm")}>
+            <Button.Label>{t("Confirm event")}</Button.Label>
+          </Button>
+        ) : null}
+        {event.canReplan ? (
+          <Button variant="secondary" isDisabled={a.busy} onPress={() => setConfirm("replan")}>
+            <Button.Label>{t("Reopen planning")}</Button.Label>
+          </Button>
+        ) : null}
+        {event.canFinalize ? (
+          <Button
+            onPress={() =>
+              router.push({ pathname: "/event/results", params: { eventId: event.id } })
+            }
+          >
+            <Button.Label>{t("Register results")}</Button.Label>
+          </Button>
+        ) : null}
+      </View>
+      <Typography className="font-semibold text-foreground">{t("Dates")}</Typography>
+      {event.dates
+        .filter((row) => !event.confirmed || row.id === event.confirmed.dateId)
+        .map((row) => (
+          <View key={row.id} style={{ gap: 8 }}>
+            <Typography className="text-foreground">{row.day}</Typography>
+            {event.canVote && !closed ? (
+              <EventVoteButtons
+                label={row.day}
+                value={event.myVotes?.dateVotes[row.id]}
+                busy={a.busy || q.isPlaceholderData}
+                onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+              />
+            ) : null}
+          </View>
+        ))}
+      <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
+      {event.locations
+        .filter((row) => !event.confirmed || row.id === event.confirmed.locationId)
+        .map((row) => (
+          <View key={row.id} style={{ gap: 8 }}>
+            <LocationListRow name={row.name} address={row.address} />
+            {event.canVote && !closed ? (
+              <EventVoteButtons
+                label={row.name}
+                value={event.myVotes?.locationVotes[row.id]}
+                busy={a.busy || q.isPlaceholderData}
+                onChange={(vote) => a.vote.mutate({ kind: "location", optionId: row.id, vote })}
+              />
+            ) : null}
+          </View>
+        ))}
+      {event.bookingClosesAt ? (
+        <Typography className="text-foreground">
+          {t("Booking cutoff")}: {event.bookingClosesAt} · {t("Event end")}: {event.endsAt}
+        </Typography>
+      ) : null}
+      {event.agreement ? (
+        <View style={{ gap: 8 }}>
+          <Typography className="font-semibold text-foreground">{t("Agreement")}</Typography>
+          <Typography className="text-foreground">
+            {event.agreement.agreed
+              ? t("Agreement available. Confirmation remains manual.")
+              : t("No complete agreement yet.")}
+          </Typography>
+          {event.agreement.reasons.map((reason) => (
+            <Typography key={reason.tableId} className="text-muted">
+              {tables.items.find((row) => row.id === reason.tableId)?.name ?? t("Table")}:{" "}
+              {reason.code === "PENDING_RESERVATIONS"
+                ? t("Pending invitations still reserve places.")
+                : reason.code === "GAME_DISAGREEMENT"
+                  ? t(
+                      "Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.",
+                    )
+                  : t("No compatible accepted players for this table.")}
+            </Typography>
+          ))}
+        </View>
+      ) : q.isPlaceholderData ? (
+        <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
+      ) : null}
+      <Typography className="font-semibold text-foreground">{t("Tables")}</Typography>
+    </View>
+  );
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: event.name, headerRight }} />
-      <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <TabBar>
-            <Tabs.Trigger value="details" testID="event-tab-details" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Details")}</Tabs.Label>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="tables" testID="event-tab-tables" style={{ flex: 1 }}>
-              <Tabs.Label>{t("Tables")}</Tabs.Label>
-            </Tabs.Trigger>
-          </TabBar>
-        </View>
-        <Tabs.Content value="details" style={{ flex: 1 }}>
-          <ScreenScrollView
-            contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: layout.paddingBottom }}
-          >
-            <EventOverview event={event} />
-            {!open && event.status === "PUBLISHED" ? (
-              <Typography className="text-foreground">
-                {t("Bookings are closed. Results can still be recorded.")}
-              </Typography>
+      <Stack.Screen options={{ title: event.name }} />
+      <FlatList
+        data={tables.items}
+        keyExtractor={(row) => row.id}
+        contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 32 }}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => <EventTableCard table={item} />}
+        onEndReached={() => {
+          if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
+            void tables.fetchNextPage();
+        }}
+        ListFooterComponent={
+          <View style={{ gap: 12 }}>
+            {tables.isPending ? (
+              <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
             ) : null}
-          </ScreenScrollView>
-        </Tabs.Content>
-        <Tabs.Content value="tables" style={{ flex: 1 }}>
-          <FlatList
-            testID="event-tables-scroll"
-            style={{ flex: 1 }}
-            data={tables.items}
-            keyExtractor={(row) => row.id}
-            contentContainerStyle={{
-              padding: 20,
-              gap: 12,
-              paddingBottom: layout.paddingBottom,
-              flexGrow: 1,
-            }}
-            onEndReachedThreshold={0.5}
-            onEndReached={() => {
-              if (
-                tab === "tables" &&
-                tables.hasNextPage &&
-                !tables.isFetchingNextPage &&
-                !tables.isFetchNextPageError
-              )
-                void tables.fetchNextPage();
-            }}
-            ListHeaderComponent={
-              <View style={{ gap: 12 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <LayoutGrid size={18} color={muted} accessible={false} />
-                  <Typography accessibilityRole="header" className="font-semibold text-foreground">
-                    {t("Table list")}
-                  </Typography>
-                </View>
-                {tables.isPending && !tables.items.length ? (
-                  <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
-                ) : null}
-              </View>
-            }
-            ListEmptyComponent={
-              !tables.isPending && !tables.isError ? (
-                <EmptyList icon={<LayoutGrid size={28} color={muted} />}>
-                  {t("No tables found")}
-                </EmptyList>
-              ) : null
-            }
-            ListFooterComponent={
-              <View>
-                {tables.isError ? (
-                  <Button onPress={() => void tables.refetch()}>
-                    {t("Could not load tables. Retry")}
-                  </Button>
-                ) : null}
-                {tables.isFetchingNextPage ? (
-                  <Skeleton style={{ width: "100%", height: 80, borderRadius: 12 }} />
-                ) : null}
-                {tables.isFetchNextPageError ? (
-                  <Button onPress={() => void tables.fetchNextPage()}>{t("Retry")}</Button>
-                ) : null}
-              </View>
-            }
-            renderItem={({ item }) => <EventTableCard table={item} timeZone={event.timeZone} />}
-          />
-        </Tabs.Content>
-      </Tabs>
-      {editable ? (
-        <FloatingActions
-          label="Edit event"
-          testID="edit-event-fab"
-          isDisabled={actions.busy}
-          onPress={() => router.push({ pathname: "/event/wizard", params: { eventId } })}
-        >
-          <Pencil size={24} color={onAccent} />
-        </FloatingActions>
-      ) : null}
-      {cancel ? (
+            {tables.isError ? (
+              <>
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t("Could not load tables")}
+                </Typography>
+                <Button onPress={() => void tables.refetch()}>
+                  <Button.Label>{t("Try again")}</Button.Label>
+                </Button>
+              </>
+            ) : null}
+            {tables.hasNextPage ? (
+              <Button
+                isDisabled={tables.isFetchingNextPage}
+                onPress={() => void tables.fetchNextPage()}
+              >
+                <Button.Label>{t("Load more")}</Button.Label>
+              </Button>
+            ) : null}
+          </View>
+        }
+      />
+      {confirm ? (
         <ConfirmDialog
-          title={t("Cancel event")}
-          description={t("All unfinished tables and reservations will be cancelled.")}
-          busy={actions.busy}
-          onCancel={() => {
-            if (!actions.busy) setCancel(false);
-          }}
-          actions={[
-            {
-              label: t("Cancel event"),
-              variant: "danger",
-              onPress: () => {
-                if (!editable || actions.busy) return;
-                void actions.cancel
-                  .mutateAsync(eventId)
-                  .then(() => router.replace("/events"))
-                  .catch(() => {});
-              },
-            },
-          ]}
-        />
+          title={confirm === "confirm" ? t("Confirm event") : t("Reopen planning")}
+          description={
+            confirm === "confirm"
+              ? t(
+                  "Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.",
+                )
+              : t(
+                  "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.",
+                )
+          }
+          busy={a.busy}
+          onCancel={() => setConfirm(null)}
+          actions={[{ label: t("Confirm"), variant: "primary", onPress: () => void transition() }]}
+        >
+          {error ? (
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Could not change event state. Refresh and try again.")}
+            </Typography>
+          ) : null}
+        </ConfirmDialog>
       ) : null}
     </View>
   );

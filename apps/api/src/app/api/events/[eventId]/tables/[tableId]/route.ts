@@ -1,11 +1,13 @@
-import { communityId, runCommunityOperation } from "@/app/lib/community.http";
+import { communityId, runRecordOperation } from "@/app/lib/community/record-http";
+import { emptyRecordQuery, recordQuery } from "@/app/lib/community/record-query";
 import { corsOptions } from "@/app/lib/cors";
 export const OPTIONS = corsOptions;
 export function GET(
   request: Request,
   context: { params: Promise<{ eventId: string; tableId: string }> },
 ) {
-  return runCommunityOperation(request, async (userId, _organizations, events) => {
+  return runRecordOperation(request, async (userId, { events }) => {
+    recordQuery(request, emptyRecordQuery);
     const { eventId, tableId } = await context.params;
     return events.tableDetail(userId, communityId(eventId), communityId(tableId));
   });

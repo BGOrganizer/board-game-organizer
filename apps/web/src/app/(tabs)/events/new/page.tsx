@@ -1,9 +1,9 @@
 import { EventWizard } from "@/components/events/EventWizard";
-export default async function NewEventPage({
+export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ organizationId?: string }>;
+  searchParams: Promise<{ groupId?: string }>;
 }) {
-  const { organizationId } = await searchParams;
-  return <EventWizard organizationId={organizationId} />;
+  const { groupId } = await searchParams;
+  return <EventWizard groupId={groupId} />;
 }

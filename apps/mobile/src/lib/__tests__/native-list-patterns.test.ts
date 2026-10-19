@@ -1,97 +1,60 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
-const source = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
-
-// Structural regression checks only. Maestro/device acceptance remains separate.
-describe("native list component ownership", () => {
-  it("keeps game-picker clear, filter and selection taps actionable while the keyboard is open", () => {
-    expect(source("components/games/GamePicker.tsx")).toMatch(
-      /<FlatList\s+keyboardShouldPersistTaps="handled"/,
-    );
-  });
-  it.each([
-    "app/(tabs)/contacts.tsx",
-    "app/group/[groupId].tsx",
-    "components/matches/MatchDetail.tsx",
-    "app/match/search-user.tsx",
-    "components/groups/GroupWizard.tsx",
-    "components/matches/MatchWizard.tsx",
-    "components/organizations/OrganizationMembers.tsx",
-    "components/organizations/OrganizationFriendPicker.tsx",
-  ])("uses shared user identity in %s", (path) => {
-    expect(source(path)).toContain("<UserListRow");
-  });
-  it.each([
-    "components/groups/GroupWizard.tsx",
-    "components/matches/MatchWizard.tsx",
-    "components/organizations/OrganizationMembers.tsx",
-  ])("uses shared invitation placeholder in %s", (path) => {
-    expect(source(path)).toContain("<AddUserRow");
-  });
-  it("keeps user collections virtualized and grouped, with observable errors and explicit page retry", () => {
-    const list = source("components/common/ui/UserList.tsx");
-    expect(list).toContain("<FlatList");
-    expect(list).toContain("<GroupedList>{renderRow(item)}</GroupedList>");
-    expect(list).toContain('accessibilityRole="alert"');
-    expect(list).toContain("page.isFetchNextPageError");
-    expect(list).not.toContain("<ScrollView");
-    const members = source("components/organizations/OrganizationMembers.tsx");
-    expect(members).toContain("data={canViewPeople ? list.items : []}");
-    expect(members).toContain("const managed = canViewPeople");
-    expect(members).toContain("organizationMemberActions(organization, managed)");
-    expect(members).toContain("managed && managedActions.length > 0");
-  });
-  it.each([
-    "components/games/GamePicker.tsx",
-    "components/matches/MatchWizard.tsx",
-    "components/matches/MatchDetail.tsx",
-  ])("uses shared game row in %s", (path) => {
-    expect(source(path)).toContain("<GameListRow");
-  });
-  it.each([
-    "components/organizations/OrganizationWizard.tsx",
-    "components/matches/MatchWizard.tsx",
-    "components/matches/MatchDetail.tsx",
-  ])("uses shared location row in %s", (path) => {
-    expect(source(path)).toContain("<LocationListRow");
-  });
-  it.each([
-    "components/organizations/Organizations.tsx",
-    "components/groups/GroupsScreen.tsx",
-    "app/(tabs)/matches.tsx",
-    "components/community/CommunityDiscovery.tsx",
-  ])("keeps shared card shell/body without moving domain actions in %s", (path) => {
-    const content = source(path);
-    expect(content).toContain("<LinkedListCard");
-    expect(content).toContain("<ListCardBody");
-  });
-  it("keeps mobile-number submission in a shared scroll container that avoids the native keyboard", () => {
-    const screen = source("app/mobile-number.tsx");
-    expect(screen).toContain("<KeyboardAvoidingView");
-    expect(screen).toContain('behavior={Platform.OS === "ios" ? "padding" : "height"}');
-    expect(screen).toContain("keyboardVerticalOffset={insets.top + 56}");
-    expect(screen).toContain("flexGrow: 1");
-    const form = screen.split("<ScreenScrollView")[1]?.split("</ScreenScrollView>")[0];
-    expect(form).toContain("<Input");
-    expect(form).toContain("<Button");
-    expect(form).toContain("saveMobileNumber()");
-    expect(source("components/common/ui/ScreenScrollView.tsx")).toContain(
-      'keyboardShouldPersistTaps="handled"',
-    );
-  });
-  it("keeps event metadata domain-owned while reusing the common card frame", () => {
-    expect(source("components/events/Events.tsx")).toContain("<EventCard");
-    expect(source("components/events/EventCard.tsx")).toContain("<LinkedListCard");
-    expect(source("components/common/ui/LinkedListCard.tsx")).toContain("<ListCard");
-  });
-  it.each([
-    "components/organizations/OrganizationDetail.tsx",
-    "app/group/[groupId].tsx",
-    "components/matches/MatchDetail.tsx",
-    "app/(tabs)/contacts.tsx",
-  ])("uses shared tab spacing in %s", (path) => {
-    expect(source(path)).toContain("<TabBar>");
-  });
+const source = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+it.each([
+  "components/groups/GroupMembers.tsx",
+  "components/groups/GroupMemberPicker.tsx",
+  "components/contacts/PeoplePicker.tsx",
+])("keeps %s source-paged through the native user list", (file) => {
+  const s = source(file);
+  expect(s).toContain("<UserList");
+  expect(s).toContain("<UserListRow");
+  expect(s).not.toContain("<ScrollView");
+  expect(s).toContain("useSafeAreaInsets");
+});
+it.each([
+  "Events",
+  "Tables",
+  "EventDetail",
+  "EventTable",
+  "EventResults",
+  "EventWizard",
+  "TableScoreEditor",
+])("virtualizes event workflow %s with safe bottom spacing", (name) => {
+  const s = source(`components/events/${name}.tsx`);
+  expect(s).toContain("<FlatList");
+  expect(s).toMatch(/useSafeAreaInsets|useFloatingActionLayout/);
+  expect(s).not.toContain("<ScrollView");
+});
+it.each([
+  "components/events/EventCard.tsx",
+  "components/events/EventTableCard.tsx",
+  "components/groups/GroupCard.tsx",
+])("reuses the platform card shell/body in %s", (file) => {
+  const s = source(file);
+  expect(s).toContain("<LinkedListCard");
+  expect(s).toContain("<ListCardBody");
+});
+it("keeps tabs in group-owned layout and forbids wrapping members/events in a same-direction scroll view", () => {
+  const s = source("components/groups/GroupDetail.tsx");
+  expect(s).toContain("<TabBar>");
+  expect(s).toContain("<GroupMembers");
+  expect(s).toContain("<Events");
+  expect(s).toContain("canViewMembers");
+  expect(s).toContain("canViewEvents");
+});
+it("preserves genuine score-sheet input handlers, normal motion and immutable player identities", () => {
+  const s = source("components/events/TableScoreEditor.tsx");
+  expect(s).toContain("useBottomSheetAwareHandlers");
+  expect(s).toContain("ReduceMotion.System");
+  expect(s).toContain("<ScoreIdentity");
+  expect(s).toContain("normalizeMatchScore");
+  expect(s).not.toContain("useMatchDetail");
+});
+it("keeps reusable catalog/address identity rows platform-specific", () => {
+  for (const file of ["components/games/GamePicker.tsx", "components/groups/GroupWizard.tsx"])
+    expect(source(file)).toContain(file.includes("games") ? "<GameListRow" : "<LocationListRow");
+  expect(source("components/contacts/PeoplePicker.tsx")).toContain("<UserList");
 });

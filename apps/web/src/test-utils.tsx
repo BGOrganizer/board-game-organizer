@@ -12,5 +12,10 @@ import { messages } from "../../../messages/en.js";
  */
 export function renderWithI18n(ui: ReactElement) {
   const i18n = setupI18n({ locale: "en", messages: { en: messages } });
-  return render(<I18nProvider i18n={i18n}>{ui}</I18nProvider>);
+  const view = render(<I18nProvider i18n={i18n}>{ui}</I18nProvider>);
+  return {
+    ...view,
+    rerender: (next: ReactElement) =>
+      view.rerender(<I18nProvider i18n={i18n}>{next}</I18nProvider>),
+  };
 }

@@ -32,6 +32,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
     groupId,
     gameId,
     protectionBypass,
+    query: debouncedSearch,
   });
   const rows = players.data?.pages.flatMap((page) => page.players) ?? [];
   const selectedGame = games.data?.games.find((game) => game.id === gameId);
@@ -74,10 +75,10 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
         onPress={() => void games.refetch()}
       >{t`Could not load leaderboards. Retry`}</Button>
     );
-  if (!games.data?.games.length)
+  if (!games.data?.games.length && !debouncedSearch)
     return (
       <EmptyList icon={<Dices className="size-7" />}>
-        {t`No matches played in this group yet`}
+        {t`No rated tables played in this group yet`}
       </EmptyList>
     );
 
@@ -138,6 +139,13 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             </ListBox>
           </Select.Popover>
         </Select>
+        {games.hasNextPage ? (
+          <Button
+            variant="outline"
+            isDisabled={games.isFetchingNextPage}
+            onPress={() => void games.fetchNextPage()}
+          >{t`Load more games`}</Button>
+        ) : null}
         {selectedGame ? (
           <Button
             isIconOnly

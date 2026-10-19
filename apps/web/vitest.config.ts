@@ -40,6 +40,8 @@ export default defineConfig({
           "common/hooks/useListSearch.ts",
           "organizations/hooks/useOrganizationPeople.ts",
           "organizations/hooks/useOrganizationSocialActions.ts",
+          "community/hooks/usePeopleSocialActions.ts",
+          "groups/hooks/useGroupSocialActions.ts",
           "events/hooks/useEvents.ts",
           "events/hooks/useEventWindow.ts",
           "events/hooks/useEventTableContext.ts",
@@ -85,6 +87,8 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/{community/hooks/usePeopleSocialActions,groups/hooks/useGroupSocialActions}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/components/common/ui/{AnimatedDicebearArtwork,DateTimeInfo}.tsx": {
           lines: 100,
           functions: 100,

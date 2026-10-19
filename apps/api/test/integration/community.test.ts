@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { CreatePlannedEventInput } from "@board-game-organizer/schemas";
 import {
   registerMatchResultsSchema,
   type SaveEventInput,
@@ -10,12 +11,15 @@ import { type ClientSession, type Db, MongoClient } from "mongodb";
 import sharp from "sharp";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { recordServices } from "../../src/app/lib/community/record-services";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
 import { COLLECTIONS } from "../../src/app/lib/db";
 import { deadlineServiceConfigured } from "../../src/app/lib/events/event-deadlines";
+import { EventRecordsRepository } from "../../src/app/lib/events/event-records.repository";
 import { EventsRepository } from "../../src/app/lib/events/events.repository";
 import { EventsService } from "../../src/app/lib/events/events.service";
 import { BoardGamesRepository } from "../../src/app/lib/games/boardGames.repository";
+import { GroupRecordsRepository } from "../../src/app/lib/groups/group-records.repository";
 import { MatchService } from "../../src/app/lib/matches/match.service";
 import { MatchInvitationsRepository } from "../../src/app/lib/matches/match-invitations.repository";
 import { MatchesRepository } from "../../src/app/lib/matches/matches.repository";
@@ -82,6 +86,13 @@ function services(session?: ClientSession) {
   const matches = new MatchesRepository(db, session),
     invitations = new MatchInvitationsRepository(db, session),
     ratings = new RatingsRepository(db, session);
+  const groupRecords = new GroupRecordsRepository(db, session);
+  const eventRecords = new EventRecordsRepository(db, session);
+  const {
+    assets: groupAssetService,
+    events: plannedEventService,
+    groups: unifiedGroupService,
+  } = recordServices(db, session);
   const matchService = new MatchService(
     matches,
     invitations,
@@ -108,6 +119,11 @@ function services(session?: ClientSession) {
     matches,
     invitations,
     ratings,
+    groupRecords,
+    eventRecords,
+    plannedEventService,
+    unifiedGroupService,
+    groupAssetService,
   };
 }
 async function transaction<T>(fn: (s: ReturnType<typeof services>) => Promise<T>) {
@@ -1080,5 +1096,548 @@ describe("community transactions on a MongoDB replica set", () => {
     expect((await services().events.bookingForUser(tables[0].id, GUEST))?.status).toBe("CANCELLED");
     await transaction((s) => s.eventService.close(event.id, event.version));
     expect((await services().events.findTable(tables[0].id))?.status).toBe("CANCELLED");
+  });
+});
+
+describe("unified groups/events on the real MongoDB replica set", () => {
+  it("keeps legacy documents intact and refuses reading/locking them through unified repositories", async () => {
+    const group = {
+        id: "77777777-7777-4777-8777-777777777777",
+        adminUserId: OWNER,
+        name: "Legacy group",
+        isPublic: false,
+        createdAt: new Date().toISOString(),
+      },
+      event = {
+        id: "88888888-8888-4888-8888-888888888888",
+        organizerId: OWNER,
+        status: "DRAFT",
+        name: "Legacy event",
+      };
+    await db.collection(COLLECTIONS.GROUPS).insertOne({ ...group });
+    await db.collection(COLLECTIONS.EVENTS).insertOne({ ...event });
+    expect(await services().groupRecords.find(group.id)).toBeNull();
+    expect(await services().eventRecords.find(event.id)).toBeNull();
+    await transaction(async (s) => {
+      expect(await s.groupRecords.lock(group.id)).toBeNull();
+      expect(await s.eventRecords.lock(event.id)).toBeNull();
+    });
+    expect(
+      await db.collection(COLLECTIONS.GROUPS).findOne({ id: group.id }, { projection: { _id: 0 } }),
+    ).toEqual(group);
+    expect(
+      await db.collection(COLLECTIONS.EVENTS).findOne({ id: event.id }, { projection: { _id: 0 } }),
+    ).toEqual(event);
+  });
+  const dateId = "11111111-1111-4111-8111-111111111111";
+  const venueId = "22222222-2222-4222-8222-222222222222";
+  const tableId = "33333333-3333-4333-8333-333333333333";
+  const secondId = "44444444-4444-4444-8444-444444444444";
+  function plannedInput(groupId: string | null = null): CreatePlannedEventInput {
+    return {
+      groupId,
+      name: "Unified evening",
+      timeZone: "UTC",
+      startTime: "18:00",
+      dates: [{ id: dateId, day: "2030-06-03" }],
+      locations: [{ ...location, id: venueId }],
+      tables: [
+        {
+          id: tableId,
+          name: "Unified first table",
+          minPlayers: 2,
+          maxPlayers: 2,
+          games: [{ gameId: 1, manualDurationMinutes: 60 }],
+          rankingEnabled: true,
+        },
+      ],
+    };
+  }
+  async function privateGroup() {
+    await transaction((s) => s.relationships.becomeFriends(OWNER, GUEST));
+    await transaction((s) => s.relationships.becomeFriends(OWNER, OTHER));
+    const group = await transaction((s) =>
+      s.unifiedGroupService.save(OWNER, {
+        type: "PRIVATE",
+        name: "Unified private club",
+        invitedUserIds: [GUEST, OTHER],
+      }),
+    );
+    for (const user of [GUEST, OTHER]) {
+      const membership = await services().groupRecords.membership(group.id, user);
+      await transaction((s) =>
+        s.unifiedGroupService.membershipAction(user, group.id, user, {
+          action: "accept",
+          version: membership!.version,
+        }),
+      );
+    }
+    return group;
+  }
+  async function voteYes(eventId: string, user: string, target = tableId) {
+    await transaction((s) =>
+      s.plannedEventService.vote(user, eventId, { kind: "date", optionId: dateId, vote: "YES" }),
+    );
+    await transaction((s) =>
+      s.plannedEventService.vote(user, eventId, {
+        kind: "location",
+        optionId: venueId,
+        vote: "YES",
+      }),
+    );
+    await transaction((s) =>
+      s.plannedEventService.vote(user, eventId, {
+        kind: "game",
+        tableId: target,
+        gameId: 1,
+        vote: "YES",
+      }),
+    );
+  }
+  async function confirm(eventId: string) {
+    const current = await services().eventRecords.find(eventId);
+    return transaction((s) =>
+      s.plannedEventService.transition(OWNER, eventId, {
+        action: "confirm",
+        version: current!.version,
+      }),
+    );
+  }
+  it("reserves a pending seat without a vote or phantom participant; records no synthetic Match", async () => {
+    await transaction((s) => s.relationships.becomeFriends(OWNER, GUEST));
+    await transaction((s) => s.relationships.becomeFriends(OWNER, OTHER));
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, plannedInput()));
+    expect(event.participantCount).toBe(0);
+    await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId));
+    const invitation = await transaction((s) =>
+      s.plannedEventService.register(OWNER, event.id, tableId, GUEST),
+    );
+    const waiting = await transaction((s) =>
+      s.plannedEventService.register(OWNER, event.id, tableId, OTHER),
+    );
+    await transaction((s) =>
+      s.plannedEventService.registrationAction(OTHER, waiting.id, {
+        action: "accept",
+        version: waiting.version,
+      }),
+    );
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.vote(GUEST, event.id, {
+          kind: "date",
+          optionId: dateId,
+          vote: "YES",
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "ACCEPTED_REGISTRATION_REQUIRED" });
+    await voteYes(event.id, OWNER);
+    await voteYes(event.id, OTHER);
+    expect((await services().plannedEventService.detail(OWNER, event.id)).agreement?.agreed).toBe(
+      false,
+    );
+    await expect(confirm(event.id)).rejects.toMatchObject({ code: "EVENT_NO_AGREEMENT" });
+    await transaction((s) =>
+      s.plannedEventService.registrationAction(GUEST, invitation.id, {
+        action: "decline",
+        version: invitation.version,
+      }),
+    );
+    await confirm(event.id);
+    expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
+      OWNER,
+      OTHER,
+    ]);
+    expect(await db.collection(COLLECTIONS.MATCHES).countDocuments()).toBe(0);
+    expect(await db.collection(COLLECTIONS.MATCH_INVITATIONS).countDocuments()).toBe(0);
+  });
+  it("serializes concurrent last-seat enrollments, preserves request-time priority and queues the third person", async () => {
+    const group = await privateGroup();
+    const event = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId));
+    const registrations = await Promise.all(
+      [GUEST, OTHER].map((user) =>
+        transaction((s) => s.plannedEventService.register(user, event.id, tableId)),
+      ),
+    );
+    expect(registrations.every((row) => row.status === "ACCEPTED")).toBe(true);
+    expect(registrations.map((row) => row.sequence).sort()).toEqual([1, 2]);
+    expect(new Set(registrations.map((row) => row.priorityAt)).size).toBe(1);
+    expect(
+      await services().plannedEventService.tableDetail(OWNER, event.id, tableId),
+    ).toMatchObject({ seatedCount: 2, pendingCount: 0, waitingCount: 1 });
+    const seen: number[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await services().plannedEventService.seats(OWNER, event.id, tableId, {
+        limit: 1,
+        cursor,
+      });
+      seen.push(...page.items.map((row) => row.sequence));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(seen).toEqual([0, 1, 2]);
+    await Promise.all([OWNER, GUEST, OTHER].map((user) => voteYes(event.id, user)));
+    await confirm(event.id);
+    const selected = await services().eventRecords.table(tableId);
+    expect(selected?.confirmed?.playerIds).toHaveLength(2);
+    expect(selected?.confirmed?.playerIds).toContain(
+      registrations.find((row) => row.sequence === 1)!.userId,
+    );
+    const before = await services().eventRecords.allRegistrations(event.id);
+    const current = await services().eventRecords.find(event.id);
+    await transaction((s) =>
+      s.plannedEventService.transition(OWNER, event.id, {
+        action: "replan",
+        version: current!.version,
+      }),
+    );
+    expect(await services().eventRecords.allRegistrations(event.id)).toEqual(before);
+  });
+  it("rolls back earlier table results/ratings when a later table is invalid; commits all-ND without statistics", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.tables.push({ ...input.tables[0], id: secondId, name: "Unified second table" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    for (const table of [tableId, secondId])
+      for (const user of [OWNER, GUEST]) {
+        await transaction((s) => s.plannedEventService.register(user, event.id, table));
+        await voteYes(event.id, user, table);
+      }
+    const confirmed = await confirm(event.id);
+    const first = {
+      tableId,
+      lowerWins: false,
+      entries: [
+        { userId: OWNER, score: "9" },
+        { userId: GUEST, score: "3" },
+      ],
+      tieBreaks: [],
+    };
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.finalize(OWNER, event.id, {
+          version: confirmed.version,
+          results: [
+            first,
+            {
+              ...first,
+              tableId: secondId,
+              entries: [
+                { userId: OWNER, score: "invalid" },
+                { userId: GUEST, score: "3" },
+              ],
+            },
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "RESULTS_REQUIRE_EVERY_PLAYER_ONCE" });
+    expect((await services().eventRecords.table(tableId))?.results).toBeUndefined();
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
+    expect(await db.collection(COLLECTIONS.PLAYER_RATINGS).countDocuments()).toBe(0);
+    const done = await transaction((s) =>
+      s.plannedEventService.finalize(OWNER, event.id, {
+        version: confirmed.version,
+        results: [
+          first,
+          {
+            ...first,
+            tableId: secondId,
+            entries: [
+              { userId: OWNER, score: null },
+              { userId: GUEST, score: null },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(done.status).toBe("TERMINATED");
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ tableId })).toBe(4);
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ tableId: secondId }),
+    ).toBe(0);
+    expect(
+      await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments({ matchId: { $exists: true } }),
+    ).toBe(0);
+    expect((await services().ratings.tableStats([OWNER, GUEST], 1, group.id)).get(OWNER)).toEqual({
+      gamesPlayed: 1,
+      gamesWon: 1,
+      nd: 0,
+    });
+    expect((await services().ratings.tableStats([OWNER, GUEST], 1, null)).get(GUEST)).toEqual({
+      gamesPlayed: 1,
+      gamesWon: 0,
+      nd: 0,
+    });
+    const rankedGames = await services().unifiedGroupService.rankings(OWNER, group.id, {
+      cursor: 0,
+      limit: 1,
+    });
+    expect(rankedGames.games.map((row) => row.id)).toEqual([1]);
+    const ranked = await services().unifiedGroupService.rankings(OWNER, group.id, {
+      gameId: 1,
+      cursor: 0,
+      limit: 1,
+    });
+    expect(ranked.players[0]).toMatchObject({
+      userId: OWNER,
+      gamesPlayed: 1,
+      gamesWon: 1,
+      nd: 0,
+      provisional: true,
+      left: false,
+    });
+    expect(ranked.nextCursor).toBe(1);
+    const next = await services().unifiedGroupService.rankings(GUEST, group.id, {
+      gameId: 1,
+      cursor: 1,
+      limit: 1,
+    });
+    expect(next.players[0]).toMatchObject({ userId: GUEST, gamesPlayed: 1, gamesWon: 0 });
+    const resultDetail = await services().plannedEventService.tableDetail(OWNER, event.id, tableId);
+    expect(resultDetail.ratingChanges).toHaveLength(2);
+    expect(resultDetail.groupRatingChanges).toHaveLength(2);
+    expect(resultDetail.resultProfiles?.map((row) => row.userId).sort()).toEqual(
+      [OWNER, GUEST].sort(),
+    );
+    const repeat = await Promise.allSettled([
+      transaction((s) =>
+        s.plannedEventService.finalize(OWNER, event.id, {
+          version: done.version,
+          results: [first],
+        }),
+      ),
+      transaction((s) =>
+        s.plannedEventService.transition(OWNER, event.id, {
+          action: "replan",
+          version: done.version,
+        }),
+      ),
+    ]);
+    expect(repeat.every((result) => result.status === "rejected")).toBe(true);
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(4);
+  });
+  it("source-searches accepted, pending and excluded people without injecting an unrelated owner", async () => {
+    await db
+      .collection(COLLECTIONS.USERS)
+      .updateOne({ clerkId: GUEST }, { $set: { name: "Searchable Guest" } });
+    await db
+      .collection(COLLECTIONS.USERS)
+      .updateOne({ clerkId: OTHER }, { $set: { name: "Unrelated Person" } });
+    await db.collection(COLLECTIONS.FRIEND_REQUESTS).insertMany(
+      [GUEST, OTHER].flatMap((target) => [
+        {
+          fromUserId: OWNER,
+          toUserId: target,
+          status: "accepted",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          fromUserId: target,
+          toUserId: OWNER,
+          status: "accepted",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]),
+    );
+    const group = await transaction((s) =>
+      s.unifiedGroupService.save(OWNER, {
+        type: "PRIVATE",
+        name: "Searchable group",
+        invitedUserIds: [GUEST, OTHER],
+      }),
+    );
+    const invitation = (await services().groupRecords.membership(group.id, GUEST))!;
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(GUEST, group.id, GUEST, {
+        action: "accept",
+        version: invitation.version,
+      }),
+    );
+    expect(
+      (
+        await services().unifiedGroupService.members(OWNER, group.id, "accepted", {
+          limit: 1,
+          query: "Searchable",
+        })
+      ).items.map((row) => row.userId),
+    ).toEqual([GUEST]);
+    expect(
+      (
+        await services().unifiedGroupService.members(OWNER, group.id, "accepted", {
+          limit: 1,
+          query: "Absent person",
+        })
+      ).items,
+    ).toEqual([]);
+    expect(
+      (
+        await services().unifiedGroupService.members(OWNER, group.id, "accepted", {
+          limit: 1,
+          query: "Searchable.*",
+        })
+      ).items,
+    ).toEqual([]);
+    expect(
+      (
+        await services().unifiedGroupService.members(OWNER, group.id, "accepted", {
+          limit: 1,
+          query: OWNER,
+        })
+      ).items.map((row) => row.userId),
+    ).toEqual([OWNER]);
+    expect(
+      (
+        await services().unifiedGroupService.members(OWNER, group.id, "pending", {
+          limit: 1,
+          query: "Unrelated",
+        })
+      ).items.map((row) => row.userId),
+    ).toEqual([OTHER]);
+    await transaction((s) =>
+      s.unifiedGroupService.ban(OWNER, group.id, { userId: OTHER, until: null }),
+    );
+    expect(
+      (
+        await services().unifiedGroupService.members(OWNER, group.id, "banned", {
+          limit: 1,
+          query: "Unrelated",
+        })
+      ).items.map((row) => row.userId),
+    ).toEqual([OTHER]);
+    expect(
+      (
+        await services().unifiedGroupService.members(OWNER, group.id, "banned", {
+          limit: 1,
+          query: "Absent person",
+        })
+      ).items,
+    ).toEqual([]);
+  });
+
+  it("refuses a target's frozen public ban atomically, then permits a timed ban only after termination without reviving membership", async () => {
+    const bytes = await sharp({
+      create: {
+        width: 32,
+        height: 16,
+        channels: 4,
+        background: { r: 80, g: 120, b: 40, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const group = await transaction(async (s) => {
+      const asset = await s.groupAssetService.start(OWNER, {
+        mimeType: "image/png",
+        byteLength: bytes.length,
+      });
+      await s.groupAssetService.append(OWNER, asset.id, {
+        offset: 0,
+        base64: bytes.toString("base64"),
+      });
+      await s.groupAssetService.complete(OWNER, asset.id);
+      return s.unifiedGroupService.save(OWNER, {
+        type: "PUBLIC",
+        name: "Unified public club",
+        logoAssetId: asset.id,
+        location,
+        invitedUserIds: [],
+      });
+    });
+    await transaction((s) =>
+      s.unifiedGroupService.review("moderator", group.id, {
+        version: group.version,
+        decision: "approve",
+      }),
+    );
+    const request = await transaction((s) => s.unifiedGroupService.request(GUEST, group.id));
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "approve",
+        version: request.version,
+      }),
+    );
+    const input = {
+      ...plannedInput(group.id),
+      endsAt: "2030-06-03T23:00:00Z",
+      bookingClosesAt: "2030-06-02T12:00:00Z",
+    };
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    expect(
+      (
+        await services().plannedEventService.list(
+          OWNER,
+          { limit: 5, periods: ["future"] },
+          group.id,
+        )
+      ).items.map((row) => row.id),
+    ).toEqual([event.id]);
+    expect(
+      (await services().plannedEventService.list(OWNER, { limit: 5, periods: ["past"] }, group.id))
+        .items,
+    ).toEqual([]);
+    await transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId));
+    await transaction((s) => s.plannedEventService.register(GUEST, event.id, tableId));
+    const frozen = await confirm(event.id);
+    vi.setSystemTime(new Date(input.bookingClosesAt));
+    await expect(
+      transaction((s) =>
+        s.unifiedGroupService.ban(OWNER, group.id, { userId: GUEST, until: null }),
+      ),
+    ).rejects.toMatchObject({ code: "BAN_FROZEN_PARTICIPATION" });
+    expect(await db.collection(COLLECTIONS.GROUP_BANS).countDocuments()).toBe(0);
+    expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("ACCEPTED");
+    expect((await services().eventRecords.table(tableId))?.confirmed?.playerIds).toEqual([
+      OWNER,
+      GUEST,
+    ]);
+    await transaction((s) =>
+      s.plannedEventService.finalize(OWNER, event.id, {
+        version: frozen.version,
+        results: [
+          {
+            tableId,
+            lowerWins: false,
+            entries: [
+              { userId: OWNER, score: null },
+              { userId: GUEST, score: null },
+            ],
+            tieBreaks: [],
+          },
+        ],
+      }),
+    );
+    const terminated = await services().eventRecords.table(tableId);
+    const until = "2030-06-02T13:00:00Z";
+    await transaction((s) => s.unifiedGroupService.ban(OWNER, group.id, { userId: GUEST, until }));
+    expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("LEFT");
+    expect(await services().eventRecords.table(tableId)).toEqual(terminated);
+    vi.setSystemTime(new Date(until));
+    expect((await services().groupRecords.membership(group.id, GUEST))?.status).toBe("LEFT");
+    await expect(services().plannedEventService.detail(GUEST, event.id)).rejects.toMatchObject({
+      code: "GROUP_MEMBER_REQUIRED",
+    });
+    const renewed = await transaction((s) => s.unifiedGroupService.request(GUEST, group.id));
+    expect(renewed.status).toBe("PENDING");
+    expect(renewed.kind).toBe("REQUEST");
+    vi.setSystemTime(new Date("2030-06-04T00:00:00Z"));
+    expect(
+      (
+        await services().plannedEventService.list(OWNER, { limit: 5, periods: ["past"] }, group.id)
+      ).items.map((row) => row.id),
+    ).toEqual([event.id]);
+    expect(
+      (
+        await services().plannedEventService.list(
+          OWNER,
+          { limit: 5, periods: ["future"] },
+          group.id,
+        )
+      ).items,
+    ).toEqual([]);
+    expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
   });
 });

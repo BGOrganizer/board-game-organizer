@@ -26,29 +26,42 @@ export const playerRatingModel = ratingStateSchema
   .refine(validScope, { path: ["groupId"], message: "Invalid rating scope" });
 export type PlayerRating = z.infer<typeof playerRatingModel>;
 
+const ratingEventFields = {
+  userId: targetUserIdSchema,
+  gameId: z.number().int().positive(),
+  scope: ratingScopeSchema,
+  groupId: z.uuid().nullable(),
+  algorithm: z.literal("openskill-v1"),
+  rank: z.number().int().positive(),
+  didNotFinish: z.boolean(),
+  before: ratingStateSchema,
+  after: ratingStateSchema,
+  delta: z.number().finite(),
+  finalizedAt: z.iso.datetime({ offset: true }),
+};
 export const ratingEventModel = z
-  .object({
-    matchId: z.uuid(),
-    userId: targetUserIdSchema,
-    gameId: z.number().int().positive(),
-    scope: ratingScopeSchema,
-    groupId: z.uuid().nullable(),
-    algorithm: z.literal("openskill-v1"),
-    rank: z.number().int().positive(),
-    didNotFinish: z.boolean(),
-    before: ratingStateSchema,
-    after: ratingStateSchema,
-    delta: z.number().finite(),
-    finalizedAt: z.iso.datetime({ offset: true }),
-  })
+  .object({ ...ratingEventFields, matchId: z.uuid() })
   .refine(validScope, { path: ["groupId"], message: "Invalid rating scope" });
 export type RatingEvent = z.infer<typeof ratingEventModel>;
+export const tableRatingEventModel = z
+  .object({ ...ratingEventFields, tableId: z.uuid(), eventId: z.uuid() })
+  .refine(validScope, { path: ["groupId"], message: "Invalid rating scope" });
+export type TableRatingEvent = z.infer<typeof tableRatingEventModel>;
 
 export const PLAYER_RATING_INDEXES = [
   { key: { userId: 1, gameId: 1, scope: 1, groupId: 1 }, unique: true },
   { key: { gameId: 1, scope: 1, groupId: 1, conservativeScore: -1, userId: 1 } },
 ] as const;
 export const RATING_EVENT_INDEXES = [
-  { key: { matchId: 1, userId: 1, gameId: 1, scope: 1, groupId: 1 }, unique: true },
+  {
+    key: { matchId: 1, userId: 1, gameId: 1, scope: 1, groupId: 1 },
+    unique: true,
+    partialFilterExpression: { matchId: { $exists: true } },
+  },
+  {
+    key: { tableId: 1, userId: 1, gameId: 1, scope: 1, groupId: 1 },
+    unique: true,
+    partialFilterExpression: { tableId: { $exists: true } },
+  },
   { key: { userId: 1, gameId: 1, scope: 1, groupId: 1, finalizedAt: -1 } },
 ] as const;

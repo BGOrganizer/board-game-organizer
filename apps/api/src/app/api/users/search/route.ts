@@ -45,16 +45,22 @@ export async function GET(request: Request) {
   }
 
   const params = new URL(request.url).searchParams;
-  const allowedParams = new Set(["query", "cursor", "limit", "x-vercel-protection-bypass"]);
+  const allowedParams = new Set([
+    "query",
+    "cursor",
+    "limit",
+    "friendsOnly",
+    "x-vercel-protection-bypass",
+  ]);
   const hasInvalidParams =
     [...params.keys()].some((key) => !allowedParams.has(key)) ||
     [...allowedParams].some((key) => params.getAll(key).length > 1);
-  const parsed = searchContactsParamsSchema.safeParse(Object.fromEntries(params));
+  const parsed = searchContactsParamsSchema.safeParse({ limit: 50, ...Object.fromEntries(params) });
   if (hasInvalidParams || !parsed.success || parsed.data.query.length < 4) {
     return corsJson({ error: "Invalid query" }, { status: 400 }, request);
   }
 
-  const { query } = parsed.data;
+  const { query, limit, cursor, friendsOnly } = parsed.data;
   const db = await getDb();
   const [blockedByMe, blockedMe, following, followers, friendPairs] = await Promise.all([
     getBlockedUserIds(db, userId),
@@ -85,13 +91,26 @@ export async function GET(request: Request) {
           { name: { $regex: escapeRegex(query), $options: "i" } },
           { email: { $regex: escapeRegex(query), $options: "i" } },
         ],
+        clerkId: {
+          $nin: [userId, ...blockedByMeSet, ...blockedMeSet],
+          ...(cursor ? { $gt: cursor } : {}),
+          ...(friendsOnly === "true"
+            ? {
+                $in: [...friendDirections]
+                  .filter(([, directions]) => directions === 3)
+                  .map(([id]) => id),
+              }
+            : {}),
+        },
       },
       { projection: { _id: 0 } },
     )
-    .limit(50)
+    .sort({ clerkId: 1 })
+    .limit(limit + 1)
     .toArray();
 
   const result = users
+    .slice(0, limit)
     .filter(
       (u) => u.clerkId !== userId && !blockedByMeSet.has(u.clerkId) && !blockedMeSet.has(u.clerkId),
     )
@@ -111,8 +130,8 @@ export async function GET(request: Request) {
 
   return corsJson(
     {
-      users: result.slice(0, 50),
-      nextCursor: null,
+      users: result,
+      nextCursor: users.length > limit ? users[limit - 1].clerkId : null,
     },
     request,
   );

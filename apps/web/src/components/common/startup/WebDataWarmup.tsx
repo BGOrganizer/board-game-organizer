@@ -1,76 +1,82 @@
 "use client";
-
 import {
+  eventRecordQuery,
+  eventRecordsQuery,
   fetchRelationshipPageWithToken,
   fetchSuggestionPageWithToken,
-  groupsPageQuery,
-  listRoles,
-  matchDetailQuery,
-  matchesPageQuery,
+  groupRecordsPageQuery,
   profileQueryOptions,
+  recordTablesQuery,
   resolveApiUrl,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-const listFilters = { query: "", roles: listRoles, limit: 20 };
 const socialTypes = ["friends", "pending", "following", "followers", "sent", "blocked"] as const;
-
-/** Warm the same first-page keys used by the tabs. No polling or extra navigation delay. */
+/** First pages only. A cold deep link gets the connection budget before background warmup. */
 export function WebDataWarmup() {
-  const { getToken, isLoaded, userId, sessionId } = useAuth();
-  const client = useQueryClient();
-  const previous = useRef<string | null>(null);
-  const warmed = useRef<string | null>(null);
-
+  const { getToken, isLoaded, userId, sessionId } = useAuth(),
+    client = useQueryClient(),
+    pathname = usePathname(),
+    warmed = useRef<string | null>(null),
+    previous = useRef<string | null>(null);
   useEffect(() => {
     if (!isLoaded) return;
-    if (previous.current && previous.current !== sessionId) client.clear();
-    previous.current = sessionId ?? null;
-  }, [client, isLoaded, sessionId]);
-
-  useEffect(() => {
-    if (!isLoaded || !userId || !sessionId || warmed.current === sessionId) return;
-    warmed.current = sessionId;
+    const identity = userId && sessionId ? `${userId}/${sessionId}` : null;
+    if (previous.current && previous.current !== identity) client.clear();
+    previous.current = identity;
+    if (!userId || !identity || warmed.current === identity) return;
     let cancelled = false;
-    void (async () => {
-      const token = await getToken();
-      if (!token || cancelled) return;
-      const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
-      const protectionBypass = process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS;
-      const options = { apiUrl, token, getToken, userId, protectionBypass, listFilters };
+    const start = async () => {
+      if (cancelled) return;
+      warmed.current = identity;
+      const options = {
+        apiUrl: resolveApiUrl(process.env.NEXT_PUBLIC_API_URL),
+        getToken,
+        userId,
+        protectionBypass: process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS,
+      };
       const tasks = [
-        () =>
-          client.prefetchQuery(profileQueryOptions({ apiUrl, getToken, userId, protectionBypass })),
-        () => client.prefetchInfiniteQuery(matchesPageQuery(options)),
-        () => client.prefetchInfiniteQuery(groupsPageQuery(options)),
+        () => client.prefetchQuery(profileQueryOptions(options)),
+        () => client.prefetchInfiniteQuery(recordTablesQuery(options, null)),
+        () => client.prefetchInfiniteQuery(groupRecordsPageQuery(options)),
+        () => client.prefetchInfiniteQuery(eventRecordsQuery(options)),
         ...socialTypes.map(
           (type) => () =>
             client.prefetchInfiniteQuery({
-              queryKey: ["contacts", type, apiUrl, userId],
+              queryKey: ["contacts", type, options.apiUrl, userId],
               queryFn: ({ pageParam }) =>
                 fetchRelationshipPageWithToken(
-                  apiUrl,
-                  token,
+                  options.apiUrl,
+                  null,
                   getToken,
                   type,
                   pageParam,
-                  protectionBypass,
+                  options.protectionBypass,
                 ),
               initialPageParam: "",
-              getNextPageParam: (page: { nextCursor: string | null }) =>
-                page.nextCursor ?? undefined,
+              getNextPageParam: (
+                page: Awaited<ReturnType<typeof fetchRelationshipPageWithToken>>,
+              ) => page.nextCursor ?? undefined,
               staleTime: 5 * 60_000,
             }),
         ),
         () =>
           client.prefetchInfiniteQuery({
-            queryKey: ["contacts", "suggestions", apiUrl, userId],
+            queryKey: ["contacts", "suggestions", options.apiUrl, userId],
             queryFn: ({ pageParam }) =>
-              fetchSuggestionPageWithToken(apiUrl, token, getToken, pageParam, protectionBypass),
+              fetchSuggestionPageWithToken(
+                options.apiUrl,
+                null,
+                getToken,
+                pageParam,
+                options.protectionBypass,
+              ),
             initialPageParam: "",
-            getNextPageParam: (page: { nextCursor: string | null }) => page.nextCursor ?? undefined,
+            getNextPageParam: (page: Awaited<ReturnType<typeof fetchSuggestionPageWithToken>>) =>
+              page.nextCursor ?? undefined,
             staleTime: 5 * 60_000,
           }),
       ];
@@ -79,25 +85,20 @@ export function WebDataWarmup() {
         while (!cancelled && next < tasks.length) await tasks[next++]();
       };
       await Promise.all([worker(), worker(), worker()]);
-      if (cancelled) return;
-      const firstPage = client.getQueryData<{ pages: Array<{ matches: Array<{ id: string }> }> }>([
-        "matches",
-        "paged",
-        apiUrl,
-        userId,
-        "",
-        listRoles.join(","),
-      ]);
-      await Promise.all(
-        (firstPage?.pages[0]?.matches.slice(0, 2) ?? []).map((match) =>
-          client.prefetchQuery(matchDetailQuery({ ...options, matchId: match.id })),
-        ),
-      );
-    })().catch(() => {}); // Each page retains its observable error and retry state.
+      if (!cancelled) {
+        const list = client.getQueryData(recordTablesQuery(options, null).queryKey);
+        const ids = [...new Set(list?.pages[0]?.items.map((row) => row.eventId) ?? [])].slice(0, 2);
+        await Promise.all(ids.map((id) => client.prefetchQuery(eventRecordQuery(options, id))));
+      }
+    };
+    const timer = setTimeout(
+      () => void start(),
+      /^\/(events|groups)\/[^/]+/.test(pathname) ? 5000 : 0,
+    );
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [client, getToken, isLoaded, sessionId, userId]);
-
+  }, [client, getToken, isLoaded, userId, sessionId, pathname]);
   return null;
 }

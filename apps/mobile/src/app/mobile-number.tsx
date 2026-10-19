@@ -65,7 +65,7 @@ export default function MobileNumberScreen() {
   }
 
   if (!user) return <Redirect href="/" />;
-  if (savedMobileNumber) return <Redirect href="/matches" />;
+  if (savedMobileNumber) return <Redirect href="/tables" />;
   const currentUser = user;
 
   async function saveMobileNumber() {
@@ -81,7 +81,7 @@ export default function MobileNumberScreen() {
           [MOBILE_NUMBER_METADATA_KEY]: value,
         },
       });
-      router.replace("/matches");
+      router.replace("/tables");
     } catch {
       setError(t("Could not save mobile number"));
     } finally {

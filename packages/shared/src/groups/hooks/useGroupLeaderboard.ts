@@ -1,51 +1,65 @@
 import type { GroupLeaderboardResponse } from "@board-game-organizer/schemas";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { apiHeaders, withProtectionBypass } from "../../common/api";
-
-export function useGroupLeaderboard({
-  apiUrl,
-  getToken,
-  userId,
-  groupId,
-  gameId,
-  protectionBypass,
-}: {
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { communityRequest } from "../../community/communityApi";
+export function useGroupLeaderboard(options: {
   apiUrl: string;
   getToken: () => Promise<string | null>;
   userId?: string | null;
   groupId: string;
   gameId: number | null;
   protectionBypass?: string | null;
+  query?: string;
 }) {
-  async function load(game: number | null, cursor?: number): Promise<GroupLeaderboardResponse> {
-    const token = await getToken();
-    if (!token) throw new Error("No session token");
-    const params = new URLSearchParams({
-      ...(game !== null ? { gameId: String(game) } : {}),
-      ...(cursor ? { cursor: String(cursor) } : {}),
-    });
-    const response = await fetch(
-      withProtectionBypass(
-        `${apiUrl}/api/groups/${encodeURIComponent(groupId)}/leaderboard?${params}`,
-        protectionBypass,
-      ),
-      { headers: apiHeaders(token) },
+  const enabled = Boolean(options.apiUrl && options.userId && options.groupId),
+    raw = options.query?.trim() ?? "",
+    query = raw.length >= 4 ? raw : "";
+  const page = (gameId: number | null, cursor: number, signal: AbortSignal) =>
+    communityRequest<GroupLeaderboardResponse>(
+      { ...options, userId: options.userId ?? null },
+      `groups/${encodeURIComponent(options.groupId)}/leaderboard?${new URLSearchParams({ limit: "25", cursor: String(cursor), ...(gameId === null ? (query.length >= 4 ? { query } : {}) : { gameId: String(gameId) }) })}`,
+      "GET",
+      undefined,
+      signal,
     );
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return (await response.json()) as GroupLeaderboardResponse;
-  }
-  const key = ["group-leaderboard", groupId, apiUrl, userId] as const;
-  const games = useQuery({
-    queryKey: [...key, "games"],
-    queryFn: () => load(null),
-    enabled: Boolean(userId && groupId),
+  const games = useInfiniteQuery({
+    queryKey: [
+      "groups",
+      options.apiUrl,
+      options.userId,
+      "rankings",
+      options.groupId,
+      "games",
+      query,
+    ],
+    queryFn: ({ pageParam, signal }) => page(null, pageParam, signal),
+    enabled,
+    initialPageParam: 0,
+    getNextPageParam: (p) => p.nextCursor ?? undefined,
+    staleTime: 60_000,
+    gcTime: 30 * 60_000,
   });
   const players = useInfiniteQuery({
-    queryKey: [...key, "players", gameId],
-    queryFn: ({ pageParam }) => load(gameId, pageParam),
+    queryKey: [
+      "groups",
+      options.apiUrl,
+      options.userId,
+      "rankings",
+      options.groupId,
+      "players",
+      options.gameId,
+    ],
+    queryFn: ({ pageParam, signal }) => page(options.gameId, pageParam, signal),
+    enabled: enabled && options.gameId !== null,
     initialPageParam: 0,
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
-    enabled: Boolean(userId && groupId && gameId),
+    getNextPageParam: (p) => p.nextCursor ?? undefined,
+    staleTime: 60_000,
+    gcTime: 30 * 60_000,
   });
-  return { games, players };
+  return {
+    games: {
+      ...games,
+      data: games.data ? { games: games.data.pages.flatMap((p) => p.games) } : undefined,
+    },
+    players,
+  };
 }

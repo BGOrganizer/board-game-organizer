@@ -58,7 +58,7 @@ it("shows empty group text without select", () => {
     players: { data: undefined, hasNextPage: false },
   });
   renderWithI18n(<GroupLeaderboard groupId="test" />);
-  expect(screen.getByText("No matches played in this group yet")).toBeTruthy();
+  expect(screen.getByText("No rated tables played in this group yet")).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Board game/ })).toBeNull();
 });
 

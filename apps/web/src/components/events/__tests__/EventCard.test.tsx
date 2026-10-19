@@ -1,89 +1,39 @@
-import type { EventResponse } from "@board-game-organizer/schemas";
 import { screen } from "@testing-library/react";
 import { expect, it } from "vitest";
+import { plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventCard } from "../EventCard";
 
-const event: EventResponse = {
-  id: "event",
-  organizationId: "org",
-  adminUserId: "admin",
-  name: "Evening games",
-  organizationName: "Game club",
-  organizationApproved: true,
-  logo: "",
-  location: {
-    id: "venue",
-    name: "Club venue",
-    address: "Via Roma 1, Italia",
-    latitude: 41,
-    longitude: 12,
-  },
-  startsAt: "2030-06-13T01:00:00.000Z",
-  endsAt: "2030-06-13T05:00:00.000Z",
-  bookingClosesAt: "2030-06-12T01:00:00.000Z",
-  timeZone: "America/Los_Angeles",
-  status: "PUBLISHED",
-  tableCount: 20,
-  confirmedParticipantCount: 3,
-  role: "visitor",
-  canModify: false,
-  canPublish: false,
-  version: 1,
-  createdAt: "2030-01-01T00:00:00.000Z",
-  updatedAt: "2030-01-01T00:00:00.000Z",
-};
-it("reuses planets/details without a self link, organization identity or table count", () => {
-  const { container } = renderWithI18n(<EventCard event={event} presentation="detail" />);
-  expect(screen.queryByRole("link")).toBeNull();
-  expect(screen.queryByText("Game club")).toBeNull();
-  expect(screen.queryByText("Tables:")).toBeNull();
-  expect(screen.queryByText("20")).toBeNull();
-  expect(screen.getByText("Evening games")).toBeTruthy();
-  expect(screen.getByText("3")).toBeTruthy();
-  expect(container.querySelector(".lucide-users-round")).toBeTruthy();
-  expect(container.querySelector(".lucide-layout-grid")).toBeNull();
-  expect(container.querySelector('img[src^="data:image/svg+xml,"]')).toBeTruthy();
+it("opens unified event and shows planning metadata without invented organizer seats", () => {
+  renderWithI18n(<EventCard event={plannedEvent} />);
+  expect(screen.getByRole("link", { name: "Open event: Friday games" }).getAttribute("href")).toBe(
+    `/events/${plannedEvent.id}`,
+  );
+  expect(screen.getByText("Dates to agree", { exact: false })).not.toBeNull();
+  expect(screen.getByText("Tables: 1 · Players: 0")).not.toBeNull();
 });
-
-it("omits the organization from contextual cards and their accessible link names", () => {
-  const { container } = renderWithI18n(<EventCard event={event} showOrganization={false} />);
-  expect(
-    screen.getByRole("link", { name: /^Open event: Evening games/ }).getAttribute("aria-label"),
-  ).not.toContain("Game club");
-  expect(screen.queryByText("Game club")).toBeNull();
-  expect(screen.queryByText("Approved organization")).toBeNull();
-  expect(container.querySelector(".lucide-building2")).toBeNull();
-  expect(screen.getByText("Evening games")).toBeTruthy();
+it("shows selected local day and confirmed status", () => {
+  renderWithI18n(
+    <EventCard
+      event={{
+        ...plannedEvent,
+        status: "CONFIRMED",
+        confirmed: {
+          dateId: plannedEvent.dates[0].id,
+          locationId: plannedEvent.locations[0].id,
+          at: plannedEvent.createdAt,
+        },
+      }}
+    />,
+  );
+  expect(screen.getByText("Confirmed")).not.toBeNull();
+  expect(screen.getByText("2030-06-03", { exact: false })).not.toBeNull();
 });
-
-it.each([
-  ["PUBLISHED", "Published", "success", true],
-  ["DRAFT", "Draft", "warning", false],
-  ["CANCELLED", "Cancelled", "danger", false],
-] as const)(
-  "renders %s with local day/time, authoritative counts and locally generated planets",
-  (status, label, color, approved) => {
-    const { container } = renderWithI18n(
-      <EventCard event={{ ...event, status, organizationApproved: approved }} />,
-    );
-    const link = screen.getByRole("link", { name: /^Open event: Evening games/ });
-    expect(link.getAttribute("href")).toBe("/events/event");
-    expect(screen.getByText("Game club")).toBeTruthy();
-    expect(Boolean(screen.queryByText("Approved organization"))).toBe(approved);
-    expect(screen.getByText(label).closest(".chip")?.className).toContain(color);
-    expect(screen.getByText("06/12/2030")).toBeTruthy();
-    expect(screen.getByText("18:00")).toBeTruthy();
-    expect(screen.getByText("22:00")).toBeTruthy();
-    expect(screen.getByText("Club venue")).toBeTruthy();
-    expect(screen.getByText("20")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
-    expect(container.querySelector(".lucide-layout-grid")).toBeTruthy();
-    expect(container.querySelector(".lucide-users-round")).toBeTruthy();
-    expect(container.querySelector("img")?.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/);
-    expect(decodeURIComponent(container.querySelector("img")?.getAttribute("src") ?? "")).toContain(
-      "<svg",
-    );
-    expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
-  },
-);
+it("retains terminated/group context", () => {
+  renderWithI18n(
+    <EventCard
+      event={{ ...plannedEvent, status: "TERMINATED", groupName: "Club", groupType: "PUBLIC" }}
+    />,
+  );
+  expect(screen.getByText("Terminated · Club")).not.toBeNull();
+});

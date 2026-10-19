@@ -30,9 +30,7 @@ export default function Index() {
   // Declarative redirects remain race-free during cold-start navigation.
   // Users without required signup metadata must finish onboarding first.
   if (isSignedIn) {
-    return (
-      <Redirect href={getMobileNumber(user?.unsafeMetadata) ? "/matches" : "/mobile-number"} />
-    );
+    return <Redirect href={getMobileNumber(user?.unsafeMetadata) ? "/tables" : "/mobile-number"} />;
   }
 
   return (

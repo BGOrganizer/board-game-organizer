@@ -1299,7 +1299,7 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       withMatchTransaction(({ groups }) => groups.removeInvitation(ACTOR, pending.id)),
     ).rejects.toEqual(expect.objectContaining({ status: 404 }));
   });
-  it("counts withdrawals and shared first-place wins, excluding planning matches", async () => {
+  it("counts eligible physical table withdrawals/shared wins without backfilling legacy Matches", async () => {
     const groupId = "1f454adb-43e3-47ad-8c29-57b97a55a211";
     await db.collection(COLLECTIONS.MATCHES).insertMany([
       {
@@ -1335,12 +1335,57 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       },
     ]);
     const standings = new GroupLeaderboardRepository(db);
-    expect(await standings.games(groupId)).toEqual([{ id: 42, name: "42", imageUrl: null }]);
+    expect(await standings.games(groupId)).toEqual({ games: [], nextCursor: null });
+    expect((await standings.players(groupId, 42, 0, 25)).rows).toEqual([]);
+    const eventId = "1f454adb-43e3-47ad-8c29-57b97a55a230",
+      planningId = "1f454adb-43e3-47ad-8c29-57b97a55a231";
+    await db.collection(COLLECTIONS.EVENTS).insertMany([
+      { id: eventId, groupId, status: "TERMINATED" },
+      { id: planningId, groupId, status: "PLANNING" },
+    ]);
+    const finishers = [
+      { userId: ACTOR, score: "5", rank: 1 },
+      { userId: TARGET, score: "5", rank: 1 },
+      { userId: THIRD, score: null, rank: 3 },
+    ];
+    const table = (index: number, entries: typeof finishers) => ({
+      id: `1f454adb-43e3-47ad-8c29-57b97a55a24${index}`,
+      eventId,
+      order: index,
+      name: `Physical ${index}`,
+      rankingEnabled: true,
+      confirmed: { gameId: 42, playerIds: entries.map((row) => row.userId) },
+      results: { entries },
+    });
+    await db.collection(COLLECTIONS.EVENT_TABLES).insertMany([
+      table(1, finishers),
+      table(2, [
+        { userId: ACTOR, score: "6", rank: 1 },
+        { userId: THIRD, score: "2", rank: 2 },
+        { userId: TARGET, score: null, rank: 3 },
+      ]),
+      table(3, [
+        { userId: ACTOR, score: "6", rank: 1 },
+        { userId: TARGET, score: null, rank: 2 },
+      ]),
+      table(
+        4,
+        finishers.map((row) => ({ ...row, score: null })),
+      ),
+      { ...table(5, finishers), rankingEnabled: false },
+      { ...table(6, finishers), eventId: planningId },
+      { ...table(7, finishers), removedAt: new Date().toISOString() },
+    ]);
+    expect(await standings.games(groupId)).toEqual({
+      games: [{ id: 42, name: "42", imageUrl: null }],
+      nextCursor: null,
+    });
     expect((await standings.players(groupId, 42, 0, 25)).rows).toMatchObject([
       { _id: ACTOR, gamesPlayed: 2, gamesWon: 2, nd: 0 },
       { _id: TARGET, gamesPlayed: 2, gamesWon: 1, nd: 1 },
-      { _id: THIRD, gamesPlayed: 1, gamesWon: 0, nd: 1 },
+      { _id: THIRD, gamesPlayed: 2, gamesWon: 0, nd: 1 },
     ]);
+    expect(await db.collection(COLLECTIONS.MATCHES).countDocuments()).toBe(3);
   });
 
   it("accepts invited friends, allows group member match invite after unfriend, and keeps group history after archive", async () => {
@@ -1452,12 +1497,11 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
     const global = await ratings.leaderboard(match.gameIds[0], "GLOBAL", null);
     const scoped = await ratings.leaderboard(match.gameIds[0], "GROUP", group.id);
     const standings = new GroupLeaderboardRepository(db);
-    expect(await standings.games(group.id)).toEqual([
-      { id: match.gameIds[0], name: "Ark Nova", imageUrl: null },
-    ]);
+    // Historical Match outcomes remain stored, but unified group statistics read physical Tables only.
+    expect(await standings.games(group.id)).toEqual({ games: [], nextCursor: null });
     const first = await standings.players(group.id, match.gameIds[0], 0, 1);
-    expect(first.rows).toMatchObject([{ _id: ACTOR, gamesPlayed: 1, gamesWon: 1, nd: 0 }]);
-    expect(first.nextCursor).toBe(1);
+    expect(first.rows).toEqual([]);
+    expect(first.nextCursor).toBeNull();
     const groupStats = await ratings.matchStats([ACTOR, TARGET, THIRD], match.gameIds[0], group.id);
     const globalStats = await ratings.matchStats([ACTOR, TARGET, THIRD], match.gameIds[0], null);
     expect(groupStats).toEqual(
@@ -1479,10 +1523,7 @@ describe("group membership and OpenSkill on the MongoDB replica set", () => {
       gamesWon: 0,
       nd: 1,
     });
-    expect((await standings.players(group.id, match.gameIds[0], 1, 25)).rows).toMatchObject([
-      { _id: TARGET, gamesPlayed: 1, gamesWon: 0, nd: 0 },
-      { _id: THIRD, gamesPlayed: 1, gamesWon: 0, nd: 1 },
-    ]);
+    expect((await standings.players(group.id, match.gameIds[0], 1, 25)).rows).toEqual([]);
     const gameRatings = await ratings.forMatch(match.id, match.gameIds[0]);
     const current = await ratings.currentForPlayers([ACTOR, TARGET, THIRD], match.gameIds[0]);
     const groupCurrent = await ratings.currentForPlayers(

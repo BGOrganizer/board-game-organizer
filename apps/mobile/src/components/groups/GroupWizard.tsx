@@ -1,253 +1,310 @@
-import type { GroupResponse } from "@board-game-organizer/schemas";
-import { resolveApiUrl, useContacts, useGroups } from "@board-game-organizer/shared";
+import {
+  createGroupRecordSchema,
+  type GroupRecordResponse,
+  type MatchLocation,
+} from "@board-game-organizer/schemas";
+import {
+  communityAccessDenied,
+  useFavoriteLocations,
+  useGroupRecord,
+  useGroupRecordActions,
+} from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import Constants from "expo-constants";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { Save, Trash2 } from "lucide-react-native";
+import { Save, Send, Trash2, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
+import { LocationListRow } from "@/components/locations/LocationListRow";
+import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
-import { useMutationFeedback } from "@/lib/useMutationFeedback";
-import { useSessionAuth } from "@/lib/useSessionAuth";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { GroupLogoPicker } from "./GroupLogoPicker";
 
-const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
-type InvitedUser = { id: string; name: string; email: string | null; avatarUrl: string | null };
-type Slot = { id: string; user: InvitedUser | null };
-const newSlot = (): Slot => ({ id: `group-${Math.random().toString(36).slice(2)}`, user: null });
-
-function Editor({
-  group,
-  groups,
-  token,
-  getToken,
-  userId,
-}: {
-  group?: GroupResponse;
-  groups: ReturnType<typeof useGroups>;
-  token: string | null;
-  getToken: () => Promise<string | null>;
-  userId: string | null | undefined;
-}) {
-  const t = useT();
-  const router = useRouter();
-  const feedback = useMutationFeedback();
-  const contacts = useContacts(apiUrl, token, getToken, undefined, userId, feedback);
-  const pendingUser = useAppStore((s) => s.pendingUser);
-  const clearPending = useAppStore((s) => s.clearPending);
-  const [name, setName] = useState(group?.name ?? "");
-  const [isPublic, setIsPublic] = useState(group?.isPublic ?? false);
-  const [slots, setSlots] = useState<Slot[]>(() => {
-    const invited =
-      group?.invitations
-        .filter((item) => item.status !== "DECLINED")
-        .map((item) => ({
-          id: newSlot().id,
-          user: group.memberProfiles.find((member) => member.id === item.inviteeUserId) ?? {
-            id: item.inviteeUserId,
-            name: item.inviteeUserId,
-            email: null,
-            avatarUrl: null,
-          },
-        })) ?? [];
-    return [...invited, newSlot()];
-  });
-  useEffect(() => {
-    if (!pendingUser || !slots.some((slot) => slot.id === pendingUser.slotId)) return;
-    setSlots((current) =>
-      current.some(
-        (slot) => slot.id !== pendingUser.slotId && slot.user?.id === pendingUser.user.id,
-      )
-        ? current
-        : current.map((slot) =>
-            slot.id === pendingUser.slotId ? { ...slot, user: pendingUser.user } : slot,
-          ),
-    );
-    clearPending();
-  }, [pendingUser, slots, clearPending]);
-
-  const save = async () => {
-    const input = {
-      name: name.trim(),
-      isPublic,
-      invitedUserIds: slots.flatMap((slot) => (slot.user ? [slot.user.id] : [])),
-    };
-    try {
-      if (group) await groups.update.mutateAsync({ id: group.id, input });
-      else await groups.create.mutateAsync(input);
-      router.back();
-    } catch {
-      // Shared mutation feedback handles rollback and failure toast.
-    }
-  };
-
-  return (
-    <View style={{ flex: 1 }}>
-      <ScreenScrollView>
-        <Input
-          accessibilityLabel={t("Group name")}
-          value={name}
-          onChangeText={setName}
-          placeholder={t("Group name")}
-          maxLength={120}
-        />
-        {name.length > 0 && name.trim().length < 5 ? (
-          <Typography className="text-danger">{t("At least 5 characters")}</Typography>
-        ) : null}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-          }}
-        >
-          <Typography>{t("Public group")}</Typography>
-          <Switch
-            accessibilityLabel={t("Public group")}
-            testID="group-public-switch"
-            isSelected={isPublic}
-            onSelectedChange={setIsPublic}
-          />
-        </View>
-        <Typography className="text-muted" style={{ fontSize: 13 }}>
-          {t(
-            "Public group search and join requests will be available later. Only the admin can invite friends now.",
-          )}
-        </Typography>
-        <Typography style={{ fontWeight: "600" }}>{t("Invite friends")}</Typography>
-        {contacts.friends.isPending ? (
-          <Skeleton style={{ width: "100%", height: 48, borderRadius: 12 }} />
-        ) : null}
-        {contacts.friends.isError ? (
-          <Typography className="text-danger">{t("Could not load friends")}</Typography>
-        ) : null}
-        <View style={{ gap: 8 }}>
-          {slots.map((slot) => {
-            const friend = contacts.friends.data?.find(
-              (row) => row.profile?.id === slot.user?.id,
-            )?.profile;
-            const user = friend ?? slot.user;
-            const select = () =>
-              router.push({
-                pathname: "/match/search-user",
-                params: {
-                  slotId: slot.id,
-                  source: "group",
-                  exclude: slots
-                    .flatMap((item) => (item.id !== slot.id && item.user ? [item.user.id] : []))
-                    .join(","),
-                },
-              });
-            const remove = (
-              <Button
-                key={slot.id}
-                isIconOnly
-                size="sm"
-                variant="danger-soft"
-                accessibilityLabel={t("Remove invite")}
-                style={{ minWidth: 44, minHeight: 44 }}
-                onPress={() =>
-                  setSlots((current) =>
-                    current.length > 1
-                      ? current.filter((item) => item.id !== slot.id)
-                      : current.map((item) =>
-                          item.id === slot.id ? { ...item, user: null } : item,
-                        ),
-                  )
-                }
-              >
-                <Trash2 color="#dc2626" size={16} />
-              </Button>
-            );
-            return user ? (
-              <GroupedList key={slot.id}>
-                <UserListRow
-                  name={user.name}
-                  avatarUrl={user.avatarUrl}
-                  secondary={user.email}
-                  accessibilityLabel={`${t("Select a friend")}: ${user.name}`}
-                  onPress={select}
-                  actions={remove}
-                />
-              </GroupedList>
-            ) : (
-              <AddUserRow
-                key={slot.id}
-                label={t("Select a friend")}
-                onPress={select}
-                actions={remove}
-              />
-            );
-          })}
-        </View>
-        <AddUserRow
-          label={t("Add friend")}
-          onPress={() => setSlots((current) => [...current, newSlot()])}
-        />
-      </ScreenScrollView>
-
-      <FloatingActions
-        label={group ? "Save changes" : "Create group"}
-        testID="save-group-fab"
-        onPress={save}
-        isDisabled={name.trim().length < 5 || groups.create.isPending || groups.update.isPending}
-        variant="primary"
-      >
-        <Save color="#fff" size={26} />
-      </FloatingActions>
-    </View>
-  );
-}
-
+type Friend = { id: string; name: string; email: string | null; avatarUrl: string | null };
 export function GroupWizard({ groupId }: { groupId?: string }) {
-  const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
-  const t = useT();
-  const feedback = useMutationFeedback();
-  const [token, setToken] = useState<string | null>(null);
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    let active = true;
-    getToken()
-      .then((value) => {
-        if (active) setToken(value ?? null);
-      })
-      .catch(() => {
-        if (active) setToken(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [getToken, isLoaded, isSignedIn]);
-  const groups = useGroups({ apiUrl, token, getToken, userId, feedback, groupId });
-  const group = groups.detail.data?.group;
-  if (groupId && (!group || group.adminUserId !== userId))
+  const t = useT(),
+    options = useCommunityApi();
+  const detail = useGroupRecord(
+    { ...options, enabled: Boolean(groupId) && options.enabled !== false },
+    groupId ?? "",
+  );
+  if (groupId && (communityAccessDenied(detail.error) || !detail.data || !detail.data.canEdit))
     return (
       <View style={{ padding: 20 }}>
-        {groups.detail.isPending ? (
+        {detail.isPending ? (
           <Skeleton style={{ width: "100%", height: 120, borderRadius: 12 }} />
         ) : (
-          <Typography className="text-danger">{t("Could not load group details")}</Typography>
+          <View style={{ gap: 8 }}>
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Could not load group details")}
+            </Typography>
+            <Button variant="outline" onPress={() => void detail.refetch()}>
+              <Button.Label>{t("Try again")}</Button.Label>
+            </Button>
+          </View>
         )}
       </View>
     );
   return (
     <Editor
-      key={groupId ?? "new"}
-      group={group}
-      groups={groups}
-      token={token}
-      getToken={getToken}
-      userId={userId}
+      key={`${options.userId}/${groupId ?? "new"}`}
+      group={groupId ? detail.data : undefined}
     />
+  );
+}
+function Editor({ group }: { group?: GroupRecordResponse }) {
+  const t = useT(),
+    options = useCommunityApi(),
+    router = useRouter(),
+    insets = useSafeAreaInsets(),
+    layout = useFloatingActionLayout(),
+    actions = useGroupRecordActions(options);
+  const [accentForeground, danger] = useThemeColor(["accent-foreground", "danger"]);
+  const [name, setName] = useState(group?.name ?? ""),
+    [type, setType] = useState<"PRIVATE" | "PUBLIC">(group?.type ?? "PRIVATE"),
+    [baseVersion] = useState(group?.version ?? 0);
+  const [location, setLocation] = useState<MatchLocation | undefined>(group?.location),
+    [logo, setLogo] = useState<{ id: string; preview: string } | null>(
+      group?.logoAssetId ? { id: group.logoAssetId, preview: group.logo ?? "" } : null,
+    );
+  const [friends, setFriends] = useState<Friend[]>([]),
+    [picking, setPicking] = useState(false),
+    [uploading, setUploading] = useState(false),
+    [error, setError] = useState("");
+  const [pickerSlot] = useState(() => `group-draft-${Math.random().toString(36).slice(2)}`);
+  const pendingUser = useAppStore((state) => state.pendingUser),
+    clearPending = useAppStore((state) => state.clearPending);
+  useEffect(() => {
+    if (pendingUser?.slotId !== pickerSlot) return;
+    setFriends((current) =>
+      current.some((user) => user.id === pendingUser.user.id)
+        ? current
+        : [...current, pendingUser.user],
+    );
+    clearPending();
+  }, [pendingUser, pickerSlot, clearPending]);
+  const favorites = useFavoriteLocations(options, location ? [location] : []);
+  const valid = createGroupRecordSchema.safeParse({
+    type,
+    name,
+    ...(logo ? { logoAssetId: logo.id } : {}),
+    ...(location ? { location } : {}),
+    invitedUserIds: type === "PRIVATE" && !group ? friends.map((user) => user.id) : [],
+  });
+  const save = async () => {
+    if (!valid.success || actions.busy || uploading) return;
+    const { type: _type, invitedUserIds: _invited, ...revision } = valid.data;
+    setError("");
+    try {
+      const row = group
+        ? await actions.update.mutateAsync({
+            id: group.id,
+            input: { ...revision, version: baseVersion },
+          })
+        : await actions.create.mutateAsync(valid.data);
+      router.dismissTo(`/group/${row.id}`);
+    } catch {
+      setError(t("Could not save group"));
+    }
+  };
+  if (picking)
+    return (
+      <LocationPicker
+        initial={location}
+        onSelect={(value) => {
+          setLocation(value);
+          setPicking(false);
+        }}
+        onClose={() => setPicking(false)}
+      />
+    );
+  const chooseFriend = () =>
+    router.push({
+      pathname: "/group/search-user",
+      params: {
+        slotId: pickerSlot,
+        source: "group",
+        exclude: friends.map((user) => user.id).join(","),
+      },
+    });
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={insets.top + 56}
+    >
+      <Stack.Screen
+        options={{ title: group ? t("Edit group") : t("New group"), headerLeft: undefined }}
+      />
+      <FlatList
+        style={{ flex: 1 }}
+        data={!group && type === "PRIVATE" ? friends : []}
+        keyExtractor={(user) => user.id}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: layout.paddingBottom }}
+        ListHeaderComponent={
+          <View style={{ gap: 16 }}>
+            {!group ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 16,
+                }}
+              >
+                <Typography className="text-foreground">{t("Public group")}</Typography>
+                <Switch
+                  isDisabled={actions.busy}
+                  testID="group-public-switch"
+                  accessibilityLabel={t("Public group")}
+                  isSelected={type === "PUBLIC"}
+                  onSelectedChange={(selected) => setType(selected ? "PUBLIC" : "PRIVATE")}
+                />
+              </View>
+            ) : (
+              <Typography className="text-muted">
+                {group.type === "PUBLIC" ? t("Public group") : t("Private group")}
+              </Typography>
+            )}
+            <Typography className="text-muted">
+              {type === "PUBLIC"
+                ? t(
+                    "Public groups require a logo, verified venue and approval. Group type cannot be changed.",
+                  )
+                : t(
+                    "Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.",
+                  )}
+            </Typography>
+            <SearchHelpLabel
+              label={t("Group name")}
+              helpTitle={t("Field help")}
+              help={t("Choose a name, from 5 to 120 characters.")}
+            />
+            <Input
+              editable={!actions.busy}
+              accessibilityLabel={t("Group name")}
+              value={name}
+              onChangeText={setName}
+              maxLength={120}
+            />
+            <GroupLogoPicker
+              value={logo}
+              required={type === "PUBLIC"}
+              disabled={actions.busy}
+              onChange={setLogo}
+              onBusyChange={setUploading}
+            />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <GroupedList>
+                  <LocationListRow
+                    name={location?.name ?? t("Choose a verified address")}
+                    accessibilityLabel={t("Choose a verified address")}
+                    address={location?.address}
+                    onPress={actions.busy || uploading ? undefined : () => setPicking(true)}
+                    leading={
+                      location ? (
+                        <LocationFavoriteButton location={location} favorites={favorites} />
+                      ) : undefined
+                    }
+                  />
+                </GroupedList>
+              </View>
+              {location && type === "PRIVATE" ? (
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="danger-soft"
+                  accessibilityLabel={t("Remove location")}
+                  isDisabled={actions.busy || uploading}
+                  onPress={() => setLocation(undefined)}
+                >
+                  <X size={18} color={danger} />
+                </Button>
+              ) : null}
+            </View>
+            {favorites.status.isError ? (
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t("Could not load favorite locations")}
+              </Typography>
+            ) : null}
+            {!group && type === "PRIVATE" ? (
+              <Typography className="font-semibold text-foreground">
+                {t("Invite friends")}
+              </Typography>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item: user }) => (
+          <GroupedList>
+            <UserListRow
+              name={user.name}
+              avatarUrl={user.avatarUrl}
+              secondary={user.email}
+              actions={
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="danger-soft"
+                  accessibilityLabel={`${t("Remove invite")}: ${user.name}`}
+                  isDisabled={actions.busy || uploading}
+                  onPress={() =>
+                    setFriends((current) => current.filter((item) => item.id !== user.id))
+                  }
+                >
+                  <Trash2 size={18} color={danger} />
+                </Button>
+              }
+            />
+          </GroupedList>
+        )}
+        ListFooterComponent={
+          <View style={{ gap: 12 }}>
+            {!group && type === "PRIVATE" ? (
+              <AddUserRow
+                label={t("Add friend")}
+                onPress={chooseFriend}
+                isDisabled={actions.busy || uploading}
+              />
+            ) : null}
+            {error ? (
+              <Typography accessibilityRole="alert" className="text-danger">
+                {error}
+              </Typography>
+            ) : null}
+          </View>
+        }
+      />
+      <FloatingActions
+        label={
+          type === "PUBLIC" ? t("Submit for review") : group ? t("Save changes") : t("Create group")
+        }
+        testID="save-group-fab"
+        variant="primary"
+        onPress={() => void save()}
+        isDisabled={!valid.success || actions.busy || uploading}
+      >
+        {type === "PUBLIC" ? (
+          <Send size={26} color={accentForeground} />
+        ) : (
+          <Save size={26} color={accentForeground} />
+        )}
+      </FloatingActions>
+    </KeyboardAvoidingView>
   );
 }

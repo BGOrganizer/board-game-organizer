@@ -29,9 +29,7 @@ type NavLinkProps = {
 
 function NavLink({ href, label, icon: Icon, exact = false, onClick }: NavLinkProps) {
   const pathname = usePathname();
-  const isActive = exact
-    ? pathname === href
-    : pathname.startsWith(href) || (href === "/groups" && pathname.startsWith("/organizations"));
+  const isActive = exact ? pathname === href : pathname.startsWith(href);
 
   return (
     <Link
@@ -55,11 +53,10 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: "/matches", label: t`Matches`, icon: Dices },
-    { href: "/groups", label: t`Community`, icon: UsersRound },
+    { href: "/tables", label: t`Tables`, icon: Dices },
+    { href: "/groups", label: t`Groups`, icon: UsersRound },
     { href: "/events", label: t`Events`, icon: CalendarDays },
     { href: "/contacts", label: t`Contacts`, icon: ContactRound },
-    { href: "/profile", label: t`Profile`, icon: UserRound },
   ];
 
   return (
@@ -126,10 +123,17 @@ export function Header() {
               {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
             </p>
             <NotificationBell />
+            <Link
+              href="/profile"
+              aria-label={t`Profile`}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-foreground"
+            >
+              <UserRound className="size-5" aria-hidden="true" />
+            </Link>
             {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
               <Link
                 href="/moderation"
-                aria-label={t`Organization moderation`}
+                aria-label={t`Group moderation`}
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-foreground hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <ShieldCheck className="size-5" aria-hidden="true" />

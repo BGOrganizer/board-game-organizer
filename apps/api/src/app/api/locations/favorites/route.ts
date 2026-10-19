@@ -5,17 +5,17 @@ import {
 } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
+import { runRecordOperation } from "@/app/lib/community/record-http";
+import { CommunityError } from "@/app/lib/community.error";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import {
+  badFavoriteRequest as badMatchRequest,
+  hasValidFavoriteQuery as hasValidMatchQuery,
+  parseFavoriteJson as parseMatchJson,
+} from "@/app/lib/locations/favorite-locations.http";
 import { FavoriteLocationsRepository } from "@/app/lib/locations/favorite-locations.repository";
 import { GeocodingError, geocodeAddresses } from "@/app/lib/locations/geocoding";
-import {
-  badMatchRequest,
-  hasValidMatchQuery,
-  parseMatchJson,
-  runMatchOperation,
-} from "@/app/lib/matches/match.http";
-import { MatchError } from "@/app/lib/matches/match.service";
 
 const querySchema = z
   .object({
@@ -68,24 +68,21 @@ export async function POST(request: Request) {
   if ("response" in body) return body.response;
   const parsed = saveFavoriteLocationSchema.safeParse(body.data);
   if (!parsed.success) return badMatchRequest(request);
-  return runMatchOperation(
+  return runRecordOperation(
     request,
-    async ({ userId, db, session, service }) => {
+    async (userId, { favorites }) => {
       const { location, matchId } = parsed.data;
       const key = locationFavoriteKey(location);
-      const match = matchId ? (await service.detail(userId, matchId)).match : undefined;
-      const saved = match?.locations?.find((item) => locationFavoriteKey(item) === key);
-      if (!saved) {
-        try {
-          const addresses = await geocodeAddresses(location.address);
-          if (!addresses.some((item) => locationFavoriteKey(item) === key))
-            throw new MatchError(400, "Choose a verified address");
-        } catch (error) {
-          if (error instanceof GeocodingError) throw new MatchError(error.status, error.message);
-          throw error;
-        }
+      if (matchId) throw new CommunityError(410, "LEGACY_DOMAIN_RETIRED");
+      try {
+        const addresses = await geocodeAddresses(location.address);
+        if (!addresses.some((item) => locationFavoriteKey(item) === key))
+          throw new CommunityError(400, "Choose a verified address");
+      } catch (error) {
+        if (error instanceof GeocodingError) throw new CommunityError(error.status, error.message);
+        throw error;
       }
-      return { item: await new FavoriteLocationsRepository(db, session).save(userId, location) };
+      return { item: await favorites.save(userId, location) };
     },
     201,
   );

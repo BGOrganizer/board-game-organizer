@@ -47,7 +47,7 @@ export default function MobileNumberPage() {
   const savedMobileNumber = getMobileNumber(user?.unsafeMetadata);
 
   useEffect(() => {
-    if (isLoaded && user && savedMobileNumber) router.replace("/matches");
+    if (isLoaded && user && savedMobileNumber) router.replace("/tables");
   }, [isLoaded, router, savedMobileNumber, user]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -61,7 +61,7 @@ export default function MobileNumberPage() {
       await user.update({
         unsafeMetadata: { ...user.unsafeMetadata, [MOBILE_NUMBER_METADATA_KEY]: value },
       });
-      router.replace("/matches");
+      router.replace("/tables");
     } catch {
       setError(t`Could not save mobile number`);
     } finally {

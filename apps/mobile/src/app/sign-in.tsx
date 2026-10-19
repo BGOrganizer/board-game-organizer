@@ -19,9 +19,7 @@ export default function SignInScreen() {
         </View>
       );
     }
-    return (
-      <Redirect href={getMobileNumber(user?.unsafeMetadata) ? "/matches" : "/mobile-number"} />
-    );
+    return <Redirect href={getMobileNumber(user?.unsafeMetadata) ? "/tables" : "/mobile-number"} />;
   }
 
   return <AuthView mode="signInOrUp" isDismissible={false} onHostBack={() => router.back()} />;

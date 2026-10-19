@@ -13,7 +13,6 @@ import {
   COMMUNITY_FEEDBACK_MESSAGES,
   communityFeedbackMessages,
 } from "../../community/communityFeedback";
-import { patchOrganizationData } from "../hooks/useOrganizations";
 import {
   isDestructiveOrganizationAction,
   organizationActionLabel,
@@ -101,28 +100,6 @@ describe("organization action policy", () => {
     expect(messages.leave_organization.error).toBe(
       "organization.feedback.leave_organization.error:Could not cancel organization membership",
     );
-  });
-});
-describe("owned community cache transforms", () => {
-  const patch = (row: OrganizationResponse) => ({ ...row, name: "Changed" });
-  it("patches immutable details and pages without touching unsupported data", () => {
-    const source = { pages: [{ items: [organization], nextCursor: "next" }], pageParams: [""] };
-    expect(patchOrganizationData(source, patch)).toEqual({
-      ...source,
-      pages: [{ items: [{ ...organization, name: "Changed" }], nextCursor: "next" }],
-    });
-    expect(source.pages[0].items[0].name).toBe("Board Club");
-    expect(patchOrganizationData(organization, patch)).toEqual({
-      ...organization,
-      name: "Changed",
-    });
-    expect(patchOrganizationData(organization, () => null)).toBe(organization);
-    expect(patchOrganizationData(source, () => null)).toEqual({
-      ...source,
-      pages: [{ items: [], nextCursor: "next" }],
-    });
-    for (const value of [null, undefined, "text", [], {}, { pages: "invalid" }])
-      expect(patchOrganizationData(value, patch)).toBe(value);
   });
 });
 describe("fresh scoped community requests", () => {

@@ -43,7 +43,7 @@ describe("mobile push notifications", () => {
     const id = "11111111-1111-4111-8111-111111111111";
     expect(
       notificationHref({ href: `/organizations/${id}`, kind: "organization_invitation" }),
-    ).toBe(`/organization/${id}`);
+    ).toBe("/groups");
     expect(notificationHref({ href: "/moderation", kind: "organization_review_requested" })).toBe(
       "/moderation",
     );
@@ -131,11 +131,10 @@ describe("mobile push notifications", () => {
     expect(notificationHref({ href: "/contacts", kind: "friend_request_accepted" })).toBe(
       "/contacts?tab=connections",
     );
-    expect(notificationHref({ href: "/matches" })).toBe("/matches");
+    expect(notificationHref({ href: "/matches" })).toBe("/tables");
+    expect(notificationHref({ href: "/tables" })).toBe("/tables");
     expect(notificationHref({ href: "/groups" })).toBe("/groups");
-    expect(notificationHref({ href: "/matches/507f1f77bcf86cd799439011" })).toBe(
-      "/match/507f1f77bcf86cd799439011",
-    );
+    expect(notificationHref({ href: "/matches/507f1f77bcf86cd799439011" })).toBe("/tables");
     expect(notificationHref({ href: "/groups/507f1f77bcf86cd799439012" })).toBe(
       "/group/507f1f77bcf86cd799439012",
     );
@@ -143,7 +142,7 @@ describe("mobile push notifications", () => {
       "/group/4ddc08de-7d21-4e90-8560-a478ab935224",
     );
     expect(notificationHref({ href: "/matches/5b3adbd6-8490-488a-b0ce-dd8e852734ba" })).toBe(
-      "/match/5b3adbd6-8490-488a-b0ce-dd8e852734ba",
+      "/tables",
     );
     expect(notificationHref({ href: "/groups/not-a-valid-uuid" })).toBe("/notifications");
     expect(notificationHref({ href: "/groups/../profile" })).toBe("/notifications");

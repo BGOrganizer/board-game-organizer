@@ -1,5 +1,20 @@
 import { z } from "zod";
 import { targetUserIdSchema } from "../../common/dto/common";
+import { verifiedLocationSchema as matchLocationSchema } from "../../locations/models/locations";
+import { resultsSchema as matchResultsSchema } from "../../ratings/models/results";
+
+export type { BoardGame, BoardGameCsv } from "../../games/models/boardGames";
+// Transitional exports keep existing callers working until the event/table cutover.
+export { boardGameCsvModel, boardGameModel } from "../../games/models/boardGames";
+export type { VerifiedLocation as MatchLocation } from "../../locations/models/locations";
+export { verifiedLocationSchema as matchLocationSchema } from "../../locations/models/locations";
+export type { TableResults as MatchResults } from "../../ratings/models/results";
+export {
+  resultEntrySchema as matchResultEntrySchema,
+  resultsSchema as matchResultsSchema,
+  scoreSchema as matchScoreSchema,
+  tieBreakSchema as matchTieBreakSchema,
+} from "../../ratings/models/results";
 
 export const matchStatusSchema = z.enum(["PLANNING", "CREATED", "TERMINATED"]);
 export type MatchStatus = z.infer<typeof matchStatusSchema>;
@@ -15,44 +30,6 @@ export const matchChoicesSchema = z.object({
   games: z.record(z.string(), matchChoiceSchema).optional(),
   locations: z.record(z.string(), matchChoiceSchema).optional(),
 });
-
-export const matchLocationSchema = z
-  .object({
-    id: z.uuid(),
-    name: z.string().trim().min(4).max(120),
-    address: z.string().trim().min(1).max(500),
-    longitude: z.number().finite().min(-180).max(180),
-    latitude: z.number().finite().min(-90).max(90),
-  })
-  .strict();
-export type MatchLocation = z.infer<typeof matchLocationSchema>;
-
-export const matchScoreSchema = z
-  .string()
-  .regex(/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/)
-  .max(48);
-export const matchResultEntrySchema = z
-  .object({
-    userId: targetUserIdSchema,
-    score: matchScoreSchema.nullable(),
-    rank: z.number().int().positive().nullable(),
-  })
-  .strict();
-export const matchTieBreakSchema = z
-  .object({
-    score: matchScoreSchema,
-    orderedUserIds: z.array(targetUserIdSchema).min(2),
-  })
-  .strict();
-export const matchResultsSchema = z
-  .object({
-    lowerWins: z.boolean(),
-    entries: z.array(matchResultEntrySchema).min(1),
-    tieBreaks: z.array(matchTieBreakSchema),
-    finalizedAt: z.iso.datetime({ offset: true }),
-  })
-  .strict();
-export type MatchResults = z.infer<typeof matchResultsSchema>;
 
 export const matchEventTableSchema = z.object({
   organizationId: z.uuid(),
@@ -179,37 +156,3 @@ export const createMatchSchema = z
     }
   });
 export type CreateMatchInput = z.infer<typeof createMatchSchema>;
-
-/** All columns in the BGG rankings CSV; empty category ranks become null. */
-export const boardGameCsvModel = z
-  .object({
-    id: z.number().int().positive(),
-    name: z.string().min(1),
-    yearPublished: z.number().int(),
-    rank: z.number().int().nonnegative(),
-    bayesAverage: z.number().nonnegative(),
-    average: z.number().nonnegative(),
-    usersRated: z.number().int().nonnegative(),
-    isExpansion: z.boolean(),
-    abstractsRank: z.number().int().positive().nullable(),
-    cgsRank: z.number().int().positive().nullable(),
-    childrensGamesRank: z.number().int().positive().nullable(),
-    familyGamesRank: z.number().int().positive().nullable(),
-    partyGamesRank: z.number().int().positive().nullable(),
-    strategyGamesRank: z.number().int().positive().nullable(),
-    thematicRank: z.number().int().positive().nullable(),
-    warGamesRank: z.number().int().positive().nullable(),
-  })
-  .strict();
-export type BoardGameCsv = z.infer<typeof boardGameCsvModel>;
-
-/** Catalog entries created by imports or test fixtures, with optional cached covers. */
-export const boardGameModel = boardGameCsvModel.partial().extend({
-  id: z.number().int().positive(),
-  name: z.string(),
-  yearPublished: z.number().nullable().optional(),
-  image: z.string().nullable().optional(),
-  imageCheckedAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-});
-export type BoardGame = z.infer<typeof boardGameModel>;

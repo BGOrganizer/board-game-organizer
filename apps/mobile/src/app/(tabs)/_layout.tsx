@@ -56,7 +56,7 @@ export default function TabLayout() {
                 isIconOnly
                 size="sm"
                 variant="ghost"
-                accessibilityLabel={t("Organization moderation")}
+                accessibilityLabel={t("Group moderation")}
                 style={{ minHeight: 44, minWidth: 44 }}
                 onPress={() => router.push("/moderation")}
               >
@@ -79,18 +79,18 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="matches"
+        name="tables"
         options={{
-          title: t("Matches"),
-          headerTitle: () => <HeaderTitle title={t("Matches")} icon={Dices} />,
+          title: t("Tables"),
+          headerTitle: () => <HeaderTitle title={t("Tables")} icon={Dices} />,
           tabBarIcon: ({ color }) => <Dices size={26} color={color} />,
         }}
       />
       <Tabs.Screen
         name="groups"
         options={{
-          title: t("Community"),
-          headerTitle: () => <HeaderTitle title={t("Community")} icon={UsersRound} />,
+          title: t("Groups"),
+          headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
           tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
         }}
       />
@@ -103,6 +103,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen name="organizations" options={{ href: null }} />
+      <Tabs.Screen name="matches" options={{ href: null }} />
       <Tabs.Screen
         name="contacts"
         options={{

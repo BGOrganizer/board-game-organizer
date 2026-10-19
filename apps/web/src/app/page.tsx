@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const { userId } = await auth();
 
-  if (userId) redirect("/matches");
+  if (userId) redirect("/tables");
 
   return (
     <div className="min-h-screen">

@@ -1,4 +1,37 @@
-# Organizations/events implementation checkpoint
+# Unified Groups / Events / Tables implementation checkpoint
+
+## Unified domain delivery — PR #22
+
+The active contract is [Groups / Events / Tables](groups-events-refactor.md). Source implementation
+now includes both platform editors/results, source-paged group/member/game/table workflows,
+moderation/exclusions, explicit consent, exact agreement, duration/cutoff guards, atomic ratings,
+new navigation/startup/deep links and legacy-writer retirement. Legacy DB documents remain intact;
+unified readers/locks exclude them. No application DB reset/deletion, provider provisioning or
+manual deployment/migration was performed.
+
+Verification checkpoint:
+
+- Workspace typecheck passes. Unit coverage gates pass: API 566, web 273, mobile pure logic/source
+  contracts 146, shared 175 and schemas 105 (**1,265 tests**). Deterministic per-file 100% gates remain
+  enforced; no thresholds were lowered.
+- Node policy suite: **95 passed, zero failed/skipped**. The source-policy check now targets the
+  actual table score sheet rather than a deleted Match screen. Playwright/Maestro suites and
+  workflow/action files are unchanged; PR E2E jobs remain explicitly disabled.
+- Scoped Biome checks pass. Root lint is blocked only by a pre-existing, untracked private native
+  service JSON formatting issue; it was not edited, ignored or staged to conceal the failure.
+- EN/IT source and compiled catalogs are synchronized, including native-only runtime labels.
+- Next API/web builds and Android Metro/Hermes export pass. Export validates compilation/assets,
+  not installation, launch, rendering, permissions or Maestro acceptance.
+- Final unfiltered real-Mongo replica-set suite: **69 passed across three files, zero skipped**.
+  Two obsolete Match-based leaderboard fixtures were migrated before this complete rerun.
+  Statistics exclude legacy Match outcomes, disabled/removed/planning Tables, all-ND and
+  fewer-than-two-finisher outcomes. Legacy documents remain unchanged by unified reads/locks.
+
+Live native acceptance remains unavailable because the previously owned Clerk fixture no longer
+exists; no account/device recreation or historical acceptance reuse was attempted. This branch is
+not production/E2E-accepted and must not be described as such. Earlier checkpoints below describe
+historical contracts and evidence, not authorization to reset data or restore retired writers.
+
 
 ## Mobile organization presentation and location controls — PR #22
 

@@ -19,6 +19,7 @@ export function ConfirmDialog({
   onCancel,
   actions,
   cancelTestID = "confirmation-cancel",
+  children,
 }: {
   title: string;
   description: string;
@@ -26,6 +27,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   actions: readonly ConfirmDialogAction[];
   cancelTestID?: string;
+  children?: ReactNode;
 }) {
   const t = useT();
   return (
@@ -48,6 +50,7 @@ export function ConfirmDialog({
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Description>{description}</Dialog.Description>
           </View>
+          {children ? <View style={{ gap: 12, marginBottom: 16 }}>{children}</View> : null}
           <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
             {actions.map((action, index) => (
               <Button

@@ -43,8 +43,15 @@ export function EventDateTimeField({
   const muted = useThemeColor("muted");
   const [draft, setDraft] = useState<Date | null>(null);
   const [pickerError, setPickerError] = useState("");
-  const wall =
-    value || `${day || eventLocalDateTime(new Date().toISOString(), timeZone).slice(0, 10)}T00:00`;
+  let today: string;
+  let invalidZone = false;
+  try {
+    today = eventLocalDateTime(new Date().toISOString(), timeZone).slice(0, 10);
+  } catch {
+    today = new Date().toISOString().slice(0, 10);
+    invalidZone = true;
+  }
+  const wall = value || `${day || today}T00:00`;
   const bounded = min && wall < min ? min : max && wall > max ? max : wall;
   const initial = new Date(`${bounded}Z`);
   const commit = (date: Date) => {
@@ -94,7 +101,9 @@ export function EventDateTimeField({
             variant="ghost"
             accessibilityLabel={label}
             testID={testID}
-            isDisabled={Boolean((mode === "time" && !day) || (min && max && min > max))}
+            isDisabled={Boolean(
+              invalidZone || (mode === "time" && !day) || (min && max && min > max),
+            )}
             onPress={pick}
             style={{ flex: 1, minHeight: 44, justifyContent: "flex-start", paddingHorizontal: 0 }}
           >
@@ -113,6 +122,11 @@ export function EventDateTimeField({
           </Button>
         </GroupedRow>
       </GroupedList>
+      {invalidZone ? (
+        <Typography accessibilityRole="alert" className="text-danger">
+          {t("Choose a valid time zone.")}
+        </Typography>
+      ) : null}
       {error || pickerError ? (
         <Typography accessibilityRole="alert" className="text-sm text-danger">
           {error || pickerError}

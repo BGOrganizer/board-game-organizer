@@ -1,6 +1,11 @@
+import {
+  eventRecordKeys,
+  eventRecordsQuery,
+  groupRecordKeys,
+  groupRecordsPageQuery,
+  recordTablesQuery,
+} from "@board-game-organizer/shared";
 import type { QueryClient } from "@tanstack/react-query";
-
-const initialRoles = "admin,invited,accepted";
 export const startupRelationshipTypes = [
   "friends",
   "pending",
@@ -9,128 +14,69 @@ export const startupRelationshipTypes = [
   "sent",
   "blocked",
 ] as const;
-
 export const STARTUP_SPLASH_LIMIT_MS = 5000;
-
 export function startupLinkPath(url: string | null | undefined): string | null {
   if (!url?.startsWith("bgo:")) return null;
   return `/${url.slice(4).replace(/^\/+/, "").split("?")[0]}`;
 }
-
-export function remainingSplashMs(startedAt: number, now: number): number {
+export function remainingSplashMs(startedAt: number, now: number) {
   return Math.max(0, STARTUP_SPLASH_LIMIT_MS - (now - startedAt));
 }
-
 export function isStartupAuthPending(
   isAuthLoaded: boolean,
   isRestoredSignedIn: boolean | undefined,
   isSessionSignedIn: boolean | undefined,
   isUserLoaded: boolean,
-): boolean {
+) {
   return (
     !isAuthLoaded ||
     isRestoredSignedIn === undefined ||
-    (isRestoredSignedIn && (!isSessionSignedIn || !isUserLoaded))
+    Boolean(isRestoredSignedIn && (!isSessionSignedIn || !isUserLoaded))
   );
 }
-
-/** Wait for the mounted destination screen's own request, not a duplicate bootstrap request. */
+function settled(client: QueryClient, key: readonly unknown[]) {
+  const s = client.getQueryState(key);
+  return Boolean(s && s.status !== "pending" && s.fetchStatus === "idle");
+}
 export function isStartupDestinationSettled(
-  queryClient: QueryClient,
+  client: QueryClient,
   pathname: string,
   apiUrl: string,
   userId: string,
-): boolean {
-  if (pathname === "/") return false; // Wait for the declarative redirect.
-
-  const contactTypes = [...startupRelationshipTypes, "suggestions"] as const;
-  const segments = pathname.split("/").filter(Boolean);
-  const matchDetail =
-    segments[0] === "match" &&
-    segments.length === 2 &&
-    !["wizard", "results", "search-game", "search-user"].includes(segments[1]);
-  const groupDetail = segments[0] === "group" && segments.length === 2 && segments[1] !== "wizard";
-  const matches = queryClient
-    .getQueryCache()
-    .getAll()
-    .filter((query) => {
-      const key = query.queryKey;
-      if (query.state.status === "pending" || query.state.fetchStatus !== "idle") return false;
-      if (matchDetail) {
-        return (
-          key[0] === "matches" &&
-          key[1] === "detail" &&
-          key[2] === segments[1] &&
-          key[3] === apiUrl &&
-          key[4] === userId
-        );
-      }
-      if (groupDetail) {
-        return (
-          key[0] === "groups" &&
-          key[1] === "detail" &&
-          key[2] === segments[1] &&
-          key[3] === apiUrl &&
-          key[4] === userId
-        );
-      }
-      if (pathname === "/matches" || pathname === "/groups") {
-        return (
-          key[0] === (pathname === "/matches" ? "matches" : "groups") &&
-          key[1] === "paged" &&
-          key[2] === apiUrl &&
-          key[3] === userId &&
-          key[4] === "" &&
-          key[5] === initialRoles
-        );
-      }
-      if (pathname === "/contacts") {
-        return (
-          key[0] === "contacts" &&
-          contactTypes.some((type) => key[1] === type) &&
-          key[2] === apiUrl &&
-          key[3] === userId
-        );
-      }
-      if (pathname === "/notifications") {
-        return (
-          key[0] === "notifications" && key[1] === apiUrl && key[2] === userId && key[3] === 20
-        );
-      }
-      return (
-        pathname === "/profile" && key[0] === "profile" && key[1] === apiUrl && key[2] === userId
-      );
-    });
-
-  if (pathname === "/contacts") {
-    return contactTypes.every((type) => matches.some((query) => query.queryKey[1] === type));
-  }
-  // Unknown routes have no mandatory startup request.
-  if (
-    !["/matches", "/groups", "/notifications", "/profile"].includes(pathname) &&
-    !matchDetail &&
-    !groupDetail
-  )
-    return true;
-  return matches.length > 0;
+) {
+  if (pathname === "/") return false;
+  const o = { apiUrl, userId };
+  const group = /^\/group\/([^/]+)$/.exec(pathname);
+  if (group && !["wizard", "search", "invite", "ban", "search-user"].includes(group[1]))
+    return settled(client, groupRecordKeys.detail(o, group[1]));
+  const event = /^\/event\/([^/]+)$/.exec(pathname);
+  if (event && !["wizard", "table", "invite", "results", "table-edit"].includes(event[1]))
+    return settled(client, eventRecordKeys.detail(o, event[1]));
+  if (pathname === "/event/table")
+    return client
+      .getQueryCache()
+      .findAll({ queryKey: [...eventRecordKeys.root(o), "table"] })
+      .some((q) => q.state.status !== "pending" && q.state.fetchStatus === "idle");
+  if (pathname === "/tables" || pathname === "/matches")
+    return settled(client, eventRecordKeys.tables(o, null));
+  if (pathname === "/groups") return settled(client, groupRecordKeys.list(o, "mine"));
+  if (pathname === "/events") return settled(client, eventRecordKeys.list(o));
+  if (pathname === "/contacts")
+    return startupRelationshipTypes.every((type) =>
+      settled(client, ["contacts", type, apiUrl, userId]),
+    );
+  if (pathname === "/profile") return settled(client, ["profile", apiUrl, userId]);
+  if (pathname === "/notifications") return settled(client, ["notifications", apiUrl, userId, 20]);
+  return true;
 }
-
-/** Ordinary launches wait for first pages only, never every record. */
-export function isStartupEssentialsSettled(
-  queryClient: QueryClient,
-  apiUrl: string,
-  userId: string,
-): boolean {
-  const settled = (key: readonly unknown[]) => {
-    const state = queryClient.getQueryState(key);
-    return Boolean(state && state.status !== "pending" && state.fetchStatus === "idle");
-  };
+export function isStartupEssentialsSettled(client: QueryClient, apiUrl: string, userId: string) {
+  const o = { apiUrl, userId };
   return (
-    settled(["profile", apiUrl, userId]) &&
-    settled(["matches", "paged", apiUrl, userId, "", initialRoles]) &&
-    settled(["groups", "paged", apiUrl, userId, "", initialRoles]) &&
-    [...startupRelationshipTypes, "suggestions"].every((type) =>
-      settled(["contacts", type, apiUrl, userId]),
-    )
+    settled(client, ["profile", apiUrl, userId]) &&
+    settled(client, eventRecordKeys.tables(o, null)) &&
+    settled(client, groupRecordKeys.list(o, "mine")) &&
+    settled(client, eventRecordKeys.list(o)) &&
+    startupRelationshipTypes.every((type) => settled(client, ["contacts", type, apiUrl, userId])) &&
+    settled(client, ["contacts", "suggestions", apiUrl, userId])
   );
 }

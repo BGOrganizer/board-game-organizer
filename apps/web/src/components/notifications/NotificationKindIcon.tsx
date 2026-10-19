@@ -12,6 +12,18 @@ import {
 } from "lucide-react";
 
 const icons: Record<NotificationKind, LucideIcon> = {
+  group_membership_requested: UserRoundPlus,
+  group_membership_updated: UserRoundCheck,
+  group_review_requested: UsersRound,
+  group_reviewed: UserRoundCheck,
+  group_banned: CalendarX,
+  group_ban_revoked: UserRoundCheck,
+  table_invitation: CalendarPlus,
+  event_agreement_ready: CalendarCheck,
+  event_agreement_blocked: CalendarClock,
+  event_confirmed: CalendarCheck,
+  event_replanning: CalendarClock,
+  event_terminated: Trophy,
   organization_invitation: UsersRound,
   organization_join_requested: UserRoundPlus,
   organization_membership_changed: UserRoundCheck,

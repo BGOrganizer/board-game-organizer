@@ -8,7 +8,6 @@ const source = (path: string) => readFileSync(new URL(`../../${path}`, import.me
 // Source-contract checks only, not native UI acceptance. Maestro exercises actual controls.
 it.each([
   "app/(tabs)/contacts.tsx",
-  "app/match/search-user.tsx",
   "app/mobile-number.tsx",
   "components/games/GamePicker.tsx",
   "components/groups/GroupLeaderboard.tsx",
@@ -23,7 +22,7 @@ it.each([
 it.each([
   "components/common/ui/SearchHelpLabel.tsx",
   "components/contacts/ContactLegend.tsx",
-  "components/matches/VoteLegend.tsx",
+  "components/events/EventVoteLegend.tsx",
 ])("shares the help container while retaining feature content: %s", (path) => {
   expect(source(path)).toContain("<HelpPopover");
   expect(source(path)).not.toContain("<Popover.");

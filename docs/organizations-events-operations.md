@@ -1,5 +1,10 @@
 # Organizations and events: operational gates
 
+> The [unified refactor](groups-events-refactor.md) supersedes the legacy domain/worker sections
+> below. Isolation, secrets, moderator authorization and publication safeguards remain applicable.
+> Legacy Inngest functions are unregistered; unified event confirmation is manual. This source
+> change does not deploy providers, run application migrations or authorize any database reset.
+
 The feature is not production-verified merely because unit tests, replica-set integration tests or a JavaScript export pass. Track current evidence in `implementation-progress.md`.
 
 ## Database and moderation

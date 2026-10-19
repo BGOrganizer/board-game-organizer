@@ -21,6 +21,7 @@ export function ContactConfirmDialog({
   cancelLast = false,
   actionsInRow = false,
   cancelIcon,
+  children,
 }: {
   title: string;
   description: string;
@@ -30,6 +31,7 @@ export function ContactConfirmDialog({
   cancelLast?: boolean;
   actionsInRow?: boolean;
   cancelIcon?: ReactNode;
+  children?: ReactNode;
 }) {
   const { t } = useLingui();
   const [mounted, setMounted] = useState(false);
@@ -75,6 +77,7 @@ export function ContactConfirmDialog({
           {title}
         </h2>
         <p className="mt-2 text-sm text-default-500">{description}</p>
+        {children ? <div className="mt-4">{children}</div> : null}
         <div
           className={
             actionsInRow

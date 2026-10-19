@@ -1,4 +1,5 @@
 import type {
+  EventRecord,
   Match,
   MatchCurrentGameRating,
   MatchGameRating,
@@ -7,6 +8,8 @@ import type {
   RatingEvent,
   RatingScope,
   RatingState,
+  TableRatingEvent,
+  TableRecord,
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
@@ -19,6 +22,7 @@ import {
   NEW_RATING,
   RATING_ALGORITHM,
 } from "@/app/lib/ratings/rating.engine";
+import { tableStatisticsStages } from "./table-statistics";
 
 export class RatingsRepository {
   constructor(
@@ -30,7 +34,7 @@ export class RatingsRepository {
     return this.db.collection<PlayerRating>(COLLECTIONS.PLAYER_RATINGS);
   }
   private get events() {
-    return this.db.collection<RatingEvent>(COLLECTIONS.RATING_EVENTS);
+    return this.db.collection<RatingEvent | TableRatingEvent>(COLLECTIONS.RATING_EVENTS);
   }
   private get opts() {
     return this.session ? { session: this.session } : {};
@@ -63,12 +67,35 @@ export class RatingsRepository {
   /** Caller must register immutable match results in this same transaction first. */
   async applyMatch(match: Match, results: MatchResults) {
     if (!match.selectedGameId) throw new Error("Confirmed match has no selected game");
-    const gameId = match.selectedGameId;
+    return this.applyOutcome(
+      { matchId: match.id },
+      match.selectedGameId,
+      match.groupId ?? null,
+      results,
+    );
+  }
+  /** Caller persists immutable table results in this same transaction. No synthetic Match. */
+  async applyTableResult(event: EventRecord, table: TableRecord, results: MatchResults) {
+    if (event.status !== "CONFIRMED" || !table.confirmed || table.eventId !== event.id)
+      throw new Error("Confirmed event table required");
+    return this.applyOutcome(
+      { tableId: table.id, eventId: event.id },
+      table.confirmed.gameId,
+      event.groupId,
+      results,
+    );
+  }
+  private async applyOutcome(
+    source: { matchId: string } | { tableId: string; eventId: string },
+    gameId: number,
+    scopeGroupId: string | null,
+    results: MatchResults,
+  ) {
     const userIds = results.entries.map((entry) => entry.userId);
     // Read both scopes before any write: first group result inherits PRE-match global state.
     const global = await this.snapshots(userIds, gameId, "GLOBAL", null);
-    const group = match.groupId
-      ? await this.snapshots(userIds, gameId, "GROUP", match.groupId)
+    const group = scopeGroupId
+      ? await this.snapshots(userIds, gameId, "GROUP", scopeGroupId)
       : null;
     const globalAfter = calculateMatchRatings(results.entries, global);
     const groupBefore = new Map(
@@ -84,7 +111,7 @@ export class RatingsRepository {
 
     for (const [scope, groupId, rows] of [
       ["GLOBAL", null, globalAfter],
-      ["GROUP", match.groupId ?? null, groupAfter],
+      ["GROUP", scopeGroupId, groupAfter],
     ] as const) {
       for (const row of rows) {
         const key = { userId: row.userId, gameId, scope, groupId };
@@ -102,7 +129,7 @@ export class RatingsRepository {
         );
         await this.events.insertOne(
           {
-            matchId: match.id,
+            ...source,
             ...key,
             algorithm: RATING_ALGORITHM,
             rank: row.rank,
@@ -180,10 +207,34 @@ export class RatingsRepository {
     return new Map(rows.map(({ _id, ...stats }) => [_id, stats]));
   }
 
-  async forMatch(matchId: string, gameId: number): Promise<MatchGameRating[]> {
+  async tableStats(userIds: string[], gameId: number, groupId: string | null) {
+    const rows = await this.db
+      .collection(COLLECTIONS.EVENT_TABLES)
+      .aggregate<{ _id: string; gamesPlayed: number; gamesWon: number; nd: number }>(
+        tableStatisticsStages(gameId, groupId, userIds),
+        this.opts,
+      )
+      .toArray();
+    return new Map(rows.map(({ _id, ...stats }) => [_id, stats]));
+  }
+  forMatch(matchId: string, gameId: number): Promise<MatchGameRating[]> {
+    return this.forOutcome({ matchId }, gameId);
+  }
+  forTable(
+    tableId: string,
+    gameId: number,
+    groupId: string | null = null,
+  ): Promise<MatchGameRating[]> {
+    return this.forOutcome({ tableId }, gameId, groupId);
+  }
+  private async forOutcome(
+    source: { matchId: string } | { tableId: string },
+    gameId: number,
+    groupId: string | null = null,
+  ): Promise<MatchGameRating[]> {
     const events = await this.events
       .find(
-        { matchId, gameId, scope: "GLOBAL", groupId: null },
+        { ...source, gameId, scope: groupId ? "GROUP" : "GLOBAL", groupId },
         { projection: { _id: 0, userId: 1, before: 1, after: 1 }, ...this.opts },
       )
       .toArray();

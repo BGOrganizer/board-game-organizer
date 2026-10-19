@@ -241,31 +241,16 @@ export const respondMatchInvitationSchema = z
   .strict();
 export type RespondMatchInvitationInput = z.infer<typeof respondMatchInvitationSchema>;
 
-/** BGG game search result — intentionally minimal. */
-export const bggSearchItemSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  year: z.number().nullable(),
-  bayesAverage: z.number().nullable().optional(),
-  average: z.number().nullable().optional(),
-  rank: z.number().nullable().optional(),
-  imageUrl: z.string().nullable(),
-});
-export const bggSearchResponseSchema = z.object({ items: z.array(bggSearchItemSchema) });
-export type BggSearchItem = z.infer<typeof bggSearchItemSchema>;
-export type BggSearchResponse = z.infer<typeof bggSearchResponseSchema>;
-
-/** BGG thing details fetched on selection. */
-export const bggThingResponseSchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  imageUrl: z.string().nullable(),
-  year: z.number().nullable(),
-  bayesAverage: z.number().nullable().optional(),
-  average: z.number().nullable().optional(),
-  rank: z.number().nullable().optional(),
-});
-export type BggThingResponse = z.infer<typeof bggThingResponseSchema>;
+export type {
+  BggSearchItem,
+  BggSearchResponse,
+  BggThingResponse,
+} from "../../games/dto/boardGames";
+export {
+  bggSearchItemSchema,
+  bggSearchResponseSchema,
+  bggThingResponseSchema,
+} from "../../games/dto/boardGames";
 
 /** A friend match creator can invite. */
 export const inviteableUserSchema = z.object({

@@ -142,19 +142,33 @@ function RootNavigator() {
             name="group/[groupId]"
             options={titleOptions(t("Group details"), UsersRound)}
           />
-          <Stack.Screen name="match/[matchId]" options={titleOptions(t("Match details"), Dices)} />
-          <Stack.Screen name="match/wizard" options={titleOptions(t("Configure match"), Dices)} />
+          <Stack.Screen name="event/[eventId]" options={titleOptions(t("Event details"), Dices)} />
+          <Stack.Screen name="event/wizard" options={titleOptions(t("Configure event"), Dices)} />
           <Stack.Screen
-            name="match/results"
-            options={titleOptions(t("Register results"), Trophy)}
+            name="event/results"
+            options={titleOptions(t("Register event results"), Trophy)}
+          />
+          <Stack.Screen name="event/table" options={titleOptions(t("Table details"), Dices)} />
+          <Stack.Screen
+            name="event/invite"
+            options={titleOptions(t("Invite players"), UsersRound)}
           />
           <Stack.Screen
-            name="match/search-user"
+            name="group/search-user"
             options={titleOptions(t("Invite friends"), UsersRound)}
           />
           <Stack.Screen
-            name="match/search-game"
-            options={titleOptions(t("Select a board game"), Gamepad2)}
+            name="group/invite"
+            options={titleOptions(t("Invite friends"), UsersRound)}
+          />
+          <Stack.Screen name="group/ban" options={titleOptions(t("Exclude a user"), UsersRound)} />
+          <Stack.Screen
+            name="moderation/index"
+            options={titleOptions(t("Group moderation"), UsersRound)}
+          />
+          <Stack.Screen
+            name="moderation/[groupId]"
+            options={titleOptions(t("Group review"), UsersRound)}
           />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>

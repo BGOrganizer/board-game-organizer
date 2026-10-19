@@ -1,9 +1,4 @@
-import { CommunitySection } from "@/components/community/CommunitySection";
-import { Organizations } from "@/components/organizations/Organizations";
-export default function OrganizationsPage() {
-  return (
-    <CommunitySection selected="organizations">
-      <Organizations />
-    </CommunitySection>
-  );
+import { redirect } from "next/navigation";
+export default function Page() {
+  redirect("/events");
 }

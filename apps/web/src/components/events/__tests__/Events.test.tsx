@@ -1,99 +1,79 @@
-import type { EventResponse } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { Events } from "../Events";
 
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
-    userId: "viewer",
+    userId: "owner",
     getToken: async () => "fresh",
   }),
 }));
-const row: EventResponse = {
-  adminUserId: "viewer",
-  version: 1,
-  role: "admin",
-  canModify: true,
-  canPublish: true,
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
-  location: {
-    id: "address",
-    name: "Game club",
-    address: "Verified street 1",
-    longitude: 12,
-    latitude: 45,
-  },
-  logo: "",
-  id: "event",
-  organizationId: "org",
-  name: "Board evening",
-  organizationName: "Game club",
-  startsAt: "2030-01-01T18:00:00.000Z",
-  endsAt: "2030-01-01T22:00:00.000Z",
-  bookingClosesAt: "2029-12-31T18:00:00.000Z",
-  timeZone: "UTC",
-  status: "PUBLISHED",
-  tableCount: 1,
-  organizationApproved: true,
-  confirmedParticipantCount: 3,
-};
-function render() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return renderWithI18n(
-    <QueryClientProvider client={client}>
-      <Events />
+afterEach(() => vi.unstubAllGlobals());
+const render = (props: Parameters<typeof Events>[0] = {}) =>
+  renderWithI18n(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <Events {...props} />
     </QueryClientProvider>,
   );
-}
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
-it("has no global creation action and sends selected period filters instead of filtering loaded pages", async () => {
-  const fetch = vi.fn(async (url: string) => {
-    const params = new URL(url).searchParams;
-    const periods = params.get("periods")?.split(",") ?? ["future", "past"];
-    return new Response(
-      JSON.stringify({ items: periods.includes("future") ? [row] : [], nextCursor: null }),
-    );
-  });
+it("source-pages canonical group/period/search lists and exposes contextual creation", async () => {
+  const fetch = vi.fn(
+    async (url: string) =>
+      new Response(
+        JSON.stringify({
+          items: [{ ...plannedEvent, id: url.includes("cursor=") ? "second" : plannedEvent.id }],
+          nextCursor: url.includes("cursor=") ? null : "next",
+        }),
+      ),
+  );
   vi.stubGlobal("fetch", fetch);
-  render();
-  await screen.findByText(row.name);
-  expect(screen.queryByRole("link", { name: "New event" })).toBeNull();
-  expect(screen.getByRole("searchbox", { name: "Search events" }).getAttribute("placeholder")).toBe(
-    "Search events",
+  render({ groupId: "group", canCreate: true });
+  expect(await screen.findByRole("link", { name: "Open event: Friday games" })).not.toBeNull();
+  expect(new URL(fetch.mock.calls[0][0]).searchParams.get("groupId")).toBe("group");
+  expect(screen.getByRole("link", { name: "Create event" }).getAttribute("href")).toBe(
+    "/events/new?groupId=group",
   );
-  expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Future" }));
-  await screen.findByText("No events found");
-  expect(new URL(fetch.mock.calls.at(-1)?.[0] ?? "").searchParams.get("periods")).toBe("past");
-  fireEvent.click(screen.getByRole("button", { name: "Past" }));
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
   await waitFor(() =>
-    expect(new URL(fetch.mock.calls.at(-1)?.[0] ?? "").searchParams.get("periods")).toBe(""),
+    expect(screen.getAllByRole("link", { name: "Open event: Friday games" })).toHaveLength(2),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Future" }));
-  await screen.findByText(row.name);
+  expect(fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("cursor") === "next")).toBe(
+    true,
+  );
 });
-it("reports initial list failure and retry recovery without turning errors into empty results", async () => {
-  let failed = true;
+it("keeps failure observable and retries without displaying an empty success state", async () => {
+  let fail = true;
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
-      failed
-        ? new Response('{"error":"UNAVAILABLE"}', { status: 503 })
-        : new Response(JSON.stringify({ items: [row], nextCursor: null })),
+      fail ? new Response("{}", { status: 503 }) : new Response('{"items":[],"nextCursor":null}'),
     ),
   );
-  render();
-  await screen.findByText("Could not load events");
+  render({ canCreate: false });
+  expect(await screen.findByText("Could not load events")).not.toBeNull();
   expect(screen.queryByText("No events found")).toBeNull();
-  failed = false;
-  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  await screen.findByText(row.name);
-  expect(screen.queryByText("Could not load events")).toBeNull();
+  fail = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("No events found")).not.toBeNull();
+  expect(screen.queryByRole("link", { name: "Create event" })).toBeNull();
+});
+it("requires four search characters, then automatically queries after debounce", async () => {
+  const fetch = vi.fn(async (_url: string) => new Response('{"items":[],"nextCursor":null}'));
+  vi.stubGlobal("fetch", fetch);
+  render();
+  await screen.findByText("No events found");
+  const search = screen.getByRole("searchbox");
+  fireEvent.change(search, { target: { value: "abc" } });
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  fireEvent.change(search, { target: { value: "friday" } });
+  await waitFor(() =>
+    expect(fetch.mock.calls.some(([url]) => String(url).includes("query=friday"))).toBe(true),
+  );
+  expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
 });

@@ -3,6 +3,9 @@ import { gameDetails, hydrateGames, searchGames } from "@/app/lib/games/bgg";
 
 const quota = { updateOne: vi.fn() };
 const games = { find: vi.fn(), findOne: vi.fn(), bulkWrite: vi.fn() };
+const unexpectedFetch = vi
+  .fn()
+  .mockRejectedValue(new Error("Unexpected BGG network request in unit test"));
 function cursor(rows: unknown[]) {
   const result = {
     sort: () => result,
@@ -27,10 +30,12 @@ const sample = {
 beforeEach(() => {
   vi.stubEnv("BGG_TOKEN", "test-token");
   vi.clearAllMocks();
+  vi.stubGlobal("fetch", unexpectedFetch);
   quota.updateOne.mockResolvedValue({ upsertedCount: 1, matchedCount: 0 });
   games.bulkWrite.mockResolvedValue({});
 });
 afterEach(() => {
+  expect(unexpectedFetch).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -263,7 +268,12 @@ describe("BGG covers", () => {
 
   it("uses the cached image in details and searches", async () => {
     const imageUrl = "https://cf.geekdo-images.com/a/full.jpg";
-    games.findOne.mockResolvedValue({ id: 1, name: "Azul", image: imageUrl });
+    games.findOne.mockResolvedValue({
+      id: 1,
+      name: "Azul",
+      image: imageUrl,
+      durationCheckedAt: new Date().toISOString(),
+    });
     expect(await gameDetails(db, 1)).toEqual({
       id: 1,
       name: "Azul",
@@ -290,5 +300,108 @@ describe("BGG covers", () => {
       },
     ]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("hydrates min/max duration on selection even when the cover is already cached", async () => {
+    const row = { ...sample, image: "https://cf.geekdo-images.com/cached.jpg" };
+    games.findOne.mockResolvedValue(row);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        '<items><item id="1"><minplaytime value="30"/><maxplaytime value="90"/></item></items>',
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await gameDetails(db, 1)).toMatchObject({
+      imageUrl: row.image,
+      minPlayMinutes: 30,
+      maxPlayMinutes: 90,
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(games.bulkWrite).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          updateOne: expect.objectContaining({
+            update: expect.objectContaining({
+              $set: expect.objectContaining({
+                minPlayMinutes: 30,
+                maxPlayMinutes: 90,
+                durationCheckedAt: expect.any(String),
+              }),
+            }),
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("falls back to BGG playingtime and never interprets unknown or invalid durations as zero", async () => {
+    for (const [xml, expected] of [
+      ['<playingtime value="45"/>', { minPlayMinutes: 45, maxPlayMinutes: 45 }],
+      ['<minplaytime value="30"/>', { minPlayMinutes: 30 }],
+      ['<maxplaytime value="90"/>', { maxPlayMinutes: 90 }],
+    ] as const) {
+      const row = { ...sample };
+      games.findOne.mockResolvedValue(row);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: async () => `<items><item id="1">${xml}</item></items>`,
+        }),
+      );
+      expect(await gameDetails(db, 1)).toMatchObject(expected);
+    }
+    for (const xml of [
+      '<minplaytime value="0"/><maxplaytime value="-1"/>',
+      '<minplaytime value="1.5"/><maxplaytime value="NaN"/>',
+      '<minplaytime value="120"/><maxplaytime value="60"/>',
+    ]) {
+      const row = { ...sample };
+      games.findOne.mockResolvedValue(row);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: async () => `<items><item id="1">${xml}</item></items>`,
+        }),
+      );
+      const response = await gameDetails(db, 1);
+      expect(response.minPlayMinutes).toBeUndefined();
+      expect(response.maxPlayMinutes).toBeUndefined();
+      expect(row).toMatchObject({ minPlayMinutes: null, maxPlayMinutes: null });
+    }
+  });
+
+  it("reuses fresh duration metadata and refreshes stale metadata without losing an existing cover", async () => {
+    const row = {
+      ...sample,
+      image: "https://cf.geekdo-images.com/cached.jpg",
+      minPlayMinutes: 30,
+      maxPlayMinutes: 60,
+      durationCheckedAt: new Date().toISOString(),
+    };
+    games.findOne.mockResolvedValue(row);
+    expect(await gameDetails(db, 1)).toMatchObject({ minPlayMinutes: 30, maxPlayMinutes: 60 });
+    games.find.mockReturnValue(cursor([row]));
+    expect(await searchGames(db, "Azul")).toEqual([
+      expect.objectContaining({ minPlayMinutes: 30, maxPlayMinutes: 60 }),
+    ]);
+    expect(unexpectedFetch).not.toHaveBeenCalled();
+    row.durationCheckedAt = new Date(Date.now() - 8 * 86400_000).toISOString();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '<items><item id="1"><maxplaytime value="75"/></item></items>',
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await gameDetails(db, 1)).toMatchObject({
+      imageUrl: row.image,
+      minPlayMinutes: 30,
+      maxPlayMinutes: 75,
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

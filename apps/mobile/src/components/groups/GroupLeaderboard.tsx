@@ -39,6 +39,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
     userId,
     groupId,
     gameId,
+    query: debouncedSearch,
   });
   const choices = games.data?.games ?? [];
   const filteredChoices =
@@ -60,10 +61,10 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
         <Typography>{t("Could not load leaderboards. Retry")}</Typography>
       </Button>
     );
-  if (!choices.length)
+  if (!choices.length && !debouncedSearch)
     return (
       <EmptyList icon={<Dices size={28} color="#737373" />}>
-        {t("No matches played in this group yet")}
+        {t("No rated tables played in this group yet")}
       </EmptyList>
     );
 
@@ -129,6 +130,15 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             </Select.Content>
           </Select.Portal>
         </Select>
+        {games.hasNextPage ? (
+          <Button
+            variant="outline"
+            isDisabled={games.isFetchingNextPage}
+            onPress={() => void games.fetchNextPage()}
+          >
+            <Button.Label>{t("Load more games")}</Button.Label>
+          </Button>
+        ) : null}
         {selected ? (
           <Button
             isIconOnly

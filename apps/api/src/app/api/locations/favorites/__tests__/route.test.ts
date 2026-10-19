@@ -111,24 +111,20 @@ describe("private location favorites", () => {
     ])
       expect((await GET(request("GET", undefined, query))).status, query).toBe(400);
   });
-  it("saves geocoded addresses and authorized match locations, without geocoding matches again", async () => {
+  it("saves verified addresses without entering any legacy Match service", async () => {
     const fromMatch = await POST(request("POST", { location, matchId: location.id }));
-    expect(fromMatch.status).toBe(201);
-    expect(await fromMatch.json()).toEqual({ item: { key, location } });
-    expect(mocks.detail).toHaveBeenCalledWith("user_one", location.id);
+    expect(fromMatch.status).toBe(410);
+    expect(await fromMatch.json()).toEqual({ error: "LEGACY_DOMAIN_RETIRED" });
+    expect(mocks.detail).not.toHaveBeenCalled();
     expect(mocks.geocode).not.toHaveBeenCalled();
-    expect(mocks.save).toHaveBeenCalledWith("user_one", location);
-    expect((await POST(request("POST", { location }))).status).toBe(201);
+    expect(mocks.save).not.toHaveBeenCalled();
+    const saved = await POST(request("POST", { location }));
+    expect(saved.status).toBe(201);
+    expect(await saved.json()).toEqual({ item: { key, location } });
     expect(mocks.geocode).toHaveBeenCalledWith(location.address);
-    mocks.detail
-      .mockResolvedValueOnce({ match: {} })
-      .mockResolvedValueOnce({ match: { locations: [{ ...location, longitude: 1 }] } });
-    expect((await POST(request("POST", { location, matchId: location.id }))).status).toBe(201);
-    expect((await POST(request("POST", { location, matchId: location.id }))).status).toBe(201);
+    expect(mocks.save).toHaveBeenCalledWith("user_one", location);
   });
   it("preserves authorization, verification and upstream errors", async () => {
-    mocks.detail.mockRejectedValueOnce(new MatchError(403, "Forbidden"));
-    expect((await POST(request("POST", { location, matchId: location.id }))).status).toBe(403);
     mocks.geocode.mockResolvedValueOnce([{ ...location, longitude: 1 }]);
     expect((await POST(request("POST", { location }))).status).toBe(400);
     mocks.geocode.mockRejectedValueOnce(new GeocodingError("Geocoding unavailable", 503));

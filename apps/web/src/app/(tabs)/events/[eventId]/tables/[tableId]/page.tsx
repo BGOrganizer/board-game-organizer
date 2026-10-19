@@ -1,9 +1,9 @@
 import { EventTable } from "@/components/events/EventTable";
-export default async function TablePage({
+export default async function Page({
   params,
 }: {
   params: Promise<{ eventId: string; tableId: string }>;
 }) {
-  const { eventId, tableId } = await params;
-  return <EventTable eventId={eventId} tableId={tableId} />;
+  const p = await params;
+  return <EventTable {...p} />;
 }
