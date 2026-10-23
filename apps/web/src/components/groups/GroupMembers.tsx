@@ -66,14 +66,6 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
               >{t`Invitations require an approved group.`}</HelpPopover>
             ) : null}
           </div>
-          <Button
-            variant="ghost"
-            isDisabled={busy || denied}
-            onPress={() => router.push(`/groups/${group.id}/ban`)}
-          >
-            <Ban className="size-4" aria-hidden />
-            {t`Exclude a user`}
-          </Button>
         </div>
       ) : null}
       <GroupedList>
@@ -151,7 +143,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     isIconOnly
                     size="sm"
                     variant="danger-soft"
-                    aria-label={`${t`Exclude from group`}: ${name(person)}`}
+                    aria-label={`${t`Ban from group`}: ${name(person)}`}
                     isDisabled={busy}
                     onPress={() => workflow.open(person, "ban")}
                   >
@@ -214,6 +206,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         <GroupBanDialog
           key={managed.person.userId}
           name={name(managed.person)}
+          timeZone={group.location?.timeZone}
           busy={busy}
           failure={failure}
           onCancel={workflow.close}
@@ -248,6 +241,12 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     label:
                       managed.action === "revoke" ? t`Revoke group exclusion` : t`Remove member`,
                     variant: managed.action === "revoke" ? "primary" : "danger",
+                    icon:
+                      managed.action === "revoke" ? (
+                        <RotateCcw className="size-4" aria-hidden />
+                      ) : (
+                        <UserRoundMinus className="size-4" aria-hidden />
+                      ),
                     onPress: () => void workflow.confirm(),
                   },
                 ]

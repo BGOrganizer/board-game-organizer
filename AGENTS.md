@@ -165,8 +165,10 @@ and source-paged per-game member leaderboards. No archival or type conversion is
 
 Public Group discovery uses paginated four-character searches. Pending membership never grants
 group Event/ranking/social access. Group exclusions remain distinct from global blocking. Events
-are standalone or grouped, with unsaved client drafts, Tables, explicit consent, exact public
-cutoffs, duration/overlap constraints, manual agreement confirmation and immutable results.
+are standalone or grouped, with exactly one day and verified location, a location-derived time zone,
+unsaved client drafts, Tables, explicit consent, exact public cutoffs, duration/overlap constraints,
+manual agreement confirmation and immutable results. New/edited Tables require a minimum of at
+least two players strictly below their maximum; historical record shapes remain readable.
 
 Unified Groups/Events/Tables are **implemented in this branch; acceptance is incomplete**, not
 production-verified. Legacy automatic deadline functions are unregistered. Confirmation stays

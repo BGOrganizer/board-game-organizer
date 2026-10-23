@@ -6,14 +6,13 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
-  formatLocationAddress,
   useFavoriteLocations,
   useGroupRecord,
   useGroupRecordActions,
 } from "@board-game-organizer/shared";
 import { Avatar, Button, Input, Skeleton, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, MapPin, Plus, Save, Send, Trash2, UsersRound, X } from "lucide-react";
+import { ArrowLeft, Plus, Save, Send, Trash2, UsersRound, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -21,6 +20,7 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { LocationFavoriteButton } from "@/components/locations/LocationFavoriteButton";
+import { LocationListRow } from "@/components/locations/LocationListRow";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupLogoPicker } from "./GroupLogoPicker";
@@ -166,43 +166,33 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
         onChange={setLogo}
         onBusyChange={setUploading}
       />
-      <div className="flex items-center gap-2 rounded-lg border border-separator p-3">
-        {location ? (
-          <LocationFavoriteButton location={location} favorites={favorites} />
-        ) : (
-          <MapPin className="size-5 shrink-0" aria-hidden />
-        )}
-        <Button
-          variant="tertiary"
-          className="h-auto min-h-11 min-w-0 flex-1 justify-start px-2 py-1 text-left"
-          aria-label={t`Choose a verified address`}
-          isDisabled={actions.busy || uploading}
-          onPress={() => setPicking("location")}
-        >
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium">
-              {location?.name ?? t`Choose a verified address`}
-            </span>
-            {location ? (
-              <span className="block truncate text-xs text-default-500" title={location.address}>
-                {formatLocationAddress(location.address)}
-              </span>
-            ) : null}
-          </span>
-        </Button>
-        {location && type === "PRIVATE" ? (
-          <Button
-            isIconOnly
-            variant="danger-soft"
-            size="sm"
-            aria-label={t`Remove location`}
-            isDisabled={actions.busy || uploading}
-            onPress={() => setLocation(undefined)}
-          >
-            <X className="size-4" aria-hidden />
-          </Button>
-        ) : null}
-      </div>
+      <GroupedList>
+        <LocationListRow
+          name={location?.name ?? t`Choose a verified address`}
+          address={location?.address}
+          label={t`Choose a verified address`}
+          onPress={actions.busy || uploading ? undefined : () => setPicking("location")}
+          leading={
+            location ? (
+              <LocationFavoriteButton location={location} favorites={favorites} />
+            ) : undefined
+          }
+          actions={
+            location && type === "PRIVATE" ? (
+              <Button
+                isIconOnly
+                variant="danger-soft"
+                size="sm"
+                aria-label={t`Remove location`}
+                isDisabled={actions.busy || uploading}
+                onPress={() => setLocation(undefined)}
+              >
+                <X className="size-4" aria-hidden />
+              </Button>
+            ) : undefined
+          }
+        />
+      </GroupedList>
       {favorites.status.isError ? (
         <p role="alert" className="text-danger">{t`Could not load favorite locations`}</p>
       ) : null}

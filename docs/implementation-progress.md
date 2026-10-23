@@ -1,6 +1,40 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
-## Unified domain delivery — PR #22
+## Group and Event wizard follow-up — PR #22 (2026-10-23)
+
+The operator clarified one day and one verified location for every Event, including PRIVATE Groups.
+New/edited Table inputs require at least two minimum players and a strictly larger maximum; historical
+record shapes remain readable. Location time zones are derived from verified coordinates on the API,
+not selected manually. Existing immutable instants and legacy planning clocks are not silently moved.
+
+Both clients now share staged draft validation while retaining platform-owned controls: contextual
+Groups are read-only, Next starts enabled then exposes inline errors and waits for corrections,
+Back/Next use labelled arrows, player limits use bounded primary counters, and date/location/game
+removal stays inside its list item. Reviews use read-only rows and Table cards with rating badges.
+Native time selection no longer requires selecting a day first. Group detail has padded cards,
+centered tabs, an edit FAB, and roster-only Ban actions with explicit icon-bearing confirmations.
+
+Verification for this follow-up:
+
+- Frozen pnpm graph installation succeeds; only API dependency `geo-tz` was added. No retained
+  dependency was upgraded. Only its required post-1970 geographic dataset is traced for deployment.
+- Workspace typecheck and all five coverage suites pass: API **583**, web **282**, mobile pure
+  logic/source contracts **159**, shared **193**, schemas **106** (**1,323 tests**). Existing 100%
+  deterministic gates remain unchanged; the new API time-zone resolver also has a 100% gate.
+- Real-Mongo replica-set integration: **69 passed**, three files, zero skips. Node policy suite:
+  **95 passed**, zero skips. Scoped Biome and whitespace checks pass. Private local service JSON
+  and unrelated worktree changes remain untouched; clean CI owns the full repository lint gate.
+- English/Italian source and compiled catalogs are synchronized, including native-only strings.
+- Next API/web production builds and Android Metro/Hermes export pass. API tracing includes both
+  geographic lookup files and excludes unused datasets. Generated Next type references are restored
+  to their original local contents after validation.
+
+No application DB reset/deletion, provider configuration, fixture recreation or manual deployment
+was performed. Playwright/Maestro suites and CI E2E policy remain unchanged. This follow-up does not
+claim live native, E2E or production acceptance; compiled exports and source contracts are not those
+acceptance gates. Earlier evidence below belongs to its recorded baseline.
+
+## Unified domain delivery — previous PR #22 baseline (`9f7f191`)
 
 The active contract is [Groups / Events / Tables](groups-events-refactor.md). Source implementation
 now includes both platform editors/results, source-paged group/member/game/table workflows,

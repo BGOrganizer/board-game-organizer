@@ -8,6 +8,7 @@ export const verifiedLocationSchema = z
     address: z.string().trim().min(1).max(500),
     longitude: z.number().finite().min(-180).max(180),
     latitude: z.number().finite().min(-90).max(90),
+    timeZone: z.string().min(1).max(100).optional(),
   })
   .strict();
 export type VerifiedLocation = z.infer<typeof verifiedLocationSchema>;

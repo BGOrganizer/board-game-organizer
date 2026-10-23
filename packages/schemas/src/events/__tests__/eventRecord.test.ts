@@ -84,6 +84,35 @@ describe("unified event request boundaries", () => {
     ])
       expect(createPlannedEventSchema.safeParse({ ...input, ...patch }).success).toBe(false);
   });
+  it("requires one unique day and one venue on every new/grouped/standalone write, and a strict player interval", () => {
+    for (const groupId of [null, id]) {
+      const base = { ...input, groupId };
+      for (const patch of [
+        { dates: [] },
+        { locations: [] },
+        { dates: [...input.dates, { id: other, day: "2027-01-04" }] },
+        {
+          locations: [location, { ...location, id: other, address: "Different verified address" }],
+        },
+      ]) {
+        expect(createPlannedEventSchema.safeParse({ ...base, ...patch }).success).toBe(false);
+        const { groupId: _group, ...edited } = base;
+        expect(
+          editPlannedEventSchema.safeParse({ ...edited, ...patch, version: 1, removedTableIds: [] })
+            .success,
+        ).toBe(false);
+      }
+    }
+    expect(
+      plannedTableInputSchema.safeParse({ ...table, minPlayers: 2, maxPlayers: 2 }).success,
+    ).toBe(false);
+    expect(
+      plannedTableInputSchema.safeParse({ ...table, minPlayers: 1, maxPlayers: 2 }).success,
+    ).toBe(false);
+    expect(
+      plannedTableInputSchema.safeParse({ ...table, minPlayers: 2, maxPlayers: 3 }).success,
+    ).toBe(true);
+  });
   it("editing upserts only supplied tables and requires EXPLICIT removals, never deleting unloaded pages", () => {
     const { groupId: _group, ...editable } = input;
     expect(
@@ -187,6 +216,24 @@ it("stores only the new lifecycle and table/registration data, not independent o
     updatedAt: at,
   };
   expect(eventRecordSchema.safeParse(record).success).toBe(true);
+  expect(
+    eventRecordSchema.safeParse({
+      ...record,
+      dates: [...record.dates, { id: other, day: "2027-01-04" }],
+      locations: [...record.locations, { ...location, id: other }],
+    }).success,
+  ).toBe(true);
+  expect(
+    tableRecordSchema.safeParse({
+      ...table,
+      minPlayers: 2,
+      maxPlayers: 2,
+      eventId: id,
+      order: 0,
+      createdAt: at,
+      updatedAt: at,
+    }).success,
+  ).toBe(true);
   for (const status of ["DRAFT", "PUBLISHED", "CANCELLED", "CREATED"])
     expect(eventRecordSchema.safeParse({ ...record, status }).success).toBe(false);
   expect(

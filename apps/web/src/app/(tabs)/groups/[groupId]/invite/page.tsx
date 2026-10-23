@@ -5,5 +5,5 @@ export default async function GroupInvitePage({
   params: Promise<{ groupId: string }>;
 }) {
   const { groupId } = await params;
-  return <GroupPeoplePicker groupId={groupId} mode="invite" />;
+  return <GroupPeoplePicker groupId={groupId} />;
 }

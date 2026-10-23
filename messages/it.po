@@ -516,11 +516,15 @@ msgstr "Aggiungi"
 #~ msgid "Add another game"
 #~ msgstr "Aggiungi un altro gioco"
 
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Add at least one table."
+msgstr "Aggiungi almeno un tavolo."
+
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 msgid "Add contacts"
 msgstr "Aggiungi contatti"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Add date"
 msgstr "Aggiungi data"
 
@@ -609,7 +613,7 @@ msgstr "Consenti l'accesso alla rubrica per trovare qui i tuoi amici."
 msgid "Allow Board Game Organizer to access your contacts to find your friends?"
 msgstr "Consentire a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "An approved group and its administrator are required."
 msgstr "Sono necessari un gruppo approvato e il suo amministratore."
 
@@ -665,6 +669,10 @@ msgstr "Confermi?"
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "At least 5 characters"
 msgstr "Almeno 5 caratteri"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "At least two players are required. The minimum must be lower than the maximum."
+msgstr "Servono almeno due giocatori. Il minimo deve essere inferiore al massimo."
 
 #: apps/web/src/components/games/GameCatalogMetadata.tsx
 msgid "Average"
@@ -723,6 +731,11 @@ msgstr "Torna al tavolo"
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Ban"
 msgstr "Banna"
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Ban from group"
+msgstr "Banna dal gruppo"
 
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Ban from organization"
@@ -786,12 +799,16 @@ msgstr "Giochi da tavolo"
 msgid "BoardGameGeek disconnected"
 msgstr "BoardGameGeek scollegato"
 
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "BoardGameGeek has no duration for this game. Enter a positive whole number of minutes."
+msgstr "BoardGameGeek non indica la durata di questo gioco. Inserisci un numero intero positivo di minuti."
+
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "BoardGameGeek sync started"
 #~ msgstr "Sincronizzazione BoardGameGeek avviata"
 
 #: apps/web/src/components/events/EventDetail.tsx
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Booking cutoff"
 msgstr "Termine iscrizioni"
 
@@ -907,9 +924,21 @@ msgstr "Controlla questo campo."
 msgid "Choice saved"
 msgstr "Scelta salvata"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#. Native runtime message
+msgid "Choose a calendar day."
+msgstr "Scegli un giorno sul calendario."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Choose a game"
 msgstr "Scegli un gioco"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose a local start within the event. The entire table duration must fit before the event ends."
+msgstr "Scegli un orario locale di inizio durante l’evento. Il tavolo deve terminare prima della fine dell’evento."
+
+#. Native runtime message
+msgid "Choose a local time."
+msgstr "Scegli un orario locale."
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose a name, a start and a later end (also on another day), and a verified address."
@@ -923,12 +952,24 @@ msgstr "Scegli un nome da 5 a 120 caratteri."
 msgid "Choose a name, start and end on the same day, and a verified address. Times use the event's local time zone."
 msgstr "Scegli un nome, inizio e fine nello stesso giorno e un indirizzo verificato. Gli orari usano il fuso orario locale dell'evento."
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a recognizable event name between 5 and 120 characters."
+msgstr "Scegli un nome riconoscibile per l’evento, tra 5 e 120 caratteri."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose a table start and duration within the event."
+msgstr "Scegli inizio e durata del tavolo entro l’intervallo dell’evento."
+
 msgid "Choose a time within the allowed range."
 msgstr "Scegli un orario compreso nell'intervallo consentito."
 
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "Choose a unique name, from 5 to 120 characters."
 msgstr "Scegli un nome univoco, da 5 a 120 caratteri."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a valid booking cutoff before the event starts."
+msgstr "Scegli una scadenza valida per le iscrizioni prima dell’inizio dell’evento."
 
 msgid "Choose a valid date and time; this local time may not exist."
 msgstr "Scegli una data e un orario validi; questo orario locale potrebbe non esistere."
@@ -940,6 +981,11 @@ msgstr "Scegli una data e un orario di inizio validi e futuri."
 msgid "Choose a valid future date and time."
 msgstr "Scegli una data e un'ora future valide."
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a valid local start time."
+msgstr "Scegli un orario locale di inizio valido."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Choose a verified address"
 msgstr "Scegli un indirizzo verificato"
@@ -951,6 +997,10 @@ msgstr "Scegli un indirizzo verificato."
 msgid "Choose a verified event address from search or your favorites."
 msgstr "Scegli un indirizzo verificato per l'evento dalla ricerca o dai preferiti."
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose an event end after its start."
+msgstr "Scegli una fine dell’evento successiva all’inizio."
+
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose an event name with 5–120 characters."
 msgstr "Scegli un nome dell'evento di 5–120 caratteri."
@@ -958,6 +1008,14 @@ msgstr "Scegli un nome dell'evento di 5–120 caratteri."
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Choose an organization"
 msgstr "Scegli un'organizzazione"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose at least one game."
+msgstr "Scegli almeno un gioco."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose at least one game. Use the empty game slot to add another option. Players vote on these games."
+msgstr "Scegli almeno un gioco. Usa lo spazio vuoto per aggiungere un’altra opzione. I giocatori votano questi giochi."
 
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Choose date"
@@ -967,6 +1025,14 @@ msgstr "Scegli la data"
 msgid "Choose demonstrator"
 msgstr "Scegli dimostratore"
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose exactly one event day."
+msgstr "Scegli un solo giorno per l’evento."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose exactly one verified location."
+msgstr "Scegli un solo luogo con indirizzo verificato."
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Choose game"
 msgstr "Scegli il gioco"
@@ -974,6 +1040,11 @@ msgstr "Scegli il gioco"
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Choose location"
 msgstr "Scegli luogo"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Choose one of your groups, or create a standalone event without a group."
+msgstr "Scegli uno dei tuoi gruppi oppure crea un evento indipendente senza gruppo."
 
 #: apps/mobile/src/app/match/[matchId].tsx
 #~ msgid "Choose preference"
@@ -1035,7 +1106,7 @@ msgstr "Collezione"
 #~ msgid "Coming soon"
 #~ msgstr "Prossimamente"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Common start time"
 msgstr "Ora di inizio comune"
 
@@ -1254,6 +1325,10 @@ msgstr "Impossibile eliminare la partita"
 msgid "Could not delete notification"
 msgstr "Impossibile eliminare la notifica"
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Could not determine the location time zone. Choose a verified address."
+msgstr "Impossibile determinare il fuso orario del luogo. Scegli un indirizzo verificato."
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not disconnect BoardGameGeek"
 msgstr "Impossibile scollegare BoardGameGeek"
@@ -1335,6 +1410,7 @@ msgstr "Impossibile caricare gli amici. Riprova"
 msgid "Could not load game details"
 msgstr "Impossibile caricare i dettagli del gioco"
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/groups/GroupPeoplePicker.tsx
 msgid "Could not load group"
 msgstr "Impossibile caricare il gruppo"
@@ -1727,6 +1803,14 @@ msgstr "Rifiuta invito"
 msgid "Declined"
 msgstr "Rifiutato"
 
+#. Native runtime message
+msgid "Decrease"
+msgstr "Diminuisci"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Decrease {label}"
+msgstr "Diminuisci {label}"
+
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Decrease max players"
@@ -1765,6 +1849,7 @@ msgstr "Elimina notifica"
 msgid "Delete notification?"
 msgstr "Eliminare la notifica?"
 
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventTable.tsx
 msgid "Demonstrator"
 msgstr "Dimostratore"
@@ -1822,6 +1907,16 @@ msgstr "es. Serata di giochi da tavolo"
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "e.g. Friday night games"
 msgstr "es. Partite del venerdì sera"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Each event has one calendar day. Remove the selected day before choosing another."
+msgstr "Ogni evento si svolge in un solo giorno. Rimuovi il giorno selezionato prima di sceglierne un altro."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Each event has one verified address. Its time zone is automatic. Remove the location before choosing another."
+msgstr "Ogni evento ha un solo indirizzo verificato. Il fuso orario è automatico. Rimuovi il luogo prima di sceglierne un altro."
 
 #: apps/web/src/components/groups/Groups.tsx
 #~ msgid "Edit"
@@ -1901,12 +1996,24 @@ msgstr "Inserisci un punteggio per ogni giocatore o indica che non ha partecipat
 msgid "Enter a score for every frozen player or mark them as not participating. An all-ND table changes no ratings or statistics."
 msgstr "Inserisci il punteggio di ogni giocatore confermato o segna chi non ha partecipato. Un tavolo con soli ND non modifica ranking o statistiche."
 
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Enter a table name between 1 and 120 characters."
+msgstr "Inserisci un nome per il tavolo tra 1 e 120 caratteri."
+
 msgid "Enter a table name with 1–120 characters."
 msgstr "Inserisci un nome del tavolo di 1–120 caratteri."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Enter a valid game duration in minutes."
+msgstr "Inserisci una durata valida del gioco in minuti."
 
 #: apps/web/src/components/events/TableScoreEditor.tsx
 msgid "Enter a valid score"
 msgstr "Inserisci un punteggio valido"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Enter an event name between 5 and 120 characters."
+msgstr "Inserisci un nome per l’evento tra 5 e 120 caratteri."
 
 msgid "Enter an event name with 5–120 characters."
 msgstr "Inserisci un nome dell'evento di 5–120 caratteri."
@@ -1949,7 +2056,8 @@ msgstr "Data evento"
 msgid "Event date and time help"
 msgstr "Aiuto data e orario dell'evento"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Event day"
 msgstr "Giorno evento"
 
@@ -1958,7 +2066,7 @@ msgid "Event detail"
 msgstr "Dettaglio evento"
 
 #: apps/web/src/components/events/EventDetail.tsx
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Event end"
 msgstr "Fine evento"
 
@@ -1980,7 +2088,7 @@ msgstr "Luogo evento"
 msgid "Event location help"
 msgstr "Aiuto luogo dell'evento"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Event name"
 msgstr "Nome dell'evento"
 
@@ -2067,6 +2175,9 @@ msgstr "Termine esclusione"
 msgid "Favorite locations"
 msgstr "Location preferite"
 
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 #: apps/web/src/components/groups/GroupLogoPicker.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Field help"
@@ -2101,6 +2212,10 @@ msgstr "Following"
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 msgid "Former group member"
 msgstr "Uscito dal gruppo"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Friday game night"
+msgstr "Serata giochi del venerdì"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Friend removed"
@@ -2164,9 +2279,9 @@ msgstr "Gioco non disponibile"
 msgid "games"
 msgstr "giochi"
 
-#: apps/web/src/components/matches/MatchDetail.tsx
-#~ msgid "Games"
-#~ msgstr "Giochi"
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Games"
+msgstr "Giochi"
 
 #: apps/web/src/components/groups/GroupLeaderboard.tsx
 msgid "Games played"
@@ -2198,8 +2313,10 @@ msgstr "Classifiche globali disabilitate"
 msgid "Global ratings enabled"
 msgstr "Classifiche globali abilitate"
 
-#~ msgid "Group"
-#~ msgstr "Gruppo"
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Group"
+msgstr "Gruppo"
 
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Group (optional)"
@@ -2330,6 +2447,14 @@ msgstr "Se necessario"
 #: apps/web/src/components/matches/Matches.tsx
 msgid "In progress"
 msgstr "In corso"
+
+#. Native runtime message
+msgid "Increase"
+msgstr "Aumenta"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Increase {label}"
+msgstr "Aumenta {label}"
 
 #: apps/web/src/components/events/EventTableEditor.tsx
 #: apps/web/src/components/matches/MatchWizard.tsx
@@ -2555,9 +2680,8 @@ msgstr "Caricamento profilo"
 msgid "location"
 msgstr "location"
 
-#: apps/web/src/components/events/EventOverview.tsx
-#: apps/web/src/components/events/EventWizard.tsx
-#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "Location"
 msgstr "Luogo"
 
@@ -2689,6 +2813,7 @@ msgstr "Massimo"
 msgid "Max must be at least min"
 msgstr "Il massimo deve essere almeno uguale al minimo"
 
+#: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Maximum players"
 msgstr "Giocatori massimi"
@@ -2734,6 +2859,7 @@ msgstr "Adesione richiesta"
 msgid "Min"
 msgstr "Minimo"
 
+#: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Minimum players"
 msgstr "Giocatori minimi"
@@ -2778,6 +2904,10 @@ msgstr "Sposta su"
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
 msgid "Name"
 msgstr "Nome"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Name this table so players can recognize it. Use between 1 and 120 characters."
+msgstr "Assegna al tavolo un nome riconoscibile per i giocatori, tra 1 e 120 caratteri."
 
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
 msgid "Name, logo and group type. Group type cannot be changed."
@@ -2863,7 +2993,7 @@ msgstr "Nessun contatto da invitare"
 msgid "No countries found"
 msgstr "Nessun paese trovato"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventDraftTableCard.tsx
 msgid "No demonstrator"
 msgstr "Nessun dimostratore"
 
@@ -2904,7 +3034,9 @@ msgstr "Nessun amico trovato"
 msgid "No games found"
 msgstr "Nessun gioco trovato"
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
 msgid "No group"
 msgstr "Nessun gruppo"
 
@@ -3152,6 +3284,10 @@ msgstr "Apri partita del tavolo"
 #: apps/web/src/components/events/EventTableEditor.tsx
 msgid "Optional: choose a confirmed organization member. They can record this table's results but do not automatically reserve a player seat."
 msgstr "Facoltativo: scegli un membro confermato dell'organizzazione. Può registrare i risultati del tavolo, ma non occupa automaticamente un posto come giocatore."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap."
+msgstr "Puoi assegnare un membro effettivo del gruppo come dimostratore di questo tavolo pubblico. I suoi altri tavoli non devono sovrapporsi."
 
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Organization admin"
@@ -3437,6 +3573,14 @@ msgstr "Ranking"
 msgid "Rankings"
 msgstr "Classifiche"
 
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+msgid "Rated"
+msgstr "Ranking attivo"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Rated tables update player ratings after final results. At least two players must have a score."
+msgstr "I tavoli con ranking attivo aggiornano le valutazioni dopo i risultati finali. Almeno due giocatori devono avere un punteggio."
+
 #: apps/web/src/components/events/EventTableHeading.tsx
 msgid "Rating"
 msgstr "Rating"
@@ -3478,6 +3622,10 @@ msgstr "Registrare la partita?"
 msgid "Register results"
 msgstr "Registra risultati"
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Registration closes at this local date and time, before the event starts. A new event needs a future cutoff."
+msgstr "Le iscrizioni chiudono in questa data e ora locale, prima dell’inizio dell’evento. Per un nuovo evento la scadenza deve essere futura."
+
 #: apps/web/src/components/groups/GroupMembers.tsx
 #: apps/web/src/components/groups/GroupReview.tsx
 msgid "Reject"
@@ -3511,7 +3659,7 @@ msgstr "Elimina"
 msgid "Remove and exclude"
 msgstr "Elimina-Blocca"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Remove date"
 msgstr "Rimuovi data"
 
@@ -3547,7 +3695,7 @@ msgstr "Rimuovi gioco"
 msgid "Remove invite"
 msgstr "Rimuovi invito"
 
-#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Remove location"
 msgstr "Rimuovi luogo"
@@ -3958,6 +4106,10 @@ msgstr "Invia richiesta"
 msgid "Sent"
 msgstr "Inviate"
 
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Set the table capacity above the minimum number of players."
+msgstr "Imposta una capienza superiore al numero minimo di giocatori."
+
 #: apps/web/src/components/groups/Groups.tsx
 msgid "Settings"
 msgstr "Impostazioni"
@@ -4023,6 +4175,10 @@ msgstr "Inizia alle"
 #: apps/web/src/components/common/ui/WizardSteps.tsx
 msgid "Steps"
 msgstr "Passaggi"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Strategy table"
+msgstr "Tavolo di strategia"
 
 #: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Submit for review"
@@ -4126,6 +4282,10 @@ msgstr "La corona identifica l’amministratore del match."
 msgid "The demonstrator explains the game and can record this table's results. This role does not automatically reserve a player seat."
 msgstr "Il dimostratore spiega il gioco e può registrare i risultati del tavolo. Questo ruolo non riserva automaticamente un posto come giocatore."
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "The end must follow the event start. All public tables must finish within this interval."
+msgstr "La fine deve essere successiva all’inizio dell’evento. Tutti i tavoli pubblici devono terminare entro questo intervallo."
+
 #: apps/web/src/components/events/EventOverview.tsx
 msgid "The event date and start/end times are shown in the event's time zone."
 msgstr "La data e gli orari di inizio e fine sono mostrati nel fuso orario dell'evento."
@@ -4133,6 +4293,10 @@ msgstr "La data e gli orari di inizio e fine sono mostrati nel fuso orario dell'
 #: apps/web/src/components/events/EventTableOverview.tsx
 msgid "The event day and this table's start and end times are fixed. There is no voting."
 msgstr "Il giorno dell’evento e gli orari di inizio e fine del tavolo sono fissi. Non si vota."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "The event starts at this local time. Its time zone is determined automatically from the selected location."
+msgstr "L’evento inizia a questa ora locale. Il fuso orario viene determinato automaticamente dal luogo selezionato."
 
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "The friend request will be declined."
@@ -4145,6 +4309,10 @@ msgstr "L'amicizia e il tuo follow verranno rimossi."
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
 msgid "The group's verified venue and full address."
 msgstr "La sede verificata del gruppo e l'indirizzo completo."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "The minimum must be at least two and lower than the maximum."
+msgstr "Il minimo deve essere almeno due e inferiore al massimo."
 
 #: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "The organization invitation will be cancelled. You can invite this user again."
@@ -4185,6 +4353,11 @@ msgstr "Questo contatto non sarà più bloccato."
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "This deletes the match and all invitations. This action cannot be undone."
 msgstr "Questa operazione elimina la partita e tutti gli inviti. Non può essere annullata."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "This event belongs to this group. The group cannot be changed."
+msgstr "L’evento appartiene a questo gruppo. Il gruppo non può essere modificato."
 
 #: apps/web/src/components/events/EventResults.tsx
 #: apps/web/src/components/events/EventWizard.tsx
@@ -4244,7 +4417,6 @@ msgid "This table's game is fixed. The cover, BoardGameGeek rating and rank desc
 msgstr "Il gioco del tavolo è fisso. Copertina, voto e posizione BoardGameGeek descrivono il gioco scelto, non il rating dei giocatori."
 
 #: apps/web/src/components/groups/GroupMembers.tsx
-#: apps/web/src/components/groups/GroupPeoplePicker.tsx
 msgid "This user is involved in a frozen public event and cannot be excluded."
 msgstr "Questo utente partecipa a un evento pubblico bloccato dopo il termine delle iscrizioni e non può essere escluso."
 
@@ -4276,6 +4448,7 @@ msgstr "Attiva/disattiva menu"
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventResults.tsx
 #: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/events/EventTable.tsx
 #: apps/web/src/components/events/EventWizard.tsx
 #: apps/web/src/components/events/Tables.tsx
@@ -4311,6 +4484,7 @@ msgstr "Sbloccare il contatto?"
 msgid "Unfollow"
 msgstr "Non seguire più"
 
+#: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventTable.tsx
 #: apps/web/src/components/events/EventVoteButtons.tsx
@@ -4325,6 +4499,10 @@ msgstr "I tavoli non caricati vengono conservati. Saranno eliminati soltanto que
 #: apps/web/src/components/games/GameCatalogMetadata.tsx
 msgid "Unranked"
 msgstr "Non classificato"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+msgid "Unrated"
+msgstr "Ranking disattivo"
 
 #: apps/web/src/components/groups/GroupLogoPicker.tsx
 msgid "Upload"

@@ -65,6 +65,7 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
         <FloatingActions
           href={`/events/new${groupId ? `?groupId=${groupId}` : ""}`}
           label={t`Create event`}
+          left={Boolean(groupId)}
         >
           <Plus className="size-6" />
         </FloatingActions>

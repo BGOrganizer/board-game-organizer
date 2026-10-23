@@ -35,6 +35,7 @@ import type { RelationshipRepository } from "../contacts/relationship.repository
 import type { BoardGamesRepository } from "../games/boardGames.repository";
 import type { GroupRecordsRepository } from "../groups/group-records.repository";
 import { verifyCommunityLocation } from "../locations/community-location";
+import { locationTimeZone } from "../locations/location-time-zone";
 import type { NotificationsRepository } from "../notifications/notifications.repository";
 import type { RatingsRepository } from "../ratings/ratings.repository";
 import type { UsersRepository } from "../users/users.repository";
@@ -196,6 +197,10 @@ export class EventRecordsService {
               : "member";
     return {
       ...visible,
+      locations: visible.locations.map((location) => ({
+        ...location,
+        timeZone: locationTimeZone(location),
+      })),
       ...eventRecordCapabilities(
         event,
         group?.type ?? null,
@@ -318,7 +323,9 @@ export class EventRecordsService {
     }
     return result;
   }
-  private validatePublic(event: EventRecord, group: GroupRecord | null, creating: boolean) {
+  private validateSchedule(event: EventRecord, group: GroupRecord | null, creating: boolean) {
+    if (event.dates.length !== 1 || event.locations.length !== 1)
+      throw new CommunityError(400, "EVENT_FIXED_SCHEDULE_REQUIRED");
     try {
       for (const date of event.dates)
         eventLocalToIso(`${date.day}T${event.startTime}`, event.timeZone);
@@ -383,7 +390,7 @@ export class EventRecordsService {
       name: input.name,
       dates: input.dates,
       locations,
-      timeZone: input.timeZone,
+      timeZone: locationTimeZone(locations[0]),
       startTime: input.startTime,
       ...(input.endsAt ? { endsAt: new Date(input.endsAt).toISOString() } : {}),
       ...(input.bookingClosesAt
@@ -397,7 +404,7 @@ export class EventRecordsService {
       createdAt: at,
       updatedAt: at,
     };
-    this.validatePublic(event, group, true);
+    this.validateSchedule(event, group, true);
     const tables = await this.prepareTables(event, group, input.tables, []);
     this.validateOverlaps(event, group, tables, []);
     await this.events.create(event);
@@ -416,6 +423,7 @@ export class EventRecordsService {
     const retained = currentTables.filter((table) => !input.removedTableIds.includes(table.id));
     if (input.tables.some((table) => table.id && input.removedTableIds.includes(table.id)))
       throw new CommunityError(400, "TABLE_CHANGED_AND_REMOVED");
+    const timeZone = locationTimeZone(input.locations[0]);
     for (const date of input.dates)
       if (
         event.dates.some(
@@ -423,7 +431,7 @@ export class EventRecordsService {
             row.id === date.id &&
             (row.day !== date.day ||
               event.startTime !== input.startTime ||
-              event.timeZone !== input.timeZone),
+              event.timeZone !== timeZone),
         )
       )
         throw new CommunityError(400, "OPTION_ID_REUSED");
@@ -444,6 +452,7 @@ export class EventRecordsService {
       ...event,
       ...fields,
       locations,
+      timeZone,
       ...(input.endsAt ? { endsAt: new Date(input.endsAt).toISOString() } : {}),
       ...(input.bookingClosesAt
         ? { bookingClosesAt: new Date(input.bookingClosesAt).toISOString() }
@@ -451,7 +460,7 @@ export class EventRecordsService {
       version: event.version + 1,
       updatedAt: new Date().toISOString(),
     };
-    this.validatePublic(next, group, false);
+    this.validateSchedule(next, group, false);
     const edits = await this.prepareTables(next, group, input.tables, retained);
     const merged = [
       ...retained.filter((table) => !edits.some((row) => row.id === table.id)),
@@ -887,6 +896,10 @@ export class EventRecordsService {
         if (participant !== userId && (await this.relationships.isBlocked(userId, participant)))
           throw new CommunityError(409, "BLOCKED_PARTICIPANT");
     const at = new Date().toISOString();
+    const location = event.locations.find((row) => row.id === plan.locationId);
+    if (!location) throw new CommunityError(409, "INVALID_EVENT_TIME");
+    // Legacy plans keep their stored clock until explicitly edited; never reinterpret old snapshots.
+    const scheduled = { ...event, timeZone: location.timeZone ?? event.timeZone };
     for (const table of tables) {
       const included = plan.includedTables.find((row) => row.tableId === table.id);
       if (included)
@@ -896,7 +909,7 @@ export class EventRecordsService {
             gameId: included.gameId,
             playerIds: included.participantIds,
             ...plannedTableInterval(
-              event,
+              scheduled,
               table,
               group?.type ?? null,
               plan.dateId,
@@ -913,6 +926,7 @@ export class EventRecordsService {
     const next: EventRecord = {
       ...event,
       status: "CONFIRMED",
+      timeZone: scheduled.timeZone,
       confirmed: { dateId: plan.dateId, locationId: plan.locationId, at },
       version: event.version + 1,
       updatedAt: at,

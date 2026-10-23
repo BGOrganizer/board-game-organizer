@@ -6,7 +6,7 @@ export default function GroupInviteScreen() {
   const { groupId } = useLocalSearchParams<{ groupId?: string }>(),
     t = useT();
   return groupId ? (
-    <GroupPeoplePicker groupId={groupId} mode="invite" />
+    <GroupPeoplePicker groupId={groupId} />
   ) : (
     <Typography accessibilityRole="alert" className="text-danger">
       {t("Group not found")}

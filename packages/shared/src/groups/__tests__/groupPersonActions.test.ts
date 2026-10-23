@@ -11,7 +11,7 @@ it("separates group administration from global social blocking and protects the 
   const membership = { status: "PENDING", kind: "REQUEST" } as GroupMembership;
   expect(groupPersonActions({ role: "accepted" }, member)).toEqual([]);
   expect(groupPersonActions({ role: "admin" }, { ...member, isAdmin: true })).toEqual([]);
-  expect(groupPersonActions({ role: "admin" }, member)).toEqual(["ban"]);
+  expect(groupPersonActions({ role: "admin" }, member)).toEqual([]);
   expect(groupPersonActions({ role: "admin" }, { ...member, membership })).toEqual([
     "approve",
     "reject",
@@ -34,7 +34,13 @@ it("separates group administration from global social blocking and protects the 
       { role: "admin" },
       { ...member, membership: { ...membership, status: "LEFT" } },
     ),
-  ).toEqual(["ban"]);
+  ).toEqual([]);
+  expect(
+    groupPersonActions(
+      { role: "admin" },
+      { ...member, membership: { ...membership, status: "DECLINED" } },
+    ),
+  ).toEqual([]);
   expect(groupPersonActions({ role: "admin" }, { ...member, ban: {} as GroupBan })).toEqual([
     "revoke",
   ]);
@@ -43,5 +49,5 @@ it("separates group administration from global social blocking and protects the 
       { role: "admin" },
       { ...member, ban: { revokedAt: "2027-01-01T00:00:00Z" } as GroupBan },
     ),
-  ).toEqual(["ban"]);
+  ).toEqual([]);
 });

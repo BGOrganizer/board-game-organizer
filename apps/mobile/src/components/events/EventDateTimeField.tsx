@@ -24,6 +24,7 @@ export function EventDateTimeField({
   max,
   error,
   help,
+  isDisabled = false,
   onChange,
 }: {
   label: string;
@@ -36,6 +37,7 @@ export function EventDateTimeField({
   max?: string;
   error?: string;
   help?: string;
+  isDisabled?: boolean;
   onChange: (value: string) => void;
 }) {
   const t = useT();
@@ -51,7 +53,10 @@ export function EventDateTimeField({
     today = new Date().toISOString().slice(0, 10);
     invalidZone = true;
   }
-  const wall = value || `${day || today}T00:00`;
+  const wall =
+    mode === "time" && /^\d{2}:\d{2}$/.test(value)
+      ? `${day || today}T${value}`
+      : value || `${day || today}T00:00`;
   const bounded = min && wall < min ? min : max && wall > max ? max : wall;
   const initial = new Date(`${bounded}Z`);
   const commit = (date: Date) => {
@@ -89,11 +94,11 @@ export function EventDateTimeField({
   const Icon = mode === "date" ? CalendarDays : Clock3;
   return (
     <View style={{ gap: 6 }}>
-      {help ? (
-        <SearchHelpLabel label={label} help={help} helpTitle={t("Field help")} />
-      ) : (
-        <Typography className="font-medium text-foreground">{label}</Typography>
-      )}
+      <SearchHelpLabel
+        label={label}
+        help={help ?? (mode === "date" ? t("Choose a calendar day.") : t("Choose a local time."))}
+        helpTitle={t("Field help")}
+      />
       <GroupedList>
         <GroupedRow>
           <Icon size={20} color={muted} />
@@ -101,9 +106,7 @@ export function EventDateTimeField({
             variant="ghost"
             accessibilityLabel={label}
             testID={testID}
-            isDisabled={Boolean(
-              invalidZone || (mode === "time" && !day) || (min && max && min > max),
-            )}
+            isDisabled={Boolean(isDisabled || invalidZone || (min && max && min > max))}
             onPress={pick}
             style={{ flex: 1, minHeight: 44, justifyContent: "flex-start", paddingHorizontal: 0 }}
           >
@@ -114,7 +117,7 @@ export function EventDateTimeField({
                       ? { dateStyle: "medium" as const }
                       : { timeStyle: "short" as const }),
                     timeZone: "UTC",
-                  }).format(new Date(`${value}Z`))
+                  }).format(new Date(`${wall}Z`))
                 : mode === "date"
                   ? t("Pick event day")
                   : t("Pick time")}
@@ -124,7 +127,7 @@ export function EventDateTimeField({
       </GroupedList>
       {invalidZone ? (
         <Typography accessibilityRole="alert" className="text-danger">
-          {t("Choose a valid time zone.")}
+          {t("Could not determine the location time zone. Choose a verified address.")}
         </Typography>
       ) : null}
       {error || pickerError ? (

@@ -48,8 +48,11 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   events. Standalone invitations are friend-only; grouped participants must be accepted members.
 - PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
   The organizer plays only through explicit table registration, never an automatic seat.
-- Shared event options: dates, verified locations, common start time and time zone. Each table has
-  candidate games, minimum/maximum players and optional ratings. No independent Match is generated.
+- Every new or explicitly edited Event has exactly one calendar day and one verified location,
+  whether standalone or in a PRIVATE/PUBLIC Group. Its common start time is local to that location;
+  the API derives the IANA time zone from verified coordinates, never a manual field or device zone.
+  Each Table has candidate games, a minimum of at least two players strictly below its maximum,
+  and optional ratings. No independent Match is generated. Historical records are not rewritten.
 - Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
   are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
   deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
@@ -58,7 +61,7 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   priority but **cannot vote, count toward minimums, agreement or the frozen roster**. Voting never
   accepts an invitation. Accepted waiting players may vote.
 - Private-group accepted members can enroll directly; no extra booking-approval workflow.
-- Public events have one fixed day/location, start/end and exact booking cutoff. Their tables have
+- Public events additionally require an end and exact booking cutoff. Their tables have
   fixed starts and BGG-derived duration; missing metadata requires explicit administrator duration.
   Planning uses the longest candidate duration; confirmation snapshots the selected game duration.
   Overnight/multiday ends are ISO instants, not truncated times. Player and demonstrator duties
@@ -70,6 +73,19 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   table must agree; others remain present but excluded. Reopening preserves votes, invitations,
   priorities, participation and excluded tables except explicit removals/exclusions; it never
   silently extends the cutoff. TERMINATED events cannot reopen.
+
+## Location time zones
+
+The API uses the offline [geo-tz](https://github.com/evansiroky/node-geo-tz) geographic lookup on
+server-verified coordinates; it does not infer offsets from longitude or the device clock.
+Its boundaries originate from [timezone-boundary-builder](https://github.com/evansiroky/timezone-boundary-builder)
+and OpenStreetMap contributors; see the upstream data licensing and
+[OpenStreetMap attribution](https://www.openstreetmap.org/copyright). Existing MapTiler/OSM map
+attribution remains visible. No additional geolocation provider or credentials are required.
+Ambiguous/unavailable results fail visibly instead of inventing a zone. Event time zones are
+mandatory derived metadata; private Groups without a venue retain local-clock timed-ban entry.
+Old immutable instants are never reinterpreted, and legacy planning clocks change only through an
+explicit edit. Historical documents are not migrated or deleted.
 
 ## Exact agreement
 

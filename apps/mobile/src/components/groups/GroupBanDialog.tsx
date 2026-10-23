@@ -1,6 +1,8 @@
 import { eventLocalDateTime, groupBanDeadline } from "@board-game-organizer/shared";
+import { useThemeColor } from "heroui-native/hooks";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
+import { Ban } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -8,19 +10,22 @@ import { EventDateTimeField } from "@/components/events/EventDateTimeField";
 import { useT } from "@/lib/i18n";
 export function GroupBanDialog({
   name,
+  timeZone,
   busy,
   failure,
   onCancel,
   onConfirm,
 }: {
   name: string;
+  timeZone?: string;
   busy: boolean;
   failure?: string;
   onCancel: () => void;
   onConfirm: (until: string | null) => void;
 }) {
-  const t = useT();
-  const [zone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const t = useT(),
+    dangerForeground = useThemeColor("danger-foreground");
+  const [zone] = useState(() => timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [timed, setTimed] = useState(false),
     [wall, setWall] = useState(() =>
       eventLocalDateTime(new Date(Date.now() + 86400_000).toISOString(), zone),
@@ -37,13 +42,20 @@ export function GroupBanDialog({
   };
   return (
     <ConfirmDialog
-      title={`${t("Exclude from group")}: ${name}`}
+      title={`${t("Ban from group")}: ${name}`}
       description={t(
         "Group exclusion is separate from global blocking. Membership and active registrations are removed; expiry or revocation never restores them. Historical results remain unchanged.",
       )}
       busy={busy}
       onCancel={onCancel}
-      actions={[{ label: t("Exclude from group"), variant: "danger", onPress: submit }]}
+      actions={[
+        {
+          label: t("Ban from group"),
+          variant: "danger",
+          icon: <Ban size={18} color={dangerForeground} />,
+          onPress: submit,
+        },
+      ]}
     >
       <View style={{ gap: 12 }}>
         <View
@@ -81,9 +93,6 @@ export function GroupBanDialog({
             />
           </>
         ) : null}
-        <Typography className="text-muted">
-          {t("Time zone")}: {zone}
-        </Typography>
         {error || failure ? (
           <Typography accessibilityRole="alert" className="text-danger">
             {error || failure}

@@ -18,7 +18,7 @@ export function groupPersonActions(
   if (person.membership?.status === "PENDING")
     return person.membership.kind === "REQUEST" ? ["approve", "reject", "ban"] : ["remove", "ban"];
   if (person.membership?.status === "ACCEPTED") return ["remove", "ban"];
-  return ["ban"];
+  return [];
 }
 
 export type OwnGroupAction = "request" | "accept" | "decline" | "cancel";

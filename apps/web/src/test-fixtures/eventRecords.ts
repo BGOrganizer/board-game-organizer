@@ -16,7 +16,14 @@ export const plannedEvent: PlannedEventResponse = {
   startTime: "20:00",
   dates: [{ id: optionId, day: "2030-06-03" }],
   locations: [
-    { id: optionId, name: "Club venue", address: "Via Roma 1", longitude: 12.5, latitude: 41.9 },
+    {
+      id: optionId,
+      name: "Club venue",
+      address: "Via Roma 1",
+      longitude: 12.5,
+      latitude: 41.9,
+      timeZone: "Europe/Rome",
+    },
   ],
   status: "PLANNING",
   version: 1,

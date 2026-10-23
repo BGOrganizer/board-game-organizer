@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@heroui/react";
 import { Gamepad2 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
@@ -13,14 +14,16 @@ export function GameListRow({
   rank,
   actions,
   children,
+  onPress,
 }: ComponentProps<typeof GameCatalogMetadata> & {
   name: string;
   imageUrl?: string | null;
   actions?: ReactNode;
   children?: ReactNode;
+  onPress?: () => void;
 }) {
-  return (
-    <GroupedRow className="flex-wrap">
+  const identity = (
+    <>
       <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
         {imageUrl ? (
           // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
@@ -29,13 +32,29 @@ export function GameListRow({
           <Gamepad2 className="size-5 text-default-400" aria-hidden />
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 text-left">
         <p className="max-w-[40ch] truncate text-sm font-medium" title={name}>
           {name}
         </p>
         <GameCatalogMetadata year={year} average={average} rank={rank} />
         {children}
       </div>
+    </>
+  );
+  return (
+    <GroupedRow className="flex-wrap">
+      {onPress ? (
+        <Button
+          variant="ghost"
+          aria-label={name}
+          className="h-auto min-h-11 min-w-0 flex-1 justify-start gap-2 px-0"
+          onPress={onPress}
+        >
+          {identity}
+        </Button>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-2">{identity}</div>
+      )}
       {actions}
     </GroupedRow>
   );

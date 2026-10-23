@@ -15,7 +15,9 @@ import {
   eventDateOptionId,
   eventDraft,
   eventDraftInput,
+  eventDraftStepIssues,
   newTableDraft,
+  patchEventDraft,
   tableDraft,
 } from "../eventRecordForm";
 import { useEventCutoff } from "./useEventCutoff";
@@ -27,6 +29,8 @@ export function useEventRecordForm(
 ) {
   const [draft, setDraft] = useState(() => eventDraft(event, initialGroupId)),
     [error, setError] = useState(false),
+    [step, setStep] = useState(0),
+    [attempted, setAttempted] = useState([false, false]),
     serial = useRef(0);
   const groupQuery = useGroupRecord(
       { ...options, enabled: options.enabled !== false && Boolean(draft.groupId) },
@@ -53,23 +57,15 @@ export function useEventRecordForm(
   }, [existingId, loadedTables]);
   useEffect(() => {
     if (!existingId && approvedLocation)
-      setDraft((old) => (old.locations.length ? old : { ...old, locations: [approvedLocation] }));
+      setDraft((old) =>
+        old.locations.length ? old : patchEventDraft(old, { locations: [approvedLocation] }),
+      );
   }, [existingId, approvedLocation]);
+  const groupLocked = Boolean(event || initialGroupId);
   const patch = (change: Partial<EventRecordDraft>) =>
     setDraft((old) => {
-      let dates = old.dates;
-      if (
-        (change.startTime !== undefined && change.startTime !== old.startTime) ||
-        (change.timeZone !== undefined && change.timeZone !== old.timeZone)
-      ) {
-        const used = [...(event?.dates ?? []), ...old.dates];
-        dates = old.dates.map((row) => {
-          const id = eventDateOptionId(used);
-          used.push({ id, day: row.day });
-          return { ...row, id };
-        });
-      }
-      return { ...old, ...change, dates: change.dates ?? dates };
+      if (groupLocked && change.groupId !== undefined && change.groupId !== old.groupId) return old;
+      return patchEventDraft(old, change, event?.dates);
     });
   const patchTable = (key: string, change: Partial<EventTableDraft>) =>
     setDraft((old) => ({
@@ -106,20 +102,17 @@ export function useEventRecordForm(
       };
     });
   const addDate = (day: string) => {
-    if (!day || draft.dates.some((row) => row.day === day)) return;
-    setDraft((old) => ({
-      ...old,
-      dates: [
-        ...old.dates,
-        { id: eventDateOptionId([...(event?.dates ?? []), ...old.dates]), day },
-      ],
-    }));
+    if (!day) return;
+    setDraft((old) =>
+      old.dates.length
+        ? old
+        : { ...old, dates: [{ id: eventDateOptionId(event?.dates ?? []), day }] },
+    );
   };
   const addLocation = (location: VerifiedLocation) =>
-    setDraft((old) => ({
-      ...old,
-      locations: [...old.locations.filter((row) => row.id !== location.id), location],
-    }));
+    setDraft((old) =>
+      old.locations.length ? old : patchEventDraft(old, { locations: [location] }, event?.dates),
+    );
   const addGame = (key: string, game: BggSearchItem) =>
     setDraft((old) => ({
       ...old,
@@ -130,7 +123,27 @@ export function useEventRecordForm(
       ),
     }));
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
+  const issues = eventDraftStepIssues(draft, group?.type === "PUBLIC", step);
+  const retainedCount =
+    (event?.tableCount ?? 0) -
+    draft.removedTableIds.length +
+    draft.tables.filter((row) => !row.id).length;
+  if (step === 1 && retainedCount < 1) issues.push("tables");
+  if (step === 0 && draft.groupId && (!group?.canInvite || group.role !== "admin"))
+    issues.push("groupId");
+  const fieldError = (path: string) =>
+    Boolean(
+      attempted[step] && issues.some((issue) => issue === path || issue.startsWith(`${path}.`)),
+    );
+  const next = () => {
+    setAttempted((old) => old.map((value, index) => (index === step ? true : value)));
+    if (!issues.length && step < 2) setStep(step + 1);
+  };
+  const goToStep = (value: number) => {
+    if (value >= 0 && value <= step) setStep(value);
+  };
   const validate = () => {
+    setAttempted([true, true]);
     const value = closed
       ? { success: false as const }
       : eventDraftInput(draft, group?.type === "PUBLIC");
@@ -140,6 +153,12 @@ export function useEventRecordForm(
   return {
     draft,
     group,
+    groupLocked,
+    step,
+    goToStep,
+    next,
+    canNext: !attempted[step] || !issues.length,
+    fieldError,
     groupQuery,
     patch,
     patchTable,

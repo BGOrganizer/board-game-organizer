@@ -45,7 +45,13 @@ it("requests at most five MapTiler addresses and returns only match location fie
   });
   vi.stubGlobal("fetch", fetchMock);
   expect((await (await GET(request("Main St/ Rome"))).json()).items).toEqual([
-    { id: "address.1", address: "123 Main St, Rome, Italy", longitude: 12.5, latitude: 41.9 },
+    {
+      id: "address.1",
+      address: "123 Main St, Rome, Italy",
+      longitude: 12.5,
+      latitude: 41.9,
+      timeZone: "Europe/Rome",
+    },
   ]);
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
@@ -73,7 +79,13 @@ it.each(["12.5000000,41.9000000", "0.0000000,0.0000000", "-73.9850000,40.7480000
     const response = await GET(request(coordinates));
     expect(response.status).toBe(200);
     expect((await response.json()).items).toEqual([
-      { id: "address.gps", address: "Verified address", longitude: 12.5, latitude: 41.9 },
+      {
+        id: "address.gps",
+        address: "Verified address",
+        longitude: 12.5,
+        latitude: 41.9,
+        timeZone: "Europe/Rome",
+      },
     ]);
     expect(fetchMock).toHaveBeenCalledOnce();
   },

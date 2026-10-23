@@ -35,7 +35,9 @@ import { requestUserPosition } from "@/lib/locations/user-location";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
-type Result = Pick<MatchLocation, "address" | "longitude" | "latitude"> & { id: string };
+type Result = Pick<MatchLocation, "address" | "longitude" | "latitude" | "timeZone"> & {
+  id: string;
+};
 const apiKey = Constants.expoConfig?.extra?.maptilerApiKey as string | undefined;
 const mapStyle = apiKey
   ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${encodeURIComponent(apiKey)}`
@@ -519,6 +521,7 @@ export default function LocationPicker({
             address: selected.address,
             longitude: selected.longitude,
             latitude: selected.latitude,
+            timeZone: selected.timeZone,
           };
           if (onSelect) onSelect(location);
           else {

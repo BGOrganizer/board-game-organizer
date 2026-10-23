@@ -6,12 +6,15 @@ import {
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
+import { Pencil } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { Events } from "@/components/events/Events";
@@ -20,13 +23,20 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupLeaderboard } from "./GroupLeaderboard";
 import { GroupMembers } from "./GroupMembers";
-export function GroupDetail({ groupId }: { groupId: string }) {
+export function GroupDetail({
+  groupId,
+  initialTab = "info",
+}: {
+  groupId: string;
+  initialTab?: "info" | "members";
+}) {
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
+    accentForeground = useThemeColor("accent-foreground"),
     q = useGroupRecord(o, groupId),
     a = useGroupRecordActions(o),
-    [tab, setTab] = useState("info"),
+    [tab, setTab] = useState<string>(initialTab),
     [confirm, setConfirm] = useState<"decline" | "cancel" | null>(null),
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
@@ -97,17 +107,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               </Button.Label>
             </Button>
           ))}
-          {group.canEdit ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onPress={() =>
-                router.push({ pathname: "/group/wizard", params: { groupId: group.id } })
-              }
-            >
-              <Button.Label>{t("Edit group")}</Button.Label>
-            </Button>
-          ) : null}
         </View>
         {error ? (
           <Typography accessibilityRole="alert" className="text-danger">
@@ -116,28 +115,30 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         ) : null}
       </View>
       <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
-        <TabBar>
-          {[
-            ["info", t("Overview")],
-            ["members", t("Members")],
-            ["events", t("Events")],
-            ["rankings", t("Rankings")],
-          ]
-            .filter(
-              ([key]) =>
-                key === "info" ||
-                (key === "members"
-                  ? group.canViewMembers
-                  : key === "events"
-                    ? group.canViewEvents
-                    : group.canViewRankings),
-            )
-            .map(([key, label]) => (
-              <Tabs.Trigger key={key} value={key}>
-                <Tabs.Label>{label}</Tabs.Label>
-              </Tabs.Trigger>
-            ))}
-        </TabBar>
+        <View style={{ alignItems: "center" }}>
+          <TabBar>
+            {[
+              ["info", t("Overview")],
+              ["members", t("Members")],
+              ["events", t("Events")],
+              ["rankings", t("Rankings")],
+            ]
+              .filter(
+                ([key]) =>
+                  key === "info" ||
+                  (key === "members"
+                    ? group.canViewMembers
+                    : key === "events"
+                      ? group.canViewEvents
+                      : group.canViewRankings),
+              )
+              .map(([key, label]) => (
+                <Tabs.Trigger key={key} value={key}>
+                  <Tabs.Label>{label}</Tabs.Label>
+                </Tabs.Trigger>
+              ))}
+          </TabBar>
+        </View>
         <View style={{ flex: 1 }}>
           {tab === "members" && group.canViewMembers ? (
             <GroupMembers group={group} />
@@ -152,6 +153,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           )}
         </View>
       </Tabs>
+      {group.canEdit ? (
+        <FloatingActions
+          label={t("Edit group")}
+          isDisabled={a.busy}
+          onPress={() => router.push({ pathname: "/group/wizard", params: { groupId: group.id } })}
+        >
+          <Pencil size={24} color={accentForeground} />
+        </FloatingActions>
+      ) : null}
       {confirm ? (
         <ConfirmDialog
           title={group.role === "accepted" ? t("Leave group") : t("Cancel membership")}

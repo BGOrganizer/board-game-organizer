@@ -100,6 +100,8 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
         if (old.tableId === row.tableId && old.userId === row.userId) registrations.delete(old.id);
       registrations.set(row.id, clone(row));
     }),
+    retainChoiceVotes: vi.fn(async () => undefined),
+    retainGameVotes: vi.fn(async () => undefined),
     voter: vi.fn(async (eventId: string, userId: string) =>
       clone(votes.get(`${eventId}|${userId}`) ?? null),
     ),
@@ -237,6 +239,40 @@ afterEach(() => {
 });
 
 describe("unified event core — real consent, no synthetic Match writes", () => {
+  it.each([null, "PRIVATE", "PUBLIC"] as const)(
+    "refuses additional dates and locations before any write: %s",
+    async (type) => {
+      for (const dimension of ["dates", "locations"] as const) {
+        const f = setup(type),
+          input = body();
+        if (type) input.groupId = other;
+        if (dimension === "dates") input.dates.push({ id: other, day: "2027-01-04" });
+        else input.locations.push({ ...location, id: other, address: "Another verified address" });
+        await expect(f.service.create(owner, input)).rejects.toMatchObject({
+          code: "EVENT_FIXED_SCHEDULE_REQUIRED",
+        });
+        expect(f.repo.create).not.toHaveBeenCalled();
+        expect(f.events.size).toBe(0);
+      }
+    },
+  );
+  it("derives the persisted clock from coordinates rather than a caller timezone on create and edit", async () => {
+    const f = setup();
+    const event = await f.service.create(owner, { ...body(), timeZone: "Pacific/Honolulu" });
+    expect(event.timeZone).toBe("Europe/Rome");
+    expect(event.locations[0].timeZone).toBe("Europe/Rome");
+    expect(f.events.get(event.id)?.timeZone).toBe("Europe/Rome");
+    const { groupId: _group, ...fields } = body();
+    const next = await f.service.update(owner, event.id, {
+      ...fields,
+      timeZone: "Pacific/Honolulu",
+      tables: [],
+      version: event.version,
+      removedTableIds: [],
+    });
+    expect(next.timeZone).toBe("Europe/Rome");
+    expect(next.dates[0].id).toBe(id);
+  });
   it("creates explicit empty tables, leaves organizer unseated, and rejects non-member access", async () => {
     const f = setup(),
       event = await f.create();

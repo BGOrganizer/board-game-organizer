@@ -39,11 +39,12 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
     router = useRouter(),
     insets = useSafeAreaInsets(),
     { i18n } = useLingui();
-  const [foreground, muted, danger, accent] = useThemeColor([
+  const [foreground, muted, danger, accent, dangerForeground] = useThemeColor([
     "foreground",
     "muted",
     "danger",
     "accent-foreground",
+    "danger-foreground",
   ]);
   const workflow = useGroupMemberManagement(options, group),
     { list, busy } = workflow;
@@ -97,16 +98,6 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   ) : undefined
                 }
               />
-              <Button
-                variant="outline"
-                isDisabled={busy || denied}
-                onPress={() =>
-                  router.push({ pathname: "/group/ban", params: { groupId: group.id } })
-                }
-              >
-                <Ban size={18} color={danger} />
-                <Button.Label>{t("Exclude a user")}</Button.Label>
-              </Button>
             </View>
           ) : undefined
         }
@@ -175,7 +166,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       variant="danger-soft"
                       style={{ minWidth: 44, minHeight: 44 }}
                       isDisabled={busy}
-                      accessibilityLabel={`${t("Exclude from group")}: ${name(person)}`}
+                      accessibilityLabel={`${t("Ban from group")}: ${name(person)}`}
                       onPress={() => workflow.open(person, "ban")}
                     >
                       <Ban size={18} color={danger} />
@@ -217,6 +208,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         <GroupBanDialog
           key={managed.person.userId}
           name={name(managed.person)}
+          timeZone={group.location?.timeZone}
           busy={busy}
           failure={failure}
           onCancel={workflow.close}
@@ -255,6 +247,12 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                         ? t("Revoke group exclusion")
                         : t("Remove member"),
                     variant: managed.action === "revoke" ? "primary" : "danger",
+                    icon:
+                      managed.action === "revoke" ? (
+                        <RotateCcw size={18} color={accent} />
+                      ) : (
+                        <UserRoundMinus size={18} color={dangerForeground} />
+                      ),
                     onPress: () => void workflow.confirm(),
                   },
                 ]

@@ -23,6 +23,7 @@ import { MongoServerError } from "mongodb";
 import { CommunityError } from "../community.error";
 import type { RelationshipRepository } from "../contacts/relationship.repository";
 import { verifyCommunityLocation } from "../locations/community-location";
+import { locationTimeZone } from "../locations/location-time-zone";
 import type { NotificationsRepository } from "../notifications/notifications.repository";
 import { requireBgoModerator } from "../organizations/community-role";
 import type { UsersRepository } from "../users/users.repository";
@@ -81,11 +82,22 @@ export class GroupRecordsService {
     if (!canReadGroup(group, userId, membership, ban, Date.now(), moderator))
       throw new CommunityError(404, "GROUP_NOT_FOUND");
     const owner = group.adminUserId === userId;
-    const revision = owner || moderator ? (group.proposal ?? group.approved) : group.approved;
+    const located = { ...group };
+    const readableRevisions =
+      owner || moderator ? (["approved", "proposal"] as const) : (["approved"] as const);
+    for (const key of readableRevisions) {
+      const revision = group[key];
+      if (revision?.location)
+        located[key] = {
+          ...revision,
+          location: { ...revision.location, timeZone: locationTimeZone(revision.location) },
+        };
+    }
+    const revision = owner || moderator ? (located.proposal ?? located.approved) : located.approved;
     if (!revision) throw new CommunityError(404, "GROUP_NOT_FOUND");
     const capabilities = groupCapabilities(group, userId, membership, ban, Date.now());
     const asset = revision.logoAssetId ? await this.assets.find(revision.logoAssetId) : null;
-    const { proposal, reviewStatus, rejectionReason, reservedNames, ...safe } = group;
+    const { proposal, reviewStatus, rejectionReason, reservedNames, ...safe } = located;
     return {
       ...safe,
       ...(owner || moderator

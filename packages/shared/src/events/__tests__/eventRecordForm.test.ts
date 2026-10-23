@@ -3,12 +3,14 @@ import type {
   PlannedTableResponse,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   eventDateOptionId,
   eventDraft,
   eventDraftInput,
+  eventDraftStepIssues,
   newTableDraft,
+  patchEventDraft,
   tableDraft,
 } from "../eventRecordForm";
 import { eventTablePeople } from "../eventTablePeople";
@@ -26,7 +28,16 @@ const event: PlannedEventResponse = {
   startTime: "20:00",
   status: "PLANNING",
   dates: [{ id: dateId, day: "2030-06-03" }],
-  locations: [{ id, name: "Club venue", address: "Via Roma 1", latitude: 41.9, longitude: 12.5 }],
+  locations: [
+    {
+      id,
+      name: "Club venue",
+      address: "Via Roma 1",
+      latitude: 41.9,
+      longitude: 12.5,
+      timeZone: "Europe/Rome",
+    },
+  ],
   version: 2,
   planningGeneration: 1,
   createdAt: "2030-06-01T10:00:00.000Z",
@@ -211,7 +222,13 @@ describe("unified unsaved event drafts", () => {
         tables: [{ demonstratorUserId: "demo", startsAt: "2030-06-03T18:00:00.000Z" }],
       });
     expect(eventDraftInput({ ...draft, endsWall: "2030-03-31T02:30" }, true).success).toBe(false);
-    expect(eventDraftInput({ ...draft, timeZone: "invalid-zone" }, true).success).toBe(false);
+    expect(eventDraftInput({ ...draft, timeZone: "invalid-zone" }, true).success).toBe(true);
+    expect(
+      eventDraftInput(
+        { ...draft, locations: [{ ...event.locations[0], timeZone: "invalid-zone" }] },
+        true,
+      ).success,
+    ).toBe(false);
     expect(eventDraftInput({ ...draft, version: undefined, tables: [] }, false).success).toBe(
       false,
     );
@@ -219,7 +236,7 @@ describe("unified unsaved event drafts", () => {
   it("creates independent defaults and leaves optional demonstrators/durations absent", () => {
     const a = newTableDraft("one"),
       b = newTableDraft("two");
-    a.games.push({ id: 1, name: "Game", year: null, imageUrl: null });
+    a.games.push({ id: 1, name: "Game", year: null, imageUrl: null, maxPlayMinutes: 60 });
     expect(b.games).toEqual([]);
     const input = eventDraftInput(
       {
@@ -231,6 +248,156 @@ describe("unified unsaved event drafts", () => {
       true,
     );
     expect(input.success).toBe(true);
+  });
+});
+describe("location-owned schedule and staged validation", () => {
+  const valid = () => ({
+    ...eventDraft({
+      ...event,
+      endsAt: "2030-06-04T01:00:00Z",
+      bookingClosesAt: "2030-06-02T10:00:00Z",
+    }),
+    tables: [{ ...tableDraft(table, event.timeZone), startsWall: "2030-06-03T20:00" }],
+  });
+  it("validates schedule independently from tables and reports exact field paths", () => {
+    const draft = valid();
+    expect(eventDraftStepIssues({ ...draft, tables: [] }, false, 0)).toEqual([]);
+    expect(eventDraftStepIssues(draft, true, 0)).toEqual([]);
+    expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+    expect(
+      eventDraftStepIssues({ ...draft, name: "", dates: [], locations: [] }, false, 0),
+    ).toEqual(expect.arrayContaining(["name", "dates", "locations", "timeZone"]));
+    expect(eventDraftStepIssues({ ...draft, version: undefined, tables: [] }, false, 1)).toEqual([
+      "tables",
+    ]);
+    expect(eventDraftStepIssues({ ...draft, tables: [] }, false, 1)).toEqual([]);
+    expect(
+      eventDraftStepIssues(
+        {
+          ...draft,
+          tables: [{ ...draft.tables[0], name: "", minPlayers: 1, maxPlayers: 1, games: [] }],
+        },
+        false,
+        1,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "tables.0.name",
+        "tables.0.minPlayers",
+        "tables.0.maxPlayers",
+        "tables.0.games",
+      ]),
+    );
+    expect(
+      eventDraftStepIssues({ ...draft, tables: [{ ...draft.tables[0], maxPlayers: 2 }] }, false, 1),
+    ).toContain("tables.0.maxPlayers");
+    expect(
+      eventDraftStepIssues(
+        {
+          ...draft,
+          dates: [...draft.dates, { id: tableId, day: "2030-06-04" }],
+          locations: [...draft.locations, { ...draft.locations[0], id: tableId }],
+        },
+        false,
+        0,
+      ),
+    ).toEqual(expect.arrayContaining(["dates", "locations"]));
+  });
+  it("uses verified venue metadata instead of a device or caller zone and renews only changed date identities", () => {
+    expect(eventDraft().timeZone).toBe("UTC");
+    const legacy = { ...event, timeZone: "UTC" };
+    const draft = eventDraft(legacy);
+    expect(draft.timeZone).toBe("Europe/Rome");
+    expect(draft.dates[0].id).not.toBe(dateId);
+    expect(legacy.dates[0].id).toBe(dateId);
+    expect(eventDraft({ ...event, locations: [] }).timeZone).toBe("Europe/Rome");
+    const named = patchEventDraft(draft, { name: "Another game night" });
+    expect(named.dates).toBe(draft.dates);
+    expect(patchEventDraft(draft, { timeZone: "invalid" }).timeZone).toBe("Europe/Rome");
+    const moved = patchEventDraft(
+      draft,
+      { locations: [{ ...draft.locations[0], timeZone: "Asia/Tokyo" }] },
+      event.dates,
+    );
+    expect(moved.timeZone).toBe("Asia/Tokyo");
+    expect(moved.dates[0].id).not.toBe(draft.dates[0].id);
+    expect(moved.dates[0].id).not.toBe(dateId);
+    const changed = patchEventDraft(draft, { startTime: "21:00" }, event.dates);
+    expect(changed.dates[0].id).not.toBe(draft.dates[0].id);
+    expect(patchEventDraft(draft, { locations: [] }).timeZone).toBe("Europe/Rome");
+    expect(eventDraftInput({ ...valid(), timeZone: "Pacific/Honolulu" }, false).success).toBe(true);
+    expect(
+      eventDraftInput(
+        { ...valid(), locations: [{ ...event.locations[0], timeZone: undefined }] },
+        false,
+      ).success,
+    ).toBe(false);
+  });
+  it.each([
+    { endsWall: "", cutoffWall: "2030-06-02T12:00", field: "endsAt" },
+    { endsWall: "2030-06-03T19:00", cutoffWall: "2030-06-02T12:00", field: "endsAt" },
+    { endsWall: "2030-06-04T03:00", cutoffWall: "", field: "bookingClosesAt" },
+    { endsWall: "2030-06-04T03:00", cutoffWall: "2030-06-03T20:00", field: "bookingClosesAt" },
+  ])("requires public endpoints and correct order: $field", ({ endsWall, cutoffWall, field }) => {
+    const draft = { ...valid(), endsWall, cutoffWall };
+    expect(eventDraftStepIssues(draft, true, 0)).toContain(field);
+    expect(eventDraftInput(draft, true).success).toBe(false);
+  });
+  it("refuses nonexistent local starts, while private events do not require public endpoints", () => {
+    const draft = { ...valid(), dates: [{ id: dateId, day: "2030-03-31" }], startTime: "02:30" };
+    expect(eventDraftStepIssues(draft, false, 0)).toContain("startTime");
+    expect(eventDraftInput(draft, false).success).toBe(false);
+    expect(eventDraftStepIssues({ ...valid(), endsWall: "", cutoffWall: "" }, false, 0)).toEqual(
+      [],
+    );
+    expect(eventDraftStepIssues({ ...valid(), locations: [] }, true, 0)).toContain("timeZone");
+    expect(eventDraftStepIssues({ ...valid(), dates: [] }, true, 0)).toContain("dates");
+  });
+  it("requires future cutoffs for creation but preserves existing historical clocks", () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2030-06-02T11:00:00Z"));
+    try {
+      const draft = { ...valid(), version: undefined };
+      expect(eventDraftStepIssues(draft, true, 0)).toContain("bookingClosesAt");
+      expect(eventDraftStepIssues(valid(), true, 0)).not.toContain("bookingClosesAt");
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it.each(["", "2030-06-03T19:00", "2030-06-04T03:00", "2030-06-04T02:30"])(
+    "requires table starts and complete durations inside public event: %s",
+    (startsWall) => {
+      const draft = valid();
+      draft.tables[0].startsWall = startsWall;
+      expect(eventDraftStepIssues(draft, true, 1)).toContain("tables.0.startsAt");
+    },
+  );
+  it.each([undefined, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    "requires safe positive public duration: %s",
+    (duration) => {
+      const draft = valid();
+      draft.tables[0].games[0].manualDurationMinutes = duration;
+      expect(eventDraftStepIssues(draft, true, 1)).toContain(
+        "tables.0.games.0.manualDurationMinutes",
+      );
+    },
+  );
+  it("accepts BGG durations without manufacturing manual overrides, and reports each timing error once", () => {
+    const draft = valid();
+    draft.tables[0].games[0] = {
+      ...draft.tables[0].games[0],
+      maxPlayMinutes: 60,
+      manualDurationMinutes: undefined,
+    };
+    expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+    expect(eventDraftInput(draft, true).success).toBe(true);
+    draft.tables[0].startsWall = "2030-06-04T04:00";
+    expect(
+      eventDraftStepIssues(draft, true, 1).filter((path) => path === "tables.0.startsAt"),
+    ).toHaveLength(1);
+    expect(
+      eventDraftStepIssues({ ...draft, endsWall: "", dates: [], locations: [] }, true, 1),
+    ).toContain("tables.0.startsAt");
+    expect(eventDraftStepIssues({ ...valid(), endsWall: "" }, true, 1)).toEqual([]);
   });
 });
 it("allows all-ND physical tables but never incomplete or empty score drafts, retaining exact tied decimals", () => {

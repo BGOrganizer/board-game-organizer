@@ -1,13 +1,17 @@
 "use client";
 import type { EventTableDraft } from "@board-game-organizer/shared";
-import { Button, Input, Label, Switch, TextField } from "@heroui/react";
+import { Button, Input, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Trash2, X } from "lucide-react";
+import { Minus, Plus, Trash2, X } from "lucide-react";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { GameListRow } from "@/components/games/GameListRow";
+
 export function EventDraftTableEditor({
   row,
   publicGroup,
   busy,
+  fieldError = () => false,
   onChange,
   onRemove,
   onGame,
@@ -16,53 +20,81 @@ export function EventDraftTableEditor({
   row: EventTableDraft;
   publicGroup: boolean;
   busy: boolean;
+  fieldError?: (path: string) => boolean;
   onChange: (value: Partial<EventTableDraft>) => void;
   onRemove: () => void;
   onGame: () => void;
   onDemonstrator: () => void;
 }) {
   const { t } = useLingui();
+  const helpTitle = t`Field help`;
   return (
-    <section className="space-y-3 rounded-xl bg-default-100 p-4">
+    <section className="space-y-4 rounded-xl bg-default-100 p-4">
       <TextField
         value={row.name}
         onChange={(name) => onChange({ name })}
-        isDisabled={busy}
         isRequired
-      >
-        <Label>{t`Table name`}</Label>
-        <Input />
-      </TextField>
-      <div className="flex gap-3">
-        <TextField
-          value={String(row.minPlayers)}
-          onChange={(value) => onChange({ minPlayers: Number(value) })}
-          isDisabled={busy}
-        >
-          <Label>{t`Minimum players`}</Label>
-          <Input type="number" min={1} />
-        </TextField>
-        <TextField
-          value={String(row.maxPlayers)}
-          onChange={(value) => onChange({ maxPlayers: Number(value) })}
-          isDisabled={busy}
-        >
-          <Label>{t`Maximum players`}</Label>
-          <Input type="number" min={1} />
-        </TextField>
-      </div>
-      <Switch
-        isSelected={row.rankingEnabled}
-        onChange={(rankingEnabled) => onChange({ rankingEnabled })}
         isDisabled={busy}
+        isInvalid={fieldError("name")}
       >
-        <Switch.Content>
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-          {t`Enable ratings`}
-        </Switch.Content>
-      </Switch>
+        <SearchHelpLabel
+          label={t`Table name`}
+          helpTitle={helpTitle}
+          help={t`Name this table so players can recognize it. Use between 1 and 120 characters.`}
+        />
+        <Input placeholder={t`Strategy table`} maxLength={120} />
+        {fieldError("name") ? (
+          <p
+            role="alert"
+            className="text-sm text-danger"
+          >{t`Enter a table name between 1 and 120 characters.`}</p>
+        ) : null}
+      </TextField>
+      <div className="flex flex-wrap gap-4">
+        <PlayerCount
+          label={t`Minimum players`}
+          help={t`At least two players are required. The minimum must be lower than the maximum.`}
+          value={row.minPlayers}
+          min={2}
+          max={row.maxPlayers - 1}
+          busy={busy}
+          onChange={(minPlayers) => onChange({ minPlayers })}
+        />
+        <PlayerCount
+          label={t`Maximum players`}
+          help={t`Set the table capacity above the minimum number of players.`}
+          value={row.maxPlayers}
+          min={row.minPlayers + 1}
+          max={Number.MAX_SAFE_INTEGER}
+          busy={busy}
+          onChange={(maxPlayers) => onChange({ maxPlayers })}
+        />
+      </div>
+      {fieldError("minPlayers") || fieldError("maxPlayers") ? (
+        <p
+          role="alert"
+          className="text-sm text-danger"
+        >{t`The minimum must be at least two and lower than the maximum.`}</p>
+      ) : null}
+      <div className="flex items-center justify-between gap-3">
+        <SearchHelpLabel
+          label={t`Enable ratings`}
+          helpTitle={helpTitle}
+          help={t`Rated tables update player ratings after final results. At least two players must have a score.`}
+        />
+        <Switch
+          aria-label={t`Enable ratings`}
+          isSelected={row.rankingEnabled}
+          onChange={(rankingEnabled) => onChange({ rankingEnabled })}
+          isDisabled={busy}
+        >
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
+        </Switch>
+      </div>
       {publicGroup ? (
         <>
           <TextField
@@ -70,104 +102,204 @@ export function EventDraftTableEditor({
             onChange={(startsWall) => onChange({ startsWall })}
             isRequired
             isDisabled={busy}
+            isInvalid={fieldError("startsAt")}
           >
-            <Label>{t`Table start`}</Label>
+            <SearchHelpLabel
+              label={t`Table start`}
+              helpTitle={helpTitle}
+              help={t`Choose a local start within the event. The entire table duration must fit before the event ends.`}
+            />
             <Input type="datetime-local" />
+            {fieldError("startsAt") ? (
+              <p
+                role="alert"
+                className="text-sm text-danger"
+              >{t`Choose a table start and duration within the event.`}</p>
+            ) : null}
           </TextField>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              isDisabled={busy}
-              onPress={onDemonstrator}
-            >{t`Choose demonstrator`}</Button>
-            {row.demonstratorUserId ? (
-              <>
-                <span>{row.demonstratorName ?? t`Unknown`}</span>
+          <div className="space-y-2">
+            <SearchHelpLabel
+              label={t`Demonstrator`}
+              helpTitle={helpTitle}
+              help={t`Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap.`}
+            />
+            <div className="flex items-center gap-3">
+              <Button variant="outline" isDisabled={busy} onPress={onDemonstrator}>
+                {row.demonstratorUserId
+                  ? (row.demonstratorName ?? t`Unknown`)
+                  : t`Choose demonstrator`}
+              </Button>
+              {row.demonstratorUserId ? (
                 <Button
                   isIconOnly
                   size="sm"
-                  variant="ghost"
+                  variant="danger-soft"
                   aria-label={t`Remove demonstrator`}
+                  isDisabled={busy}
                   onPress={() =>
                     onChange({ demonstratorUserId: undefined, demonstratorName: undefined })
                   }
                 >
-                  <X className="size-4" />
+                  <X className="size-4" aria-hidden />
                 </Button>
-              </>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </>
       ) : null}
-      <div className="space-y-3">
-        {row.games.map((game) => (
-          <div key={game.id} className="space-y-2 rounded-xl bg-background p-3">
-            <div className="flex items-center justify-between gap-3">
-              <GameListRow
-                name={game.name}
-                imageUrl={game.imageUrl}
-                year={game.year}
-                average={game.average}
-                rank={game.rank}
-              />
+      <section className="space-y-2">
+        <SearchHelpLabel
+          label={t`Games`}
+          helpTitle={helpTitle}
+          help={t`Choose at least one game. Use the empty game slot to add another option. Players vote on these games.`}
+        />
+        <GroupedList>
+          {row.games.map((game, index) => (
+            <GameListRow
+              key={game.id}
+              name={game.name}
+              imageUrl={game.imageUrl}
+              year={game.year}
+              average={game.average}
+              rank={game.rank}
+              actions={
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="danger-soft"
+                  aria-label={`${t`Remove game`}: ${game.name}`}
+                  isDisabled={busy}
+                  onPress={() =>
+                    onChange({ games: row.games.filter((candidate) => candidate.id !== game.id) })
+                  }
+                >
+                  <X className="size-4" aria-hidden />
+                </Button>
+              }
+            >
+              {publicGroup ? (
+                game.maxPlayMinutes ? (
+                  <p className="text-sm text-default-500">
+                    {t`Duration`}: {game.maxPlayMinutes} {t`minutes`} · BoardGameGeek
+                  </p>
+                ) : (
+                  <TextField
+                    value={
+                      game.manualDurationMinutes === undefined
+                        ? ""
+                        : String(game.manualDurationMinutes)
+                    }
+                    onChange={(value) =>
+                      onChange({
+                        games: row.games.map((candidate) =>
+                          candidate.id === game.id
+                            ? {
+                                ...candidate,
+                                manualDurationMinutes: value ? Number(value) : undefined,
+                              }
+                            : candidate,
+                        ),
+                      })
+                    }
+                    isRequired
+                    isDisabled={busy}
+                    isInvalid={fieldError(`games.${index}.manualDurationMinutes`)}
+                  >
+                    <SearchHelpLabel
+                      label={t`Manual duration in minutes`}
+                      helpTitle={helpTitle}
+                      help={t`BoardGameGeek has no duration for this game. Enter a positive whole number of minutes.`}
+                    />
+                    <Input type="number" min={1} />
+                    {fieldError(`games.${index}.manualDurationMinutes`) ? (
+                      <p
+                        role="alert"
+                        className="text-sm text-danger"
+                      >{t`Enter a valid game duration in minutes.`}</p>
+                    ) : null}
+                  </TextField>
+                )
+              ) : null}
+            </GameListRow>
+          ))}
+          <GameListRow
+            name={t`Choose a game`}
+            onPress={busy || row.games.length >= 20 ? undefined : onGame}
+            actions={
               <Button
                 isIconOnly
-                size="sm"
-                variant="danger-soft"
-                aria-label={`${t`Remove game`}: ${game.name}`}
-                isDisabled={busy}
-                onPress={() => onChange({ games: row.games.filter((g) => g.id !== game.id) })}
+                variant="primary"
+                aria-label={t`Add game`}
+                isDisabled={busy || row.games.length >= 20}
+                onPress={onGame}
               >
-                <X className="size-4" />
+                <Plus className="size-5" aria-hidden />
               </Button>
-            </div>
-            {publicGroup ? (
-              game.maxPlayMinutes ? (
-                <p>
-                  {t`Duration`}: {game.maxPlayMinutes} {t`minutes`} · BoardGameGeek
-                </p>
-              ) : (
-                <TextField
-                  value={
-                    game.manualDurationMinutes === undefined
-                      ? ""
-                      : String(game.manualDurationMinutes)
-                  }
-                  onChange={(value) =>
-                    onChange({
-                      games: row.games.map((g) =>
-                        g.id === game.id
-                          ? { ...g, manualDurationMinutes: value ? Number(value) : undefined }
-                          : g,
-                      ),
-                    })
-                  }
-                  isRequired
-                  isDisabled={busy}
-                >
-                  <Label>{t`Manual duration in minutes`}</Label>
-                  <Input type="number" min={1} />
-                </TextField>
-              )
-            ) : null}
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <Button variant="outline" isDisabled={busy || row.games.length >= 20} onPress={onGame}>
-          <Plus className="size-4" />
-          {t`Add game`}
-        </Button>
+            }
+          />
+        </GroupedList>
+        {fieldError("games") && !row.games.length ? (
+          <p role="alert" className="text-sm text-danger">{t`Choose at least one game.`}</p>
+        ) : null}
+      </section>
+      <div className="flex justify-end">
         <Button
           isIconOnly
-          variant="danger-soft"
+          variant="danger"
           aria-label={t`Remove table`}
           isDisabled={busy}
           onPress={onRemove}
         >
-          <Trash2 className="size-4" />
+          <Trash2 className="size-5" aria-hidden />
         </Button>
       </div>
     </section>
+  );
+}
+function PlayerCount({
+  label,
+  help,
+  value,
+  min,
+  max,
+  busy,
+  onChange,
+}: {
+  label: string;
+  help: string;
+  value: number;
+  min: number;
+  max: number;
+  busy: boolean;
+  onChange: (value: number) => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <div className="min-w-0 flex-1 space-y-2">
+      <SearchHelpLabel label={label} help={help} helpTitle={t`Field help`} />
+      <div className="flex items-center gap-3">
+        <Button
+          isIconOnly
+          variant="primary"
+          aria-label={t`Decrease ${label}`}
+          isDisabled={busy || value <= min}
+          onPress={() => onChange(value - 1)}
+        >
+          <Minus className="size-4" aria-hidden />
+        </Button>
+        <output className="min-w-6 text-center font-bold" aria-label={label}>
+          {value}
+        </output>
+        <Button
+          isIconOnly
+          variant="primary"
+          aria-label={t`Increase ${label}`}
+          isDisabled={busy || value >= max}
+          onPress={() => onChange(value + 1)}
+        >
+          <Plus className="size-4" aria-hidden />
+        </Button>
+      </div>
+    </div>
   );
 }

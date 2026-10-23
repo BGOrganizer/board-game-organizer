@@ -49,9 +49,9 @@ export const plannedTableInputSchema = z
     demonstratorUserId: targetUserIdSchema.optional(),
   })
   .strict()
-  .refine((table) => table.maxPlayers >= table.minPlayers, {
+  .refine((table) => table.maxPlayers > table.minPlayers, {
     path: ["maxPlayers"],
-    message: "Maximum must not be below minimum",
+    message: "Maximum must be above minimum",
   });
 export type PlannedTableInput = z.infer<typeof plannedTableInputSchema>;
 export const createPlannedEventSchema = z
@@ -62,22 +62,8 @@ export const createPlannedEventSchema = z
     startTime: eventTimeSchema,
     endsAt: z.iso.datetime({ offset: true }).optional(),
     bookingClosesAt: z.iso.datetime({ offset: true }).optional(),
-    dates: z
-      .array(z.object({ id: z.uuid(), day: z.iso.date() }).strict())
-      .min(1)
-      .refine(
-        (dates) =>
-          new Set(dates.map((date) => date.id)).size === dates.length &&
-          new Set(dates.map((date) => date.day)).size === dates.length,
-        "Dates must be unique",
-      ),
-    locations: z
-      .array(verifiedLocationSchema)
-      .min(1)
-      .refine(
-        (locations) => new Set(locations.map((location) => location.id)).size === locations.length,
-        "Locations must be unique",
-      ),
+    dates: z.array(z.object({ id: z.uuid(), day: z.iso.date() }).strict()).length(1),
+    locations: z.array(verifiedLocationSchema).length(1),
     tables: z
       .array(plannedTableInputSchema)
       .min(1)

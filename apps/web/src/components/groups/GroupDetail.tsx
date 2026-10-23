@@ -11,17 +11,24 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { Events } from "@/components/events/Events";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupLeaderboard } from "./GroupLeaderboard";
 import { GroupMembers } from "./GroupMembers";
-export function GroupDetail({ groupId }: { groupId: string }) {
+export function GroupDetail({
+  groupId,
+  initialTab = "info",
+}: {
+  groupId: string;
+  initialTab?: "info" | "members";
+}) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     q = useGroupRecord(o, groupId),
     a = useGroupRecordActions(o),
-    [tab, setTab] = useState("info"),
+    [tab, setTab] = useState<string>(initialTab),
     [confirm, setConfirm] = useState<"decline" | "cancel" | null>(null),
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
@@ -50,7 +57,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     }
   };
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24">
       <Link href="/groups" className="inline-flex items-center gap-2 text-accent">
         <ArrowLeft className="size-4" />
         {t`Back`}
@@ -79,21 +86,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     : t`Cancel request`}
           </Button>
         ))}
-        {group.canEdit ? (
-          <Link
-            href={`/groups/${group.id}/edit`}
-            className="inline-flex items-center gap-2 text-accent"
-          >
-            <Pencil className="size-4" />
-            {t`Edit group`}
-          </Link>
-        ) : null}
       </div>
       {error ? (
         <p role="alert" className="text-danger">{t`Could not update group membership`}</p>
       ) : null}
       <Tabs selectedKey={tab} onSelectionChange={(key) => setTab(String(key))}>
-        <Tabs.ListContainer>
+        <Tabs.ListContainer className="mx-auto max-w-full w-fit">
           <Tabs.List aria-label={t`Group sections`}>
             <Tabs.Tab id="info">{t`Overview`}</Tabs.Tab>
             {group.canViewMembers ? <Tabs.Tab id="members">{t`Members`}</Tabs.Tab> : null}
@@ -120,6 +118,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </Tabs.Panel>
         ) : null}
       </Tabs>
+      {group.canEdit ? (
+        <FloatingActions
+          href={`/groups/${group.id}/edit`}
+          label={t`Edit group`}
+          isDisabled={a.busy}
+        >
+          <Pencil className="size-6" aria-hidden />
+        </FloatingActions>
+      ) : null}
       {confirm ? (
         <ContactConfirmDialog
           title={group.role === "accepted" ? t`Leave group` : t`Cancel membership`}

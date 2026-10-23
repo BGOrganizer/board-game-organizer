@@ -65,6 +65,15 @@ describe("translate (runtime)", () => {
     ["Approve", "Approva"],
     ["Reject", "Rifiuta"],
     ["Approved", "Approvata"],
+    ["Choose a calendar day.", "Scegli un giorno sul calendario."],
+    ["Choose a local time.", "Scegli un orario locale."],
+    ["Increase", "Aumenta"],
+    ["Decrease", "Diminuisci"],
+    ["Ban from group", "Banna dal gruppo"],
+    ["Friday game night", "Serata giochi del venerdì"],
+    ["Strategy table", "Tavolo di strategia"],
+    ["Rated", "Ranking attivo"],
+    ["Unrated", "Ranking disattivo"],
   ])("translates location control %s on both clients", (english, italian) => {
     expect(translate(createAppI18n("en"), english)).toBe(english);
     expect(translate(createAppI18n("it"), english)).toBe(italian);

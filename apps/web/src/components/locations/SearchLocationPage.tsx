@@ -16,7 +16,9 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import "@maptiler/sdk/dist/maptiler-sdk.css";
 
-type Result = Pick<MatchLocation, "address" | "longitude" | "latitude"> & { id: string };
+type Result = Pick<MatchLocation, "address" | "longitude" | "latitude" | "timeZone"> & {
+  id: string;
+};
 
 export function SearchLocationPage({
   apiUrl,
@@ -387,6 +389,7 @@ export function SearchLocationPage({
               address: selected.address,
               longitude: selected.longitude,
               latitude: selected.latitude,
+              timeZone: selected.timeZone,
             });
         }}
       >

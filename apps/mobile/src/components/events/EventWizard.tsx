@@ -10,10 +10,9 @@ import {
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
-import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ArrowLeft, Plus, X } from "lucide-react-native";
+import { ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { BackHandler, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,13 +20,14 @@ import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import GamePicker from "@/components/games/GamePicker";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
-import { LocationListRow } from "@/components/locations/LocationListRow";
 import LocationPicker from "@/components/locations/LocationPicker";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { EventDateTimeField } from "./EventDateTimeField";
+import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventDraftTableEditor } from "./EventDraftTableEditor";
-import { EventWallDateTime } from "./EventWallDateTime";
+import { EventScheduleFields } from "./EventScheduleFields";
+import { EventWizardSummary } from "./EventWizardSummary";
+
 export function EventWizard({ eventId, groupId }: { eventId?: string; groupId?: string }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -59,25 +59,27 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
     o = useCommunityApi(),
     router = useRouter(),
     insets = useSafeAreaInsets(),
-    fg = useThemeColor("foreground"),
+    [fg, accentForeground, dangerForeground] = useThemeColor([
+      "foreground",
+      "accent-foreground",
+      "danger-foreground",
+    ]),
     form = useEventRecordForm(o, event, groupId),
-    a = useEventRecordActions(o, event?.id ?? ""),
-    [step, setStep] = useState(0),
-    [newDay, setNewDay] = useState(""),
-    [pick, setPick] = useState<
+    a = useEventRecordActions(o, event?.id ?? "");
+  const [pick, setPick] = useState<
       { kind: "game" | "demonstrator"; key: string } | "location" | "group" | null
     >(null),
     [remove, setRemove] = useState<string | null>(null),
-    [serverError, setServerError] = useState(false),
-    f = useListSearch<never>([]),
+    [serverError, setServerError] = useState(false);
+  const f = useListSearch<never>([]),
     owned = useGroupRecords(
       { ...o, enabled: o.enabled !== false && pick === "group" },
       "mine",
       f.search,
       ["admin"],
-    ),
-    publicGroup = form.group?.type === "PUBLIC",
-    draft = form.draft;
+    );
+  const { draft, step } = form,
+    publicGroup = form.group?.type === "PUBLIC";
   useEffect(() => {
     if (!pick) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -160,7 +162,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         />
       </View>
     );
-  if (pick === "group")
+  if (pick === "group" && !form.groupLocked)
     return (
       <View style={{ flex: 1 }}>
         {pickerHeader}
@@ -206,14 +208,19 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
               void owned.fetchNextPage();
           }}
           ListFooterComponent={
-            <View>
+            <View style={{ gap: 8 }}>
               {owned.isPending ? (
                 <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
               ) : null}
               {owned.isError ? (
-                <Typography accessibilityRole="alert" className="text-danger">
-                  {t("Could not load groups")}
-                </Typography>
+                <>
+                  <Typography accessibilityRole="alert" className="text-danger">
+                    {t("Could not load groups")}
+                  </Typography>
+                  <Button onPress={() => void owned.refetch()}>
+                    <Button.Label>{t("Try again")}</Button.Label>
+                  </Button>
+                </>
               ) : null}
               {owned.hasNextPage ? (
                 <Button onPress={() => void owned.fetchNextPage()}>
@@ -233,140 +240,26 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         </Typography>
       ) : null}
       {step === 0 ? (
+        <EventScheduleFields
+          form={form}
+          busy={a.busy}
+          onGroup={() => setPick("group")}
+          onLocation={() => setPick("location")}
+        />
+      ) : step === 1 ? (
         <>
-          <Typography className="text-foreground">{t("Event name")}</Typography>
-          <Input
-            accessibilityLabel={t("Event name")}
-            value={draft.name}
-            onChangeText={(name) => form.patch({ name })}
-            editable={!a.busy}
-          />
-          {!event ? (
-            <Button variant="outline" onPress={() => setPick("group")}>
-              <Button.Label>{form.group?.name ?? t("No group")}</Button.Label>
-            </Button>
-          ) : (
-            <Typography className="text-foreground">{form.group?.name ?? t("No group")}</Typography>
-          )}
-          {draft.groupId && form.groupQuery.isPending ? (
-            <Skeleton style={{ width: "100%", height: 60, borderRadius: 12 }} />
-          ) : null}
-          {draft.groupId &&
-          (form.groupQuery.isError || form.group?.role !== "admin" || !form.group?.canInvite) ? (
+          <Button variant="outline" isDisabled={a.busy} onPress={form.addTable}>
+            <Plus size={18} color={fg} />
+            <Button.Label>{t("Add table")}</Button.Label>
+          </Button>
+          {form.fieldError("tables") && !draft.tables.length ? (
             <Typography accessibilityRole="alert" className="text-danger">
-              {t("An approved group and its administrator are required.")}
+              {t("Add at least one table.")}
             </Typography>
           ) : null}
-          <Typography className="text-foreground">{t("Time zone")}</Typography>
-          <Input
-            accessibilityLabel={t("Time zone")}
-            value={draft.timeZone}
-            onChangeText={(timeZone) => form.patch({ timeZone })}
-            editable={!a.busy}
-          />
-          <EventDateTimeField
-            label={t("Event day")}
-            timeZone={draft.timeZone}
-            mode="date"
-            value={newDay ? `${newDay}T00:00` : ""}
-            onChange={(value) => setNewDay(value.slice(0, 10))}
-          />
-          <Button
-            variant="outline"
-            isDisabled={!newDay || (publicGroup && draft.dates.length === 1)}
-            onPress={() => {
-              form.addDate(newDay);
-              setNewDay("");
-            }}
-          >
-            <Button.Label>{t("Add date")}</Button.Label>
-          </Button>
-          {draft.dates.map((row) => (
-            <View key={row.id} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Typography className="text-foreground" style={{ flex: 1 }}>
-                {row.day}
-              </Typography>
-              <Button
-                isIconOnly
-                variant="danger-soft"
-                accessibilityLabel={`${t("Remove date")}: ${row.day}`}
-                onPress={() => form.patch({ dates: draft.dates.filter((d) => d.id !== row.id) })}
-              >
-                <X size={18} color={fg} />
-              </Button>
-            </View>
-          ))}
-          <EventDateTimeField
-            label={t("Common start time")}
-            timeZone={draft.timeZone}
-            mode="time"
-            day={draft.dates[0]?.day}
-            value={draft.dates[0] ? `${draft.dates[0].day}T${draft.startTime}` : ""}
-            onChange={(value) => form.patch({ startTime: value.slice(11, 16) })}
-          />
-          {publicGroup ? (
-            <>
-              <Typography className="text-muted">
-                {t(
-                  "Public events have a fixed day and venue. Cutoff and duration constraints apply to players and demonstrators.",
-                )}
-              </Typography>
-              <EventWallDateTime
-                label={t("Event end")}
-                timeZone={draft.timeZone}
-                value={draft.endsWall}
-                onChange={(endsWall) => form.patch({ endsWall })}
-              />
-              <EventWallDateTime
-                label={t("Booking cutoff")}
-                timeZone={draft.timeZone}
-                value={draft.cutoffWall}
-                onChange={(cutoffWall) => form.patch({ cutoffWall })}
-              />
-            </>
-          ) : null}
-          {draft.locations.map((row) => (
-            <View key={row.id} style={{ gap: 8 }}>
-              <LocationListRow name={row.name} address={row.address} />
-              {!publicGroup ? (
-                <Button
-                  variant="danger-soft"
-                  accessibilityLabel={`${t("Remove location")}: ${row.name}`}
-                  onPress={() =>
-                    form.patch({ locations: draft.locations.filter((l) => l.id !== row.id) })
-                  }
-                >
-                  <Button.Label>{t("Remove location")}</Button.Label>
-                </Button>
-              ) : null}
-            </View>
-          ))}
-          {!publicGroup ? (
-            <Button variant="outline" onPress={() => setPick("location")}>
-              <Button.Label>{t("Add location")}</Button.Label>
-            </Button>
-          ) : null}
         </>
-      ) : step === 1 ? (
-        <Button variant="outline" isDisabled={a.busy} onPress={form.addTable}>
-          <Plus size={18} color={fg} />
-          <Button.Label>{t("Add table")}</Button.Label>
-        </Button>
       ) : (
-        <>
-          <Typography className="font-semibold text-foreground">{draft.name}</Typography>
-          <Typography className="text-foreground">
-            {draft.dates.map((row) => row.day).join(", ")} · {draft.startTime} ({draft.timeZone})
-          </Typography>
-          {draft.locations.map((row) => (
-            <LocationListRow key={row.id} name={row.name} address={row.address} />
-          ))}
-          <Typography className="text-muted">
-            {t(
-              "Nothing is saved until final confirmation. The organizer has no automatic playing seat.",
-            )}
-          </Typography>
-        </>
+        <EventWizardSummary draft={draft} groupName={form.group?.name ?? event?.groupName} />
       )}
     </View>
   );
@@ -379,14 +272,25 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           headerLeft: undefined,
         }}
       />
-      <View style={{ paddingHorizontal: 20, flexDirection: "row", gap: 8 }}>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 4,
+          flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: 8,
+        }}
+      >
         {[t("Event"), t("Tables"), t("Review")].map((label, index) => (
           <Button
             key={label}
             size="sm"
             variant={step === index ? "primary" : "ghost"}
-            isDisabled={a.busy}
-            onPress={() => setStep(index)}
+            accessibilityState={{ selected: step === index }}
+            isDisabled={a.busy || index > step}
+            onPress={() => form.goToStep(index)}
           >
             <Button.Label>
               {index + 1}. {label}
@@ -400,42 +304,52 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 24 }}
         ListHeaderComponent={header}
-        renderItem={({ item: row }) =>
+        renderItem={({ item: row, index }) =>
           step === 1 ? (
             <EventDraftTableEditor
               row={row}
               publicGroup={publicGroup}
               timeZone={draft.timeZone}
               busy={a.busy}
+              fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
               onChange={(value) => form.patchTable(row.key, value)}
               onRemove={() => setRemove(row.key)}
               onGame={() => setPick({ kind: "game", key: row.key })}
               onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
             />
           ) : (
-            <Typography className="text-foreground">
-              {row.name}: {row.minPlayers}–{row.maxPlayers} ·{" "}
-              {row.games.map((game) => game.name).join(", ")}
-            </Typography>
+            <EventDraftTableCard row={row} />
           )
         }
         ListFooterComponent={
           <View style={{ gap: 12 }}>
-            {form.tables.isPending && event && step === 1 ? (
+            {step > 0 && event && form.tables.isPending ? (
               <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
             ) : null}
-            {form.tables.isError && step === 1 ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t("Could not load tables")}
-              </Typography>
+            {step > 0 && form.tables.isError ? (
+              <>
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t("Could not load tables")}
+                </Typography>
+                <Button onPress={() => void form.tables.refetch()}>
+                  <Button.Label>{t("Try again")}</Button.Label>
+                </Button>
+              </>
             ) : null}
-            {form.tables.hasNextPage && step === 1 ? (
+            {step > 0 && form.tables.hasNextPage ? (
               <Button
                 isDisabled={form.tables.isFetchingNextPage}
                 onPress={() => void form.tables.fetchNextPage()}
               >
                 <Button.Label>{t("Load more tables")}</Button.Label>
               </Button>
+            ) : null}
+            {step === 2 ? (
+              <Typography className="text-muted">
+                {t(
+                  "Nothing is saved until final confirmation. The organizer has no automatic playing seat.",
+                )}
+              </Typography>
             ) : null}
             {form.closed ? (
               <Typography accessibilityRole="alert" className="text-danger">
@@ -468,15 +382,23 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         }}
       >
         <Button
+          isIconOnly
           variant="ghost"
+          accessibilityLabel={t("Back")}
           isDisabled={a.busy}
-          onPress={() => (step ? setStep(step - 1) : router.back())}
+          onPress={() => (step ? form.goToStep(step - 1) : router.back())}
         >
-          <Button.Label>{t("Back")}</Button.Label>
+          <ArrowLeft size={20} color={fg} />
         </Button>
         {step < 2 ? (
-          <Button isDisabled={a.busy} onPress={() => setStep(step + 1)}>
-            <Button.Label>{t("Next")}</Button.Label>
+          <Button
+            isIconOnly
+            variant="primary"
+            accessibilityLabel={t("Next")}
+            isDisabled={a.busy || form.closed || form.conflict || !form.canNext}
+            onPress={form.next}
+          >
+            <ArrowRight size={20} color={accentForeground} />
           </Button>
         ) : (
           <Button
@@ -504,6 +426,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             {
               label: t("Remove table"),
               variant: "danger",
+              icon: <Trash2 size={18} color={dangerForeground} />,
               onPress: () => {
                 form.removeTable(remove);
                 setRemove(null);

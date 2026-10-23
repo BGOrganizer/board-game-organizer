@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 const ciDatabase = process.env.BGO_CI_DB_NAME;
@@ -23,6 +24,14 @@ if (ciDatabase) {
 }
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["geo-tz"],
+  outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
+  outputFileTracingIncludes: { "/*": ["../../node_modules/geo-tz/data/timezones-1970.*"] },
+  // Only the default post-1970 lookup is used; omit the other two geographic datasets.
+  outputFileTracingExcludes: {
+    "/*": ["../../node_modules/geo-tz/data/{timezones-now,timezones}.geojson.*"],
+  },
+
   allowedDevOrigins: ["192.168.8.187:4000"], // Sostituisci con il tuo IP
 };
 

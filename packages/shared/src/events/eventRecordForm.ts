@@ -62,7 +62,14 @@ export function tableDraft(row: PlannedTableResponse, timeZone: string): EventTa
   };
 }
 export function eventDraft(data?: PlannedEventResponse, groupId?: string): EventRecordDraft {
-  const zone = data?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zone = data?.locations[0]?.timeZone ?? data?.timeZone ?? "UTC";
+  const used = [...(data?.dates ?? [])];
+  const dates = (data?.dates ?? []).map((date) => {
+    if (!data || data.timeZone === zone) return { ...date };
+    const id = eventDateOptionId(used);
+    used.push({ ...date, id });
+    return { ...date, id };
+  });
   return {
     name: data?.name ?? "",
     groupId: data?.groupId ?? groupId ?? null,
@@ -70,57 +77,157 @@ export function eventDraft(data?: PlannedEventResponse, groupId?: string): Event
     startTime: data?.startTime ?? "20:00",
     endsWall: data?.endsAt ? eventLocalDateTime(data.endsAt, zone) : "",
     cutoffWall: data?.bookingClosesAt ? eventLocalDateTime(data.bookingClosesAt, zone) : "",
-    dates: data?.dates.map((d) => ({ ...d })) ?? [],
+    dates,
     locations: data?.locations.map((l) => ({ ...l })) ?? [],
     tables: [],
     removedTableIds: [],
     version: data?.version,
   };
 }
-export function eventDraftInput(draft: EventRecordDraft, publicGroup: boolean) {
+function draftIso(wall: string, zone: string) {
   try {
-    const base = {
-      name: draft.name,
-      timeZone: draft.timeZone,
-      startTime: draft.startTime,
-      dates: draft.dates,
-      locations: draft.locations,
-      ...(publicGroup
-        ? {
-            endsAt: eventLocalToIso(draft.endsWall, draft.timeZone),
-            bookingClosesAt: eventLocalToIso(draft.cutoffWall, draft.timeZone),
-          }
-        : {}),
-      tables: draft.tables.map((row) => ({
-        ...(row.id ? { id: row.id } : {}),
-        name: row.name,
-        minPlayers: row.minPlayers,
-        maxPlayers: row.maxPlayers,
-        rankingEnabled: row.rankingEnabled,
-        games: row.games.map((game) => ({
-          gameId: game.id,
-          ...(game.manualDurationMinutes
-            ? { manualDurationMinutes: game.manualDurationMinutes }
-            : {}),
-        })),
-        ...(publicGroup
-          ? {
-              startsAt: eventLocalToIso(row.startsWall, draft.timeZone),
-              ...(row.demonstratorUserId ? { demonstratorUserId: row.demonstratorUserId } : {}),
-            }
+    return eventLocalToIso(wall, zone);
+  } catch {
+    return undefined;
+  }
+}
+function draftPayload(draft: EventRecordDraft, publicGroup: boolean) {
+  const zone = draft.locations[0]?.timeZone ?? "";
+  return {
+    name: draft.name,
+    timeZone: zone,
+    startTime: draft.startTime,
+    dates: draft.dates,
+    locations: draft.locations,
+    ...(publicGroup
+      ? {
+          endsAt: draftIso(draft.endsWall, zone),
+          bookingClosesAt: draftIso(draft.cutoffWall, zone),
+        }
+      : {}),
+    tables: draft.tables.map((row) => ({
+      ...(row.id ? { id: row.id } : {}),
+      name: row.name,
+      minPlayers: row.minPlayers,
+      maxPlayers: row.maxPlayers,
+      rankingEnabled: row.rankingEnabled,
+      games: row.games.map((game) => ({
+        gameId: game.id,
+        ...(game.manualDurationMinutes
+          ? { manualDurationMinutes: game.manualDurationMinutes }
           : {}),
       })),
-    };
-    if (draft.version === undefined)
-      return createPlannedEventSchema.safeParse({ ...base, groupId: draft.groupId });
-    return editPlannedEventSchema.safeParse({
-      ...base,
-      version: draft.version,
-      removedTableIds: draft.removedTableIds,
+      ...(publicGroup
+        ? {
+            startsAt: draftIso(row.startsWall, zone),
+            ...(row.demonstratorUserId ? { demonstratorUserId: row.demonstratorUserId } : {}),
+          }
+        : {}),
+    })),
+  };
+}
+function draftPolicyErrors(
+  draft: EventRecordDraft,
+  publicGroup: boolean,
+): Array<Array<string | number>> {
+  const errors: Array<Array<string | number>> = [];
+  const zone = draft.locations[0]?.timeZone;
+  const day = draft.dates[0]?.day;
+  const start = zone && day ? draftIso(`${day}T${draft.startTime}`, zone) : undefined;
+  if (zone && day && !start) errors.push(["startTime"]);
+  if (!publicGroup) return errors;
+  const end = zone ? draftIso(draft.endsWall, zone) : undefined;
+  const cutoff = zone ? draftIso(draft.cutoffWall, zone) : undefined;
+  if (!end || (start && Date.parse(end) <= Date.parse(start))) errors.push(["endsAt"]);
+  if (
+    !cutoff ||
+    (start && Date.parse(cutoff) >= Date.parse(start)) ||
+    (draft.version === undefined && Date.parse(cutoff) <= Date.now())
+  )
+    errors.push(["bookingClosesAt"]);
+  draft.tables.forEach((row, index) => {
+    const at = zone ? draftIso(row.startsWall, zone) : undefined;
+    if (
+      !at ||
+      (start && Date.parse(at) < Date.parse(start)) ||
+      (end && Date.parse(at) >= Date.parse(end))
+    )
+      errors.push(["tables", index, "startsAt"]);
+    row.games.forEach((game, gameIndex) => {
+      const duration = game.maxPlayMinutes ?? game.manualDurationMinutes;
+      if (!duration || !Number.isSafeInteger(duration) || duration < 1)
+        errors.push(["tables", index, "games", gameIndex, "manualDurationMinutes"]);
+      else if (at && end && Date.parse(at) + duration * 60_000 > Date.parse(end))
+        errors.push(["tables", index, "startsAt"]);
     });
-  } catch {
-    return createPlannedEventSchema.safeParse({});
+  });
+  return errors;
+}
+/** Stage-specific validation reuses the write DTOs without inventing placeholder tables. */
+export function eventDraftStepIssues(
+  draft: EventRecordDraft,
+  publicGroup: boolean,
+  step: number,
+): string[] {
+  const { tables, ...schedule } = draftPayload(draft, publicGroup);
+  const result =
+    step === 0
+      ? createPlannedEventSchema
+          .omit({ tables: true })
+          .safeParse({ ...schedule, groupId: draft.groupId })
+      : (draft.version === undefined
+          ? createPlannedEventSchema
+          : editPlannedEventSchema
+        ).shape.tables.safeParse(tables);
+  const paths = result.success
+    ? []
+    : result.error.issues.map((issue) =>
+        (step === 0 ? issue.path : ["tables", ...issue.path]).join("."),
+      );
+  return [
+    ...new Set([
+      ...paths,
+      ...draftPolicyErrors(draft, publicGroup)
+        .filter((path) => (path[0] === "tables") === (step !== 0))
+        .map((path) => path.join(".")),
+    ]),
+  ];
+}
+export function eventDraftInput(draft: EventRecordDraft, publicGroup: boolean) {
+  const base = draftPayload(draft, publicGroup);
+  const policy = draftPolicyErrors(draft, publicGroup);
+  const schema = draft.version === undefined ? createPlannedEventSchema : editPlannedEventSchema;
+  return schema
+    .superRefine((_, context) => {
+      for (const path of policy)
+        context.addIssue({
+          code: "custom",
+          path,
+          message: "Check the event schedule and duration.",
+        });
+    })
+    .safeParse(
+      draft.version === undefined
+        ? { ...base, groupId: draft.groupId }
+        : { ...base, version: draft.version, removedTableIds: draft.removedTableIds },
+    );
+}
+export function patchEventDraft(
+  old: EventRecordDraft,
+  change: Partial<EventRecordDraft>,
+  originalDates: readonly { id: string }[] = [],
+): EventRecordDraft {
+  const next = { ...old, ...change };
+  next.timeZone = next.locations[0]?.timeZone ?? old.timeZone;
+  if (next.startTime !== old.startTime || next.timeZone !== old.timeZone) {
+    const used = [...originalDates, ...old.dates];
+    next.dates = next.dates.map((row) => {
+      const id = eventDateOptionId(used);
+      used.push({ id });
+      return { ...row, id };
+    });
   }
+  return next;
 }
 export function newTableDraft(key: string): EventTableDraft {
   return {

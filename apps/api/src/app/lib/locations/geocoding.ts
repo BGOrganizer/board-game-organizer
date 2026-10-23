@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { locationTimeZone } from "./location-time-zone";
 
 const responseSchema = z.object({
   features: z.array(
@@ -43,6 +44,7 @@ export async function geocodeAddresses(query: string) {
         address: feature.place_name,
         longitude: feature.center[0],
         latitude: feature.center[1],
+        timeZone: locationTimeZone({ latitude: feature.center[1], longitude: feature.center[0] }),
       }));
   } catch (error) {
     if (error instanceof GeocodingError) throw error;

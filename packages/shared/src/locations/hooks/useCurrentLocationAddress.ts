@@ -5,7 +5,9 @@ import { queryOptions, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { withProtectionBypass } from "../../common/api";
 
-type Address = Pick<MatchLocation, "address" | "longitude" | "latitude"> & { id: string };
+type Address = Pick<MatchLocation, "address" | "longitude" | "latitude" | "timeZone"> & {
+  id: string;
+};
 interface Options {
   apiUrl: string;
   userId: string | null | undefined;

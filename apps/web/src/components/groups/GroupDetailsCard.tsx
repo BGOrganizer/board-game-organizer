@@ -3,6 +3,7 @@ import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarDays, LockKeyhole, LockKeyholeOpen, MapPin, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { InfoSection } from "@/components/common/ui/InfoSection";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { GroupArtwork } from "./GroupArtwork";
@@ -26,7 +27,7 @@ export function GroupDetailsCard({
         icon={UsersRound}
         headerAccessory={<GroupStatusBadge group={group} />}
       >
-        <div className="flex min-w-0 items-center gap-3">
+        <GroupedRow className="gap-4 p-4">
           <GroupArtwork group={group} />
           <div className="min-w-0 flex-1 space-y-2">
             <p className="break-words font-semibold">{group.name}</p>
@@ -47,7 +48,7 @@ export function GroupDetailsCard({
               ) : null}
             </div>
           </div>
-        </div>
+        </GroupedRow>
       </InfoSection>
       {group.location ? (
         <InfoSection

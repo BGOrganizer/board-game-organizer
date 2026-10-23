@@ -50,6 +50,7 @@ const location = {
   latitude: 41.9,
 };
 const key = locationFavoriteKey(location);
+const canonicalLocation = { ...location, timeZone: "Europe/Rome" };
 function request(method = "GET", body?: unknown, query = "") {
   return new Request(`http://localhost/api/locations/favorites${query}`, {
     method,
@@ -65,7 +66,10 @@ beforeEach(() => {
   mocks.db.mockResolvedValue({ collection: () => ({}) });
   mocks.list.mockResolvedValue({ items: [{ key, location }], nextCursor: null });
   mocks.statuses.mockResolvedValue([key]);
-  mocks.save.mockResolvedValue({ key, location });
+  mocks.save.mockImplementation(async (_userId: string, value: typeof canonicalLocation) => ({
+    key,
+    location: value,
+  }));
   mocks.detail.mockResolvedValue({ match: { locations: [location] } });
   mocks.geocode.mockResolvedValue([location]);
 });
@@ -81,7 +85,7 @@ describe("private location favorites", () => {
   });
   it("paginates current user's favorites or looks up a bounded batch of keys", async () => {
     expect(await (await GET(request())).json()).toEqual({
-      items: [{ key, location }],
+      items: [{ key, location: canonicalLocation }],
       nextCursor: null,
     });
     expect(mocks.list).toHaveBeenCalledWith("user_one", 20, undefined);
@@ -120,9 +124,17 @@ describe("private location favorites", () => {
     expect(mocks.save).not.toHaveBeenCalled();
     const saved = await POST(request("POST", { location }));
     expect(saved.status).toBe(201);
-    expect(await saved.json()).toEqual({ item: { key, location } });
+    expect(await saved.json()).toEqual({ item: { key, location: canonicalLocation } });
     expect(mocks.geocode).toHaveBeenCalledWith(location.address);
-    expect(mocks.save).toHaveBeenCalledWith("user_one", location);
+    expect(mocks.save).toHaveBeenCalledWith("user_one", canonicalLocation);
+  });
+  it("overwrites a client timezone using verified coordinates without changing the favorite key", async () => {
+    const response = await POST(
+      request("POST", { location: { ...location, timeZone: "Pacific/Honolulu" } }),
+    );
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ item: { key, location: canonicalLocation } });
+    expect(mocks.save).toHaveBeenCalledWith("user_one", canonicalLocation);
   });
   it("preserves authorization, verification and upstream errors", async () => {
     mocks.geocode.mockResolvedValueOnce([{ ...location, longitude: 1 }]);

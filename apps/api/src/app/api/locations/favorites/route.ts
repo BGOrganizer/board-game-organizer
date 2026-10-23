@@ -16,6 +16,7 @@ import {
 } from "@/app/lib/locations/favorite-locations.http";
 import { FavoriteLocationsRepository } from "@/app/lib/locations/favorite-locations.repository";
 import { GeocodingError, geocodeAddresses } from "@/app/lib/locations/geocoding";
+import { locationTimeZone } from "@/app/lib/locations/location-time-zone";
 
 const querySchema = z
   .object({
@@ -52,10 +53,16 @@ export async function GET(request: Request) {
   }
   try {
     const repository = new FavoriteLocationsRepository(await getDb());
+    if (keys) return corsJson({ keys: await repository.statuses(userId, keys) }, request);
+    const page = await repository.list(userId, parsed.data.limit, parsed.data.cursor);
     return corsJson(
-      keys
-        ? { keys: await repository.statuses(userId, keys) }
-        : await repository.list(userId, parsed.data.limit, parsed.data.cursor),
+      {
+        ...page,
+        items: page.items.map((item) => ({
+          ...item,
+          location: { ...item.location, timeZone: locationTimeZone(item.location) },
+        })),
+      },
       request,
     );
   } catch {
@@ -82,7 +89,9 @@ export async function POST(request: Request) {
         if (error instanceof GeocodingError) throw new CommunityError(error.status, error.message);
         throw error;
       }
-      return { item: await favorites.save(userId, location) };
+      return {
+        item: await favorites.save(userId, { ...location, timeZone: locationTimeZone(location) }),
+      };
     },
     201,
   );

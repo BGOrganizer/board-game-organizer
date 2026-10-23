@@ -11,6 +11,7 @@ import {
 } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { InfoSection } from "@/components/common/ui/InfoSection";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
@@ -37,34 +38,45 @@ export function GroupDetailsCard({
         icon={UsersRound}
         headerAccessory={<GroupStatusBadge group={group} />}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <GroupArtwork group={group} />
-          <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-            <Typography className="font-semibold text-foreground">{group.name}</Typography>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Visibility size={14} color={muted} accessible={false} />
-              <Typography className="text-muted">
-                {group.type === "PUBLIC" ? t("Public") : t("Private")}
-              </Typography>
-            </View>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <GroupedRow>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 16,
+              paddingVertical: 4,
+              paddingRight: 4,
+            }}
+          >
+            <GroupArtwork group={group} />
+            <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+              <Typography className="font-semibold text-foreground">{group.name}</Typography>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <UsersRound size={14} color={muted} accessible={false} />
-                <Typography className="text-foreground">
-                  {numbers.format(group.memberCount)} {t("Confirmed members")}
+                <Visibility size={14} color={muted} accessible={false} />
+                <Typography className="text-muted">
+                  {group.type === "PUBLIC" ? t("Public") : t("Private")}
                 </Typography>
               </View>
-              {group.canViewEvents && group.eventCount !== null ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <CalendarDays size={14} color={muted} accessible={false} />
+                  <UsersRound size={14} color={muted} accessible={false} />
                   <Typography className="text-foreground">
-                    {numbers.format(group.eventCount)} {t("Events")}
+                    {numbers.format(group.memberCount)} {t("Confirmed members")}
                   </Typography>
                 </View>
-              ) : null}
+                {group.canViewEvents && group.eventCount !== null ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <CalendarDays size={14} color={muted} accessible={false} />
+                    <Typography className="text-foreground">
+                      {numbers.format(group.eventCount)} {t("Events")}
+                    </Typography>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
-        </View>
+        </GroupedRow>
       </InfoSection>
       {group.location ? (
         <InfoSection

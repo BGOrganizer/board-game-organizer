@@ -9,18 +9,21 @@ import {
   useGroupRecords,
   useListSearch,
 } from "@board-game-organizer/shared";
-import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
+import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
-import { LocationListRow } from "@/components/locations/LocationListRow";
 import { SearchLocationPage } from "@/components/locations/SearchLocationPage";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventDraftTableCard } from "./EventDraftTableCard";
 import { EventDraftTableEditor } from "./EventDraftTableEditor";
+import { EventScheduleFields } from "./EventScheduleFields";
+import { EventWizardSummary } from "./EventWizardSummary";
+
 export function EventWizard({ eventId, groupId }: { eventId?: string; groupId?: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -44,24 +47,23 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
     o = useCommunityApi(),
     router = useRouter(),
     form = useEventRecordForm(o, event, groupId),
-    a = useEventRecordActions(o, event?.id ?? ""),
-    [step, setStep] = useState(0),
-    [newDay, setNewDay] = useState(""),
+    a = useEventRecordActions(o, event?.id ?? "");
+  const [newDay, setNewDay] = useState(""),
     [pick, setPick] = useState<
       { kind: "game" | "demonstrator"; key: string } | "location" | "group" | null
     >(null),
     [remove, setRemove] = useState<string | null>(null),
-    [serverError, setServerError] = useState(false),
-    f = useListSearch<never>([]),
+    [serverError, setServerError] = useState(false);
+  const f = useListSearch<never>([]),
     owned = useGroupRecords(
       { ...o, enabled: o.enabled !== false && pick === "group" },
       "mine",
       f.search,
       ["admin"],
     ),
-    favorites = useFavoriteLocations(o, form.draft.locations),
-    publicGroup = form.group?.type === "PUBLIC",
-    draft = form.draft;
+    favorites = useFavoriteLocations(o, form.draft.locations);
+  const { draft, step } = form,
+    publicGroup = form.group?.type === "PUBLIC";
   const save = async () => {
     const parsed = form.validate();
     if (!parsed.success || a.busy || form.conflict) return;
@@ -110,7 +112,9 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
   if (pick && typeof pick === "object" && pick.kind === "demonstrator" && draft.groupId)
     return (
       <div className="space-y-4">
-        <Button onPress={() => setPick(null)}>{t`Back`}</Button>
+        <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={() => setPick(null)}>
+          <ArrowLeft className="size-5" aria-hidden />
+        </Button>
         <GroupMemberPicker
           groupId={draft.groupId}
           onSelect={(person) => {
@@ -123,10 +127,12 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         />
       </div>
     );
-  if (pick === "group")
+  if (pick === "group" && !form.groupLocked)
     return (
       <div className="space-y-3">
-        <Button onPress={() => setPick(null)}>{t`Back`}</Button>
+        <Button isIconOnly variant="ghost" aria-label={t`Back`} onPress={() => setPick(null)}>
+          <ArrowLeft className="size-5" aria-hidden />
+        </Button>
         <Button
           variant="outline"
           onPress={() => {
@@ -150,7 +156,10 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           ))}
         {owned.isPending ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
         {owned.isError ? (
-          <p role="alert" className="text-danger">{t`Could not load groups`}</p>
+          <div role="alert">
+            <p className="text-danger">{t`Could not load groups`}</p>
+            <Button onPress={() => void owned.refetch()}>{t`Try again`}</Button>
+          </div>
         ) : null}
         {owned.hasNextPage ? (
           <Button onPress={() => void owned.fetchNextPage()}>{t`Load more`}</Button>
@@ -158,14 +167,15 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
       </div>
     );
   return (
-    <div className="mx-auto max-w-4xl space-y-5 pb-28">
-      <div className="flex flex-wrap gap-2">
+    <div className="mx-auto max-w-4xl space-y-5 pt-4 pb-28">
+      <div className="flex flex-wrap justify-center gap-2">
         {[t`Event`, t`Tables`, t`Review`].map((label, index) => (
           <Button
             key={label}
             variant={step === index ? "primary" : "ghost"}
-            isDisabled={a.busy}
-            onPress={() => setStep(index)}
+            aria-current={step === index ? "step" : undefined}
+            isDisabled={a.busy || index > step}
+            onPress={() => form.goToStep(index)}
           >
             {index + 1}. {label}
           </Button>
@@ -178,168 +188,45 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         >{t`This event changed. Go back and reopen the editor before saving.`}</p>
       ) : null}
       {step === 0 ? (
-        <>
-          <TextField
-            value={draft.name}
-            onChange={(name) => form.patch({ name })}
-            isRequired
-            isDisabled={a.busy}
-          >
-            <Label>{t`Event name`}</Label>
-            <Input />
-          </TextField>
-          {!event ? (
-            <Button variant="outline" onPress={() => setPick("group")}>
-              {form.group?.name ?? t`No group`}
-            </Button>
-          ) : (
-            <p>{form.group?.name ?? t`No group`}</p>
-          )}
-          {draft.groupId && form.groupQuery.isPending ? (
-            <Skeleton className="h-16 w-full rounded-xl" />
-          ) : null}
-          {draft.groupId &&
-          (form.groupQuery.isError || form.group?.role !== "admin" || !form.group?.canInvite) ? (
-            <p
-              role="alert"
-              className="text-danger"
-            >{t`An approved group and its administrator are required.`}</p>
-          ) : null}
-          <TextField
-            value={draft.timeZone}
-            onChange={(timeZone) => form.patch({ timeZone })}
-            isRequired
-            isDisabled={a.busy}
-          >
-            <Label>{t`Time zone`}</Label>
-            <Input />
-          </TextField>
-          <TextField
-            value={draft.startTime}
-            onChange={(startTime) => form.patch({ startTime })}
-            isRequired
-            isDisabled={a.busy}
-          >
-            <Label>{t`Common start time`}</Label>
-            <Input type="time" />
-          </TextField>
-          {publicGroup ? (
-            <>
-              <p>{t`Public events have a fixed day and venue. Cutoff and duration constraints apply to players and demonstrators.`}</p>
-              <TextField
-                value={draft.endsWall}
-                onChange={(endsWall) => form.patch({ endsWall })}
-                isRequired
-              >
-                <Label>{t`Event end`}</Label>
-                <Input type="datetime-local" />
-              </TextField>
-              <TextField
-                value={draft.cutoffWall}
-                onChange={(cutoffWall) => form.patch({ cutoffWall })}
-                isRequired
-              >
-                <Label>{t`Booking cutoff`}</Label>
-                <Input type="datetime-local" />
-              </TextField>
-            </>
-          ) : null}
-          <TextField value={newDay} onChange={setNewDay}>
-            <Label>{t`Event day`}</Label>
-            <Input type="date" />
-          </TextField>
-          <Button
-            variant="outline"
-            isDisabled={!newDay || (publicGroup && draft.dates.length === 1)}
-            onPress={() => {
-              form.addDate(newDay);
-              setNewDay("");
-            }}
-          >
-            <Plus className="size-4" />
-            {t`Add date`}
-          </Button>
-          {draft.dates.map((row) => (
-            <div key={row.id} className="flex items-center justify-between">
-              <span>{row.day}</span>
-              <Button
-                isIconOnly
-                variant="danger-soft"
-                aria-label={`${t`Remove date`}: ${row.day}`}
-                onPress={() => form.patch({ dates: draft.dates.filter((d) => d.id !== row.id) })}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          ))}
-          {draft.locations.map((row) => (
-            <div key={row.id} className="flex items-center justify-between gap-3">
-              <LocationListRow name={row.name} address={row.address} />
-              {!publicGroup ? (
-                <Button
-                  isIconOnly
-                  variant="danger-soft"
-                  aria-label={`${t`Remove location`}: ${row.name}`}
-                  onPress={() =>
-                    form.patch({ locations: draft.locations.filter((l) => l.id !== row.id) })
-                  }
-                >
-                  <X className="size-4" />
-                </Button>
-              ) : null}
-            </div>
-          ))}
-          {!publicGroup ? (
-            <Button variant="outline" onPress={() => setPick("location")}>
-              <Plus className="size-4" />
-              {t`Add location`}
-            </Button>
-          ) : null}
-        </>
+        <EventScheduleFields
+          form={form}
+          busy={a.busy}
+          day={newDay}
+          onDayChange={setNewDay}
+          onGroup={() => setPick("group")}
+          onLocation={() => setPick("location")}
+        />
       ) : step === 1 ? (
         <>
           <Button variant="outline" isDisabled={a.busy} onPress={form.addTable}>
-            <Plus className="size-4" />
+            <Plus className="size-4" aria-hidden />
             {t`Add table`}
           </Button>
-          {draft.tables.map((row) => (
+          {draft.tables.map((row, index) => (
             <EventDraftTableEditor
               key={row.key}
               row={row}
               publicGroup={publicGroup}
               busy={a.busy}
+              fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
               onChange={(value) => form.patchTable(row.key, value)}
               onRemove={() => setRemove(row.key)}
               onGame={() => setPick({ kind: "game", key: row.key })}
               onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
             />
           ))}
-          {form.tables.isPending && event ? <Skeleton className="h-32 w-full rounded-xl" /> : null}
-          {form.tables.isError ? (
-            <p role="alert" className="text-danger">{t`Could not load tables`}</p>
-          ) : null}
-          {form.tables.hasNextPage ? (
-            <Button
-              isDisabled={form.tables.isFetchingNextPage}
-              onPress={() => void form.tables.fetchNextPage()}
-            >{t`Load more tables`}</Button>
+          {form.fieldError("tables") && !draft.tables.length ? (
+            <p role="alert" className="text-danger">{t`Add at least one table.`}</p>
           ) : null}
         </>
       ) : (
         <>
-          <h1 className="text-xl font-semibold">{draft.name}</h1>
-          <p>
-            {draft.dates.map((row) => row.day).join(", ")} · {draft.startTime} ({draft.timeZone})
-          </p>
-          {draft.locations.map((row) => (
-            <LocationListRow key={row.id} name={row.name} address={row.address} />
-          ))}
-          {draft.tables.map((row) => (
-            <p key={row.key}>
-              {row.name}: {row.minPlayers}–{row.maxPlayers} ·{" "}
-              {row.games.map((game) => game.name).join(", ")}
-            </p>
-          ))}
+          <EventWizardSummary draft={draft} groupName={form.group?.name ?? event?.groupName} />
+          <div className="space-y-3">
+            {draft.tables.map((row) => (
+              <EventDraftTableCard key={row.key} row={row} />
+            ))}
+          </div>
           <p>{t`Nothing is saved until final confirmation. The organizer has no automatic playing seat.`}</p>
           <Button
             isDisabled={
@@ -354,6 +241,21 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           </Button>
         </>
       )}
+      {step > 0 && event && form.tables.isPending ? (
+        <Skeleton className="h-32 w-full rounded-xl" />
+      ) : null}
+      {step > 0 && form.tables.isError ? (
+        <div role="alert">
+          <p className="text-danger">{t`Could not load tables`}</p>
+          <Button onPress={() => void form.tables.refetch()}>{t`Try again`}</Button>
+        </div>
+      ) : null}
+      {step > 0 && form.tables.hasNextPage ? (
+        <Button
+          isDisabled={form.tables.isFetchingNextPage}
+          onPress={() => void form.tables.fetchNextPage()}
+        >{t`Load more tables`}</Button>
+      ) : null}
       {form.closed ? <p role="alert" className="text-danger">{t`Bookings are closed`}</p> : null}
       {form.error ? (
         <p
@@ -369,12 +271,24 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
       ) : null}
       <div className="flex justify-between gap-3">
         <Button
+          isIconOnly
           variant="ghost"
+          aria-label={t`Back`}
           isDisabled={a.busy}
-          onPress={() => (step ? setStep(step - 1) : router.back())}
-        >{t`Back`}</Button>
+          onPress={() => (step ? form.goToStep(step - 1) : router.back())}
+        >
+          <ArrowLeft className="size-5" aria-hidden />
+        </Button>
         {step < 2 ? (
-          <Button isDisabled={a.busy} onPress={() => setStep(step + 1)}>{t`Next`}</Button>
+          <Button
+            isIconOnly
+            variant="primary"
+            aria-label={t`Next`}
+            isDisabled={a.busy || form.closed || form.conflict || !form.canNext}
+            onPress={form.next}
+          >
+            <ArrowRight className="size-5" aria-hidden />
+          </Button>
         ) : null}
       </div>
       {remove ? (
@@ -387,6 +301,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             {
               label: t`Remove table`,
               variant: "danger",
+              icon: <Trash2 className="size-4" aria-hidden />,
               onPress: () => {
                 form.removeTable(remove);
                 setRemove(null);

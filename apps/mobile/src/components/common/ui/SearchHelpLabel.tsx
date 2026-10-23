@@ -16,7 +16,7 @@ export function SearchHelpLabel({
   const title = helpTitle ?? t("Search help");
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-      <Typography className="font-medium text-foreground" style={{ flexShrink: 1 }}>
+      <Typography className="font-bold text-foreground" style={{ flexShrink: 1 }}>
         {label}
       </Typography>
       <HelpPopover label={`${label}: ${title}`} title={title}>

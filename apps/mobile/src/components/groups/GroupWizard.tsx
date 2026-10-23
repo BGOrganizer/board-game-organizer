@@ -209,35 +209,33 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
               onChange={setLogo}
               onBusyChange={setUploading}
             />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <GroupedList>
-                  <LocationListRow
-                    name={location?.name ?? t("Choose a verified address")}
-                    accessibilityLabel={t("Choose a verified address")}
-                    address={location?.address}
-                    onPress={actions.busy || uploading ? undefined : () => setPicking(true)}
-                    leading={
-                      location ? (
-                        <LocationFavoriteButton location={location} favorites={favorites} />
-                      ) : undefined
-                    }
-                  />
-                </GroupedList>
-              </View>
-              {location && type === "PRIVATE" ? (
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  accessibilityLabel={t("Remove location")}
-                  isDisabled={actions.busy || uploading}
-                  onPress={() => setLocation(undefined)}
-                >
-                  <X size={18} color={danger} />
-                </Button>
-              ) : null}
-            </View>
+            <GroupedList>
+              <LocationListRow
+                name={location?.name ?? t("Choose a verified address")}
+                accessibilityLabel={t("Choose a verified address")}
+                address={location?.address}
+                onPress={actions.busy || uploading ? undefined : () => setPicking(true)}
+                leading={
+                  location ? (
+                    <LocationFavoriteButton location={location} favorites={favorites} />
+                  ) : undefined
+                }
+                actions={
+                  location && type === "PRIVATE" ? (
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="danger-soft"
+                      accessibilityLabel={t("Remove location")}
+                      isDisabled={actions.busy || uploading}
+                      onPress={() => setLocation(undefined)}
+                    >
+                      <X size={18} color={danger} />
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </GroupedList>
             {favorites.status.isError ? (
               <Typography accessibilityRole="alert" className="text-danger">
                 {t("Could not load favorite locations")}
