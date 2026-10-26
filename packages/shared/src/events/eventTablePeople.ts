@@ -4,6 +4,7 @@ export type EventTablePerson = {
   userId: string;
   name: string;
   email: string | null;
+  username?: string | null;
   avatarUrl: string | null;
   profileLoaded: boolean;
   rank?: number | null;
@@ -27,6 +28,7 @@ export function eventTablePeople(
           userId: row.userId,
           name: p?.name ?? row.userId,
           email: p?.email ?? null,
+          username: p?.username ?? null,
           avatarUrl: p?.avatarUrl ?? null,
           profileLoaded: Boolean(p),
           rank: row.rank,
@@ -41,6 +43,7 @@ export function eventTablePeople(
     userId: row.userId,
     name: row.name ?? row.userId,
     email: row.email ?? null,
+    username: row.username ?? null,
     avatarUrl: row.avatarUrl,
     profileLoaded: true,
     rank: undefined,

@@ -1,5 +1,9 @@
 "use client";
-import { type EventRecordDraft, eventLocalToIso } from "@board-game-organizer/shared";
+import {
+  type EventRecordDraft,
+  eventDateWall,
+  eventLocalToIso,
+} from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react/macro";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -10,9 +14,11 @@ import { LocationListRow } from "@/components/locations/LocationListRow";
 export function EventWizardSummary({
   draft,
   groupName,
+  publicGroup = false,
 }: {
   draft: EventRecordDraft;
   groupName?: string | null;
+  publicGroup?: boolean;
 }) {
   const { t } = useLingui();
   return (
@@ -32,26 +38,46 @@ export function EventWizardSummary({
       </section>
       <section className="space-y-2">
         <SearchHelpLabel
-          label={t`Event day`}
+          label={publicGroup ? t`Start Date and Time` : t`Date and time`}
           helpTitle={t`Field help`}
-          help={t`Each event has one calendar day. Remove the selected day before choosing another.`}
+          help={t`Times are local to the location chosen for the event.`}
         />
         <GroupedList>
           {draft.dates.map((date) => (
             <GroupedRow key={date.id}>
               <DateTimeInfo
-                startsAt={eventLocalToIso(`${date.day}T${draft.startTime}`, draft.timeZone)}
+                startsAt={eventLocalToIso(eventDateWall(draft, date), draft.timeZone)}
                 timeZone={draft.timeZone}
               />
             </GroupedRow>
           ))}
         </GroupedList>
       </section>
+      {publicGroup ? (
+        <>
+          <section className="space-y-2">
+            <h2 className="font-semibold">{t`End Date and Time`}</h2>
+            <DateTimeInfo
+              startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
+              timeZone={draft.timeZone}
+              timeLabel={t`End time`}
+            />
+          </section>
+          <section className="space-y-2">
+            <h2 className="font-semibold">{t`Booking cutoff`}</h2>
+            <DateTimeInfo
+              startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
+              timeZone={draft.timeZone}
+              timeLabel={t`Booking cutoff`}
+            />
+          </section>
+        </>
+      ) : null}
       <section className="space-y-2">
         <SearchHelpLabel
           label={t`Location`}
           helpTitle={t`Field help`}
-          help={t`Each event has one verified address. Its time zone is automatic. Remove the location before choosing another.`}
+          help={t`Verified addresses proposed for this event.`}
         />
         <GroupedList>
           {draft.locations.map((location) => (

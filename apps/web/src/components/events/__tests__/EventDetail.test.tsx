@@ -21,10 +21,11 @@ let event: PlannedEventResponse,
   fail = false,
   failWrite = false,
   fetcher: ReturnType<typeof vi.fn>;
-function mount() {
-  const client = new QueryClient({
+function mount(
+  client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
+  }),
+) {
   renderWithI18n(
     <QueryClientProvider client={client}>
       <EventDetail eventId={eventId} />
@@ -34,6 +35,9 @@ function mount() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  const header = document.createElement("header");
+  header.id = "page-header-actions";
+  document.body.append(header);
   event = { ...plannedEvent };
   tables = [{ ...plannedTable }];
   fail = false;
@@ -52,11 +56,17 @@ beforeEach(() => {
           canEdit: false,
           canReplan: true,
         };
-      } else if (url.endsWith("/votes"))
+      } else if (url.endsWith("/votes")) {
+        const field = input.kind === "location" ? "locationVotes" : "dateVotes";
         event = {
           ...event,
-          myVotes: { dateVotes: { [input.optionId]: input.vote }, locationVotes: {} },
+          myVotes: {
+            dateVotes: { ...event.myVotes?.dateVotes },
+            locationVotes: { ...event.myVotes?.locationVotes },
+            [field]: { ...event.myVotes?.[field], [input.optionId]: input.vote },
+          },
         };
+      }
       return new Response(JSON.stringify(event));
     }
     return new Response(
@@ -65,7 +75,235 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", fetcher);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  document.getElementById("page-header-actions")?.remove();
+});
+it("allows No only when another current location stays usable, independent of the date votes", async () => {
+  const second = "77777777-7777-4777-8777-777777777777",
+    first = event.locations[0].id;
+  event = {
+    ...event,
+    groupType: "PRIVATE",
+    canVote: true,
+    locations: [...event.locations, { ...event.locations[0], id: second, name: "Second venue" }],
+    myVotes: {
+      dateVotes: { [event.dates[0].id]: "YES" },
+      locationVotes: { [first]: "YES", [second]: "IF_NEEDED" },
+    },
+  };
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Club venue: Yes" }));
+  expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "No" }));
+  await screen.findByRole("button", { name: "Club venue: No" });
+  fireEvent.click(screen.getByRole("button", { name: "Second venue: If needed" }));
+  expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "2030-06-03 20:00: Yes" }));
+  expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(true);
+});
+it("keeps one usable date/location independently and still allows switching Yes to If needed", async () => {
+  const second = "77777777-7777-4777-8777-777777777777",
+    first = event.dates[0].id,
+    venue = event.locations[0].id;
+  event = {
+    ...event,
+    groupType: "PRIVATE",
+    canVote: true,
+    dates: [...event.dates, { id: second, day: "2030-06-04" }],
+    myVotes: {
+      dateVotes: { [first]: "YES", [second]: "IF_NEEDED" },
+      locationVotes: { [venue]: "IF_NEEDED" },
+    },
+  };
+  const client = mount();
+  fireEvent.click(await screen.findByRole("button", { name: "2030-06-03 20:00: Yes" }));
+  expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Club venue: If needed" }));
+  expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "No" }));
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+  await screen.findByRole("button", { name: "Club venue: Yes" });
+  expect(
+    fetcher.mock.calls.some(
+      ([, init]) => init?.method === "PATCH" && JSON.parse(String(init.body)).kind === "location",
+    ),
+  ).toBe(true);
+  event = {
+    ...event,
+    myVotes: { ...event.myVotes!, dateVotes: { [first]: "YES", [second]: "NO" } },
+  };
+  act(() =>
+    client.setQueryData(
+      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+      event,
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "2030-06-03 20:00: Yes" }));
+  await waitFor(() =>
+    expect((screen.getByRole("button", { name: "No" }) as HTMLButtonElement).disabled).toBe(true),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "If needed" }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([, init]) =>
+          init?.method === "PATCH" && JSON.parse(String(init.body)).vote === "IF_NEEDED",
+      ),
+    ).toBe(true),
+  );
+});
+it("puts confirmed-owner result registration in the header and icon-only replan in a bottom-right secondary FAB", async () => {
+  event = { ...event, status: "CONFIRMED", canEdit: false, canReplan: true, canFinalize: true };
+  mount();
+  const register = await screen.findByRole("link", { name: "Register results" });
+  expect(document.getElementById("page-header-actions")?.contains(register)).toBe(true);
+  expect(register.textContent).toBe("");
+  expect(register.querySelector("svg.lucide-clipboard-pen-line")).not.toBeNull();
+  const reopen = screen.getByRole("button", { name: "Reopen planning" });
+  expect(reopen.className).toContain("fixed");
+  expect(reopen.className).toContain("right-4");
+  expect(reopen.className).toContain("button--secondary");
+  expect(reopen.textContent).toBe("");
+  fireEvent.click(reopen);
+  expect(
+    within(screen.getByRole("dialog"))
+      .getByRole("button", { name: "Confirm" })
+      .querySelector("svg.lucide-rotate-ccw"),
+  ).not.toBeNull();
+});
+it("blocks confirmed header navigation while only cached summary data is available, then enables the same link", async () => {
+  event = { ...event, status: "CONFIRMED", canEdit: false, canFinalize: true };
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(eventRecordKeys.list({ apiUrl: "https://api.test", userId: "owner" }), {
+    pages: [{ items: [event], nextCursor: null }],
+    pageParams: [""],
+  });
+  let resolve!: (value: Response) => void;
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.endsWith(`/events/${eventId}`)
+      ? new Promise<Response>((done) => {
+          resolve = done;
+        })
+      : original(url, init),
+  );
+  mount(client);
+  const link = await screen.findByRole("link", { name: "Register results" });
+  expect(fireEvent.click(link)).toBe(false);
+  await act(async () => {
+    resolve(new Response(JSON.stringify(event)));
+  });
+  await waitFor(() => expect(link.getAttribute("aria-disabled")).toBe("false"));
+  document.addEventListener("click", (e) => e.preventDefault(), { once: true });
+  fireEvent.click(link);
+});
+it("never exposes confirmed owner header/FAB actions to another viewer through inconsistent capabilities", async () => {
+  event = {
+    ...event,
+    status: "CONFIRMED",
+    adminUserId: "other",
+    canEdit: false,
+    canReplan: true,
+    canFinalize: true,
+  };
+  mount();
+  await screen.findByRole("heading", { name: event.name });
+  expect(screen.queryByRole("link", { name: "Register results" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Reopen planning" })).toBeNull();
+});
+it("separates same-day clock choices, restores every proposal on replan and never offers fixed public schedule votes", async () => {
+  const later = "77777777-7777-4777-8777-777777777777";
+  event = {
+    ...event,
+    canVote: true,
+    groupType: "PRIVATE",
+    locations: [
+      ...event.locations,
+      {
+        ...event.locations[0],
+        id: later,
+        name: "New York venue",
+        latitude: 40.71,
+        longitude: -74.01,
+        timeZone: "America/New_York",
+      },
+    ],
+    dates: [
+      { ...event.dates[0], startTime: "18:15" },
+      { id: later, day: "2030-06-03", startTime: "21:30" },
+    ],
+    confirmed: {
+      dateId: event.dates[0].id,
+      locationId: event.locations[0].id,
+      at: event.createdAt,
+    },
+  };
+  const client = mount();
+  expect(await screen.findByRole("button", { name: "2030-06-03 18:15: Unknown" })).not.toBeNull();
+  expect(screen.queryByText("Times are local to the location chosen for the event.")).toBeNull();
+  expect(screen.queryByText(/Europe\/Rome|America\/New_York/)).toBeNull();
+  await selectVote("2030-06-03 21:30");
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url, init]) =>
+          String(url).endsWith("/votes") && JSON.parse(String(init?.body)).optionId === later,
+      ),
+    ).toBe(true),
+  );
+  await waitFor(() => expect(client.isMutating()).toBe(0));
+  event = { ...event, groupType: "PUBLIC" };
+  await act(async () =>
+    client.setQueryData(
+      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+      event,
+    ),
+  );
+  await waitFor(() => expect(screen.queryAllByRole("button", { name: /: Yes$/ })).toHaveLength(0));
+});
+it("presents public start, end and booking cutoff with the same labelled date/time item structure", async () => {
+  event = {
+    ...event,
+    groupType: "PUBLIC",
+    endsAt: "2030-06-03T21:00:00Z",
+    bookingClosesAt: "2030-06-03T16:00:00Z",
+  };
+  mount();
+  for (const name of ["Start Date and Time", "End Date and Time", "Booking Cutoff Date and Time"]) {
+    const section = await screen.findByRole("region", { name });
+    expect(within(section).getByText(name)).not.toBeNull();
+    expect(section.querySelector("li time")).not.toBeNull();
+    expect(within(section).getByRole("button", { name: `${name}: Field help` })).not.toBeNull();
+  }
+});
+async function selectVote(label: string) {
+  fireEvent.click(await screen.findByRole("button", { name: `${label}: Unknown` }));
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+      name: "Yes",
+    }),
+  );
+}
+it("places aggregate votes beneath date/time and location identities without enabling pending participants", async () => {
+  event = {
+    ...event,
+    canVote: false,
+    voteCounts: {
+      dates: { [event.dates[0].id]: { YES: 2, NO: 0, IF_NEEDED: 1, UNKNOWN: 1 } },
+      locations: { [event.locations[0].id]: { YES: 1, NO: 1, IF_NEEDED: 0, UNKNOWN: 2 } },
+    },
+  };
+  mount();
+  const date = await screen.findByLabelText("Votes: 2030-06-03 20:00"),
+    location = screen.getByLabelText("Votes: Club venue");
+  expect(date.closest("li")?.querySelector("time")).not.toBeNull();
+  expect(location.closest("li")?.textContent).toContain("Club venue");
+  expect(screen.queryByRole("button", { name: "Club venue: Unknown" })).toBeNull();
+});
 it("keeps terminated events read-only when no planning agreement is returned", async () => {
   event = {
     ...event,
@@ -135,6 +373,12 @@ it("retries uncached event and table failures instead of turning them into empty
   const retry = screen.queryByRole("button", { name: "Try again" });
   if (retry) fireEvent.click(retry);
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
+});
+it("honors a results-only capability without showing an unavailable planning action", async () => {
+  event = { ...event, status: "CONFIRMED", canReplan: false, canFinalize: true };
+  mount();
+  expect(await screen.findByRole("link", { name: "Register results" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Reopen planning" })).toBeNull();
 });
 it("confirms manually, permits replan after cutoff, and keeps failed transitions actionable", async () => {
   event = {
@@ -220,14 +464,15 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
     return original(url, init);
   });
   mount();
-  expect(
-    await screen.findByText("Agreement available. Confirmation remains manual."),
-  ).not.toBeNull();
-  expect(screen.getByText(/Pending invitations still reserve places/)).not.toBeNull();
-  expect(screen.getByText(/No compatible accepted players/)).not.toBeNull();
+  const confirmation = (await screen.findByRole("button", {
+    name: "Confirm event",
+  })) as HTMLButtonElement;
+  expect(confirmation.disabled).toBe(false);
+  expect(screen.queryByText(/Pending invitations still reserve places/)).toBeNull();
+  expect(screen.queryByText(/No compatible accepted players/)).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Load more" }));
   expect(await screen.findByRole("link", { name: "Open table: Second table" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: `${plannedEvent.locations[0].name}: Yes` }));
+  await selectVote(plannedEvent.locations[0].name);
   await waitFor(() =>
     expect(
       fetcher.mock.calls.some(
@@ -249,13 +494,19 @@ it("opens unified event/table routes and uses one voting legend with no legacy d
   );
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
-  expect(screen.queryByRole("button", { name: /Confirm event/ })).toBeNull();
+  expect(
+    (screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  expect(
+    document
+      .getElementById("page-header-actions")
+      ?.contains(screen.getByRole("button", { name: "Confirm event" })),
+  ).toBe(true);
 });
 it("only accepted players may vote, and voting never creates a table registration", async () => {
   event = { ...event, canVote: true };
   mount();
-  const vote = await screen.findByRole("button", { name: "2030-06-03: Yes" });
-  fireEvent.click(vote);
+  await selectVote("2030-06-03 20:00");
   await waitFor(() =>
     expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("set_event_vote"),
   );
@@ -278,8 +529,41 @@ it("explains seated game disagreement without replacing players by waiters", asy
     },
   };
   mount();
+  const confirmation = (await screen.findByRole("button", {
+    name: "Confirm event",
+  })) as HTMLButtonElement;
+  expect(confirmation.disabled).toBe(true);
+  expect(screen.queryByText(/Seated players agree on date and location/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Why confirmation is unavailable" }));
   expect(await screen.findByText(/Seated players agree on date and location/)).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull();
+});
+it("keeps a missing agreement disabled even if an inconsistent capability says confirmation is allowed, with all reasons only inside its popover", async () => {
+  event = {
+    ...event,
+    canConfirm: true,
+    agreement: {
+      agreed: false,
+      tables: [],
+      reasons: [
+        { tableId: plannedTable.id, code: "PENDING_RESERVATIONS" },
+        { tableId: "77777777-7777-4777-8777-777777777777", code: "GAME_DISAGREEMENT" },
+        { tableId: "88888888-8888-4888-8888-888888888888", code: "NO_AGREEMENT" },
+      ],
+    },
+  };
+  mount();
+  await screen.findByRole("link", { name: "Open table: First table" });
+  const confirmation = screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement;
+  expect(confirmation.disabled).toBe(true);
+  expect(confirmation.className).toContain("size-9");
+  expect(screen.queryByRole("region", { name: "Agreement" })).toBeNull();
+  expect(screen.queryByText(/Pending invitations still reserve places/)).toBeNull();
+  fireEvent.click(confirmation);
+  expect(fetcher.mock.calls.some(([url]) => url.endsWith("/state"))).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Why confirmation is unavailable" }));
+  expect(await screen.findByText(/First table: Pending invitations/)).not.toBeNull();
+  expect(screen.getByText(/Seated players agree on date and location/)).not.toBeNull();
+  expect(screen.getByText(/No compatible accepted players/)).not.toBeNull();
 });
 it("requires explicit manual confirmation and freezes only server-authorized agreement", async () => {
   event = { ...event, canConfirm: true, agreement: { agreed: true, tables: [], reasons: [] } };
@@ -299,7 +583,7 @@ it("requires explicit manual confirmation and freezes only server-authorized agr
   expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("confirm_event");
 });
 it("leaves failed confirmation actionable and selectively restores optimistic capabilities", async () => {
-  event = { ...event, canConfirm: true };
+  event = { ...event, canConfirm: true, agreement: { agreed: true, tables: [], reasons: [] } };
   failWrite = true;
   const client = mount();
   fireEvent.click(await screen.findByRole("button", { name: "Confirm event" }));
@@ -323,6 +607,111 @@ it("preserves an observable error/retry path instead of treating failures as emp
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByRole("heading", { name: event.name })).not.toBeNull();
 });
+it("shows a disabled owner confirmation in the app header, explains agreement and labels event metadata", async () => {
+  tables = [];
+  mount();
+  const heading = await screen.findByRole("heading", { name: event.name });
+  expect(heading.className).toContain("text-base font-normal");
+  const card = heading.closest(".card");
+  expect(card?.querySelector("img")).not.toBeNull();
+  expect(heading.previousElementSibling?.classList.contains("lucide-calendar-days")).toBe(true);
+  const legend = screen.getByRole("button", { name: "Voting legend" }),
+    badge = screen.getByText("Planning").closest(".chip");
+  expect(legend.closest(".card")).toBeNull();
+  expect(card?.contains(badge)).toBe(true);
+  expect(
+    legend.compareDocumentPosition(card as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(screen.queryByText("No group")).toBeNull();
+  expect(screen.queryByText(/Europe\/Rome/)).toBeNull();
+  const button = screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  expect(button.textContent).toBe("");
+  fireEvent.click(button);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("region", { name: "Details" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Date and time: Field help" })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Event name: Field help" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Group: Field help" })).toBeNull();
+  const date = new Intl.DateTimeFormat("en", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    timeZone: "Europe/Rome",
+  }).format(new Date("2030-06-03T18:00:00Z"));
+  expect(screen.getByText(date).closest("li")).not.toBeNull();
+  expect(await screen.findByText("No tables found")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Why confirmation is unavailable" }));
+  expect(
+    await screen.findByText(
+      "No complete agreement yet. Check participation and votes for the date, location and game.",
+    ),
+  ).not.toBeNull();
+});
+it("removes stale header actions after authorization loss and does not give another organizer's confirmation to a viewer", async () => {
+  event = { ...event, canConfirm: true };
+  const client = mount();
+  await screen.findByRole("button", { name: "Confirm event" });
+  act(() =>
+    client.setQueryData(
+      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+      { ...event, adminUserId: "other", canConfirm: false, canEdit: false },
+    ),
+  );
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Confirm event" })).toBeNull());
+  fetcher.mockImplementation(async () => new Response('{"error":"FORBIDDEN"}', { status: 403 }));
+  await act(async () => {
+    await client.invalidateQueries({
+      queryKey: eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+    });
+  });
+  expect(await screen.findByText("Could not load event")).not.toBeNull();
+  expect(document.getElementById("page-header-actions")?.childElementCount).toBe(0);
+});
+it.each(["confirm", "replan"] as const)(
+  "rejects %s when authorization/agreement changes while its confirmation is open",
+  async (action) => {
+    event = {
+      ...event,
+      status: action === "confirm" ? "PLANNING" : "CONFIRMED",
+      canConfirm: action === "confirm",
+      canReplan: action === "replan",
+      agreement: { agreed: true, tables: [], reasons: [] },
+    };
+    const client = mount();
+    const opener = (await screen.findByRole("button", {
+      name: action === "confirm" ? "Confirm event" : "Reopen planning",
+    })) as HTMLButtonElement;
+    fireEvent.click(opener);
+    expect(
+      within(screen.getByRole("dialog"))
+        .getByRole("button", { name: "Confirm" })
+        .querySelector(
+          action === "confirm" ? "svg.lucide-calendar-check" : "svg.lucide-rotate-ccw",
+        ),
+    ).not.toBeNull();
+    act(() =>
+      client.setQueryData(
+        eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+        { ...event, version: 2, canConfirm: false, canReplan: false },
+      ),
+    );
+    await waitFor(() =>
+      expect(action === "confirm" ? opener.disabled : !opener.isConnected).toBe(true),
+    );
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+    expect(
+      await screen.findByText("Could not change event state. Refresh and try again."),
+    ).not.toBeNull();
+    expect(
+      fetcher.mock.calls.filter(
+        ([url, init]) => url.endsWith("/state") && init?.method === "PATCH",
+      ),
+    ).toHaveLength(0);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
 it("closed public cutoff blocks editing/voting without preventing manual confirmation", async () => {
   event = {
     ...event,
@@ -330,9 +719,13 @@ it("closed public cutoff blocks editing/voting without preventing manual confirm
     bookingClosesAt: "2000-01-01T00:00:00Z",
     canVote: true,
     canConfirm: true,
+    agreement: { agreed: true, tables: [], reasons: [] },
   };
   mount();
-  expect(await screen.findByRole("button", { name: "Confirm event" })).not.toBeNull();
+  const confirmation = (await screen.findByRole("button", {
+    name: "Confirm event",
+  })) as HTMLButtonElement;
+  expect(confirmation.disabled).toBe(false);
   expect(screen.queryByRole("link", { name: "Edit event" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "2030-06-03: Yes" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "2030-06-03 20:00: Yes" })).toBeNull();
 });

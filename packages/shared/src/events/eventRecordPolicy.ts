@@ -7,6 +7,35 @@ import type {
 import { eventLocalDateTime, eventLocalToIso } from "./eventForm";
 
 export type EventGroupType = "PRIVATE" | "PUBLIC" | null;
+export function eventDateWall(
+  event: Pick<EventRecord, "startTime">,
+  date: EventRecord["dates"][number],
+) {
+  return `${date.day}T${date.startTime ?? event.startTime}`;
+}
+/** Preview a proposal without treating it as an agreed date for Past/Future filtering. */
+export function eventRecordPreviewDate(
+  event: Pick<EventRecord, "dates" | "confirmed" | "status">,
+): EventRecord["dates"][number] | undefined {
+  return (
+    (event.status !== "PLANNING" && event.confirmed
+      ? event.dates.find((date) => date.id === event.confirmed?.dateId)
+      : undefined) ?? event.dates[0]
+  );
+}
+/** A private proposal has no single display zone until a venue is chosen. */
+export function eventRecordDisplayTimeZone(
+  event: Pick<EventRecord, "status" | "timeZone" | "locations">,
+  groupType: EventGroupType,
+): string | null {
+  if (
+    event.status === "PLANNING" &&
+    groupType === "PRIVATE" &&
+    new Set(event.locations.map((location) => location.timeZone ?? event.timeZone)).size > 1
+  )
+    return null;
+  return event.timeZone;
+}
 export function publicBookingIsClosed(
   event: EventRecord,
   groupType: EventGroupType,
@@ -68,7 +97,7 @@ export function plannedTableInterval(
   gameId?: number,
 ) {
   const date = event.dates.find((row) => row.id === dateId) ?? event.dates[0];
-  const eventStart = eventLocalToIso(`${date.day}T${event.startTime}`, event.timeZone);
+  const eventStart = eventLocalToIso(eventDateWall(event, date), event.timeZone);
   const startsAt = groupType === "PUBLIC" && table.startsAt ? table.startsAt : eventStart;
   if (groupType !== "PUBLIC") return { startsAt };
   const games =

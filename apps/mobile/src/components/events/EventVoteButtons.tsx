@@ -1,47 +1,113 @@
 import type { EventVote } from "@board-game-organizer/schemas";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
+import { Typography } from "heroui-native/text";
 import { Check, HelpCircle, Minus, X } from "lucide-react-native";
+import { useState } from "react";
 import { View } from "react-native";
+import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
 export function EventVoteButtons({
   value = "UNKNOWN",
   label,
   busy,
   onChange,
+  allowUnknown = true,
+  inline = false,
+  disabledVotes = [],
 }: {
   value?: EventVote;
   label: string;
   busy: boolean;
   onChange: (vote: EventVote) => void;
+  allowUnknown?: boolean;
+  inline?: boolean;
+  disabledVotes?: readonly EventVote[];
 }) {
   const t = useT(),
-    fg = useThemeColor("foreground"),
-    selected = useThemeColor("accent-foreground");
+    [open, setOpen] = useState(false);
+  const [success, warning, danger, unknown, accentForeground] = useThemeColor([
+    "success",
+    "warning",
+    "danger",
+    "foreground",
+    "accent-foreground",
+  ]);
+  const options = [
+    { key: "YES", text: t("Yes"), Icon: Check, color: success },
+    { key: "IF_NEEDED", text: t("If needed"), Icon: Minus, color: warning },
+    { key: "NO", text: t("No"), Icon: X, color: danger },
+    { key: "UNKNOWN", text: t("Unknown"), Icon: HelpCircle, color: unknown },
+  ] as const;
+  const selected = options.find((option) => option.key === value) ?? options[3];
+  const choices = options.filter((option) => allowUnknown || option.key !== "UNKNOWN");
+  if (inline)
+    return (
+      <View style={{ flexDirection: "row", gap: 4 }}>
+        {choices.map(({ key, text, Icon, color }) => (
+          <Button
+            key={key}
+            isIconOnly
+            size="sm"
+            variant={value === key ? "primary" : "secondary"}
+            accessibilityLabel={`${label}: ${text}`}
+            accessibilityState={{ selected: value === key }}
+            style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+            hitSlop={4}
+            isDisabled={busy || disabledVotes.includes(key)}
+            onPress={() => onChange(key)}
+          >
+            <Icon size={16} color={value === key ? accentForeground : color} accessible={false} />
+          </Button>
+        ))}
+      </View>
+    );
   return (
-    <View style={{ flexDirection: "row", gap: 4 }} accessibilityLabel={label}>
-      {(
-        [
-          { key: "YES", text: t("Yes"), icon: Check },
-          { key: "IF_NEEDED", text: t("If needed"), icon: Minus },
-          { key: "NO", text: t("No"), icon: X },
-          { key: "UNKNOWN", text: t("Unknown"), icon: HelpCircle },
-        ] as const
-      ).map(({ key, text, icon: Icon }) => (
-        <Button
-          key={key}
-          size="sm"
-          isIconOnly
-          style={{ minWidth: 44, minHeight: 44 }}
-          variant={value === key ? "primary" : "ghost"}
-          accessibilityState={{ selected: value === key }}
-          accessibilityLabel={`${label}: ${text}`}
-          isDisabled={busy}
-          onPress={() => onChange(key)}
+    <>
+      <Button
+        isIconOnly
+        size="sm"
+        variant="secondary"
+        style={{ minWidth: 44, minHeight: 44 }}
+        accessibilityLabel={`${label}: ${selected.text}`}
+        accessibilityState={{ expanded: open }}
+        isDisabled={busy}
+        onPress={() => setOpen(true)}
+      >
+        <selected.Icon size={20} color={selected.color} />
+      </Button>
+      {open ? (
+        <ConfirmDialog
+          title={t("Choose your vote")}
+          description={label}
+          busy={busy}
+          onCancel={() => setOpen(false)}
+          actions={[]}
         >
-          <Icon size={18} color={value === key ? selected : fg} />
-        </Button>
-      ))}
-    </View>
+          <View style={{ gap: 8 }}>
+            {choices.map(({ key, text, Icon, color }) => (
+              <Button
+                key={key}
+                variant="secondary"
+                accessibilityState={{ selected: value === key }}
+                isDisabled={busy || disabledVotes.includes(key)}
+                onPress={() => {
+                  setOpen(false);
+                  onChange(key);
+                }}
+              >
+                <Icon size={20} color={color} />
+                <Button.Label>{text}</Button.Label>
+              </Button>
+            ))}
+          </View>
+          {disabledVotes.includes("NO") ? (
+            <Typography className="text-sm text-muted">
+              {t("Keep at least one Yes or If needed for dates and locations.")}
+            </Typography>
+          ) : null}
+        </ConfirmDialog>
+      ) : null}
+    </>
   );
 }

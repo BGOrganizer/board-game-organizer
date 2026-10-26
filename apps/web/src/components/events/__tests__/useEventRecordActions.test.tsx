@@ -1,3 +1,4 @@
+import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
   eventRecordsQuery,
@@ -28,6 +29,102 @@ function setup() {
   return { client, options, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+it("reconciles owned Event participation from registration responses without depending on refetch or overwriting newer votes", async () => {
+  const { client, options, wrapper } = setup(),
+    detail = eventRecordKeys.detail(options, eventId),
+    list = eventRecordsQuery(options).queryKey;
+  const other = { ...seat("owner"), id: eventId, tableId: eventId };
+  const initial = { ...plannedEvent, myRegistrations: [other] };
+  client.setQueryData(detail, initial);
+  client.setQueryData(list, {
+    pages: [{ items: [initial, { ...plannedEvent, id: tableId }], nextCursor: null }],
+    pageParams: [""],
+  });
+  const foreign = eventRecordKeys.detail({ ...options, userId: "foreign" }, eventId);
+  client.setQueryData(foreign, initial);
+  let response = seat("owner");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify(response))),
+  );
+  const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
+  const owned = () => client.getQueryData<PlannedEventResponse>(detail)!;
+  await act(async () => {
+    await q.result.current.register.mutateAsync(tableId);
+  });
+  expect(owned().myRegistrations).toEqual([other, response]);
+  expect(client.getQueryData(list)?.pages[0].items[0].myRegistrations).toEqual([other, response]);
+  expect(client.getQueryData(foreign)).toEqual(initial);
+  client.setQueryData(detail, {
+    ...owned(),
+    myRegistrations: [other, { ...response, version: 3 }],
+  });
+  response = { ...response, version: 2 };
+  await act(async () => {
+    await q.result.current.respond.mutateAsync({
+      registrationId: response.id,
+      input: { action: "accept", version: 1 },
+    });
+  });
+  expect(owned().myRegistrations.find((row) => row.tableId === tableId)?.version).toBe(3);
+  response = { ...response, status: "CANCELLED", version: 4 };
+  await act(async () => {
+    await q.result.current.respond.mutateAsync({
+      registrationId: response.id,
+      input: { action: "cancel", version: 3 },
+    });
+  });
+  expect(owned().myRegistrations).toEqual([other]);
+  response = { ...seat("guest"), status: "PENDING" };
+  await act(async () => {
+    await q.result.current.invite.mutateAsync({ tableId, userId: "guest" });
+  });
+  expect(owned().myRegistrations).toEqual([other]);
+});
+it("marks current Table rankings stale after finalization without refetching unrelated inactive or foreign caches", async () => {
+  const { client, options, wrapper } = setup();
+  const owned = [...eventRecordKeys.root(options), "leaderboard", eventId, tableId, 1];
+  const foreign = [
+    ...eventRecordKeys.root({ ...options, userId: "foreign" }),
+    "leaderboard",
+    eventId,
+    tableId,
+    1,
+  ];
+  const unrelated = [...eventRecordKeys.root(options), "leaderboard", tableId, eventId, 1];
+  for (const key of [owned, foreign, unrelated])
+    client.setQueryData(key, {
+      pages: [{ gameId: 1, scope: "GLOBAL", items: [], nextCursor: null }],
+      pageParams: [""],
+    });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ...plannedEvent, status: "TERMINATED", version: 2 })),
+    ),
+  );
+  const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
+  await act(async () => {
+    await q.result.current.finalize.mutateAsync({
+      version: 1,
+      results: [
+        {
+          tableId,
+          lowerWins: false,
+          entries: [
+            { userId: "owner", score: null },
+            { userId: "guest", score: null },
+          ],
+          tieBreaks: [],
+        },
+      ],
+    });
+  });
+  expect(client.getQueryState(owned)?.isInvalidated).toBe(true);
+  expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);
+  expect(client.getQueryState(unrelated)?.isInvalidated).toBe(false);
+});
 it("creates/updates authoritative event records and does not patch foreign API/user caches", async () => {
   const { client, options, wrapper } = setup(),
     foreign = { ...options, userId: "foreign" },
@@ -135,6 +232,70 @@ it("updates only owned vote maps and never converts a vote into invitation conse
   });
   expect(options.getToken).toHaveBeenCalledTimes(3);
 });
+it.each(["date", "location", "game"] as const)(
+  "optimistically updates %s totals with the owned vote, rolls back failures and preserves foreign caches",
+  async (kind) => {
+    const { client, options, wrapper } = setup(),
+      counts = { YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 },
+      option = plannedEvent.dates[0].id;
+    const detail = {
+      ...plannedEvent,
+      voteCounts: { dates: { [option]: counts }, locations: { [option]: counts } },
+    };
+    const table = {
+      ...plannedTable,
+      myRegistration: seat("owner"),
+      gameVoteCounts: { "1": counts },
+    };
+    const eventKey = eventRecordKeys.detail(options, eventId),
+      tableKey = eventRecordKeys.table(options, eventId, tableId),
+      foreignKey = eventRecordKeys.detail({ ...options, userId: "foreign" }, eventId);
+    client.setQueryData(eventKey, detail);
+    client.setQueryData(tableKey, table);
+    client.setQueryData(foreignKey, detail);
+    let respond: ((response: Response) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            respond = resolve;
+          }),
+      ),
+    );
+    const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
+    let pending: Promise<unknown> | undefined;
+    act(() => {
+      pending = q.result.current.vote
+        .mutateAsync(
+          kind === "game"
+            ? { kind, tableId, gameId: 1, vote: "YES" }
+            : { kind, optionId: option, vote: "YES" },
+        )
+        .catch((error) => error);
+    });
+    await waitFor(() => expect(respond).toBeTypeOf("function"));
+    expect(client.getQueryData(kind === "game" ? tableKey : eventKey)).toMatchObject(
+      kind === "game"
+        ? { gameVoteCounts: { "1": { YES: 1, UNKNOWN: 0 } } }
+        : {
+            voteCounts: {
+              [kind === "date" ? "dates" : "locations"]: { [option]: { YES: 1, UNKNOWN: 0 } },
+            },
+          },
+    );
+    expect(client.getQueryData(foreignKey)).toEqual(detail);
+    if (!respond) throw new Error("Missing request response");
+    const finish = respond;
+    await act(async () => {
+      finish(new Response('{"code":"EVENT_CLOSED"}', { status: 409 }));
+      await pending;
+    });
+    expect(client.getQueryData(eventKey)).toEqual(detail);
+    expect(client.getQueryData(tableKey)).toEqual(table);
+    expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "set_event_vote");
+  },
+);
 it("reserves an action without inventing capacity/priority, reconciles self versus invited registration and preserves permissions", async () => {
   const { client, options, wrapper } = setup(),
     registration = seat("owner");

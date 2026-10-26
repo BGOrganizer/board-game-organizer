@@ -61,6 +61,7 @@ export const eventTablesQuery = recordPageQuery.extend({
     .refine((value) => Number.isSafeInteger(Number(value)))
     .optional(),
 });
+export const tableLeaderboardQuery = eventTablesQuery.omit({ query: true });
 export const eventSeatsQuery = recordPageQuery.extend({
   pending: z
     .enum(["true", "false"])

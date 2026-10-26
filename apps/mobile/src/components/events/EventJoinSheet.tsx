@@ -1,0 +1,158 @@
+import { eventDateWall, eventLocalToIso, useEventJoinForm } from "@board-game-organizer/shared";
+import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import { BottomSheet } from "heroui-native/bottom-sheet";
+import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
+import { Skeleton } from "heroui-native/skeleton";
+import { Tabs } from "heroui-native/tabs";
+import { Typography } from "heroui-native/text";
+import { UserRoundCheck } from "lucide-react-native";
+import { useState } from "react";
+import { useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { TabBar } from "@/components/common/ui/TabBar";
+import { LocationListRow } from "@/components/locations/LocationListRow";
+import { useT } from "@/lib/i18n";
+import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventVoteButtons } from "./EventVoteButtons";
+export function EventJoinSheet({
+  eventId,
+  tableId,
+  onClose,
+}: {
+  eventId: string;
+  tableId: string;
+  onClose: () => void;
+}) {
+  const t = useT(),
+    form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose),
+    event = form.event,
+    { height } = useWindowDimensions(),
+    insets = useSafeAreaInsets(),
+    accent = useThemeColor("accent-foreground");
+  const [tab, setTab] = useState("dates");
+  return (
+    <BottomSheet
+      isOpen
+      onOpenChange={(open) => {
+        if (!open && !form.busy) onClose();
+      }}
+    >
+      <BottomSheet.Portal>
+        <BottomSheet.Overlay isCloseOnPress={!form.busy} />
+        <BottomSheet.Content
+          snapPoints={["85%"]}
+          enableOverDrag={false}
+          enableDynamicSizing={false}
+          enablePanDownToClose={!form.busy}
+          contentContainerProps={{ style: { height: height * 0.8, padding: 20, gap: 12 } }}
+        >
+          <BottomSheet.Title>{t("Choose availability")}</BottomSheet.Title>
+          <BottomSheet.Description>
+            {t(
+              "Vote on every date and location. Accept at least one of each to join. You can change these votes from the event.",
+            )}
+          </BottomSheet.Description>
+          {form.q.isError ? (
+            <View style={{ gap: 8 }}>
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t("Unable to load data. Try again.")}
+              </Typography>
+              <Button onPress={() => void form.q.refetch()}>
+                <Button.Label>{t("Try again")}</Button.Label>
+              </Button>
+            </View>
+          ) : null}
+          {!event || form.q.isPlaceholderData ? (
+            <Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />
+          ) : (
+            <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
+              <TabBar style={{ alignSelf: "center", width: "auto" }}>
+                <Tabs.Trigger value="dates">
+                  <Tabs.Label>{t("Dates")}</Tabs.Label>
+                </Tabs.Trigger>
+                <Tabs.Trigger value="locations">
+                  <Tabs.Label>{t("Locations")}</Tabs.Label>
+                </Tabs.Trigger>
+              </TabBar>
+              {tab === "dates" ? (
+                <BottomSheetFlatList
+                  key="dates"
+                  style={{ flex: 1 }}
+                  data={event.dates}
+                  keyExtractor={(row) => row.id}
+                  renderItem={({ item }) => (
+                    <GroupedRow>
+                      <View style={{ flex: 1 }}>
+                        <DateTimeInfo
+                          startsAt={eventLocalToIso(eventDateWall(event, item), event.timeZone)}
+                          timeZone={event.timeZone}
+                        />
+                      </View>
+                      <EventVoteButtons
+                        inline
+                        allowUnknown={false}
+                        label={eventDateWall(event, item).replace("T", " ")}
+                        value={form.votes.dateVotes[item.id]}
+                        busy={form.busy}
+                        onChange={(vote) => form.choose("date", item.id, vote)}
+                      />
+                    </GroupedRow>
+                  )}
+                />
+              ) : (
+                <BottomSheetFlatList
+                  key="locations"
+                  style={{ flex: 1 }}
+                  data={event.locations}
+                  keyExtractor={(row) => row.id}
+                  renderItem={({ item }) => (
+                    <LocationListRow
+                      name={item.name}
+                      address={item.address}
+                      actions={
+                        <EventVoteButtons
+                          inline
+                          allowUnknown={false}
+                          label={item.name}
+                          value={form.votes.locationVotes[item.id]}
+                          busy={form.busy}
+                          onChange={(vote) => form.choose("location", item.id, vote)}
+                        />
+                      }
+                    />
+                  )}
+                />
+              )}
+            </Tabs>
+          )}
+          {form.failed ? (
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Could not join table")}
+            </Typography>
+          ) : null}
+          <View style={{ flexDirection: "row", gap: 12, paddingBottom: insets.bottom }}>
+            <Button
+              variant="secondary"
+              isDisabled={form.busy}
+              onPress={onClose}
+              style={{ flex: 1 }}
+            >
+              <Button.Label>{t("Cancel")}</Button.Label>
+            </Button>
+            <Button
+              isDisabled={!form.canSubmit}
+              onPress={() => void form.submit()}
+              style={{ flex: 1 }}
+            >
+              <UserRoundCheck size={16} color={accent} accessible={false} />
+              <Button.Label>{t("Join table")}</Button.Label>
+            </Button>
+          </View>
+        </BottomSheet.Content>
+      </BottomSheet.Portal>
+    </BottomSheet>
+  );
+}

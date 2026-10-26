@@ -23,7 +23,7 @@ export function EventVoteLegend() {
         ))}
         <Typography className="text-muted">
           {t(
-            "Pending invitations reserve a place but do not vote or count toward agreement. Accepted waiting players may vote.",
+            "Only accepted players vote. Pending players keep a reserved place until accepted. Join at least one table to participate in the event.",
           )}
         </Typography>
       </View>

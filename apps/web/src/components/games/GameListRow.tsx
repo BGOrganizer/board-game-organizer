@@ -13,12 +13,14 @@ export function GameListRow({
   average,
   rank,
   actions,
+  metadata,
   children,
   onPress,
 }: ComponentProps<typeof GameCatalogMetadata> & {
   name: string;
   imageUrl?: string | null;
   actions?: ReactNode;
+  metadata?: ReactNode;
   children?: ReactNode;
   onPress?: () => void;
 }) {
@@ -36,7 +38,10 @@ export function GameListRow({
         <p className="max-w-[40ch] truncate text-sm font-medium" title={name}>
           {name}
         </p>
-        <GameCatalogMetadata year={year} average={average} rank={rank} />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <GameCatalogMetadata year={year} average={average} rank={rank} />
+          {metadata}
+        </div>
         {children}
       </div>
     </>

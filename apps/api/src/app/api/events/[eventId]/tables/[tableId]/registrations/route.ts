@@ -1,4 +1,5 @@
-import { communityId, runRecordOperation } from "@/app/lib/community/record-http";
+import { joinTableSchema } from "@board-game-organizer/schemas";
+import { communityBody, communityId, runRecordOperation } from "@/app/lib/community/record-http";
 import { emptyRecordQuery, recordQuery } from "@/app/lib/community/record-query";
 import { corsOptions } from "@/app/lib/cors";
 export const OPTIONS = corsOptions;
@@ -12,7 +13,8 @@ export function POST(
     async (userId, { events }) => {
       recordQuery(request, emptyRecordQuery);
       const { eventId, tableId } = await context.params;
-      return events.register(userId, communityId(eventId), communityId(tableId));
+      const input = request.body ? await communityBody(request, joinTableSchema) : {};
+      return events.join(userId, communityId(eventId), communityId(tableId), input.availability);
     },
     201,
   );

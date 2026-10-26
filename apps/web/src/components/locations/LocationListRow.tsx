@@ -11,6 +11,7 @@ export function LocationListRow({
   address,
   leading,
   actions,
+  children,
   onPress,
   label,
 }: {
@@ -18,6 +19,7 @@ export function LocationListRow({
   address?: string;
   leading?: ReactNode;
   actions?: ReactNode;
+  children?: ReactNode;
   onPress?: () => void;
   label?: string;
 }) {
@@ -31,6 +33,7 @@ export function LocationListRow({
           {formatLocationAddress(address)}
         </p>
       ) : null}
+      {children}
     </div>
   );
   return (

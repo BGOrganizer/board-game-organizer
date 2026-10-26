@@ -3,6 +3,7 @@ import type {
   EventRecord,
   EventVoter,
   GroupRecord,
+  JoinEventAvailability,
   TableRecord,
   TableRegistration,
 } from "@board-game-organizer/schemas";
@@ -179,7 +180,16 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
   };
   const relationships = { isFriend: vi.fn(async () => true), isBlocked: vi.fn(async () => false) };
   const notifications = { notifyMany: vi.fn(async () => []) },
-    ratings = { applyTableResult: vi.fn(async () => undefined), forTable: vi.fn(async () => []) };
+    ratings = {
+      applyTableResult: vi.fn(async () => undefined),
+      forTable: vi.fn(async () => []),
+      currentForPlayers: vi.fn(async (ids: string[]) =>
+        ids.map((userId) => ({ userId, score: 0, provisional: true })),
+      ),
+      tableStats: vi.fn(
+        async () => new Map<string, { gamesPlayed: number; gamesWon: number; nd: number }>(),
+      ),
+    };
   const service = new EventRecordsService(
     repo as never,
     groups as never,
@@ -239,7 +249,482 @@ afterEach(() => {
 });
 
 describe("unified event core — real consent, no synthetic Match writes", () => {
-  it.each([null, "PRIVATE", "PUBLIC"] as const)(
+  it("reuses existing PRIVATE participation on another Table without replacing Event preferences", async () => {
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    f.tables.set(other, { ...f.tables.get(id)!, id: other, order: 1 });
+    const pending = await f.service.register(owner, event.id, id, guest);
+    await expect(f.service.join(guest, event.id, other)).rejects.toMatchObject({
+      code: "EVENT_AVAILABILITY_REQUIRED",
+    });
+    await f.service.registrationAction(guest, pending.id, {
+      action: "decline",
+      version: pending.version,
+    });
+    await f.service.join(guest, event.id, id, {
+      version: f.events.get(event.id)!.version,
+      dateVotes: { [id]: "YES" },
+      locationVotes: { [id]: "IF_NEEDED" },
+    });
+    const previous = clone(f.votes.get(`${event.id}|${guest}`));
+    const second = await f.service.join(guest, event.id, other);
+    expect(second).toMatchObject({ status: "ACCEPTED", tableId: other, userId: guest });
+    expect(f.votes.get(`${event.id}|${guest}`)).toEqual(previous);
+    expect(f.repo.saveVoter).toHaveBeenCalledTimes(1);
+  });
+  it("rejects removing the final positive date/venue, allowing positive switches and another current alternative", async () => {
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    await f.service.join(guest, event.id, id, {
+      version: event.version,
+      dateVotes: { [id]: "YES" },
+      locationVotes: { [id]: "IF_NEEDED" },
+    });
+    for (const kind of ["date", "location"] as const) {
+      await expect(
+        f.service.vote(guest, event.id, { kind, optionId: id, vote: "NO" }),
+      ).rejects.toMatchObject({ code: "EVENT_POSITIVE_AVAILABILITY_REQUIRED" });
+      await f.service.vote(guest, event.id, { kind, optionId: id, vote: "IF_NEEDED" });
+      await f.service.vote(guest, event.id, { kind, optionId: id, vote: "YES" });
+    }
+    const latest = f.events.get(event.id)!;
+    f.events.set(event.id, {
+      ...latest,
+      dates: [...latest.dates, { id: other, day: "2027-01-04" }],
+      locations: [...latest.locations, { ...latest.locations[0], id: other }],
+    });
+    for (const kind of ["date", "location"] as const) {
+      await f.service.vote(guest, event.id, { kind, optionId: other, vote: "IF_NEEDED" });
+      await f.service.vote(guest, event.id, { kind, optionId: id, vote: "NO" });
+      await expect(
+        f.service.vote(guest, event.id, { kind, optionId: other, vote: "NO" }),
+      ).rejects.toMatchObject({ code: "EVENT_POSITIVE_AVAILABILITY_REQUIRED" });
+    }
+    expect(f.votes.get(`${event.id}|${guest}`)).toMatchObject({
+      dateVotes: { [id]: "NO", [other]: "IF_NEEDED" },
+      locationVotes: { [id]: "NO", [other]: "IF_NEEDED" },
+    });
+    await expect(
+      f.service.vote(guest, event.id, { kind: "game", tableId: id, gameId: 1, vote: "NO" }),
+    ).resolves.toBeDefined();
+  });
+  it("requires complete current PRIVATE availability before voluntary enrollment writes", async () => {
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    const availability = {
+      version: event.version,
+      dateVotes: { [id]: "YES" as const },
+      locationVotes: { [id]: "IF_NEEDED" as const },
+    };
+    await expect(f.service.join(guest, event.id, id)).rejects.toMatchObject({
+      code: "EVENT_AVAILABILITY_REQUIRED",
+    });
+    for (const value of [
+      { ...availability, dateVotes: {} },
+      { ...availability, locationVotes: {} },
+      { ...availability, dateVotes: { [id]: "NO" as const } },
+      { ...availability, locationVotes: { [other]: "YES" as const } },
+    ])
+      await expect(
+        f.service.join(guest, event.id, id, value as JoinEventAvailability),
+      ).rejects.toMatchObject({
+        code: "INVALID_JOIN_AVAILABILITY",
+      });
+    await expect(
+      f.service.join(guest, event.id, id, { ...availability, version: event.version + 1 }),
+    ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+    expect(f.repo.saveVoter).not.toHaveBeenCalled();
+    const row = await f.service.join(guest, event.id, id, availability);
+    expect(row).toMatchObject({ userId: guest, kind: "SELF", status: "ACCEPTED", gameVotes: {} });
+    expect(f.votes.get(`${event.id}|${guest}`)).toMatchObject({
+      dateVotes: availability.dateVotes,
+      locationVotes: availability.locationVotes,
+    });
+    expect(f.events.get(event.id)?.version).toBe(event.version + 1);
+    await f.service.vote(guest, event.id, { kind: "date", optionId: id, vote: "IF_NEEDED" });
+    expect(f.votes.get(`${event.id}|${guest}`)?.dateVotes[id]).toBe("IF_NEEDED");
+    await expect(
+      f.service.vote(guest, event.id, { kind: "date", optionId: id, vote: "UNKNOWN" } as never),
+    ).rejects.toMatchObject({ code: "INVALID_VOTE" });
+  });
+  it("preserves fixed/standalone enrollment, rejecting irrelevant preferences and forged invitation preferences", async () => {
+    for (const type of [null, "PUBLIC"] as const) {
+      const f = setup(type),
+        event = await f.create(),
+        availability = {
+          version: event.version,
+          dateVotes: { [id]: "YES" as const },
+          locationVotes: { [id]: "YES" as const },
+        };
+      await expect(f.service.join(owner, event.id, id, availability)).rejects.toMatchObject({
+        code: "EVENT_AVAILABILITY_NOT_REQUIRED",
+      });
+      expect((await f.service.join(owner, event.id, id)).status).toBe("ACCEPTED");
+      expect(f.repo.saveVoter).not.toHaveBeenCalled();
+    }
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    await expect(
+      f.service.register(owner, event.id, id, guest, {
+        version: event.version,
+        dateVotes: { [id]: "YES" },
+        locationVotes: { [id]: "YES" },
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_JOIN_AVAILABILITY" });
+  });
+  it.each([null, "PRIVATE"] as const)(
+    "reads current %s Table rankings from the immutable roster/selected game, not pending users or legacy Matches",
+    async (type) => {
+      const f = setup(type),
+        event = await f.create();
+      await f.accept(await f.service.register(owner, event.id, id, guest));
+      await f.accept(await f.service.register(owner, event.id, id, waiter));
+      await f.yes(event.id, guest);
+      await f.yes(event.id, waiter);
+      await f.confirm(event.id);
+      f.ratings.currentForPlayers.mockResolvedValue([
+        { userId: guest, score: 100, provisional: false },
+        { userId: waiter, score: 200, provisional: true },
+      ]);
+      f.ratings.tableStats.mockResolvedValue(
+        new Map([[waiter, { gamesPlayed: 3, gamesWon: 1, nd: 1 }]]),
+      );
+      const first = await f.service.tableLeaderboard(owner, event.id, id, { limit: 1 });
+      expect(first).toMatchObject({
+        gameId: 1,
+        scope: type ? "GROUP" : "GLOBAL",
+        nextCursor: "1",
+        items: [
+          {
+            userId: waiter,
+            score: 200,
+            name: waiter,
+            avatarUrl: null,
+            gamesPlayed: 3,
+            gamesWon: 1,
+            nd: 1,
+            provisional: true,
+          },
+        ],
+      });
+      expect(f.ratings.currentForPlayers).toHaveBeenCalledWith(
+        [guest, waiter],
+        1,
+        type ? other : null,
+      );
+      expect(f.ratings.tableStats).toHaveBeenCalledWith([waiter], 1, type ? other : null);
+      f.users.findByIds.mockResolvedValue([]);
+      const second = await f.service.tableLeaderboard(owner, event.id, id, {
+        limit: 1,
+        cursor: "1",
+      });
+      expect(second).toMatchObject({
+        nextCursor: null,
+        items: [{ userId: guest, gamesPlayed: 0, gamesWon: 0, nd: 0, name: guest }],
+      });
+      const frozen = f.events.get(event.id)!;
+      f.events.set(event.id, { ...frozen, status: "TERMINATED" });
+      f.ratings.currentForPlayers.mockResolvedValue([
+        { userId: waiter, score: 250, provisional: false },
+        { userId: guest, score: 250, provisional: false },
+      ]);
+      expect(
+        (await f.service.tableLeaderboard(owner, event.id, id, { limit: 20 })).items.map(
+          (row) => row.userId,
+        ),
+      ).toEqual([guest, waiter]);
+      expect(f.ratings.applyTableResult).not.toHaveBeenCalled();
+    },
+  );
+  it("never serves planning/excluded/mismatched Table rankings and preserves Event/Group read guards", async () => {
+    const f = setup(),
+      event = await f.create();
+    await expect(
+      f.service.tableLeaderboard(owner, event.id, id, { limit: 20 }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_CONFIRMED" });
+    await expect(
+      f.service.tableLeaderboard(owner, event.id, other, { limit: 20 }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    f.tables.set(id, { ...f.tables.get(id)!, eventId: other });
+    await expect(
+      f.service.tableLeaderboard(owner, event.id, id, { limit: 20 }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    await expect(
+      f.service.tableLeaderboard("outsider", event.id, id, { limit: 20 }),
+    ).rejects.toMatchObject({ code: "EVENT_NOT_FOUND" });
+    const g = setup("PRIVATE"),
+      grouped = await g.create();
+    g.groups.membership.mockResolvedValue(null as never);
+    await expect(
+      g.service.tableLeaderboard("outsider", grouped.id, id, { limit: 20 }),
+    ).rejects.toMatchObject({ code: "GROUP_MEMBER_REQUIRED" });
+    expect(f.ratings.currentForPlayers).not.toHaveBeenCalled();
+    expect(g.ratings.currentForPlayers).not.toHaveBeenCalled();
+  });
+  it("projects approved Group identity and complete accepted/pending totals separately from seat/queue counts", async () => {
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    await f.service.register(owner, event.id, id);
+    await f.service.register(owner, event.id, id, guest);
+    await f.service.register(waiter, event.id, id);
+    await f.service.register(owner, event.id, id, "user_pending_waiter");
+    const detail = await f.service.tableDetail(owner, event.id, id);
+    expect(detail).toMatchObject({
+      groupName: "Club group",
+      acceptedCount: 2,
+      pendingRegistrationCount: 2,
+      seatedCount: 1,
+      pendingCount: 1,
+      waitingCount: 2,
+    });
+    const list = await f.service.tables(owner, event.id, { limit: 20 });
+    expect(list.items[0]).toMatchObject({
+      groupName: "Club group",
+      acceptedCount: 2,
+      pendingRegistrationCount: 2,
+    });
+    const solo = setup(),
+      soloEvent = await solo.create();
+    expect(await solo.service.tableDetail(owner, soloEvent.id, id)).toMatchObject({
+      groupName: null,
+      acceptedCount: 0,
+      pendingRegistrationCount: 0,
+    });
+  });
+  it.each([
+    "2027-01-03T08:00:00Z",
+    "2027-01-03T07:59:00Z",
+    "2027-01-03T22:00:00Z",
+    "2027-01-04T08:30:00Z",
+  ])(
+    "rejects a public table time outside the strict event interval as a client error: %s",
+    async (startsAt) => {
+      const f = setup("PUBLIC"),
+        input = {
+          ...body(),
+          groupId: other,
+          endsAt: "2027-01-03T22:00:00Z",
+          bookingClosesAt: "2027-01-02T08:00:00Z",
+        };
+      input.tables[0].startsAt = startsAt;
+      await expect(f.service.create(owner, input)).rejects.toMatchObject({
+        status: 400,
+        code: "TABLE_OUTSIDE_EVENT",
+      });
+      expect(f.events.size).toBe(0);
+    },
+  );
+  it("accepts same-day public ends and combined same-day cutoffs, rejecting overnight writes in the venue zone atomically", async () => {
+    const f = setup("PUBLIC"),
+      input = {
+        ...body(),
+        groupId: other,
+        endsAt: "2027-01-03T22:59:00Z",
+        bookingClosesAt: "2027-01-03T07:59:00Z",
+      };
+    const event = await f.service.create(owner, input);
+    expect(event.endsAt).toBe(input.endsAt.replace("00Z", "00.000Z"));
+    const { groupId: _group, ...fields } = input;
+    await expect(
+      f.service.update(owner, event.id, {
+        ...fields,
+        endsAt: "2027-01-03T23:30:00Z",
+        version: event.version,
+        tables: [],
+        removedTableIds: [],
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_END_SAME_DAY_REQUIRED" });
+    expect(f.events.get(event.id)?.version).toBe(event.version);
+    const fresh = setup("PUBLIC");
+    await expect(
+      fresh.service.create(owner, { ...input, endsAt: "2027-01-03T23:30:00Z" }),
+    ).rejects.toMatchObject({ code: "EVENT_END_SAME_DAY_REQUIRED" });
+    expect(fresh.events.size).toBe(0);
+    await expect(
+      fresh.service.create(owner, { ...input, endsAt: "2027-01-03T08:00:00Z" }),
+    ).rejects.toMatchObject({ code: "EVENT_END_AFTER_START_REQUIRED" });
+    await expect(
+      fresh.service.create(owner, { ...input, bookingClosesAt: "2027-01-03T08:00:00Z" }),
+    ).rejects.toMatchObject({ code: "EVENT_CUTOFF_BEFORE_START_REQUIRED" });
+  });
+  it("exposes aggregate votes only on details, counts each accepted event participant once and excludes pending ballots", async () => {
+    const f = setup("PRIVATE"),
+      input = { ...body(), groupId: other };
+    input.tables[0].maxPlayers = 4;
+    input.tables.push({ ...input.tables[0], id: other, name: "Second table" });
+    const event = await f.service.create(owner, input);
+    await f.service.register(owner, event.id, id);
+    await f.service.register(guest, event.id, id);
+    await f.service.register(owner, event.id, other);
+    const invitation = await f.service.register(owner, event.id, id, waiter);
+    f.registrations.set(invitation.id, { ...invitation, gameVotes: { "1": "YES" } });
+    f.votes.set(`${event.id}|${waiter}`, {
+      eventId: event.id,
+      userId: waiter,
+      dateVotes: { [id]: "YES" },
+      locationVotes: { [id]: "YES" },
+      updatedAt: event.createdAt,
+    });
+    await f.yes(event.id, owner);
+    const detail = await f.service.detail(owner, event.id);
+    expect(detail.voteCounts?.dates[id]).toEqual({ YES: 1, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 });
+    expect(detail.voteCounts?.locations[id]).toEqual({ YES: 1, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 });
+    expect((await f.service.tableDetail(owner, event.id, id)).gameVoteCounts?.["1"]).toEqual({
+      YES: 1,
+      NO: 0,
+      IF_NEEDED: 0,
+      UNKNOWN: 1,
+    });
+    expect(
+      (await f.service.tableDetail(owner, event.id, other)).gameVoteCounts?.["1"].UNKNOWN,
+    ).toBe(1);
+    expect((await f.service.list(owner, { limit: 20 })).items[0].voteCounts).toBeUndefined();
+    expect(
+      (await f.service.tables(owner, event.id, { limit: 20 })).items[0].gameVoteCounts,
+    ).toBeUndefined();
+    await expect(f.service.seats(guest, event.id, id, { limit: 20 }, true)).rejects.toMatchObject({
+      code: "EVENT_ADMIN_REQUIRED",
+    });
+    expect((await f.service.tableDetail(waiter, event.id, id)).myRegistration).toMatchObject({
+      userId: waiter,
+      name: waiter,
+      avatarUrl: null,
+      status: "PENDING",
+    });
+    expect(JSON.stringify(await f.service.tableDetail(guest, event.id, id))).not.toContain(waiter);
+  });
+  it("keeps private options independent and confirms the voted time in the chosen venue's zone", async () => {
+    const f = setup("PRIVATE"),
+      input = body();
+    input.groupId = other;
+    input.dates = [
+      { id, day: "2027-06-03", startTime: "18:15" },
+      { id: other, day: "2027-06-03", startTime: "22:30" },
+    ];
+    input.locations.push({
+      ...location,
+      id: other,
+      name: "New York venue",
+      latitude: 40.71,
+      longitude: -74.01,
+      timeZone: "America/New_York",
+    });
+    const event = await f.service.create(owner, input);
+    expect(event.dates).toEqual(input.dates);
+    expect(event.locations).toHaveLength(2);
+    expect(event.participantCount).toBe(0);
+    for (const user of [owner, guest]) {
+      await f.service.register(user, event.id, id);
+      await f.service.vote(user, event.id, { kind: "date", optionId: other, vote: "YES" });
+      await f.service.vote(user, event.id, { kind: "location", optionId: other, vote: "YES" });
+      await f.service.vote(user, event.id, { kind: "game", tableId: id, gameId: 1, vote: "YES" });
+    }
+    const ready = await f.service.detail(owner, event.id);
+    expect(ready.agreement).toMatchObject({ agreed: true, dateId: other, locationId: other });
+    expect(f.events.get(event.id)?.status).toBe("PLANNING");
+    await f.confirm(event.id);
+    expect(f.tables.get(id)?.confirmed?.startsAt).toBe("2027-06-04T02:30:00.000Z");
+    expect(f.events.get(event.id)?.timeZone).toBe("America/New_York");
+    expect(f.events.get(event.id)?.startTime).toBe("09:00");
+  });
+  it("requires fresh option identity for edited private clocks and retains unchanged date/location IDs", async () => {
+    const f = setup("PRIVATE"),
+      input = { ...body(), groupId: other };
+    input.dates = [
+      { id, day: "2027-01-03", startTime: "09:00" },
+      { id: other, day: "2027-01-03", startTime: "20:00" },
+    ];
+    const event = await f.service.create(owner, input);
+    const { groupId: _group, ...fields } = input;
+    const edit = {
+      ...fields,
+      version: event.version,
+      removedTableIds: [],
+      tables: [],
+      dates: [input.dates[0], { ...input.dates[1], startTime: "21:00" }],
+    };
+    await expect(f.service.update(owner, event.id, edit)).rejects.toMatchObject({
+      code: "OPTION_ID_REUSED",
+    });
+    const fresh = "33333333-3333-4333-8333-333333333333";
+    edit.dates[1].id = fresh;
+    const updated = await f.service.update(owner, event.id, edit);
+    expect(updated.dates).toEqual(edit.dates);
+    expect(f.repo.retainChoiceVotes).toHaveBeenCalledWith(event.id, [id, fresh], [id]);
+  });
+  it("rejects duplicate effective clocks, repeated identities and oversized private proposals before writes", async () => {
+    for (const patch of [
+      {
+        dates: [
+          { id, day: "2027-01-03" },
+          { id: other, day: "2027-01-03", startTime: "09:00" },
+        ],
+      },
+      {
+        dates: [
+          { id, day: "2027-01-03" },
+          { id, day: "2027-01-04" },
+        ],
+      },
+      { locations: [location, location] },
+      {
+        dates: Array.from({ length: 21 }, (_, n) => ({
+          id: `00000000-0000-4000-8000-${String(n + 1).padStart(12, "0")}`,
+          day: `2027-01-${String(n + 1).padStart(2, "0")}`,
+        })),
+      },
+      {
+        locations: Array.from({ length: 21 }, (_, n) => ({
+          ...location,
+          id: `00000000-0000-4000-8000-${String(n + 1).padStart(12, "0")}`,
+        })),
+      },
+    ]) {
+      const f = setup("PRIVATE");
+      await expect(
+        f.service.create(owner, { ...body(), groupId: other, ...patch }),
+      ).rejects.toMatchObject({ code: "INVALID_EVENT_OPTIONS" });
+      expect(f.repo.create).not.toHaveBeenCalled();
+    }
+    const f = setup("PRIVATE");
+    await expect(
+      f.service.create(owner, {
+        ...body(),
+        groupId: other,
+        dates: [{ id, day: "2027-03-28", startTime: "02:30" }],
+        locations: [
+          {
+            ...location,
+            id: other,
+            latitude: 40.71,
+            longitude: -74.01,
+            timeZone: "America/New_York",
+          },
+          location,
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_EVENT_TIME" });
+    expect(f.repo.create).not.toHaveBeenCalled();
+  });
+  it("never lets per-option clocks bypass the registered public schedule lock", async () => {
+    const f = setup("PUBLIC"),
+      event = await f.create();
+    await f.service.register(owner, event.id, id);
+    const { groupId: _group, ...fields } = body();
+    await expect(
+      f.service.update(owner, event.id, {
+        ...fields,
+        endsAt: event.endsAt,
+        bookingClosesAt: event.bookingClosesAt,
+        dates: [{ id: other, day: event.dates[0].day, startTime: "10:00" }],
+        version: f.events.get(event.id)!.version,
+        removedTableIds: [],
+        tables: [],
+      }),
+    ).rejects.toMatchObject({ code: "PUBLIC_SCHEDULE_HAS_REGISTRATIONS" });
+  });
+  it.each([null, "PUBLIC"] as const)(
     "refuses additional dates and locations before any write: %s",
     async (type) => {
       for (const dimension of ["dates", "locations"] as const) {

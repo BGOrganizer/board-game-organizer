@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CommunityApiOptions } from "../../community/communityApi";
+import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
 import type { TableScoreInput } from "../tableScoreForm";
 import { useEventRecordActions } from "./useEventRecordActions";
 import { useEventRecord, useRecordTable, useRecordTables, useTableSeats } from "./useEventRecords";
@@ -81,6 +81,7 @@ export function useEventResultsForm(options: CommunityApiOptions, eventId: strin
     finalize,
     playersReady: Boolean(
       table.data?.confirmed &&
+        !communityAccessDenied(table.error) &&
         players.length === table.data.confirmed.playerIds.length &&
         !seats.isError,
     ),

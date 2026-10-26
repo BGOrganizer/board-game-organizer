@@ -24,6 +24,7 @@ import * as detail from "../[eventId]/route";
 import * as state from "../[eventId]/state/route";
 import * as oldBookings from "../[eventId]/tables/[tableId]/bookings/route";
 import * as invitation from "../[eventId]/tables/[tableId]/invitations/route";
+import * as leaderboard from "../[eventId]/tables/[tableId]/leaderboard/route";
 import * as registration from "../[eventId]/tables/[tableId]/registrations/route";
 import * as table from "../[eventId]/tables/[tableId]/route";
 import * as seats from "../[eventId]/tables/[tableId]/seats/route";
@@ -64,12 +65,14 @@ const events = {
   tables: vi.fn(),
   tableDetail: vi.fn(),
   register: vi.fn(),
+  join: vi.fn(),
   registrationAction: vi.fn(),
   seats: vi.fn(),
   vote: vi.fn(),
   transition: vi.fn(),
   finalize: vi.fn(),
   personalTables: vi.fn(),
+  tableLeaderboard: vi.fn(),
 };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -108,9 +111,34 @@ it("source-pages event/table feeds with explicit periods and UUID-scoped detail"
   expect(events.tableDetail).toHaveBeenCalledWith("actor", id, tableId);
   expect((await root.OPTIONS(request("OPTIONS"))).status).toBe(204);
 });
+it("source-pages only the selected frozen Table leaderboard with strict IDs/query/auth", async () => {
+  expect(
+    (await leaderboard.GET(request("GET", undefined, "?limit=1&cursor=2"), context)).status,
+  ).toBe(200);
+  expect(events.tableLeaderboard).toHaveBeenCalledWith("actor", id, tableId, {
+    limit: 1,
+    cursor: "2",
+  });
+  expect((await leaderboard.OPTIONS(request("OPTIONS"))).status).toBe(204);
+  for (const query of [
+    "?gameId=2",
+    "?limit=51",
+    "?cursor=-1",
+    "?cursor=Infinity",
+    "?cursor=1&cursor=2",
+    "?query=game",
+  ])
+    expect((await leaderboard.GET(request("GET", undefined, query), context)).status).toBe(400);
+  expect(
+    (await leaderboard.GET(request(), { params: Promise.resolve({ eventId: id, tableId: "bad" }) }))
+      .status,
+  ).toBe(400);
+  mocks.auth.mockResolvedValueOnce({ userId: null });
+  expect((await leaderboard.GET(request(), context)).status).toBe(401);
+});
 it("keeps explicit registrations, invitations and invitation consent distinct", async () => {
   expect((await registration.POST(request("POST"), context)).status).toBe(201);
-  expect(events.register).toHaveBeenLastCalledWith("actor", id, tableId);
+  expect(events.join).toHaveBeenLastCalledWith("actor", id, tableId, undefined);
   expect((await invitation.POST(request("POST", { userId: "friend" }), context)).status).toBe(201);
   expect(events.register).toHaveBeenLastCalledWith("actor", id, tableId, "friend");
   await response.PATCH(request("PATCH", { action: "accept", version: 1 }), context);
@@ -124,6 +152,40 @@ it("keeps explicit registrations, invitations and invitation consent distinct", 
     context,
   );
   expect(events.seats).toHaveBeenCalledWith("actor", id, tableId, { limit: 20, cursor }, true);
+});
+it("validates initial availability, strict bodies and removes UNKNOWN only from date/location writes", async () => {
+  const availability = {
+    version: 1,
+    dateVotes: { [id]: "YES" },
+    locationVotes: { [id]: "IF_NEEDED" },
+  };
+  expect((await registration.POST(request("POST", { availability }), context)).status).toBe(201);
+  expect(events.join).toHaveBeenLastCalledWith("actor", id, tableId, availability);
+  for (const body of [
+    { actor: "forged" },
+    { availability: { ...availability, version: 0 } },
+    { availability: { ...availability, dateVotes: { forged: "YES" } } },
+    { availability: { ...availability, dateVotes: { [id]: "UNKNOWN" } } },
+  ])
+    expect((await registration.POST(request("POST", body), context)).status).toBe(400);
+  for (const kind of ["date", "location"])
+    expect(
+      (await vote.PATCH(request("PATCH", { kind, optionId: id, vote: "UNKNOWN" }), context)).status,
+    ).toBe(400);
+  expect(
+    (
+      await vote.PATCH(
+        request("PATCH", { kind: "game", tableId, gameId: 1, vote: "UNKNOWN" }),
+        context,
+      )
+    ).status,
+  ).toBe(200);
+  expect(events.vote).toHaveBeenLastCalledWith("actor", id, {
+    kind: "game",
+    tableId,
+    gameId: 1,
+    vote: "UNKNOWN",
+  });
 });
 it("delegates voting, authoritative state transitions and whole-event results without inventing participants", async () => {
   const choice = { kind: "game", tableId, gameId: 1, vote: "YES" };

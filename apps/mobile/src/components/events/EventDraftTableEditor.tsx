@@ -1,4 +1,5 @@
-import type { EventTableDraft } from "@board-game-organizer/shared";
+import { type EventTableDraft, publicTableTimeBounds } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
@@ -6,16 +7,20 @@ import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { Minus, Plus, Trash2, X } from "lucide-react-native";
 import { View } from "react-native";
+import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { UserListRow } from "@/components/common/ui/UserListRow";
 import { GameListRow } from "@/components/games/GameListRow";
 import { useT } from "@/lib/i18n";
-import { EventWallDateTime } from "./EventWallDateTime";
+import { EventDateTimeField } from "./EventDateTimeField";
 
 export function EventDraftTableEditor({
   row,
   publicGroup,
   timeZone,
+  eventStartWall = "",
+  eventEndWall = "",
   busy,
   fieldError = () => false,
   onChange,
@@ -26,6 +31,8 @@ export function EventDraftTableEditor({
   row: EventTableDraft;
   publicGroup: boolean;
   timeZone: string;
+  eventStartWall?: string;
+  eventEndWall?: string;
   busy: boolean;
   fieldError?: (path: string) => boolean;
   onChange: (value: Partial<EventTableDraft>) => void;
@@ -34,11 +41,14 @@ export function EventDraftTableEditor({
   onDemonstrator: () => void;
 }) {
   const t = useT();
-  const [accentForeground, dangerForeground, danger] = useThemeColor([
-    "accent-foreground",
-    "danger-foreground",
-    "danger",
-  ]);
+  const { i18n } = useLingui();
+  const day = eventStartWall.slice(0, 10);
+  const bounds = publicTableTimeBounds(
+    eventStartWall,
+    eventEndWall,
+    Math.max(1, ...row.games.map((game) => game.maxPlayMinutes ?? game.manualDurationMinutes ?? 1)),
+  );
+  const [dangerForeground, danger] = useThemeColor(["danger-foreground", "danger"]);
   const helpTitle = t("Field help");
   return (
     <View className="rounded-xl bg-surface" style={{ padding: 16, gap: 16 }}>
@@ -66,18 +76,18 @@ export function EventDraftTableEditor({
       <View style={{ flexDirection: "row", gap: 12 }}>
         <PlayerCount
           label={t("Minimum players")}
-          help={t("At least two players are required. The minimum must be lower than the maximum.")}
+          help={t("At least two players are required. The minimum cannot exceed the maximum.")}
           value={row.minPlayers}
           min={2}
-          max={row.maxPlayers - 1}
+          max={row.maxPlayers}
           busy={busy}
           onChange={(minPlayers) => onChange({ minPlayers })}
         />
         <PlayerCount
           label={t("Maximum players")}
-          help={t("Set the table capacity above the minimum number of players.")}
+          help={t("Set the table capacity at or above the minimum number of players.")}
           value={row.maxPlayers}
-          min={row.minPlayers + 1}
+          min={row.minPlayers}
           max={Number.MAX_SAFE_INTEGER}
           busy={busy}
           onChange={(maxPlayers) => onChange({ maxPlayers })}
@@ -85,7 +95,7 @@ export function EventDraftTableEditor({
       </View>
       {fieldError("minPlayers") || fieldError("maxPlayers") ? (
         <Typography accessibilityRole="alert" className="text-sm text-danger">
-          {t("The minimum must be at least two and lower than the maximum.")}
+          {t("The minimum must be at least two and cannot exceed the maximum.")}
         </Typography>
       ) : null}
       <View
@@ -114,14 +124,26 @@ export function EventDraftTableEditor({
       </View>
       {publicGroup ? (
         <>
-          <EventWallDateTime
+          {day ? (
+            <Typography className="text-sm text-muted">
+              {new Intl.DateTimeFormat(i18n.locale, {
+                dateStyle: "medium",
+                timeZone: "UTC",
+              }).format(new Date(`${day}T00:00Z`))}
+            </Typography>
+          ) : null}
+          <EventDateTimeField
+            mode="time"
+            day={day}
+            min={bounds.min}
+            max={bounds.max}
             label={t("Table start")}
             help={t(
-              "Choose a local start within the event. The entire table duration must fit before the event ends.",
+              "The date is fixed to the event day. Choose a time after the event starts; the whole table must finish before it ends.",
             )}
             timeZone={timeZone}
-            value={row.startsWall}
-            isDisabled={busy}
+            value={row.startsWall.slice(11, 16)}
+            isDisabled={busy || !bounds.min || !bounds.max}
             error={
               fieldError("startsAt")
                 ? t("Choose a table start and duration within the event.")
@@ -137,34 +159,41 @@ export function EventDraftTableEditor({
                 "Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap.",
               )}
             />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Button
-                variant="outline"
-                isDisabled={busy}
-                onPress={onDemonstrator}
-                style={{ flexShrink: 1 }}
-              >
-                <Button.Label>
-                  {row.demonstratorUserId
-                    ? (row.demonstratorName ?? t("Unknown"))
-                    : t("Choose demonstrator")}
-                </Button.Label>
-              </Button>
-              {row.demonstratorUserId ? (
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  accessibilityLabel={t("Remove demonstrator")}
+            {row.demonstratorUserId ? (
+              <GroupedList>
+                <UserListRow
+                  name={row.demonstratorName ?? t("Unknown")}
+                  avatarUrl={row.demonstratorAvatarUrl}
+                  onPress={onDemonstrator}
+                  accessibilityLabel={t("Choose demonstrator")}
                   isDisabled={busy}
-                  onPress={() =>
-                    onChange({ demonstratorUserId: undefined, demonstratorName: undefined })
+                  actions={
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="danger-soft"
+                      accessibilityLabel={t("Remove demonstrator")}
+                      isDisabled={busy}
+                      onPress={() =>
+                        onChange({
+                          demonstratorUserId: undefined,
+                          demonstratorName: undefined,
+                          demonstratorAvatarUrl: undefined,
+                        })
+                      }
+                    >
+                      <X size={18} color={danger} />
+                    </Button>
                   }
-                >
-                  <X size={18} color={danger} />
-                </Button>
-              ) : null}
-            </View>
+                />
+              </GroupedList>
+            ) : (
+              <AddUserRow
+                label={t("Choose demonstrator")}
+                onPress={onDemonstrator}
+                isDisabled={busy}
+              />
+            )}
           </View>
         </>
       ) : null}
@@ -251,17 +280,6 @@ export function EventDraftTableEditor({
           <GameListRow
             name={t("Choose a game")}
             onPress={busy || row.games.length >= 20 ? undefined : onGame}
-            actions={
-              <Button
-                isIconOnly
-                variant="primary"
-                accessibilityLabel={t("Add game")}
-                isDisabled={busy || row.games.length >= 20}
-                onPress={onGame}
-              >
-                <Plus size={20} color={accentForeground} />
-              </Button>
-            }
           />
         </GroupedList>
         {fieldError("games") && !row.games.length ? (
@@ -310,13 +328,14 @@ function PlayerCount({
         <Button
           isIconOnly
           size="sm"
-          style={{ minWidth: 44, minHeight: 44 }}
+          style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+          hitSlop={4}
           variant="primary"
           accessibilityLabel={`${t("Decrease")}: ${label}`}
           isDisabled={busy || value <= min}
           onPress={() => onChange(value - 1)}
         >
-          <Minus size={18} color={foreground} />
+          <Minus size={14} color={foreground} />
         </Button>
         <Typography
           className="font-bold text-foreground"
@@ -329,13 +348,14 @@ function PlayerCount({
         <Button
           isIconOnly
           size="sm"
-          style={{ minWidth: 44, minHeight: 44 }}
+          style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+          hitSlop={4}
           variant="primary"
           accessibilityLabel={`${t("Increase")}: ${label}`}
           isDisabled={busy || value >= max}
           onPress={() => onChange(value + 1)}
         >
-          <Plus size={18} color={foreground} />
+          <Plus size={14} color={foreground} />
         </Button>
       </View>
     </View>

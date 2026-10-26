@@ -16,6 +16,8 @@ import {
 import { useMemo } from "react";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
 
+import { isPersonalEventTableVisible } from "../eventList";
+
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
 type ListFilters = { groupId?: string; periods?: readonly ("past" | "future")[]; query?: string };
 export const eventRecordKeys = {
@@ -161,7 +163,13 @@ export function useRecordTables(
   filters: Parameters<typeof recordTablesQuery>[2] = {},
 ) {
   const q = useInfiniteQuery(recordTablesQuery(o, id, filters));
-  const items = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
+  const items = useMemo(
+    () =>
+      (q.data?.pages.flatMap((p) => p.items) ?? []).filter(
+        (row) => id !== null || isPersonalEventTableVisible(row),
+      ),
+    [q.data, id],
+  );
   return { ...q, items };
 }
 export function useRecordTable(o: CommunityApiOptions, id: string, table: string) {
@@ -189,7 +197,8 @@ export function useRecordTable(o: CommunityApiOptions, id: string, table: string
     staleTime: 30_000,
     gcTime: 30 * 60_000,
     ...(cached
-      ? cached.row.eventStatus !== "TERMINATED" || cached.row.resultProfiles
+      ? cached.row.gameVoteCounts &&
+        (cached.row.eventStatus !== "TERMINATED" || cached.row.resultProfiles)
         ? {
             initialData: cached.row,
             initialDataUpdatedAt: client.getQueryState(cached.key)?.dataUpdatedAt,

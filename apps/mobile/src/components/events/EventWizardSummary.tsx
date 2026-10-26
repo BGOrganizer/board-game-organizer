@@ -1,4 +1,8 @@
-import { type EventRecordDraft, eventLocalToIso } from "@board-game-organizer/shared";
+import {
+  type EventRecordDraft,
+  eventDateWall,
+  eventLocalToIso,
+} from "@board-game-organizer/shared";
 import { Typography } from "heroui-native/text";
 import { View } from "react-native";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
@@ -11,9 +15,11 @@ import { useT } from "@/lib/i18n";
 export function EventWizardSummary({
   draft,
   groupName,
+  publicGroup = false,
 }: {
   draft: EventRecordDraft;
   groupName?: string | null;
+  publicGroup?: boolean;
 }) {
   const t = useT();
   return (
@@ -35,30 +41,48 @@ export function EventWizardSummary({
       </View>
       <View style={{ gap: 8 }}>
         <SearchHelpLabel
-          label={t("Event day")}
+          label={publicGroup ? t("Start Date and Time") : t("Date and time")}
           helpTitle={t("Field help")}
-          help={t(
-            "Each event has one calendar day. Remove the selected day before choosing another.",
-          )}
+          help={t("Times are local to the location chosen for the event.")}
         />
         <GroupedList>
           {draft.dates.map((date) => (
             <GroupedRow key={date.id}>
               <DateTimeInfo
-                startsAt={eventLocalToIso(`${date.day}T${draft.startTime}`, draft.timeZone)}
+                startsAt={eventLocalToIso(eventDateWall(draft, date), draft.timeZone)}
                 timeZone={draft.timeZone}
               />
             </GroupedRow>
           ))}
         </GroupedList>
       </View>
+      {publicGroup ? (
+        <>
+          <View style={{ gap: 8 }}>
+            <Typography className="font-semibold text-foreground">
+              {t("End Date and Time")}
+            </Typography>
+            <DateTimeInfo
+              startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
+              timeZone={draft.timeZone}
+              timeLabel={t("End time")}
+            />
+          </View>
+          <View style={{ gap: 8 }}>
+            <Typography className="font-semibold text-foreground">{t("Booking cutoff")}</Typography>
+            <DateTimeInfo
+              startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
+              timeZone={draft.timeZone}
+              timeLabel={t("Booking cutoff")}
+            />
+          </View>
+        </>
+      ) : null}
       <View style={{ gap: 8 }}>
         <SearchHelpLabel
           label={t("Location")}
           helpTitle={t("Field help")}
-          help={t(
-            "Each event has one verified address. Its time zone is automatic. Remove the location before choosing another.",
-          )}
+          help={t("Verified addresses proposed for this event.")}
         />
         <GroupedList>
           {draft.locations.map((location) => (

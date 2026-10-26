@@ -5,13 +5,14 @@ import { Button } from "heroui-native/button";
 import { Dialog } from "heroui-native/dialog";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { CalendarDays, Clock3 } from "lucide-react-native";
+import { CalendarClock, CalendarDays, Clock3 } from "lucide-react-native";
 import { useState } from "react";
 import { Platform, View } from "react-native";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
+import { EventBoundedTimePicker } from "./EventBoundedTimePicker";
 
 export function EventDateTimeField({
   label,
@@ -25,11 +26,12 @@ export function EventDateTimeField({
   error,
   help,
   isDisabled = false,
+  rowOnly = false,
   onChange,
 }: {
   label: string;
   value: string;
-  mode: "date" | "time";
+  mode: "date" | "time" | "datetime";
   day?: string;
   timeZone: string;
   testID?: string;
@@ -38,6 +40,7 @@ export function EventDateTimeField({
   error?: string;
   help?: string;
   isDisabled?: boolean;
+  rowOnly?: boolean;
   onChange: (value: string) => void;
 }) {
   const t = useT();
@@ -45,6 +48,7 @@ export function EventDateTimeField({
   const muted = useThemeColor("muted");
   const [draft, setDraft] = useState<Date | null>(null);
   const [pickerError, setPickerError] = useState("");
+  const [timeDraft, setTimeDraft] = useState<Date | null>(null);
   let today: string;
   let invalidZone = false;
   try {
@@ -79,52 +83,84 @@ export function EventDateTimeField({
       setDraft(initial);
       return;
     }
+    if (mode === "time" && (min || max)) {
+      setTimeDraft(initial);
+      return;
+    }
     DateTimePickerAndroid.open({
       value: initial,
-      mode,
+      mode: mode === "datetime" ? "date" : mode,
       timeZoneName: "UTC",
       is24Hour: true,
       minimumDate: min ? new Date(`${min}Z`) : undefined,
       maximumDate: max ? new Date(`${max}Z`) : undefined,
       onChange: (event, date) => {
-        if (event.type === "set" && date) commit(date);
+        if (event.type !== "set" || !date) return;
+        if (mode !== "datetime") {
+          commit(date);
+          return;
+        }
+        // Android has no datetime mode: one field opens date then time; cancel commits nothing.
+        const selected = new Date(`${date.toISOString().slice(0, 10)}T${wall.slice(11, 16)}Z`);
+        if (min || max) {
+          setTimeDraft(selected);
+          return;
+        }
+        DateTimePickerAndroid.open({
+          value: selected,
+          mode: "time",
+          timeZoneName: "UTC",
+          is24Hour: true,
+          onChange: (timeEvent, time) => {
+            if (timeEvent.type === "set" && time)
+              commit(
+                new Date(
+                  `${selected.toISOString().slice(0, 10)}T${time.toISOString().slice(11, 16)}Z`,
+                ),
+              );
+          },
+        });
       },
     });
   };
-  const Icon = mode === "date" ? CalendarDays : Clock3;
+  const Icon = mode === "datetime" ? CalendarClock : mode === "date" ? CalendarDays : Clock3;
+  const row = (
+    <GroupedRow>
+      <Icon size={20} color={muted} />
+      <Button
+        variant="ghost"
+        accessibilityLabel={label}
+        testID={testID}
+        isDisabled={Boolean(isDisabled || invalidZone || (min && max && min > max))}
+        onPress={pick}
+        style={{ flex: 1, minHeight: 44, justifyContent: "flex-start", paddingHorizontal: 0 }}
+      >
+        <Button.Label>
+          {value
+            ? new Intl.DateTimeFormat(i18n.locale, {
+                ...(mode !== "time" ? { dateStyle: "medium" as const } : {}),
+                ...(mode !== "date" ? { timeStyle: "short" as const } : {}),
+                timeZone: "UTC",
+              }).format(new Date(`${wall}Z`))
+            : mode === "datetime"
+              ? t("Choose date and time")
+              : mode === "date"
+                ? t("Pick event day")
+                : t("Pick time")}
+        </Button.Label>
+      </Button>
+    </GroupedRow>
+  );
   return (
     <View style={{ gap: 6 }}>
-      <SearchHelpLabel
-        label={label}
-        help={help ?? (mode === "date" ? t("Choose a calendar day.") : t("Choose a local time."))}
-        helpTitle={t("Field help")}
-      />
-      <GroupedList>
-        <GroupedRow>
-          <Icon size={20} color={muted} />
-          <Button
-            variant="ghost"
-            accessibilityLabel={label}
-            testID={testID}
-            isDisabled={Boolean(isDisabled || invalidZone || (min && max && min > max))}
-            onPress={pick}
-            style={{ flex: 1, minHeight: 44, justifyContent: "flex-start", paddingHorizontal: 0 }}
-          >
-            <Button.Label>
-              {value
-                ? new Intl.DateTimeFormat(i18n.locale, {
-                    ...(mode === "date"
-                      ? { dateStyle: "medium" as const }
-                      : { timeStyle: "short" as const }),
-                    timeZone: "UTC",
-                  }).format(new Date(`${wall}Z`))
-                : mode === "date"
-                  ? t("Pick event day")
-                  : t("Pick time")}
-            </Button.Label>
-          </Button>
-        </GroupedRow>
-      </GroupedList>
+      {!rowOnly ? (
+        <SearchHelpLabel
+          label={label}
+          help={help ?? (mode === "date" ? t("Choose a calendar day.") : t("Choose a local time."))}
+          helpTitle={t("Field help")}
+        />
+      ) : null}
+      {rowOnly ? row : <GroupedList>{row}</GroupedList>}
       {invalidZone ? (
         <Typography accessibilityRole="alert" className="text-danger">
           {t("Could not determine the location time zone. Choose a verified address.")}
@@ -134,6 +170,19 @@ export function EventDateTimeField({
         <Typography accessibilityRole="alert" className="text-sm text-danger">
           {error || pickerError}
         </Typography>
+      ) : null}
+      {timeDraft ? (
+        <EventBoundedTimePicker
+          label={label}
+          value={timeDraft}
+          min={min}
+          max={max}
+          onCancel={() => setTimeDraft(null)}
+          onChange={(date) => {
+            commit(date);
+            setTimeDraft(null);
+          }}
+        />
       ) : null}
       {draft ? (
         <Dialog

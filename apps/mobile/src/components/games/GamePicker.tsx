@@ -12,7 +12,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
+import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -37,7 +37,7 @@ export default function GamePicker({
 } = {}) {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
-  const muted = useThemeColor("muted");
+  const [muted, foreground] = useThemeColor(["muted", "foreground"]);
   const router = useRouter();
   const { slotId, exclude } = useLocalSearchParams<{ slotId: string; exclude?: string }>();
   const setPendingGame = useAppStore((s) => s.setPendingGame);
@@ -137,8 +137,13 @@ export default function GamePicker({
                 title: t("Choose a game"),
                 headerBackVisible: false,
                 headerLeft: () => (
-                  <Button variant="ghost" onPress={onClose}>
-                    {t("Back")}
+                  <Button
+                    isIconOnly
+                    variant="ghost"
+                    accessibilityLabel={t("Back")}
+                    onPress={onClose}
+                  >
+                    <ArrowLeft size={20} color={foreground} />
                   </Button>
                 ),
               }}

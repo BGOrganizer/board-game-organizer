@@ -7,7 +7,11 @@ export const eventStateSchema = z.enum(["PLANNING", "CONFIRMED", "TERMINATED"]);
 export const eventVoteSchema = z.enum(["UNKNOWN", "YES", "NO", "IF_NEEDED"]);
 export type EventVote = z.infer<typeof eventVoteSchema>;
 export const eventTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
-export const eventDateOptionSchema = z.object({ id: z.uuid(), day: z.iso.date() }).strict();
+export const MAX_EVENT_OPTIONS = 20;
+/** Old records inherit the Event clock; new proposals may carry their own local time. */
+export const eventDateOptionSchema = z
+  .object({ id: z.uuid(), day: z.iso.date(), startTime: eventTimeSchema.optional() })
+  .strict();
 export const eventRecordSchema = z
   .object({
     id: z.uuid(),

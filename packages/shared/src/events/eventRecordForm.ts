@@ -6,6 +6,8 @@ import {
   type PlannedTableResponse,
 } from "@board-game-organizer/schemas";
 import { eventLocalDateTime, eventLocalToIso } from "./eventForm";
+import { eventDateWall } from "./eventRecordPolicy";
+import { publicEventEndIsValid } from "./eventSchedule";
 export type EventTableDraft = {
   key: string;
   id?: string;
@@ -16,6 +18,7 @@ export type EventTableDraft = {
   startsWall: string;
   demonstratorUserId?: string;
   demonstratorName?: string | null;
+  demonstratorAvatarUrl?: string | null;
   games: Array<BggSearchItem & { manualDurationMinutes?: number }>;
 };
 export type EventRecordDraft = {
@@ -25,7 +28,7 @@ export type EventRecordDraft = {
   startTime: string;
   endsWall: string;
   cutoffWall: string;
-  dates: Array<{ id: string; day: string }>;
+  dates: PlannedEventResponse["dates"];
   locations: PlannedEventResponse["locations"];
   tables: EventTableDraft[];
   removedTableIds: string[];
@@ -50,6 +53,7 @@ export function tableDraft(row: PlannedTableResponse, timeZone: string): EventTa
     startsWall: row.startsAt ? eventLocalDateTime(row.startsAt, timeZone) : "",
     demonstratorUserId: row.demonstratorUserId,
     demonstratorName: row.demonstratorName,
+    demonstratorAvatarUrl: row.demonstratorAvatarUrl,
     games: row.games.map((game) => ({
       ...(row.gamesDetail.find((item) => item.id === game.gameId) ?? {
         id: game.gameId,
@@ -65,7 +69,12 @@ export function eventDraft(data?: PlannedEventResponse, groupId?: string): Event
   const zone = data?.locations[0]?.timeZone ?? data?.timeZone ?? "UTC";
   const used = [...(data?.dates ?? [])];
   const dates = (data?.dates ?? []).map((date) => {
-    if (!data || data.timeZone === zone) return { ...date };
+    if (
+      !data ||
+      data.timeZone === zone ||
+      (data.groupType === "PRIVATE" && date.startTime !== undefined)
+    )
+      return { ...date };
     const id = eventDateOptionId(used);
     used.push({ ...date, id });
     return { ...date, id };
@@ -133,12 +142,25 @@ function draftPolicyErrors(
   const errors: Array<Array<string | number>> = [];
   const zone = draft.locations[0]?.timeZone;
   const day = draft.dates[0]?.day;
-  const start = zone && day ? draftIso(`${day}T${draft.startTime}`, zone) : undefined;
+  const start = zone && day ? draftIso(eventDateWall(draft, draft.dates[0]), zone) : undefined;
+  const flexible = Boolean(draft.groupId && !publicGroup);
+  if (!flexible && draft.dates.length !== 1) errors.push(["dates"]);
+  if (!flexible && draft.locations.length !== 1) errors.push(["locations"]);
+  if (new Set(draft.dates.map((date) => eventDateWall(draft, date))).size !== draft.dates.length)
+    errors.push(["dates"]);
+  for (const date of draft.dates)
+    for (const location of draft.locations)
+      if (!location.timeZone || !draftIso(eventDateWall(draft, date), location.timeZone))
+        errors.push(["dates"]);
   if (zone && day && !start) errors.push(["startTime"]);
   if (!publicGroup) return errors;
   const end = zone ? draftIso(draft.endsWall, zone) : undefined;
   const cutoff = zone ? draftIso(draft.cutoffWall, zone) : undefined;
-  if (!end || (start && Date.parse(end) <= Date.parse(start))) errors.push(["endsAt"]);
+  if (
+    !end ||
+    (start && !publicEventEndIsValid(eventDateWall(draft, draft.dates[0]), draft.endsWall))
+  )
+    errors.push(["endsAt"]);
   if (
     !cutoff ||
     (start && Date.parse(cutoff) >= Date.parse(start)) ||
@@ -149,7 +171,7 @@ function draftPolicyErrors(
     const at = zone ? draftIso(row.startsWall, zone) : undefined;
     if (
       !at ||
-      (start && Date.parse(at) < Date.parse(start)) ||
+      (start && Date.parse(at) <= Date.parse(start)) ||
       (end && Date.parse(at) >= Date.parse(end))
     )
       errors.push(["tables", index, "startsAt"]);
@@ -216,12 +238,25 @@ export function patchEventDraft(
   old: EventRecordDraft,
   change: Partial<EventRecordDraft>,
   originalDates: readonly { id: string }[] = [],
+  privateGroup = false,
 ): EventRecordDraft {
   const next = { ...old, ...change };
   next.timeZone = next.locations[0]?.timeZone ?? old.timeZone;
-  if (next.startTime !== old.startTime || next.timeZone !== old.timeZone) {
-    const used = [...originalDates, ...old.dates];
+  if (
+    next.startTime !== old.startTime ||
+    next.timeZone !== old.timeZone ||
+    next.dates !== old.dates
+  ) {
+    const used = [...originalDates, ...old.dates, ...next.dates];
     next.dates = next.dates.map((row) => {
+      const previous = old.dates.find((date) => date.id === row.id);
+      if (
+        !previous ||
+        (eventDateWall(old, previous) === eventDateWall(next, row) &&
+          (next.timeZone === old.timeZone ||
+            (privateGroup && previous.startTime !== undefined && row.startTime !== undefined)))
+      )
+        return row;
       const id = eventDateOptionId(used);
       used.push({ id });
       return { ...row, id };

@@ -42,6 +42,41 @@ const input = {
 };
 const at = "2027-01-01T00:00:00Z";
 describe("unified event request boundaries", () => {
+  it("accepts bounded private proposals including distinct times on one day, with strict optional clocks for legacy compatibility", () => {
+    const proposed = {
+      ...input,
+      groupId: other,
+      dates: [
+        { id, day: "2027-01-03", startTime: "09:00" },
+        { id: other, day: "2027-01-03", startTime: "20:30" },
+      ],
+      locations: [location, { ...location, id: other }],
+    };
+    expect(createPlannedEventSchema.parse(proposed).dates[1].startTime).toBe("20:30");
+    const { groupId: _group, ...fields } = proposed;
+    expect(
+      editPlannedEventSchema.safeParse({ ...fields, version: 1, removedTableIds: [] }).success,
+    ).toBe(true);
+    for (const startTime of ["24:00", "12:60", "9:00", "09:00:00"])
+      expect(
+        createPlannedEventSchema.safeParse({
+          ...proposed,
+          dates: [{ ...proposed.dates[0], startTime }],
+        }).success,
+      ).toBe(false);
+    expect(
+      createPlannedEventSchema.safeParse({
+        ...proposed,
+        dates: [{ ...proposed.dates[0], extra: true }],
+      }).success,
+    ).toBe(false);
+    expect(
+      createPlannedEventSchema.safeParse({
+        ...proposed,
+        dates: [proposed.dates[0], { ...proposed.dates[0], id: other }],
+      }).success,
+    ).toBe(false);
+  });
   it("supports group or standalone creation, explicit seats and manual duration when needed", () => {
     expect(createPlannedEventSchema.parse(input).groupId).toBeNull();
     expect(createPlannedEventSchema.safeParse({ ...input, groupId: id }).success).toBe(true);
@@ -84,15 +119,23 @@ describe("unified event request boundaries", () => {
     ])
       expect(createPlannedEventSchema.safeParse({ ...input, ...patch }).success).toBe(false);
   });
-  it("requires one unique day and one venue on every new/grouped/standalone write, and a strict player interval", () => {
+  it("bounds proposed options and allows equal player limits; service enforces authoritative Group mode", () => {
     for (const groupId of [null, id]) {
       const base = { ...input, groupId };
       for (const patch of [
         { dates: [] },
         { locations: [] },
-        { dates: [...input.dates, { id: other, day: "2027-01-04" }] },
         {
-          locations: [location, { ...location, id: other, address: "Different verified address" }],
+          dates: Array.from({ length: 21 }, (_, n) => ({
+            id: `00000000-0000-4000-8000-${String(n + 1).padStart(12, "0")}`,
+            day: `2027-01-${String(n + 1).padStart(2, "0")}`,
+          })),
+        },
+        {
+          locations: Array.from({ length: 21 }, (_, n) => ({
+            ...location,
+            id: `00000000-0000-4000-8000-${String(n + 1).padStart(12, "0")}`,
+          })),
         },
       ]) {
         expect(createPlannedEventSchema.safeParse({ ...base, ...patch }).success).toBe(false);
@@ -105,7 +148,7 @@ describe("unified event request boundaries", () => {
     }
     expect(
       plannedTableInputSchema.safeParse({ ...table, minPlayers: 2, maxPlayers: 2 }).success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       plannedTableInputSchema.safeParse({ ...table, minPlayers: 1, maxPlayers: 2 }).success,
     ).toBe(false);

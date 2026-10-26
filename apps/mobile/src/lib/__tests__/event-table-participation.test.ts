@@ -4,7 +4,7 @@ import { expect, it } from "vitest";
 
 const source = (file: string) =>
   readFileSync(new URL(`../../components/events/${file}.tsx`, import.meta.url), "utf8");
-it.each(["EventDetail", "EventTable", "EventTableCard", "EventInvitationPicker"])(
+it.each(["EventDetail", "EventTableOverview", "EventTableCard", "EventInvitationPicker"])(
   "uses exact boundary timer in %s instead of waiting for a list refetch",
   (name) => expect(source(name)).toContain("useEventCutoff"),
 );
@@ -16,7 +16,7 @@ it("never creates a synthetic Match or organizer seat from a table link", () => 
   expect(source("EventWizard")).toContain("organizer has no automatic playing seat");
 });
 it("preserves whole-event immutable result finalization with per-table draft scores and genuine sheet interactions", () => {
-  expect(source("EventResults")).toContain("Finalization is atomic and irreversible.");
+  expect(source("EventResults")).toContain("Finalization is irreversible.");
   expect(source("EventResults")).toContain("f.finalize()");
   expect(source("EventResults")).toContain("<ConfirmDialog");
   expect(source("TableScoreEditor")).toMatch(/onSubmit\(\{\s*lowerWins/);

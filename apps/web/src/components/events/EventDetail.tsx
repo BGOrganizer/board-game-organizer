@@ -1,6 +1,9 @@
 "use client";
 import {
   communityAccessDenied,
+  eventAvailabilityVoteIsAllowed,
+  eventDateWall,
+  eventLocalToIso,
   useEventCutoff,
   useEventRecord,
   useEventRecordActions,
@@ -8,16 +11,33 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarCheck,
+  Check,
+  ClipboardPenLine,
+  Dices,
+  Pencil,
+  RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
+import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
-import { EventTableCard } from "./EventTableCard";
+import { EventDetailsCard } from "./EventDetailsCard";
+import { EventTableSummaryCard } from "./EventTableSummaryCard";
 import { EventVoteButtons } from "./EventVoteButtons";
-import { EventVoteLegend } from "./EventVoteLegend";
+import { EventVoteCounts } from "./EventVoteCounts";
 export function EventDetail({ eventId }: { eventId: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -34,6 +54,13 @@ export function EventDetail({ eventId }: { eventId: string }) {
       fetchNextPage: tables.fetchNextPage,
     });
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
+  const confirmationBlocked =
+    a.busy || q.isPlaceholderData || !event?.canConfirm || event?.agreement?.agreed !== true;
+  const confirmationHint = a.busy
+    ? t`An event action is in progress.`
+    : q.isPlaceholderData
+      ? t`Event details are still loading.`
+      : t`No complete agreement yet. Check participation and votes for the date, location and game.`;
   if (!event)
     return q.isPending ? (
       <Skeleton className="h-40 w-full rounded-xl" />
@@ -44,6 +71,16 @@ export function EventDetail({ eventId }: { eventId: string }) {
       </div>
     );
   const transition = async (action: "confirm" | "replan") => {
+    if (
+      a.busy ||
+      q.isPlaceholderData ||
+      event.adminUserId !== o.userId ||
+      (action === "confirm" && confirmationBlocked) ||
+      (action === "replan" && !event.canReplan)
+    ) {
+      setError(true);
+      return;
+    }
     setError(false);
     try {
       await a.transition.mutateAsync({ action, version: event.version });
@@ -53,131 +90,215 @@ export function EventDetail({ eventId }: { eventId: string }) {
     }
   };
   return (
-    <div className="mx-auto max-w-4xl space-y-5 pb-24">
+    <div className="mx-auto max-w-4xl space-y-3 pb-24">
       <Link href="/events" className="inline-flex items-center gap-2 text-accent">
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-4" aria-hidden />
         {t`Back`}
       </Link>
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{event.name}</h1>
-        <EventVoteLegend />
-      </div>
-      <p>
-        {event.status === "PLANNING"
-          ? t`Planning`
-          : event.status === "CONFIRMED"
-            ? t`Confirmed`
-            : t`Terminated`}{" "}
-        · {event.startTime} ({event.timeZone})
-      </p>
-      {event.groupName ? (
-        <Link href={`/groups/${event.groupId}`} className="text-accent">
-          {event.groupName}
-        </Link>
+      {event.adminUserId === o.userId && event.status === "PLANNING" ? (
+        <HeaderActions>
+          <div className="flex items-center gap-1">
+            {confirmationBlocked ? (
+              <HelpPopover label={t`Why confirmation is unavailable`} title={t`Confirm event`}>
+                <div className="space-y-2">
+                  <p>{confirmationHint}</p>
+                  {event.agreement?.reasons.map((reason) => (
+                    <p key={reason.tableId}>
+                      {tables.items.find((row) => row.id === reason.tableId)?.name ?? t`Table`}:{" "}
+                      {reason.code === "PENDING_RESERVATIONS"
+                        ? t`Pending invitations still reserve places.`
+                        : reason.code === "GAME_DISAGREEMENT"
+                          ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
+                          : t`No compatible accepted players for this table.`}
+                    </p>
+                  ))}
+                </div>
+              </HelpPopover>
+            ) : null}
+            <Button
+              isIconOnly
+              size="sm"
+              variant="primary"
+              className="size-9 min-h-9 min-w-9"
+              aria-label={t`Confirm event`}
+              isDisabled={confirmationBlocked}
+              onPress={() => {
+                setError(false);
+                setConfirm("confirm");
+              }}
+            >
+              <Check className="size-4" aria-hidden />
+            </Button>
+          </div>
+        </HeaderActions>
       ) : null}
-      <div className="flex flex-wrap gap-3">
-        {event.canEdit && !closed ? (
-          <Link
-            href={`/events/${event.id}/edit`}
-            className="inline-flex items-center gap-2 text-accent"
-          >
-            <Pencil className="size-4" />
-            {t`Edit event`}
-          </Link>
-        ) : null}
-        {event.canConfirm ? (
-          <Button
-            isDisabled={a.busy || q.isPlaceholderData}
-            onPress={() => setConfirm("confirm")}
-          >{t`Confirm event`}</Button>
-        ) : null}
-        {event.canReplan ? (
-          <Button
-            variant="secondary"
-            isDisabled={a.busy}
-            onPress={() => setConfirm("replan")}
-          >{t`Reopen planning`}</Button>
-        ) : null}
-        {event.canFinalize ? (
+      {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canFinalize ? (
+        <HeaderActions>
           <Link
             href={`/events/${event.id}/results`}
-            className="text-accent"
-          >{t`Register results`}</Link>
-        ) : null}
-      </div>
-      <section aria-label={t`Dates`} className="space-y-3">
-        <h2 className="font-semibold">{t`Dates`}</h2>
-        {event.dates
-          .filter((row) => !event.confirmed || row.id === event.confirmed.dateId)
-          .map((row) => (
-            <div
-              key={row.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-default-100 p-3"
-            >
-              <span>{row.day}</span>
-              {event.canVote && !closed ? (
-                <EventVoteButtons
-                  label={row.day}
-                  value={event.myVotes?.dateVotes[row.id]}
-                  busy={a.busy || q.isPlaceholderData}
-                  onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
-                />
-              ) : null}
-            </div>
-          ))}
+            aria-label={t`Register results`}
+            aria-disabled={a.busy || q.isPlaceholderData}
+            onClick={(e) => {
+              if (a.busy || q.isPlaceholderData) e.preventDefault();
+            }}
+            className="button button--primary button--icon-only size-9 min-h-9 min-w-9"
+          >
+            <ClipboardPenLine className="size-4" aria-hidden />
+          </Link>
+        </HeaderActions>
+      ) : null}
+      <EventDetailsCard event={event} />
+      <section
+        aria-label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
+        className="space-y-3"
+      >
+        <SearchHelpLabel
+          label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
+          helpTitle={t`Field help`}
+          help={t`Times are local to the location chosen for the event.`}
+        />
+        <GroupedList>
+          {event.dates
+            .filter(
+              (row) =>
+                event.status === "PLANNING" ||
+                !event.confirmed ||
+                row.id === event.confirmed.dateId,
+            )
+            .map((row) => (
+              <GroupedRow key={row.id} className="flex-wrap">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <DateTimeInfo
+                    startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                    timeZone={event.timeZone}
+                  />
+                  {event.groupType !== "PUBLIC" ? (
+                    <EventVoteCounts
+                      label={eventDateWall(event, row).replace("T", " ")}
+                      counts={event.voteCounts?.dates[row.id]}
+                    />
+                  ) : null}
+                </div>
+                {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                  <EventVoteButtons
+                    allowUnknown={false}
+                    label={eventDateWall(event, row).replace("T", " ")}
+                    value={event.myVotes?.dateVotes[row.id]}
+                    disabledVotes={
+                      eventAvailabilityVoteIsAllowed(
+                        event.dates,
+                        event.myVotes?.dateVotes ?? {},
+                        row.id,
+                        "NO",
+                      )
+                        ? []
+                        : ["NO"]
+                    }
+                    busy={a.busy || q.isPlaceholderData}
+                    onChange={(vote) => {
+                      if (vote !== "UNKNOWN")
+                        a.vote.mutate({ kind: "date", optionId: row.id, vote });
+                    }}
+                  />
+                ) : null}
+              </GroupedRow>
+            ))}
+        </GroupedList>
       </section>
+      {event.endsAt ? (
+        <section aria-label={t`End Date and Time`} className="space-y-3">
+          <SearchHelpLabel
+            label={t`End Date and Time`}
+            helpTitle={t`Field help`}
+            help={t`Choose a later time on the same day as the event start. All public tables must finish by this time.`}
+          />
+          <GroupedList>
+            <GroupedRow>
+              <DateTimeInfo
+                startsAt={event.endsAt}
+                timeZone={event.timeZone}
+                timeLabel={t`End time`}
+              />
+            </GroupedRow>
+          </GroupedList>
+        </section>
+      ) : null}
+      {event.bookingClosesAt ? (
+        <section aria-label={t`Booking Cutoff Date and Time`} className="space-y-3">
+          <SearchHelpLabel
+            label={t`Booking Cutoff Date and Time`}
+            helpTitle={t`Field help`}
+            help={t`Registration closes at this local date and time, before the event starts. A new event needs a future cutoff.`}
+          />
+          <GroupedList>
+            <GroupedRow>
+              <DateTimeInfo
+                startsAt={event.bookingClosesAt}
+                timeZone={event.timeZone}
+                timeLabel={t`Booking cutoff`}
+              />
+            </GroupedRow>
+          </GroupedList>
+        </section>
+      ) : null}
       <section aria-label={t`Locations`} className="space-y-3">
         <h2 className="font-semibold">{t`Locations`}</h2>
-        {event.locations
-          .filter((row) => !event.confirmed || row.id === event.confirmed.locationId)
-          .map((row) => (
-            <div key={row.id} className="space-y-2 rounded-xl bg-default-100 p-3">
-              <LocationListRow name={row.name} address={row.address} />
-              {event.canVote && !closed ? (
-                <EventVoteButtons
-                  label={row.name}
-                  value={event.myVotes?.locationVotes[row.id]}
-                  busy={a.busy || q.isPlaceholderData}
-                  onChange={(vote) => a.vote.mutate({ kind: "location", optionId: row.id, vote })}
-                />
-              ) : null}
-            </div>
-          ))}
+        <GroupedList>
+          {event.locations
+            .filter(
+              (row) =>
+                event.status === "PLANNING" ||
+                !event.confirmed ||
+                row.id === event.confirmed.locationId,
+            )
+            .map((row) => (
+              <LocationListRow
+                key={row.id}
+                name={row.name}
+                address={row.address}
+                actions={
+                  event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                    <EventVoteButtons
+                      allowUnknown={false}
+                      label={row.name}
+                      value={event.myVotes?.locationVotes[row.id]}
+                      disabledVotes={
+                        eventAvailabilityVoteIsAllowed(
+                          event.locations,
+                          event.myVotes?.locationVotes ?? {},
+                          row.id,
+                          "NO",
+                        )
+                          ? []
+                          : ["NO"]
+                      }
+                      busy={a.busy || q.isPlaceholderData}
+                      onChange={(vote) =>
+                        vote !== "UNKNOWN" &&
+                        a.vote.mutate({ kind: "location", optionId: row.id, vote })
+                      }
+                    />
+                  ) : undefined
+                }
+              >
+                {event.groupType !== "PUBLIC" ? (
+                  <EventVoteCounts label={row.name} counts={event.voteCounts?.locations[row.id]} />
+                ) : null}
+              </LocationListRow>
+            ))}
+        </GroupedList>
       </section>
-      {event.bookingClosesAt ? (
-        <p>
-          {t`Booking cutoff`}: {new Date(event.bookingClosesAt).toLocaleString()} · {t`Event end`}:{" "}
-          {event.endsAt ? new Date(event.endsAt).toLocaleString() : "—"}
-        </p>
-      ) : null}
-      {event.agreement ? (
-        <section aria-label={t`Agreement`} className="space-y-2">
-          <h2 className="font-semibold">{t`Agreement`}</h2>
-          <p>
-            {event.agreement.agreed
-              ? t`Agreement available. Confirmation remains manual.`
-              : t`No complete agreement yet.`}
-          </p>
-          {event.agreement.reasons.map((reason) => (
-            <p key={reason.tableId}>
-              {tables.items.find((row) => row.id === reason.tableId)?.name ?? t`Table`}:{" "}
-              {reason.code === "PENDING_RESERVATIONS"
-                ? t`Pending invitations still reserve places.`
-                : reason.code === "GAME_DISAGREEMENT"
-                  ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
-                  : t`No compatible accepted players for this table.`}
-            </p>
-          ))}
-        </section>
-      ) : q.isPlaceholderData ? (
-        <Skeleton className="h-20 w-full rounded-xl" />
-      ) : null}
       <section aria-label={t`Tables`} className="space-y-3">
         <h2 className="font-semibold">{t`Tables`}</h2>
         {tables.items.map((row) => (
-          <EventTableCard key={row.id} table={row} />
+          <EventTableSummaryCard key={row.id} table={row} />
         ))}
-        {tables.isPending ? <Skeleton className="h-32 w-full rounded-xl" /> : null}
+        {!tables.isPending && !tables.isError && !tables.items.length ? (
+          <EmptyList icon={<Dices className="size-7" />}>{t`No tables found`}</EmptyList>
+        ) : null}
+        {tables.isPending || tables.isFetchingNextPage ? (
+          <Skeleton className="h-32 w-full rounded-xl" />
+        ) : null}
         {tables.isError ? (
           <div role="alert">
             <p className="text-danger">{t`Could not load tables`}</p>
@@ -192,6 +313,28 @@ export function EventDetail({ eventId }: { eventId: string }) {
           >{t`Load more`}</Button>
         ) : null}
       </section>
+      {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canReplan ? (
+        <FloatingActions
+          label={t`Reopen planning`}
+          variant="secondary"
+          isDisabled={a.busy || q.isPlaceholderData}
+          onPress={() => {
+            setError(false);
+            setConfirm("replan");
+          }}
+        >
+          <RotateCcw className="size-5" aria-hidden />
+        </FloatingActions>
+      ) : null}
+      {event.status === "PLANNING" && event.canEdit && !closed ? (
+        <FloatingActions
+          href={`/events/${event.id}/edit`}
+          label={t`Edit event`}
+          isDisabled={a.busy || q.isPlaceholderData}
+        >
+          <Pencil className="size-5" aria-hidden />
+        </FloatingActions>
+      ) : null}
       {confirm ? (
         <ContactConfirmDialog
           title={confirm === "confirm" ? t`Confirm event` : t`Reopen planning`}
@@ -203,7 +346,17 @@ export function EventDetail({ eventId }: { eventId: string }) {
           busy={a.busy}
           onCancel={() => setConfirm(null)}
           actions={[
-            { label: t`Confirm`, variant: "primary", onPress: () => void transition(confirm) },
+            {
+              label: t`Confirm`,
+              variant: "primary",
+              icon:
+                confirm === "confirm" ? (
+                  <CalendarCheck className="size-4" aria-hidden />
+                ) : (
+                  <RotateCcw className="size-4" aria-hidden />
+                ),
+              onPress: () => void transition(confirm),
+            },
           ]}
         >
           {error ? (

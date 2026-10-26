@@ -11,7 +11,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Input, Popover, Switch } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowDown, ArrowLeft, ArrowUp, Check, ListOrdered, Pencil, Undo2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ListOrdered, Pencil, Undo2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { ContactConfirmDialog } from "../common/ui/ContactConfirmDialog";
@@ -28,13 +28,11 @@ export function TableScoreEditor({
   players,
   initial,
   busy,
-  onBack,
   onSubmit,
 }: {
   players: ScorePlayer[];
   initial?: RegisterMatchResultsInput;
   busy: boolean;
-  onBack: () => void;
   onSubmit: (input: RegisterMatchResultsInput) => void;
 }) {
   const { t } = useLingui();
@@ -183,11 +181,6 @@ export function TableScoreEditor({
   };
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 pb-28">
-      <Button variant="ghost" onPress={onBack}>
-        <ArrowLeft className="h-4 w-4" />
-        {t`Back to table`}
-      </Button>
-      <h1 className="text-xl font-semibold">{t`Register results`}</h1>
       <section
         aria-label={t`Live standings`}
         className="space-y-3 overflow-y-auto"

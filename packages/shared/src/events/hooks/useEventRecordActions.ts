@@ -7,6 +7,7 @@ import type {
   DecideTableRegistrationInput,
   EditPlannedEventInput,
   FinalizeEventInput,
+  JoinEventAvailability,
   PlannedEventResponse,
   PlannedTableResponse,
   TableRegistration,
@@ -16,6 +17,7 @@ import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-quer
 import type { MutationFeedbackAction } from "../../common/mutationFeedback";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
 import { mapCommunityCache, restoreCommunityFields } from "../../community/queryCache";
+import { changeEventVoteCounts } from "../eventVotes";
 import { eventRecordKeys } from "./useEventRecords";
 
 type Row = PlannedEventResponse | PlannedTableResponse | TableSeatResponse;
@@ -27,7 +29,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const affected = (key: readonly unknown[]) =>
     key[3] === "list" ||
     (key[3] === "tables" && (key[4] === null || key[4] === id)) ||
-    (["detail", "table", "seats"].includes(String(key[3])) && key[4] === id);
+    (["detail", "table", "seats", "leaderboard"].includes(String(key[3])) && key[4] === id);
   async function begin(action: MutationFeedbackAction, change: (row: Row) => Row = (row) => row) {
     await client.cancelQueries({ queryKey: root, predicate: (q) => affected(q.queryKey) });
     const undo: Array<() => void> = [];
@@ -79,6 +81,33 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       );
   }
   function registrationSuccess(value: TableRegistration) {
+    if (value.userId === o.userId) {
+      for (const [key, data] of client.getQueriesData({
+        queryKey: root,
+        predicate: (q) => q.queryKey[3] === "detail" || q.queryKey[3] === "list",
+      }))
+        client.setQueryData(
+          key,
+          mapCommunityCache<PlannedEventResponse>(data, (row) => {
+            if (row.id !== value.eventId) return row;
+            const current = row.myRegistrations ?? [];
+            if (
+              current.some(
+                (registration) =>
+                  registration.tableId === value.tableId && registration.version > value.version,
+              )
+            )
+              return row;
+            return {
+              ...row,
+              myRegistrations: [
+                ...current.filter((registration) => registration.tableId !== value.tableId),
+                ...(["PENDING", "ACCEPTED"].includes(value.status) ? [value] : []),
+              ],
+            };
+          }),
+        );
+    }
     for (const [key, data] of client.getQueriesData({
       queryKey: root,
       predicate: (q) => q.queryKey[3] === "table" || q.queryKey[3] === "tables",
@@ -89,7 +118,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
           row.id === value.tableId && value.userId === o.userId
             ? {
                 ...row,
-                myRegistration: value,
+                myRegistration: { ...row.myRegistration, ...value },
                 ...(value.status === "CANCELLED" || value.status === "DECLINED"
                   ? { myPosition: null }
                   : {}),
@@ -137,6 +166,19 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
           const field = input.kind === "date" ? "dateVotes" : "locationVotes";
           return {
             ...row,
+            ...(row.voteCounts
+              ? {
+                  voteCounts: {
+                    ...row.voteCounts,
+                    [input.kind === "date" ? "dates" : "locations"]: changeEventVoteCounts(
+                      row.voteCounts[input.kind === "date" ? "dates" : "locations"],
+                      input.optionId,
+                      row.myVotes?.[field][input.optionId] ?? "UNKNOWN",
+                      input.vote,
+                    ),
+                  },
+                }
+              : {}),
             myVotes: {
               dateVotes: { ...row.myVotes?.dateVotes },
               locationVotes: { ...row.myVotes?.locationVotes },
@@ -152,6 +194,16 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         )
           return {
             ...row,
+            ...(row.gameVoteCounts
+              ? {
+                  gameVoteCounts: changeEventVoteCounts(
+                    row.gameVoteCounts,
+                    String(input.gameId),
+                    row.myRegistration.gameVotes[String(input.gameId)] ?? "UNKNOWN",
+                    input.vote,
+                  ),
+                }
+              : {}),
             myRegistration: {
               ...row.myRegistration,
               gameVotes: { ...row.myRegistration.gameVotes, [input.gameId]: input.vote },
@@ -165,15 +217,18 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   });
   const register = useMutation({
     mutationKey,
-    mutationFn: (tableId: string) =>
+    mutationFn: (value: string | { tableId: string; availability: JoinEventAvailability }) =>
       communityRequest<TableRegistration>(
         o,
-        `events/${id}/tables/${tableId}/registrations`,
+        `events/${id}/tables/${typeof value === "string" ? value : value.tableId}/registrations`,
         "POST",
+        typeof value === "string" ? undefined : { availability: value.availability },
       ),
-    onMutate: (tableId) =>
+    onMutate: (value) =>
       begin("join_table", (row) =>
-        "canRegister" in row && row.id === tableId ? { ...row, canRegister: false } : row,
+        "canRegister" in row && row.id === (typeof value === "string" ? value : value.tableId)
+          ? { ...row, canRegister: false }
+          : row,
       ),
     onSuccess: registrationSuccess,
     onError: (e, _v, c) => failure(e, c),

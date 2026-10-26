@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
-vi.mock("@/components/groups/GroupList", () => ({
-  GroupList: ({ scope = "mine" }: { scope?: string }) => <p>groups:{scope}</p>,
+vi.mock("@/components/groups/Groups", () => ({
+  Groups: ({ initialSection = "groups" }: { initialSection?: string }) => (
+    <p>groups:{initialSection === "search" ? "public" : "mine"}</p>
+  ),
 }));
 vi.mock("@/components/groups/GroupDetail", () => ({
   GroupDetail: ({ groupId }: { groupId: string }) => <p>{groupId}</p>,

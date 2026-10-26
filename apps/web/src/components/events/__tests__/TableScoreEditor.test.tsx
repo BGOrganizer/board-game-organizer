@@ -21,11 +21,11 @@ it("preserves exact decimal ties and uses explicit table draft confirmation, not
         tieBreaks: [],
       }}
       busy={false}
-      onBack={vi.fn()}
       onSubmit={submit}
     />,
   );
   expect(screen.getByText("a@example.test")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Back to tables" })).toBeNull();
   expect(screen.getByRole("button", { name: "Resolve tie" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Use table scores" }));
   const dialog = screen.getByRole("dialog");
@@ -55,7 +55,6 @@ it("allows all-ND tables and prevents incomplete/repeated submissions", () => {
         tieBreaks: [],
       }}
       busy={false}
-      onBack={vi.fn()}
       onSubmit={submit}
     />,
   );
@@ -73,7 +72,7 @@ it("allows all-ND tables and prevents incomplete/repeated submissions", () => {
   });
 });
 it("requires every frozen player entry and disables editing while mutation is pending", () => {
-  renderWithI18n(<TableScoreEditor players={players} busy onBack={vi.fn()} onSubmit={vi.fn()} />);
+  renderWithI18n(<TableScoreEditor players={players} busy onSubmit={vi.fn()} />);
   expect(
     (screen.getByRole("button", { name: "Use table scores" }) as HTMLButtonElement).disabled,
   ).toBe(true);

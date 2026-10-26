@@ -2,9 +2,12 @@ import type { EventRecord, TableRecord, TableRegistration } from "@board-game-or
 import { describe, expect, it } from "vitest";
 import {
   banHasProtectedParticipation,
+  eventDateWall,
   eventRecordCapabilities,
   eventRecordDay,
+  eventRecordDisplayTimeZone,
   eventRecordPeriods,
+  eventRecordPreviewDate,
   hasPublicTableConflict,
   plannedTableInterval,
   publicBookingIsClosed,
@@ -145,6 +148,40 @@ describe("exact public cutoff and state rights", () => {
       ).canFinalize,
     ).toBe(false);
   });
+});
+it("previews proposed or chosen clocks without turning proposals into an agreed filtering date", () => {
+  const second = { id: other, day: "2027-01-02", startTime: "16:45" };
+  const proposed = { ...event, dates: [...event.dates, second] };
+  expect(eventDateWall(proposed, proposed.dates[0])).toBe("2027-01-02T09:00");
+  expect(eventDateWall(proposed, second)).toBe("2027-01-02T16:45");
+  expect(eventRecordPreviewDate(proposed)).toEqual(event.dates[0]);
+  expect(eventRecordDay(proposed, "PRIVATE")).toBeNull();
+  const chosen = {
+    ...proposed,
+    status: "CONFIRMED" as const,
+    confirmed: { dateId: other, locationId: id, at },
+  };
+  expect(eventRecordPreviewDate(chosen)).toEqual(second);
+  expect(
+    plannedTableInterval({ ...chosen, timeZone: "Europe/Rome" }, table, "PRIVATE", other).startsAt,
+  ).toBe("2027-01-02T15:45:00.000Z");
+  expect(eventRecordPreviewDate({ ...chosen, status: "PLANNING" })).toEqual(event.dates[0]);
+  expect(eventRecordPreviewDate({ ...chosen, confirmed: undefined })).toEqual(event.dates[0]);
+  expect(
+    eventRecordPreviewDate({ ...chosen, confirmed: { ...chosen.confirmed, dateId: "missing" } }),
+  ).toEqual(event.dates[0]);
+  expect(eventRecordPreviewDate({ ...event, dates: [] })).toBeUndefined();
+  expect(eventRecordDisplayTimeZone(event, "PRIVATE")).toBe("UTC");
+  const multi = {
+    ...event,
+    locations: [
+      ...event.locations,
+      { ...event.locations[0], id: other, timeZone: "America/New_York" },
+    ],
+  };
+  expect(eventRecordDisplayTimeZone(multi, "PRIVATE")).toBeNull();
+  expect(eventRecordDisplayTimeZone(multi, "PUBLIC")).toBe("UTC");
+  expect(eventRecordDisplayTimeZone({ ...multi, status: "CONFIRMED" }, "PRIVATE")).toBe("UTC");
 });
 describe("local day periods", () => {
   it("places unchosen dates in BOTH periods, independently of proposed dates", () => {

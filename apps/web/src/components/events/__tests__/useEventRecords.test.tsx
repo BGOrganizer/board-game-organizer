@@ -1,3 +1,4 @@
+import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
   eventRecordsQuery,
@@ -23,6 +24,31 @@ function setup() {
   return { client, options, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+it("hides excluded Tables from personal cache immediately but keeps the full Event table list", () => {
+  const { client, options, wrapper } = setup();
+  const included = {
+    ...plannedTable,
+    id: "included",
+    eventStatus: "CONFIRMED" as const,
+    confirmed: { gameId: 1, playerIds: ["one", "two"], startsAt: "2030-06-03T18:00:00Z" },
+  };
+  const rows: PlannedTableResponse[] = [
+    plannedTable,
+    included,
+    { ...plannedTable, id: "excluded-confirmed", eventStatus: "CONFIRMED" },
+    { ...plannedTable, id: "excluded-terminated", eventStatus: "TERMINATED" },
+  ];
+  const cached = { pages: [{ items: rows, nextCursor: null }], pageParams: [""] };
+  client.setQueryData(recordTablesQuery(options, null).queryKey, cached);
+  client.setQueryData(recordTablesQuery(options, eventId).queryKey, cached);
+  const q = renderHook(
+    ({ id }: { id: string | null }) => useRecordTables({ ...options, enabled: false }, id),
+    { wrapper, initialProps: { id: null as string | null } },
+  );
+  expect(q.result.current.items.map((row) => row.id)).toEqual([plannedTable.id, "included"]);
+  q.rerender({ id: eventId });
+  expect(q.result.current.items).toHaveLength(4);
+});
 it("canonicalizes equivalent first-page keys and scopes identities by API/user/resource", () => {
   const { options: o } = setup();
   expect(eventRecordsQuery(o).queryKey).toEqual(
@@ -91,7 +117,14 @@ it("retains list summary while fetching missing event agreement/detail and never
 it("seeds complete table metadata from cached first pages without a duplicate request, but fetches missing immutable result profiles", async () => {
   const { client, options, wrapper } = setup();
   client.setQueryData(recordTablesQuery(options, null).queryKey, {
-    pages: [{ items: [plannedTable], nextCursor: null }],
+    pages: [
+      {
+        items: [
+          { ...plannedTable, gameVoteCounts: { "1": { YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 } } },
+        ],
+        nextCursor: null,
+      },
+    ],
     pageParams: [""],
   });
   const fetch = vi.fn(
@@ -103,6 +136,8 @@ it("seeds complete table metadata from cached first pages without a duplicate re
   vi.stubGlobal("fetch", fetch);
   const initial = renderHook(() => useRecordTable(options, eventId, tableId), { wrapper });
   expect(initial.result.current.data?.name).toBe(plannedTable.name);
+  expect(initial.result.current.isPlaceholderData).toBe(false);
+  await act(async () => Promise.resolve());
   expect(fetch).not.toHaveBeenCalled();
   initial.unmount();
   client.removeQueries({ queryKey: eventRecordKeys.table(options, eventId, tableId) });
@@ -113,6 +148,35 @@ it("seeds complete table metadata from cached first pages without a duplicate re
   const final = renderHook(() => useRecordTable(options, eventId, tableId), { wrapper });
   await waitFor(() => expect(final.result.current.data?.resultProfiles).toEqual([]));
   expect(fetch).toHaveBeenCalledOnce();
+});
+it("retains cached table fields while fetching missing vote totals instead of treating a list summary as complete", async () => {
+  const { client, options, wrapper } = setup();
+  client.setQueryData(recordTablesQuery(options, eventId).queryKey, {
+    pages: [{ items: [plannedTable], nextCursor: null }],
+    pageParams: [""],
+  });
+  let respond: ((value: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          respond = resolve;
+        }),
+    ),
+  );
+  const q = renderHook(() => useRecordTable(options, eventId, tableId), { wrapper });
+  expect(q.result.current.data?.name).toBe(plannedTable.name);
+  expect(q.result.current.isPlaceholderData).toBe(true);
+  await waitFor(() => expect(respond).toBeTypeOf("function"));
+  if (!respond) throw new Error("Missing table request");
+  const finish = respond;
+  const counts = { "1": { YES: 1, NO: 0, IF_NEEDED: 0, UNKNOWN: 0 } };
+  await act(async () =>
+    finish(new Response(JSON.stringify({ ...plannedTable, gameVoteCounts: counts }))),
+  );
+  await waitFor(() => expect(q.result.current.isPlaceholderData).toBe(false));
+  expect(q.result.current.data?.gameVoteCounts).toEqual(counts);
 });
 it("keeps paged accepted/pending seats distinct and filters optimistic cancellation without fabricating missing rows", async () => {
   const { options, wrapper } = setup();

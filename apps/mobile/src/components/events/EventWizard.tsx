@@ -1,23 +1,21 @@
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
+  eventDateWall,
   useEventRecord,
   useEventRecordActions,
   useEventRecordForm,
-  useGroupRecords,
-  useListSearch,
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react-native";
+import { ArrowLeft, ArrowRight, CalendarPlus, Plus, Save, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { BackHandler, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
-import { ListSearch } from "@/components/common/ui/ListSearch";
 import GamePicker from "@/components/games/GamePicker";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import LocationPicker from "@/components/locations/LocationPicker";
@@ -52,7 +50,13 @@ export function EventWizard({ eventId, groupId }: { eventId?: string; groupId?: 
         )}
       </View>
     );
-  return <Editor key={eventId ?? "new"} event={eventId ? q.data : undefined} groupId={groupId} />;
+  return (
+    <Editor
+      key={eventId ?? groupId ?? "new"}
+      event={eventId ? q.data : undefined}
+      groupId={groupId}
+    />
+  );
 }
 function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: string }) {
   const t = useT(),
@@ -67,19 +71,12 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
     form = useEventRecordForm(o, event, groupId),
     a = useEventRecordActions(o, event?.id ?? "");
   const [pick, setPick] = useState<
-      { kind: "game" | "demonstrator"; key: string } | "location" | "group" | null
+      { kind: "game" | "demonstrator"; key: string } | "location" | null
     >(null),
     [remove, setRemove] = useState<string | null>(null),
     [serverError, setServerError] = useState(false);
-  const f = useListSearch<never>([]),
-    owned = useGroupRecords(
-      { ...o, enabled: o.enabled !== false && pick === "group" },
-      "mine",
-      f.search,
-      ["admin"],
-    );
   const { draft, step } = form,
-    publicGroup = form.group?.type === "PUBLIC";
+    publicGroup = (form.group?.type ?? event?.groupType) === "PUBLIC";
   useEffect(() => {
     if (!pick) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -97,7 +94,13 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         "version" in parsed.data
           ? await a.update.mutateAsync(parsed.data)
           : await a.create.mutateAsync(parsed.data);
-      router.dismissTo({ pathname: "/event/[eventId]", params: { eventId: result.id } });
+      if (event) router.dismissTo({ pathname: "/event/[eventId]", params: { eventId: result.id } });
+      else if (result.groupId)
+        router.dismissTo({
+          pathname: "/group/[groupId]",
+          params: { groupId: result.groupId, tab: "events" },
+        });
+      else router.dismissTo("/(tabs)/events");
     } catch {
       setServerError(true);
     }
@@ -156,79 +159,10 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             form.patchTable(pick.key, {
               demonstratorUserId: person.id,
               demonstratorName: person.name,
+              demonstratorAvatarUrl: person.avatarUrl,
             });
             setPick(null);
           }}
-        />
-      </View>
-    );
-  if (pick === "group" && !form.groupLocked)
-    return (
-      <View style={{ flex: 1 }}>
-        {pickerHeader}
-        <FlatList
-          data={owned.items.filter((row) => row.canInvite)}
-          keyExtractor={(row) => row.id}
-          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 24 }}
-          ListHeaderComponent={
-            <View style={{ gap: 12 }}>
-              <ListSearch
-                query={f.query}
-                onQueryChange={f.setQuery}
-                label={t("Search groups")}
-                placeholder={t("Search groups")}
-                options={[]}
-                selected={[]}
-                onToggle={f.toggle}
-              />
-              <Button
-                variant="outline"
-                onPress={() => {
-                  form.patch({ groupId: null, locations: [] });
-                  setPick(null);
-                }}
-              >
-                <Button.Label>{t("No group")}</Button.Label>
-              </Button>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <Button
-              variant="outline"
-              onPress={() => {
-                form.patch({ groupId: item.id, locations: [] });
-                setPick(null);
-              }}
-            >
-              <Button.Label>{item.name}</Button.Label>
-            </Button>
-          )}
-          onEndReached={() => {
-            if (owned.hasNextPage && !owned.isFetchingNextPage && !owned.isFetchNextPageError)
-              void owned.fetchNextPage();
-          }}
-          ListFooterComponent={
-            <View style={{ gap: 8 }}>
-              {owned.isPending ? (
-                <Skeleton style={{ width: "100%", height: 96, borderRadius: 12 }} />
-              ) : null}
-              {owned.isError ? (
-                <>
-                  <Typography accessibilityRole="alert" className="text-danger">
-                    {t("Could not load groups")}
-                  </Typography>
-                  <Button onPress={() => void owned.refetch()}>
-                    <Button.Label>{t("Try again")}</Button.Label>
-                  </Button>
-                </>
-              ) : null}
-              {owned.hasNextPage ? (
-                <Button onPress={() => void owned.fetchNextPage()}>
-                  <Button.Label>{t("Load more")}</Button.Label>
-                </Button>
-              ) : null}
-            </View>
-          }
         />
       </View>
     );
@@ -240,12 +174,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         </Typography>
       ) : null}
       {step === 0 ? (
-        <EventScheduleFields
-          form={form}
-          busy={a.busy}
-          onGroup={() => setPick("group")}
-          onLocation={() => setPick("location")}
-        />
+        <EventScheduleFields form={form} busy={a.busy} onLocation={() => setPick("location")} />
       ) : step === 1 ? (
         <>
           <Button variant="outline" isDisabled={a.busy} onPress={form.addTable}>
@@ -259,7 +188,11 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           ) : null}
         </>
       ) : (
-        <EventWizardSummary draft={draft} groupName={form.group?.name ?? event?.groupName} />
+        <EventWizardSummary
+          draft={draft}
+          groupName={form.group?.name ?? event?.groupName}
+          publicGroup={publicGroup}
+        />
       )}
     </View>
   );
@@ -270,13 +203,14 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           title: event ? t("Edit event") : t("Create event"),
           gestureEnabled: true,
           headerLeft: undefined,
+          headerBackVisible: true,
         }}
       />
       <View
         style={{
           paddingHorizontal: 20,
-          paddingTop: 16,
-          paddingBottom: 4,
+          paddingTop: 32,
+          paddingBottom: 12,
           flexDirection: "row",
           flexWrap: "wrap",
           justifyContent: "center",
@@ -310,6 +244,8 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
               row={row}
               publicGroup={publicGroup}
               timeZone={draft.timeZone}
+              eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
+              eventEndWall={draft.endsWall}
               busy={a.busy}
               fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
               onChange={(value) => form.patchTable(row.key, value)}
@@ -318,7 +254,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
               onDemonstrator={() => setPick({ kind: "demonstrator", key: row.key })}
             />
           ) : (
-            <EventDraftTableCard row={row} />
+            <EventDraftTableCard row={row} publicGroup={publicGroup} />
           )
         }
         ListFooterComponent={
@@ -378,18 +314,20 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           paddingBottom: insets.bottom + 16,
           flexDirection: "row",
           gap: 12,
-          justifyContent: "space-between",
+          justifyContent: step > 0 ? "space-between" : "flex-end",
         }}
       >
-        <Button
-          isIconOnly
-          variant="ghost"
-          accessibilityLabel={t("Back")}
-          isDisabled={a.busy}
-          onPress={() => (step ? form.goToStep(step - 1) : router.back())}
-        >
-          <ArrowLeft size={20} color={fg} />
-        </Button>
+        {step > 0 ? (
+          <Button
+            isIconOnly
+            variant="ghost"
+            accessibilityLabel={t("Back")}
+            isDisabled={a.busy}
+            onPress={() => form.goToStep(step - 1)}
+          >
+            <ArrowLeft size={20} color={fg} />
+          </Button>
+        ) : null}
         {step < 2 ? (
           <Button
             isIconOnly
@@ -402,6 +340,9 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           </Button>
         ) : (
           <Button
+            isIconOnly
+            variant="primary"
+            accessibilityLabel={event ? t("Save event") : t("Create event")}
             isDisabled={
               a.busy ||
               form.conflict ||
@@ -410,7 +351,11 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             }
             onPress={() => void save()}
           >
-            <Button.Label>{event ? t("Save event") : t("Create event")}</Button.Label>
+            {event ? (
+              <Save size={20} color={accentForeground} />
+            ) : (
+              <CalendarPlus size={20} color={accentForeground} />
+            )}
           </Button>
         )}
       </View>

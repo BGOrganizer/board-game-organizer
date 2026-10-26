@@ -6,7 +6,7 @@ import { eventId, plannedEvent, plannedTable, seat, tableId } from "@/test-fixtu
 import { renderWithI18n } from "@/test-utils";
 import { EventResults } from "../EventResults";
 
-const m = vi.hoisted(() => ({ replace: vi.fn() }));
+const m = vi.hoisted(() => ({ replace: vi.fn(), back: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => m }));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
@@ -41,6 +41,9 @@ let fail = false,
   fetcher: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.clearAllMocks();
+  const header = document.createElement("header");
+  header.id = "page-header-actions";
+  document.body.append(header);
   fail = false;
   const event = {
       ...plannedEvent,
@@ -75,7 +78,10 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", fetcher);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  document.getElementById("page-header-actions")?.remove();
+});
 function mount() {
   renderWithI18n(
     <QueryClientProvider
@@ -89,13 +95,43 @@ function mount() {
     </QueryClientProvider>,
   );
 }
+it("uses only app-header Back for selected/loading editors and route Back for the list", async () => {
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
+  await screen.findByRole("heading", { name: "Register Table Result" });
+  const back = screen.getByRole("button", { name: "Back" });
+  expect(document.getElementById("page-header-actions")?.contains(back)).toBe(true);
+  expect(screen.queryByRole("button", { name: "Back to tables" })).toBeNull();
+  fireEvent.click(back);
+  await screen.findByRole("heading", { name: "Register Tables Results" });
+  expect(m.back).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(m.back).toHaveBeenCalledOnce();
+});
 it("requires scores for every included frozen table, then posts one atomic finalization after explicit consent", async () => {
   mount();
+  expect(await screen.findByRole("heading", { name: "Register Tables Results" })).not.toBeNull();
+  const finalize = await screen.findByRole("button", { name: "Finalize event" });
+  expect(finalize.querySelector("svg.lucide-flag")).not.toBeNull();
+  expect((finalize as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Tables list: Field help" }));
   expect(
-    ((await screen.findByRole("button", { name: "Finalize event" })) as HTMLButtonElement).disabled,
-  ).toBe(true);
-  fireEvent.click(await screen.findByRole("button", { name: "Edit scores" }));
+    await screen.findByText(
+      "Record results for every table to finalize the event. Finalization is irreversible. All-ND tables do not change ratings or statistics.",
+    ),
+  ).not.toBeNull();
+  expect(screen.queryByRole("img", { name: "Scores ready" })).toBeNull();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
+  expect(await screen.findByRole("heading", { name: "Register Table Result" })).not.toBeNull();
   fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
+  expect(await screen.findByRole("heading", { name: "Register Tables Results" })).not.toBeNull();
+  const badge = screen.getByRole("img", { name: "Scores ready" });
+  expect(badge.className).toContain("bottom-0");
+  expect(badge.className).toContain("right-0");
+  expect(badge.className).toContain("text-success");
+  expect(badge.parentElement?.querySelector("img")).not.toBeNull();
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   await waitFor(() =>
     expect(
@@ -104,6 +140,11 @@ it("requires scores for every included frozen table, then posts one atomic final
   );
   fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
   expect(screen.getByRole("dialog").textContent).toContain("immutable together");
+  expect(
+    within(screen.getByRole("dialog"))
+      .getByRole("button", { name: "Finalize event" })
+      .querySelector("svg.lucide-flag"),
+  ).not.toBeNull();
   fireEvent.click(
     within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
   );
@@ -125,10 +166,74 @@ it("requires scores for every included frozen table, then posts one atomic final
     ],
   });
 });
+it("keeps each Table draft when switching screens and cannot finalize before every frozen Table has results", async () => {
+  const secondId = "77777777-7777-4777-8777-777777777777";
+  const first = {
+      ...plannedTable,
+      eventStatus: "CONFIRMED",
+      confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: plannedEvent.createdAt },
+    },
+    second = { ...first, id: secondId, name: "Second table" };
+  const original = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.includes("/tables?"))
+      return new Response(JSON.stringify({ items: [first, second], nextCursor: null }));
+    if (url.endsWith(`/tables/${secondId}`)) return new Response(JSON.stringify(second));
+    if (url.includes(`/tables/${secondId}/seats?`))
+      return new Response(
+        JSON.stringify({
+          items: [seat("owner"), { ...seat("guest"), id: secondId }],
+          nextCursor: null,
+        }),
+      );
+    return original(url, init);
+  });
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
+  expect(await screen.findAllByRole("img", { name: "Scores ready" })).toHaveLength(1);
+  expect(
+    (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Edit scores: Second table" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
+  expect(await screen.findAllByRole("img", { name: "Scores ready" })).toHaveLength(2);
+  expect(
+    (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
+  ).toBe(false);
+  fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
+  );
+  await waitFor(() => expect(m.replace).toHaveBeenCalled());
+  const post = fetcher.mock.calls.find(([, init]) => init?.method === "POST")!;
+  expect(
+    JSON.parse(String(post[1]?.body)).results.map((row: { tableId: string }) => row.tableId),
+  ).toEqual([tableId, secondId]);
+});
+it.each([403, 503])(
+  "keeps a selected Table read failure observable (%s) and never edits denied cached player data",
+  async (status) => {
+    const original = fetcher.getMockImplementation()!;
+    let broken = true;
+    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+      url.endsWith(`/tables/${tableId}`) && broken
+        ? Promise.resolve(new Response("{}", { status }))
+        : original(url, init),
+    );
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
+    expect(await screen.findByText("Could not load table")).not.toBeNull();
+    if (status === 403) expect(screen.queryByRole("button", { name: "Draft all ND" })).toBeNull();
+    broken = false;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByRole("button", { name: "Draft all ND" })).not.toBeNull();
+  },
+);
 it("preserves draft scores and a retryable error when finalization cannot be verified", async () => {
   fail = true;
   mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Edit scores" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
   fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
   fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
   fireEvent.click(

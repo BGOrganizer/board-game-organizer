@@ -53,13 +53,11 @@ export function TableScoreEditor({
   players,
   initial,
   busy,
-  onBack,
   onSubmit,
 }: {
   players: ScorePlayer[];
   initial?: TableScoreInput;
   busy: boolean;
-  onBack: () => void;
   onSubmit: (input: TableScoreInput) => void;
 }) {
   const t = useT(),
@@ -113,9 +111,6 @@ export function TableScoreEditor({
         contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: 24 }}
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
-            <Button variant="ghost" isDisabled={busy} onPress={onBack}>
-              <Button.Label>{t("Back to table")}</Button.Label>
-            </Button>
             <Typography className="font-semibold text-foreground">{t("Live standings")}</Typography>
             <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
               <Typography className="text-foreground" style={{ flex: 1 }}>

@@ -6,9 +6,12 @@ import type { MatchGameRating } from "../../matches/dto/matches";
 import { scoreSchema, tieBreakSchema } from "../../ratings/models/results";
 import {
   type EventRecord,
+  type EventVote,
   type EventVoter,
+  eventDateOptionSchema,
   eventTimeSchema,
   eventVoteSchema,
+  MAX_EVENT_OPTIONS,
   type TableRecord,
   type TableRegistration,
 } from "../models/eventRecord";
@@ -49,9 +52,9 @@ export const plannedTableInputSchema = z
     demonstratorUserId: targetUserIdSchema.optional(),
   })
   .strict()
-  .refine((table) => table.maxPlayers > table.minPlayers, {
+  .refine((table) => table.maxPlayers >= table.minPlayers, {
     path: ["maxPlayers"],
-    message: "Maximum must be above minimum",
+    message: "Maximum must not be below minimum",
   });
 export type PlannedTableInput = z.infer<typeof plannedTableInputSchema>;
 export const createPlannedEventSchema = z
@@ -62,8 +65,27 @@ export const createPlannedEventSchema = z
     startTime: eventTimeSchema,
     endsAt: z.iso.datetime({ offset: true }).optional(),
     bookingClosesAt: z.iso.datetime({ offset: true }).optional(),
-    dates: z.array(z.object({ id: z.uuid(), day: z.iso.date() }).strict()).length(1),
-    locations: z.array(verifiedLocationSchema).length(1),
+    dates: z
+      .array(eventDateOptionSchema)
+      .min(1)
+      .max(MAX_EVENT_OPTIONS)
+      .refine(
+        (rows) => new Set(rows.map((row) => row.id)).size === rows.length,
+        "Date IDs must be unique",
+      )
+      .refine(
+        (rows) =>
+          new Set(rows.map((row) => `${row.day}T${row.startTime ?? ""}`)).size === rows.length,
+        "Date/time options must be unique",
+      ),
+    locations: z
+      .array(verifiedLocationSchema)
+      .min(1)
+      .max(MAX_EVENT_OPTIONS)
+      .refine(
+        (rows) => new Set(rows.map((row) => row.id)).size === rows.length,
+        "Location IDs must be unique",
+      ),
     tables: z
       .array(plannedTableInputSchema)
       .min(1)
@@ -97,9 +119,29 @@ export const changeEventStateSchema = z
   .object({ version: z.number().int().positive(), action: z.enum(["confirm", "replan"]) })
   .strict();
 export type ChangeEventStateInput = z.infer<typeof changeEventStateSchema>;
+export const eventAvailabilityVoteSchema = eventVoteSchema.exclude(["UNKNOWN"]);
+export const joinEventAvailabilitySchema = z
+  .object({
+    version: z.number().int().positive(),
+    dateVotes: z
+      .record(z.uuid(), eventAvailabilityVoteSchema)
+      .refine((value) => Object.keys(value).length <= MAX_EVENT_OPTIONS),
+    locationVotes: z
+      .record(z.uuid(), eventAvailabilityVoteSchema)
+      .refine((value) => Object.keys(value).length <= MAX_EVENT_OPTIONS),
+  })
+  .strict();
+export type JoinEventAvailability = z.infer<typeof joinEventAvailabilitySchema>;
+export const joinTableSchema = z
+  .object({ availability: joinEventAvailabilitySchema.optional() })
+  .strict();
 export const changeEventVoteSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("date"), optionId: z.uuid(), vote: eventVoteSchema }).strict(),
-  z.object({ kind: z.literal("location"), optionId: z.uuid(), vote: eventVoteSchema }).strict(),
+  z
+    .object({ kind: z.literal("date"), optionId: z.uuid(), vote: eventAvailabilityVoteSchema })
+    .strict(),
+  z
+    .object({ kind: z.literal("location"), optionId: z.uuid(), vote: eventAvailabilityVoteSchema })
+    .strict(),
   z
     .object({
       kind: z.literal("game"),
@@ -136,6 +178,7 @@ export const finalizeEventSchema = z
   })
   .strict();
 export type FinalizeEventInput = z.infer<typeof finalizeEventSchema>;
+export type EventVoteCounts = Record<EventVote, number>;
 export interface PlannedEventCapabilities {
   canEdit: boolean;
   canInvite: boolean;
@@ -155,6 +198,10 @@ export type PlannedEventResponse = Omit<
     role: "admin" | "participant" | "invited" | "member" | "demonstrator";
     myRegistrations: TableRegistration[];
     myVotes?: Pick<EventVoter, "dateVotes" | "locationVotes">;
+    voteCounts?: {
+      dates: Record<string, EventVoteCounts>;
+      locations: Record<string, EventVoteCounts>;
+    };
     agreement?: {
       agreed: boolean;
       dateId?: string;
@@ -165,16 +212,41 @@ export type PlannedEventResponse = Omit<
     tableCount: number;
     participantCount: number;
   };
+export type TableLeaderboardPlayer = {
+  userId: string;
+  name: string;
+  username?: string | null;
+  avatarUrl: string | null;
+  score: number;
+  provisional: boolean;
+  gamesPlayed: number;
+  gamesWon: number;
+  nd: number;
+};
+export type TableLeaderboardResponse = {
+  gameId: number;
+  scope: "GLOBAL" | "GROUP";
+  items: TableLeaderboardPlayer[];
+  nextCursor: string | null;
+};
 export type TableSeatPosition = "SEATED" | "WAITING" | "FROZEN";
 export type PlannedTableResponse = TableRecord & {
   eventName: string;
+  /** Optional for cached responses predating the list metadata projection. */
+  groupName?: string | null;
+  acceptedCount?: number;
+  pendingRegistrationCount?: number;
   demonstratorName?: string | null;
+  demonstratorAvatarUrl?: string | null;
   bookingClosesAt?: string;
   groupId: string | null;
   groupType: "PRIVATE" | "PUBLIC" | null;
   eventStatus: EventRecord["status"];
   adminUserId: string;
-  myRegistration: TableRegistration | null;
+  myRegistration:
+    | (TableRegistration &
+        Partial<Pick<TableSeatResponse, "name" | "email" | "username" | "avatarUrl">>)
+    | null;
   myPosition: TableSeatPosition | null;
   seatedCount: number;
   waitingCount: number;
@@ -184,11 +256,13 @@ export type PlannedTableResponse = TableRecord & {
   canLeave: boolean;
   canInvite: boolean;
   gamesDetail: BggSearchItem[];
+  gameVoteCounts?: Record<string, EventVoteCounts>;
   ratingChanges: MatchGameRating[];
   winners?: Array<{ userId: string; name: string; avatarUrl: string | null }>;
   resultProfiles?: Array<{
     userId: string;
     name: string;
+    username?: string | null;
     email: string | null;
     avatarUrl: string | null;
   }>;

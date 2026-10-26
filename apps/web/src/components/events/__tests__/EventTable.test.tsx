@@ -1,84 +1,260 @@
 import type { PlannedTableResponse, TableSeatResponse } from "@board-game-organizer/schemas";
-import { eventRecordKeys } from "@board-game-organizer/shared";
+import { eventRecordKeys, eventVoteCounts } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { eventId, plannedEvent, plannedTable, seat, tableId } from "@/test-fixtures/eventRecords";
+import {
+  eventId,
+  optionId,
+  plannedEvent,
+  plannedTable,
+  seat,
+  tableId,
+} from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventTable } from "../EventTable";
 
+const m = vi.hoisted(() => ({ actor: "owner", push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push }) }));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
-    userId: "owner",
+    userId: m.actor,
     getToken: async () => "fresh",
   }),
 }));
 let table: PlannedTableResponse,
   rows: TableSeatResponse[],
   fail = false,
+  paged = false,
+  acceptedElsewhere = false,
   fetcher: ReturnType<typeof vi.fn>;
+function player(user: string, id = optionId): TableSeatResponse {
+  return { ...seat(user), id };
+}
 beforeEach(() => {
-  table = { ...plannedTable, myRegistration: seat("owner"), canRegister: false, canLeave: true };
-  rows = [seat("owner")];
+  vi.clearAllMocks();
+  m.actor = "owner";
   fail = false;
+  paged = false;
+  acceptedElsewhere = false;
+  rows = [player("owner")];
+  table = {
+    ...plannedTable,
+    myRegistration: rows[0],
+    myPosition: "SEATED",
+    seatedCount: 1,
+    canRegister: false,
+    canLeave: true,
+    gameVoteCounts: { "1": { YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 } },
+  };
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
-    if (init?.method === "PATCH") {
-      if (fail) return new Response('{"error":"REGISTRATION_CHANGED"}', { status: 409 });
-      const row = { ...rows[0], status: "CANCELLED" as const, version: 2 };
-      rows = [];
-      table = { ...table, myRegistration: row, canLeave: false, myPosition: null };
+    if (init?.method === "POST") {
+      if (fail) return new Response('{"code":"EVENT_BOOKING_CLOSED"}', { status: 409 });
+      const row = { ...player(m.actor), kind: "SELF" as const };
+      rows.push(row);
+      table = {
+        ...table,
+        myRegistration: row,
+        myPosition: "SEATED",
+        canRegister: false,
+        canLeave: true,
+        seatedCount: rows.filter((r) => r.status === "ACCEPTED").length,
+      };
       return new Response(JSON.stringify(row));
     }
+    if (init?.method === "PATCH") {
+      if (fail) return new Response('{"code":"REGISTRATION_CHANGED"}', { status: 409 });
+      const input = JSON.parse(String(init.body));
+      if (url.endsWith("/votes")) {
+        const registration = table.myRegistration;
+        if (registration) {
+          table = {
+            ...table,
+            myRegistration: {
+              ...registration,
+              gameVotes: { ...registration.gameVotes, [input.gameId]: input.vote },
+            },
+          };
+          rows = rows.map((r) =>
+            r.id === registration.id
+              ? { ...r, gameVotes: table.myRegistration?.gameVotes ?? {} }
+              : r,
+          );
+        }
+        return new Response(JSON.stringify({ ...plannedEvent, canVote: true }));
+      }
+      const target = rows.find((r) => url.endsWith(`/${r.id}`));
+      if (!target) return new Response("{}", { status: 404 });
+      const next = {
+        ...target,
+        status:
+          input.action === "accept"
+            ? ("ACCEPTED" as const)
+            : input.action === "decline"
+              ? ("DECLINED" as const)
+              : ("CANCELLED" as const),
+        version: target.version + 1,
+      };
+      rows = rows.filter((r) => r.id !== next.id);
+      if (next.status === "ACCEPTED") rows.push(next);
+      if (target.userId === m.actor)
+        table = {
+          ...table,
+          myRegistration: next.status === "ACCEPTED" ? next : null,
+          canRegister: next.status !== "ACCEPTED",
+          canRespond: false,
+          canLeave: next.status === "ACCEPTED",
+        };
+      return new Response(JSON.stringify(next));
+    }
+    if (url.includes("/seats?")) {
+      const query = new URL(url).searchParams,
+        pending = query.get("pending") === "true";
+      if (pending && m.actor !== table.adminUserId) return new Response("{}", { status: 403 });
+      const selected = rows.filter((r) => r.status === (pending ? "PENDING" : "ACCEPTED"));
+      return new Response(
+        JSON.stringify({
+          items: paged
+            ? query.has("cursor")
+              ? selected.slice(1)
+              : selected.slice(0, 1)
+            : selected,
+          nextCursor: paged && selected.length > 1 && !query.has("cursor") ? "second" : null,
+        }),
+      );
+    }
+    if (url.includes(`/tables/${tableId}`))
+      return new Response(
+        JSON.stringify({
+          ...table,
+          gameVoteCounts: eventVoteCounts(
+            table.games.map((g) => String(g.gameId)),
+            rows.filter((r) => r.status === "ACCEPTED").map((r) => r.gameVotes),
+          ),
+        }),
+      );
     return new Response(
-      JSON.stringify(
-        url.includes("/seats?")
-          ? { items: rows, nextCursor: null }
-          : url.includes(`/tables/${tableId}`)
-            ? table
-            : { ...plannedEvent, canVote: true },
-      ),
+      JSON.stringify({
+        ...plannedEvent,
+        myRegistrations: acceptedElsewhere ? [{ ...seat(m.actor), tableId: optionId }] : [],
+        canVote:
+          acceptedElsewhere || rows.some((r) => r.userId === m.actor && r.status === "ACCEPTED"),
+      }),
     );
   });
   vi.stubGlobal("fetch", fetcher);
 });
 afterEach(() => vi.unstubAllGlobals());
-it.each([403, 503])(
-  "retains an observable uncached table read error (%s) and retries the exact detail",
-  async (status) => {
+function mount(
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  }),
+) {
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      <EventTable eventId={eventId} tableId={tableId} />
+    </QueryClientProvider>,
+  );
+  return client;
+}
+async function vote(label = "Chess", value = "Yes") {
+  fireEvent.click(await screen.findByRole("button", { name: `${label}: Unknown` }));
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+      name: value,
+    }),
+  );
+}
+it.each([403, 503])("keeps uncached table errors observable (%s) and retries", async (status) => {
+  const original = fetcher.getMockImplementation();
+  let broken = true;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.endsWith(`/tables/${tableId}`) && broken
+      ? new Response("{}", { status })
+      : original?.(url, init),
+  );
+  mount();
+  await screen.findByText("Could not load table");
+  broken = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("heading", { name: "First table" })).not.toBeNull();
+});
+it.each([
+  ["CONFIRMED", true],
+  ["CONFIRMED", false],
+  ["TERMINATED", true],
+  ["TERMINATED", false],
+] as const)(
+  "owns top tabs for %s (rating enabled=%s) without querying current rankings until selected",
+  async (eventStatus, rankingEnabled) => {
+    table = {
+      ...table,
+      eventStatus,
+      rankingEnabled,
+      canLeave: false,
+      confirmed: { gameId: 1, playerIds: ["owner"], startsAt: plannedEvent.createdAt },
+    };
     const original = fetcher.getMockImplementation()!;
-    let broken = true;
-    fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
-      url.endsWith(`/tables/${tableId}`) && broken
-        ? new Response("{}", { status })
+    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+      url.includes("/leaderboard?")
+        ? Promise.resolve(
+            new Response(
+              JSON.stringify({
+                gameId: 1,
+                scope: "GLOBAL",
+                items: [
+                  {
+                    userId: "owner",
+                    name: "Current owner",
+                    avatarUrl: null,
+                    score: 42,
+                    provisional: false,
+                    gamesPlayed: 5,
+                    gamesWon: 2,
+                    nd: 1,
+                  },
+                ],
+                nextCursor: null,
+              }),
+            ),
+          )
         : original(url, init),
     );
     mount();
-    expect(await screen.findByText("Could not load table")).not.toBeNull();
-    broken = false;
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByText(table.name)).not.toBeNull();
+    await screen.findByRole("tab", { name: "Overview" });
+    expect(screen.getAllByRole("tab")).toHaveLength(eventStatus === "TERMINATED" ? 3 : 2);
+    expect(screen.getByRole("tab", { name: "Ranking" })).not.toBeNull();
+    expect(Boolean(screen.queryByRole("tab", { name: "Results" }))).toBe(
+      eventStatus === "TERMINATED",
+    );
+    expect(fetcher.mock.calls.some(([url]) => url.includes("/leaderboard?"))).toBe(false);
+    fireEvent.click(screen.getByRole("tab", { name: "Ranking" }));
+    expect(await screen.findByText("Current owner")).not.toBeNull();
+    expect(screen.getByText("42.00")).not.toBeNull();
   },
 );
-it("keeps immutable scores while missing profiles fail/refetch, and orders ND after finishers without fabricated ratings", async () => {
-  table = {
-    ...table,
-    eventStatus: "TERMINATED",
-    canLeave: false,
-    results: {
-      lowerWins: false,
-      entries: [
-        { userId: "absent", score: null, rank: null },
-        { userId: "owner", score: "10", rank: 1 },
-        { userId: "guest", score: "5", rank: 2 },
-        { userId: "other", score: null, rank: null },
-      ],
-      tieBreaks: [],
-      finalizedAt: plannedEvent.createdAt,
-    },
-    ratingChanges: [{ userId: "owner", delta: 0, score: 500, provisional: true }],
-    groupRatingChanges: [{ userId: "owner", delta: -3, score: 497, provisional: true }],
-  };
+it("keeps unavailable section selections safe when table metadata is replaced and shows excluded immutable results honestly", async () => {
+  table = { ...table, eventStatus: "TERMINATED", canLeave: false, results: undefined };
+  const client = mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
+  expect(screen.getByRole("tabpanel", { name: "Results" }).textContent).toContain(
+    "Excluded from confirmation",
+  );
+  await act(async () => {
+    client.setQueryData(
+      eventRecordKeys.table({ apiUrl: "https://api.test", userId: "owner" }, eventId, tableId),
+      { ...table, eventStatus: "CONFIRMED" },
+    );
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("tab", { name: "Overview" }).getAttribute("aria-selected")).toBe(
+      "true",
+    ),
+  );
+  expect(screen.queryByRole("tab", { name: "Results" })).toBeNull();
+});
+it("retries incomplete cached overview details without replacing usable identity", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(
     eventRecordKeys.table({ apiUrl: "https://api.test", userId: "owner" }, eventId, tableId),
@@ -87,59 +263,79 @@ it("keeps immutable scores while missing profiles fail/refetch, and orders ND af
   );
   const original = fetcher.getMockImplementation()!;
   let broken = true;
-  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
     url.endsWith(`/tables/${tableId}`) && broken
-      ? new Response("{}", { status: 503 })
+      ? Promise.resolve(new Response("{}", { status: 503 }))
       : original(url, init),
   );
-  renderWithI18n(
-    <QueryClientProvider client={client}>
-      <EventTable eventId={eventId} tableId={tableId} />
-    </QueryClientProvider>,
-  );
-  expect(await screen.findByText("Could not load complete table details")).not.toBeNull();
-  expect(screen.getByText("Score: 10")).not.toBeNull();
-  expect(screen.getAllByText("Score: ND")).toHaveLength(2);
-  expect(screen.getByText("Global rating change: 0")).not.toBeNull();
-  expect(screen.getByText("Group rating change: -3")).not.toBeNull();
+  mount(client);
+  await screen.findByText("Could not load complete table details");
+  expect(screen.getByRole("heading", { name: table.name })).not.toBeNull();
   broken = false;
-  table = {
-    ...table,
-    resultProfiles: [
-      { userId: "owner", name: "Recovered owner", email: "owner@example.test", avatarUrl: null },
-    ],
-  };
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByText("Recovered owner")).not.toBeNull();
+  await waitFor(() =>
+    expect(screen.queryByText("Could not load complete table details")).toBeNull(),
+  );
 });
-it("joins explicitly, votes only for its accepted registration, and exposes invitations to the authorized organizer", async () => {
+it("hides immutable deltas when Table ranking was disabled even if stale cache contains rating rows", async () => {
   table = {
     ...table,
+    eventStatus: "TERMINATED",
+    rankingEnabled: false,
+    canLeave: false,
+    results: {
+      lowerWins: false,
+      entries: [{ userId: "owner", score: "2", rank: 1 }],
+      tieBreaks: [],
+      finalizedAt: plannedEvent.createdAt,
+    },
+    ratingChanges: [{ userId: "owner", score: 99, delta: 1, provisional: true }],
+    groupRatingChanges: [{ userId: "owner", score: 99, delta: 1, provisional: true }],
+    resultProfiles: [{ userId: "owner", name: "Owner", email: null, avatarUrl: null }],
+  };
+  mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Results" }));
+  expect(await screen.findByText("Score")).not.toBeNull();
+  expect(screen.getByText("2")).not.toBeNull();
+  expect(screen.queryByText("99")).toBeNull();
+  expect(screen.getByText("Global rating change").parentElement?.textContent).toBe(
+    "Global rating change—",
+  );
+});
+it("uses grouped games, name/settings help and an explicit ranking badge rather than repeating a table card", async () => {
+  mount();
+  await screen.findByRole("heading", { name: "First table" });
+  expect(screen.queryByRole("link", { name: "Open table: First table" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Back to event" })).toBeNull();
+  expect(screen.getByText("Chess").closest("li")?.parentElement?.tagName).toBe("UL");
+  expect(screen.getByText("Minimum players: 2")).not.toBeNull();
+  expect(screen.getByText("Maximum players: 4")).not.toBeNull();
+  expect(screen.getByRole("img", { name: "Rating enabled" })).not.toBeNull();
+  expect(screen.getByLabelText("Votes: Chess").closest("li")).toBe(
+    screen.getByText("Chess").closest("li"),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Settings: Field help" }));
+  expect(await screen.findByText(/The minimum is required for agreement/)).not.toBeNull();
+});
+it("starts with max places, lets organizer choose join/invite and shows one vote status after an actual join", async () => {
+  rows = [];
+  table = {
+    ...table,
+    myRegistration: null,
+    myPosition: null,
+    seatedCount: 0,
     canRegister: true,
     canLeave: false,
-    canInvite: true,
-    startsAt: "2030-06-03T18:00:00Z",
-    demonstratorUserId: "demo",
-    games: table.games.map((g) => ({ ...g, durationMinutes: undefined })),
-    gamesDetail: table.gamesDetail.map((g) => ({
-      ...g,
-      year: 2000,
-      imageUrl: "https://example.test/game.jpg",
-    })),
   };
-  const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
-    init?.method === "POST"
-      ? new Response(JSON.stringify(url.endsWith("/votes") ? plannedEvent : seat("owner")))
-      : original(url, init),
-  );
   mount();
-  expect(await screen.findByRole("link", { name: "Invite players" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Join table" }));
-  await waitFor(() =>
-    expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true),
-  );
-  fireEvent.click(screen.getByRole("button", { name: `${table.gamesDetail[0].name}: Yes` }));
+  const places = await screen.findAllByRole("button", { name: "Free place" });
+  expect(places).toHaveLength(4);
+  expect(screen.queryByRole("button", { name: "Join table" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Invite players" })).toBeNull();
+  fireEvent.click(places[0]);
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await vote();
   await waitFor(() =>
     expect(
       fetcher.mock.calls.some(
@@ -147,154 +343,469 @@ it("joins explicitly, votes only for its accepted registration, and exposes invi
       ),
     ).toBe(true),
   );
+  await waitFor(() =>
+    expect((screen.getByRole("button", { name: "Chess: Yes" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    ),
+  );
+  expect(screen.queryByRole("button", { name: "Accepted" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Pending invitations" })).toBeNull();
 });
-it("manages accepted/waiting/pending rosters, source paging and destructive removal without removing its own identity", async () => {
-  table = { ...table, canInvite: true, canLeave: false };
-  const guest = { ...seat("guest"), id: tableId, name: "Guest", position: "WAITING" as const };
-  rows = [...rows, guest];
+it("waits for Event participation metadata, exposes failures and retries without a false second preference sheet", async () => {
+  rows = [];
+  acceptedElsewhere = true;
+  table = {
+    ...table,
+    groupType: "PRIVATE",
+    canRegister: true,
+    canInvite: false,
+    myRegistration: null,
+    myPosition: null,
+  };
   const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
-    if (init?.method === "PATCH") {
-      rows = rows.filter((r) => r.id !== guest.id);
-      return new Response(JSON.stringify({ ...guest, status: "CANCELLED", version: 2 }));
-    }
-    if (url.includes("/seats?"))
-      return new Response(
-        JSON.stringify({
-          items: new URL(url).searchParams.has("cursor") ? [] : rows,
-          nextCursor: new URL(url).searchParams.has("cursor")
-            ? null
-            : `${guest.priorityAt}|1|${guest.id}`,
-        }),
-      );
-    return original(url, init);
-  });
+  const pending: Array<(response: Response) => void> = [];
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.endsWith(`/events/${eventId}`) && pending.length < 2
+      ? new Promise<Response>((resolve) => pending.push(resolve))
+      : original(url, init),
+  );
   mount();
-  expect(await screen.findByText("Waiting list")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Remove player: Guest" }));
-  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+  const place = (
+    await screen.findAllByRole("button", { name: "Free place" })
+  )[0] as HTMLButtonElement;
+  expect(place.disabled).toBe(true);
+  fireEvent.click(place);
   expect(screen.queryByRole("dialog")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Remove player: Guest" }));
+  await act(async () => pending[0](new Response("{}", { status: 503 })));
+  await screen.findByText("Could not load event");
+  expect(place.disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(pending).toHaveLength(2));
+  await act(async () =>
+    pending[1](
+      new Response(
+        JSON.stringify({
+          ...plannedEvent,
+          groupType: "PRIVATE",
+          myRegistrations: [{ ...seat("owner"), tableId: optionId }],
+        }),
+      ),
+    ),
+  );
+  await waitFor(() => expect(place.disabled).toBe(false));
+  fireEvent.click(place);
+  expect(
+    screen.getByText("Join this table without changing your event preferences."),
+  ).not.toBeNull();
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url, init]) => url.endsWith("/registrations") && init?.method === "POST",
+      ),
+    ).toBe(true),
+  );
+  expect(screen.queryByRole("heading", { name: "Choose availability" })).toBeNull();
+});
+it("skips repeated PRIVATE availability after an accepted registration in the same Event", async () => {
+  rows = [];
+  acceptedElsewhere = true;
+  table = {
+    ...table,
+    groupType: "PRIVATE",
+    canRegister: true,
+    canInvite: false,
+    myRegistration: null,
+    myPosition: null,
+  };
+  mount();
+  fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([url, init]) => url.endsWith("/registrations") && init?.method === "POST",
+      ),
+    ).toBe(true),
+  );
+  expect(screen.queryByRole("heading", { name: "Choose availability" })).toBeNull();
+});
+it("shows the parent Event item with matching artwork and navigation below Table settings", async () => {
+  mount();
+  const link = await screen.findByRole("link", { name: `Open event: ${plannedEvent.name}` });
+  expect(link.getAttribute("href")).toBe(`/events/${eventId}`);
+  expect(link.querySelector(".match-waves")).not.toBeNull();
+  expect(screen.getByRole("region", { name: "Event" }).contains(link)).toBe(true);
+});
+it.each([false, true])(
+  "opens PRIVATE availability only after explicit join confirmation, organizer=%s",
+  async (canInvite) => {
+    rows = [];
+    table = {
+      ...table,
+      groupType: "PRIVATE",
+      canInvite,
+      canRegister: true,
+      myRegistration: null,
+      myPosition: null,
+      seatedCount: 0,
+    };
+    mount();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+    expect(screen.queryByRole("heading", { name: "Choose availability" })).toBeNull();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+    await screen.findByRole("heading", { name: "Choose availability" });
+    expect(
+      fetcher.mock.calls.some(
+        ([url, init]) => url.endsWith("/registrations") && init?.method === "POST",
+      ),
+    ).toBe(false);
+    fireEvent.click(screen.getAllByRole("button", { name: "Cancel" }).at(-1)!);
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Choose availability" })).toBeNull(),
+    );
+  },
+);
+it("offers an invite-only modal when organizer already joined, routes to the existing picker and supports cancellation", async () => {
+  mount();
+  fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+  expect(
+    within(screen.getByRole("dialog")).queryByRole("button", { name: "Join table" }),
+  ).toBeNull();
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "Free place" })[0]);
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Invite players" }),
+  );
+  expect(m.push).toHaveBeenCalledWith(`/events/${eventId}/tables/${tableId}/invite`);
+});
+it("retains a queue entry beyond capacity and shows pending, accepted and waiting avatar badges without filter tabs", async () => {
+  rows.push(
+    { ...player("guest", tableId), position: "WAITING" },
+    { ...player("invited", eventId), status: "PENDING" },
+  );
+  table = { ...table, maxPlayers: 2, seatedCount: 1, pendingCount: 1, waitingCount: 1 };
+  mount();
+  expect(await screen.findByText("guest")).not.toBeNull();
+  expect(screen.getByRole("img", { name: "Waiting list" })).not.toBeNull();
+  expect(screen.getByRole("img", { name: "Invitation pending" })).not.toBeNull();
+  expect(screen.getByRole("img", { name: "Accepted player" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Join waiting list" })).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Seats list: Field help" }));
+  expect(await screen.findByText(/Free places allow joining or invitations/)).not.toBeNull();
+});
+it("paginates source rosters and confirms other-player removal", async () => {
+  rows.push({ ...player("guest", tableId), name: null, position: "WAITING" });
+  paged = true;
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
+  const remove = await screen.findByRole("button", { name: "Remove player: guest" });
+  expect(remove.closest("li")?.className).toContain("[content-visibility:auto]");
+  fireEvent.click(remove);
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Remove player: guest" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(
+    fetcher.mock.calls.some(
+      ([, init]) => init?.method === "PATCH" && JSON.parse(String(init.body)).action === "remove",
+    ),
+  ).toBe(true);
+});
+it("loads the next source page when the scroll sentinel intersects, without a manual refresh", async () => {
+  rows.push(player("guest", tableId));
+  paged = true;
+  let enter: IntersectionObserverCallback | undefined;
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(callback: IntersectionObserverCallback) {
+        enter = callback;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    },
+  );
+  mount();
+  await screen.findByRole("button", { name: "Load more" });
+  await waitFor(() => expect(enter).toBeTypeOf("function"));
+  if (!enter) throw new Error("Missing observer callback");
+  const notify = enter;
+  await act(async () =>
+    notify([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver),
+  );
+  expect(await screen.findByText("guest")).not.toBeNull();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("cursor="))).toBe(true);
+});
+it("lets a new member join directly, never reads another user's pending stream, and preserves failed join feedback", async () => {
+  m.actor = "guest";
+  rows = [];
+  table = {
+    ...table,
+    canInvite: false,
+    canRegister: true,
+    canLeave: false,
+    myRegistration: null,
+    myPosition: null,
+    seatedCount: 0,
+  };
+  fail = true;
+  mount();
+  fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+  await screen.findByText("Could not join table");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(fetcher.mock.calls.some(([url]) => url.includes("pending=true"))).toBe(false);
+  fail = false;
+  fireEvent.click(screen.getAllByRole("button", { name: "Free place" })[0]);
+  await screen.findByText("guest");
+});
+it("preserves organizer join errors inside the choice modal", async () => {
+  rows = [];
+  table = { ...table, canRegister: true, myRegistration: null, myPosition: null, seatedCount: 0 };
+  fail = true;
+  mount();
+  fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  expect(await screen.findByText("Could not join table")).not.toBeNull();
+  expect(screen.getByRole("dialog")).not.toBeNull();
+});
+it("confirms departure, retains failed destructive dialogs and never bypasses registration versions", async () => {
+  fail = true;
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+  await screen.findByText("Could not update table registration");
+  fail = false;
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(
     JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "PATCH")?.[1]?.body)),
-  ).toMatchObject({ action: "remove", version: 1 });
-  rows = [{ ...guest, name: null, status: "PENDING", position: "SEATED" }];
-  fireEvent.click(screen.getByRole("button", { name: "Pending invitations" }));
-  expect(await screen.findByText("Invitation pending")).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Remove player: guest" }));
-  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
-  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-  await waitFor(() =>
-    expect(fetcher.mock.calls.some(([url]) => url.includes("cursor="))).toBe(true),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Accepted" }));
+  ).toEqual({ action: "cancel", version: 1 });
 });
-it("retries failed seat reads, preserves a visible empty state and does not render failed access as usable private detail", async () => {
+it("keeps seat read failures visible, retries and renders empty places rather than empty-list success", async () => {
+  const original = fetcher.getMockImplementation();
   let broken = true;
-  const original = fetcher.getMockImplementation()!;
-  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
-    url.includes("/seats?")
-      ? broken
-        ? new Response("{}", { status: 503 })
-        : new Response('{"items":[],"nextCursor":null}')
-      : original(url, init),
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.includes("/seats?") && broken ? new Response("{}", { status: 503 }) : original?.(url, init),
   );
   mount();
-  expect(await screen.findByText("Could not load players")).not.toBeNull();
+  await screen.findByText("Could not load players");
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  expect(await screen.findByText("No players found")).not.toBeNull();
+  await screen.findByText("owner");
 });
-it("renders confirmed timing and email rows without game voting, and handles unknown complete table reads", async () => {
+it("shows confirmed email/timing and exclusion without voting or open-place actions", async () => {
   table = {
     ...table,
     eventStatus: "CONFIRMED",
-    canLeave: false,
-    adminUserId: "other",
+    canRegister: false,
     canInvite: false,
+    canLeave: false,
+    startsAt: "2030-06-03T18:00:00Z",
     demonstratorUserId: "demo",
     demonstratorName: "Guide",
-    startsAt: "2030-06-03T18:00:00Z",
     confirmed: {
       gameId: 1,
       playerIds: ["owner"],
       startsAt: "2030-06-03T18:00:00Z",
       endsAt: "2030-06-03T19:00:00Z",
     },
-    games: table.games.map((g) => ({ ...g, durationMinutes: 60 })),
   };
-  rows = [{ ...rows[0], email: "owner@example.test", name: null }];
   mount();
   expect(await screen.findByText("owner@example.test")).not.toBeNull();
   expect(screen.getByText(/Guide/)).not.toBeNull();
-  expect(screen.queryByRole("button", { name: /Yes/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Chess:/ })).toBeNull();
 });
-function mount() {
-  renderWithI18n(
-    <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-        })
-      }
-    >
-      <EventTable eventId={eventId} tableId={tableId} />
-    </QueryClientProvider>,
-  );
-}
-it("uses explicit accepted seats/game votes and confirms departure before deleting participation", async () => {
+it("does not present an excluded table as confirmed or show all candidate games as one frozen choice", async () => {
+  table = {
+    ...table,
+    eventStatus: "CONFIRMED",
+    confirmed: undefined,
+    canInvite: false,
+    canLeave: false,
+    canRegister: false,
+  };
   mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));
-  expect(fetcher.mock.calls.some(([url]) => url.includes("table-registrations/"))).toBe(false);
-  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
-  await waitFor(() => expect(screen.queryByRole("button", { name: "Leave table" })).toBeNull());
-  const call = fetcher.mock.calls.find(([url]) => url.includes("table-registrations/"));
-  expect(JSON.parse(String(call?.[1]?.body))).toEqual({ action: "cancel", version: 1 });
+  expect(await screen.findByText("Excluded from confirmation")).not.toBeNull();
 });
-it("retains failed destructive confirmations and does not hide the API error as an empty list", async () => {
-  fail = true;
-  mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));
-  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
-  expect(await screen.findByText("Could not update table registration")).not.toBeNull();
-  expect(screen.getByRole("dialog")).not.toBeNull();
-  expect(screen.getByText("owner")).not.toBeNull();
-});
-it("shows immutable avatars, all tied positions, emails, exact scores and both rating deltas", async () => {
+it("retains immutable exact scores, ND, profiles and both rating scopes, including missing profiles and retries", async () => {
   table = {
     ...table,
     eventStatus: "TERMINATED",
     canLeave: false,
-    canInvite: false,
-    confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
+    rankingEnabled: true,
+    groupId: optionId,
     results: {
       lowerWins: false,
       entries: [
-        { userId: "owner", rank: 1, score: "1.50" },
-        { userId: "guest", rank: 1, score: "1.5" },
+        { userId: "owner", score: "1.50", rank: 1 },
+        { userId: "absent", score: null, rank: null },
+        { userId: "guest", score: "1.5", rank: 1 },
       ],
       tieBreaks: [],
-      finalizedAt: "2030-06-03T22:00:00Z",
+      finalizedAt: plannedEvent.createdAt,
     },
-    resultProfiles: [
-      { userId: "owner", name: "Owner", email: "owner@example.test", avatarUrl: null },
-      { userId: "guest", name: "Guest", email: "guest@example.test", avatarUrl: null },
+    ratingChanges: [
+      { userId: "owner", score: 505, delta: 5, provisional: true },
+      { userId: "guest", score: 500, delta: 0, provisional: true },
     ],
-    ratingChanges: [{ userId: "owner", score: 505, delta: 5, provisional: true }],
-    groupRatingChanges: [{ userId: "owner", score: 507, delta: 7, provisional: true }],
+    groupRatingChanges: [
+      { userId: "owner", score: 497, delta: -3, provisional: true },
+      { userId: "guest", score: 507, delta: 7, provisional: true },
+    ],
   };
-  mount();
-  expect(await screen.findByText("owner@example.test")).not.toBeNull();
-  expect(screen.getByText("guest@example.test")).not.toBeNull();
-  expect(screen.getByText("Score: 1.50")).not.toBeNull();
-  expect(screen.getByText("Global rating change: +5")).not.toBeNull();
-  expect(screen.getByText("Group rating change: +7")).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Leave table" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Chess: Yes" })).toBeNull();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(
+    eventRecordKeys.table({ apiUrl: "https://api.test", userId: "owner" }, eventId, tableId),
+    table,
+    { updatedAt: 0 },
+  );
+  const original = fetcher.getMockImplementation();
+  let broken = true;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.endsWith(`/tables/${tableId}`) && broken
+      ? new Response("{}", { status: 503 })
+      : original?.(url, init),
+  );
+  mount(client);
+  await screen.findByText("Could not load complete table details");
+  fireEvent.click(screen.getByRole("tab", { name: "Results" }));
+  expect(screen.getAllByText("ND")).toHaveLength(2);
+  expect(screen.getByText("1.50")).not.toBeNull();
+  expect(
+    screen
+      .getAllByText("Global rating change")
+      .some((label) => label.parentElement?.textContent === "Global rating change+0"),
+  ).toBe(true);
+  expect(
+    screen
+      .getAllByText("Group rating change")
+      .some((label) => label.parentElement?.textContent === "Group rating change-3"),
+  ).toBe(true);
+  broken = false;
+  table = {
+    ...table,
+    resultProfiles: [
+      {
+        userId: "owner",
+        name: "Recovered owner",
+        username: "owner",
+        email: "owner@example.test",
+        avatarUrl: null,
+      },
+    ],
+  };
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("@owner")).not.toBeNull();
+  expect(screen.getByText("Recovered owner")).not.toBeNull();
 });
-it("rechecks exact public cutoff locally rather than exposing stale invitation/removal controls", async () => {
+it.each([false, true])(
+  "preserves unknown durations/demonstrators, with a missing confirmed game=%s",
+  async (missing) => {
+    table = {
+      ...table,
+      startsAt: "2030-06-03T18:00:00Z",
+      demonstratorUserId: "demo",
+      demonstratorName: undefined,
+      games: [{ gameId: 1 }],
+      ...(missing
+        ? {
+            eventStatus: "CONFIRMED" as const,
+            confirmed: { gameId: 99, playerIds: ["owner"], startsAt: "2030-06-03T18:00:00Z" },
+          }
+        : {}),
+    };
+    mount();
+    expect(await screen.findByText(/Duration: 0/)).not.toBeNull();
+    expect(screen.getByText("Demonstrator: Unknown")).not.toBeNull();
+  },
+);
+it.each(["accept", "decline"])(
+  "retains own waiting invitation consent (%s) without reading another person's pending roster",
+  async (action) => {
+    m.actor = "guest";
+    acceptedElsewhere = true;
+    const invitation = {
+      ...player("guest", tableId),
+      status: "PENDING" as const,
+      position: "WAITING" as const,
+    };
+    rows.push(invitation, { ...player("private-invite", eventId), status: "PENDING" });
+    table = {
+      ...table,
+      canInvite: false,
+      canLeave: false,
+      canRespond: true,
+      myRegistration: invitation,
+      myPosition: "WAITING",
+      seatedCount: 1,
+      pendingCount: 1,
+      waitingCount: 1,
+    };
+    mount();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: action === "accept" ? "Accept invitation" : "Decline invitation",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull(),
+    );
+    expect(fetcher.mock.calls.some(([url]) => url.includes("pending=true"))).toBe(false);
+    expect(screen.queryByText("private-invite")).toBeNull();
+  },
+);
+it("keeps cached players during a failed next page and permits explicit retry", async () => {
+  rows.push(player("guest", tableId));
+  paged = true;
+  const original = fetcher.getMockImplementation();
+  let broken = true;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    url.includes("cursor=") && broken ? new Response("{}", { status: 503 }) : original?.(url, init),
+  );
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
+  await screen.findByText("Could not load players");
+  expect(screen.getByText("owner")).not.toBeNull();
+  broken = false;
+  const retries = screen.getAllByRole("button", { name: "Try again" });
+  fireEvent.click(retries[retries.length - 1]);
+  expect(await screen.findByText("guest")).not.toBeNull();
+});
+it("rechecks capabilities and cutoff even while a place-action modal is open", async () => {
+  table = { ...table, canRegister: true, myRegistration: null, myPosition: null, seatedCount: 0 };
+  rows = [];
+  const client = mount();
+  fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+  const key = eventRecordKeys.table(
+    { apiUrl: "https://api.test", userId: "owner" },
+    eventId,
+    tableId,
+  );
+  await act(async () => client.setQueryData(key, { ...table, canInvite: false }));
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", { name: "Invite players" }),
+    ).toBeNull(),
+  );
+  await act(async () =>
+    client.setQueryData(key, {
+      ...table,
+      groupType: "PUBLIC",
+      bookingClosesAt: "2000-01-01T00:00:00Z",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", { name: "Join table" }),
+    ).toBeNull(),
+  );
+  expect(
+    within(screen.getByRole("dialog")).queryByRole("button", { name: "Invite players" }),
+  ).toBeNull();
+  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+});
+it("rechecks public cutoff and fixed game rules rather than showing stale actions", async () => {
   table = {
     ...table,
     groupType: "PUBLIC",
@@ -303,11 +814,11 @@ it("rechecks exact public cutoff locally rather than exposing stale invitation/r
     canInvite: true,
     canLeave: true,
     canRespond: true,
-    myRegistration: { ...seat("owner"), status: "PENDING" },
+    myRegistration: { ...player("owner"), status: "PENDING" },
   };
   mount();
-  await screen.findByRole("link", { name: "Open table: First table" });
+  await screen.findByRole("heading", { name: "First table" });
   for (const name of ["Join table", "Leave table", "Accept invitation", "Decline invitation"])
     expect(screen.queryByRole("button", { name })).toBeNull();
-  expect(screen.queryByRole("link", { name: "Invite players" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Chess:/ })).toBeNull();
 });

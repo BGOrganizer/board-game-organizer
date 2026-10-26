@@ -1,72 +1,70 @@
 import type { EventTableDraft } from "@board-game-organizer/shared";
-import { Chip } from "heroui-native/chip";
+import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { Gamepad2, Presentation, Trophy, UsersRound } from "lucide-react-native";
+import { Dices, Presentation, UsersRound } from "lucide-react-native";
 import { View } from "react-native";
+import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
 import { ListCard } from "@/components/common/ui/ListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
+import { EventTableRatingBadge } from "./EventTableRatingBadge";
 
-export function EventDraftTableCard({ row }: { row: EventTableDraft }) {
+export function EventDraftTableCard({
+  row,
+  publicGroup = false,
+}: {
+  row: EventTableDraft;
+  publicGroup?: boolean;
+}) {
   const t = useT();
-  const [muted, success] = useThemeColor(["muted", "success"]);
+  const muted = useThemeColor("muted");
+  const { i18n } = useLingui();
+  const firstGame = row.games[0]?.name ?? t("Unknown");
+  const remaining = Math.max(0, row.games.length - 1);
   return (
     <ListCard>
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 16, padding: 16 }}>
-        <View
-          className="bg-surface-secondary"
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 12,
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Gamepad2 size={32} color={muted} accessible={false} />
-        </View>
+        <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="shapes" />
         <ListCardBody
           title={row.name}
-          titleAccessory={
-            <Chip
-              size="sm"
-              color={row.rankingEnabled ? "success" : "default"}
-              variant="soft"
-              style={{
-                flexShrink: 0,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-              }}
-            >
-              <Trophy size={14} color={row.rankingEnabled ? success : muted} accessible={false} />
-              <Chip.Label numberOfLines={1} style={{ paddingEnd: 2 }}>
-                {row.rankingEnabled ? t("Rated") : t("Unrated")}
-              </Chip.Label>
-            </Chip>
-          }
+          titleAccessory={<EventTableRatingBadge enabled={row.rankingEnabled} />}
         >
-          <Typography className="text-foreground" numberOfLines={2}>
-            {row.games.map((game) => game.name).join(", ")}
-          </Typography>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Dices size={16} color={muted} accessible={false} />
+            <Typography className="text-foreground" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {firstGame}
+            </Typography>
+            {remaining > 0 ? (
+              <Typography
+                className="text-foreground"
+                style={{ flexShrink: 0 }}
+                accessibilityLabel={i18n._({
+                  id: "event.table.moreGames",
+                  message: "{remaining, plural, one {+# game} other {+# games}}",
+                  values: { remaining },
+                })}
+              >
+                +{remaining}
+              </Typography>
+            ) : null}
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <UsersRound size={16} color={muted} accessible={false} />
             <Typography className="text-sm text-muted" style={{ flex: 1 }}>
               {t("Minimum players")}: {row.minPlayers} · {t("Maximum players")}: {row.maxPlayers}
             </Typography>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Presentation size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-muted" style={{ flex: 1 }}>
-              {row.demonstratorUserId
-                ? (row.demonstratorName ?? t("Unknown"))
-                : t("No demonstrator")}
-            </Typography>
-          </View>
+          {publicGroup || row.demonstratorUserId ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Presentation size={16} color={muted} accessible={false} />
+              <Typography className="text-sm text-muted" style={{ flex: 1 }}>
+                {row.demonstratorUserId
+                  ? (row.demonstratorName ?? t("Unknown"))
+                  : t("No demonstrator")}
+              </Typography>
+            </View>
+          ) : null}
         </ListCardBody>
       </View>
     </ListCard>

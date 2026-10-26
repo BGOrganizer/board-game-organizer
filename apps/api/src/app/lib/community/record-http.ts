@@ -6,7 +6,7 @@ import { corsJson } from "../cors";
 import { getDb, withTransaction } from "../db";
 import { ensureCurrentUser } from "../ensureCurrentUser";
 import { dispatchNotifications } from "../notifications/push";
-import { recordServices } from "./record-services";
+import type { recordServices } from "./record-services";
 
 export { communityBody, communityId } from "./request";
 /** Old invitation/booking URLs must never recreate retired collections. */
@@ -31,6 +31,7 @@ export async function runRecordOperation<T>(
       request,
     );
   try {
+    const { recordServices } = await import("./record-services");
     await ensureCurrentUser(userId, await getDb());
     const ids: ObjectId[] = [];
     const result = await withTransaction(async (session, db) => {

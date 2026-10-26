@@ -9,10 +9,12 @@ export function DateTimeInfo({
   startsAt,
   endsAt,
   timeZone,
+  timeLabel,
 }: {
   startsAt: string;
   endsAt?: string;
   timeZone?: string;
+  timeLabel?: string;
 }) {
   const t = useT();
   const { i18n } = useLingui();
@@ -35,7 +37,7 @@ export function DateTimeInfo({
       <Clock3 size={16} color={muted} />
       <Typography
         className="text-sm text-foreground"
-        accessibilityLabel={`${t("Start time")}: ${time.format(new Date(startsAt))}`}
+        accessibilityLabel={`${timeLabel ?? t("Start time")}: ${time.format(new Date(startsAt))}`}
       >
         {time.format(new Date(startsAt))}
       </Typography>

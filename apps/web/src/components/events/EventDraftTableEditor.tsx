@@ -1,15 +1,19 @@
 "use client";
-import type { EventTableDraft } from "@board-game-organizer/shared";
+import { type EventTableDraft, publicTableTimeBounds } from "@board-game-organizer/shared";
 import { Button, Input, Switch, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Minus, Plus, Trash2, X } from "lucide-react";
+import { Minus, Plus, Trash2, UserRoundPen, UserRoundPlus, X } from "lucide-react";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { UserIdentity } from "@/components/common/ui/UserIdentity";
 import { GameListRow } from "@/components/games/GameListRow";
 
 export function EventDraftTableEditor({
   row,
   publicGroup,
+  eventStartWall = "",
+  eventEndWall = "",
   busy,
   fieldError = () => false,
   onChange,
@@ -19,6 +23,8 @@ export function EventDraftTableEditor({
 }: {
   row: EventTableDraft;
   publicGroup: boolean;
+  eventStartWall?: string;
+  eventEndWall?: string;
   busy: boolean;
   fieldError?: (path: string) => boolean;
   onChange: (value: Partial<EventTableDraft>) => void;
@@ -26,7 +32,13 @@ export function EventDraftTableEditor({
   onGame: () => void;
   onDemonstrator: () => void;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
+  const day = eventStartWall.slice(0, 10);
+  const bounds = publicTableTimeBounds(
+    eventStartWall,
+    eventEndWall,
+    Math.max(1, ...row.games.map((game) => game.maxPlayMinutes ?? game.manualDurationMinutes ?? 1)),
+  );
   const helpTitle = t`Field help`;
   return (
     <section className="space-y-4 rounded-xl bg-default-100 p-4">
@@ -53,18 +65,18 @@ export function EventDraftTableEditor({
       <div className="flex flex-wrap gap-4">
         <PlayerCount
           label={t`Minimum players`}
-          help={t`At least two players are required. The minimum must be lower than the maximum.`}
+          help={t`At least two players are required. The minimum cannot exceed the maximum.`}
           value={row.minPlayers}
           min={2}
-          max={row.maxPlayers - 1}
+          max={row.maxPlayers}
           busy={busy}
           onChange={(minPlayers) => onChange({ minPlayers })}
         />
         <PlayerCount
           label={t`Maximum players`}
-          help={t`Set the table capacity above the minimum number of players.`}
+          help={t`Set the table capacity at or above the minimum number of players.`}
           value={row.maxPlayers}
-          min={row.minPlayers + 1}
+          min={row.minPlayers}
           max={Number.MAX_SAFE_INTEGER}
           busy={busy}
           onChange={(maxPlayers) => onChange({ maxPlayers })}
@@ -74,7 +86,7 @@ export function EventDraftTableEditor({
         <p
           role="alert"
           className="text-sm text-danger"
-        >{t`The minimum must be at least two and lower than the maximum.`}</p>
+        >{t`The minimum must be at least two and cannot exceed the maximum.`}</p>
       ) : null}
       <div className="flex items-center justify-between gap-3">
         <SearchHelpLabel
@@ -98,18 +110,39 @@ export function EventDraftTableEditor({
       {publicGroup ? (
         <>
           <TextField
-            value={row.startsWall}
-            onChange={(startsWall) => onChange({ startsWall })}
+            value={row.startsWall.slice(11, 16)}
+            onChange={(time) => {
+              const startsWall = `${day}T${time}`;
+              if (
+                !time ||
+                (bounds.min && bounds.max && startsWall >= bounds.min && startsWall <= bounds.max)
+              )
+                onChange({ startsWall: time ? startsWall : "" });
+            }}
             isRequired
-            isDisabled={busy}
+            isDisabled={busy || !bounds.min || !bounds.max || bounds.min > bounds.max}
             isInvalid={fieldError("startsAt")}
           >
             <SearchHelpLabel
               label={t`Table start`}
               helpTitle={helpTitle}
-              help={t`Choose a local start within the event. The entire table duration must fit before the event ends.`}
+              help={t`The date is fixed to the event day. Choose a time after the event starts; the whole table must finish before it ends.`}
             />
-            <Input type="datetime-local" />
+            {day ? (
+              <p className="text-sm text-default-500">
+                {new Intl.DateTimeFormat(i18n.locale, {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }).format(new Date(`${day}T00:00Z`))}
+              </p>
+            ) : null}
+            <Input
+              type="time"
+              name="tableStart"
+              autoComplete="off"
+              min={bounds.min?.slice(11, 16)}
+              max={bounds.max?.slice(11, 16)}
+            />
             {fieldError("startsAt") ? (
               <p
                 role="alert"
@@ -123,27 +156,52 @@ export function EventDraftTableEditor({
               helpTitle={helpTitle}
               help={t`Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap.`}
             />
-            <div className="flex items-center gap-3">
-              <Button variant="outline" isDisabled={busy} onPress={onDemonstrator}>
-                {row.demonstratorUserId
-                  ? (row.demonstratorName ?? t`Unknown`)
-                  : t`Choose demonstrator`}
-              </Button>
-              {row.demonstratorUserId ? (
+            <GroupedList>
+              <GroupedRow>
+                {row.demonstratorUserId ? (
+                  <UserIdentity
+                    name={row.demonstratorName ?? t`Unknown`}
+                    avatarUrl={row.demonstratorAvatarUrl}
+                  />
+                ) : (
+                  <UserRoundPlus className="size-8 text-default-500" aria-hidden />
+                )}
                 <Button
-                  isIconOnly
-                  size="sm"
-                  variant="danger-soft"
-                  aria-label={t`Remove demonstrator`}
-                  isDisabled={busy}
-                  onPress={() =>
-                    onChange({ demonstratorUserId: undefined, demonstratorName: undefined })
+                  isIconOnly={Boolean(row.demonstratorUserId)}
+                  variant="ghost"
+                  className={
+                    row.demonstratorUserId ? "min-h-11 min-w-11" : "min-h-11 flex-1 justify-start"
                   }
+                  aria-label={t`Choose demonstrator`}
+                  isDisabled={busy}
+                  onPress={onDemonstrator}
                 >
-                  <X className="size-4" aria-hidden />
+                  {row.demonstratorUserId ? (
+                    <UserRoundPen className="size-4" aria-hidden />
+                  ) : (
+                    t`Choose demonstrator`
+                  )}
                 </Button>
-              ) : null}
-            </div>
+                {row.demonstratorUserId ? (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="danger-soft"
+                    aria-label={t`Remove demonstrator`}
+                    isDisabled={busy}
+                    onPress={() =>
+                      onChange({
+                        demonstratorUserId: undefined,
+                        demonstratorName: undefined,
+                        demonstratorAvatarUrl: undefined,
+                      })
+                    }
+                  >
+                    <X className="size-4" aria-hidden />
+                  </Button>
+                ) : null}
+              </GroupedRow>
+            </GroupedList>
           </div>
         </>
       ) : null}
@@ -225,17 +283,6 @@ export function EventDraftTableEditor({
           <GameListRow
             name={t`Choose a game`}
             onPress={busy || row.games.length >= 20 ? undefined : onGame}
-            actions={
-              <Button
-                isIconOnly
-                variant="primary"
-                aria-label={t`Add game`}
-                isDisabled={busy || row.games.length >= 20}
-                onPress={onGame}
-              >
-                <Plus className="size-5" aria-hidden />
-              </Button>
-            }
           />
         </GroupedList>
         {fieldError("games") && !row.games.length ? (
@@ -280,6 +327,8 @@ function PlayerCount({
       <div className="flex items-center gap-3">
         <Button
           isIconOnly
+          size="sm"
+          className="size-9 min-h-9 min-w-9"
           variant="primary"
           aria-label={t`Decrease ${label}`}
           isDisabled={busy || value <= min}
@@ -292,6 +341,8 @@ function PlayerCount({
         </output>
         <Button
           isIconOnly
+          size="sm"
+          className="size-9 min-h-9 min-w-9"
           variant="primary"
           aria-label={t`Increase ${label}`}
           isDisabled={busy || value >= max}

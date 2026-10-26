@@ -367,7 +367,12 @@ export class EventRecordsRepository {
         },
       },
       { $unwind: "$event" },
-      { $match: { "event.status": { $in: ["PLANNING", "CONFIRMED"] } } },
+      {
+        $match: {
+          "event.status": { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] },
+          $or: [{ "event.status": "PLANNING" }, { "confirmed.gameId": { $exists: true } }],
+        },
+      },
       {
         $lookup: {
           from: COLLECTIONS.TABLE_REGISTRATIONS,
@@ -380,7 +385,7 @@ export class EventRecordsRepository {
       {
         $match: {
           $or: [
-            { ownRows: { $elemMatch: { status: "PENDING", kind: "INVITATION" } } },
+            { ownRows: { $elemMatch: { status: { $in: ["PENDING", "ACCEPTED"] } } } },
             {
               $and: [
                 { "event.status": "CONFIRMED" },

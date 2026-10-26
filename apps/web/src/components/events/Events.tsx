@@ -7,7 +7,6 @@ import {
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { CalendarDays, History, Plus } from "lucide-react";
-import Link from "next/link";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
@@ -65,7 +64,6 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
         <FloatingActions
           href={`/events/new${groupId ? `?groupId=${groupId}` : ""}`}
           label={t`Create event`}
-          left={Boolean(groupId)}
         >
           <Plus className="size-6" />
         </FloatingActions>

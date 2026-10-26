@@ -7,10 +7,12 @@ export function DateTimeInfo({
   startsAt,
   endsAt,
   timeZone,
+  timeLabel,
 }: {
   startsAt: string;
   endsAt?: string;
   timeZone?: string;
+  timeLabel?: string;
 }) {
   const { t, i18n } = useLingui();
   const date = new Intl.DateTimeFormat(i18n.locale, {
@@ -29,7 +31,7 @@ export function DateTimeInfo({
       <CalendarDays className="size-4 shrink-0" aria-hidden />
       <time dateTime={startsAt}>{date.format(new Date(startsAt))}</time>
       <Clock3 className="size-4 shrink-0" aria-hidden />
-      <span className="sr-only">{t`Start time`}: </span>
+      <span className="sr-only">{timeLabel ?? t`Start time`}: </span>
       <time dateTime={startsAt}>{time.format(new Date(startsAt))}</time>
       {endsAt ? (
         <>

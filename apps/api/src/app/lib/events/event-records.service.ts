@@ -9,20 +9,29 @@ import type {
   EventRecord,
   FinalizeEventInput,
   GroupRecord,
+  JoinEventAvailability,
   PlannedEventResponse,
   PlannedTableInput,
   PlannedTableResponse,
+  TableLeaderboardResponse,
   TableRecord,
   TableRegistration,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
+import { MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
 import {
   banHasProtectedParticipation,
   calculateEventAgreement,
   type EventAgreement,
+  eventAvailabilityVoteIsAllowed,
+  eventDateWall,
+  eventJoinAvailabilityIsComplete,
+  eventLocalDateTime,
   eventLocalToIso,
   eventRecordCapabilities,
+  eventVoteCounts,
   groupBanIsActive,
+  hasOtherAcceptedTable,
   hasPublicTableConflict,
   normalizeMatchScore,
   plannedTableInterval,
@@ -179,6 +188,27 @@ export class EventRecordsService {
     const tables = await this.events.allTables(event.id);
     const counts = await this.events.counts(event, tables);
     const myVotes = detail ? await this.events.voter(event.id, userId) : null;
+    let voteCounts: PlannedEventResponse["voteCounts"];
+    if (detail) {
+      const registrations = await this.events.allRegistrations(event.id);
+      const voters = await this.events.allVotes(event.id);
+      const ids = [
+        ...new Set(
+          registrations.filter((row) => row.status === "ACCEPTED").map((row) => row.userId),
+        ),
+      ];
+      const byUser = new Map(voters.map((row) => [row.userId, row]));
+      voteCounts = {
+        dates: eventVoteCounts(
+          event.dates.map((row) => row.id),
+          ids.map((id) => byUser.get(id)?.dateVotes ?? {}),
+        ),
+        locations: eventVoteCounts(
+          event.locations.map((row) => row.id),
+          ids.map((id) => byUser.get(id)?.locationVotes ?? {}),
+        ),
+      };
+    }
     const {
       lastNotifiedSituation: _situation,
       nextPriority: _priority,
@@ -216,6 +246,7 @@ export class EventRecordsService {
       myRegistrations: own,
       ...(detail
         ? {
+            voteCounts,
             myVotes: {
               dateVotes: myVotes?.dateVotes ?? {},
               locationVotes: myVotes?.locationVotes ?? {},
@@ -251,6 +282,20 @@ export class EventRecordsService {
       items,
       nextCursor: rows.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
     };
+  }
+  private tableInterval(...args: Parameters<typeof plannedTableInterval>) {
+    try {
+      return plannedTableInterval(...args);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        ["TABLE_DURATION_REQUIRED", "PUBLIC_EVENT_END_REQUIRED", "TABLE_OUTSIDE_EVENT"].includes(
+          error.message,
+        )
+      )
+        throw new CommunityError(400, error.message);
+      throw error;
+    }
   }
   private async prepareTables(
     event: EventRecord,
@@ -310,7 +355,11 @@ export class EventRecordsService {
           ? {
               startsAt: table.startsAt
                 ? new Date(table.startsAt).toISOString()
-                : eventLocalToIso(`${event.dates[0].day}T${event.startTime}`, event.timeZone),
+                : new Date(
+                    Date.parse(
+                      eventLocalToIso(eventDateWall(event, event.dates[0]), event.timeZone),
+                    ) + 60_000,
+                  ).toISOString(),
             }
           : {}),
         ...(table.demonstratorUserId ? { demonstratorUserId: table.demonstratorUserId } : {}),
@@ -318,17 +367,38 @@ export class EventRecordsService {
         createdAt: current?.createdAt ?? at,
         updatedAt: at,
       };
-      if (group?.type === "PUBLIC") plannedTableInterval(event, row, "PUBLIC");
+      if (group?.type === "PUBLIC") {
+        if (
+          Date.parse(row.startsAt as string) <=
+          Date.parse(eventLocalToIso(eventDateWall(event, event.dates[0]), event.timeZone))
+        )
+          throw new CommunityError(400, "TABLE_OUTSIDE_EVENT");
+        this.tableInterval(event, row, "PUBLIC");
+      }
       result.push(row);
     }
     return result;
   }
   private validateSchedule(event: EventRecord, group: GroupRecord | null, creating: boolean) {
-    if (event.dates.length !== 1 || event.locations.length !== 1)
+    if (group?.type !== "PRIVATE" && (event.dates.length !== 1 || event.locations.length !== 1))
       throw new CommunityError(400, "EVENT_FIXED_SCHEDULE_REQUIRED");
+    if (
+      !event.dates.length ||
+      !event.locations.length ||
+      event.dates.length > MAX_EVENT_OPTIONS ||
+      event.locations.length > MAX_EVENT_OPTIONS ||
+      new Set(event.dates.map((date) => date.id)).size !== event.dates.length ||
+      new Set(event.dates.map((date) => eventDateWall(event, date))).size !== event.dates.length ||
+      new Set(event.locations.map((location) => location.id)).size !== event.locations.length
+    )
+      throw new CommunityError(400, "INVALID_EVENT_OPTIONS");
     try {
       for (const date of event.dates)
-        eventLocalToIso(`${date.day}T${event.startTime}`, event.timeZone);
+        for (const location of event.locations)
+          eventLocalToIso(
+            eventDateWall(event, date),
+            location.timeZone ?? locationTimeZone(location),
+          );
     } catch {
       throw new CommunityError(400, "INVALID_EVENT_TIME");
     }
@@ -344,9 +414,11 @@ export class EventRecordsService {
       !event.bookingClosesAt
     )
       throw new CommunityError(400, "PUBLIC_EVENT_FIXED_SCHEDULE_REQUIRED");
-    const start = eventLocalToIso(`${event.dates[0].day}T${event.startTime}`, event.timeZone);
+    const start = eventLocalToIso(eventDateWall(event, event.dates[0]), event.timeZone);
     if (Date.parse(event.endsAt) <= Date.parse(start))
       throw new CommunityError(400, "EVENT_END_AFTER_START_REQUIRED");
+    if (eventLocalDateTime(event.endsAt, event.timeZone).slice(0, 10) !== event.dates[0].day)
+      throw new CommunityError(400, "EVENT_END_SAME_DAY_REQUIRED");
     if (Date.parse(event.bookingClosesAt) >= Date.parse(start))
       throw new CommunityError(400, "EVENT_CUTOFF_BEFORE_START_REQUIRED");
     if (creating && Date.parse(event.bookingClosesAt) <= Date.now())
@@ -359,8 +431,8 @@ export class EventRecordsService {
     registrations: TableRegistration[],
   ) {
     if (group?.type !== "PUBLIC") return;
+    for (const table of tables) this.tableInterval(event, table, "PUBLIC");
     for (const table of tables) {
-      plannedTableInterval(event, table, "PUBLIC");
       const users = new Set([
         ...(table.demonstratorUserId ? [table.demonstratorUserId] : []),
         ...registrations.filter((row) => row.tableId === table.id).map((row) => row.userId),
@@ -429,9 +501,13 @@ export class EventRecordsService {
         event.dates.some(
           (row) =>
             row.id === date.id &&
-            (row.day !== date.day ||
-              event.startTime !== input.startTime ||
-              event.timeZone !== timeZone),
+            (eventDateWall(event, row) !== eventDateWall(input, date) ||
+              (event.timeZone !== timeZone &&
+                !(
+                  group?.type === "PRIVATE" &&
+                  row.startTime !== undefined &&
+                  date.startTime !== undefined
+                ))),
         )
       )
         throw new CommunityError(400, "OPTION_ID_REUSED");
@@ -470,17 +546,16 @@ export class EventRecordsService {
     const active = registrations.filter((row) => merged.some((table) => table.id === row.tableId));
     if (group?.type === "PUBLIC" && active.length) {
       const changed =
-        event.dates[0].day !== next.dates[0].day ||
+        eventDateWall(event, event.dates[0]) !== eventDateWall(next, next.dates[0]) ||
         event.locations[0].id !== next.locations[0].id ||
-        event.startTime !== next.startTime ||
         event.endsAt !== next.endsAt ||
         event.timeZone !== next.timeZone;
       if (changed) throw new CommunityError(409, "PUBLIC_SCHEDULE_HAS_REGISTRATIONS");
       for (const table of edits) {
         const old = currentTables.find((row) => row.id === table.id);
         if (!old || !active.some((row) => row.tableId === table.id)) continue;
-        const a = plannedTableInterval(event, old, "PUBLIC"),
-          b = plannedTableInterval(next, table, "PUBLIC");
+        const a = this.tableInterval(event, old, "PUBLIC"),
+          b = this.tableInterval(next, table, "PUBLIC");
         if (
           a.startsAt !== b.startsAt ||
           a.endsAt !== b.endsAt ||
@@ -562,10 +637,16 @@ export class EventRecordsService {
     const profileIds =
       includeProfiles && table.results ? (table.confirmed?.playerIds ?? []) : winnerIds;
     const identityIds = [
-      ...new Set([...profileIds, ...(table.demonstratorUserId ? [table.demonstratorUserId] : [])]),
+      ...new Set([
+        ...profileIds,
+        ...(includeProfiles && my ? [userId] : []),
+        ...(table.demonstratorUserId ? [table.demonstratorUserId] : []),
+      ]),
     ];
     const winnerProfiles = identityIds.length ? await this.users.findByIds(identityIds) : [];
     const demonstrator = winnerProfiles.find((row) => row.clerkId === table.demonstratorUserId);
+    const myProfile =
+      includeProfiles && my ? winnerProfiles.find((row) => row.clerkId === userId) : undefined;
     const resultProfiles =
       includeProfiles && table.results
         ? profileIds.map((userId) => {
@@ -573,6 +654,7 @@ export class EventRecordsService {
             return {
               userId,
               name: profile?.name ?? userId,
+              username: profile?.username ?? null,
               email: profile?.email ?? null,
               avatarUrl: profile?.avatarUrl ?? null,
             };
@@ -603,13 +685,26 @@ export class EventRecordsService {
       ratingChanges,
       myPosition,
       eventName: event.name,
+      groupName: group?.approved?.name ?? null,
+      acceptedCount: registrations.filter((row) => row.status === "ACCEPTED").length,
+      pendingRegistrationCount: registrations.filter((row) => row.status === "PENDING").length,
       demonstratorName: demonstrator?.name ?? demonstrator?.username ?? null,
+      demonstratorAvatarUrl: demonstrator?.avatarUrl ?? null,
       bookingClosesAt: event.bookingClosesAt,
       groupId: event.groupId,
       groupType: group?.type ?? null,
       eventStatus: event.status,
       adminUserId: event.adminUserId,
-      myRegistration: my,
+      myRegistration:
+        my && myProfile
+          ? {
+              ...my,
+              name: myProfile.name ?? null,
+              username: myProfile.username ?? null,
+              avatarUrl: myProfile.avatarUrl ?? null,
+              email: myProfile.email ?? null,
+            }
+          : my,
       seatedCount:
         event.status !== "PLANNING"
           ? (table.confirmed?.playerIds.length ?? 0)
@@ -626,6 +721,14 @@ export class EventRecordsService {
       canRespond: open && my?.status === "PENDING" && my.kind === "INVITATION",
       canLeave: open && my?.status === "ACCEPTED",
       canInvite: open && event.adminUserId === userId,
+      ...(includeProfiles
+        ? {
+            gameVoteCounts: eventVoteCounts(
+              table.games.map((game) => String(game.gameId)),
+              registrations.filter((row) => row.status === "ACCEPTED").map((row) => row.gameVotes),
+            ),
+          }
+        : {}),
       gamesDetail: games.map((game) => ({
         id: game.id,
         name: game.name,
@@ -644,6 +747,48 @@ export class EventRecordsService {
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
     return this.tableResponse(event, group, table, userId, undefined, true);
+  }
+  async tableLeaderboard(
+    userId: string,
+    eventId: string,
+    tableId: string,
+    page: Pick<EventRecordPage, "limit" | "cursor">,
+  ): Promise<TableLeaderboardResponse> {
+    const { event } = await this.context(userId, eventId);
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    if (event.status === "PLANNING" || !table.confirmed)
+      throw new CommunityError(409, "TABLE_NOT_CONFIRMED");
+    const { gameId, playerIds } = table.confirmed;
+    // Same transaction session: snapshot, genuine Table statistics and profiles run sequentially.
+    const ratings = await this.ratings.currentForPlayers(playerIds, gameId, event.groupId);
+    const ordered = ratings.sort((a, b) => b.score - a.score || a.userId.localeCompare(b.userId));
+    const offset = Number(page.cursor ?? 0),
+      selected = ordered.slice(offset, offset + page.limit);
+    const stats = await this.ratings.tableStats(
+      selected.map((row) => row.userId),
+      gameId,
+      event.groupId,
+    );
+    const profiles = await this.users.findByIds(selected.map((row) => row.userId));
+    return {
+      gameId,
+      scope: event.groupId ? "GROUP" : "GLOBAL",
+      items: selected.map((row) => {
+        const profile = profiles.find((value) => value.clerkId === row.userId),
+          counters = stats.get(row.userId);
+        return {
+          ...row,
+          name: profile?.name ?? row.userId,
+          username: profile?.username ?? null,
+          avatarUrl: profile?.avatarUrl ?? null,
+          gamesPlayed: counters?.gamesPlayed ?? 0,
+          gamesWon: counters?.gamesWon ?? 0,
+          nd: counters?.nd ?? 0,
+        };
+      }),
+      nextCursor: offset + page.limit < ordered.length ? String(offset + page.limit) : null,
+    };
   }
   async tables(userId: string, eventId: string, page: EventRecordPage) {
     const { event, group } = await this.context(userId, eventId);
@@ -704,7 +849,27 @@ export class EventRecordsService {
       throw new CommunityError(409, "TABLE_TIME_CONFLICT");
     return current;
   }
-  async register(userId: string, eventId: string, tableId: string, target?: string) {
+  /** Voluntary HTTP enrollment requires explicit initial availability for PRIVATE Events. */
+  async join(
+    userId: string,
+    eventId: string,
+    tableId: string,
+    availability?: JoinEventAvailability,
+  ) {
+    const { group, own } = await this.context(userId, eventId, true);
+    if (group?.type === "PRIVATE" && !availability && !hasOtherAcceptedTable(own, tableId))
+      throw new CommunityError(400, "EVENT_AVAILABILITY_REQUIRED");
+    if (group?.type !== "PRIVATE" && availability)
+      throw new CommunityError(400, "EVENT_AVAILABILITY_NOT_REQUIRED");
+    return this.register(userId, eventId, tableId, undefined, availability);
+  }
+  async register(
+    userId: string,
+    eventId: string,
+    tableId: string,
+    target?: string,
+    availability?: JoinEventAvailability,
+  ) {
     const { event, group } = await this.context(userId, eventId, true, target !== undefined);
     this.open(event, group);
     const table = await this.events.table(tableId);
@@ -713,6 +878,13 @@ export class EventRecordsService {
     const user = target ?? userId,
       kind = target === undefined ? ("SELF" as const) : ("INVITATION" as const);
     const previous = await this.registrationTarget(event, group, table, user, kind);
+    if (availability) {
+      if (target || group?.type !== "PRIVATE")
+        throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
+      if (availability.version !== event.version) throw new CommunityError(409, "EVENT_CHANGED");
+      if (!eventJoinAvailabilityIsComplete(event, availability))
+        throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
+    }
     const at = new Date().toISOString();
     const row: TableRegistration = {
       id: randomUUID(),
@@ -729,6 +901,14 @@ export class EventRecordsService {
       updatedAt: at,
     };
     await this.events.saveRegistration(row);
+    if (availability)
+      await this.events.saveVoter({
+        eventId,
+        userId,
+        dateVotes: availability.dateVotes,
+        locationVotes: availability.locationVotes,
+        updatedAt: at,
+      });
     event.version++;
     event.updatedAt = at;
     await this.events.save(event);
@@ -830,6 +1010,7 @@ export class EventRecordsService {
         updatedAt: at,
       });
     } else {
+      if ((input.vote as string) === "UNKNOWN") throw new CommunityError(400, "INVALID_VOTE");
       if (group?.type === "PUBLIC") throw new CommunityError(409, "FIXED_OPTION");
       const options = input.kind === "date" ? event.dates : event.locations;
       if (!options.some((row) => row.id === input.optionId))
@@ -842,6 +1023,8 @@ export class EventRecordsService {
         updatedAt: at,
       };
       const key = input.kind === "date" ? "dateVotes" : "locationVotes";
+      if (!eventAvailabilityVoteIsAllowed(options, current[key], input.optionId, input.vote))
+        throw new CommunityError(409, "EVENT_POSITIVE_AVAILABILITY_REQUIRED");
       await this.events.saveVoter({
         ...current,
         [key]: { ...current[key], [input.optionId]: input.vote },
@@ -908,7 +1091,7 @@ export class EventRecordsService {
           confirmed: {
             gameId: included.gameId,
             playerIds: included.participantIds,
-            ...plannedTableInterval(
+            ...this.tableInterval(
               scheduled,
               table,
               group?.type ?? null,

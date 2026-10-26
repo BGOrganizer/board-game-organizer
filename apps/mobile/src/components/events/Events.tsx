@@ -87,7 +87,6 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
       {canCreate ? (
         <FloatingActions
           label={t("Create event")}
-          left={Boolean(groupId)}
           onPress={() =>
             router.push({ pathname: "/event/wizard", params: groupId ? { groupId } : {} })
           }

@@ -5,6 +5,7 @@ import type {
   PlannedEventResponse,
   VerifiedLocation,
 } from "@board-game-organizer/schemas";
+import { MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
 import { useEffect, useRef, useState } from "react";
 import type { CommunityApiOptions } from "../../community/communityApi";
 import { communityAccessDenied } from "../../community/communityApi";
@@ -20,6 +21,8 @@ import {
   patchEventDraft,
   tableDraft,
 } from "../eventRecordForm";
+import { eventDateWall } from "../eventRecordPolicy";
+import { nextEventDay, publicEventBounds, publicEventEndIsValid } from "../eventSchedule";
 import { useEventCutoff } from "./useEventCutoff";
 import { useRecordTables } from "./useEventRecords";
 export function useEventRecordForm(
@@ -56,16 +59,62 @@ export function useEventRecordForm(
     });
   }, [existingId, loadedTables]);
   useEffect(() => {
-    if (!existingId && approvedLocation)
+    if (!existingId && approvedLocation && group?.type !== "PUBLIC")
       setDraft((old) =>
         old.locations.length ? old : patchEventDraft(old, { locations: [approvedLocation] }),
       );
-  }, [existingId, approvedLocation]);
+  }, [existingId, approvedLocation, group?.type]);
   const groupLocked = Boolean(event || initialGroupId);
+  const publicGroup = (group?.type ?? event?.groupType) === "PUBLIC";
+  const flexibleSchedule = (group?.type ?? event?.groupType) === "PRIVATE";
+  useEffect(() => {
+    if (existingId || !publicGroup) return;
+    setDraft((old) =>
+      old.dates.length === 1
+        ? old
+        : {
+            ...old,
+            dates: [
+              old.dates[0] ?? {
+                id: eventDateOptionId([]),
+                day: nextEventDay(new Date()),
+                startTime: old.startTime,
+              },
+            ],
+          },
+    );
+  }, [existingId, publicGroup]);
+  const setStartDate = (wall: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(wall)) return;
+    setDraft((old) =>
+      patchEventDraft(
+        old,
+        {
+          tables: old.tables.map((row) => ({
+            ...row,
+            startsWall: row.startsWall
+              ? `${wall.slice(0, 10)}T${row.startsWall.slice(11, 16)}`
+              : "",
+          })),
+          endsWall: publicEventEndIsValid(wall, old.endsWall) ? old.endsWall : "",
+          cutoffWall: old.cutoffWall < wall ? old.cutoffWall : "",
+          dates: [
+            {
+              id: old.dates[0]?.id ?? eventDateOptionId([]),
+              day: wall.slice(0, 10),
+              startTime: wall.slice(11, 16),
+            },
+          ],
+        },
+        event?.dates,
+        false,
+      ),
+    );
+  };
   const patch = (change: Partial<EventRecordDraft>) =>
     setDraft((old) => {
       if (groupLocked && change.groupId !== undefined && change.groupId !== old.groupId) return old;
-      return patchEventDraft(old, change, event?.dates);
+      return patchEventDraft(old, change, event?.dates, flexibleSchedule);
     });
   const patchTable = (key: string, change: Partial<EventTableDraft>) =>
     setDraft((old) => ({
@@ -87,7 +136,11 @@ export function useEventRecordForm(
         ...old.tables,
         {
           ...newTableDraft(key),
-          startsWall: old.dates[0] ? `${old.dates[0].day}T${old.startTime}` : "",
+          startsWall: old.dates[0]
+            ? publicGroup
+              ? (publicEventBounds(eventDateWall(old, old.dates[0])).endMin ?? "")
+              : eventDateWall(old, old.dates[0])
+            : "",
         },
       ],
     }));
@@ -101,17 +154,42 @@ export function useEventRecordForm(
         removedTableIds: row?.id ? [...old.removedTableIds, row.id] : old.removedTableIds,
       };
     });
-  const addDate = (day: string) => {
-    if (!day) return;
-    setDraft((old) =>
-      old.dates.length
-        ? old
-        : { ...old, dates: [{ id: eventDateOptionId(event?.dates ?? []), day }] },
-    );
+  const addDate = (wall: string) => {
+    if (!wall) return;
+    setDraft((old) => {
+      const day = wall.slice(0, 10),
+        startTime = wall.slice(11, 16);
+      if (
+        old.dates.length >= (flexibleSchedule ? MAX_EVENT_OPTIONS : 1) ||
+        old.dates.some(
+          (date) => eventDateWall(old, date) === `${day}T${startTime || old.startTime}`,
+        )
+      )
+        return old;
+      return {
+        ...old,
+        dates: [
+          ...old.dates,
+          {
+            id: eventDateOptionId([...(event?.dates ?? []), ...old.dates]),
+            day,
+            ...(startTime ? { startTime } : {}),
+          },
+        ],
+      };
+    });
   };
   const addLocation = (location: VerifiedLocation) =>
     setDraft((old) =>
-      old.locations.length ? old : patchEventDraft(old, { locations: [location] }, event?.dates),
+      old.locations.length >= (flexibleSchedule ? MAX_EVENT_OPTIONS : 1) ||
+      old.locations.some((row) => row.id === location.id)
+        ? old
+        : patchEventDraft(
+            old,
+            { locations: [...old.locations, location] },
+            event?.dates,
+            flexibleSchedule,
+          ),
     );
   const addGame = (key: string, game: BggSearchItem) =>
     setDraft((old) => ({
@@ -123,7 +201,7 @@ export function useEventRecordForm(
       ),
     }));
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
-  const issues = eventDraftStepIssues(draft, group?.type === "PUBLIC", step);
+  const issues = eventDraftStepIssues(draft, publicGroup, step);
   const retainedCount =
     (event?.tableCount ?? 0) -
     draft.removedTableIds.length +
@@ -144,9 +222,7 @@ export function useEventRecordForm(
   };
   const validate = () => {
     setAttempted([true, true]);
-    const value = closed
-      ? { success: false as const }
-      : eventDraftInput(draft, group?.type === "PUBLIC");
+    const value = closed ? { success: false as const } : eventDraftInput(draft, publicGroup);
     setError(!value.success);
     return value;
   };
@@ -154,6 +230,9 @@ export function useEventRecordForm(
     draft,
     group,
     groupLocked,
+    flexibleSchedule,
+    publicGroup,
+    setStartDate,
     step,
     goToStep,
     next,

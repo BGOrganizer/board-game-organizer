@@ -134,6 +134,61 @@ it("projects live seats with optional name/email and immutable ND order without 
   ).toEqual(["owner", "guest"]);
 });
 
+it("validates private date/time and location proposals, rejects duplicate or invalid combinations and preserves independent clock identities", () => {
+  const draft = {
+    ...eventDraft({ ...event, groupId: id }),
+    tables: [tableDraft(table, event.timeZone)],
+  };
+  draft.dates = [
+    { id: dateId, day: "2030-06-03", startTime: "18:15" },
+    { id, day: "2030-06-03", startTime: "21:30" },
+  ];
+  draft.locations.push({
+    ...draft.locations[0],
+    id: tableId,
+    latitude: 40.71,
+    longitude: -74.01,
+    timeZone: "America/New_York",
+  });
+  expect(eventDraftInput(draft, false).success).toBe(true);
+  expect(eventDraftStepIssues(draft, false, 0)).toEqual([]);
+  expect(eventDraftStepIssues({ ...draft, groupId: null }, false, 0)).toEqual(
+    expect.arrayContaining(["dates", "locations"]),
+  );
+  expect(eventDraftStepIssues(draft, true, 0)).toEqual(
+    expect.arrayContaining(["dates", "locations"]),
+  );
+  expect(
+    eventDraftInput({ ...draft, dates: [draft.dates[0], { ...draft.dates[0], id }] }, false)
+      .success,
+  ).toBe(false);
+  const gap = { ...draft, dates: [{ id: dateId, day: "2030-03-31", startTime: "02:30" }] };
+  expect(eventDraftStepIssues(gap, false, 0)).toContain("dates");
+  const moved = patchEventDraft(draft, { locations: draft.locations.slice(1) }, [], true);
+  expect(moved.dates).toEqual(draft.dates);
+  const loaded = eventDraft({
+    ...event,
+    groupId: id,
+    groupType: "PRIVATE",
+    timeZone: "America/New_York",
+    dates: draft.dates,
+  });
+  expect(loaded.dates).toEqual(draft.dates);
+  const editedClock = patchEventDraft(
+    draft,
+    { dates: [draft.dates[0], { ...draft.dates[1], startTime: "22:00" }] },
+    [],
+    true,
+  );
+  expect(editedClock.dates[0].id).toBe(draft.dates[0].id);
+  expect(editedClock.dates[1].id).not.toBe(draft.dates[1].id);
+  const changedDefault = patchEventDraft(draft, { startTime: "22:00" });
+  expect(changedDefault.dates).toEqual(draft.dates);
+  const legacy = { ...draft, dates: [{ id: dateId, day: "2030-06-03" }, draft.dates[1]] };
+  const changedLegacy = patchEventDraft(legacy, { startTime: "22:00" });
+  expect(changedLegacy.dates[0].id).not.toBe(dateId);
+  expect(changedLegacy.dates[1].id).toBe(draft.dates[1].id);
+});
 describe("unified unsaved event drafts", () => {
   it("allocates only per-event option identities and preserves stable dates and snapshots", () => {
     expect(eventDateOptionId([])).toBe(dateId);
@@ -198,7 +253,7 @@ describe("unified unsaved event drafts", () => {
     expect(created.success).toBe(true);
     if (created.success) expect("id" in created.data.tables[0]).toBe(false);
   });
-  it("converts public endpoints to ISO instants including overnight dates, and rejects DST gaps/invalid zones", () => {
+  it("reads historical overnight instants but only writes same-day public ends, and rejects DST gaps/invalid zones", () => {
     const draft = {
       ...eventDraft({
         ...event,
@@ -208,21 +263,25 @@ describe("unified unsaved event drafts", () => {
       tables: [
         {
           ...tableDraft(table, event.timeZone),
-          startsWall: "2030-06-03T20:00",
+          startsWall: "2030-06-03T20:01",
           demonstratorUserId: "demo",
         },
       ],
     };
     expect(draft.endsWall).toBe("2030-06-04T03:00:00");
-    const value = eventDraftInput(draft, true);
+    expect(eventDraftInput(draft, true).success).toBe(false);
+    const value = eventDraftInput({ ...draft, endsWall: "2030-06-03T23:00" }, true);
     expect(value.success).toBe(true);
     if (value.success)
       expect(value.data).toMatchObject({
-        endsAt: "2030-06-04T01:00:00.000Z",
-        tables: [{ demonstratorUserId: "demo", startsAt: "2030-06-03T18:00:00.000Z" }],
+        endsAt: "2030-06-03T21:00:00.000Z",
+        tables: [{ demonstratorUserId: "demo", startsAt: "2030-06-03T18:01:00.000Z" }],
       });
     expect(eventDraftInput({ ...draft, endsWall: "2030-03-31T02:30" }, true).success).toBe(false);
-    expect(eventDraftInput({ ...draft, timeZone: "invalid-zone" }, true).success).toBe(true);
+    expect(
+      eventDraftInput({ ...draft, endsWall: "2030-06-03T23:00", timeZone: "invalid-zone" }, true)
+        .success,
+    ).toBe(true);
     expect(
       eventDraftInput(
         { ...draft, locations: [{ ...event.locations[0], timeZone: "invalid-zone" }] },
@@ -241,8 +300,8 @@ describe("unified unsaved event drafts", () => {
     const input = eventDraftInput(
       {
         ...eventDraft(event),
-        tables: [{ ...a, name: "One", startsWall: "2030-06-03T20:00" }],
-        endsWall: "2030-06-04T03:00",
+        tables: [{ ...a, name: "One", startsWall: "2030-06-03T20:01" }],
+        endsWall: "2030-06-03T23:00",
         cutoffWall: "2030-06-02T20:00",
       },
       true,
@@ -254,10 +313,10 @@ describe("location-owned schedule and staged validation", () => {
   const valid = () => ({
     ...eventDraft({
       ...event,
-      endsAt: "2030-06-04T01:00:00Z",
+      endsAt: "2030-06-03T21:00:00Z",
       bookingClosesAt: "2030-06-02T10:00:00Z",
     }),
-    tables: [{ ...tableDraft(table, event.timeZone), startsWall: "2030-06-03T20:00" }],
+    tables: [{ ...tableDraft(table, event.timeZone), startsWall: "2030-06-03T20:01" }],
   });
   it("validates schedule independently from tables and reports exact field paths", () => {
     const draft = valid();
@@ -289,7 +348,11 @@ describe("location-owned schedule and staged validation", () => {
       ]),
     );
     expect(
-      eventDraftStepIssues({ ...draft, tables: [{ ...draft.tables[0], maxPlayers: 2 }] }, false, 1),
+      eventDraftStepIssues(
+        { ...draft, tables: [{ ...draft.tables[0], minPlayers: 3, maxPlayers: 2 }] },
+        false,
+        1,
+      ),
     ).toContain("tables.0.maxPlayers");
     expect(
       eventDraftStepIssues(
