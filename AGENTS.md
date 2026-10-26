@@ -161,14 +161,19 @@ Implemented product areas:
 
 Groups have immutable PRIVATE/PUBLIC type and a sole creator/admin, friend-only consented
 invitations, public requests, approved public venues/logos, group-only timed/permanent exclusions,
-and source-paged per-game member leaderboards. No archival or type conversion is exposed.
+and source-paged per-game member leaderboards. Creator-confirmed deletion permanently removes the
+Group and its unified Event/Table history; follow the linked domain contract for cascade scope and
+retained personal GLOBAL skill snapshots. No archival or type conversion is exposed.
 
 Public Group discovery uses paginated four-character searches. Pending membership never grants
 group Event/ranking/social access. Group exclusions remain distinct from global blocking. Events
-are standalone or grouped, with exactly one day and verified location, a location-derived time zone,
-unsaved client drafts, Tables, explicit consent, exact public cutoffs, duration/overlap constraints,
-manual agreement confirmation and immutable results. New/edited Tables require a minimum of at
-least two players strictly below their maximum; historical record shapes remain readable.
+are standalone or grouped, with location-derived time zones, unsaved client drafts, Tables,
+explicit consent, exact public cutoffs, duration/overlap constraints, manual agreement confirmation
+and immutable results. Standalone and PUBLIC Group Events have one date/time and verified location;
+PRIVATE Group Events may propose multiple date/time and verified-location options for voting. New/edited Tables require a minimum of at
+least two players not exceeding their maximum; historical record shapes remain readable. PUBLIC
+Group Events end later on their start's local calendar day. Booking cutoff is one combined instant
+before the start (the same day is allowed); new public drafts default to tomorrow with no preset venue.
 
 Unified Groups/Events/Tables are **implemented in this branch; acceptance is incomplete**, not
 production-verified. Legacy automatic deadline functions are unregistered. Confirmation stays

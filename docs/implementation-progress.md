@@ -1,5 +1,410 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Shared Event availability, result rows and excluded Tables — scoped publication
+
+- PRIVATE enrollment at another Table reuses accepted participation in the same Event, without a
+  second preference sheet or voter overwrite. Pending/cancelled/declined rows never qualify. Shared
+  Query actions reconcile owned Event participation from registration responses, retain newer cached
+  registration versions and preserve foreign identities/unrelated Events. Private actions wait for
+  missing participation metadata; ordinary failures keep content and offer an explicit retry.
+- Event date/location edits retain at least one YES/IF_NEEDED in their own current option set. NO is
+  disabled with localized explanation when it would remove that final option. Both positive states
+  remain interchangeable, other positive alternatives allow NO, removed options/other dimensions do
+  not qualify, and game NO/UNKNOWN are unchanged. API validation shares the existing transaction lock.
+- Table Overview now places an Event label and linked name/matching artwork item immediately below
+  settings. Result entry removes duplicate body Back controls; app-header Back owns selected/list
+  navigation, preserving other Table drafts. Native hardware Back keeps the same behavior; web header
+  controls/title share one bounded width to avoid introducing narrow-screen overflow.
+- Immutable Result cards have two matched statistic rows: position/GROUP-before/change/after, then
+  exact score or ND/GLOBAL change/after. Missing/disabled GROUP snapshots stay unavailable rather
+  than aliasing GLOBAL data. Native rows remain virtualized; no rating/statistics algorithm changes.
+- Personal feed excludes non-frozen CONFIRMED/TERMINATED Tables before paging and filters known
+  excluded old cache rows. Parent Event lists/details retain those Tables; planning/replanning retains
+  ordinary planning visibility. No records are deleted or reset.
+- Verification: **1,533** passing coverage tests: web **422/82 files**, mobile **182/28**, API **604/68**,
+  schemas **108/13**, shared **217/31**. Existing 100% policy/UI gates retained and passed; missing
+  allowed-location branches and asynchronous cache assertions were covered rather than weakening
+  thresholds/timeouts. Root typecheck **4/4**, scoped Biome, four real compiled EN/IT message checks,
+  API/web builds and Android Metro export pass. Generated Next references restored byte-for-byte.
+- Real isolated Mongo **3 passed, 30 intentionally filtered**: two simultaneous NO changes cannot
+  eliminate the final positive date/venue; additional joins leave preferences unchanged; excluded
+  rows cannot consume personal page slots and remain in confirmed/terminated Event lists. Initial
+  enrollment rollback/stale rejection and prior atomic whole-event result/rating regressions pass too.
+  This is not a complete integration-suite or authenticated/native acceptance claim.
+
+The operator authorized signed scope-separated commits and a normal push of feat/social-api-refactor
+from base 08ba574. Scopes cover localization, native plural bootstrap, Groups, Events/Tables, regression
+coverage and documentation. Private service files, local agent configuration, .gitignore edits and
+API development type references are excluded. No force-push, new PR, direct provider/deployment change,
+live-data mutation or emulator control is authorized. Native rendering/gestures and authenticated
+Playwright/Maestro remain unverified; retained suites/workflows are unchanged. Earlier Members/Rankings
+issue remains unreproduced. Local check evidence: .git/followup-current.md; commit/signature evidence
+belongs to Git history. Behavior contract: [Unified Groups / Events / Tables](groups-events-refactor.md).
+
+## Previous player cards, compact Tables and PRIVATE enrollment availability — local, uncommitted
+
+- Table tabs are centered. Results/current-ranking cards share platform-owned avatar/full-name/username
+  presentation; API responses supply authorized local usernames. Immutable Results show position,
+  before/after OpenSkill display rating and signed semantic-color changes, retaining exact scores/ND
+  and genuine GLOBAL/GROUP deltas. Missing profile fields skeleton independently of known results.
+  Ranking shows Selected game, the existing game-row pattern, then Ranking/current player cards.
+- Main Table cards show Dices plus the first game and localized additional +n game/games. Redundant
+  body status chips/participation labels are removed; artwork retains pending/accepted/waiting states
+  and the viewer's genuine winner trophy. Group/Event metadata, totals and joint winner names remain.
+- Voluntary PRIVATE enrollment opens initial confirmation, then platform HeroUI Dates/Locations
+  bottom sheets. Every option needs an explicit YES/IF_NEEDED/NO, with at least one usable option in
+  each dimension. Opening/canceling writes nothing. One versioned request commits registration and
+  initial preferences together; incomplete/stale choices fail before writes. Invitations retain their
+  separate consent semantics. Event details allow later edits; UNKNOWN remains a game choice only.
+  Native sheet lists use bounded Gorhom virtualization; draft choices remain local, Query owns data.
+- Corrected the reported RSC build error at its source: useEventJoinForm alone is marked use client.
+  The shared barrel and pure enrollment policy remain server-capable. Both API/web production builds
+  pass through the actual previously failing import chain; no API service is converted to client code.
+- Verification: **1,519** passing coverage tests (web **413/82 files**, mobile **182/28**, API **602/68**,
+  schemas **108/13**, shared **214/31**). Existing thresholds retained; new deterministic enrollment,
+  form/sheet and player-card paths meet 100% gates. Root typecheck **4/4**, scoped Biome, compiled EN/IT
+  labels/plurals, API/web builds and Android Metro export pass. Next references restored byte-for-byte.
+- Real isolated Mongo: **2 passed, 30 intentionally filtered**, covering enrollment/preference atomic
+  rollback and stale rejection, later vote edits/game UNKNOWN, plus whole-event result/rating rollback
+  and current frozen-roster rankings. Not a full-suite integration or authenticated/native acceptance.
+- Retained initial failures: missing client directive, superseded UI assertions and missing dismissal
+  coverage were corrected; one outer web command window elapsed before its longer exact-command rerun.
+  No Vitest deadlines, authentication, assertions of current behavior or coverage gates were weakened.
+
+Everything remains local/unstaged, published HEAD 08ba574 unchanged. No commit/push, PR/deployment,
+provider or live application-data mutation, emulator operation, dependency/SDK/Babel change. Native
+rendering/gestures and authenticated Playwright/Maestro remain unverified; suites/workflows unchanged.
+Earlier Members/Rankings failure remains unreproduced. Evidence: .git/fixes123-current.md.
+
+## Previous Event/Table result workflow and current rankings — local, uncommitted
+
+- Confirmation/replanning dialogs use CalendarCheck/RotateCcw. A confirmed owner's ClipboardPenLine
+  registration action is icon-only in the app header; the secondary RotateCcw FAB sits bottom-right.
+  Existing capabilities, owner, version, placeholder/busy and exact-cutoff safeguards remain active.
+- Platform Table wrappers own Overview/Ranking tabs after confirmation and add Results after termination.
+  Overview/standings/current-ranking responsibilities are separate; native views stay virtualized and
+  safe-area aware. Immutable scores, ND, ties and profile skeletons remain; rating deltas are hidden
+  when Table ratings were disabled. Terminated overview uses real paged accepted registrations, not
+  invented seats/versions. Group ranking gets the same horizontal insets as other Group destinations.
+- New authenticated, strict, source-paged Table leaderboard reads the selected frozen game's current
+  GLOBAL (standalone) or GROUP snapshots and genuine physical-Table statistics for frozen players only.
+  No synthetic Match/organizer seat, pending player, legacy Match statistic or rating write is introduced.
+  Read operations sharing a transaction session run sequentially. Auth/API/user/Event/Table/game cache
+  keys, fresh tokens, cancellation, cache-first immediate revalidation and scoped invalidation remain.
+  Wrong-game responses cannot enter an old game cache; retry refreshes only owned Table metadata.
+- Registration reuses Table artwork/card/body patterns. Header titles are Register Tables Results for
+  the list and Register Table Result for its editor; Tables list help explains complete/irreversible
+  finalization and all-ND non-contribution. Completed local drafts show a success check on the artwork,
+  with an accessible description/hint. Finalization button/dialog use Flag. Native header/hardware Back
+  returns to the list while retaining other drafts. No per-Table server saves or server Event drafts.
+  Denied selected-Table reads hide cached player editors; ordinary cached failures remain retryable.
+- Verification: **1,504** passing coverage tests (web **402** / **80 files**, mobile **182** / **28**,
+  API **599** / **68**, schemas **108** / **13**, shared **213** / **30**). Previous gates preserved;
+  added 100% web result-card/standings/current-ranking and shared leaderboard-query metrics. Root
+  typecheck **4/4**, scoped Biome, nine compiled EN/IT labels, API/web builds and Android Metro export
+  pass. Generated API/web Next references restored byte-for-byte. No dependency/SDK/Babel changes.
+- Focused real-Mongo regression **1 passed, 30 intentionally filtered**: invalid later Table rolls back
+  all earlier results/ratings; only genuine eligible Tables contribute; current ranking updates after
+  atomic finalization, pages the frozen roster, and all-ND Tables display current rankings from other
+  physical Tables without contributing their own statistics. This is not a fresh full Mongo-suite pass.
+
+Local/unstaged on `feat/social-api-refactor`, published HEAD `08ba574` unchanged. No commit/push,
+PR change, deployment, emulator operation or provider/application-data mutation. Native rendering,
+gestures and authenticated Playwright/Maestro remain unverified; retained suites/workflows unchanged.
+Earlier Members/Rankings issue remains unreproduced. Stale assertions, initially missing coverage paths
+and an unsupported aria-description were corrected with behavior/ARIA tests, never weakened gates.
+
+## Previous personal Table cards and pending artwork — local, uncommitted
+
+- Main Tables cards remove visible Reserved place/Invitation received text. Own pending invitations
+  carry warning mail artwork badges; pending self requests carry warning clocks without self-approval
+  controls. Group invited/requested artwork uses the same badge family; creator crowns remain intact.
+- Event metadata has CalendarDays and the shared semantic state badge; associated Group/UsersRound
+  follows beneath. A single horizontal icon row shows minimum, maximum, accepted and pending totals.
+  New read-only API metadata supplies approved Group name and complete registration totals, including
+  waiters, without changing existing seated/pending-seat/waiting counters or introducing approval writes.
+  Older cache shapes keep available content and skeleton only missing new fields. Games, frozen/waiting
+  context, joint winners, source paging, exact cutoffs and authorization remain intact.
+- Group/Table invitations reuse platform InvitationActions: matching size, primary/danger-soft variants
+  and Check/X icons. Native controls retain 36px visuals plus 4px hit slop and use theme foregrounds,
+  replacing hard-coded icon colors. Consent/version/busy/toast behavior remains; pending self requests
+  cannot invoke invitation responses even through stale capabilities. EN/IT source/compiled catalogs updated.
+- Verification: **1,466** coverage tests (web **373**, mobile **177**, API **595**, schemas **108**,
+  shared **213**). Existing gates unchanged; 100% web metrics added for main Table/response controls and
+  shared invitation/artwork badges. Root typecheck **4/4**, scoped Biome, API/web production builds and
+  Android Metro export pass; generated Next references restored byte-for-byte. The initial unrelated
+  favorites-route cold timeout passed the exact full API retry without changing its 5s deadline.
+- Real Mongo targeted regression: **1 passed, 30 explicitly filtered**, verifying paged personal rows,
+  approved Group names, accepted waiters, pending invitation totals and decline/cancel reconciliation.
+  Full integration attempt hit the outer command window before completion; its passing partial log
+  is preserved and is not a new full-suite pass. No test timeout/assertion/coverage/auth gate weakened.
+
+Local/unstaged on `feat/social-api-refactor`, published HEAD `08ba574` unchanged. No commit/push,
+PR change, deployment, emulator operation or provider/application-data mutation. Native rendering,
+gestures, authenticated E2E and a completed fresh full Mongo suite remain unverified. Earlier
+Members/Rankings issue remains unreproduced. Previous checkpoints below are historical evidence.
+
+## Previous detail identity cards and concise voting help — local, uncommitted
+
+- Web/native Event detail starts with Details, Info and the existing voting legend. Its first card
+  reuses stable waves artwork, CalendarDays/name and a top-right state badge; associated Group
+  navigation appears beneath only when present. Missing Group metadata loads partially without
+  replacing available identity. Event list/detail share one platform-owned status badge.
+- Table detail starts with Settings/Settings2 and existing minimum/maximum help. Its first shapes
+  card holds Dices/name, the shared enabled/disabled Rating badge, then the existing player-limit
+  icons/counts. Frozen exclusions, app-header Back, game/seat workflows and authorization stay intact.
+- EN/IT voting help now limits description to accepted-only voting, reserved pending places until
+  acceptance, and joining at least one Table to participate in the Event; all four voting meanings
+  remain. No API/state/rating, dependency/SDK, mobile Babel, E2E/workflow or provider changes.
+- Verification: web **364** coverage tests / **78 files**, mobile **175** / **27 files**; prior gates
+  preserved, plus 100% web metrics for detail identity/status/limits/legend components. Root typecheck
+  **4/4**, scoped Biome, EN/IT extract/runtime preservation/compile, web production build and Android
+  Metro export pass. Generated Next references restored byte-for-byte.
+
+Local/unstaged on `feat/social-api-refactor`; published HEAD `08ba574` unchanged. No commit/push,
+PR change, deployment, emulator operation or provider/application-data mutation. Native rendering,
+gestures and Playwright/Maestro acceptance remain unverified. Earlier Members/Rankings issue remains
+unreproduced; older API/Mongo/full-workspace counts below are historical, not rerun for this UI task.
+
+## Previous compact draft Table games and secondary disabled rating — local, uncommitted
+
+- Both creation/review Table cards show Dices, the first game only and `+n` for additional games;
+  zero/one-game cases never show `+0`. Extra names are not repeated in text/tooltips. Long names
+  truncate without hiding the count; existing EN/IT plural messages provide assistive descriptions.
+- Shared platform Rating badges retain primary/accent when enabled and use secondary/default when
+  disabled. Native disabled icons use the corresponding foreground, not accent-foreground. Existing
+  state icons/labels and parity across review, saved cards and detail remain intact. No rating logic,
+  API, dependency or SDK changes.
+- UI verification at that checkpoint: web **355** coverage tests / **77 files**, mobile **174** / **27 files**;
+  existing gates preserved and 100% thresholds added for the web draft card/rating badge. Root typecheck
+  **4/4**, Biome **7 files**, EN/IT extract/compile and web build pass. Android Metro export passes
+  an exact-command retry: the initial Windows process exited `3221225477` after writing its bundle;
+  failed and successful logs remain separate. Generated Next references restored byte-for-byte.
+
+Changes remain local/unstaged on `feat/social-api-refactor`, published HEAD `08ba574` unchanged.
+No commit/push, deployment, emulator operations or provider/application-data mutation. Native
+rendering/gestures and Playwright/Maestro acceptance not run. Older API/Mongo/full-workspace counts
+below are historical, not newly rerun for this UI-only follow-up.
+
+## Overview request controls and inline Event Group selection — local, uncommitted
+
+- Public membership request and pending explanation/cancellation sit centered after Overview's final
+  information item on web/native. Request uses UserRoundPlus, cancellation uses X beneath the pending
+  explanation; existing versioned confirmation, busy guards and failure handling remain intact.
+- Shared capabilities now permit authenticated, non-banned browsing of an approved PUBLIC Group's
+  accepted roster before requesting. No social state/actions, Events, rankings, pending requests or
+  bans become available. Private/unapproved/actively excluded readers remain protected. Both member
+  management dialogs include Check/X icons for administrator Approve/Reject responses.
+- Event creation uses the platform HeroUI Select inline, not a separate Group search screen.
+  Search reuses the 300 ms/four-character policy and scoped fresh-token source paging; Group artwork
+  and explicit No group are retained. More pages load on dropdown scroll or explicit action, never
+  eagerly draining the feed; repeated in-flight paging is not cancelled/restarted. Query errors remain
+  observable and retryable. A Group-menu launch presets/disables selection, backed by the existing
+  shared draft guard; context identity keys keep distinct launches separate. Edits retain immutable
+  Group identity. Selecting/clearing an optional Group preserves the other unsaved form fields.
+- EN/IT catalogs extracted/compiled; new Load more groups translation included. No dependency/SDK,
+  provider, E2E/workflow or mobile Babel changes. Web Select.Value directly renders the authorized
+  selected label for visual and assistive-technology consistency.
+- Verification: **1,438** coverage tests (shared **213**, schemas **108**, API **594**, web **351**,
+  mobile **172**), unchanged previous gates plus 100% for GroupJoinRequest; root typecheck **4/4**;
+  Biome **21 files**; **95** Node policies, zero failures/skips; **76** full real-Mongo integration
+  tests across **3 files**, zero failures/skips. The real public-Group regression now checks pre-request
+  accepted-roster access without social state, protected pending/banned modes/rankings and active-ban
+  denial. API/web builds and Android Metro export pass; Next references restored byte-for-byte.
+
+Changes remain local on `feat/social-api-refactor`, published HEAD `08ba574` unchanged. No staging,
+commit/push, deployment, application-data reset, provider mutation or emulator operations. Initial
+stale UI assertions and one unrelated cold-import timeout were superseded by passing same-deadline
+checks; no timeout, coverage or authorization gate was weakened. Native rendering/gestures,
+Playwright/Maestro and production acceptance remain unverified; earlier Members/Rankings failure
+remains unreproduced, distinct from the newly authorized read-only public roster behavior.
+
+## Group context, invitation candidates and personal Tables — local, uncommitted
+
+- PUBLIC Table editors fix the Event day and expose only bounded start time, strictly after Event
+  start with the full duration fitting by Event end. API validates the same write constraints and
+  returns client errors for invalid intervals. Demonstrators use grouped player identities and avatars.
+- Grouped Event creation returns to that Group's Events tab on both clients; standalone creation and
+  edit destinations retain their existing behavior. PUBLIC detail consistently presents Start Date
+  and Time, End Date and Time and Booking Cutoff Date and Time as matching information items.
+- Group invitations source-page eligible reciprocal friends, filtering accepted/pending memberships,
+  blocks and live Group bans before search/pagination. The creator/approved-Group guards remain;
+  optimistic invitation removal and selective rollback stay API/user/Group-scoped.
+- Received invitations appear in a centered Accept/Decline card after Group information. Accepted
+  non-admin departure is a danger LogOut action in the app header, with existing explicit consent;
+  the old above-tabs Leave action is removed.
+- Main Tables include accepted seats, accepted waiting players and pending invitations in planning,
+  confirmed and terminated Events, retaining confirmed organizer/demonstrator duties. Declined/left
+  registrations are excluded; existing Group visibility remains authoritative.
+- Unified HTTP lazily loads service implementations only for authenticated active operations; retired
+  URLs retain 401/410 and never initialize unused domain services. This also resolves cold-import
+  timeouts without changing test deadlines, assertions or coverage thresholds.
+- Verification: **1,430** coverage tests (shared **212**, schemas **108**, API **594**, web **345**,
+  mobile **171**), unchanged existing gates plus 100% for the new invitation card; typecheck **4/4**;
+  scoped Biome **41 files**; **95** Node policies; **76** full real-Mongo integration tests across
+  **3 files**, zero failures/skips. Mongo verifies filtered candidate paging, accepted waiting/pending
+  personal Tables, declined/left exclusion and retained results. API/web builds and Android Metro
+  export pass; generated Next references restored byte-for-byte. EN/IT source/compiled catalogs updated.
+
+Everything remains local on `feat/social-api-refactor`, published HEAD `08ba574` unchanged. Nothing
+staged, committed, pushed, deployed or changed in providers/application data/emulator state. No new
+packages or SDK upgrades. Playwright/Maestro suites remain unchanged; native rendering/gestures and
+production acceptance remain unverified. Earlier Members/Rankings failure remains unreproduced.
+
+## Public schedule bounds and Table editor parity — local, uncommitted
+
+Latest operator requirements supersede strict min/max inequality and public overnight writes in the
+older checkpoints below; the [active contract](groups-events-refactor.md) describes current rules.
+
+- Table details rely on the app-header Back action. The shared write DTO and both editors allow
+  `2 <= minimum <= maximum`. Event-review cards reuse the saved Table's stable DiceBear shapes and
+  the exact enabled/disabled Rating badge used by Event detail.
+- PUBLIC drafts initialize an editable, non-removable combined Start Date and Time to tomorrow;
+  Location is not auto-filled from the Group. End Date and Time and combined Booking Cutoff precede
+  Location. Same-day end bounds and strictly later clocks are enforced by both clients and API in
+  the verified venue zone. Historical overnight instants remain readable, never silently rewritten.
+- Cutoff compares one combined instant, allowing an earlier same-day time or a prior day's later
+  clock; new cutoffs remain future-only. Web uses bounded datetime-local inputs. Native retains one
+  field; Android selects date then valid hour/minute columns because its system time picker cannot
+  disable alternatives. Cancellation never commits a partial selection. Date/time remains canonical
+  venue metadata, not a device-zone fallback.
+- EN/IT source/compiled catalogs include ten updated labels/help messages. Endpoint labels correctly
+  identify end/cutoff times for screen readers. Existing consent, exact cutoff, duration, overlap,
+  optimistic cache, immutable results and rating behavior remain intact. No dependency/SDK upgrade.
+- Verification: **1,412** coverage tests (web **334**, mobile **170**, API **589**, schemas **108**,
+  shared **211**), unchanged gates including 100% deterministic schedule helpers; typecheck **4/4**;
+  scoped Biome **36 files**; **95** Node policies, zero skips; **74** full real-Mongo integration tests
+  across **3 files**, zero failures/skips. Integration covers venue-local overnight rejection and
+  transactional rollback, equal player limits, frozen public exclusion safety and immutable history.
+- API/web production builds and Android Metro export pass; Next references restored byte-for-byte.
+  An earlier Windows export process exited `3221225477` after writing its bundle; the same command
+  and the final export subsequently exited zero. Failed logs remain separate, not counted as passes.
+
+All changes remain local on `feat/social-api-refactor`, published HEAD `08ba574` unchanged. No
+commit/push, staging, deployment, provider mutation, application-data reset or emulator operations.
+Playwright/Maestro suites remain intentionally unchanged; native rendering/gestures and production
+acceptance remain unverified. Earlier Members/Rankings loading remains unreproduced. Older full-Mongo
+interruptions below are historical; the current 74-test suite passed in full.
+
+## Grouped Table places and preference controls — local, uncommitted
+
+- Web/native Table details use the existing grouped game/user rows, a places heading with status/privacy
+  help, avatar badges, free-place enrollment and a retained queue entry at capacity. Organizers choose
+  self-enrollment when eligible or the existing invitation picker. Old standalone join/invite and
+  accepted/pending filter buttons are gone. Native rows remain virtualized; web rows source-page and
+  use native CSS content visibility for long rosters.
+- Summary cards navigate as a whole, with independent help/invitation controls. Table detail uses
+  labelled name/settings, player limits and the primary Rating badge instead of repeating its card.
+- One secondary status button opens explicit vote choices. Counts sit beneath date/location identities
+  and beside game metadata. Detail-only aggregates count accepted players, deduplicate Event voters,
+  and treat missing preferences as UNKNOWN; pending ballots never contribute. Accepted participation
+  still gates Event voting, and accepted registration at that Table gates game voting.
+- Pending identities remain organizer/recipient-only; the recipient's own detail includes their profile
+  without granting access to another person's pending stream. Fresh-token, scoped optimistic vote/count
+  changes and selective rollback remain intact. Place-choice dialogs recheck cutoff/capabilities.
+- Current checks: **1,404** coverage tests (mobile **169**, web **331**, API **588**, schemas **108**,
+  shared **208**) with unchanged 100% gates; all four typecheck tasks; **95** Node policies, zero skips;
+  scoped Biome (41 files, 32 warnings), whitespace, compiled EN/IT, API/web builds and Android Metro
+  export. Generated Next references were restored byte-for-byte. No new dependency or SDK upgrade.
+- The real-Mongo proposal/replanning regression additionally verifies persisted aggregate counts,
+  pending exclusion and pending-roster privacy: **1 passed, 28 explicitly filtered**. This is not a
+  current full integration-suite pass. Playwright/Maestro and native rendering/gestures remain unverified.
+
+Changes remain local on `feat/social-api-refactor`; published HEAD `08ba574` is unchanged, with nothing
+staged. No commit/push, deployment, provider mutation, application-data reset/deletion or emulator
+navigation/restart. Earlier Members/Rankings loading remains unreproduced. Prior evidence below is
+historical, not acceptance of this follow-up.
+
+## Cards and private date/time proposals — local, uncommitted (2026-10-24)
+
+The latest operator request supersedes the earlier single-choice restriction for PRIVATE Groups.
+Standalone and PUBLIC Group Events remain fixed to one date/time and one verified venue; see the
+[active contract](groups-events-refactor.md).
+
+- Both clients keep contextual Table artwork on the left and every information/action block on the
+  right. Table-name labels precede their values; artwork/name navigation stays available. The primary
+  badge reads **Rating**, with its enabled/disabled meaning retained through icon and accessible name.
+- Event cards put the icon-bearing semantic status at top right, center the calendar beside the name,
+  show the first proposed or chosen localized date/time, and identify Table/player counts with icons.
+  While planning, `+n` gives the total proposed-date count as requested. Unchosen proposals still belong
+  to both Past/Future scopes. Multiple venue zones are not presented as one agreed time zone.
+- PRIVATE editors retain empty date/time and verified-location add rows, support distinct clocks on
+  the same day, deduplicate choices and enforce 20 options per dimension. The combined field uses the
+  browser's datetime-local input and native date/time flow; Android requires date then time and commits
+  neither on cancellation. Pending web input survives location-picker navigation.
+- Optional per-date `startTime` preserves old common-clock reads. Shared draft validation, Table
+  intervals, displays and API validation use the actual option clock. Canonical venue zones and DST
+  checks remain mandatory. Clock edits require fresh IDs; unchanged explicit private clocks preserve
+  their votes across venue-zone metadata changes. Public registered-schedule locks cannot be bypassed
+  with per-option clocks. Confirmation stays manual and freezes the selected clock in the selected zone.
+- Verification: all four typecheck tasks; **1,372** coverage tests (mobile **168**, web **309**, API
+  **587**, schemas **108**, shared **200**), unchanged 100% gates; **95** Node policies; scoped Biome
+  and whitespace; compiled EN/IT catalogs; API/web builds and Android Metro export. Generated Next
+  references were restored byte-for-byte. No dependency was added for this follow-up.
+- The new real-Mongo transaction regression passes: private proposals/votes, chosen-zone freezing,
+  replanning edits, selective vote retention and stale-version rejection. This was an explicit targeted
+  run: **1 passed, 28 intentionally filtered**, not full-suite acceptance. Unfiltered attempts were
+  interrupted after runner timeout/very slow Docker fixtures; they are not counted as successful.
+
+All follow-up changes remain local on `feat/social-api-refactor`, published HEAD `08ba574` unchanged.
+No commit/push, provider change, application-data reset/deletion or emulator navigation/restart occurred.
+Playwright/Maestro suites remain unchanged; source/unit/export checks do not establish native rendering,
+E2E or production acceptance. Earlier Members/Rankings loading reports remain unreproduced.
+
+## Event confirmation, Table presentation and native plurals — local, uncommitted
+
+- Event confirmation is compact on both platforms and requires both the server capability and an
+  explicitly agreed response. Disabled-state explanations, including individual Table reasons, live
+  only in the header help popover, not below Locations. Explicit versioned confirmation remains.
+- Contextual Table cards reuse their stable-ID DiceBear shapes, label the Table name above its value,
+  and put a game icon before the first relevant game. Ratings, queues, consent and frozen data remain.
+- The reported native plural crash is reproduced by removing `Intl.PluralRules` in a fresh process.
+  Mobile localization now imports the standard `intl-pluralrules` JS polyfill before Lingui use;
+  regression checks evaluate the real compiled English/Italian singular and plural messages. This
+  adds one JS-only dependency (`2.0.1`), no Babel configuration or native module, with the installed
+  pnpm graph and lockfile synchronized. No retained dependency was upgraded.
+- Current checks: workspace typecheck; **1,361** coverage tests (mobile **167**, web **305**, API
+  **584**, schemas **107**, shared **198**); **73** unfiltered real-Mongo integration tests; **95**
+  policy tests; scoped Biome and whitespace; peers; API/web builds; Android Metro export. Existing
+  coverage gates remain enforced. EN/IT catalogs compile with the existing translated messages.
+- Compatibility against the installed/pinned Expo SDK passes offline. The online Expo checker also
+  reports newer patches for existing SDK 57 packages; those unrelated upgrades were not applied.
+
+These remain local source/compilation checks, not emulator rendering, Playwright/Maestro or production
+acceptance. No commit/push, deployment, provider mutation, app-data reset or emulator restart occurred.
+
+## Group deletion and contextual UI follow-up — local, uncommitted (2026-10-24)
+
+This follow-up remains local on `feat/social-api-refactor`; the last published HEAD is `08ba574`.
+No new commit, push, deployment, provider mutation or application-data deletion was performed.
+
+- Creator-confirmed Group deletion follows the [active domain contract](groups-events-refactor.md):
+  versioned sole-owner authorization and one transactional cascade, including terminated Event/Table
+  history. Personal GLOBAL skill snapshots, unrelated resources and legacy documents remain intact.
+  Real-Mongo regression testing caught and corrected inbox cleanup using the persisted `href` field,
+  not the notification-input field `resourceHref`; exact path boundaries preserve unrelated links.
+- Both clients expose top-level Groups/Search tabs, Overview-only Group editing and right-aligned
+  contextual Event creation. Wizards use spaced steps, compact player controls, clickable empty game
+  rows, arrow-only Back, context-aware demonstrator reviews and icon-only final actions. Successful
+  new Group/Event creation returns to its list; editing retains its detail return.
+- Event details use labelled metadata, a warning phase badge, owner-only manual confirmation in the
+  app header with disabled-state explanations, and an edit FAB. Contextual Table summaries omit
+  repeated Event metadata, retain excluded/frozen/consent state, and show rating badges, count legends
+  and localized remaining-game plurals. Platform UI remains separate; shared Query ownership remains.
+- Fresh local verification: workspace typecheck; five coverage suites, **1,358 tests** (API **584**,
+  web **304**, mobile pure logic/source contracts **165**, shared **198**, schemas **107**); full
+  real-Mongo replica-set integration **73 passed**, three files, zero skips; Node policy **95 passed**,
+  zero skips; scoped Biome and whitespace checks. Existing coverage thresholds were not lowered;
+  extracted invitation controls, contextual Table summaries and web header actions retain 100% gates.
+- API/web production builds and Android Metro export pass. Generated Next type references were
+  restored after builds. English/Italian source and compiled catalogs include the new messages.
+
+The earlier interrupted integration runs are not acceptance evidence; the complete 73-test rerun
+above supersedes them. Playwright/Maestro suites and CI E2E policy remain unchanged. Unit/source
+contracts and compiled exports do not establish native rendering, gestures, E2E or production
+acceptance. The reported Members/Rankings loading issue still lacks a reproduced failing HTTP/UI
+path and is **not claimed fixed**; prior successful repository probes do not prove otherwise.
+
 ## Group and Event wizard follow-up — PR #22 (2026-10-23)
 
 The operator clarified one day and one verified location for every Event, including PRIVATE Groups.

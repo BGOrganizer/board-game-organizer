@@ -13,8 +13,10 @@ backed by a shared TypeScript API. Main navigation is Tables / Groups / Events /
   suggestions, and shareable seven-day invites.
 - Immutable private/public Groups, friend invitations and consent, public membership requests,
   verified venues/logos, moderation, timed/permanent group exclusions and per-game leaderboards.
-- Standalone or grouped Events with Tables: one day and verified location, automatic venue time
-  zone, unsaved multi-step editors, explicit registrations, reserved invitations/waiting priorities,
+  Creator-confirmed Group deletion atomically removes its unified Events and related history.
+- Standalone or grouped Events with Tables: a fixed date/time and verified location for standalone
+  and public Events, multiple date/time and venue proposals for private Groups, automatic venue time
+  zones, unsaved multi-step editors, explicit registrations, reserved invitations/waiting priorities,
   date/location/game voting and manual confirmation.
 - Exact public-event cutoffs, verified locations/favorites, BGG/manual durations, overlap checks,
   atomic whole-event results and GLOBAL/GROUP OpenSkill ratings. Pending invitees never vote.

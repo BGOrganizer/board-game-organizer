@@ -27,32 +27,92 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 
 - One immutable creator/administrator; no transfer, additional administrators, archiving or type
   conversion. PRIVATE/PUBLIC is fixed at creation.
+- Only that creator may permanently delete the Group, after an explicit destructive confirmation
+  acknowledging deletion of its Events. The versioned DELETE runs one transaction under the same
+  Group lock used by membership and Event writers. All unified Events, including CONFIRMED and
+  TERMINATED Events, Tables, removed Tables, registrations, votes, results, Group memberships,
+  exclusions, claimed logos, Group rating snapshots and related inbox history are removed atomically.
+  There is no archived Group or retained Event/results history. Personal GLOBAL skill snapshots
+  remain unchanged: deleting Group-owned records does not reset personal skill or rerate other
+  Groups. Rating-event history for the deleted Tables is removed in both scopes. Unrelated Groups,
+  standalone Events, Contacts, users, favorites, catalog and legacy documents remain untouched.
+  Failure or a stale Group version rolls back the entire cascade; a large cascade exceeding
+  MongoDB transaction limits fails visibly, never as a partially completed deletion.
 - PRIVATE requires a name; logo and verified venue are optional. It is never discoverable.
   PUBLIC requires name, owned logo and verified venue, with freshly authorized BGO moderation
   before public operation. Clerk Organizations have no BGO domain authority.
 - Invitations are friend-only and require individual acceptance. Public membership requests require
   administrator approval. Pending invitees/requesters can read permitted group information and
-  accepted members, but not group events, rankings or group-scoped social actions. Global Contacts
-  remain independent.
+  accepted members, but not group events, rankings or group-scoped social actions. Approved PUBLIC
+  Groups also expose the accepted roster before a membership request, without social state/actions;
+  private, unapproved and actively excluded access remains protected. Request and pending-request
+  explanation/cancellation appear centered after Overview information, with cancellation beneath
+  its explanation. Administrator request-response dialogs use explicit Approve/Reject icons.
+  Global Contacts remain independent. Invitation pickers source-page eligible friends only, excluding accepted or
+  pending memberships, global blocks and active Group bans before pagination/search. Received
+  invitations use a centered Accept/Decline card after Group information; accepted non-admin
+  members leave through the danger header action with explicit confirmation, never above tabs.
 - Ban/exclusion may target a nonmember, permanently or until a server-validated future instant.
   Revocation/expiry never restores membership, invitations or bookings. It is not global blocking.
 - Exclusion cancels affected active registrations and reopens affected confirmed events. Refuse the
   entire ban if the target has frozen participation/demonstrator duties in a CONFIRMED PUBLIC event
-  after its cutoff. TERMINATED history and results remain immutable.
-- Group game search and member rankings are paginated at source. Only enabled physical tables with
+  after its cutoff. TERMINATED history and results remain immutable under membership operations;
+  explicit whole-Group deletion above is the only Group-level deletion exception.
+- Group game search and member rankings are paginated at source; the ranking selector and rows use
+  the same horizontal page insets as other Group destinations on both clients. Only enabled physical tables with
   at least two scoring finishers contribute games, wins, withdrawals and rating statistics.
 
 ## Events and Tables
 
 - An event may be standalone or belong to a group. Only the group creator/admin creates grouped
   events. Standalone invitations are friend-only; grouped participants must be accepted members.
+  Successful grouped creation returns to that Group's Events tab; standalone creation returns to
+  main Events and edits retain their Event detail destination. Creation selects an optional Group
+  inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
+  No group; no separate Group search screen. Launching from a Group presets and locks that selection;
+  existing Event Group identity remains immutable.
+- Main Tables source-pages the viewer's accepted seated/waiting registrations and pending invitations
+  in planning, confirmed and terminated Events, retaining confirmed organizer/demonstrator duties.
+  Declined/left registrations do not qualify. Existing Group visibility checks remain authoritative.
 - PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
   The organizer plays only through explicit table registration, never an automatic seat.
-- Every new or explicitly edited Event has exactly one calendar day and one verified location,
-  whether standalone or in a PRIVATE/PUBLIC Group. Its common start time is local to that location;
-  the API derives the IANA time zone from verified coordinates, never a manual field or device zone.
-  Each Table has candidate games, a minimum of at least two players strictly below its maximum,
-  and optional ratings. No independent Match is generated. Historical records are not rewritten.
+- Standalone and PUBLIC Group Events have exactly one date/time and one verified location.
+  PRIVATE Group Events may propose up to 20 distinct date/time options and 20 verified locations;
+  accepted players vote independently on those option IDs. Different times on the same day are
+  distinct proposals. Web and native editors use a combined date/time field and retain an empty
+  add row beneath private proposals until the limit; standalone add rows disappear after
+  selection. PUBLIC start is one editable, non-removable combined field, initially tomorrow for a
+  new draft; its verified Location starts empty, never copied automatically from the Group. End Date
+  and Time and the combined Booking Cutoff field precede Location, which is last. Nothing is written
+  before final review.
+- Date options may store their own `startTime`; historical options without it inherit the Event's
+  common clock. Times are local to the venue selected by agreement. The API derives IANA zones from
+  verified coordinates and rejects clocks invalid at any proposed venue, never guessing a zone from
+  the device. Confirmation freezes the chosen clock in the chosen venue's zone. Clock edits require
+  fresh option IDs; unchanged explicit private clocks retain their votes when venue-zone metadata
+  changes. Old implicit clocks retain their existing conservative identity checks. Historical
+  records and immutable snapshots are not rewritten.
+- Each Table has candidate games, a minimum of at least two players not exceeding its maximum,
+  and optional ratings. No independent Match is generated. Creation/review Table cards show a
+  dice icon, only the first game and `+n` additional games (no suffix for a single game). The shared
+  Rating badge is primary/accent when enabled and secondary/neutral when disabled, retaining its
+  state icon and accessible label on both clients.
+- Event detail starts with a Details label and voting-legend help above its stable artwork card:
+  name and status first, then the associated Group link when present. Table detail starts with
+  Settings and player-limit help above its shapes card: name, shared Rating badge, and minimum/
+  maximum counts with their existing icons. Immediately below, Event labels a linked item with the
+  parent Event's name and matching stable artwork; it opens that Event detail. Voting help states accepted-only voting, reserved
+  pending places until acceptance, and participation through at least one Table.
+- Main Tables cards show Event identity with its calendar icon, associated Group beneath, and one
+  icon row for minimum, maximum, accepted registrations and pending registrations. Totals include
+  queued registrations; seat/queue counters keep their separate existing meanings. Missing cached
+  Group/total metadata uses partial skeletons, never guessed counts. Own pending status is an artwork
+  badge, not Reserved place/Invitation received body text. Group/Table artwork distinguishes incoming
+  invitations (mail) and outgoing requests (clock), both warning at bottom-right. Group/Table invitation
+  responses share platform controls, dimensions and Check/X icons; requests never expose self-approval.
+  Games show Dices, first name only and localized additional `+n game/games`. Participation labels/state
+  chips do not repeat in the body: artwork shows pending, accepted/waiting or the viewer's genuine
+  first-place trophy (including shared first place). Joint winners remain visible by name.
 - Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
   are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
   deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
@@ -60,12 +120,46 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   and stable ID determine priority, not acceptance time. Pending invitations reserve seat/queue
   priority but **cannot vote, count toward minimums, agreement or the frozen roster**. Voting never
   accepts an invitation. Accepted waiting players may vote.
-- Private-group accepted members can enroll directly; no extra booking-approval workflow.
+- Private-group accepted members can enroll directly; no extra booking-approval workflow. The first
+  voluntary enrollment opens a platform HeroUI bottom sheet with Dates/Locations tabs. Every current option
+  needs YES/IF_NEEDED/NO, with at least one YES/IF_NEEDED in each dimension. Final confirmation sends
+  versioned preferences and enrollment together; the API rejects missing/stale/incomplete choices and
+  persists both in one transaction. Existing explicit invitation response semantics remain unchanged.
+  A player already accepted at another Table of that same Event joins without repeating this sheet
+  or replacing stored preferences. Pending/declined/cancelled registrations do not qualify. Owned Event
+  participation caches reconcile from the acknowledged registration, not only a later successful fetch.
+  Initial choices are editable later from the Event; opening/canceling the sheet writes nothing.
+- Both clients show grouped games and places in Table details. Places start at the maximum capacity;
+  occupied capacity retains an additional queue entry. Large rosters/placeholder ranges are source-paged
+  and rendered progressively. Empty places enroll the viewer; organizers first choose self-enrollment
+  (when eligible) or the existing invitation picker. Avatar badges distinguish accepted, pending and
+  waiting players. Pending identities remain organizer/recipient-only; other reservations are anonymous.
+- Event detail uses one secondary preference button per votable date, location or game. Date/location
+  writes offer YES/IF_NEEDED/NO only; UNKNOWN remains a game choice and a readable missing-vote state. Event
+  date/location voting requires accepted participation; game voting requires acceptance at that Table.
+  An edit must retain at least one YES/IF_NEEDED among current options of its own dimension. YES and
+  IF_NEEDED can interchange; NO is disabled when it would remove the final positive choice. The API
+  enforces the same condition under the existing transaction lock, including simultaneous changes.
+  Date votes cannot substitute for venue votes, removed options do not qualify, and game NO/UNKNOWN
+  retain their existing semantics.
+  Aggregate detail counts include accepted players only (once per Event for dates/locations), with
+  missing preferences counted as UNKNOWN. Pending ballots never contribute or imply consent. Lists
+  omit these aggregates; missing detail totals load without replacing available cached content.
 - Public events additionally require an end and exact booking cutoff. Their tables have
   fixed starts and BGG-derived duration; missing metadata requires explicit administrator duration.
+  Table editors fix the date to the Event day and expose only a start-time field, strictly after
+  Event start and before Event end, with the entire duration fitting by Event end. API rejects
+  invalid intervals before writes. Demonstrators use the existing grouped player identity pattern.
+  Public detail uses matching Start Date and Time, End Date and Time and Booking Cutoff Date and
+  Time information items.
   Planning uses the longest candidate duration; confirmation snapshots the selected game duration.
-  Overnight/multiday ends are ISO instants, not truncated times. Player and demonstrator duties
-  cannot overlap; half-open boundaries permit adjacent tables. Other modes do not restrict overlaps.
+  New/edited public ends must be strictly later on the start's local calendar day, enforced in UI
+  bounds and by API venue-zone validation. Booking cutoff compares the combined date/time instant
+  with the start, not independent day/clock components: same-day earlier cutoffs and prior-day later
+  clocks are valid. A new cutoff must still be in the future. Older overnight/multiday records remain
+  readable and are not migrated; an explicit planning edit must satisfy current rules. Player and
+  demonstrator duties cannot overlap; half-open boundaries permit adjacent tables. Other modes do
+  not restrict overlaps.
 - Accepting a public fixed-option table expresses availability for those fixed options without
   manufacturing extra preference votes. After cutoff no user, including the administrator, may
   invite, register, vote, respond or leave. Confirmation/reopening remain manual operations.
@@ -85,11 +179,11 @@ attribution remains visible. No additional geolocation provider or credentials a
 Ambiguous/unavailable results fail visibly instead of inventing a zone. Event time zones are
 mandatory derived metadata; private Groups without a venue retain local-clock timed-ban entry.
 Old immutable instants are never reinterpreted, and legacy planning clocks change only through an
-explicit edit. Historical documents are not migrated or deleted.
+explicit edit. The time-zone change never migrates or deletes historical documents.
 
 ## Exact agreement
 
-A/B/C is evaluated per table, against one common event date/location:
+A/B/C is evaluated per table, against one common event date/time and location:
 
 1. **A:** seated accepted players have full agreement; do not consult waiters.
 2. **B:** seated players reach the date/location minimum but disagree on game; wait for votes or
@@ -107,6 +201,31 @@ there are no repeated identical notifications or player reminders to change vote
 
 ## Results, lists and transport
 
+- Confirm/reopen-planning dialog actions have semantic icons. In confirmed Events the organizer's
+  icon-only result-registration action lives in the app header; reopen planning is a bottom-right,
+  secondary icon-only FAB. Existing capabilities, busy/version guards and exact cutoffs remain.
+- Confirmed Table detail has Overview and Ranking top tabs. Terminated detail additionally has
+  Results, with immutable standings/ND and GLOBAL/GROUP deltas only when ratings were enabled.
+  Current ranking is always available for the selected frozen game and every frozen player, including
+  unrated players and rating-disabled Tables. Grouped Tables use GROUP scope; standalone uses GLOBAL.
+  The source-paged authenticated Table leaderboard reads current snapshots and genuine physical-Table
+  statistics, never legacy Match statistics, pending players or an automatic organizer seat. Player
+  cards show avatar/full name/username on both tabs. Results have two matching statistic rows:
+  position, GROUP-before rating, Group rating change and Group ranking; then exact score/ND, Global
+  rating change and Global ranking. Both scope changes use signed semantic-color icons and immutable
+  after snapshots, not current rating or an Elo calculation. Missing/disabled scopes stay unavailable;
+  standalone GLOBAL values never masquerade as GROUP values. Ranking starts
+  with Selected game and its normal game row, then Ranking and current player cards. Its game
+  cannot be overridden by a query parameter. Navigation revalidates cache-first; a changed-game response
+  never populates the wrong cache key and retry refreshes only the owned Table metadata.
+- Result registration keeps per-Table unsaved drafts within one Event workflow. The list header is
+  Register Tables Results; each Table editor uses Register Table Result. Cards reuse stable artwork,
+  identity and frozen player counts; completed drafts show a success check at artwork bottom-right.
+  Tables list help explains all-table completion, irreversible finalization and all-ND non-contribution.
+  Finalization and its confirmation share a terminal-state icon. Back belongs only to the app header
+  (and native hardware Back), not a duplicate editor/body button. Selected-editor Back returns to the
+  list without discarding other Table drafts; web list Back uses ordinary route history. No server Event drafts
+  or independent per-Table result writes are introduced.
 - Finalization is one atomic operation over every included table's complete frozen roster. Exact
   signed decimal scores, ND, lower-wins and explicit tie-break ordering retain their existing
   semantics. Results/profiles and immutable GLOBAL/GROUP deltas are available on table detail.
@@ -114,8 +233,11 @@ there are no repeated identical notifications or player reminders to change vote
   from that outcome's pre-rating snapshots. An all-ND/fewer-than-two-finishers table changes no
   ratings, games played, wins or withdrawals. Group initialization, provisional state and OpenSkill
   uncertainty remain as specified in the rating engine; no historical backfill occurs.
-- Personal tables expose explicit invitations and relevant table participation, not excluded tables
-  pretending to be confirmed. Past/Future uses the chosen local day; unchosen dates appear in both.
+- Personal tables expose explicit invitations and relevant table participation. CONFIRMED/TERMINATED
+  Tables without a frozen confirmation snapshot are excluded at source before cursors/limits and
+  suppressed from old personal-list caches. Their records remain in the parent Event's paged list
+  and detail; reopening planning restores ordinary planning visibility. Past/Future uses the chosen
+  local day; unchosen dates appear in both.
 - Search/role/period filters run before pagination. Lists, rosters, seats, game selection and group
   ranking selection do not download all records. Native uses virtualized lists and safe-area-aware
   controls. Cached usable fields remain visible while missing detail fields load.
