@@ -269,6 +269,119 @@ describe("unified group Query ownership", () => {
       name: "Moderator-only rejected proposal",
     });
   });
+  it("optimistically removes a Group and selectively restores newer detail and concurrent list changes on deletion failure", async () => {
+    const { options, client, wrapper } = setup();
+    const key = groupRecordKeys.list(options, "mine");
+    client.setQueryData(key, page([group, { ...group, id: otherId }]));
+    client.setQueryData(groupRecordKeys.detail(options, id), group);
+    options.feedback.onOptimisticUpdate.mockImplementation(() =>
+      expect(client.getQueryData(key)).toMatchObject({ pages: [{ items: [{ id: otherId }] }] }),
+    );
+    const response = deferred();
+    const fetch = vi.fn(() => response.promise);
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(() => useGroupRecordActions(options), { wrapper });
+    let mutation!: Promise<unknown>;
+    act(() => {
+      mutation = hook.result.current.remove.mutateAsync({
+        id,
+        input: { version: 1, deleteEvents: true },
+      });
+    });
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("delete_group");
+    const later = { ...group, id: "later" };
+    const other = { ...group, id: otherId, name: "Concurrent edit" };
+    client.setQueryData(key, {
+      pages: [
+        { items: [other], nextCursor: "next" },
+        { items: [later], nextCursor: null },
+      ],
+      pageParams: ["", "next"],
+    });
+    client.setQueryData(groupRecordKeys.detail(options, id), {
+      ...group,
+      version: 2,
+      name: "Newer server version",
+    });
+    await act(async () => {
+      response.resolve(new Response('{"error":"FAILED"}', { status: 500 }));
+      await expect(mutation).rejects.toThrow("FAILED");
+    });
+    expect(client.getQueryData(key)).toMatchObject({
+      pages: [
+        { items: [{ id, version: 2, name: "Newer server version" }, other] },
+        { items: [later] },
+      ],
+    });
+    expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "delete_group");
+  });
+  it("purges deleted Group/Event/Table history and inbox entries only inside the requesting API/user scope", async () => {
+    const { options, client, wrapper } = setup();
+    const eventId = "event",
+      otherEvent = "other-event";
+    const groupKey = groupRecordKeys.detail(options, id);
+    const otherKey = groupRecordKeys.detail(options, otherId);
+    const foreign = { ...options, userId: "another-user" };
+    const foreignKey = groupRecordKeys.detail(foreign, id);
+    const eventKey = ["events", options.apiUrl, options.userId, "detail", eventId];
+    const tableKey = ["events", options.apiUrl, options.userId, "table", eventId, "table"];
+    const eventList = ["events", options.apiUrl, options.userId, "list", {}];
+    const tables = ["events", options.apiUrl, options.userId, "tables", null, {}];
+    const inbox = ["notifications", options.apiUrl, options.userId, "inbox"];
+    client.setQueryData(groupKey, group);
+    client.setQueryData(otherKey, { ...group, id: otherId });
+    client.setQueryData(foreignKey, group);
+    client.setQueryData(groupRecordKeys.people(options, id, "accepted", ""), page([]));
+    client.setQueryData(["groups", options.apiUrl, options.userId, "rankings", id, "games"], {
+      pages: [{ games: [] }],
+      pageParams: [0],
+    });
+    client.setQueryData(eventKey, { id: eventId, groupId: id });
+    client.setQueryData(tableKey, { id: "table", eventId });
+    client.setQueryData(
+      eventList,
+      page([
+        { id: eventId, groupId: id },
+        { id: otherEvent, groupId: otherId },
+      ]),
+    );
+    client.setQueryData(
+      tables,
+      page([
+        { id: "table", eventId },
+        { id: "other-table", eventId: otherEvent },
+      ]),
+    );
+    client.setQueryData(
+      inbox,
+      page([
+        { id: "removed", resourceHref: `/groups/${id}` },
+        { id: "kept", resourceHref: `/events/${otherEvent}` },
+      ]),
+    );
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ id, eventIds: [eventId] })));
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(() => useGroupRecordActions(options), { wrapper });
+    await act(() =>
+      hook.result.current.remove.mutateAsync({ id, input: { version: 1, deleteEvents: true } }),
+    );
+    for (const key of [
+      groupKey,
+      eventKey,
+      tableKey,
+      groupRecordKeys.people(options, id, "accepted", ""),
+    ])
+      expect(client.getQueryData(key)).toBeUndefined();
+    expect(client.getQueryData(otherKey)).toEqual({ ...group, id: otherId });
+    expect(client.getQueryData(foreignKey)).toEqual(group);
+    expect(client.getQueryData(eventList)).toEqual(page([{ id: otherEvent, groupId: otherId }]));
+    expect(client.getQueryData(tables)).toEqual(page([{ id: "other-table", eventId: otherEvent }]));
+    expect(client.getQueryData(inbox)).toEqual(
+      page([{ id: "kept", resourceHref: `/events/${otherEvent}` }]),
+    );
+    expect(options.getToken).toHaveBeenCalledOnce();
+  });
   it("filters membership projections but never converts network failure into an empty-list success", async () => {
     const { options, client, wrapper } = setup();
     const person = { userId: "guest", membership: { status: "LEFT" }, isAdmin: false };

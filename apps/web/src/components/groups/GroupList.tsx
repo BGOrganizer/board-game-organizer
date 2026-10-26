@@ -8,8 +8,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Crown, Mail, Plus, Search, UsersRound } from "lucide-react";
-import Link from "next/link";
+import { Check, Crown, Mail, Plus, UsersRound } from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListPage } from "@/components/common/ui/ListPage";
@@ -49,12 +48,7 @@ export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
             : []
         }
       />
-      {scope === "mine" ? (
-        <Link href="/groups/search" className="inline-flex items-center gap-2 text-sm text-accent">
-          <Search className="size-4" aria-hidden />
-          {t`Search public groups`}
-        </Link>
-      ) : !filters.search && !filters.query.trim() ? (
+      {scope === "public" && !filters.search && !filters.query.trim() ? (
         <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
       ) : null}
       {searchable && list.isPending ? (
@@ -98,7 +92,7 @@ export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
       ) : null}
       {scope === "mine" ? (
         <FloatingActions href="/groups/new" label={t`Create group`}>
-          <Plus className="size-6" />
+          <Plus className="size-6" aria-hidden />
         </FloatingActions>
       ) : null}
     </ListPage>

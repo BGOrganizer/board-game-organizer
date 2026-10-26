@@ -48,6 +48,7 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
     <>
       <PeoplePicker
         friendsOnly
+        invitationGroupId={groupId}
         disabled={actions.busy}
         onClose={() => router.back()}
         onSelect={(person) => void invite(person.id)}

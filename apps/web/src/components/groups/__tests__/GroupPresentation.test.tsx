@@ -61,7 +61,26 @@ describe("unified group presentation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Decline invitation: Game Club" }));
     expect(respond.mock.calls).toEqual([["accept"], ["decline"]]);
     expect(screen.getByText("Invitation received")).not.toBeNull();
+    const badge = screen.getByRole("img", { name: "Invitation received" });
+    expect(badge.className).toContain("text-warning");
+    expect(badge.className).toContain("bottom-0");
+    expect(badge.className).toContain("right-0");
+    expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
+    expect(badge.parentElement?.querySelector("img")).not.toBeNull();
     expect(screen.queryByText("Events")).toBeNull();
+  });
+  it("marks an outgoing pending Group request with a warning clock and no invitation response actions", () => {
+    renderWithI18n(
+      <GroupCard group={{ ...base, role: "requested" }} pending={false} onRespond={vi.fn()} />,
+    );
+    const badge = screen.getByRole("img", { name: "Membership requested" });
+    expect(badge.className).toContain("text-warning");
+    expect(badge.className).toContain("bottom-0");
+    expect(badge.className).toContain("right-0");
+    expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
+    expect(badge.parentElement?.querySelector("img")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
   });
   it("keeps public moderation status, verified venue and rejection reasons visible without fabricating private counts", () => {
     const group: GroupRecordResponse = {

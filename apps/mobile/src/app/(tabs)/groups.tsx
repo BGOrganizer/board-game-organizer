@@ -1,4 +1,4 @@
-import { GroupList } from "@/components/groups/GroupList";
+import { Groups } from "@/components/groups/Groups";
 export default function Screen() {
-  return <GroupList />;
+  return <Groups />;
 }

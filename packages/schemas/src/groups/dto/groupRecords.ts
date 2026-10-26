@@ -31,6 +31,14 @@ export const editGroupRecordSchema = groupRevisionSchema
   .extend({ version: z.number().int().positive() })
   .strict();
 export type EditGroupRecordInput = z.infer<typeof editGroupRecordSchema>;
+export const deleteGroupRecordSchema = z
+  .object({ version: z.number().int().positive(), deleteEvents: z.literal(true) })
+  .strict();
+export type DeleteGroupRecordInput = z.infer<typeof deleteGroupRecordSchema>;
+export interface DeletedGroupRecordResponse {
+  id: string;
+  eventIds: string[];
+}
 export const decideGroupReviewSchema = z.discriminatedUnion("decision", [
   z.object({ decision: z.literal("approve"), version: z.number().int().positive() }).strict(),
   z

@@ -3,6 +3,7 @@ import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { useLingui } from "@lingui/react/macro";
 import { Crown } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
+import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 export function GroupArtwork({
   group,
 }: {
@@ -31,6 +32,12 @@ export function GroupArtwork({
         >
           <Crown aria-hidden className="size-4 text-warning" />
         </span>
+      ) : null}
+      {group.role === "invited" || group.role === "requested" ? (
+        <PendingArtworkBadge
+          kind={group.role === "invited" ? "invitation" : "request"}
+          label={group.role === "invited" ? t`Invitation received` : t`Membership requested`}
+        />
       ) : null}
     </span>
   );

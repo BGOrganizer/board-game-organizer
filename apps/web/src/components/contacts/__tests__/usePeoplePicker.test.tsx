@@ -1,4 +1,8 @@
-import { usePeoplePicker } from "@board-game-organizer/shared";
+import {
+  groupInviteesPageQuery,
+  useGroupRecordActions,
+  usePeoplePicker,
+} from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -17,6 +21,97 @@ function setup() {
   return { options, client, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+it("source-pages Group invitees and their search without requesting unrestricted friendship/search lists", async () => {
+  const { options, wrapper } = setup();
+  const fetch = vi.fn(
+    async (url: string) =>
+      new Response(
+        JSON.stringify({
+          items: [{ id: new URL(url).searchParams.has("cursor") ? "second" : "first" }],
+          nextCursor: new URL(url).searchParams.has("cursor") ? null : "first",
+        }),
+      ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const hook = renderHook(({ query }) => usePeoplePicker(options, query, true, "group"), {
+    wrapper,
+    initialProps: { query: "" },
+  });
+  await waitFor(() => expect(hook.result.current.items).toHaveLength(1));
+  await act(async () => {
+    await hook.result.current.fetchNextPage();
+  });
+  await waitFor(() =>
+    expect(hook.result.current.items.map((row) => row.id)).toEqual(["first", "second"]),
+  );
+  hook.rerender({ query: "board" });
+  await waitFor(() => expect(hook.result.current.items).toHaveLength(1));
+  expect(fetch.mock.calls.every(([url]) => url.includes("/groups/group/invitees"))).toBe(true);
+  expect(
+    new URL(fetch.mock.calls.at(-1)?.[0] ?? "https://api.test").searchParams.get("query"),
+  ).toBe("board");
+  expect(options.getToken).toHaveBeenCalledTimes(3);
+});
+it("hides an optimistic invitation, restores failures and does not touch another actor's candidate cache", async () => {
+  const { options, wrapper, client } = setup(),
+    key = groupInviteesPageQuery(options, "group").queryKey,
+    foreign = groupInviteesPageQuery({ ...options, userId: "other" }, "group").queryKey;
+  const data = {
+    pages: [
+      {
+        items: [
+          {
+            id: "friend",
+            name: "Friend",
+            email: null,
+            avatarUrl: null,
+            presence: { online: false, lastActiveAt: new Date(0).toISOString() },
+          },
+        ],
+        nextCursor: null,
+      },
+    ],
+    pageParams: [""],
+  };
+  client.setQueryData(key, data);
+  client.setQueryData(foreign, data);
+  let finish: ((response: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((_url: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(new Response(JSON.stringify(data.pages[0]))),
+    ),
+  );
+  const hook = renderHook(
+    () => ({
+      picker: usePeoplePicker(options, "", true, "group"),
+      actions: useGroupRecordActions(options),
+    }),
+    { wrapper },
+  );
+  let pending: Promise<unknown> | undefined;
+  act(() => {
+    pending = hook.result.current.actions.invite
+      .mutateAsync({ id: "group", userId: "friend" })
+      .catch((error) => error);
+  });
+  await waitFor(() => expect(hook.result.current.picker.items).toEqual([]));
+  expect(client.getQueryData(foreign)).toEqual(data);
+  await waitFor(() => expect(finish).toBeDefined());
+  if (!finish) throw new Error("Missing invitation request");
+  const respond = finish;
+  await act(async () => {
+    respond(new Response('{"error":"MEMBERSHIP_ALREADY_ACTIVE"}', { status: 409 }));
+    await pending;
+  });
+  await waitFor(() =>
+    expect(hook.result.current.picker.items.map((row) => row.id)).toEqual(["friend"]),
+  );
+});
 it("waits for four characters for general users, while friends initially source-page existing relationships", async () => {
   const { options, wrapper } = setup();
   const fetch = vi.fn(

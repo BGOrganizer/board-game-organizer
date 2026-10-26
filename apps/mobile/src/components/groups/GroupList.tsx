@@ -10,7 +10,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Check, Crown, Mail, Plus, Search, UsersRound } from "lucide-react-native";
+import { Check, Crown, Mail, Plus, UsersRound } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -64,12 +64,7 @@ export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
                   : []
               }
             />
-            {scope === "mine" ? (
-              <Button variant="outline" onPress={() => router.push("/group/search")}>
-                <Search size={16} color={muted} />
-                <Button.Label>{t("Search public groups")}</Button.Label>
-              </Button>
-            ) : !filters.search && !filters.query.trim() ? (
+            {scope === "public" && !filters.search && !filters.query.trim() ? (
               <Typography className="text-muted">
                 {t("Enter at least 4 characters to search")}
               </Typography>

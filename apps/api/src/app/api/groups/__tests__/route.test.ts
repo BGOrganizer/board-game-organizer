@@ -31,6 +31,7 @@ import * as assetStart from "../../group-assets/route";
 import * as oldInvitation from "../../group-invitations/[invitationId]/route";
 import * as revoke from "../[groupId]/bans/[userId]/route";
 import * as bans from "../[groupId]/bans/route";
+import * as invitees from "../[groupId]/invitees/route";
 import * as person from "../[groupId]/members/[userId]/route";
 import * as people from "../[groupId]/members/route";
 import * as membership from "../[groupId]/membership/route";
@@ -56,12 +57,14 @@ const services = {
     list: vi.fn(),
     request: vi.fn(),
     invite: vi.fn(),
+    invitationCandidates: vi.fn(),
     members: vi.fn(),
     membershipAction: vi.fn(),
     ban: vi.fn(),
     revoke: vi.fn(),
     review: vi.fn(),
     moderationDetail: vi.fn(),
+    remove: vi.fn(),
   },
   assets: { start: vi.fn(), append: vi.fn(), complete: vi.fn(), preview: vi.fn() },
 };
@@ -75,6 +78,38 @@ beforeEach(() => {
     for (const call of Object.values(domain)) call.mockReset().mockResolvedValue({ id });
 });
 describe("unified Group HTTP contracts", () => {
+  it("authenticates Group-scoped invitation candidates and validates search/cursor paging without broad fallback", async () => {
+    const response = await invitees.GET(
+      request("GET", undefined, "?limit=1&cursor=friend&query=board"),
+      context,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(services.groups.invitationCandidates).toHaveBeenCalledWith("owner", id, {
+      limit: 1,
+      cursor: "friend",
+      query: "board",
+    });
+    for (const query of [
+      "?query=abc",
+      "?limit=0",
+      "?limit=51",
+      "?unknown=1",
+      "?cursor=",
+      "?query=board&query=other",
+    ])
+      expect((await invitees.GET(request("GET", undefined, query), context)).status).toBe(400);
+    expect(
+      (await invitees.GET(request(), { params: Promise.resolve({ groupId: "bad" }) })).status,
+    ).toBe(400);
+    mocks.auth.mockResolvedValueOnce({ userId: null });
+    expect((await invitees.GET(request(), context)).status).toBe(401);
+    services.groups.invitationCandidates.mockRejectedValueOnce(
+      new CommunityError(403, "GROUP_ADMIN_REQUIRED"),
+    );
+    expect((await invitees.GET(request(), context)).status).toBe(403);
+    expect((await invitees.OPTIONS(request("OPTIONS"))).status).toBe(204);
+  });
   it("lists canonical roles and source searches; validates creates without changing immutable type", async () => {
     expect((await groupsRoute.GET(request("GET", undefined, "?roles=accepted,admin"))).status).toBe(
       200,
@@ -95,8 +130,37 @@ describe("unified Group HTTP contracts", () => {
       expect((await groupsRoute.POST(request("POST", body))).status).toBe(400);
     expect((await groupsRoute.GET(request("GET", undefined, "?unknown=1"))).status).toBe(400);
     expect((await groupsRoute.OPTIONS(request("OPTIONS"))).status).toBe(204);
-    expect("DELETE" in detail).toBe(false);
+    expect("DELETE" in detail).toBe(true);
     expect("DELETE" in membership).toBe(false);
+  });
+  it("requires authentication, a valid Group ID, version and explicit cascade consent for deletion", async () => {
+    const body = { version: 2, deleteEvents: true };
+    const response = await detail.DELETE(request("DELETE", body), context);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(services.groups.remove).toHaveBeenCalledWith("owner", id, body);
+    for (const invalid of [
+      undefined,
+      {},
+      { version: 2 },
+      { ...body, deleteEvents: false },
+      { ...body, extra: true },
+    ])
+      expect((await detail.DELETE(request("DELETE", invalid), context)).status).toBe(400);
+    expect(
+      (
+        await detail.DELETE(request("DELETE", body), {
+          params: Promise.resolve({ groupId: "bad" }),
+        })
+      ).status,
+    ).toBe(400);
+    expect((await detail.DELETE(request("DELETE", body, "?unknown=1"), context)).status).toBe(400);
+    mocks.auth.mockResolvedValueOnce({ userId: null });
+    expect((await detail.DELETE(request("DELETE", body), context)).status).toBe(401);
+    services.groups.remove.mockRejectedValueOnce(new CommunityError(403, "GROUP_ADMIN_REQUIRED"));
+    expect((await detail.DELETE(request("DELETE", body), context)).status).toBe(403);
+    services.groups.remove.mockRejectedValueOnce(new CommunityError(409, "GROUP_CHANGED"));
+    expect((await detail.DELETE(request("DELETE", body), context)).status).toBe(409);
   });
   it("routes detail, versioned edits, moderation and explicit self membership requests", async () => {
     await detail.GET(request(), context);

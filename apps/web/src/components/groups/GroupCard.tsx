@@ -1,17 +1,9 @@
 "use client";
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { formatLocationAddress } from "@board-game-organizer/shared";
-import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import {
-  CalendarDays,
-  Check,
-  LockKeyhole,
-  LockKeyholeOpen,
-  MapPin,
-  UsersRound,
-  X,
-} from "lucide-react";
+import { CalendarDays, LockKeyhole, LockKeyholeOpen, MapPin, UsersRound } from "lucide-react";
+import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
@@ -34,28 +26,12 @@ export function GroupCard({
       label={`${t`Open group`}: ${group.name}`}
       actions={
         invited ? (
-          <span className="flex items-center gap-1">
-            <Button
-              isIconOnly
-              size="sm"
-              variant="primary"
-              isDisabled={pending}
-              aria-label={`${t`Accept invitation`}: ${group.name}`}
-              onPress={() => onRespond("accept")}
-            >
-              <Check className="size-4" aria-hidden />
-            </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="danger-soft"
-              isDisabled={pending}
-              aria-label={`${t`Decline invitation`}: ${group.name}`}
-              onPress={() => onRespond("decline")}
-            >
-              <X className="size-4" aria-hidden />
-            </Button>
-          </span>
+          <InvitationActions
+            name={group.name}
+            pending={pending}
+            onAccept={() => onRespond("accept")}
+            onDecline={() => onRespond("decline")}
+          />
         ) : undefined
       }
     >

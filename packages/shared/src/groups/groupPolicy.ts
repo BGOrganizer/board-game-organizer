@@ -59,7 +59,7 @@ export function groupCapabilities(
   const member = active && (role === "admin" || role === "accepted");
   const pending = active && (role === "invited" || role === "requested");
   return {
-    canViewMembers: member || pending,
+    canViewMembers: member || pending || (active && group.type === "PUBLIC"),
     canViewEvents: member,
     canViewRankings: member,
     canSocialInteract: member,

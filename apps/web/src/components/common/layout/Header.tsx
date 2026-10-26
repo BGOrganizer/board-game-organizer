@@ -61,7 +61,7 @@ export function Header() {
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
-      <header className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:px-6 lg:px-8">
+      <header className="group/page-header mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <button
             type="button"
@@ -95,7 +95,9 @@ export function Header() {
               )}
             </svg>
           </button>
-          <div className="truncate text-sm font-semibold sm:text-base">Board Game Organizer</div>
+          <div className="truncate text-sm font-semibold sm:text-base group-has-[h1]/page-header:hidden">
+            Board Game Organizer
+          </div>
         </div>
         <Show
           when="signed-in"
@@ -142,6 +144,7 @@ export function Header() {
             <UserButton />
           </div>
         </Show>
+        <div id="page-header-actions" className="shrink-0 empty:hidden" />
       </header>
       {isMenuOpen && (
         <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-separator lg:hidden">

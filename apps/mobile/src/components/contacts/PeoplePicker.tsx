@@ -16,11 +16,13 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function PeoplePicker({
   friendsOnly,
+  invitationGroupId,
   disabled = false,
   excludeIds = [],
   onSelect,
 }: {
   friendsOnly: boolean;
+  invitationGroupId?: string;
   disabled?: boolean;
   excludeIds?: readonly string[];
   onSelect: (person: ContactUser) => void;
@@ -30,7 +32,7 @@ export function PeoplePicker({
     filters = useListSearch<never>([]),
     insets = useSafeAreaInsets();
   const [foreground, accent] = useThemeColor(["foreground", "accent-foreground"]);
-  const list = usePeoplePicker(options, filters.search, friendsOnly);
+  const list = usePeoplePicker(options, filters.search, friendsOnly, invitationGroupId);
   return (
     <UserList
       testID="people-picker-scroll"

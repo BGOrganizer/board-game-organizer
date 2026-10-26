@@ -3,6 +3,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Crown } from "lucide-react-native";
 import { Image, View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
+import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 import { useT } from "@/lib/i18n";
 export function GroupArtwork({
   group,
@@ -33,6 +34,12 @@ export function GroupArtwork({
         >
           <Crown size={16} color={warning} />
         </View>
+      ) : null}
+      {group.role === "invited" || group.role === "requested" ? (
+        <PendingArtworkBadge
+          kind={group.role === "invited" ? "invitation" : "request"}
+          label={group.role === "invited" ? t("Invitation received") : t("Membership requested")}
+        />
       ) : null}
     </View>
   );

@@ -16,12 +16,14 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 export function PeoplePicker({
   friendsOnly,
+  invitationGroupId,
   disabled = false,
   excludeIds = [],
   onSelect,
   onClose,
 }: {
   friendsOnly: boolean;
+  invitationGroupId?: string;
   disabled?: boolean;
   excludeIds?: readonly string[];
   onSelect: (person: ContactUser) => void;
@@ -30,7 +32,7 @@ export function PeoplePicker({
   const { t } = useLingui(),
     options = useCommunityApi(),
     filters = useListSearch<never>([]);
-  const list = usePeoplePicker(options, filters.search, friendsOnly);
+  const list = usePeoplePicker(options, filters.search, friendsOnly, invitationGroupId);
   const end = useInfiniteScroll({
     hasNextPage: list.hasNextPage,
     isFetchingNextPage: list.isFetchingNextPage,

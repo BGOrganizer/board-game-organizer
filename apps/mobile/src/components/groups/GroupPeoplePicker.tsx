@@ -57,6 +57,7 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
       <Stack.Screen options={{ title: t("Invite friends") }} />
       <PeoplePicker
         friendsOnly
+        invitationGroupId={groupId}
         disabled={actions.busy}
         onSelect={(person) => void invite(person.id)}
       />

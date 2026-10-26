@@ -5,6 +5,7 @@ import {
   type CreateGroupRecordInput,
   type DecideGroupMembershipInput,
   type DecideGroupReviewInput,
+  type DeleteGroupRecordInput,
   type EditGroupRecordInput,
   type GroupMembership,
   type GroupPersonResponse,
@@ -50,6 +51,12 @@ export class GroupRecordsService {
   }
   private admin(group: GroupRecord, userId: string) {
     if (group.adminUserId !== userId) throw new CommunityError(403, "GROUP_ADMIN_REQUIRED");
+  }
+  async remove(userId: string, id: string, input: DeleteGroupRecordInput) {
+    const group = await this.required(id, true);
+    this.admin(group, userId);
+    if (group.version !== input.version) throw new CommunityError(409, "GROUP_CHANGED");
+    return this.groups.remove(id);
   }
   private async noBan(groupId: string, userId: string) {
     if (groupBanIsActive(await this.groups.ban(groupId, userId), Date.now()))
@@ -284,6 +291,24 @@ export class GroupRecordsService {
       (await this.relationships.isBlocked(actor, target))
     )
       throw new CommunityError(403, "CONFIRMED_FRIEND_REQUIRED");
+  }
+  async invitationCandidates(userId: string, id: string, page: GroupRecordPage) {
+    const group = await this.required(id);
+    this.admin(group, userId);
+    if (!group.approved) throw new CommunityError(409, "GROUP_NOT_APPROVED");
+    const rows = await this.groups.invitationCandidates(id, userId, page);
+    return {
+      items: rows.slice(0, page.limit).map((row) => ({
+        id: row.clerkId,
+        name: row.name,
+        email: row.email,
+        username: row.username ?? null,
+        avatarUrl: row.avatarUrl ?? null,
+        presence: row.presence,
+        isFriend: true,
+      })),
+      nextCursor: rows.length > page.limit ? rows[page.limit - 1].clerkId : null,
+    };
   }
   async invite(userId: string, id: string, target: string) {
     const group = await this.required(id, true);

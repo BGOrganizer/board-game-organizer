@@ -1,9 +1,15 @@
 "use client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
+import { groupInviteesPageQuery } from "../../groups/hooks/useGroupRecords";
 import { type ContactUser, useRelationshipList } from "./useContacts";
 /** Paged identity selection; local search text remains in each platform's UI. */
-export function usePeoplePicker(options: CommunityApiOptions, query: string, friendsOnly: boolean) {
+export function usePeoplePicker(
+  options: CommunityApiOptions,
+  query: string,
+  friendsOnly: boolean,
+  invitationGroupId?: string,
+) {
   const searching = query.trim().length >= 4,
     normalized = searching ? query.trim() : "";
   const friends = useRelationshipList(
@@ -13,7 +19,7 @@ export function usePeoplePicker(options: CommunityApiOptions, query: string, fri
     options.protectionBypass,
     options.userId,
     "friends",
-    options.enabled !== false && friendsOnly && !searching,
+    options.enabled !== false && friendsOnly && !searching && !invitationGroupId,
   );
   const search = useInfiniteQuery({
     queryKey: ["contacts", "picker", options.apiUrl, options.userId, friendsOnly, normalized],
@@ -32,20 +38,33 @@ export function usePeoplePicker(options: CommunityApiOptions, query: string, fri
         signal,
       );
     },
-    enabled: Boolean(options.userId && options.apiUrl && options.enabled !== false && searching),
+    enabled: Boolean(
+      options.userId &&
+        options.apiUrl &&
+        options.enabled !== false &&
+        searching &&
+        !invitationGroupId,
+    ),
     initialPageParam: "",
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: 30_000,
     gcTime: 30 * 60_000,
   });
-  const source = searching ? search : friends;
-  const needsSearch = !friendsOnly && !searching;
+  const invitees = useInfiniteQuery(
+    groupInviteesPageQuery(options, invitationGroupId ?? "", normalized),
+  );
+  const source = invitationGroupId ? invitees : searching ? search : friends;
+  const needsSearch = !invitationGroupId && !friendsOnly && !searching;
   return {
-    items: searching
-      ? (search.data?.pages.flatMap((page) => page.users) ?? [])
-      : friendsOnly
-        ? (friends.data ?? []).flatMap((row) => (row.profile ? [row.profile] : []))
-        : [],
+    items: invitationGroupId
+      ? (invitees.data?.pages
+          .flatMap((page) => page.items)
+          .filter((row) => !row.optimisticInvited) ?? [])
+      : searching
+        ? (search.data?.pages.flatMap((page) => page.users) ?? [])
+        : friendsOnly
+          ? (friends.data ?? []).flatMap((row) => (row.profile ? [row.profile] : []))
+          : [],
     needsSearch,
     isPending: !needsSearch && source.isPending,
     isError: !needsSearch && source.isError,

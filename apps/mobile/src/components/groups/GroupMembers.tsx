@@ -13,6 +13,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
   Ban,
+  Check,
   ClipboardCheck,
   Clock3,
   Crown,
@@ -20,6 +21,7 @@ import {
   RotateCcw,
   UserRoundMinus,
   UsersRound,
+  X,
 } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
@@ -232,11 +234,13 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   {
                     label: t("Approve"),
                     variant: "primary",
+                    icon: <Check size={18} color={accent} />,
                     onPress: () => void workflow.confirm("approve"),
                   },
                   {
                     label: t("Reject"),
                     variant: "danger",
+                    icon: <X size={18} color={dangerForeground} />,
                     onPress: () => void workflow.confirm("reject"),
                   },
                 ]

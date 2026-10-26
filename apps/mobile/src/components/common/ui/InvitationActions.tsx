@@ -7,18 +7,25 @@ import { useT } from "@/lib/i18n";
 export function InvitationActions({
   placement,
   name,
+  acceptLabel,
+  declineLabel,
   pending,
   onAccept,
   onDecline,
 }: {
   placement: "card" | "detail";
   name?: string;
+  acceptLabel?: string;
+  declineLabel?: string;
   pending: boolean;
   onAccept: () => void;
   onDecline: () => void;
 }) {
   const t = useT();
-  const success = useThemeColor("success");
+  const [accentForeground, dangerForeground] = useThemeColor([
+    "accent-foreground",
+    "danger-soft-foreground",
+  ]);
   const label = (action: string) => (name ? `${action}: ${name}` : action);
   return (
     <View
@@ -31,27 +38,26 @@ export function InvitationActions({
       <Button
         isIconOnly
         size="sm"
-        variant="outline"
-        accessibilityLabel={label(t("Decline"))}
+        variant="danger-soft"
+        accessibilityLabel={label(declineLabel ?? t("Decline"))}
         style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
         hitSlop={4}
         isDisabled={pending}
         onPress={onDecline}
       >
-        <X size={14} color="#6b7280" />
+        <X size={14} color={dangerForeground} accessible={false} />
       </Button>
       <Button
         isIconOnly
         size="sm"
-        variant={placement === "card" ? "outline" : "primary"}
-        className={placement === "card" ? "bg-surface" : undefined}
-        accessibilityLabel={label(t("Accept"))}
+        variant="primary"
+        accessibilityLabel={label(acceptLabel ?? t("Accept"))}
         style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
         hitSlop={4}
         isDisabled={pending}
         onPress={onAccept}
       >
-        <Check size={14} color={placement === "card" ? success : "#fff"} />
+        <Check size={14} color={accentForeground} accessible={false} />
       </Button>
     </View>
   );

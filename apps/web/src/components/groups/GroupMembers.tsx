@@ -10,12 +10,14 @@ import { Avatar, Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
   Ban,
+  Check,
   ClipboardCheck,
   Clock3,
   Crown,
   RotateCcw,
   UserRoundMinus,
   UserRoundPlus,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
@@ -228,11 +230,13 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                   {
                     label: t`Approve`,
                     variant: "primary",
+                    icon: <Check className="size-4" aria-hidden />,
                     onPress: () => void workflow.confirm("approve"),
                   },
                   {
                     label: t`Reject`,
                     variant: "danger",
+                    icon: <X className="size-4" aria-hidden />,
                     onPress: () => void workflow.confirm("reject"),
                   },
                 ]

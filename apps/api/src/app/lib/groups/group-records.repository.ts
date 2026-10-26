@@ -3,6 +3,7 @@ import type {
   GroupMembership,
   GroupRecord,
   GroupRecordListRole,
+  User,
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
@@ -19,7 +20,10 @@ export class GroupRecordsRepository {
   private bans;
   private events;
   private opts;
-  constructor(db: Db, session?: ClientSession) {
+  constructor(
+    private db: Db,
+    session?: ClientSession,
+  ) {
     this.groups = db.collection<GroupRecord & { transactionLock?: number }>(COLLECTIONS.GROUPS);
     this.memberships = db.collection<GroupMembership>(COLLECTIONS.GROUP_MEMBERSHIPS);
     this.bans = db.collection<GroupBan>(COLLECTIONS.GROUP_BANS);
@@ -39,6 +43,140 @@ export class GroupRecordsRepository {
       { ...this.opts, returnDocument: "after", projection: { _id: 0, transactionLock: 0 } },
     );
   }
+  async invitationCandidates(groupId: string, actor: string, page: GroupRecordPage) {
+    const now = new Date().toISOString();
+    const query = page.query?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return this.db
+      .collection(COLLECTIONS.FRIEND_REQUESTS)
+      .aggregate<User>(
+        [
+          { $match: { fromUserId: actor, status: "accepted" } },
+          { $group: { _id: "$toUserId" } },
+          {
+            $lookup: {
+              from: COLLECTIONS.FRIEND_REQUESTS,
+              let: { target: "$_id" },
+              pipeline: [
+                {
+                  $match: {
+                    toUserId: actor,
+                    status: "accepted",
+                    $expr: { $eq: ["$fromUserId", "$$target"] },
+                  },
+                },
+                { $limit: 1 },
+              ],
+              as: "reverse",
+            },
+          },
+          { $match: { "reverse.0": { $exists: true } } },
+          {
+            $lookup: {
+              from: COLLECTIONS.USERS,
+              localField: "_id",
+              foreignField: "clerkId",
+              as: "profile",
+            },
+          },
+          { $unwind: "$profile" },
+          { $replaceWith: "$profile" },
+          {
+            $match: {
+              clerkId: { $ne: actor, ...(page.cursor ? { $gt: page.cursor } : {}) },
+              ...(query
+                ? {
+                    $or: ["name", "email", "username"].map((field) => ({
+                      [field]: { $regex: query, $options: "i" },
+                    })),
+                  }
+                : {}),
+            },
+          },
+          {
+            $lookup: {
+              from: COLLECTIONS.GROUP_MEMBERSHIPS,
+              localField: "clerkId",
+              foreignField: "userId",
+              pipeline: [
+                { $match: { groupId, status: { $in: ["PENDING", "ACCEPTED"] } } },
+                { $limit: 1 },
+              ],
+              as: "membership",
+            },
+          },
+          {
+            $lookup: {
+              from: COLLECTIONS.BLOCKS,
+              let: { target: "$clerkId" },
+              pipeline: [
+                {
+                  $match: {
+                    $expr: {
+                      $or: [
+                        {
+                          $and: [
+                            { $eq: ["$fromUserId", actor] },
+                            { $eq: ["$toUserId", "$$target"] },
+                          ],
+                        },
+                        {
+                          $and: [
+                            { $eq: ["$toUserId", actor] },
+                            { $eq: ["$fromUserId", "$$target"] },
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                },
+                { $limit: 1 },
+              ],
+              as: "block",
+            },
+          },
+          {
+            $lookup: {
+              from: COLLECTIONS.GROUP_BANS,
+              localField: "clerkId",
+              foreignField: "userId",
+              pipeline: [
+                {
+                  $match: {
+                    groupId,
+                    revokedAt: { $exists: false },
+                    $or: [{ until: null }, { until: { $gt: now } }],
+                  },
+                },
+                { $limit: 1 },
+              ],
+              as: "ban",
+            },
+          },
+          {
+            $match: {
+              "membership.0": { $exists: false },
+              "block.0": { $exists: false },
+              "ban.0": { $exists: false },
+            },
+          },
+          { $sort: { clerkId: 1 } },
+          { $limit: page.limit + 1 },
+          {
+            $project: {
+              _id: 0,
+              clerkId: 1,
+              name: 1,
+              email: 1,
+              username: 1,
+              avatarUrl: 1,
+              presence: 1,
+            },
+          },
+        ],
+        this.opts,
+      )
+      .toArray();
+  }
   async create(group: GroupRecord) {
     await this.groups.insertOne({ ...group }, this.opts);
     return group;
@@ -50,6 +188,46 @@ export class GroupRecordsRepository {
       this.opts,
     );
     return group;
+  }
+  /** Caller holds the Group lock in the same transaction as every dependent deletion. */
+  async remove(groupId: string) {
+    const events = await this.events
+      .find(
+        { groupId, status: { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] } },
+        { ...this.opts, projection: { _id: 0, id: 1 } },
+      )
+      .toArray();
+    // ponytail: one atomic transaction; use a separately designed deletion job if group size exceeds MongoDB transaction limits.
+    for (const { id: eventId } of events) {
+      for (const collection of [
+        COLLECTIONS.TABLE_REGISTRATIONS,
+        COLLECTIONS.EVENT_VOTES,
+        COLLECTIONS.EVENT_TABLES,
+      ])
+        await this.db.collection(collection).deleteMany({ eventId }, this.opts);
+      await this.db
+        .collection(COLLECTIONS.RATING_EVENTS)
+        .deleteMany({ eventId, tableId: { $exists: true } }, this.opts);
+      await this.db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .deleteMany({ href: { $regex: `^/events/${eventId}(?:[/?#]|$)` } }, this.opts);
+      await this.events.deleteOne({ id: eventId }, this.opts);
+    }
+    await this.memberships.deleteMany({ groupId }, this.opts);
+    await this.bans.deleteMany({ groupId }, this.opts);
+    await this.db.collection(COLLECTIONS.GROUP_ASSETS).deleteMany({ groupId }, this.opts);
+    // GLOBAL skill snapshots are personal data shared with other Groups, not Group-owned history.
+    await this.db
+      .collection(COLLECTIONS.PLAYER_RATINGS)
+      .deleteMany({ scope: "GROUP", groupId }, this.opts);
+    await this.db
+      .collection(COLLECTIONS.RATING_EVENTS)
+      .deleteMany({ scope: "GROUP", groupId, tableId: { $exists: true } }, this.opts);
+    await this.db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .deleteMany({ href: { $regex: `^/(?:groups|moderation)/${groupId}(?:[/?#]|$)` } }, this.opts);
+    await this.groups.deleteOne({ id: groupId, type: { $in: ["PRIVATE", "PUBLIC"] } }, this.opts);
+    return { id: groupId, eventIds: events.map((event) => event.id as string) };
   }
   membership(groupId: string, userId: string) {
     return this.memberships.findOne({ groupId, userId }, { ...this.opts, projection: { _id: 0 } });

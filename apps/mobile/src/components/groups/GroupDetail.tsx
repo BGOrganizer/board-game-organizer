@@ -10,7 +10,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { Pencil } from "lucide-react-native";
+import { LogOut, Pencil, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -21,6 +21,8 @@ import { Events } from "@/components/events/Events";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
+import { GroupInvitationCard } from "./GroupInvitationCard";
+import { GroupJoinRequest } from "./GroupJoinRequest";
 import { GroupLeaderboard } from "./GroupLeaderboard";
 import { GroupMembers } from "./GroupMembers";
 export function GroupDetail({
@@ -28,21 +30,52 @@ export function GroupDetail({
   initialTab = "info",
 }: {
   groupId: string;
-  initialTab?: "info" | "members";
+  initialTab?: "info" | "members" | "events";
 }) {
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
     accentForeground = useThemeColor("accent-foreground"),
+    dangerForeground = useThemeColor("danger-foreground"),
     q = useGroupRecord(o, groupId),
     a = useGroupRecordActions(o),
     [tab, setTab] = useState<string>(initialTab),
-    [confirm, setConfirm] = useState<"decline" | "cancel" | null>(null),
+    [confirm, setConfirm] = useState<"decline" | "cancel" | "delete" | null>(null),
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
+  const header = (
+    <Stack.Screen
+      options={{
+        title: group?.name ?? t("Group details"),
+        headerRight: () =>
+          group?.canEdit ||
+          (group?.role === "accepted" && group.myMembership?.status === "ACCEPTED") ? (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="danger"
+              isDisabled={a.busy}
+              accessibilityLabel={group?.canEdit ? t("Delete group") : t("Leave group")}
+              style={{ minWidth: 44, minHeight: 44 }}
+              onPress={() => {
+                setError(false);
+                setConfirm(group?.canEdit ? "delete" : "cancel");
+              }}
+            >
+              {group?.canEdit ? (
+                <Trash2 size={20} color={dangerForeground} />
+              ) : (
+                <LogOut size={20} color={dangerForeground} />
+              )}
+            </Button>
+          ) : null,
+      }}
+    />
+  );
   if (!group)
     return (
       <View style={{ padding: 20, gap: 12 }}>
+        {header}
         {q.isPending ? (
           <Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />
         ) : (
@@ -57,9 +90,18 @@ export function GroupDetail({
         )}
       </View>
     );
-  const run = async (action: "request" | "accept" | "decline" | "cancel") => {
+  const run = async (action: "request" | "accept" | "decline" | "cancel" | "delete") => {
     setError(false);
     try {
+      if (action === "delete") {
+        await a.remove.mutateAsync({
+          id: group.id,
+          input: { version: group.version, deleteEvents: true },
+        });
+        setConfirm(null);
+        router.replace("/(tabs)/groups");
+        return;
+      }
       if (action === "request") await a.requestJoin.mutateAsync(group.id);
       else if (group.myMembership)
         await a.membership.mutateAsync({
@@ -72,50 +114,31 @@ export function GroupDetail({
       setError(true);
     }
   };
+  const bodyActions = ownGroupActions(group).filter(
+    (action) => action === "request" || (action === "cancel" && group.role !== "accepted"),
+  );
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: group.name }} />
+      {header}
       <View style={{ paddingHorizontal: 20, gap: 8 }}>
-        {group.role === "invited" || group.role === "requested" ? (
-          <Typography className="text-muted">
-            {t(
-              "Membership pending. Events, rankings and group social actions are unavailable until acceptance.",
-            )}
-          </Typography>
-        ) : null}
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {ownGroupActions(group).map((action) => (
-            <Button
-              key={action}
-              size="sm"
-              isDisabled={a.busy}
-              variant={action === "cancel" || action === "decline" ? "danger-soft" : "primary"}
-              onPress={() =>
-                action === "cancel" || action === "decline" ? setConfirm(action) : void run(action)
-              }
-            >
-              <Button.Label>
-                {action === "request"
-                  ? t("Request membership")
-                  : action === "accept"
-                    ? t("Accept invitation")
-                    : action === "decline"
-                      ? t("Decline invitation")
-                      : group.role === "accepted"
-                        ? t("Leave group")
-                        : t("Cancel request")}
-              </Button.Label>
-            </Button>
-          ))}
-        </View>
         {error ? (
           <Typography accessibilityRole="alert" className="text-danger">
-            {t("Could not update group membership")}
+            {confirm === "delete"
+              ? t("Could not delete group")
+              : t("Could not update group membership")}
           </Typography>
         ) : null}
       </View>
-      <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
-        <View style={{ alignItems: "center" }}>
+      <Tabs
+        value={
+          (tab === "events" && !group.canViewEvents) || (tab === "members" && !group.canViewMembers)
+            ? "info"
+            : tab
+        }
+        onValueChange={setTab}
+        style={{ flex: 1 }}
+      >
+        <View style={{ alignSelf: "center", marginTop: 16, maxWidth: "100%" }}>
           <TabBar>
             {[
               ["info", t("Overview")],
@@ -145,15 +168,38 @@ export function GroupDetail({
           ) : tab === "events" && group.canViewEvents ? (
             <Events groupId={group.id} canCreate={group.role === "admin" && group.canInvite} />
           ) : tab === "rankings" && group.canViewRankings ? (
-            <GroupLeaderboard groupId={group.id} />
+            <View style={{ flex: 1, paddingHorizontal: 20 }}>
+              <GroupLeaderboard groupId={group.id} />
+            </View>
           ) : (
             <ScreenScrollView>
               <GroupDetailsCard group={group} />
+              {bodyActions.length ? (
+                <GroupJoinRequest
+                  pending={group.role === "requested"}
+                  busy={a.busy}
+                  onRequest={() => void run("request")}
+                  onCancel={() => {
+                    setError(false);
+                    setConfirm("cancel");
+                  }}
+                />
+              ) : null}
+              {group.role === "invited" ? (
+                <GroupInvitationCard
+                  busy={a.busy}
+                  onAccept={() => void run("accept")}
+                  onDecline={() => {
+                    setError(false);
+                    setConfirm("decline");
+                  }}
+                />
+              ) : null}
             </ScreenScrollView>
           )}
         </View>
       </Tabs>
-      {group.canEdit ? (
+      {group.canEdit && tab === "info" ? (
         <FloatingActions
           label={t("Edit group")}
           isDisabled={a.busy}
@@ -162,19 +208,43 @@ export function GroupDetail({
           <Pencil size={24} color={accentForeground} />
         </FloatingActions>
       ) : null}
-      {confirm ? (
+      {confirm && (confirm !== "delete" || group.canEdit) ? (
         <ConfirmDialog
-          title={group.role === "accepted" ? t("Leave group") : t("Cancel membership")}
-          description={t(
-            "Active table registrations are removed. Historical results remain unchanged.",
-          )}
+          title={
+            confirm === "delete"
+              ? t("Delete group")
+              : group.role === "accepted"
+                ? t("Leave group")
+                : t("Cancel membership")
+          }
+          description={
+            confirm === "delete"
+              ? t(
+                  "Permanently delete this group and all its events, tables, registrations, votes, results and group rankings? Personal GLOBAL ratings remain unchanged. This cannot be undone.",
+                )
+              : t("Active table registrations are removed. Historical results remain unchanged.")
+          }
           busy={a.busy}
-          onCancel={() => setConfirm(null)}
-          actions={[{ label: t("Confirm"), variant: "danger", onPress: () => void run(confirm) }]}
+          onCancel={() => {
+            setConfirm(null);
+            setError(false);
+          }}
+          actions={[
+            {
+              label: confirm === "delete" ? t("Delete group and events") : t("Confirm"),
+              variant: "danger",
+              onPress: () => void run(confirm),
+              ...(confirm === "delete"
+                ? { icon: <Trash2 size={18} color={dangerForeground} /> }
+                : {}),
+            },
+          ]}
         >
           {error ? (
             <Typography accessibilityRole="alert" className="text-danger">
-              {t("Could not update group membership")}
+              {confirm === "delete"
+                ? t("Could not delete group")
+                : t("Could not update group membership")}
             </Typography>
           ) : null}
         </ConfirmDialog>

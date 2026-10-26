@@ -87,7 +87,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
             input: { ...fields, version: baseVersion },
           })
         : await actions.create.mutateAsync(valid.data);
-      router.replace(`/groups/${row.id}`);
+      router.replace(group ? `/groups/${row.id}` : "/groups");
     } catch {
       setError(t`Could not save group`);
     }

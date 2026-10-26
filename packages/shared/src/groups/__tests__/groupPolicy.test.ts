@@ -94,6 +94,28 @@ describe("group roles and visibility", () => {
   });
 });
 describe("scoped capabilities", () => {
+  it("allows only approved, non-banned public roster browsing before requesting, never social/events/rankings", () => {
+    const publicGroup = { ...group, type: "PUBLIC" as const };
+    const browseOnly = {
+      canViewMembers: true,
+      canViewEvents: false,
+      canViewRankings: false,
+      canSocialInteract: false,
+      canInvite: false,
+      canEdit: false,
+    };
+    expect(groupCapabilities(publicGroup, "user_member", null, null, now)).toEqual(browseOnly);
+    expect(
+      groupCapabilities(publicGroup, "user_member", { ...membership, status: "LEFT" }, null, now),
+    ).toEqual(browseOnly);
+    expect(groupCapabilities(publicGroup, "user_member", null, ban, now).canViewMembers).toBe(
+      false,
+    );
+    expect(
+      groupCapabilities({ ...publicGroup, approved: undefined }, "user_member", null, null, now)
+        .canViewMembers,
+    ).toBe(false);
+  });
   it("allows pending roster access but no group social actions, events or rankings", () => {
     for (const kind of ["INVITATION", "REQUEST"] as const) {
       expect(groupCapabilities(group, "user_member", { ...membership, kind }, null, now)).toEqual({

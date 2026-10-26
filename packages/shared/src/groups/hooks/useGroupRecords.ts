@@ -4,6 +4,8 @@ import type {
   CreateGroupRecordInput,
   DecideGroupMembershipInput,
   DecideGroupReviewInput,
+  DeletedGroupRecordResponse,
+  DeleteGroupRecordInput,
   EditGroupRecordInput,
   GroupBan,
   GroupMembership,
@@ -28,6 +30,12 @@ import {
   communityRequest,
 } from "../../community/communityApi";
 import { mapCommunityCache, restoreCommunityFields } from "../../community/queryCache";
+import type { ContactUser } from "../../contacts/hooks/useContacts";
+import {
+  belongsToDeletedGroup,
+  removeDeletedGroupData,
+  restoreDeletedGroup,
+} from "../groupDeletionCache";
 export type GroupRecordScope = "mine" | "public" | "moderation";
 export type GroupPeopleScope = "accepted" | "pending" | "bans";
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
@@ -83,6 +91,24 @@ export function groupRecordsPageQuery(
     initialPageParam: "",
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+  });
+}
+export function groupInviteesPageQuery(options: CommunityApiOptions, id: string, query = "") {
+  return infiniteQueryOptions({
+    queryKey: [...groupRecordKeys.root(options), "invitees", id, query],
+    queryFn: ({ pageParam, signal }) =>
+      communityRequest<CommunityPageResponse<ContactUser & { optimisticInvited?: boolean }>>(
+        options,
+        communityPagePath(`groups/${encodeURIComponent(id)}/invitees`, query, pageParam),
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: Boolean(options.apiUrl && options.userId && id && options.enabled !== false),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: 30_000,
     gcTime: 30 * 60_000,
   });
 }
@@ -195,6 +221,7 @@ export function useGroupRecordActions(options: CommunityApiOptions) {
     id?: string,
     groupChange?: (row: GroupRecordResponse) => GroupRecordResponse,
     personChange?: (row: GroupPersonResponse) => GroupPersonResponse,
+    inviteeId?: string,
   ) {
     await client.cancelQueries({
       queryKey: root,
@@ -202,6 +229,19 @@ export function useGroupRecordActions(options: CommunityApiOptions) {
     });
     const undo: Array<() => void> = [];
     for (const [key, data] of client.getQueriesData({ queryKey: root })) {
+      if (action === "delete_group" && id && key[3] === "list") {
+        client.setQueryData(key, removeDeletedGroupData(data, id, new Set()));
+        undo.push(() =>
+          client.setQueryData(key, (current: unknown) =>
+            restoreDeletedGroup(
+              current,
+              data,
+              id,
+              client.getQueryData<GroupRecordResponse>(groupRecordKeys.detail(options, id)),
+            ),
+          ),
+        );
+      }
       if (
         groupChange &&
         (key[3] === "list" || (key[3] === "detail" && key[4] === id && key.length === 5))
@@ -221,6 +261,24 @@ export function useGroupRecordActions(options: CommunityApiOptions) {
             return optimistic;
           }),
         );
+      if (inviteeId && key[3] === "invitees" && key[4] === id) {
+        type Candidate = ContactUser & { optimisticInvited?: boolean };
+        client.setQueryData(
+          key,
+          mapCommunityCache<Candidate>(data, (row) => {
+            if (row.id !== inviteeId) return row;
+            const optimistic = { ...row, optimisticInvited: true };
+            undo.push(() =>
+              client.setQueryData(key, (current: unknown) =>
+                mapCommunityCache<Candidate>(current, (value) =>
+                  value.id === inviteeId ? restoreCommunityFields(value, row, optimistic) : value,
+                ),
+              ),
+            );
+            return optimistic;
+          }),
+        );
+      }
       if (personChange && key[3] === "people" && key[4] === id)
         client.setQueryData(
           key,
@@ -241,7 +299,7 @@ export function useGroupRecordActions(options: CommunityApiOptions) {
         );
     }
     options.feedback?.onOptimisticUpdate?.(action);
-    return { undo, action, id };
+    return { undo, action, id, owner: { apiUrl: options.apiUrl, userId: options.userId } };
   }
   function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
     for (const restore of context?.undo ?? []) restore();
@@ -305,6 +363,81 @@ export function useGroupRecordActions(options: CommunityApiOptions) {
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
+  const remove = useMutation({
+    mutationKey: root,
+    mutationFn: ({ id, input }: { id: string; input: DeleteGroupRecordInput }) =>
+      communityRequest<DeletedGroupRecordResponse>(
+        options,
+        `groups/${encodeURIComponent(id)}`,
+        "DELETE",
+        input,
+      ),
+    onMutate: ({ id }) => begin("delete_group", id),
+    onSuccess: async (deleted, _input, context) => {
+      const owner = context?.owner ?? options;
+      const eventIds = new Set(deleted.eventIds);
+      const owned = {
+        predicate: (query: { queryKey: readonly unknown[]; state: { data: unknown } }) => {
+          const key = query.queryKey;
+          if (key[1] !== owner.apiUrl || key[2] !== owner.userId) return false;
+          if (key[0] === "groups") return key[3] === "list" || key[4] === deleted.id;
+          if (key[0] === "notifications") return true;
+          if (key[0] !== "events" && key[0] !== "tables") return false;
+          if (key[3] === "list") {
+            const filters = key[4];
+            return (
+              !filters ||
+              typeof filters !== "object" ||
+              !("groupId" in filters) ||
+              !filters.groupId ||
+              filters.groupId === deleted.id
+            );
+          }
+          return (
+            (key[3] === "tables" && key[4] === null) ||
+            (typeof key[4] === "string" && eventIds.has(key[4])) ||
+            belongsToDeletedGroup(query.state.data, deleted.id, eventIds)
+          );
+        },
+      };
+      await client.cancelQueries(owned);
+      for (const query of client.getQueryCache().findAll(owned)) {
+        const key = query.queryKey;
+        const groupResource = key[0] === "groups" && key[4] === deleted.id;
+        const eventResource =
+          key[0] === "events" && typeof key[4] === "string" && eventIds.has(key[4]);
+        if (
+          groupResource ||
+          eventResource ||
+          belongsToDeletedGroup(query.state.data, deleted.id, eventIds)
+        )
+          client.removeQueries({ queryKey: key, exact: true });
+        else
+          client.setQueryData(key, removeDeletedGroupData(query.state.data, deleted.id, eventIds));
+      }
+      // Acknowledged deletion already reconciles cached rows; refresh remaining lists in background.
+      void client.invalidateQueries({
+        predicate: (query) =>
+          owned.predicate(query) &&
+          (query.queryKey[0] === "notifications" ||
+            (query.queryKey[0] === "groups" && query.queryKey[3] === "list") ||
+            (query.queryKey[0] === "events" &&
+              query.queryKey[3] === "tables" &&
+              query.queryKey[4] === null) ||
+            (query.queryKey[0] === "events" &&
+              query.queryKey[3] === "list" &&
+              !(
+                typeof query.queryKey[4] === "object" &&
+                query.queryKey[4] &&
+                "groupId" in query.queryKey[4] &&
+                query.queryKey[4].groupId === deleted.id
+              ))),
+      });
+    },
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: (data, error, input, context) =>
+      error ? settle(data, error, input, context) : undefined,
+  });
   const review = useMutation({
     mutationKey: root,
     mutationFn: ({ id, input }: { id: string; input: DecideGroupReviewInput }) =>
@@ -342,7 +475,7 @@ export function useGroupRecordActions(options: CommunityApiOptions) {
         "POST",
         { userId },
       ),
-    onMutate: ({ id }) => begin("invite_group_member", id),
+    onMutate: ({ id, userId }) => begin("invite_group_member", id, undefined, undefined, userId),
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
@@ -409,5 +542,5 @@ export function useGroupRecordActions(options: CommunityApiOptions) {
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
-  return { create, update, review, requestJoin, invite, membership, ban, revoke, busy };
+  return { create, update, remove, review, requestJoin, invite, membership, ban, revoke, busy };
 }

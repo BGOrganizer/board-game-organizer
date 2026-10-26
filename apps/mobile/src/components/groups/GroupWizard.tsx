@@ -116,7 +116,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
             input: { ...revision, version: baseVersion },
           })
         : await actions.create.mutateAsync(valid.data);
-      router.dismissTo(`/group/${row.id}`);
+      router.dismissTo(group ? `/group/${row.id}` : "/(tabs)/groups");
     } catch {
       setError(t("Could not save group"));
     }
@@ -148,7 +148,11 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
       keyboardVerticalOffset={insets.top + 56}
     >
       <Stack.Screen
-        options={{ title: group ? t("Edit group") : t("New group"), headerLeft: undefined }}
+        options={{
+          title: group ? t("Edit group") : t("New group"),
+          headerLeft: undefined,
+          headerBackVisible: true,
+        }}
       />
       <FlatList
         style={{ flex: 1 }}
