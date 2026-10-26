@@ -47,6 +47,8 @@ export default defineConfig({
           "events/hooks/useEventTableContext.ts",
           "events/hooks/useEventTableParticipation.ts",
           "events/hooks/useEventTableMatch.ts",
+          "events/hooks/useTableLeaderboard.ts",
+          "events/hooks/useEventJoinForm.ts",
           "groups/hooks/usePublicGroups.ts",
         ].map((file) =>
           fileURLToPath(new URL(`../../packages/shared/src/${file}`, import.meta.url)).replaceAll(
@@ -87,6 +89,40 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/events/{EventResultTableCard,EventTableResults,EventTableLeaderboard,EventPlayerCard,EventJoinSheet}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "../../packages/shared/src/events/hooks/{useTableLeaderboard,useEventJoinForm}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/{PendingArtworkBadge,InvitationActions}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventTableCard,EventTableInvitationActions}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventDetailsCard,EventStatusBadge,EventTableInfo,EventVoteLegend}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/components/events/{EventDraftTableCard,EventTableRatingBadge}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/groups/{GroupInvitationCard,GroupJoinRequest}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/{community/hooks/usePeopleSocialActions,groups/hooks/useGroupSocialActions}.ts":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/components/common/ui/{AnimatedDicebearArtwork,DateTimeInfo}.tsx": {
@@ -131,7 +167,14 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventTableCardBody,EventTableCard,EventDetail}.tsx": {
+        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableSummaryCard,EventTableRatingBadge,EventTableInfo,EventTableSeats,EventVoteButtons,EventVoteCounts,EventDetail}.tsx":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
+        "src/components/common/layout/HeaderActions.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,

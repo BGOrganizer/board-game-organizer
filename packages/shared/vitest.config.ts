@@ -8,9 +8,11 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       include: [
         "src/events/eventAgreement.ts",
+        "src/events/eventJoinAvailability.ts",
         "src/events/eventRecordPolicy.ts",
         "src/groups/groupPolicy.ts",
         "src/groups/groupBanForm.ts",
+        "src/groups/groupDeletionCache.ts",
         "src/community/queryCache.ts",
         "src/community/logoUpload.ts",
         "src/groups/groupLogoUpload.ts",
@@ -20,6 +22,9 @@ export default defineConfig({
         "src/events/tableScoreForm.ts",
         "src/events/eventTablePeople.ts",
         "src/events/eventTableSeats.ts",
+        "src/events/eventTableRoster.ts",
+        "src/events/eventVotes.ts",
+        "src/events/eventSchedule.ts",
         "src/events/eventTableEditInput.ts",
         "src/events/eventList.ts",
         "src/community/communityApi.ts",
@@ -37,13 +42,20 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
-        "src/events/{eventRecordForm,tableScoreForm,eventTablePeople}.ts": {
+        "src/events/{eventRecordForm,tableScoreForm,eventTablePeople,eventVotes,eventTableRoster,eventSchedule,eventJoinAvailability}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
+        "src/{community/logoUpload,groups/groupLogoUpload}.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/{community/logoUpload,groups/groupLogoUpload}.ts": {
+        "src/groups/groupDeletionCache.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
