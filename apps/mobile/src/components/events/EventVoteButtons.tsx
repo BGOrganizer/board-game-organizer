@@ -2,7 +2,7 @@ import type { EventVote } from "@board-game-organizer/schemas";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import { Check, HelpCircle, Minus, X } from "lucide-react-native";
+import { Check, Minus, Vote, X } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -12,21 +12,19 @@ export function EventVoteButtons({
   label,
   busy,
   onChange,
-  allowUnknown = true,
   inline = false,
   disabledVotes = [],
 }: {
   value?: EventVote;
   label: string;
   busy: boolean;
-  onChange: (vote: EventVote) => void;
-  allowUnknown?: boolean;
+  onChange: (vote: Exclude<EventVote, "UNKNOWN">) => void;
   inline?: boolean;
   disabledVotes?: readonly EventVote[];
 }) {
   const t = useT(),
     [open, setOpen] = useState(false);
-  const [success, warning, danger, unknown, accentForeground] = useThemeColor([
+  const [success, warning, danger, foreground, accentForeground] = useThemeColor([
     "success",
     "warning",
     "danger",
@@ -37,10 +35,13 @@ export function EventVoteButtons({
     { key: "YES", text: t("Yes"), Icon: Check, color: success },
     { key: "IF_NEEDED", text: t("If needed"), Icon: Minus, color: warning },
     { key: "NO", text: t("No"), Icon: X, color: danger },
-    { key: "UNKNOWN", text: t("Unknown"), Icon: HelpCircle, color: unknown },
   ] as const;
-  const selected = options.find((option) => option.key === value) ?? options[3];
-  const choices = options.filter((option) => allowUnknown || option.key !== "UNKNOWN");
+  const selected = options.find((option) => option.key === value) ?? {
+    text: t("Choose your vote"),
+    Icon: Vote,
+    color: foreground,
+  };
+  const choices = options;
   if (inline)
     return (
       <View style={{ flexDirection: "row", gap: 4 }}>
@@ -103,7 +104,7 @@ export function EventVoteButtons({
           </View>
           {disabledVotes.includes("NO") ? (
             <Typography className="text-sm text-muted">
-              {t("Keep at least one Yes or If needed for dates and locations.")}
+              {t("Keep at least one Yes or If needed among the available options.")}
             </Typography>
           ) : null}
         </ConfirmDialog>

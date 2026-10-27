@@ -243,7 +243,9 @@ it("separates same-day clock choices, restores every proposal on replan and neve
     },
   };
   const client = mount();
-  expect(await screen.findByRole("button", { name: "2030-06-03 18:15: Unknown" })).not.toBeNull();
+  expect(
+    await screen.findByRole("button", { name: "2030-06-03 18:15: Choose your vote" }),
+  ).not.toBeNull();
   expect(screen.queryByText("Times are local to the location chosen for the event.")).toBeNull();
   expect(screen.queryByText(/Europe\/Rome|America\/New_York/)).toBeNull();
   await selectVote("2030-06-03 21:30");
@@ -281,7 +283,7 @@ it("presents public start, end and booking cutoff with the same labelled date/ti
   }
 });
 async function selectVote(label: string) {
-  fireEvent.click(await screen.findByRole("button", { name: `${label}: Unknown` }));
+  fireEvent.click(await screen.findByRole("button", { name: `${label}: Choose your vote` }));
   fireEvent.click(
     within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
       name: "Yes",
@@ -302,7 +304,7 @@ it("places aggregate votes beneath date/time and location identities without ena
     location = screen.getByLabelText("Votes: Club venue");
   expect(date.closest("li")?.querySelector("time")).not.toBeNull();
   expect(location.closest("li")?.textContent).toContain("Club venue");
-  expect(screen.queryByRole("button", { name: "Club venue: Unknown" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Club venue: Choose your vote" })).toBeNull();
 });
 it("keeps terminated events read-only when no planning agreement is returned", async () => {
   event = {

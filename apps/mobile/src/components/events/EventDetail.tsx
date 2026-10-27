@@ -202,7 +202,6 @@ export function EventDetail({ eventId }: { eventId: string }) {
                 </View>
                 {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
                   <EventVoteButtons
-                    allowUnknown={false}
                     label={eventDateWall(event, row).replace("T", " ")}
                     value={event.myVotes?.dateVotes[row.id]}
                     disabledVotes={
@@ -216,10 +215,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                         : ["NO"]
                     }
                     busy={a.busy || q.isPlaceholderData}
-                    onChange={(vote) => {
-                      if (vote !== "UNKNOWN")
-                        a.vote.mutate({ kind: "date", optionId: row.id, vote });
-                    }}
+                    onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
                   />
                 ) : null}
               </GroupedRow>
@@ -283,7 +279,6 @@ export function EventDetail({ eventId }: { eventId: string }) {
               actions={
                 event.groupType !== "PUBLIC" && event.canVote && !closed ? (
                   <EventVoteButtons
-                    allowUnknown={false}
                     label={row.name}
                     value={event.myVotes?.locationVotes[row.id]}
                     disabledVotes={
@@ -297,10 +292,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                         : ["NO"]
                     }
                     busy={a.busy || q.isPlaceholderData}
-                    onChange={(vote) => {
-                      if (vote !== "UNKNOWN")
-                        a.vote.mutate({ kind: "location", optionId: row.id, vote });
-                    }}
+                    onChange={(vote) => a.vote.mutate({ kind: "location", optionId: row.id, vote })}
                   />
                 ) : undefined
               }

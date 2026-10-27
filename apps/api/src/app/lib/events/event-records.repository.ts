@@ -1,8 +1,10 @@
 import type {
   EventRecord,
   EventVoter,
+  GroupRecord,
   TableRecord,
   TableRegistration,
+  User,
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
@@ -20,7 +22,10 @@ export class EventRecordsRepository {
   private registrations;
   private votes;
   private opts;
-  constructor(db: Db, session?: ClientSession) {
+  constructor(
+    private db: Db,
+    session?: ClientSession,
+  ) {
     this.events = db.collection<EventRecord & { transactionLock?: number }>(COLLECTIONS.EVENTS);
     this.tables = db.collection<TableRecord>(COLLECTIONS.EVENT_TABLES);
     this.registrations = db.collection<TableRegistration>(COLLECTIONS.TABLE_REGISTRATIONS);
@@ -82,6 +87,156 @@ export class EventRecordsRepository {
       { $set: { status: "CANCELLED", updatedAt: at }, $inc: { version: 1 } },
       this.opts,
     );
+  }
+  /** Filter occupied users before the cursor/limit; queue position does not change active status. */
+  invitationCandidates(
+    group: GroupRecord | null,
+    actor: string,
+    tableId: string,
+    page: EventRecordPage,
+  ) {
+    const query = page.query?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const now = new Date().toISOString();
+    return this.db
+      .collection<User>(COLLECTIONS.USERS)
+      .aggregate<User>(
+        [
+          {
+            $match: {
+              clerkId: { $ne: actor, ...(page.cursor ? { $gt: page.cursor } : {}) },
+              ...(query
+                ? {
+                    $or: ["name", "username", "email"].map((field) => ({
+                      [field]: { $regex: query, $options: "i" },
+                    })),
+                  }
+                : {}),
+            },
+          },
+          { $sort: { clerkId: 1 } },
+          ...(group
+            ? [
+                {
+                  $lookup: {
+                    from: COLLECTIONS.GROUP_MEMBERSHIPS,
+                    localField: "clerkId",
+                    foreignField: "userId",
+                    pipeline: [
+                      { $match: { groupId: group.id, status: "ACCEPTED" } },
+                      { $limit: 1 },
+                    ],
+                    as: "membership",
+                  },
+                },
+                {
+                  $match: {
+                    $or: [{ clerkId: group.adminUserId }, { "membership.0": { $exists: true } }],
+                  },
+                },
+                {
+                  $lookup: {
+                    from: COLLECTIONS.GROUP_BANS,
+                    localField: "clerkId",
+                    foreignField: "userId",
+                    pipeline: [
+                      {
+                        $match: {
+                          groupId: group.id,
+                          revokedAt: { $exists: false },
+                          $or: [{ until: null }, { until: { $gt: now } }],
+                        },
+                      },
+                      { $limit: 1 },
+                    ],
+                    as: "ban",
+                  },
+                },
+                { $match: { "ban.0": { $exists: false } } },
+              ]
+            : [
+                {
+                  $lookup: {
+                    from: COLLECTIONS.FRIEND_REQUESTS,
+                    localField: "clerkId",
+                    foreignField: "toUserId",
+                    pipeline: [
+                      { $match: { fromUserId: actor, status: "accepted" } },
+                      { $limit: 1 },
+                    ],
+                    as: "forward",
+                  },
+                },
+                {
+                  $lookup: {
+                    from: COLLECTIONS.FRIEND_REQUESTS,
+                    localField: "clerkId",
+                    foreignField: "fromUserId",
+                    pipeline: [{ $match: { toUserId: actor, status: "accepted" } }, { $limit: 1 }],
+                    as: "reverse",
+                  },
+                },
+                { $match: { "forward.0": { $exists: true }, "reverse.0": { $exists: true } } },
+                {
+                  $lookup: {
+                    from: COLLECTIONS.BLOCKS,
+                    let: { target: "$clerkId" },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $or: [
+                              {
+                                $and: [
+                                  { $eq: ["$fromUserId", actor] },
+                                  { $eq: ["$toUserId", "$$target"] },
+                                ],
+                              },
+                              {
+                                $and: [
+                                  { $eq: ["$toUserId", actor] },
+                                  { $eq: ["$fromUserId", "$$target"] },
+                                ],
+                              },
+                            ],
+                          },
+                        },
+                      },
+                      { $limit: 1 },
+                    ],
+                    as: "block",
+                  },
+                },
+                { $match: { "block.0": { $exists: false } } },
+              ]),
+          {
+            $lookup: {
+              from: COLLECTIONS.TABLE_REGISTRATIONS,
+              localField: "clerkId",
+              foreignField: "userId",
+              pipeline: [
+                { $match: { tableId, status: { $in: ["PENDING", "ACCEPTED"] } } },
+                { $limit: 1 },
+              ],
+              as: "registration",
+            },
+          },
+          { $match: { "registration.0": { $exists: false } } },
+          { $limit: page.limit + 1 },
+          {
+            $project: {
+              _id: 0,
+              clerkId: 1,
+              name: 1,
+              username: 1,
+              email: 1,
+              avatarUrl: 1,
+              presence: 1,
+            },
+          },
+        ],
+        this.opts,
+      )
+      .toArray();
   }
   allRegistrations(eventId: string) {
     return this.registrations

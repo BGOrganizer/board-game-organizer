@@ -43,25 +43,14 @@ export function EventTableSeats({
   const roster = useEventTableRoster(o, table),
     closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
   const [choose, setChoose] = useState(false),
-    [joining, setJoining] = useState(false),
-    [joinError, setJoinError] = useState(false);
+    [joining, setJoining] = useState(false);
   const canAdd =
     !closed &&
     (table.canRegister || table.canInvite) &&
     (table.groupType !== "PRIVATE" || hasJoinedEvent !== undefined);
-  const join = async () => {
-    setJoinError(false);
-    if (table.groupType === "PRIVATE" && !hasJoinedEvent) {
-      setChoose(false);
-      setJoining(true);
-      return;
-    }
-    try {
-      await a.register.mutateAsync(table.id);
-      setChoose(false);
-    } catch {
-      setJoinError(true);
-    }
+  const join = () => {
+    setChoose(false);
+    setJoining(true);
   };
   return (
     <View style={{ flex: 1 }}>
@@ -119,7 +108,6 @@ export function EventTableSeats({
                 label={label}
                 isDisabled={reserved || !canAdd || a.busy}
                 onPress={() => {
-                  setJoinError(false);
                   if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
                   else void join();
                 }}
@@ -223,11 +211,6 @@ export function EventTableSeats({
                 </Button.Label>
               </Button>
             ) : null}
-            {joinError && !choose ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t("Could not join table")}
-              </Typography>
-            ) : null}
           </View>
         }
       />
@@ -238,7 +221,7 @@ export function EventTableSeats({
             table.canInvite
               ? t("Join this table yourself or invite another player.")
               : hasJoinedEvent
-                ? t("Join this table without changing your event preferences.")
+                ? t("Choose games for this table without changing your event preferences.")
                 : t("Choose your availability before joining this table.")
           }
           busy={a.busy}
@@ -269,13 +252,7 @@ export function EventTableSeats({
                 ]
               : []),
           ]}
-        >
-          {joinError ? (
-            <Typography accessibilityRole="alert" className="text-danger">
-              {t("Could not join table")}
-            </Typography>
-          ) : null}
-        </ConfirmDialog>
+        ></ConfirmDialog>
       ) : null}
       {joining ? (
         <EventJoinSheet

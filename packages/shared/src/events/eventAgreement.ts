@@ -112,7 +112,8 @@ function prepare(input: EventAgreementInput, table: AgreementTable): Prepared {
     input.fixedDateAndLocation ||
     (positive(input.dateVotes[row.userId]?.[d]) && positive(input.locationVotes[row.userId]?.[l]));
   const gameVote = (row: AgreementRegistration, game: number): AgreementVote | undefined =>
-    table.fixedGame ? "YES" : input.gameVotes[table.id]?.[row.userId]?.[String(game)];
+    input.gameVotes[table.id]?.[row.userId]?.[String(game)] ??
+    (table.fixedGame ? "YES" : undefined);
   let seatedDateLocation = false;
   const options: Array<Candidate & { firstPrefix: number; waiting: AgreementRegistration[] }> = [];
   for (const [dateIndex, date] of input.dateIds.entries()) {

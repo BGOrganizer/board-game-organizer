@@ -1,6 +1,6 @@
 "use client";
 import { useLingui } from "@lingui/react/macro";
-import { Check, HelpCircle, Minus, X } from "lucide-react";
+import { Check, Minus, X } from "lucide-react";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 export function EventVoteLegend() {
   const { t } = useLingui();
@@ -11,7 +11,6 @@ export function EventVoteLegend() {
           { Icon: Check, label: t`Yes` },
           { Icon: Minus, label: t`If needed` },
           { Icon: X, label: t`No` },
-          { Icon: HelpCircle, label: t`Unknown` },
         ].map(({ Icon, label }) => (
           <p key={label} className="flex items-center gap-2">
             <Icon className="size-4" aria-hidden />

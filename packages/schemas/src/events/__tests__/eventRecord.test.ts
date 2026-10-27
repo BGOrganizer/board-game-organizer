@@ -6,6 +6,7 @@ import {
   decideTableRegistrationSchema,
   editPlannedEventSchema,
   finalizeEventSchema,
+  joinTableSchema,
   plannedTableInputSchema,
 } from "../dto/eventRecords";
 import {
@@ -216,6 +217,30 @@ describe("unified event request boundaries", () => {
     ).toBe(false);
     for (const action of ["accept", "decline", "cancel", "remove"])
       expect(decideTableRegistrationSchema.safeParse({ version: 1, action }).success).toBe(true);
+  });
+  it("requires bounded explicit game choices for joins and rejects UNKNOWN in every new vote", () => {
+    const choices = { version: 1, gameVotes: { "1": "YES", "2": "IF_NEEDED" } };
+    expect(joinTableSchema.parse(choices)).toEqual(choices);
+    for (const body of [
+      {},
+      { ...choices, version: 0 },
+      { ...choices, gameVotes: { "01": "YES" } },
+      { ...choices, gameVotes: { "9007199254740992": "YES" } },
+      { ...choices, gameVotes: { "10000000000000000": "YES" } },
+      { ...choices, gameVotes: { "1": "UNKNOWN" } },
+      {
+        ...choices,
+        gameVotes: Object.fromEntries(Array.from({ length: 21 }, (_, i) => [String(i + 1), "YES"])),
+      },
+      { ...choices, userId: "forged" },
+    ])
+      expect(joinTableSchema.safeParse(body).success).toBe(false);
+    for (const vote of [
+      { kind: "date", optionId: id, vote: "UNKNOWN" },
+      { kind: "location", optionId: id, vote: "UNKNOWN" },
+      { kind: "game", tableId: id, gameId: 1, vote: "UNKNOWN" },
+    ])
+      expect(changeEventVoteSchema.safeParse(vote).success).toBe(false);
   });
   it("permits all-ND exact results and forbids malformed score payloads", () => {
     const result = {

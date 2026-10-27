@@ -133,8 +133,22 @@ export const joinEventAvailabilitySchema = z
   .strict();
 export type JoinEventAvailability = z.infer<typeof joinEventAvailabilitySchema>;
 export const joinTableSchema = z
-  .object({ availability: joinEventAvailabilitySchema.optional() })
+  .object({
+    version: z.number().int().positive(),
+    gameVotes: z
+      .record(
+        z
+          .string()
+          .max(16)
+          .regex(/^[1-9]\d*$/)
+          .refine((value) => Number.isSafeInteger(Number(value))),
+        eventAvailabilityVoteSchema,
+      )
+      .refine((value) => Object.keys(value).length <= MAX_EVENT_OPTIONS),
+    availability: joinEventAvailabilitySchema.optional(),
+  })
   .strict();
+export type JoinTableInput = z.infer<typeof joinTableSchema>;
 export const changeEventVoteSchema = z.discriminatedUnion("kind", [
   z
     .object({ kind: z.literal("date"), optionId: z.uuid(), vote: eventAvailabilityVoteSchema })
@@ -147,7 +161,7 @@ export const changeEventVoteSchema = z.discriminatedUnion("kind", [
       kind: z.literal("game"),
       tableId: z.uuid(),
       gameId: z.number().int().positive(),
-      vote: eventVoteSchema,
+      vote: eventAvailabilityVoteSchema,
     })
     .strict(),
 ]);
@@ -222,6 +236,13 @@ export type TableLeaderboardPlayer = {
   gamesPlayed: number;
   gamesWon: number;
   nd: number;
+};
+export type TableInviteeResponse = {
+  id: string;
+  name: string;
+  username: string | null;
+  email: string | null;
+  avatarUrl: string | null;
 };
 export type TableLeaderboardResponse = {
   gameId: number;

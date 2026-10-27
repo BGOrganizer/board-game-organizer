@@ -38,8 +38,7 @@ export function EventTableSeats({
   const roster = useEventTableRoster(o, table),
     closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
   const [choose, setChoose] = useState(false),
-    [joining, setJoining] = useState(false),
-    [joinError, setJoinError] = useState(false);
+    [joining, setJoining] = useState(false);
   const canAdd =
     !closed &&
     (table.canRegister || table.canInvite) &&
@@ -50,19 +49,9 @@ export function EventTableSeats({
     isFetchNextPageError: roster.isFetchNextPageError,
     fetchNextPage: async () => roster.more(),
   });
-  const join = async () => {
-    setJoinError(false);
-    if (table.groupType === "PRIVATE" && !hasJoinedEvent) {
-      setChoose(false);
-      setJoining(true);
-      return;
-    }
-    try {
-      await a.register.mutateAsync(table.id);
-      setChoose(false);
-    } catch {
-      setJoinError(true);
-    }
+  const join = () => {
+    setChoose(false);
+    setJoining(true);
   };
   return (
     <section className="space-y-3" aria-label={t`Seats list`}>
@@ -104,7 +93,6 @@ export function EventTableSeats({
                   variant="ghost"
                   isDisabled={reserved || !canAdd || a.busy}
                   onPress={() => {
-                    setJoinError(false);
                     if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
                     else void join();
                   }}
@@ -195,9 +183,6 @@ export function EventTableSeats({
           </Button>
         </div>
       ) : null}
-      {joinError && !choose ? (
-        <p role="alert" className="text-danger">{t`Could not join table`}</p>
-      ) : null}
       {choose ? (
         <ContactConfirmDialog
           title={table.canInvite ? t`Choose a place action` : t`Join table`}
@@ -205,7 +190,7 @@ export function EventTableSeats({
             table.canInvite
               ? t`Join this table yourself or invite another player.`
               : hasJoinedEvent
-                ? t`Join this table without changing your event preferences.`
+                ? t`Choose games for this table without changing your event preferences.`
                 : t`Choose your availability before joining this table.`
           }
           busy={a.busy}
@@ -226,9 +211,7 @@ export function EventTableSeats({
                 ]
               : []),
           ]}
-        >
-          {joinError ? <p role="alert" className="text-danger">{t`Could not join table`}</p> : null}
-        </ContactConfirmDialog>
+        ></ContactConfirmDialog>
       ) : null}
       {joining ? (
         <EventJoinSheet

@@ -50,7 +50,7 @@ it("reconciles owned Event participation from registration responses without dep
   const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
   const owned = () => client.getQueryData<PlannedEventResponse>(detail)!;
   await act(async () => {
-    await q.result.current.register.mutateAsync(tableId);
+    await q.result.current.register.mutateAsync({ tableId, version: 1, gameVotes: { "1": "YES" } });
   });
   expect(owned().myRegistrations).toEqual([other, response]);
   expect(client.getQueryData(list)?.pages[0].items[0].myRegistrations).toEqual([other, response]);
@@ -58,6 +58,10 @@ it("reconciles owned Event participation from registration responses without dep
   client.setQueryData(detail, {
     ...owned(),
     myRegistrations: [other, { ...response, version: 3 }],
+  });
+  client.setQueryData(eventRecordKeys.table(options, eventId, tableId), {
+    ...plannedTable,
+    myRegistration: { ...response, version: 3, gameVotes: { "1": "IF_NEEDED" } },
   });
   response = { ...response, version: 2 };
   await act(async () => {
@@ -67,6 +71,9 @@ it("reconciles owned Event participation from registration responses without dep
     });
   });
   expect(owned().myRegistrations.find((row) => row.tableId === tableId)?.version).toBe(3);
+  expect(client.getQueryData(eventRecordKeys.table(options, eventId, tableId))).toMatchObject({
+    myRegistration: { version: 3, gameVotes: { "1": "IF_NEEDED" } },
+  });
   response = { ...response, status: "CANCELLED", version: 4 };
   await act(async () => {
     await q.result.current.respond.mutateAsync({
@@ -305,7 +312,7 @@ it("reserves an action without inventing capacity/priority, reconciles self vers
   );
   const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
   await act(async () => {
-    await q.result.current.register.mutateAsync(tableId);
+    await q.result.current.register.mutateAsync({ tableId, version: 1, gameVotes: { "1": "YES" } });
   });
   expect(client.getQueryData(eventRecordKeys.table(options, eventId, tableId))).toMatchObject({
     canRegister: false,

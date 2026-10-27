@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -29,10 +30,12 @@ export function EventJoinSheet({
   const t = useT(),
     form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose),
     event = form.event,
+    table = form.table,
     { height } = useWindowDimensions(),
     insets = useSafeAreaInsets(),
     accent = useThemeColor("accent-foreground");
-  const [tab, setTab] = useState("dates");
+  const [selectedTab, setTab] = useState("dates"),
+    tab = form.requiresAvailability ? selectedTab : "games";
   return (
     <BottomSheet
       isOpen
@@ -51,16 +54,18 @@ export function EventJoinSheet({
         >
           <BottomSheet.Title>{t("Choose availability")}</BottomSheet.Title>
           <BottomSheet.Description>
-            {t(
-              "Vote on every date and location. Accept at least one of each to join. You can change these votes from the event.",
-            )}
+            {form.requiresAvailability
+              ? t("Vote on every date, location and game. Accept at least one of each to join.")
+              : t(
+                  "Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged.",
+                )}
           </BottomSheet.Description>
-          {form.q.isError ? (
+          {form.q.isError || form.tableQuery.isError ? (
             <View style={{ gap: 8 }}>
               <Typography accessibilityRole="alert" className="text-danger">
                 {t("Unable to load data. Try again.")}
               </Typography>
-              <Button onPress={() => void form.q.refetch()}>
+              <Button onPress={form.refetch}>
                 <Button.Label>{t("Try again")}</Button.Label>
               </Button>
             </View>
@@ -70,11 +75,18 @@ export function EventJoinSheet({
           ) : (
             <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
               <TabBar style={{ alignSelf: "center", width: "auto" }}>
-                <Tabs.Trigger value="dates">
-                  <Tabs.Label>{t("Dates")}</Tabs.Label>
-                </Tabs.Trigger>
-                <Tabs.Trigger value="locations">
-                  <Tabs.Label>{t("Locations")}</Tabs.Label>
+                {form.requiresAvailability ? (
+                  <>
+                    <Tabs.Trigger value="dates">
+                      <Tabs.Label>{t("Dates")}</Tabs.Label>
+                    </Tabs.Trigger>
+                    <Tabs.Trigger value="locations">
+                      <Tabs.Label>{t("Locations")}</Tabs.Label>
+                    </Tabs.Trigger>
+                  </>
+                ) : null}
+                <Tabs.Trigger value="games">
+                  <Tabs.Label>{t("Games")}</Tabs.Label>
                 </Tabs.Trigger>
               </TabBar>
               {tab === "dates" ? (
@@ -93,7 +105,6 @@ export function EventJoinSheet({
                       </View>
                       <EventVoteButtons
                         inline
-                        allowUnknown={false}
                         label={eventDateWall(event, item).replace("T", " ")}
                         value={form.votes.dateVotes[item.id]}
                         busy={form.busy}
@@ -102,7 +113,7 @@ export function EventJoinSheet({
                     </GroupedRow>
                   )}
                 />
-              ) : (
+              ) : tab === "locations" ? (
                 <BottomSheetFlatList
                   key="locations"
                   style={{ flex: 1 }}
@@ -115,7 +126,6 @@ export function EventJoinSheet({
                       actions={
                         <EventVoteButtons
                           inline
-                          allowUnknown={false}
                           label={item.name}
                           value={form.votes.locationVotes[item.id]}
                           busy={form.busy}
@@ -124,6 +134,33 @@ export function EventJoinSheet({
                       }
                     />
                   )}
+                />
+              ) : !table || form.tableQuery.isPlaceholderData ? (
+                <Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />
+              ) : (
+                <BottomSheetFlatList
+                  key="games"
+                  style={{ flex: 1 }}
+                  data={table.games}
+                  keyExtractor={(row) => String(row.gameId)}
+                  renderItem={({ item }) => {
+                    const game = table.gamesDetail.find((row) => row.id === item.gameId);
+                    return (
+                      <GameListRow
+                        name={game?.name ?? t("Unknown")}
+                        imageUrl={game?.imageUrl}
+                        actions={
+                          <EventVoteButtons
+                            inline
+                            label={game?.name ?? t("Unknown")}
+                            value={form.votes.gameVotes[String(item.gameId)]}
+                            busy={form.busy}
+                            onChange={(vote) => form.choose("game", String(item.gameId), vote)}
+                          />
+                        }
+                      />
+                    );
+                  }}
                 />
               )}
             </Tabs>

@@ -139,6 +139,16 @@ describe("per-table agreement phases", () => {
     ])
       expect(calculateEventAgreement(input).agreed).toBe(false);
   });
+  it.each(["NO", "UNKNOWN"] as const)(
+    "fixed game identity never overrides an explicit %s ballot",
+    (vote) => {
+      const input = fixture();
+      input.tables = [{ ...input.tables[0], fixedGame: true }];
+      const result = calculateEventAgreement(game(input, "b", vote));
+      expect(result.agreed).toBe(false);
+      expect(result.tables[0].reason).toBe("GAME_DISAGREEMENT");
+    },
+  );
   it("fixed public options imply YES only for accepted registrations", () => {
     const input = {
       ...fixture(),

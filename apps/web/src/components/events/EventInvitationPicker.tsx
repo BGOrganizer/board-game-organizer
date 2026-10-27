@@ -10,7 +10,6 @@ import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
-import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function EventInvitationPicker({ eventId, tableId }: { eventId: string; tableId: string }) {
   const { t } = useLingui(),
@@ -43,16 +42,13 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
   return (
     <div className="space-y-4">
       <Button variant="ghost" onPress={() => router.back()}>{t`Back`}</Button>
-      {event.groupId ? (
-        <GroupMemberPicker
-          groupId={event.groupId}
-          excludeIds={o.userId ? [o.userId] : []}
-          disabled={a.busy}
-          onSelect={(person) => void pick(person.id)}
-        />
-      ) : (
-        <PeoplePicker friendsOnly disabled={a.busy} onSelect={(person) => void pick(person.id)} />
-      )}
+      <PeoplePicker
+        key={tableId}
+        friendsOnly={!event.groupId}
+        invitationTable={{ eventId, tableId }}
+        disabled={a.busy}
+        onSelect={(person) => void pick(person.id)}
+      />
       {error ? (
         <p
           role="alert"

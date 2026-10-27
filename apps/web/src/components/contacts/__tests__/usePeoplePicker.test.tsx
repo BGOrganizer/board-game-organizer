@@ -1,5 +1,7 @@
 import {
   groupInviteesPageQuery,
+  tableInviteesPageQuery,
+  useEventRecordActions,
   useGroupRecordActions,
   usePeoplePicker,
 } from "@board-game-organizer/shared";
@@ -21,6 +23,110 @@ function setup() {
   return { options, client, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+it.each([true, false])(
+  "source-pages Table invitees and search without falling back to contacts or Group rosters (friendsOnly=%s)",
+  async (friendsOnly) => {
+    const { options, wrapper } = setup();
+    const fetch = vi.fn(
+      async (url: string) =>
+        new Response(
+          JSON.stringify({
+            items: [{ id: new URL(url).searchParams.has("cursor") ? "second" : "first" }],
+            nextCursor: new URL(url).searchParams.has("cursor") ? null : "first",
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const hook = renderHook(
+      ({ query, tableId }) =>
+        usePeoplePicker(options, query, friendsOnly, "unrelated-group", {
+          eventId: "event",
+          tableId,
+        }),
+      { wrapper, initialProps: { query: "", tableId: "table" } },
+    );
+    await waitFor(() => expect(hook.result.current.items).toHaveLength(1));
+    expect(hook.result.current.needsSearch).toBe(false);
+    await act(async () => {
+      await hook.result.current.fetchNextPage();
+    });
+    await waitFor(() =>
+      expect(hook.result.current.items.map((row) => row.id)).toEqual(["first", "second"]),
+    );
+    hook.rerender({ query: "board", tableId: "table" });
+    await waitFor(() => expect(hook.result.current.items).toHaveLength(1));
+    hook.rerender({ query: "board", tableId: "other" });
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([url]) => url.includes("/tables/other/invitations"))).toBe(
+        true,
+      ),
+    );
+    expect(
+      fetch.mock.calls.every(
+        ([url]) => url.includes("/events/event/tables/") && url.includes("/invitations"),
+      ),
+    ).toBe(true);
+    expect(options.getToken).toHaveBeenCalledTimes(4);
+    expect(tableInviteesPageQuery(options, "event", "table", "board").queryKey).not.toEqual(
+      tableInviteesPageQuery({ ...options, userId: "other" }, "event", "table", "board").queryKey,
+    );
+  },
+);
+it("optimistically excludes Table invitees, rolls failure back and preserves other Tables/identities", async () => {
+  const { options, client, wrapper } = setup(),
+    target = { eventId: "event", tableId: "table" },
+    key = tableInviteesPageQuery(options, target.eventId, target.tableId).queryKey;
+  const other = tableInviteesPageQuery(options, "event", "other").queryKey,
+    foreign = tableInviteesPageQuery({ ...options, userId: "foreign" }, "event", "table").queryKey;
+  const data = {
+    pages: [
+      {
+        items: [{ id: "friend", name: "Friend", username: null, email: null, avatarUrl: null }],
+        nextCursor: null,
+      },
+    ],
+    pageParams: [""],
+  };
+  for (const k of [key, other, foreign]) client.setQueryData(k, data);
+  let finish: ((r: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((_url: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : Promise.resolve(new Response(JSON.stringify(data.pages[0]))),
+    ),
+  );
+  const hook = renderHook(
+    () => ({
+      picker: usePeoplePicker(options, "", false, undefined, target),
+      actions: useEventRecordActions(options, "event"),
+    }),
+    { wrapper },
+  );
+  await waitFor(() => expect(hook.result.current.picker.items).toHaveLength(1));
+  let pending: Promise<unknown> | undefined;
+  act(() => {
+    pending = hook.result.current.actions.invite
+      .mutateAsync({ tableId: "table", userId: "friend" })
+      .catch((e) => e);
+  });
+  await waitFor(() => expect(hook.result.current.picker.items).toEqual([]));
+  expect(client.getQueryData(other)).toEqual(data);
+  expect(client.getQueryData(foreign)).toEqual(data);
+  await waitFor(() => expect(finish).toBeDefined());
+  if (!finish) throw Error("Missing request");
+  const complete = finish;
+  await act(async () => {
+    complete(new Response('{"code":"REGISTRATION_ALREADY_ACTIVE"}', { status: 409 }));
+    await pending;
+  });
+  await waitFor(() =>
+    expect(hook.result.current.picker.items.map((row) => row.id)).toEqual(["friend"]),
+  );
+});
 it("source-pages Group invitees and their search without requesting unrestricted friendship/search lists", async () => {
   const { options, wrapper } = setup();
   const fetch = vi.fn(

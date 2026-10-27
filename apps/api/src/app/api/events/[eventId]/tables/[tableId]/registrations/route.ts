@@ -13,8 +13,8 @@ export function POST(
     async (userId, { events }) => {
       recordQuery(request, emptyRecordQuery);
       const { eventId, tableId } = await context.params;
-      const input = request.body ? await communityBody(request, joinTableSchema) : {};
-      return events.join(userId, communityId(eventId), communityId(tableId), input.availability);
+      const input = await communityBody(request, joinTableSchema);
+      return events.join(userId, communityId(eventId), communityId(tableId), input);
     },
     201,
   );

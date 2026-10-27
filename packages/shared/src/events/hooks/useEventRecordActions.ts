@@ -7,9 +7,10 @@ import type {
   DecideTableRegistrationInput,
   EditPlannedEventInput,
   FinalizeEventInput,
-  JoinEventAvailability,
+  JoinTableInput,
   PlannedEventResponse,
   PlannedTableResponse,
+  TableInviteeResponse,
   TableRegistration,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
@@ -20,7 +21,11 @@ import { mapCommunityCache, restoreCommunityFields } from "../../community/query
 import { changeEventVoteCounts } from "../eventVotes";
 import { eventRecordKeys } from "./useEventRecords";
 
-type Row = PlannedEventResponse | PlannedTableResponse | TableSeatResponse;
+type Row =
+  | PlannedEventResponse
+  | PlannedTableResponse
+  | TableSeatResponse
+  | (TableInviteeResponse & { optimisticInvited?: boolean });
 export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const client = useQueryClient(),
     root = eventRecordKeys.root(o),
@@ -29,8 +34,12 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const affected = (key: readonly unknown[]) =>
     key[3] === "list" ||
     (key[3] === "tables" && (key[4] === null || key[4] === id)) ||
-    (["detail", "table", "seats", "leaderboard"].includes(String(key[3])) && key[4] === id);
-  async function begin(action: MutationFeedbackAction, change: (row: Row) => Row = (row) => row) {
+    (["detail", "table", "seats", "leaderboard", "invitees"].includes(String(key[3])) &&
+      key[4] === id);
+  async function begin(
+    action: MutationFeedbackAction,
+    change: (row: Row, key: readonly unknown[]) => Row = (row) => row,
+  ) {
     await client.cancelQueries({ queryKey: root, predicate: (q) => affected(q.queryKey) });
     const undo: Array<() => void> = [];
     for (const [key, data] of client.getQueriesData({
@@ -40,7 +49,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       client.setQueryData(
         key,
         mapCommunityCache<Row>(data, (row) => {
-          const next = change(row);
+          const next = change(row, key);
           if (next !== row)
             undo.push(() =>
               client.setQueryData(key, (current: unknown) =>
@@ -115,7 +124,9 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       client.setQueryData(
         key,
         mapCommunityCache<PlannedTableResponse>(data, (row) =>
-          row.id === value.tableId && value.userId === o.userId
+          row.id === value.tableId &&
+          value.userId === o.userId &&
+          (!row.myRegistration || row.myRegistration.version <= value.version)
             ? {
                 ...row,
                 myRegistration: { ...row.myRegistration, ...value },
@@ -217,18 +228,16 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   });
   const register = useMutation({
     mutationKey,
-    mutationFn: (value: string | { tableId: string; availability: JoinEventAvailability }) =>
+    mutationFn: ({ tableId, ...input }: JoinTableInput & { tableId: string }) =>
       communityRequest<TableRegistration>(
         o,
-        `events/${id}/tables/${typeof value === "string" ? value : value.tableId}/registrations`,
+        `events/${id}/tables/${tableId}/registrations`,
         "POST",
-        typeof value === "string" ? undefined : { availability: value.availability },
+        input,
       ),
     onMutate: (value) =>
       begin("join_table", (row) =>
-        "canRegister" in row && row.id === (typeof value === "string" ? value : value.tableId)
-          ? { ...row, canRegister: false }
-          : row,
+        "canRegister" in row && row.id === value.tableId ? { ...row, canRegister: false } : row,
       ),
     onSuccess: registrationSuccess,
     onError: (e, _v, c) => failure(e, c),
@@ -240,7 +249,12 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       communityRequest<TableRegistration>(o, `events/${id}/tables/${tableId}/invitations`, "POST", {
         userId,
       }),
-    onMutate: () => begin("invite_event_player"),
+    onMutate: ({ tableId, userId }) =>
+      begin("invite_event_player", (row, key) =>
+        key[3] === "invitees" && key[5] === tableId && row.id === userId
+          ? { ...row, optimisticInvited: true }
+          : row,
+      ),
     onSuccess: registrationSuccess,
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,

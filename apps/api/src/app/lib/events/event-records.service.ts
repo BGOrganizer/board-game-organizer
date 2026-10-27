@@ -9,7 +9,7 @@ import type {
   EventRecord,
   FinalizeEventInput,
   GroupRecord,
-  JoinEventAvailability,
+  JoinTableInput,
   PlannedEventResponse,
   PlannedTableInput,
   PlannedTableResponse,
@@ -28,6 +28,7 @@ import {
   eventJoinAvailabilityIsComplete,
   eventLocalDateTime,
   eventLocalToIso,
+  eventOptionVotesAreComplete,
   eventRecordCapabilities,
   eventVoteCounts,
   groupBanIsActive,
@@ -742,6 +743,28 @@ export class EventRecordsService {
       })),
     };
   }
+  async invitationCandidates(
+    userId: string,
+    eventId: string,
+    tableId: string,
+    page: EventRecordPage,
+  ) {
+    const { event, group } = await this.context(userId, eventId, false, true);
+    this.open(event, group);
+    const table = await this.events.table(tableId);
+    if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
+    const rows = await this.events.invitationCandidates(group, userId, tableId, page);
+    return {
+      items: rows.slice(0, page.limit).map((row) => ({
+        id: row.clerkId,
+        name: row.name || row.username || row.clerkId,
+        username: row.username ?? null,
+        email: group ? null : (row.email ?? null),
+        avatarUrl: row.avatarUrl ?? null,
+      })),
+      nextCursor: rows.length > page.limit ? rows[page.limit - 1].clerkId : null,
+    };
+  }
   async tableDetail(userId: string, eventId: string, tableId: string) {
     const { event, group } = await this.context(userId, eventId);
     const table = await this.events.table(tableId);
@@ -849,26 +872,23 @@ export class EventRecordsService {
       throw new CommunityError(409, "TABLE_TIME_CONFLICT");
     return current;
   }
-  /** Voluntary HTTP enrollment requires explicit initial availability for PRIVATE Events. */
-  async join(
-    userId: string,
-    eventId: string,
-    tableId: string,
-    availability?: JoinEventAvailability,
-  ) {
+  /** Voluntary enrollment commits this Table's game choices with any initial PRIVATE preferences. */
+  async join(userId: string, eventId: string, tableId: string, input?: JoinTableInput) {
     const { group, own } = await this.context(userId, eventId, true);
+    const availability = input?.availability;
     if (group?.type === "PRIVATE" && !availability && !hasOtherAcceptedTable(own, tableId))
       throw new CommunityError(400, "EVENT_AVAILABILITY_REQUIRED");
     if (group?.type !== "PRIVATE" && availability)
       throw new CommunityError(400, "EVENT_AVAILABILITY_NOT_REQUIRED");
-    return this.register(userId, eventId, tableId, undefined, availability);
+    if (!input) throw new CommunityError(400, "TABLE_GAME_AVAILABILITY_REQUIRED");
+    return this.register(userId, eventId, tableId, undefined, input);
   }
   async register(
     userId: string,
     eventId: string,
     tableId: string,
     target?: string,
-    availability?: JoinEventAvailability,
+    input?: JoinTableInput,
   ) {
     const { event, group } = await this.context(userId, eventId, true, target !== undefined);
     this.open(event, group);
@@ -878,12 +898,23 @@ export class EventRecordsService {
     const user = target ?? userId,
       kind = target === undefined ? ("SELF" as const) : ("INVITATION" as const);
     const previous = await this.registrationTarget(event, group, table, user, kind);
-    if (availability) {
-      if (target || group?.type !== "PRIVATE")
-        throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
-      if (availability.version !== event.version) throw new CommunityError(409, "EVENT_CHANGED");
-      if (!eventJoinAvailabilityIsComplete(event, availability))
-        throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
+    const availability = input?.availability;
+    if (input) {
+      if (target) throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
+      if (input.version !== event.version) throw new CommunityError(409, "EVENT_CHANGED");
+      if (
+        !eventOptionVotesAreComplete(
+          table.games.map((game) => ({ id: String(game.gameId) })),
+          input.gameVotes ?? {},
+        )
+      )
+        throw new CommunityError(400, "INVALID_JOIN_GAME_VOTES");
+      if (availability) {
+        if (group?.type !== "PRIVATE") throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
+        if (availability.version !== event.version) throw new CommunityError(409, "EVENT_CHANGED");
+        if (!eventJoinAvailabilityIsComplete(event, availability))
+          throw new CommunityError(400, "INVALID_JOIN_AVAILABILITY");
+      }
     }
     const at = new Date().toISOString();
     const row: TableRegistration = {
@@ -896,7 +927,7 @@ export class EventRecordsService {
       priorityAt: at,
       sequence: event.nextPriority++,
       version: (previous?.version ?? 0) + 1,
-      gameVotes: {},
+      gameVotes: input?.gameVotes ?? {},
       createdAt: at,
       updatedAt: at,
     };
@@ -992,6 +1023,7 @@ export class EventRecordsService {
     if (!own.some((row) => row.status === "ACCEPTED"))
       throw new CommunityError(403, "ACCEPTED_REGISTRATION_REQUIRED");
     const at = new Date().toISOString();
+    if ((input.vote as string) === "UNKNOWN") throw new CommunityError(400, "INVALID_VOTE");
     if (input.kind === "game") {
       const table = await this.events.table(input.tableId),
         registration = own.find(
@@ -1001,8 +1033,15 @@ export class EventRecordsService {
         throw new CommunityError(403, "ACCEPTED_REGISTRATION_REQUIRED");
       if (!table.games.some((row) => row.gameId === input.gameId))
         throw new CommunityError(400, "INVALID_VOTE_OPTION");
-      if (group?.type === "PUBLIC" && table.games.length === 1)
-        throw new CommunityError(409, "FIXED_OPTION");
+      if (
+        !eventAvailabilityVoteIsAllowed(
+          table.games.map((game) => ({ id: String(game.gameId) })),
+          registration.gameVotes,
+          String(input.gameId),
+          input.vote,
+        )
+      )
+        throw new CommunityError(409, "GAME_POSITIVE_AVAILABILITY_REQUIRED");
       await this.events.saveRegistration({
         ...registration,
         gameVotes: { ...registration.gameVotes, [input.gameId]: input.vote },
@@ -1010,7 +1049,6 @@ export class EventRecordsService {
         updatedAt: at,
       });
     } else {
-      if ((input.vote as string) === "UNKNOWN") throw new CommunityError(400, "INVALID_VOTE");
       if (group?.type === "PUBLIC") throw new CommunityError(409, "FIXED_OPTION");
       const options = input.kind === "date" ? event.dates : event.locations;
       if (!options.some((row) => row.id === input.optionId))

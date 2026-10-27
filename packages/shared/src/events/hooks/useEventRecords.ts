@@ -4,6 +4,7 @@ import type {
   CommunityPageResponse,
   PlannedEventResponse,
   PlannedTableResponse,
+  TableInviteeResponse,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import {
@@ -207,6 +208,35 @@ export function useRecordTable(o: CommunityApiOptions, id: string, table: string
       : {}),
   });
   return { ...q, data: q.data ?? cached?.row };
+}
+export function tableInviteesPageQuery(
+  o: CommunityApiOptions,
+  eventId: string,
+  tableId: string,
+  query = "",
+) {
+  return infiniteQueryOptions({
+    queryKey: [...eventRecordKeys.root(o), "invitees", eventId, tableId, query],
+    queryFn: ({ pageParam, signal }) =>
+      communityRequest<
+        CommunityPageResponse<TableInviteeResponse & { optimisticInvited?: boolean }>
+      >(
+        o,
+        path(
+          `events/${encodeURIComponent(eventId)}/tables/${encodeURIComponent(tableId)}/invitations`,
+          { query: query || undefined },
+          pageParam,
+        ),
+        "GET",
+        undefined,
+        signal,
+      ),
+    enabled: enabled(o) && Boolean(eventId && tableId),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: 0,
+    gcTime: 30 * 60_000,
+  });
 }
 export function useTableSeats(
   o: CommunityApiOptions,

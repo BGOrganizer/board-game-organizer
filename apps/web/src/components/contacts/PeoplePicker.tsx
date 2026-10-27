@@ -17,6 +17,7 @@ import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 export function PeoplePicker({
   friendsOnly,
   invitationGroupId,
+  invitationTable,
   disabled = false,
   excludeIds = [],
   onSelect,
@@ -24,15 +25,22 @@ export function PeoplePicker({
 }: {
   friendsOnly: boolean;
   invitationGroupId?: string;
+  invitationTable?: { eventId: string; tableId: string };
   disabled?: boolean;
   excludeIds?: readonly string[];
-  onSelect: (person: ContactUser) => void;
+  onSelect: (person: Pick<ContactUser, "id" | "name" | "email" | "avatarUrl" | "username">) => void;
   onClose?: () => void;
 }) {
   const { t } = useLingui(),
     options = useCommunityApi(),
     filters = useListSearch<never>([]);
-  const list = usePeoplePicker(options, filters.search, friendsOnly, invitationGroupId);
+  const list = usePeoplePicker(
+    options,
+    filters.search,
+    friendsOnly,
+    invitationGroupId,
+    invitationTable,
+  );
   const end = useInfiniteScroll({
     hasNextPage: list.hasNextPage,
     isFetchingNextPage: list.isFetchingNextPage,
@@ -54,8 +62,20 @@ export function PeoplePicker({
       <ListSearch
         query={filters.query}
         onQueryChange={filters.setQuery}
-        label={friendsOnly ? t`Search friends` : t`Search users`}
-        placeholder={friendsOnly ? t`Search friends` : t`Search users`}
+        label={
+          invitationTable && !friendsOnly
+            ? t`Search members`
+            : friendsOnly
+              ? t`Search friends`
+              : t`Search users`
+        }
+        placeholder={
+          invitationTable && !friendsOnly
+            ? t`Search members`
+            : friendsOnly
+              ? t`Search friends`
+              : t`Search users`
+        }
         options={[]}
         selected={[]}
         onToggle={filters.toggle}
@@ -91,7 +111,11 @@ export function PeoplePicker({
         <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
       ) : !list.isPending && !list.isError && !items.length ? (
         <EmptyList icon={<UsersRound className="size-7" />}>
-          {friendsOnly ? t`No friends found` : t`No users found`}
+          {invitationTable && !friendsOnly
+            ? t`No members found`
+            : friendsOnly
+              ? t`No friends found`
+              : t`No users found`}
         </EmptyList>
       ) : null}
       {list.isError ? (

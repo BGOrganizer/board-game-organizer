@@ -55,9 +55,9 @@ it("keeps staged table-result cards, explicit completion artwork and plural/sing
   expect(source("events", "TableScoreEditor")).not.toContain('t("Back to tables")');
   expect(source("events", "EventTableOverview")).toContain('t("Event")');
   expect(source("events", "EventTableOverview")).toContain('variant="constellation"');
-  expect(source("events", "EventTableSeats")).toContain(
-    'table.groupType === "PRIVATE" && !hasJoinedEvent',
-  );
+  expect(source("events", "EventTableSeats")).toContain("setJoining(true)");
+  expect(source("events", "EventJoinSheet")).toContain('value="games"');
+  expect(source("events", "EventJoinSheet")).toContain("form.requiresAvailability");
   expect(source("events", "EventDetail")).toContain("eventAvailabilityVoteIsAllowed");
   expect(results).toContain("f.finalize()");
   expect(card).toContain("<ListCard>");

@@ -51,7 +51,11 @@ beforeEach(() => {
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "POST") {
       if (fail) return new Response('{"code":"EVENT_BOOKING_CLOSED"}', { status: 409 });
-      const row = { ...player(m.actor), kind: "SELF" as const };
+      const row = {
+        ...player(m.actor),
+        kind: "SELF" as const,
+        gameVotes: JSON.parse(String(init.body)).gameVotes,
+      };
       rows.push(row);
       table = {
         ...table,
@@ -137,6 +141,7 @@ beforeEach(() => {
     return new Response(
       JSON.stringify({
         ...plannedEvent,
+        groupType: table.groupType,
         myRegistrations: acceptedElsewhere ? [{ ...seat(m.actor), tableId: optionId }] : [],
         canVote:
           acceptedElsewhere || rows.some((r) => r.userId === m.actor && r.status === "ACCEPTED"),
@@ -158,8 +163,17 @@ function mount(
   );
   return client;
 }
-async function vote(label = "Chess", value = "Yes") {
-  fireEvent.click(await screen.findByRole("button", { name: `${label}: Unknown` }));
+async function submitGameChoices() {
+  fireEvent.click(await screen.findByRole("tab", { name: "Games" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Chess: Yes" }));
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Choose availability" })).getByRole("button", {
+      name: "Join table",
+    }),
+  );
+}
+async function vote(label = "Chess", value = "Yes", current = "Choose your vote") {
+  fireEvent.click(await screen.findByRole("button", { name: `${label}: ${current}` }));
   fireEvent.click(
     within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
       name: value,
@@ -317,6 +331,31 @@ it("uses grouped games, name/settings help and an explicit ranking badge rather 
   fireEvent.click(screen.getByRole("button", { name: "Settings: Field help" }));
   expect(await screen.findByText(/The minimum is required for agreement/)).not.toBeNull();
 });
+it("allows a negative game vote only while another current game remains positive", async () => {
+  table = {
+    ...table,
+    games: [...table.games, { gameId: 2, durationMinutes: 60, durationSource: "MANUAL" }],
+    gamesDetail: [...table.gamesDetail, { ...table.gamesDetail[0], id: 2, name: "Second game" }],
+    myRegistration: { ...seat("owner"), gameVotes: { "1": "YES", "2": "IF_NEEDED" } },
+  };
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Chess: Yes" }));
+  const no = within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+    name: "No",
+  }) as HTMLButtonElement;
+  expect(no.disabled).toBe(false);
+  fireEvent.click(no);
+  await screen.findByRole("button", { name: "Chess: No" });
+  fireEvent.click(screen.getByRole("button", { name: "Second game: If needed" }));
+  expect(
+    (
+      within(screen.getByRole("dialog", { name: "Choose your vote" })).getByRole("button", {
+        name: "No",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(screen.queryByRole("button", { name: "Unknown" })).toBeNull();
+});
 it("starts with max places, lets organizer choose join/invite and shows one vote status after an actual join", async () => {
   rows = [];
   table = {
@@ -334,8 +373,9 @@ it("starts with max places, lets organizer choose join/invite and shows one vote
   expect(screen.queryByRole("link", { name: "Invite players" })).toBeNull();
   fireEvent.click(places[0]);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  await submitGameChoices();
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  await vote();
+  await vote("Chess", "If needed", "Yes");
   await waitFor(() =>
     expect(
       fetcher.mock.calls.some(
@@ -344,9 +384,9 @@ it("starts with max places, lets organizer choose join/invite and shows one vote
     ).toBe(true),
   );
   await waitFor(() =>
-    expect((screen.getByRole("button", { name: "Chess: Yes" }) as HTMLButtonElement).disabled).toBe(
-      false,
-    ),
+    expect(
+      (screen.getByRole("button", { name: "Chess: If needed" }) as HTMLButtonElement).disabled,
+    ).toBe(false),
   );
   expect(screen.queryByRole("button", { name: "Accepted" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Pending invitations" })).toBeNull();
@@ -395,9 +435,12 @@ it("waits for Event participation metadata, exposes failures and retries without
   await waitFor(() => expect(place.disabled).toBe(false));
   fireEvent.click(place);
   expect(
-    screen.getByText("Join this table without changing your event preferences."),
+    screen.getByText("Choose games for this table without changing your event preferences."),
   ).not.toBeNull();
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  expect(await screen.findByRole("tab", { name: "Games" })).not.toBeNull();
+  expect(screen.queryByRole("tab", { name: "Dates" })).toBeNull();
+  await submitGameChoices();
   await waitFor(() =>
     expect(
       fetcher.mock.calls.some(
@@ -405,9 +448,11 @@ it("waits for Event participation metadata, exposes failures and retries without
       ),
     ).toBe(true),
   );
-  expect(screen.queryByRole("heading", { name: "Choose availability" })).toBeNull();
+  await waitFor(() =>
+    expect(screen.queryByRole("heading", { name: "Choose availability" })).toBeNull(),
+  );
 });
-it("skips repeated PRIVATE availability after an accepted registration in the same Event", async () => {
+it("reuses PRIVATE dates/locations but requires this Table's games after another accepted registration", async () => {
   rows = [];
   acceptedElsewhere = true;
   table = {
@@ -421,6 +466,10 @@ it("skips repeated PRIVATE availability after an accepted registration in the sa
   mount();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  expect(await screen.findByRole("tab", { name: "Games" })).not.toBeNull();
+  expect(screen.queryByRole("tab", { name: "Locations" })).toBeNull();
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  await submitGameChoices();
   await waitFor(() =>
     expect(
       fetcher.mock.calls.some(
@@ -428,7 +477,9 @@ it("skips repeated PRIVATE availability after an accepted registration in the sa
       ),
     ).toBe(true),
   );
-  expect(screen.queryByRole("heading", { name: "Choose availability" })).toBeNull();
+  expect(
+    JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body)),
+  ).not.toHaveProperty("availability");
 });
 it("shows the parent Event item with matching artwork and navigation below Table settings", async () => {
   mount();
@@ -552,22 +603,29 @@ it("lets a new member join directly, never reads another user's pending stream, 
   fail = true;
   mount();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+  await submitGameChoices();
   await screen.findByText("Could not join table");
-  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByRole("dialog", { name: "Choose availability" })).not.toBeNull();
   expect(fetcher.mock.calls.some(([url]) => url.includes("pending=true"))).toBe(false);
   fail = false;
-  fireEvent.click(screen.getAllByRole("button", { name: "Free place" })[0]);
+  await waitFor(() =>
+    expect((screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Join table" }));
   await screen.findByText("guest");
 });
-it("preserves organizer join errors inside the choice modal", async () => {
+it("preserves organizer join errors inside the game preference sheet", async () => {
   rows = [];
   table = { ...table, canRegister: true, myRegistration: null, myPosition: null, seatedCount: 0 };
   fail = true;
   mount();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
+  await submitGameChoices();
   expect(await screen.findByText("Could not join table")).not.toBeNull();
-  expect(screen.getByRole("dialog")).not.toBeNull();
+  expect(screen.getByRole("dialog", { name: "Choose availability" })).not.toBeNull();
 });
 it("confirms departure, retains failed destructive dialogs and never bypasses registration versions", async () => {
   fail = true;

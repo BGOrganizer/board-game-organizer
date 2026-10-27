@@ -3,9 +3,14 @@
 import type { EventVote, JoinEventAvailability } from "@board-game-organizer/schemas";
 import { useEffect, useRef, useState } from "react";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
-import { eventJoinAvailabilityIsComplete } from "../eventJoinAvailability";
+import {
+  eventJoinAvailabilityIsComplete,
+  eventOptionVotesAreComplete,
+  hasOtherAcceptedTable,
+} from "../eventJoinAvailability";
+import { useEventCutoff } from "./useEventCutoff";
 import { useEventRecordActions } from "./useEventRecordActions";
-import { useEventRecord } from "./useEventRecords";
+import { useEventRecord, useRecordTable } from "./useEventRecords";
 
 type Choices = JoinEventAvailability["dateVotes"];
 export function useEventJoinForm(
@@ -15,44 +20,77 @@ export function useEventJoinForm(
   onComplete: () => void,
 ) {
   const q = useEventRecord(o, eventId),
+    tableQuery = useRecordTable(o, eventId, tableId),
     actions = useEventRecordActions(o, eventId);
   const [dateVotes, setDates] = useState<Choices>({}),
     [locationVotes, setLocations] = useState<Choices>({}),
+    [gameVotes, setGames] = useState<Choices>({}),
     [failed, setFailed] = useState(false),
     initialized = useRef(false);
-  const event = communityAccessDenied(q.error) ? undefined : q.data;
+  const denied = communityAccessDenied(q.error) || communityAccessDenied(tableQuery.error);
+  const event = denied ? undefined : q.data,
+    table = denied ? undefined : tableQuery.data;
+  const requiresAvailability =
+    event?.groupType === "PRIVATE" && !hasOtherAcceptedTable(event.myRegistrations ?? [], tableId);
   useEffect(() => {
-    if (!event || q.isPlaceholderData || initialized.current) return;
+    if (
+      !event ||
+      !table ||
+      q.isPlaceholderData ||
+      tableQuery.isPlaceholderData ||
+      initialized.current
+    )
+      return;
     const explicit = (choices: Record<string, EventVote> | undefined): Choices =>
       Object.fromEntries(
         Object.entries(choices ?? {}).filter(([, vote]) => vote !== "UNKNOWN"),
       ) as Choices;
     setDates(explicit(event.myVotes?.dateVotes));
     setLocations(explicit(event.myVotes?.locationVotes));
+    setGames(explicit(table.myRegistration?.gameVotes));
     initialized.current = true;
-  }, [event, q.isPlaceholderData]);
+  }, [event, table, q.isPlaceholderData, tableQuery.isPlaceholderData]);
   const current = (options: Array<{ id: string }> | undefined, choices: Choices): Choices =>
     Object.fromEntries(
       (options ?? [])
         .filter((option) => choices[option.id])
         .map((option) => [option.id, choices[option.id]]),
     );
+  const gameOptions = (table?.games ?? []).map((game) => ({ id: String(game.gameId) }));
+  const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const votes = {
     dateVotes: current(event?.dates, dateVotes),
     locationVotes: current(event?.locations, locationVotes),
+    gameVotes: current(gameOptions, gameVotes),
   };
   const canSubmit = Boolean(
     event &&
+      table &&
+      table.eventId === eventId &&
+      table.id === tableId &&
+      table.canRegister &&
       !q.isError &&
+      !tableQuery.isError &&
       !q.isPlaceholderData &&
+      !tableQuery.isPlaceholderData &&
       !actions.busy &&
-      event.groupType === "PRIVATE" &&
+      !closed &&
       event.status === "PLANNING" &&
-      eventJoinAvailabilityIsComplete(event, votes),
+      table.eventStatus === "PLANNING" &&
+      (event.groupType !== "PRIVATE" || event.myRegistrations !== undefined) &&
+      (!requiresAvailability || eventJoinAvailabilityIsComplete(event, votes)) &&
+      eventOptionVotesAreComplete(gameOptions, votes.gameVotes),
   );
-  const choose = (kind: "date" | "location", id: string, vote: EventVote) => {
-    if (vote !== "UNKNOWN")
-      (kind === "date" ? setDates : setLocations)((previous) => ({ ...previous, [id]: vote }));
+  const choose = (kind: "date" | "location" | "game", id: string, vote: EventVote) => {
+    if (vote !== "UNKNOWN" && !actions.busy)
+      (kind === "date" ? setDates : kind === "location" ? setLocations : setGames)((previous) => ({
+        ...previous,
+        [id]: vote,
+      }));
+  };
+  const refetch = () => {
+    void q.refetch();
+    void tableQuery.refetch();
   };
   const submit = async () => {
     if (!canSubmit || !event) return;
@@ -60,13 +98,36 @@ export function useEventJoinForm(
     try {
       await actions.register.mutateAsync({
         tableId,
-        availability: { version: event.version, ...votes },
+        version: event.version,
+        gameVotes: votes.gameVotes,
+        ...(requiresAvailability
+          ? {
+              availability: {
+                version: event.version,
+                dateVotes: votes.dateVotes,
+                locationVotes: votes.locationVotes,
+              },
+            }
+          : {}),
       });
       onComplete();
     } catch {
       setFailed(true);
-      void q.refetch();
+      refetch();
     }
   };
-  return { q, event, votes, choose, canSubmit, busy: actions.busy, failed, submit };
+  return {
+    q,
+    tableQuery,
+    event,
+    table,
+    requiresAvailability,
+    votes,
+    choose,
+    canSubmit,
+    busy: actions.busy,
+    failed,
+    submit,
+    refetch,
+  };
 }

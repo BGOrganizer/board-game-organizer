@@ -17,22 +17,30 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 export function PeoplePicker({
   friendsOnly,
   invitationGroupId,
+  invitationTable,
   disabled = false,
   excludeIds = [],
   onSelect,
 }: {
   friendsOnly: boolean;
   invitationGroupId?: string;
+  invitationTable?: { eventId: string; tableId: string };
   disabled?: boolean;
   excludeIds?: readonly string[];
-  onSelect: (person: ContactUser) => void;
+  onSelect: (person: Pick<ContactUser, "id" | "name" | "email" | "avatarUrl" | "username">) => void;
 }) {
   const t = useT(),
     options = useCommunityApi(),
     filters = useListSearch<never>([]),
     insets = useSafeAreaInsets();
   const [foreground, accent] = useThemeColor(["foreground", "accent-foreground"]);
-  const list = usePeoplePicker(options, filters.search, friendsOnly, invitationGroupId);
+  const list = usePeoplePicker(
+    options,
+    filters.search,
+    friendsOnly,
+    invitationGroupId,
+    invitationTable,
+  );
   return (
     <UserList
       testID="people-picker-scroll"
@@ -50,8 +58,20 @@ export function PeoplePicker({
         <ListSearch
           query={filters.query}
           onQueryChange={filters.setQuery}
-          label={friendsOnly ? t("Search friends") : t("Search users")}
-          placeholder={friendsOnly ? t("Search friends") : t("Search users")}
+          label={
+            invitationTable && !friendsOnly
+              ? t("Search members")
+              : friendsOnly
+                ? t("Search friends")
+                : t("Search users")
+          }
+          placeholder={
+            invitationTable && !friendsOnly
+              ? t("Search members")
+              : friendsOnly
+                ? t("Search friends")
+                : t("Search users")
+          }
           options={[]}
           selected={[]}
           onToggle={filters.toggle}
@@ -61,9 +81,11 @@ export function PeoplePicker({
       empty={
         list.needsSearch
           ? t("Enter at least 4 characters to search")
-          : friendsOnly
-            ? t("No friends found")
-            : t("No users found")
+          : invitationTable && !friendsOnly
+            ? t("No members found")
+            : friendsOnly
+              ? t("No friends found")
+              : t("No users found")
       }
       emptyIcon={<UsersRound size={28} color={foreground} />}
       error={t("Could not load users")}

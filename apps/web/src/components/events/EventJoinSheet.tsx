@@ -6,6 +6,7 @@ import { UserRoundCheck } from "lucide-react";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { GameListRow } from "@/components/games/GameListRow";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -20,7 +21,8 @@ export function EventJoinSheet({
 }) {
   const { t } = useLingui(),
     form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose),
-    event = form.event;
+    event = form.event,
+    table = form.table;
   return (
     <Drawer.Backdrop
       isOpen
@@ -35,71 +37,115 @@ export function EventJoinSheet({
           <Drawer.Handle />
           <Drawer.Header>
             <Drawer.Heading>{t`Choose availability`}</Drawer.Heading>
-            <p className="text-sm text-default-500">{t`Vote on every date and location. Accept at least one of each to join. You can change these votes from the event.`}</p>
+            <p className="text-sm text-default-500">
+              {form.requiresAvailability
+                ? t`Vote on every date, location and game. Accept at least one of each to join.`
+                : t`Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged.`}
+            </p>
           </Drawer.Header>
           <Drawer.Body className="overflow-y-auto">
-            {form.q.isError ? (
+            {form.q.isError || form.tableQuery.isError ? (
               <div role="alert">
                 <p className="text-danger">{t`Unable to load data. Try again.`}</p>
-                <Button onPress={() => void form.q.refetch()}>{t`Try again`}</Button>
+                <Button onPress={form.refetch}>{t`Try again`}</Button>
               </div>
             ) : null}
             {!event || form.q.isPlaceholderData ? (
               <Skeleton className="h-40 w-full rounded-xl" />
             ) : (
-              <Tabs defaultSelectedKey="dates">
+              <Tabs
+                key={form.requiresAvailability ? "initial" : "table"}
+                defaultSelectedKey={form.requiresAvailability ? "dates" : "games"}
+              >
                 <Tabs.ListContainer className="mx-auto mb-3 w-fit">
                   <Tabs.List aria-label={t`Availability`}>
-                    <Tabs.Tab id="dates">
-                      {t`Dates`}
-                      <Tabs.Indicator />
-                    </Tabs.Tab>
-                    <Tabs.Tab id="locations">
-                      {t`Locations`}
+                    {form.requiresAvailability ? (
+                      <>
+                        <Tabs.Tab id="dates">
+                          {t`Dates`}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                        <Tabs.Tab id="locations">
+                          {t`Locations`}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                      </>
+                    ) : null}
+                    <Tabs.Tab id="games">
+                      {t`Games`}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
-                <Tabs.Panel id="dates">
-                  <GroupedList>
-                    {event.dates.map((row) => (
-                      <GroupedRow key={row.id} className="flex-wrap">
-                        <DateTimeInfo
-                          startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                          timeZone={event.timeZone}
-                        />
-                        <EventVoteButtons
-                          inline
-                          allowUnknown={false}
-                          label={eventDateWall(event, row).replace("T", " ")}
-                          value={form.votes.dateVotes[row.id]}
-                          busy={form.busy}
-                          onChange={(vote) => form.choose("date", row.id, vote)}
-                        />
-                      </GroupedRow>
-                    ))}
-                  </GroupedList>
-                </Tabs.Panel>
-                <Tabs.Panel id="locations">
-                  <GroupedList>
-                    {event.locations.map((row) => (
-                      <LocationListRow
-                        key={row.id}
-                        name={row.name}
-                        address={row.address}
-                        actions={
-                          <EventVoteButtons
-                            inline
-                            allowUnknown={false}
-                            label={row.name}
-                            value={form.votes.locationVotes[row.id]}
-                            busy={form.busy}
-                            onChange={(vote) => form.choose("location", row.id, vote)}
+                {form.requiresAvailability ? (
+                  <>
+                    <Tabs.Panel id="dates">
+                      <GroupedList>
+                        {event.dates.map((row) => (
+                          <GroupedRow key={row.id} className="flex-wrap">
+                            <DateTimeInfo
+                              startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                              timeZone={event.timeZone}
+                            />
+                            <EventVoteButtons
+                              inline
+                              label={eventDateWall(event, row).replace("T", " ")}
+                              value={form.votes.dateVotes[row.id]}
+                              busy={form.busy}
+                              onChange={(vote) => form.choose("date", row.id, vote)}
+                            />
+                          </GroupedRow>
+                        ))}
+                      </GroupedList>
+                    </Tabs.Panel>
+                    <Tabs.Panel id="locations">
+                      <GroupedList>
+                        {event.locations.map((row) => (
+                          <LocationListRow
+                            key={row.id}
+                            name={row.name}
+                            address={row.address}
+                            actions={
+                              <EventVoteButtons
+                                inline
+                                label={row.name}
+                                value={form.votes.locationVotes[row.id]}
+                                busy={form.busy}
+                                onChange={(vote) => form.choose("location", row.id, vote)}
+                              />
+                            }
                           />
-                        }
-                      />
-                    ))}
-                  </GroupedList>
+                        ))}
+                      </GroupedList>
+                    </Tabs.Panel>
+                  </>
+                ) : null}
+                <Tabs.Panel id="games">
+                  {!table || form.tableQuery.isPlaceholderData ? (
+                    <Skeleton className="h-40 w-full rounded-xl" />
+                  ) : (
+                    <GroupedList>
+                      {table.games.map(({ gameId }) => {
+                        const game = table.gamesDetail.find((row) => row.id === gameId);
+                        return (
+                          <GameListRow
+                            key={gameId}
+                            name={game?.name ?? t`Unknown`}
+                            imageUrl={game?.imageUrl}
+                            actions={
+                              <EventVoteButtons
+                                inline
+                                label={game?.name ?? t`Unknown`}
+                                value={form.votes.gameVotes[String(gameId)]}
+                                busy={form.busy}
+                                onChange={(vote) => form.choose("game", String(gameId), vote)}
+                              />
+                            }
+                          />
+                        );
+                      })}
+                    </GroupedList>
+                  )}
                 </Tabs.Panel>
               </Tabs>
             )}

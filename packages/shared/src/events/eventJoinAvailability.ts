@@ -24,6 +24,18 @@ export function eventAvailabilityVoteIsAllowed(
     })
   );
 }
+/** Every current option needs an explicit answer, with at least one usable choice. */
+export function eventOptionVotesAreComplete(
+  options: ReadonlyArray<{ id: string }>,
+  choices: Readonly<Record<string, EventVote>>,
+): boolean {
+  return (
+    options.length > 0 &&
+    Object.keys(choices).length === options.length &&
+    options.every((option) => ["YES", "NO", "IF_NEEDED"].includes(choices[option.id])) &&
+    options.some((option) => choices[option.id] === "YES" || choices[option.id] === "IF_NEEDED")
+  );
+}
 /** All options need an explicit answer, with at least one usable date and venue. */
 export function eventJoinAvailabilityIsComplete(
   event: { dates: ReadonlyArray<{ id: string }>; locations: ReadonlyArray<{ id: string }> },
@@ -34,11 +46,5 @@ export function eventJoinAvailabilityIsComplete(
       [event.dates, votes.dateVotes],
       [event.locations, votes.locationVotes],
     ] as const
-  ).every(
-    ([options, choices]) =>
-      options.length > 0 &&
-      Object.keys(choices).length === options.length &&
-      options.every((option) => ["YES", "NO", "IF_NEEDED"].includes(choices[option.id])) &&
-      options.some((option) => choices[option.id] === "YES" || choices[option.id] === "IF_NEEDED"),
-  );
+  ).every(([options, choices]) => eventOptionVotesAreComplete(options, choices));
 }

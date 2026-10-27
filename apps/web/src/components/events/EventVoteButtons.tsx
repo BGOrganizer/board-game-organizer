@@ -2,7 +2,7 @@
 import type { EventVote } from "@board-game-organizer/schemas";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, HelpCircle, Minus, X } from "lucide-react";
+import { Check, Minus, Vote, X } from "lucide-react";
 import { useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 /** One status button; selecting a preference never accepts an invitation. */
@@ -11,15 +11,13 @@ export function EventVoteButtons({
   label,
   busy,
   onChange,
-  allowUnknown = true,
   inline = false,
   disabledVotes = [],
 }: {
   value?: EventVote;
   label: string;
   busy: boolean;
-  onChange: (vote: EventVote) => void;
-  allowUnknown?: boolean;
+  onChange: (vote: Exclude<EventVote, "UNKNOWN">) => void;
   inline?: boolean;
   disabledVotes?: readonly EventVote[];
 }) {
@@ -29,10 +27,13 @@ export function EventVoteButtons({
     { key: "YES", text: t`Yes`, Icon: Check, color: "text-success" },
     { key: "IF_NEEDED", text: t`If needed`, Icon: Minus, color: "text-warning" },
     { key: "NO", text: t`No`, Icon: X, color: "text-danger" },
-    { key: "UNKNOWN", text: t`Unknown`, Icon: HelpCircle, color: "text-foreground/60" },
   ] as const;
-  const selected = options.find((option) => option.key === value) ?? options[3];
-  const choices = options.filter((option) => allowUnknown || option.key !== "UNKNOWN");
+  const selected = options.find((option) => option.key === value) ?? {
+    text: t`Choose your vote`,
+    Icon: Vote,
+    color: "text-foreground/60",
+  };
+  const choices = options;
   if (inline)
     return (
       <div className="flex shrink-0 items-center gap-1">
@@ -93,7 +94,7 @@ export function EventVoteButtons({
             ))}
           </div>
           {disabledVotes.includes("NO") ? (
-            <p className="mt-3 text-sm text-default-500">{t`Keep at least one Yes or If needed for dates and locations.`}</p>
+            <p className="mt-3 text-sm text-default-500">{t`Keep at least one Yes or If needed among the available options.`}</p>
           ) : null}
         </ContactConfirmDialog>
       ) : null}

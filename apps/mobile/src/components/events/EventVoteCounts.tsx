@@ -3,18 +3,13 @@ import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Check, HelpCircle, Minus, X } from "lucide-react-native";
+import { Check, Minus, X } from "lucide-react-native";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 export function EventVoteCounts({ counts, label }: { counts?: Counts; label: string }) {
   const t = useT(),
     { i18n } = useLingui();
-  const [success, warning, danger, unknown] = useThemeColor([
-    "success",
-    "warning",
-    "danger",
-    "foreground",
-  ]);
+  const [success, warning, danger] = useThemeColor(["success", "warning", "danger"]);
   if (!counts) return <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />;
   const number = new Intl.NumberFormat(i18n.locale);
   return (
@@ -26,7 +21,6 @@ export function EventVoteCounts({ counts, label }: { counts?: Counts; label: str
         { key: "YES", text: t("Yes"), Icon: Check, color: success },
         { key: "IF_NEEDED", text: t("If needed"), Icon: Minus, color: warning },
         { key: "NO", text: t("No"), Icon: X, color: danger },
-        { key: "UNKNOWN", text: t("Unknown"), Icon: HelpCircle, color: unknown },
       ].map(({ key, text, Icon, color }) => (
         <View
           key={key}

@@ -67,13 +67,13 @@ it("keeps available identity visible while a grouped summary is missing the Grou
 it("keeps voting meanings and concise accepted/pending/participation rules in the Details help", () => {
   renderWithI18n(<EventDetailsCard event={plannedEvent} />);
   fireEvent.click(screen.getByRole("button", { name: "Voting legend" }));
-  for (const label of ["Yes", "If needed", "No", "Unknown"])
-    expect(screen.getByText(label)).not.toBeNull();
+  for (const label of ["Yes", "If needed", "No"]) expect(screen.getByText(label)).not.toBeNull();
   expect(
     screen.getByText(
       "Only accepted players vote. Pending players keep a reserved place until accepted. Join at least one table to participate in the event.",
     ),
   ).not.toBeNull();
+  expect(screen.queryByText("Unknown")).toBeNull();
   expect(screen.queryByText(/count toward agreement/)).toBeNull();
 });
 it.each([true, false])(

@@ -10,7 +10,6 @@ import { Typography } from "heroui-native/text";
 import { useState } from "react";
 import { View } from "react-native";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
-import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 export function EventInvitationPicker({ eventId, tableId }: { eventId: string; tableId: string }) {
@@ -47,16 +46,13 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
   return (
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: t("Invite players") }} />
-      {event.groupId ? (
-        <GroupMemberPicker
-          groupId={event.groupId}
-          excludeIds={o.userId ? [o.userId] : []}
-          disabled={a.busy}
-          onSelect={(person) => void pick(person.id)}
-        />
-      ) : (
-        <PeoplePicker friendsOnly disabled={a.busy} onSelect={(person) => void pick(person.id)} />
-      )}
+      <PeoplePicker
+        key={tableId}
+        friendsOnly={!event.groupId}
+        invitationTable={{ eventId, tableId }}
+        disabled={a.busy}
+        onSelect={(person) => void pick(person.id)}
+      />
       {error ? (
         <Typography accessibilityRole="alert" className="text-danger">
           {t("Could not invite player. Refresh and try again.")}

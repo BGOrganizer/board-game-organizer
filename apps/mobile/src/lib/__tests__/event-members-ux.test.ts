@@ -13,7 +13,8 @@ it("uses consent responses and queue/seat states, never approval actions on spon
   expect(card).toContain('registration.kind !== "INVITATION"');
   expect(card).toContain("<InvitationActions");
   expect(card).toContain("registration.version");
-  expect(table).toContain("a.register.mutate");
+  expect(table).toContain("<EventJoinSheet");
+  expect(source("events/EventJoinSheet")).toContain("form.submit()");
   expect(table).not.toContain('action:"approve"');
   expect(table).toContain("Pending invitations");
   expect(table).toContain("Waiting list");

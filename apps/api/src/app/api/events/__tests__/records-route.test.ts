@@ -73,6 +73,7 @@ const events = {
   finalize: vi.fn(),
   personalTables: vi.fn(),
   tableLeaderboard: vi.fn(),
+  invitationCandidates: vi.fn(),
 };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -137,8 +138,9 @@ it("source-pages only the selected frozen Table leaderboard with strict IDs/quer
   expect((await leaderboard.GET(request(), context)).status).toBe(401);
 });
 it("keeps explicit registrations, invitations and invitation consent distinct", async () => {
-  expect((await registration.POST(request("POST"), context)).status).toBe(201);
-  expect(events.join).toHaveBeenLastCalledWith("actor", id, tableId, undefined);
+  const choices = { version: 1, gameVotes: { "1": "YES" } };
+  expect((await registration.POST(request("POST", choices), context)).status).toBe(201);
+  expect(events.join).toHaveBeenLastCalledWith("actor", id, tableId, choices);
   expect((await invitation.POST(request("POST", { userId: "friend" }), context)).status).toBe(201);
   expect(events.register).toHaveBeenLastCalledWith("actor", id, tableId, "friend");
   await response.PATCH(request("PATCH", { action: "accept", version: 1 }), context);
@@ -153,19 +155,22 @@ it("keeps explicit registrations, invitations and invitation consent distinct", 
   );
   expect(events.seats).toHaveBeenCalledWith("actor", id, tableId, { limit: 20, cursor }, true);
 });
-it("validates initial availability, strict bodies and removes UNKNOWN only from date/location writes", async () => {
+it("validates initial availability and game preferences, rejecting UNKNOWN in every write", async () => {
   const availability = {
     version: 1,
     dateVotes: { [id]: "YES" },
     locationVotes: { [id]: "IF_NEEDED" },
   };
-  expect((await registration.POST(request("POST", { availability }), context)).status).toBe(201);
-  expect(events.join).toHaveBeenLastCalledWith("actor", id, tableId, availability);
+  const choices = { version: 1, gameVotes: { "1": "IF_NEEDED" }, availability };
+  expect((await registration.POST(request("POST", choices), context)).status).toBe(201);
+  expect(events.join).toHaveBeenLastCalledWith("actor", id, tableId, choices);
   for (const body of [
     { actor: "forged" },
-    { availability: { ...availability, version: 0 } },
-    { availability: { ...availability, dateVotes: { forged: "YES" } } },
-    { availability: { ...availability, dateVotes: { [id]: "UNKNOWN" } } },
+    { ...choices, availability: { ...availability, version: 0 } },
+    { ...choices, availability: { ...availability, dateVotes: { forged: "YES" } } },
+    { ...choices, availability: { ...availability, dateVotes: { [id]: "UNKNOWN" } } },
+    { ...choices, gameVotes: { "1": "UNKNOWN" } },
+    { ...choices, gameVotes: { "0": "YES" } },
   ])
     expect((await registration.POST(request("POST", body), context)).status).toBe(400);
   for (const kind of ["date", "location"])
@@ -179,13 +184,37 @@ it("validates initial availability, strict bodies and removes UNKNOWN only from 
         context,
       )
     ).status,
+  ).toBe(400);
+  expect(events.vote).not.toHaveBeenCalled();
+});
+it("authenticates and source-pages Table invitation candidates using strict IDs and search/cursors", async () => {
+  expect(
+    (
+      await invitation.GET(
+        request("GET", undefined, "?query=board&limit=1&cursor=user_first"),
+        context,
+      )
+    ).status,
   ).toBe(200);
-  expect(events.vote).toHaveBeenLastCalledWith("actor", id, {
-    kind: "game",
-    tableId,
-    gameId: 1,
-    vote: "UNKNOWN",
+  expect(events.invitationCandidates).toHaveBeenLastCalledWith("actor", id, tableId, {
+    query: "board",
+    limit: 1,
+    cursor: "user_first",
   });
+  for (const query of [
+    "?limit=51",
+    "?query=abc",
+    "?limit=1&limit=2",
+    "?pending=true",
+    "?groupId=forged",
+  ])
+    expect((await invitation.GET(request("GET", undefined, query), context)).status).toBe(400);
+  expect(
+    (await invitation.GET(request(), { params: Promise.resolve({ eventId: id, tableId: "bad" }) }))
+      .status,
+  ).toBe(400);
+  mocks.auth.mockResolvedValueOnce({ userId: null });
+  expect((await invitation.GET(request(), context)).status).toBe(401);
 });
 it("delegates voting, authoritative state transitions and whole-event results without inventing participants", async () => {
   const choice = { kind: "game", tableId, gameId: 1, vote: "YES" };

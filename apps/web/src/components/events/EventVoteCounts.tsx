@@ -2,7 +2,7 @@
 import type { EventVoteCounts as Counts } from "@board-game-organizer/schemas";
 import { Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, HelpCircle, Minus, X } from "lucide-react";
+import { Check, Minus, X } from "lucide-react";
 export function EventVoteCounts({ counts, label }: { counts?: Counts; label: string }) {
   const { t, i18n } = useLingui();
   if (!counts) return <Skeleton className="h-4 w-28 rounded" />;
@@ -16,7 +16,6 @@ export function EventVoteCounts({ counts, label }: { counts?: Counts; label: str
         { key: "YES", text: t`Yes`, Icon: Check, color: "text-success" },
         { key: "IF_NEEDED", text: t`If needed`, Icon: Minus, color: "text-warning" },
         { key: "NO", text: t`No`, Icon: X, color: "text-danger" },
-        { key: "UNKNOWN", text: t`Unknown`, Icon: HelpCircle, color: "text-foreground/60" },
       ].map(({ key, text, Icon, color }) => (
         <div key={key} className="inline-flex items-center gap-0.5">
           <dt>

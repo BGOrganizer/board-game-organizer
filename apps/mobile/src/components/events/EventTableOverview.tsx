@@ -1,5 +1,6 @@
 import {
   communityAccessDenied,
+  eventAvailabilityVoteIsAllowed,
   hasOtherAcceptedTable,
   useEventCutoff,
   useEventRecord,
@@ -76,13 +77,12 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
     }
   };
   const confirmed = table.confirmed;
-  const fixedGame = table.groupType === "PUBLIC" && table.games.length === 1;
+  const gameVotes = table.myRegistration?.gameVotes ?? {};
   const canVote =
     table.eventStatus === "PLANNING" &&
     event.data?.status === "PLANNING" &&
     event.data.canVote &&
     !closed &&
-    !fixedGame &&
     table.myRegistration?.status === "ACCEPTED";
   const header = (
     <View style={{ gap: 16 }}>
@@ -168,18 +168,26 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
               average={game.average}
               rank={game.rank}
               metadata={
-                !fixedGame ? (
-                  <EventVoteCounts
-                    label={game.name}
-                    counts={table.gameVoteCounts?.[String(game.id)]}
-                  />
-                ) : undefined
+                <EventVoteCounts
+                  label={game.name}
+                  counts={table.gameVoteCounts?.[String(game.id)]}
+                />
               }
               actions={
                 canVote ? (
                   <EventVoteButtons
                     label={game.name}
-                    value={table.myRegistration?.gameVotes[String(game.id)]}
+                    value={gameVotes[String(game.id)]}
+                    disabledVotes={
+                      eventAvailabilityVoteIsAllowed(
+                        table.games.map((row) => ({ id: String(row.gameId) })),
+                        gameVotes,
+                        String(game.id),
+                        "NO",
+                      )
+                        ? []
+                        : ["NO"]
+                    }
                     busy={a.busy || q.isPlaceholderData || event.isPlaceholderData}
                     onChange={(vote) =>
                       a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
