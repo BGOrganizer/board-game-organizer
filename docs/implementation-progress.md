@@ -1,5 +1,55 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Join sheet — always three tabs, participation-based initial selection
+
+- Web/native join sheets always expose Dates / Locations / Games. A player with no other ACCEPTED
+  Table in that Event starts on Dates; accepted participation elsewhere starts on Games. Pending,
+  declined/cancelled registrations do not qualify. Default waits for participation metadata, is chosen
+  once per sheet and never overrides a later manual tab change or background refetch.
+- PRIVATE Event date/location preferences are prefilled independently of Table loading, remain
+  editable on repeat joins and are committed with the new Table's game votes through the existing
+  atomic versioned join endpoint. Fixed standalone/PUBLIC schedules remain visible/read-only.
+  Cancellation writes nothing; missing/negative/stale choices retain existing validation/error paths.
+- Acknowledged preferences reconcile only owned Event detail/list caches and retain newer versions;
+  explicit invitation consent, cutoff guards, final-positive rules, cached content and busy close
+  safeguards are unchanged. Parent join confirmations no longer promise immutable Event preferences.
+- Checks: schemas 110, shared 219, API 657, web 460 and native pure/source 195 tests (1,641 total),
+  unchanged 100% gates, root typecheck 4/4 and scoped Biome 12 files. Isolated Mongo integration passes
+  81/81, including repeat-join availability update/rollback. API/web production builds and Android
+  Metro export pass; existing compiled EN/IT labels pass without catalog/dependency changes.
+- Prior native-map/crash edits and private/local files remain byte-preserved. Local/unpublished work;
+  no commit/push, device navigation/reset, provider/database mutation or E2E/workflow change. Native
+  rendering and authenticated E2E acceptance are not claimed. Guides: `heroui-react`, `heroui-native`,
+  `tanstack-query-development`, `bgo-component-architecture`, platform React/Expo guides and final
+  `web-design-guidelines` review.
+- The operator subsequently authorized signed commits separated into native-map, join-sheet and
+  documentation scopes, normal push to the existing branch and exact-SHA branch/PR CI monitoring
+  with repairs until enabled gates are green. Local/unpublished statements describe validation stages;
+  this authorization does not include merge, new PR, device operations or provider/production changes.
+
+## Native location selection — safe map dispatch; crash attribution pending
+
+- Reported Android SIGSEGV during saved-location selection includes unsymbolicated `base.apk`
+  addresses, preceding background/low-memory events and a MapLibre style warning. These breadcrumbs
+  do not identify the crashing library or prove an OOM/style failure. Local Sentry CLI preflight is
+  Unauthorized, with no project configured; event ID, affected release/dist and symbolicated native
+  frames are still required to attribute that specific crash. No provider/auth/privacy setting changed.
+- The shared native LocationPicker no longer dispatches camera commands directly from saved-location,
+  search or GPS callbacks. Latest target is queued until style loading finishes and the app is active;
+  style reload/failure pauses commands. Initial viewport stays stable. Coordinate validation rejects
+  invalid cached/API values before native dispatch or confirmation.
+- The noninteractive selected-point indicator now uses stable GeoJSON/circle style layers instead of
+  reparented native Marker child views during favorite-sheet selection. Camera animation, verified
+  addresses/time zones, favorite paging, permission refresh and MapTiler/OSM attribution are retained.
+  Event, Group and historical picker callers share the same fix; no dependency/style-family upgrade.
+- Local checks: root typecheck 4/4, scoped Biome 4 files, native pure/source coverage 190 tests/30 files,
+  coordinate helper 100% gate and Android Metro export pass. Tests execute actual selection/readiness
+  callbacks and cover rapid selection, loading, paused/reloading/failed maps and invalid coordinates.
+  This is not device rendering or SIGSEGV reproduction/acceptance. Current compiled EN/IT titles do not
+  reproduce the pasted uncompiled-message warnings; no catalog fallback suppression was introduced.
+- Local/unpublished follow-up on the existing branch. No commit/push, emulator navigation/reset,
+  live-data mutation, SDK upgrade, Babel/Sentry instrumentation change or E2E/workflow edit.
+
 ## Notification language — application/inbox/device parity
 
 - Authenticated application startup syncs EN/IT preference through strict, bounded, caller-only

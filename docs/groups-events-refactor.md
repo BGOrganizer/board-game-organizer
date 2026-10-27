@@ -129,16 +129,18 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   before search/cursor/limit paging. Declined/cancelled registrations and participation at other Tables
   do not exclude a candidate. Existing approved Group membership, exclusions and standalone reciprocal
   friendship/block rules remain authoritative. Group candidate responses expose no email/presence.
-- Accepted members can enroll directly; no extra booking-approval workflow. Voluntary enrollment
-  opens a platform HeroUI bottom sheet. First PRIVATE enrollment has Dates/Locations/Games tabs;
-  subsequent Tables in that Event reuse stored Event preferences and ask only about the new Table's
-  games. Non-private enrollment likewise asks only about games. Every current votable option needs
-  YES/IF_NEEDED/NO, with at least one YES/IF_NEEDED per dimension. Pending/declined/cancelled participation
-  does not bypass initial PRIVATE preferences. Final confirmation pins the Event version and saves
-  Table game ballots, registration and any initial Event preferences in one transaction. Missing/stale/
-  incomplete/foreign game choices fail before writes. Existing explicit invitation consent remains
-  separate; pending invitations never receive manufactured votes. Opening/canceling writes nothing.
-  Owned participation caches reconcile from the acknowledged registration, not only a later fetch.
+- Accepted members can enroll directly; no extra booking-approval workflow. Every voluntary join
+  opens a platform HeroUI bottom sheet with Dates/Locations/Games tabs. Dates opens initially when
+  the player has no other ACCEPTED Table in that Event; otherwise Games opens initially. Metadata
+  must be known before choosing this default, which never overrides a later manual tab selection.
+  Pending/declined/cancelled registrations do not qualify as prior participation. Stored PRIVATE Event
+  preferences are prefilled and remain editable for any Table join; fixed non-private schedules remain
+  read-only in their visible tabs. Every current votable option needs YES/IF_NEEDED/NO, with at least
+  one YES/IF_NEEDED per dimension. Final confirmation pins the Event version and saves registration,
+  this Table's game ballots and complete PRIVATE Event preferences in one transaction. Missing/stale/
+  incomplete/foreign choices fail before writes. Invitation consent stays separate; pending invitations
+  never receive manufactured votes. Opening, editing and canceling the sheet write nothing. Owned
+  participation/preference caches reconcile from acknowledgment without replacing newer Event votes.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
   occupied capacity retains an additional queue entry. Large rosters/placeholder ranges are source-paged
   and rendered progressively. Empty places enroll the viewer; organizers first choose self-enrollment
