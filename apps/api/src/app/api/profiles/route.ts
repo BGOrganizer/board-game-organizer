@@ -1,34 +1,19 @@
+import { updatePreferredLanguageSchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import type { NextRequest } from "next/server";
 import { enrichSingleUser } from "@/app/lib/clerk";
 import { RelationshipRepository } from "@/app/lib/contacts/relationship.repository";
 import { RelationshipService } from "@/app/lib/contacts/relationship.service";
+import { corsJson, corsOptions, getCorsHeaders } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { ensureCurrentUser } from "@/app/lib/ensureCurrentUser";
 import { GroupsRepository } from "@/app/lib/groups/groups.repository";
 import { MatchesRepository } from "@/app/lib/matches/matches.repository";
-
-function getCorsHeaders(request: NextRequest) {
-  const origin = request.headers.get("origin") ?? "";
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) ?? [];
-
-  // In development, allow all origins
-  const isDev = process.env.NODE_ENV === "development";
-  // Vercel preview deployments use unpredictable *.vercel.app subdomains:
-  // allow them so preview E2E (Playwright) can call the API.
-  const isVercelPreview = origin.endsWith(".vercel.app");
-  const allowOrigin = isDev || allowedOrigins.includes(origin) || isVercelPreview ? origin : "";
-
-  return {
-    "Access-Control-Allow-Origin": allowOrigin || "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
+import { UsersRepository } from "@/app/lib/users/users.repository";
 
 export async function GET(request: NextRequest) {
   const { isAuthenticated, userId } = await auth();
-  const corsHeaders = getCorsHeaders(request);
+  const corsHeaders = { ...getCorsHeaders(request), "Cache-Control": "private, no-store" };
 
   if (!isAuthenticated || !userId) {
     return Response.json(
@@ -73,7 +58,7 @@ export async function GET(request: NextRequest) {
     ...(clerkProfile.bgoRole ? { bgoRole: clerkProfile.bgoRole } : {}),
     email: clerkProfile.emailAddress ?? "",
     avatarUrl: clerkProfile.imageUrl ?? "",
-    preferredLanguage: "it",
+    preferredLanguage: (await new UsersRepository(db).findById(userId))?.preferredLanguage ?? "en",
     plan: "free",
     stats: {
       friends: friends.length,
@@ -88,9 +73,44 @@ export async function GET(request: NextRequest) {
   return Response.json(profile, { headers: corsHeaders });
 }
 
-export async function OPTIONS(request: NextRequest) {
-  return new Response(null, {
-    status: 204,
-    headers: getCorsHeaders(request),
-  });
+export const OPTIONS = corsOptions;
+
+/** Sync only the authenticated caller's app preference, even when push is denied. */
+export async function PATCH(request: Request) {
+  const { isAuthenticated, userId } = await auth();
+  const init = { headers: { "Cache-Control": "private, no-store" } };
+  if (!isAuthenticated || !userId)
+    return corsJson({ error: "Unauthorized" }, { ...init, status: 401 }, request);
+  const params = new URL(request.url).searchParams;
+  if (
+    [...params.keys()].some((key) => key !== "x-vercel-protection-bypass") ||
+    params.getAll("x-vercel-protection-bypass").length > 1 ||
+    request.headers.get("content-type")?.split(";", 1)[0] !== "application/json"
+  )
+    return corsJson({ error: "Invalid request" }, { ...init, status: 400 }, request);
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > 8192)
+    return corsJson({ error: "Invalid request" }, { ...init, status: 400 }, request);
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return corsJson({ error: "Invalid request" }, { ...init, status: 400 }, request);
+  }
+  const parsed = updatePreferredLanguageSchema.safeParse(body);
+  if (!parsed.success)
+    return corsJson({ error: "Invalid request" }, { ...init, status: 400 }, request);
+  try {
+    const db = await getDb();
+    await ensureCurrentUser(userId, db);
+    const result = await new UsersRepository(db).setPreferredLanguage(
+      userId,
+      parsed.data.preferredLanguage,
+    );
+    if (!result.matchedCount)
+      return corsJson({ error: "User not found" }, { ...init, status: 404 }, request);
+    return corsJson(parsed.data, init, request);
+  } catch {
+    return corsJson({ error: "Internal server error" }, { ...init, status: 500 }, request);
+  }
 }

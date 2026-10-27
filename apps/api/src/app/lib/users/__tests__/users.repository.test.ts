@@ -110,6 +110,32 @@ describe("UsersRepository", () => {
     );
   });
 
+  it.each([undefined, { transaction: true }])(
+    "owns application language separately from Clerk mirroring (%j)",
+    async (session) => {
+      const { col } = createFakeCol();
+      const repo = createRepo(col, session);
+      await repo.setPreferredLanguage("viewer", "it");
+      expect(col.updateOne).toHaveBeenCalledWith(
+        { clerkId: "viewer" },
+        { $set: { preferredLanguage: "it", updatedAt: expect.any(Date) } },
+        session ? { session } : {},
+      );
+      await repo.upsertFromClerk({
+        id: "viewer",
+        name: "Updated name",
+        email: "v@example.test",
+        preferredLanguage: "en",
+      });
+      const update = (col.findOneAndUpdate.mock.calls as unknown[][])[0][1] as {
+        $set: Record<string, unknown>;
+        $setOnInsert: Record<string, unknown>;
+      };
+      expect(update.$set).not.toHaveProperty("preferredLanguage");
+      expect(update.$setOnInsert.preferredLanguage).toBe("en");
+    },
+  );
+
   it("sets plan default, presence and createdAt on insert", async () => {
     const { col } = createFakeCol();
     const repo = createRepo(col);

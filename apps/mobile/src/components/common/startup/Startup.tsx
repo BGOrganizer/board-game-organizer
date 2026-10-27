@@ -21,6 +21,7 @@ import { Linking } from "react-native";
 import { AnimatedStartupSplash } from "@/components/common/startup/AnimatedStartupSplash";
 import { NotificationBadgeSync } from "@/components/notifications/NotificationBadgeSync";
 import { warmRegisteredContacts } from "@/lib/contacts/registeredContacts";
+import { defaultI18n } from "@/lib/i18n";
 import { hideStartupSplash } from "@/lib/splash";
 import {
   isStartupAuthPending,
@@ -222,7 +223,16 @@ export function Startup({
           }),
         () =>
           queryClient.prefetchInfiniteQuery(
-            notificationsPageQuery({ apiUrl, getToken, userId, enabled: true }, 3),
+            notificationsPageQuery(
+              {
+                apiUrl,
+                getToken,
+                userId,
+                enabled: true,
+                locale: defaultI18n.locale.startsWith("it") ? "it" : "en",
+              },
+              3,
+            ),
           ),
       ];
       let next = 0;

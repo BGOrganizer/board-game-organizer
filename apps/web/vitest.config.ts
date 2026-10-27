@@ -49,6 +49,7 @@ export default defineConfig({
           "events/hooks/useEventTableMatch.ts",
           "events/hooks/useTableLeaderboard.ts",
           "events/hooks/useEventJoinForm.ts",
+          "profile/hooks/usePreferredLanguageSync.ts",
           "groups/hooks/usePublicGroups.ts",
         ].map((file) =>
           fileURLToPath(new URL(`../../packages/shared/src/${file}`, import.meta.url)).replaceAll(
@@ -89,6 +90,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/profile/hooks/usePreferredLanguageSync.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/components/events/{EventResultTableCard,EventTableResults,EventTableLeaderboard,EventPlayerCard,EventJoinSheet}.tsx":
           { lines: 100, functions: 100, branches: 100, statements: 100 },
         "../../packages/shared/src/events/hooks/{useTableLeaderboard,useEventJoinForm}.ts": {

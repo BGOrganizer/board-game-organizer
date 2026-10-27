@@ -4,6 +4,7 @@ import type { Notification, PushSubscription } from "@board-game-organizer/schem
 import type { ObjectId } from "mongodb";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 import { PushSubscriptionsRepository } from "@/app/lib/notifications/push-subscriptions.repository";
+import { localizedNotificationText } from "./notification-copy";
 
 let googleAccessToken: { value: string; expiresAt: number } | undefined;
 let apnsToken: { value: string; expiresAt: number } | undefined;
@@ -221,10 +222,14 @@ export async function dispatchNotifications(ids: ObjectId[]): Promise<void> {
     }
     for (const target of targets) {
       try {
+        const localized = {
+          ...notification,
+          ...localizedNotificationText(notification, target.locale),
+        };
         const result =
           target.provider === "apns"
-            ? await sendApns(target, notification, unreadCount)
-            : await sendFcm(target, notification, unreadCount);
+            ? await sendApns(target, localized, unreadCount)
+            : await sendFcm(target, localized, unreadCount);
         if (result === "invalid") await subscriptions.removeToken(target.token);
       } catch (error) {
         console.error("Push notification delivery failed", {

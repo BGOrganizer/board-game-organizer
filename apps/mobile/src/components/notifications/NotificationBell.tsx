@@ -1,5 +1,6 @@
 import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
@@ -14,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
-import { defaultI18n, useT } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 import {
   notificationHref,
   registerMobilePush,
@@ -30,9 +31,14 @@ export function NotificationBell() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const t = useT();
+  const { i18n } = useLingui();
+  const locale = i18n.locale.startsWith("it") ? "it" : "en";
   const surface = useThemeColor("surface");
   const muted = useThemeColor("muted");
-  const registeredRef = useRef(false);
+  const registrationKey = JSON.stringify([apiUrl(), userId, locale]);
+  const activeRegistration = useRef(registrationKey);
+  activeRegistration.current = registrationKey;
+  const registeredRef = useRef<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [permission, setPermission] = useState<{
     status: Notifications.PermissionStatus | "unsupported";
@@ -45,16 +51,22 @@ export function NotificationBell() {
       getToken,
       userId,
       enabled: isLoaded && Boolean(isSignedIn),
+      locale,
     },
     3,
   );
   const registerPushSubscription = notifications.registerPush.mutateAsync;
-  const registrationPromiseRef = useRef<Promise<void> | null>(null);
+  const registrationPromiseRef = useRef<{ key: string; promise: Promise<void> } | null>(null);
 
   const registerPush = useCallback(() => {
-    if (registrationPromiseRef.current) return registrationPromiseRef.current;
+    if (registrationPromiseRef.current?.key === registrationKey)
+      return registrationPromiseRef.current.promise;
+    const previous = registrationPromiseRef.current?.promise;
     const promise = (async () => {
+      await previous?.catch(() => undefined);
+      if (activeRegistration.current !== registrationKey) return;
       const result = await registerMobilePush();
+      if (activeRegistration.current !== registrationKey) return;
       setPermission({
         status:
           result.status === "granted"
@@ -71,16 +83,18 @@ export function NotificationBell() {
       await registerPushSubscription({
         token: result.token,
         platform: result.platform,
-        locale: defaultI18n.locale.startsWith("it") ? "it" : "en",
+        locale,
       });
-      registeredRef.current = true;
+      if (activeRegistration.current !== registrationKey) return;
+      registeredRef.current = registrationKey;
       setPushError(false);
     })().finally(() => {
-      registrationPromiseRef.current = null;
+      if (registrationPromiseRef.current?.key === registrationKey)
+        registrationPromiseRef.current = null;
     });
-    registrationPromiseRef.current = promise;
+    registrationPromiseRef.current = { key: registrationKey, promise };
     return promise;
-  }, [registerPushSubscription]);
+  }, [registrationKey, locale, registerPushSubscription]);
 
   const refreshPermission = useCallback(async () => {
     const result = await Notifications.getPermissionsAsync();
@@ -90,10 +104,10 @@ export function NotificationBell() {
 
   const refreshPermissionAndRegister = useCallback(async () => {
     const result = await refreshPermission();
-    if (result.status === "granted" && !registeredRef.current && isSignedIn) {
+    if (result.status === "granted" && registeredRef.current !== registrationKey && isSignedIn) {
       await registerPush();
     }
-  }, [isSignedIn, refreshPermission, registerPush]);
+  }, [isSignedIn, refreshPermission, registerPush, registrationKey]);
 
   useEffect(() => {
     refreshPermissionAndRegister().catch(() => setPushError(true));
@@ -123,12 +137,12 @@ export function NotificationBell() {
     });
     if (result.status === "granted") {
       try {
-        if (!registeredRef.current && isSignedIn) await registerPush();
+        if (registeredRef.current !== registrationKey && isSignedIn) await registerPush();
       } finally {
         await queryClient.invalidateQueries({ queryKey: ["notifications"] });
       }
     }
-  }, [isSignedIn, registerPush, queryClient]);
+  }, [isSignedIn, registerPush, queryClient, registrationKey]);
 
   const openNotification = (id: string, href: string, kind: string) => {
     notifications.markRead.mutate(id);
@@ -270,7 +284,7 @@ export function NotificationBell() {
                     {notification.description}
                   </Typography>
                   <Typography className="text-[10px] text-muted">
-                    {new Intl.DateTimeFormat(defaultI18n.locale, {
+                    {new Intl.DateTimeFormat(i18n.locale, {
                       dateStyle: "short",
                       timeStyle: "short",
                     }).format(new Date(notification.createdAt))}

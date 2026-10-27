@@ -34,7 +34,8 @@ function callbacks(nativePermission: Promise<unknown>, registration = Promise.re
     setIsOpen: vi.fn(),
     setPermission: vi.fn(),
     setPushError: vi.fn(),
-    registeredRef: { current: false },
+    registeredRef: { current: null as string | null },
+    registrationKey: "viewer:it",
     isSignedIn: true,
     registerPush: vi.fn(() => registration),
     queryClient: { invalidateQueries: vi.fn(async () => undefined) },
@@ -74,6 +75,16 @@ it("opens only after native permission settles, without waiting for push registr
   bell.open(false);
   expect(bell.setIsOpen).toHaveBeenLastCalledWith(false);
   expect(bell.requestMobilePushPermission).toHaveBeenCalledOnce();
+});
+
+it("re-registers a granted installation when its locale changes, but reuses the current locale", async () => {
+  const bell = callbacks(Promise.resolve({ status: "granted" }));
+  bell.registeredRef.current = bell.registrationKey;
+  await bell.open(true);
+  expect(bell.registerPush).not.toHaveBeenCalled();
+  bell.registeredRef.current = "viewer:en";
+  await bell.open(true);
+  expect(bell.registerPush).toHaveBeenCalledOnce();
 });
 
 it.each(["denied", "unsupported"])("keeps inbox available when push is %s", async (status) => {

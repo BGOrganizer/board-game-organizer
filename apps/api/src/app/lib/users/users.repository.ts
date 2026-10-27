@@ -49,13 +49,13 @@ export class UsersRepository {
           ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
           ...(typeof user.mobileNumber === "string" ? { mobileNumber: user.mobileNumber } : {}),
           ...(mobileNumberNormalized ? { mobileNumberNormalized } : {}),
-          preferredLanguage: user.preferredLanguage,
           plan: user.plan ?? "free",
           ...(user.e2e !== undefined ? { e2e: user.e2e } : {}),
           updatedAt: now,
         },
         ...(Object.keys(unset).length ? { $unset: unset } : {}),
         $setOnInsert: {
+          preferredLanguage: user.preferredLanguage,
           clerkId: user.id,
           presence: { online: false, lastActiveAt: now },
           createdAt: now,
@@ -66,6 +66,14 @@ export class UsersRepository {
         returnDocument: "after",
         ...(this.session ? { session: this.session } : {}),
       },
+    );
+  }
+
+  setPreferredLanguage(clerkId: string, preferredLanguage: "en" | "it") {
+    return this.col.updateOne(
+      { clerkId },
+      { $set: { preferredLanguage, updatedAt: new Date() } },
+      this.session ? { session: this.session } : {},
     );
   }
 

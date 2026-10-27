@@ -1,6 +1,10 @@
 "use client";
 
-import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
+import {
+  resolveApiUrl,
+  useNotifications,
+  usePreferredLanguageSync,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Badge, Dropdown, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -23,7 +27,21 @@ export function NotificationBell() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { i18n, t } = useLingui();
   const router = useRouter();
-  const registeredRef = useRef(false);
+  const locale = i18n.locale.startsWith("it") ? "it" : "en";
+  usePreferredLanguageSync(
+    {
+      apiUrl: apiUrl(),
+      getToken,
+      userId,
+      enabled: isLoaded && Boolean(isSignedIn),
+      protectionBypass: protectionBypass(),
+    },
+    locale,
+  );
+  const registrationKey = JSON.stringify([apiUrl(), userId, locale]);
+  const activeRegistration = useRef(registrationKey);
+  activeRegistration.current = registrationKey;
+  const registeredRef = useRef<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() =>
     typeof Notification === "undefined" ? "unsupported" : Notification.permission,
@@ -36,42 +54,50 @@ export function NotificationBell() {
       userId,
       enabled: isLoaded && Boolean(isSignedIn),
       protectionBypass: protectionBypass(),
+      locale,
     },
     3,
   );
   const registerPushSubscription = notifications.registerPush.mutateAsync;
-  const registrationPromiseRef = useRef<Promise<void> | null>(null);
+  const registrationPromiseRef = useRef<{ key: string; promise: Promise<void> } | null>(null);
 
   const registerPush = useCallback(() => {
-    if (registrationPromiseRef.current) return registrationPromiseRef.current;
+    if (registrationPromiseRef.current?.key === registrationKey)
+      return registrationPromiseRef.current.promise;
+    const previous = registrationPromiseRef.current?.promise;
     const promise = (async () => {
+      await previous?.catch(() => undefined);
+      if (activeRegistration.current !== registrationKey) return;
       const token = await getWebPushToken();
+      if (activeRegistration.current !== registrationKey) return;
       if (!token) throw new Error("Web push unavailable");
       await registerPushSubscription({
         token,
         platform: "web",
-        locale: i18n.locale.startsWith("it") ? "it" : "en",
+        locale,
       });
-      registeredRef.current = true;
+      if (activeRegistration.current !== registrationKey) return;
+      registeredRef.current = registrationKey;
       setPushError(false);
     })().finally(() => {
-      registrationPromiseRef.current = null;
+      if (registrationPromiseRef.current?.key === registrationKey)
+        registrationPromiseRef.current = null;
     });
-    registrationPromiseRef.current = promise;
+    registrationPromiseRef.current = { key: registrationKey, promise };
     return promise;
-  }, [i18n.locale, registerPushSubscription]);
+  }, [registrationKey, locale, registerPushSubscription]);
 
   useEffect(() => {
     if (
       permission !== "granted" ||
-      registeredRef.current ||
+      registeredRef.current === registrationKey ||
       !isSignedIn ||
       !isWebPushConfigured()
     ) {
       return;
     }
     registerPush().catch(() => setPushError(true));
-  }, [isSignedIn, permission, registerPush]);
+  }, [isSignedIn, permission, registerPush, registrationKey]);
 
   const enablePush = async () => {
     const result = await Notification.requestPermission();

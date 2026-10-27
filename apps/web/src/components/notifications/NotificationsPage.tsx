@@ -26,6 +26,7 @@ export function NotificationsPage() {
       enabled: isLoaded && Boolean(isSignedIn),
       protectionBypass: process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS,
       feedback,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
     },
     20,
   );

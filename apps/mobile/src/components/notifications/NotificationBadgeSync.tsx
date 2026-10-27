@@ -1,4 +1,9 @@
-import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
+import {
+  resolveApiUrl,
+  useNotifications,
+  usePreferredLanguageSync,
+} from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import * as Sentry from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
@@ -12,8 +17,14 @@ const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | und
 export function NotificationBadgeSync() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const queryClient = useQueryClient();
-  const { list } = useNotifications(
+  const { i18n } = useLingui();
+  const locale = i18n.locale.startsWith("it") ? "it" : "en";
+  usePreferredLanguageSync(
     { apiUrl, getToken, userId, enabled: isLoaded && Boolean(isSignedIn) },
+    locale,
+  );
+  const { list } = useNotifications(
+    { apiUrl, getToken, userId, enabled: isLoaded && Boolean(isSignedIn), locale },
     3,
   );
   const unreadCount = list.data?.pages[0]?.unreadCount;

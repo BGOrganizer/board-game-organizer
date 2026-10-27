@@ -175,6 +175,54 @@ describe("push delivery", () => {
     );
   });
 
+  it("uses each installation's locale for FCM/web/APNs without mutating stored copy", async () => {
+    setFirebaseCredentials();
+    setApnsCredentials();
+    mocks.notifications = [{ ...notification, copy: { actorName: "Nome originale" } }];
+    mocks.targets = [
+      { ...subscription("fcm", "web"), locale: "it", token: "it-web" },
+      { ...subscription("fcm", "android"), locale: "en", token: "en-android" },
+      { ...subscription("apns", "ios"), locale: "it" },
+    ];
+    vi.mocked(fetch).mockImplementation(
+      async (url) =>
+        new Response(
+          JSON.stringify(
+            String(url).includes("oauth2") ? { access_token: "access", expires_in: 3600 } : {},
+          ),
+        ),
+    );
+    await dispatchNotifications([notification._id]);
+    const fcm = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).includes("messages:send"))
+      .map(([, init]) => JSON.parse(String(init?.body)).message);
+    expect(fcm[0]).toMatchObject({
+      token: "it-web",
+      data: {
+        title: "Nuova richiesta di amicizia",
+        description: "Nome originale ti ha inviato una richiesta di amicizia.",
+      },
+    });
+    expect(fcm[1]).toMatchObject({
+      token: "en-android",
+      notification: {
+        title: "New friend request",
+        body: "Nome originale sent you a friend request.",
+      },
+    });
+    expect(JSON.parse(mocks.requestBodies[0])).toMatchObject({
+      aps: {
+        alert: {
+          title: "Nuova richiesta di amicizia",
+          body: "Nome originale ti ha inviato una richiesta di amicizia.",
+        },
+        badge: 3,
+      },
+    });
+    expect(mocks.notifications[0].description).toBe(notification.description);
+  });
+
   it("removes unregistered FCM tokens", async () => {
     setFirebaseCredentials();
     mocks.targets = [subscription("fcm", "android")];

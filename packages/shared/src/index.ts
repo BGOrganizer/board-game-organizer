@@ -53,4 +53,5 @@ export * from "./matches/matchResults";
 export * from "./notifications/hooks/useNotifications";
 export * from "./organizations/organizationActions";
 export * from "./organizations/organizationLogoUpload";
+export * from "./profile/hooks/usePreferredLanguageSync";
 export * from "./profile/hooks/useProfile";

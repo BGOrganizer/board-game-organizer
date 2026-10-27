@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   const parsed = notificationListQuerySchema.safeParse(Object.fromEntries(params));
   if (
     !parsed.success ||
-    ["limit", "cursor", "x-vercel-protection-bypass"].some((key) => params.getAll(key).length > 1)
+    ["limit", "cursor", "locale", "x-vercel-protection-bypass"].some(
+      (key) => params.getAll(key).length > 1,
+    )
   ) {
     return corsJson({ error: "Invalid query" }, { status: 400 }, request);
   }
@@ -23,8 +25,9 @@ export async function GET(request: Request) {
       userId,
       parsed.data.limit,
       parsed.data.cursor,
+      parsed.data.locale,
     );
-    return corsJson(result, {}, request);
+    return corsJson(result, { headers: { "Cache-Control": "private, no-store" } }, request);
   } catch {
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);
   }

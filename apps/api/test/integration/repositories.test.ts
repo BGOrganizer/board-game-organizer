@@ -1157,9 +1157,10 @@ describe("match repositories on MongoDB replica set", () => {
       recipientUserId: TARGET,
       actorUserId: ACTOR,
     });
-    await db
-      .collection("users")
-      .updateOne({ clerkId: TARGET }, { $set: { preferredLanguage: "it" } });
+    await users.setPreferredLanguage(TARGET, "it");
+    // A later webhook/backfill default must not undo the app's choice.
+    await seedUser(users, TARGET, "target@example.com");
+    expect((await users.findById(TARGET))?.preferredLanguage).toBe("it");
     await notifications.notify({
       kind: "match_invitation",
       recipientUserId: TARGET,
@@ -1169,6 +1170,20 @@ describe("match repositories on MongoDB replica set", () => {
     });
 
     expect(createdIds).toHaveLength(2);
+    const italianInbox = await notifications.list(TARGET, 5, undefined, "it");
+    expect(italianInbox.notifications.map((row) => row.title)).toEqual([
+      "Nuovo invito a una partita",
+      "Nuova richiesta di amicizia",
+    ]);
+    const englishInbox = await notifications.list(TARGET, 5, undefined, "en");
+    expect(englishInbox.notifications.map((row) => row.title)).toEqual([
+      "New match invitation",
+      "New friend request",
+    ]);
+    expect(italianInbox.unreadCount).toBe(2);
+    expect((await db.collection("notifications").findOne({ _id: createdIds[0] }))?.title).toBe(
+      "New friend request",
+    );
     const firstPage = await notifications.list(TARGET, 1);
     expect(firstPage).toMatchObject({ unreadCount: 2 });
     expect(firstPage.notifications[0]).toMatchObject({

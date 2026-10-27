@@ -2,13 +2,12 @@ import type {
   CommunityNotificationKind,
   Notification,
   NotificationDto,
-  NotificationKind,
   NotificationListResponse,
   User,
 } from "@board-game-organizer/schemas";
 import { type ClientSession, type Db, ObjectId } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
-import { communityNotificationCopy } from "./community-notifications";
+import { localizedNotificationText, notificationCopy } from "./notification-copy";
 
 export type NotificationEvent =
   | {
@@ -45,162 +44,13 @@ export type NotificationEvent =
       matchId: string;
     };
 
-export function notificationCopy(
-  kind: NotificationKind,
-  locale: "en" | "it",
-  actorName: string,
-  matchName?: string,
-): { title: string; description: string; href: string } {
-  const community = communityNotificationCopy(kind, locale, actorName, matchName);
-  if (community) return community;
-  if (locale === "it") {
-    switch (kind) {
-      case "friend_request":
-        return {
-          title: "Nuova richiesta di amicizia",
-          description: `${actorName} ti ha inviato una richiesta di amicizia.`,
-          href: "/contacts",
-        };
-      case "friend_request_accepted":
-        return {
-          title: "Richiesta di amicizia accettata",
-          description: `${actorName} ha accettato la tua richiesta di amicizia.`,
-          href: "/contacts",
-        };
-      case "group_invitation":
-        return {
-          title: "Nuovo invito a un gruppo",
-          description: `${actorName} ti ha invitato al gruppo “${matchName}”.`,
-          href: "/groups",
-        };
-      case "group_invitation_accepted":
-        return {
-          title: "Invito al gruppo accettato",
-          description: `${actorName} ha accettato l'invito al gruppo “${matchName}”.`,
-          href: "/groups",
-        };
-      case "match_invitation":
-        return {
-          title: "Nuovo invito a una partita",
-          description: `${actorName} ti ha invitato alla partita “${matchName}”.`,
-          href: "/matches",
-        };
-      case "match_invitation_accepted":
-        return {
-          title: "Invito alla partita accettato",
-          description: `${actorName} ha accettato l'invito alla partita “${matchName}”.`,
-          href: "/matches",
-        };
-      case "match_invitation_declined":
-        return {
-          title: "Invito alla partita rifiutato",
-          description: `${actorName} ha rifiutato l'invito alla partita “${matchName}”.`,
-          href: "/matches",
-        };
-      case "match_created":
-        return {
-          title: "Partita confermata",
-          description: `La partita “${matchName}” è stata confermata.`,
-          href: "/matches",
-        };
-      case "match_replanning":
-        return {
-          title: "Partita di nuovo in pianificazione",
-          description: `La partita “${matchName}” è tornata in pianificazione.`,
-          href: "/matches",
-        };
-      case "match_terminated":
-        return {
-          title: "Partita terminata",
-          description: `La partita “${matchName}” è terminata.`,
-          href: "/matches",
-        };
-      case "match_updated":
-        return {
-          title: "Partita aggiornata",
-          description: `La partita “${matchName}” è stata aggiornata.`,
-          href: "/matches",
-        };
-    }
-  }
+export { notificationCopy } from "./notification-copy";
 
-  switch (kind) {
-    case "friend_request":
-      return {
-        title: "New friend request",
-        description: `${actorName} sent you a friend request.`,
-        href: "/contacts",
-      };
-    case "friend_request_accepted":
-      return {
-        title: "Friend request accepted",
-        description: `${actorName} accepted your friend request.`,
-        href: "/contacts",
-      };
-    case "group_invitation":
-      return {
-        title: "New group invitation",
-        description: `${actorName} invited you to the group “${matchName}”.`,
-        href: "/groups",
-      };
-    case "group_invitation_accepted":
-      return {
-        title: "Group invitation accepted",
-        description: `${actorName} accepted the invitation to the group “${matchName}”.`,
-        href: "/groups",
-      };
-    case "match_invitation":
-      return {
-        title: "New match invitation",
-        description: `${actorName} invited you to “${matchName}”.`,
-        href: "/matches",
-      };
-    case "match_invitation_accepted":
-      return {
-        title: "Match invitation accepted",
-        description: `${actorName} accepted the invitation to “${matchName}”.`,
-        href: "/matches",
-      };
-    case "match_invitation_declined":
-      return {
-        title: "Match invitation declined",
-        description: `${actorName} declined the invitation to “${matchName}”.`,
-        href: "/matches",
-      };
-    case "match_created":
-      return {
-        title: "Match confirmed",
-        description: `“${matchName}” was confirmed.`,
-        href: "/matches",
-      };
-    case "match_replanning":
-      return {
-        title: "Match back in planning",
-        description: `“${matchName}” is back in planning.`,
-        href: "/matches",
-      };
-    case "match_terminated":
-      return {
-        title: "Match finished",
-        description: `“${matchName}” has finished.`,
-        href: "/matches",
-      };
-    case "match_updated":
-      return {
-        title: "Match updated",
-        description: `“${matchName}” was updated.`,
-        href: "/matches",
-      };
-  }
-  throw new Error("Unsupported notification kind");
-}
-
-function toDto(notification: Notification): NotificationDto {
+function toDto(notification: Notification, locale?: "en" | "it"): NotificationDto {
   return {
     id: notification._id.toHexString(),
     kind: notification.kind,
-    title: notification.title,
-    description: notification.description,
+    ...localizedNotificationText(notification, locale),
     href: notification.href,
     readAt: notification.readAt?.toISOString() ?? null,
     createdAt: notification.createdAt.toISOString(),
@@ -237,23 +87,22 @@ export class NotificationsRepository {
       const recipient = usersById.get(event.recipientUserId);
       const actor = usersById.get(event.actorUserId);
       if (!recipient || !actor) return [];
+      const actorName = "resourceName" in event ? (actor.username ?? actor.name) : actor.name;
+      const resourceName =
+        "resourceName" in event
+          ? event.resourceName
+          : "matchName" in event
+            ? event.matchName
+            : "groupName" in event
+              ? event.groupName
+              : undefined;
       return [
         {
           recipientUserId: event.recipientUserId,
           actorUserId: event.actorUserId,
           kind: event.kind,
-          ...notificationCopy(
-            event.kind,
-            recipient.preferredLanguage,
-            "resourceName" in event ? (actor.username ?? actor.name) : actor.name,
-            "resourceName" in event
-              ? event.resourceName
-              : "matchName" in event
-                ? event.matchName
-                : "groupName" in event
-                  ? event.groupName
-                  : undefined,
-          ),
+          copy: { actorName, ...(resourceName === undefined ? {} : { resourceName }) },
+          ...notificationCopy(event.kind, recipient.preferredLanguage, actorName, resourceName),
           ...("resourceHref" in event
             ? { href: event.resourceHref }
             : "matchId" in event
@@ -278,6 +127,7 @@ export class NotificationsRepository {
     recipientUserId: string,
     limit: number,
     cursor?: string,
+    locale?: "en" | "it",
   ): Promise<NotificationListResponse> {
     let cursorFilter = {};
     if (cursor) {
@@ -306,7 +156,7 @@ export class NotificationsRepository {
     const hasMore = rows.length > limit;
     const notifications = rows.slice(0, limit);
     return {
-      notifications: notifications.map(toDto),
+      notifications: notifications.map((row) => toDto(row, locale)),
       unreadCount,
       nextCursor: hasMore ? (notifications.at(-1)?._id.toHexString() ?? null) : null,
     };

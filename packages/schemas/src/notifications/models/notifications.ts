@@ -56,6 +56,8 @@ export interface Notification {
   kind: NotificationKind;
   title: string;
   description: string;
+  /** Immutable formatting inputs for per-device delivery; absent on historical records. */
+  copy?: { actorName: string; resourceName?: string };
   href: string;
   readAt?: Date;
   createdAt: Date;

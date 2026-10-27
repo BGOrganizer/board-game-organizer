@@ -18,6 +18,7 @@ export interface NotificationsApiOptions {
   enabled: boolean;
   protectionBypass?: string | null;
   feedback?: MutationFeedback;
+  locale?: "en" | "it";
 }
 
 async function authToken(getToken: () => Promise<string | null>): Promise<string> {
@@ -30,16 +31,18 @@ async function fetchNotifications(
   options: NotificationsApiOptions,
   limit: number,
   cursor?: string,
+  signal?: AbortSignal,
 ): Promise<NotificationListResponse> {
   const token = await authToken(options.getToken);
   const query = new URLSearchParams({ limit: String(limit) });
   if (cursor) query.set("cursor", cursor);
+  if (options.locale) query.set("locale", options.locale);
   const response = await fetch(
     withProtectionBypass(
       `${options.apiUrl}/api/notifications?${query.toString()}`,
       options.protectionBypass,
     ),
-    { headers: { Authorization: `Bearer ${token}` } },
+    { headers: { Authorization: `Bearer ${token}` }, signal },
   );
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return (await response.json()) as NotificationListResponse;
@@ -108,9 +111,9 @@ function optimisticNotifications(
 
 export function notificationsPageQuery(options: NotificationsApiOptions, limit = 5) {
   return {
-    queryKey: ["notifications", options.apiUrl, options.userId, limit] as const,
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
-      fetchNotifications(options, limit, pageParam),
+    queryKey: ["notifications", options.apiUrl, options.userId, limit, options.locale] as const,
+    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal?: AbortSignal }) =>
+      fetchNotifications(options, limit, pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page: NotificationListResponse) => page.nextCursor ?? undefined,
   };

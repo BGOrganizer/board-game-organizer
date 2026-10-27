@@ -12,6 +12,11 @@ export const contactUserSchema = z.object({
 
 export type ContactUser = z.infer<typeof contactUserSchema>;
 
+/** Authenticated caller's application language; independent of push permission and Clerk mirroring. */
+export const updatePreferredLanguageSchema = z
+  .object({ preferredLanguage: z.enum(["en", "it"]) })
+  .strict();
+
 /** Public payload returned by `GET /api/profiles` (mirror of Claude profile). */
 export const publicUserSchema = z.object({
   id: z.string(),

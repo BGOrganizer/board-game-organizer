@@ -95,7 +95,18 @@ describe("notification API", () => {
       ),
     );
     expect(response.status).toBe(200);
-    expect(mocks.list).toHaveBeenCalledWith("user_1", 20, ID);
+    expect(mocks.list).toHaveBeenCalledWith("user_1", 20, ID, undefined);
+  });
+
+  it("uses explicit supported inbox locale and rejects duplicate/foreign locale input", async () => {
+    const response = await listNotifications(new Request("http://x/api/notifications?locale=it"));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.list).toHaveBeenCalledWith("user_1", 5, undefined, "it");
+    for (const query of ["locale=fr", "locale=it&locale=en"])
+      expect(
+        (await listNotifications(new Request("http://x/api/notifications?" + query))).status,
+      ).toBe(400);
   });
 
   it("returns 500 when notification listing fails", async () => {

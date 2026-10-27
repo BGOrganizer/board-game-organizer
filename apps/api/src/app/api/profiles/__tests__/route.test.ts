@@ -27,6 +27,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
 vi.mock("@/app/lib/clerk", () => ({ enrichSingleUser: mocks.enrich }));
 vi.mock("@/app/lib/db", () => ({ getDb: mocks.getDb }));
+vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
+vi.mock("@/app/lib/users/users.repository", () => ({
+  UsersRepository: vi.fn(() => ({ findById: vi.fn(async () => ({ preferredLanguage: "en" })) })),
+}));
 vi.mock("@/app/lib/contacts/relationship.repository", () => ({ RelationshipRepository: vi.fn() }));
 vi.mock("@/app/lib/contacts/relationship.service", () => ({
   RelationshipService: vi.fn().mockImplementation(() => ({ list: mocks.list })),

@@ -86,7 +86,7 @@ describe("useNotifications", () => {
     await waitFor(() => expect(result.current.notifications).toHaveLength(1));
     expect(fetch).toHaveBeenCalledWith(
       "https://api.example.com/api/notifications?limit=1&x-vercel-protection-bypass=bypass",
-      { headers: { Authorization: "Bearer fresh-token" } },
+      { headers: { Authorization: "Bearer fresh-token" }, signal: expect.any(AbortSignal) },
     );
     await act(() => result.current.list.fetchNextPage());
     await waitFor(() =>
@@ -94,6 +94,46 @@ describe("useNotifications", () => {
     );
     expect(result.current.unreadCount).toBe(2);
     expect(result.current.hasMore).toBe(false);
+  });
+
+  it("keeps locale-specific inbox pages separate and reuses each locale's owned cache", async () => {
+    vi.mocked(fetch).mockImplementation(
+      async (url) =>
+        new Response(
+          JSON.stringify({
+            notifications: [
+              {
+                ...item("same-id"),
+                title: String(url).includes("locale=it")
+                  ? "Nuova richiesta di amicizia"
+                  : "New friend request",
+              },
+            ],
+            unreadCount: 1,
+            nextCursor: null,
+          }),
+        ),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const hook = renderHook(({ locale }) => useNotifications({ ...options, locale }, 3), {
+      wrapper: wrapper(client),
+      initialProps: { locale: "en" as "en" | "it" },
+    });
+    await waitFor(() =>
+      expect(hook.result.current.notifications[0]?.title).toBe("New friend request"),
+    );
+    options.getToken.mockResolvedValue("rotated");
+    hook.rerender({ locale: "it" });
+    await waitFor(() =>
+      expect(hook.result.current.notifications[0]?.title).toBe("Nuova richiesta di amicizia"),
+    );
+    expect(
+      client.getQueryData(["notifications", options.apiUrl, options.userId, 3, "en"]),
+    ).toMatchObject({ pages: [{ notifications: [{ title: "New friend request" }] }] });
+    expect(vi.mocked(fetch).mock.calls.at(-1)).toEqual([
+      "https://api.example.com/api/notifications?limit=3&locale=it&x-vercel-protection-bypass=bypass",
+      { headers: { Authorization: "Bearer rotated" }, signal: expect.any(AbortSignal) },
+    ]);
   });
 
   it("marks notifications read and registers or removes push tokens", async () => {
@@ -146,7 +186,7 @@ describe("useNotifications", () => {
     });
     const { result } = renderHook(() => useNotifications(options), { wrapper: wrapper(client) });
     await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
-    const key = ["notifications", options.apiUrl, options.userId, 5];
+    const key = ["notifications", options.apiUrl, options.userId, 5, undefined];
     const previous = client.getQueryData<{
       pages: Array<{ notifications: ReturnType<typeof item>[] }>;
     }>(key);

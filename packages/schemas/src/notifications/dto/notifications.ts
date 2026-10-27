@@ -7,6 +7,7 @@ export const notificationListQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(50).default(5),
     cursor: notificationIdSchema.optional(),
+    locale: z.enum(["en", "it"]).optional(),
     "x-vercel-protection-bypass": z.string().trim().min(1).max(512).optional(),
   })
   .strict();

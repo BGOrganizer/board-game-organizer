@@ -1,5 +1,6 @@
 import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Redirect, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -11,7 +12,7 @@ import { FlatList, Pressable, View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
-import { defaultI18n, useT } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 import { notificationHref } from "@/lib/notifications/push-notifications";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -19,6 +20,7 @@ export default function NotificationsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
   const router = useRouter();
   const t = useT();
+  const { i18n } = useLingui();
   const feedback = useMutationFeedback();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const notifications = useNotifications(
@@ -28,6 +30,7 @@ export default function NotificationsScreen() {
       userId,
       enabled: isLoaded && Boolean(isSignedIn),
       feedback,
+      locale: i18n.locale.startsWith("it") ? "it" : "en",
     },
     20,
   );
@@ -140,7 +143,7 @@ export default function NotificationsScreen() {
                 </View>
                 <Typography className="text-sm text-muted">{item.description}</Typography>
                 <Typography className="text-xs text-muted">
-                  {new Intl.DateTimeFormat(defaultI18n.locale, {
+                  {new Intl.DateTimeFormat(i18n.locale, {
                     dateStyle: "medium",
                     timeStyle: "short",
                   }).format(new Date(item.createdAt))}
