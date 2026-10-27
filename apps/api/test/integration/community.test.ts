@@ -1281,11 +1281,12 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect((await services().eventRecords.find(event.id))?.dates).toEqual(input.dates);
     for (const user of [OWNER, GUEST]) {
       await transaction((s) => s.plannedEventService.register(user, event.id, tableId));
-      await transaction((s) =>
-        s.plannedEventService.vote(user, event.id, { kind: "date", optionId: dateId, vote: "NO" }),
-      );
+      // Establish a positive date before rejecting another option.
       await transaction((s) =>
         s.plannedEventService.vote(user, event.id, { kind: "date", optionId: later, vote: "YES" }),
+      );
+      await transaction((s) =>
+        s.plannedEventService.vote(user, event.id, { kind: "date", optionId: dateId, vote: "NO" }),
       );
       await transaction((s) =>
         s.plannedEventService.vote(user, event.id, {
