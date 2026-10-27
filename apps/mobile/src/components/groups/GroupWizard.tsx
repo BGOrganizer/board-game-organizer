@@ -17,10 +17,11 @@ import { Input } from "heroui-native/input";
 import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
-import { Save, Send, Trash2, X } from "lucide-react-native";
+import { Save, Send, Trash2, UsersRound, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -150,6 +151,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
       <Stack.Screen
         options={{
           title: group ? t("Edit group") : t("New group"),
+          headerTitle: ({ children }) => <HeaderTitle title={children} icon={UsersRound} />,
           headerLeft: undefined,
           headerBackVisible: true,
         }}

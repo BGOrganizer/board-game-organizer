@@ -11,10 +11,19 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ArrowLeft, ArrowRight, CalendarPlus, Plus, Save, Trash2 } from "lucide-react-native";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarPlus,
+  Dices,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { BackHandler, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import GamePicker from "@/components/games/GamePicker";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
@@ -201,6 +210,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
       <Stack.Screen
         options={{
           title: event ? t("Edit event") : t("Create event"),
+          headerTitle: ({ children }) => <HeaderTitle title={children} icon={Dices} />,
           gestureEnabled: true,
           headerLeft: undefined,
           headerBackVisible: true,
