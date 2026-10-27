@@ -11,8 +11,9 @@ import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import {
   Camera,
   type CameraRef,
+  GeoJSONSource,
+  Layer,
   Map as MapLibreMap,
-  Marker,
 } from "@maplibre/maplibre-react-native";
 import Constants from "expo-constants";
 import * as Location from "expo-location";
@@ -31,6 +32,7 @@ import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { useT } from "@/lib/i18n";
+import { locationMapPoint } from "@/lib/locations/map-location";
 import { requestUserPosition } from "@/lib/locations/user-location";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
@@ -110,9 +112,19 @@ export default function LocationPicker({
     feedback,
   });
   const selectedFavorite = favorites.items.find((item) => item.key === favoriteKey);
-  const [center, setCenter] = useState<[number, number]>(
-    initial ? [initial.longitude, initial.latitude] : [0, 20],
-  );
+  const [center, setCenter] = useState<[number, number] | null>(null);
+  const [initialViewState] = useState<{ center: [number, number]; zoom: number }>(() => {
+    const point = locationMapPoint(initial?.longitude, initial?.latitude);
+    return { center: point ?? [0, 20], zoom: point ? 13 : 1.5 };
+  });
+  const [mapReady, setMapReady] = useState(false);
+  const [mapActive, setMapActive] = useState(AppState.currentState === "active");
+  const selectedPoint = locationMapPoint(selected?.longitude, selected?.latitude);
+  useEffect(() => {
+    // A native ref exists before its style is usable. Keep only the latest target while loading/paused.
+    if (!mapReady || !mapActive || !center) return;
+    camera.current?.easeTo({ center, zoom: 14, duration: 500 });
+  }, [center, mapReady, mapActive]);
 
   useEffect(() => {
     if (query.trim().length < 4 || selected?.address === query.trim()) {
@@ -171,6 +183,7 @@ export default function LocationPicker({
     };
     void refresh();
     const subscription = AppState.addEventListener("change", (state) => {
+      setMapActive(state === "active");
       if (state === "active") void refresh();
     });
     return () => {
@@ -180,11 +193,20 @@ export default function LocationPicker({
   }, [t]);
 
   const moveTo = (longitude: number, latitude: number) => {
-    setCenter([longitude, latitude]);
-    camera.current?.easeTo({ center: [longitude, latitude], zoom: 14, duration: 500 });
+    const point = locationMapPoint(longitude, latitude);
+    if (!point) {
+      setError(t("Location unavailable"));
+      return;
+    }
+    setCenter(point);
   };
   const chooseFavorite = (key: string, location: MatchLocation) => {
     cancelLocate();
+    if (!locationMapPoint(location.longitude, location.latitude)) {
+      setError(t("Location unavailable"));
+      return;
+    }
+    setError("");
     setSelected(location);
     setFavoriteKey(key);
     setName(location.name);
@@ -257,16 +279,31 @@ export default function LocationPicker({
             style={{ flex: 1 }}
             mapStyle={mapStyle}
             androidView="texture"
+            onWillStartLoadingMap={() => setMapReady(false)}
+            onDidFinishLoadingStyle={() => setMapReady(true)}
+            onDidFailLoadingMap={() => {
+              setMapReady(false);
+              setError(t("Map unavailable"));
+            }}
             attribution
             logo
           >
-            <Camera ref={camera} initialViewState={{ center, zoom: initial ? 13 : 1.5 }} />
-            {selected && (
-              <Marker lngLat={[selected.longitude, selected.latitude]}>
-                <View
-                  style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#006fee" }}
+            <Camera ref={camera} initialViewState={initialViewState} />
+            {mapReady && selectedPoint && (
+              <GeoJSONSource
+                id="selected-location"
+                data={{
+                  type: "Feature",
+                  properties: {},
+                  geometry: { type: "Point", coordinates: selectedPoint },
+                }}
+              >
+                <Layer
+                  id="selected-location-point"
+                  type="circle"
+                  paint={{ "circle-radius": 9, "circle-color": "#006fee" }}
                 />
-              </Marker>
+              </GeoJSONSource>
             )}
           </MapLibreMap>
           <Button
@@ -507,9 +544,9 @@ export default function LocationPicker({
       ) : null}
       <Button
         variant="primary"
-        isDisabled={locating || !mapStyle || !selected || name.trim().length < 4}
+        isDisabled={locating || !mapStyle || !selected || !selectedPoint || name.trim().length < 4}
         onPress={() => {
-          if (!selected || name.trim().length < 4) return;
+          if (!selected || !selectedPoint || name.trim().length < 4) return;
           const location: MatchLocation = {
             id:
               initial?.id ??
