@@ -1,5 +1,72 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Notification language — application/inbox/device parity
+
+- Authenticated application startup syncs EN/IT preference through strict, bounded, caller-only
+  `PATCH /api/profiles`, independently of push credentials/permission. `GET /api/profiles` returns
+  the MongoDB preference, not hardcoded Italian. Clerk mirror repair, webhook and administrative
+  upserts retain an existing application preference; their language is an insertion default only.
+- New inbox records retain immutable formatting inputs alongside original text. Explicit inbox
+  locale is validated, scoped into Query keys and used at read time without rewriting records or
+  changing resource links, unread counts or paging. Every native reader, including bootstrap, and
+  both web readers pass the active locale. Profile synchronization preserves other fields/owners,
+  aborts old identities and never seeds partial profiles or emits user-action toasts.
+- FCM web/Android and APNs use each installation's locale. Registration refreshes when locale/user
+  changes without a new permission prompt; pending old-locale registration cannot overwrite the new
+  choice. No provider credentials/settings, permission policy, instrumentation or dependencies changed.
+- Historical notifications without formatting inputs keep their original text. No lossy parsing,
+  live backfill, document reset or rewrite is authorized/performed; new records support both locales.
+- Local coverage passed: schemas 110, shared 219, API 656, web 452 and native pure/source 185 tests
+  (1,622 total), including unchanged existing gates plus new 100% gates for the formatter, profile
+  controller and shared sync hook. Full isolated Mongo integration passed 81/81 across 3 files.
+  Root typecheck passed 4/4 and scoped Biome passed 78 source files; API/web production builds and
+  Android Metro export passed. Generated Next references, prior feature edits and private/local files
+  are preserved. Native UI/authenticated E2E/live delivery acceptance is not claimed.
+- Guides used: `lingui-best-practices`, `tanstack-query-development`, `expo-overview`,
+  `expo-data-fetching`, `vercel-react-best-practices`, `vercel-react-native-skills`,
+  `bgo-component-architecture`, `vercel-composition-patterns`. No skill/dependency upgrade.
+- The operator subsequently authorized scope-separated signed commits, push and CI repair until all
+  enabled branch/PR gates are green. This does not authorize merging, a new PR, production/provider
+  mutation, emulator operation or changing retained E2E/workflow policy. Earlier local-only statements
+  below describe their verification stage, not the current publication instruction.
+
+## Explicit join games and Table-scoped invitation candidates — follow-up
+
+- Voluntary join now collects explicit game preferences in the same transaction as registration and
+  any initial PRIVATE date/location preferences. First PRIVATE join has Dates / Locations / Games;
+  another Table in the same Event reuses Event preferences and asks only for its own games. Fixed/
+  standalone Event schedules likewise retain their existing date/location consent semantics.
+- Every current proposed game needs YES / IF_NEEDED / NO and at least one positive option. Event
+  versions and exact current game IDs reject stale/foreign ballots before writes. API and UI preserve
+  a positive game on subsequent edits, including concurrent NO requests under the same Event lock.
+  Fixed PUBLIC game identity stays immutable; explicit ballots are not overwritten by fixed-option
+  agreement, while historical/invitation implicit availability remains readable when no ballot exists.
+- Unknown is removed from vote totals, choice menus and legends on both clients. Missing/historical
+  ballots stay readable internally and show a neutral choice prompt, never a fabricated YES/NO.
+  Draft votes remain local, errors retain editable choices, and cancel never writes partial votes.
+- Invitation pickers use the organizer-only Table candidate endpoint, not unfiltered contacts/Group
+  pages or a partial seat snapshot. Mongo filtering excludes PENDING/ACCEPTED seated and queued users
+  before cursor/limit paging; other Tables and declined/cancelled rows do not exclude candidates.
+  Existing membership, exclusion and reciprocal friendship/block rules remain authoritative. Group
+  candidate replies disclose neither email values nor presence. Optimistic hiding/rollback is scoped
+  by API, actor, Event and Table; acknowledged registrations retain newer cached game votes.
+- Final local coverage runs passed: schemas 109, shared 219, API 608, web 439 and mobile 182 tests
+  (1,557 total); existing per-file 100% gates remain unchanged and pass. Root typecheck passed 4/4,
+  scoped Biome passed 44 source files, compiled EN/IT messages and Italian plurals passed. API/web
+  production builds and Android Metro export passed; generated Next references were restored.
+- Full isolated Mongo integration passed 81/81 across 3 files. A slower final rerun exceeded the
+  command wrapper's 600-second window but continued; its actual Vitest process was observed exiting
+  0 after all tests passed (998.12 seconds). No test deadline or assertion was weakened.
+- Native evidence remains pure/source tests plus Metro export, not device rendering/gesture or
+  authenticated Playwright/Maestro acceptance. Whole-root lint is not claimed against unrelated private
+  local service JSON; scoped public-source checks pass. Private/local baseline files stay unchanged.
+- Applied guides: `bgo-component-architecture`, `tanstack-query-development`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`, `heroui-react`,
+  `heroui-native`, `uniwind`, `lingui-best-practices`; final `web-design-guidelines` review.
+- Everything remains local/unstaged on the existing branch. Prior publication/CI authorization is
+  historical; no commit/push, PR, deployment/provider or live-data mutation, emulator operation,
+  dependency/Babel/Sentry change, or E2E/workflow edit.
+
 ## Table-card parity and DiceBear identities — scoped publication and CI follow-up
 
 - Main Tables and Event detail now use one Table card per platform; only Main Tables shows the

@@ -124,32 +124,37 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 - Each invitation has its own accept/decline response. Creation/request time, then server sequence
   and stable ID determine priority, not acceptance time. Pending invitations reserve seat/queue
   priority but **cannot vote, count toward minimums, agreement or the frozen roster**. Voting never
-  accepts an invitation. Accepted waiting players may vote.
-- Private-group accepted members can enroll directly; no extra booking-approval workflow. The first
-  voluntary enrollment opens a platform HeroUI bottom sheet with Dates/Locations tabs. Every current option
-  needs YES/IF_NEEDED/NO, with at least one YES/IF_NEEDED in each dimension. Final confirmation sends
-  versioned preferences and enrollment together; the API rejects missing/stale/incomplete choices and
-  persists both in one transaction. Existing explicit invitation response semantics remain unchanged.
-  A player already accepted at another Table of that same Event joins without repeating this sheet
-  or replacing stored preferences. Pending/declined/cancelled registrations do not qualify. Owned Event
-  participation caches reconcile from the acknowledged registration, not only a later successful fetch.
-  Initial choices are editable later from the Event; opening/canceling the sheet writes nothing.
+  accepts an invitation. Accepted waiting players may vote. The organizer-only Table invitation
+  candidate endpoint excludes every PENDING/ACCEPTED registration on that same Table, seated or queued,
+  before search/cursor/limit paging. Declined/cancelled registrations and participation at other Tables
+  do not exclude a candidate. Existing approved Group membership, exclusions and standalone reciprocal
+  friendship/block rules remain authoritative. Group candidate responses expose no email/presence.
+- Accepted members can enroll directly; no extra booking-approval workflow. Voluntary enrollment
+  opens a platform HeroUI bottom sheet. First PRIVATE enrollment has Dates/Locations/Games tabs;
+  subsequent Tables in that Event reuse stored Event preferences and ask only about the new Table's
+  games. Non-private enrollment likewise asks only about games. Every current votable option needs
+  YES/IF_NEEDED/NO, with at least one YES/IF_NEEDED per dimension. Pending/declined/cancelled participation
+  does not bypass initial PRIVATE preferences. Final confirmation pins the Event version and saves
+  Table game ballots, registration and any initial Event preferences in one transaction. Missing/stale/
+  incomplete/foreign game choices fail before writes. Existing explicit invitation consent remains
+  separate; pending invitations never receive manufactured votes. Opening/canceling writes nothing.
+  Owned participation caches reconcile from the acknowledged registration, not only a later fetch.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
   occupied capacity retains an additional queue entry. Large rosters/placeholder ranges are source-paged
   and rendered progressively. Empty places enroll the viewer; organizers first choose self-enrollment
   (when eligible) or the existing invitation picker. Avatar badges distinguish accepted, pending and
   waiting players. Pending identities remain organizer/recipient-only; other reservations are anonymous.
-- Event detail uses one secondary preference button per votable date, location or game. Date/location
-  writes offer YES/IF_NEEDED/NO only; UNKNOWN remains a game choice and a readable missing-vote state. Event
-  date/location voting requires accepted participation; game voting requires acceptance at that Table.
-  An edit must retain at least one YES/IF_NEEDED among current options of its own dimension. YES and
-  IF_NEEDED can interchange; NO is disabled when it would remove the final positive choice. The API
-  enforces the same condition under the existing transaction lock, including simultaneous changes.
-  Date votes cannot substitute for venue votes, removed options do not qualify, and game NO/UNKNOWN
-  retain their existing semantics.
-  Aggregate detail counts include accepted players only (once per Event for dates/locations), with
-  missing preferences counted as UNKNOWN. Pending ballots never contribute or imply consent. Lists
-  omit these aggregates; missing detail totals load without replacing available cached content.
+- Detail preference controls offer only YES/IF_NEEDED/NO for dates, locations and games. UNKNOWN remains
+  an internal readable missing/historical state, never a selectable choice, displayed total or legend
+  item; an uncast ballot shows a neutral choice prompt, not a fabricated YES/NO. Event date/location
+  voting requires accepted participation; game voting requires acceptance at that Table, including
+  its sole fixed PUBLIC game. Fixed game identity is not changed by willingness voting. Each edit
+  retains at least one YES/IF_NEEDED among current options of its own dimension/Table. Positive states
+  can interchange; NO is disabled when it would remove the final positive choice. The API enforces
+  the same condition under the Event transaction lock, including concurrent game rejections. Removed
+  options and another Table's game votes never qualify. Aggregate totals include accepted players only
+  (once per Event for dates/locations), displaying only the three explicit meanings. Pending ballots
+  never contribute or imply consent; missing detail totals remain partial skeletons.
 - Public events additionally require an end and exact booking cutoff. Their tables have
   fixed starts and BGG-derived duration; missing metadata requires explicit administrator duration.
   Table editors fix the date to the Event day and expose only a start-time field, strictly after
@@ -165,8 +170,10 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   readable and are not migrated; an explicit planning edit must satisfy current rules. Player and
   demonstrator duties cannot overlap; half-open boundaries permit adjacent tables. Other modes do
   not restrict overlaps.
-- Accepting a public fixed-option table expresses availability for those fixed options without
-  manufacturing extra preference votes. After cutoff no user, including the administrator, may
+- Accepted legacy/invitation participation retains implicit availability for fixed PUBLIC choices
+  only where no explicit ballot exists; fixed game identity never overrides an explicit NO/UNKNOWN.
+  New voluntary joins store the user's explicit game preferences, not manufactured votes. After
+  cutoff no user, including the administrator, may
   invite, register, vote, respond or leave. Confirmation/reopening remain manual operations.
 - Confirmation freezes selected date/location/games and accepted eligible rosters. At least one
   table must agree; others remain present but excluded. Reopening preserves votes, invitations,
