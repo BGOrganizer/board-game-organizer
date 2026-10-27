@@ -97,22 +97,27 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   dice icon, only the first game and `+n` additional games (no suffix for a single game). The shared
   Rating badge is primary/accent when enabled and secondary/neutral when disabled, retaining its
   state icon and accessible label on both clients.
-- Event detail starts with a Details label and voting-legend help above its stable artwork card:
+- Event list/detail and parent links share stable-ID animated DiceBear Constellation artwork.
+  Event detail starts with a Details label and voting-legend help above its artwork card:
   name and status first, then the associated Group link when present. Table detail starts with
-  Settings and player-limit help above its shapes card: name, shared Rating badge, and minimum/
+  Settings and player-limit help above its Planets card: name, shared Rating badge, and minimum/
   maximum counts with their existing icons. Immediately below, Event labels a linked item with the
   parent Event's name and matching stable artwork; it opens that Event detail. Voting help states accepted-only voting, reserved
   pending places until acceptance, and participation through at least one Table.
-- Main Tables cards show Event identity with its calendar icon, associated Group beneath, and one
-  icon row for minimum, maximum, accepted registrations and pending registrations. Totals include
-  queued registrations; seat/queue counters keep their separate existing meanings. Missing cached
-  Group/total metadata uses partial skeletons, never guessed counts. Own pending status is an artwork
-  badge, not Reserved place/Invitation received body text. Group/Table artwork distinguishes incoming
-  invitations (mail) and outgoing requests (clock), both warning at bottom-right. Group/Table invitation
-  responses share platform controls, dimensions and Check/X icons; requests never expose self-approval.
-  Games show Dices, first name only and localized additional `+n game/games`. Participation labels/state
-  chips do not repeat in the body: artwork shows pending, accepted/waiting or the viewer's genuine
-  first-place trophy (including shared first place). Joint winners remain visible by name.
+- Main Tables and parent Event lists use one platform-owned Table card. Animated DiceBear Planets
+  artwork uses the persisted Table ID on the left, consistently with saved/edit/review cards. Its
+  bottom-right badge shows the viewer's accepted state (success check), pending invitation (warning
+  mail), pending request (warning clock), or waiting list (warning ordered-list icon), never body text.
+  Right-side rows show bold name/Dices with Rating at far right; Event/calendar and Group/people
+  separated by a dot only in Main Tables; then five distinct icon/counts for minimum, maximum,
+  accepted registrations, waiting places and pending registrations. Accepted/pending totals include
+  queued registrations; existing seat/queue counters retain their meanings. Missing cached metadata
+  uses partial skeletons, never guessed counts. Count help is far left outside the navigation link;
+  invitation responses stay outside it on the right. Group/Table responses share platform controls,
+  dimensions and Check/X icons; requests never expose self-approval. Following rows show first game
+  with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
+  and all joint winner names with trophy only when terminated. Group incoming/outgoing artwork
+  keeps its existing warning mail/clock badges and creator crown.
 - Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
   are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
   deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
@@ -211,8 +216,8 @@ there are no repeated identical notifications or player reminders to change vote
   The source-paged authenticated Table leaderboard reads current snapshots and genuine physical-Table
   statistics, never legacy Match statistics, pending players or an automatic organizer seat. Player
   cards show avatar/full name/username on both tabs. Results have two matching statistic rows:
-  position, GROUP-before rating, Group rating change and Group ranking; then exact score/ND, Global
-  rating change and Global ranking. Both scope changes use signed semantic-color icons and immutable
+  position, GROUP-before rating, Global ranking and Group ranking; then exact score/ND, Global
+  rating change and Group rating change. Both scope changes use signed semantic-color icons and immutable
   after snapshots, not current rating or an Elo calculation. Missing/disabled scopes stay unavailable;
   standalone GLOBAL values never masquerade as GROUP values. Ranking starts
   with Selected game and its normal game row, then Ranking and current player cards. Its game

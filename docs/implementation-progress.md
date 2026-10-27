@@ -1,6 +1,28 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
-## Shared Event availability, result rows and excluded Tables — scoped publication
+## Table-card parity and DiceBear identities — scoped publication and CI follow-up
+
+- Main Tables and Event detail now use one Table card per platform; only Main Tables shows the
+  inline Event/calendar · Group/people row. Name/Dices and the right-aligned Rating badge lead five
+  independent minimum/maximum/accepted/waiting/pending counts, first game and localized extra count,
+  optional demonstrator, and terminated joint winners. Count help stays far left outside navigation;
+  invitation controls retain the right-side consent/version/cutoff guards.
+- Stable persisted Table IDs seed animated DiceBear Planets across saved/review identities. Event
+  identities and parent links use Constellation. Existing reduced-motion policy remains unchanged;
+  no dependency, Babel, authentication, server-state or rating-calculation changes.
+- Artwork keeps accepted, pending invitation, pending request and waiting-list icon states, not
+  body labels. Immutable Results swap Global ranking into the first-row Group-change position;
+  Group change moves to the second row. Genuine snapshots/ND/unavailable scopes remain unchanged.
+- Verification: **606** coverage tests pass (web **424/82 files**, mobile **182/28**); existing 100%
+  Table-card/result gates remain unchanged. Root typecheck **4/4**, scoped Biome, compiled EN/IT
+  help/plural checks, web production build and Android Metro export pass. Next references restored
+  byte-for-byte. Root lint is locally blocked only by pre-existing private service JSON formatting,
+  left untouched; this is not a native rendering/gesture or authenticated Playwright/Maestro claim.
+  The operator now authorizes signed scope-separated commits, a normal push of the existing branch,
+  and monitoring/fixing its enabled CI until green. Private/local files remain excluded. No force-push,
+  merge, new PR, manual provider/live-data mutation, emulator operation or weakened CI gate is authorized.
+
+## Previous shared Event availability, result rows and excluded Tables — scoped publication
 
 - PRIVATE enrollment at another Table reuses accepted participation in the same Event, without a
   second preference sheet or voter overwrite. Pending/cancelled/declined rows never qualify. Shared
