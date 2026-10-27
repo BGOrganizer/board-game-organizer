@@ -26,30 +26,29 @@ export function useEventJoinForm(
     [locationVotes, setLocations] = useState<Choices>({}),
     [gameVotes, setGames] = useState<Choices>({}),
     [failed, setFailed] = useState(false),
-    initialized = useRef(false);
+    [initialTab, setInitialTab] = useState<"dates" | "games">(),
+    initialized = useRef({ availability: false, games: false });
   const denied = communityAccessDenied(q.error) || communityAccessDenied(tableQuery.error);
   const event = denied ? undefined : q.data,
     table = denied ? undefined : tableQuery.data;
-  const requiresAvailability =
-    event?.groupType === "PRIVATE" && !hasOtherAcceptedTable(event.myRegistrations ?? [], tableId);
+  const requiresAvailability = event?.groupType === "PRIVATE";
   useEffect(() => {
-    if (
-      !event ||
-      !table ||
-      q.isPlaceholderData ||
-      tableQuery.isPlaceholderData ||
-      initialized.current
-    )
-      return;
+    if (!event || q.isPlaceholderData || event.myRegistrations === undefined) return;
+    const firstTab = hasOtherAcceptedTable(event.myRegistrations, tableId) ? "games" : "dates";
+    setInitialTab((current) => current ?? firstTab);
     const explicit = (choices: Record<string, EventVote> | undefined): Choices =>
       Object.fromEntries(
         Object.entries(choices ?? {}).filter(([, vote]) => vote !== "UNKNOWN"),
       ) as Choices;
-    setDates(explicit(event.myVotes?.dateVotes));
-    setLocations(explicit(event.myVotes?.locationVotes));
+    if (!initialized.current.availability) {
+      setDates(explicit(event.myVotes?.dateVotes));
+      setLocations(explicit(event.myVotes?.locationVotes));
+      initialized.current.availability = true;
+    }
+    if (!table || tableQuery.isPlaceholderData || initialized.current.games) return;
     setGames(explicit(table.myRegistration?.gameVotes));
-    initialized.current = true;
-  }, [event, table, q.isPlaceholderData, tableQuery.isPlaceholderData]);
+    initialized.current.games = true;
+  }, [event, table, q.isPlaceholderData, tableQuery.isPlaceholderData, tableId]);
   const current = (options: Array<{ id: string }> | undefined, choices: Choices): Choices =>
     Object.fromEntries(
       (options ?? [])
@@ -77,7 +76,7 @@ export function useEventJoinForm(
       !closed &&
       event.status === "PLANNING" &&
       table.eventStatus === "PLANNING" &&
-      (event.groupType !== "PRIVATE" || event.myRegistrations !== undefined) &&
+      event.myRegistrations !== undefined &&
       (!requiresAvailability || eventJoinAvailabilityIsComplete(event, votes)) &&
       eventOptionVotesAreComplete(gameOptions, votes.gameVotes),
   );
@@ -122,6 +121,7 @@ export function useEventJoinForm(
     event,
     table,
     requiresAvailability,
+    initialTab,
     votes,
     choose,
     canSubmit,

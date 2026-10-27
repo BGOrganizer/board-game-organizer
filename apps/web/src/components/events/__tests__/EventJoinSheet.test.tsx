@@ -77,6 +77,10 @@ it("requires three explicit dimensions and saves game votes and initial availabi
   const { close } = mount(),
     confirm = screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement;
   expect(confirm.disabled).toBe(true);
+  expect((await screen.findByRole("tab", { name: "Dates" })).getAttribute("aria-selected")).toBe(
+    "true",
+  );
+  expect(screen.getAllByRole("tab")).toHaveLength(3);
   fireEvent.click(await screen.findByRole("button", { name: "2030-06-03 20:00: No" }));
   expect(confirm.disabled).toBe(true);
   expect(posts()).toHaveLength(0);
@@ -105,21 +109,129 @@ it("requires three explicit dimensions and saves game votes and initial availabi
   expect(fetcher.mock.calls.every(([url]) => !String(url).includes("/votes"))).toBe(true);
 });
 it.each(["PRIVATE", "PUBLIC", null] as const)(
-  "collects this Table's games without replacing existing/fixed Event choices for %s",
+  "shows all three tabs, opens Games for existing participation and preserves fixed schedules for %s",
   async (groupType) => {
-    event = { ...event, groupType, myRegistrations: [{ ...seat("owner"), tableId: eventId }] };
+    event = {
+      ...event,
+      groupType,
+      myRegistrations: [{ ...seat("owner"), tableId: eventId }],
+      myVotes: { dateVotes: { [optionId]: "YES" }, locationVotes: { [optionId]: "IF_NEEDED" } },
+    };
     const { close } = mount();
+    expect((await screen.findByRole("tab", { name: "Games" })).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
     fireEvent.click(await screen.findByRole("button", { name: "Chess: Yes" }));
-    expect(screen.queryByRole("tab", { name: "Dates" })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Locations" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Dates" }));
+    if (groupType === "PRIVATE") {
+      expect(
+        (await screen.findByRole("button", { name: "2030-06-03 20:00: Yes" })).getAttribute(
+          "aria-pressed",
+        ),
+      ).toBe("true");
+      fireEvent.click(screen.getByRole("button", { name: "2030-06-03 20:00: If needed" }));
+    } else expect(screen.queryByRole("button", { name: /2030-06-03.*: Yes/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Locations" }));
+    if (groupType === "PRIVATE") {
+      expect(
+        (await screen.findByRole("button", { name: "Club venue: If needed" })).getAttribute(
+          "aria-pressed",
+        ),
+      ).toBe("true");
+      fireEvent.click(screen.getByRole("button", { name: "Club venue: Yes" }));
+    } else {
+      await screen.findByText("Club venue");
+      expect(screen.queryByRole("button", { name: "Club venue: Yes" })).toBeNull();
+    }
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    expect(screen.getByRole("button", { name: "Chess: Yes" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Join table" }));
     await waitFor(() => expect(close).toHaveBeenCalledOnce());
     expect(JSON.parse(posts()[0][1].body as string)).toEqual({
       version: 1,
       gameVotes: { "1": "YES" },
+      ...(groupType === "PRIVATE"
+        ? {
+            availability: {
+              version: 1,
+              dateVotes: { [optionId]: "IF_NEEDED" },
+              locationVotes: { [optionId]: "YES" },
+            },
+          }
+        : {}),
     });
   },
 );
+it.each(["PUBLIC", null] as const)(
+  "opens Dates for first enrollment with all tabs and read-only fixed schedule (%s)",
+  async (groupType) => {
+    event = { ...event, groupType };
+    const { close } = mount();
+    expect((await screen.findByRole("tab", { name: "Dates" })).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: "2030-06-03 20:00: Yes" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Locations" }));
+    await screen.findByText("Club venue");
+    fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Chess: If needed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Join table" }));
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(JSON.parse(String(posts()[0][1].body))).toEqual({
+      version: 1,
+      gameVotes: { "1": "IF_NEEDED" },
+    });
+  },
+);
+it.each(["PENDING", "DECLINED", "CANCELLED"] as const)(
+  "does not treat %s participation as a previous join",
+  async (status) => {
+    event = { ...event, myRegistrations: [{ ...seat("owner"), tableId: eventId, status }] };
+    mount();
+    expect((await screen.findByRole("tab", { name: "Dates" })).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+  },
+);
+it("waits for participation metadata and does not reset the initial tab on later refetches", async () => {
+  delete (event as Partial<PlannedEventResponse>).myRegistrations;
+  const { result } = hook();
+  await waitFor(() => expect(result.current.table).toBeDefined());
+  expect(result.current.initialTab).toBeUndefined();
+  expect(result.current.canSubmit).toBe(false);
+  event = { ...event, myRegistrations: [{ ...seat("owner"), tableId: eventId }] };
+  await act(async () => {
+    await result.current.q.refetch();
+  });
+  await waitFor(() => expect(result.current.initialTab).toBe("games"));
+  event = { ...event, myRegistrations: [] };
+  await act(async () => {
+    await result.current.q.refetch();
+  });
+  expect(result.current.initialTab).toBe("games");
+});
+it("keeps edits to existing PRIVATE availability local when canceling a repeat join", async () => {
+  event = {
+    ...event,
+    myRegistrations: [{ ...seat("owner"), tableId: eventId }],
+    myVotes: { dateVotes: { [optionId]: "YES" }, locationVotes: { [optionId]: "YES" } },
+  };
+  const { client, close } = mount();
+  await screen.findByRole("tab", { name: "Games" });
+  fireEvent.click(screen.getByRole("tab", { name: "Dates" }));
+  fireEvent.click(await screen.findByRole("button", { name: "2030-06-03 20:00: If needed" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "Cancel" })[0]);
+  expect(close).toHaveBeenCalledOnce();
+  expect(posts()).toHaveLength(0);
+  expect(
+    client.getQueryData<PlannedEventResponse>(eventRecordKeys.detail(options, eventId))?.myVotes
+      ?.dateVotes[optionId],
+  ).toBe("YES");
+});
 it("keeps known date choices visible while Table loading fails, offers retry, and cancels without a write", async () => {
   tableStatus = 503;
   const { close } = mount();
@@ -240,6 +352,10 @@ it("keeps missing catalog labels readable without turning them into an Unknown v
   event = { ...event, groupType: null };
   table = { ...table, gamesDetail: [] };
   const { close } = mount();
+  expect((await screen.findByRole("tab", { name: "Dates" })).getAttribute("aria-selected")).toBe(
+    "true",
+  );
+  fireEvent.click(screen.getByRole("tab", { name: "Games" }));
   fireEvent.click(await screen.findByRole("button", { name: "Unknown: Yes" }));
   expect(screen.queryByRole("button", { name: "Unknown: Unknown" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Join table" }));

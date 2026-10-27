@@ -143,6 +143,9 @@ beforeEach(() => {
         ...plannedEvent,
         groupType: table.groupType,
         myRegistrations: acceptedElsewhere ? [{ ...seat(m.actor), tableId: optionId }] : [],
+        myVotes: acceptedElsewhere
+          ? { dateVotes: { [optionId]: "YES" }, locationVotes: { [optionId]: "IF_NEEDED" } }
+          : plannedEvent.myVotes,
         canVote:
           acceptedElsewhere || rows.some((r) => r.userId === m.actor && r.status === "ACCEPTED"),
       }),
@@ -391,7 +394,7 @@ it("starts with max places, lets organizer choose join/invite and shows one vote
   expect(screen.queryByRole("button", { name: "Accepted" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Pending invitations" })).toBeNull();
 });
-it("waits for Event participation metadata, exposes failures and retries without a false second preference sheet", async () => {
+it("waits for Event participation metadata, exposes failures and retries before opening Games with all tabs", async () => {
   rows = [];
   acceptedElsewhere = true;
   table = {
@@ -428,18 +431,18 @@ it("waits for Event participation metadata, exposes failures and retries without
           ...plannedEvent,
           groupType: "PRIVATE",
           myRegistrations: [{ ...seat("owner"), tableId: optionId }],
+          myVotes: { dateVotes: { [optionId]: "YES" }, locationVotes: { [optionId]: "IF_NEEDED" } },
         }),
       ),
     ),
   );
   await waitFor(() => expect(place.disabled).toBe(false));
   fireEvent.click(place);
-  expect(
-    screen.getByText("Choose games for this table without changing your event preferences."),
-  ).not.toBeNull();
+  expect(screen.getByText("Choose your availability before joining this table.")).not.toBeNull();
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
   expect(await screen.findByRole("tab", { name: "Games" })).not.toBeNull();
-  expect(screen.queryByRole("tab", { name: "Dates" })).toBeNull();
+  expect(screen.getByRole("tab", { name: "Games" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tab", { name: "Dates" })).not.toBeNull();
   await submitGameChoices();
   await waitFor(() =>
     expect(
@@ -467,7 +470,8 @@ it("reuses PRIVATE dates/locations but requires this Table's games after another
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
   expect(await screen.findByRole("tab", { name: "Games" })).not.toBeNull();
-  expect(screen.queryByRole("tab", { name: "Locations" })).toBeNull();
+  expect(screen.getByRole("tab", { name: "Games" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tab", { name: "Locations" })).not.toBeNull();
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   await submitGameChoices();
   await waitFor(() =>
@@ -479,7 +483,11 @@ it("reuses PRIVATE dates/locations but requires this Table's games after another
   );
   expect(
     JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body)),
-  ).not.toHaveProperty("availability");
+  ).toHaveProperty("availability", {
+    version: 1,
+    dateVotes: { [optionId]: "YES" },
+    locationVotes: { [optionId]: "IF_NEEDED" },
+  });
 });
 it("shows the parent Event item with matching artwork and navigation below Table settings", async () => {
   mount();

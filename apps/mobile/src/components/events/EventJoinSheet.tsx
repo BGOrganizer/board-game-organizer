@@ -34,8 +34,8 @@ export function EventJoinSheet({
     { height } = useWindowDimensions(),
     insets = useSafeAreaInsets(),
     accent = useThemeColor("accent-foreground");
-  const [selectedTab, setTab] = useState("dates"),
-    tab = form.requiresAvailability ? selectedTab : "games";
+  const [selectedTab, setTab] = useState<string | null>(null),
+    tab = selectedTab ?? form.initialTab ?? "dates";
   return (
     <BottomSheet
       isOpen
@@ -70,21 +70,17 @@ export function EventJoinSheet({
               </Button>
             </View>
           ) : null}
-          {!event || form.q.isPlaceholderData ? (
+          {!event || form.q.isPlaceholderData || !form.initialTab ? (
             <Skeleton style={{ width: "100%", height: 160, borderRadius: 12 }} />
           ) : (
             <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
               <TabBar style={{ alignSelf: "center", width: "auto" }}>
-                {form.requiresAvailability ? (
-                  <>
-                    <Tabs.Trigger value="dates">
-                      <Tabs.Label>{t("Dates")}</Tabs.Label>
-                    </Tabs.Trigger>
-                    <Tabs.Trigger value="locations">
-                      <Tabs.Label>{t("Locations")}</Tabs.Label>
-                    </Tabs.Trigger>
-                  </>
-                ) : null}
+                <Tabs.Trigger value="dates">
+                  <Tabs.Label>{t("Dates")}</Tabs.Label>
+                </Tabs.Trigger>
+                <Tabs.Trigger value="locations">
+                  <Tabs.Label>{t("Locations")}</Tabs.Label>
+                </Tabs.Trigger>
                 <Tabs.Trigger value="games">
                   <Tabs.Label>{t("Games")}</Tabs.Label>
                 </Tabs.Trigger>
@@ -103,13 +99,15 @@ export function EventJoinSheet({
                           timeZone={event.timeZone}
                         />
                       </View>
-                      <EventVoteButtons
-                        inline
-                        label={eventDateWall(event, item).replace("T", " ")}
-                        value={form.votes.dateVotes[item.id]}
-                        busy={form.busy}
-                        onChange={(vote) => form.choose("date", item.id, vote)}
-                      />
+                      {form.requiresAvailability ? (
+                        <EventVoteButtons
+                          inline
+                          label={eventDateWall(event, item).replace("T", " ")}
+                          value={form.votes.dateVotes[item.id]}
+                          busy={form.busy}
+                          onChange={(vote) => form.choose("date", item.id, vote)}
+                        />
+                      ) : null}
                     </GroupedRow>
                   )}
                 />
@@ -124,13 +122,15 @@ export function EventJoinSheet({
                       name={item.name}
                       address={item.address}
                       actions={
-                        <EventVoteButtons
-                          inline
-                          label={item.name}
-                          value={form.votes.locationVotes[item.id]}
-                          busy={form.busy}
-                          onChange={(vote) => form.choose("location", item.id, vote)}
-                        />
+                        form.requiresAvailability ? (
+                          <EventVoteButtons
+                            inline
+                            label={item.name}
+                            value={form.votes.locationVotes[item.id]}
+                            busy={form.busy}
+                            onChange={(vote) => form.choose("location", item.id, vote)}
+                          />
+                        ) : undefined
                       }
                     />
                   )}

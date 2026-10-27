@@ -2011,11 +2011,12 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       (await services().plannedEventService.tables(OWNER, event.id, { limit: 20 })).items,
     ).toHaveLength(2);
   });
-  it("atomically enrolls PRIVATE players with complete initial availability, rejects stale choices and rolls both writes back", async () => {
+  it("atomically enrolls PRIVATE players with initial/repeat availability, rejects stale choices and rolls both writes back", async () => {
     const group = await privateGroup();
-    const event = await transaction((s) =>
-      s.plannedEventService.create(OWNER, plannedInput(group.id)),
-    );
+    const secondTableId = randomUUID(),
+      input = plannedInput(group.id);
+    input.tables.push({ ...input.tables[0], id: secondTableId, name: "Second private table" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
     const availability = {
       version: event.version,
       dateVotes: { [dateId]: "YES" as const },
@@ -2095,6 +2096,40 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         } as never),
       ),
     ).rejects.toMatchObject({ code: "INVALID_VOTE" });
+    expect((await services().eventRecords.userRegistration(tableId, GUEST))?.gameVotes["1"]).toBe(
+      "YES",
+    );
+    const beforeRepeat = (await services().eventRecords.find(event.id))!;
+    const updatedAvailability = {
+      version: beforeRepeat.version,
+      dateVotes: { [dateId]: "YES" as const },
+      locationVotes: { [venueId]: "YES" as const },
+    };
+    const secondInput = {
+      ...joinChoices(updatedAvailability),
+      gameVotes: { "1": "IF_NEEDED" as const },
+    };
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.join(GUEST, event.id, secondTableId, secondInput);
+        throw new Error("rollback repeat enrollment");
+      }),
+    ).rejects.toThrow("rollback repeat enrollment");
+    expect(await services().eventRecords.userRegistration(secondTableId, GUEST)).toBeNull();
+    expect((await services().eventRecords.voter(event.id, GUEST))?.dateVotes[dateId]).toBe(
+      "IF_NEEDED",
+    );
+    expect((await services().eventRecords.find(event.id))?.version).toBe(beforeRepeat.version);
+    await transaction((s) =>
+      s.plannedEventService.join(GUEST, event.id, secondTableId, secondInput),
+    );
+    expect(await services().eventRecords.voter(event.id, GUEST)).toMatchObject({
+      dateVotes: updatedAvailability.dateVotes,
+      locationVotes: updatedAvailability.locationVotes,
+    });
+    expect(
+      (await services().eventRecords.userRegistration(secondTableId, GUEST))?.gameVotes["1"],
+    ).toBe("IF_NEEDED");
     expect((await services().eventRecords.userRegistration(tableId, GUEST))?.gameVotes["1"]).toBe(
       "YES",
     );

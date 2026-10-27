@@ -189,9 +189,7 @@ export function EventTableSeats({
           description={
             table.canInvite
               ? t`Join this table yourself or invite another player.`
-              : hasJoinedEvent
-                ? t`Choose games for this table without changing your event preferences.`
-                : t`Choose your availability before joining this table.`
+              : t`Choose your availability before joining this table.`
           }
           busy={a.busy}
           onCancel={() => setChoose(false)}

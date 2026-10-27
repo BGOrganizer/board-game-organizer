@@ -89,7 +89,10 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         mapCommunityCache<PlannedEventResponse>(data, (row) => (row.id === value.id ? value : row)),
       );
   }
-  function registrationSuccess(value: TableRegistration) {
+  function registrationSuccess(
+    value: TableRegistration,
+    availability?: JoinTableInput["availability"],
+  ) {
     if (value.userId === o.userId) {
       for (const [key, data] of client.getQueriesData({
         queryKey: root,
@@ -113,6 +116,15 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
                 ...current.filter((registration) => registration.tableId !== value.tableId),
                 ...(["PENDING", "ACCEPTED"].includes(value.status) ? [value] : []),
               ],
+              ...(availability && row.version <= availability.version
+                ? {
+                    myVotes: {
+                      ...row.myVotes,
+                      dateVotes: availability.dateVotes,
+                      locationVotes: availability.locationVotes,
+                    },
+                  }
+                : {}),
             };
           }),
         );
@@ -239,7 +251,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       begin("join_table", (row) =>
         "canRegister" in row && row.id === value.tableId ? { ...row, canRegister: false } : row,
       ),
-    onSuccess: registrationSuccess,
+    onSuccess: (value, input) => registrationSuccess(value, input.availability),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
@@ -255,7 +267,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
           ? { ...row, optimisticInvited: true }
           : row,
       ),
-    onSuccess: registrationSuccess,
+    onSuccess: (value) => registrationSuccess(value),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
@@ -300,7 +312,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
               ? { ...row, status: "CANCELLED" }
               : row,
       ),
-    onSuccess: registrationSuccess,
+    onSuccess: (value) => registrationSuccess(value),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });

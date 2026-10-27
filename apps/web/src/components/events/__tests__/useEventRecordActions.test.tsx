@@ -2,14 +2,20 @@ import type { PlannedEventResponse } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
   eventRecordsQuery,
-  recordTablesQuery,
   useEventRecordActions,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { eventId, plannedEvent, plannedTable, seat, tableId } from "@/test-fixtures/eventRecords";
+import {
+  eventId,
+  optionId,
+  plannedEvent,
+  plannedTable,
+  seat,
+  tableId,
+} from "@/test-fixtures/eventRecords";
 
 function setup() {
   const client = new QueryClient({
@@ -87,6 +93,58 @@ it("reconciles owned Event participation from registration responses without dep
     await q.result.current.invite.mutateAsync({ tableId, userId: "guest" });
   });
   expect(owned().myRegistrations).toEqual([other]);
+});
+it("reconciles acknowledged PRIVATE preferences without overwriting newer or foreign Event votes", async () => {
+  const { client, options, wrapper } = setup();
+  const detail = eventRecordKeys.detail(options, eventId),
+    list = eventRecordsQuery(options).queryKey;
+  const priorVotes = {
+    dateVotes: { [tableId]: "YES" as const },
+    locationVotes: { [tableId]: "YES" as const },
+  };
+  client.setQueryData(detail, { ...plannedEvent, myVotes: priorVotes });
+  client.setQueryData(list, {
+    pages: [
+      {
+        items: [
+          { ...plannedEvent, version: 9, myVotes: priorVotes },
+          { ...plannedEvent, id: tableId, myVotes: priorVotes },
+        ],
+        nextCursor: null,
+      },
+    ],
+    pageParams: [""],
+  });
+  const foreign = eventRecordKeys.detail({ ...options, userId: "foreign" }, eventId);
+  client.setQueryData(foreign, { ...plannedEvent, myVotes: priorVotes });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(JSON.stringify(seat("owner")))),
+  );
+  const actions = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
+  const availability = {
+    version: 1,
+    dateVotes: { [optionId]: "IF_NEEDED" as const },
+    locationVotes: { [optionId]: "YES" as const },
+  };
+  await act(async () => {
+    await actions.result.current.register.mutateAsync({
+      tableId,
+      version: 1,
+      gameVotes: { "1": "YES" },
+      availability,
+    });
+  });
+  expect(client.getQueryData<PlannedEventResponse>(detail)?.myVotes).toEqual({
+    dateVotes: availability.dateVotes,
+    locationVotes: availability.locationVotes,
+  });
+  expect(client.getQueryData<PlannedEventResponse>(foreign)?.myVotes).toEqual(priorVotes);
+  expect(
+    client
+      .getQueryData<{ pages: Array<{ items: PlannedEventResponse[] }> }>(list)
+      ?.pages[0].items.map((row) => row.myVotes),
+  ).toEqual([priorVotes, priorVotes]);
 });
 it("marks current Table rankings stale after finalization without refetching unrelated inactive or foreign caches", async () => {
   const { client, options, wrapper } = setup();

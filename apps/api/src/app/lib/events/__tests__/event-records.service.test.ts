@@ -471,6 +471,49 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       f.service.vote(guest, event.id, { kind: "game", tableId: id, gameId: 1, vote: "NO" }),
     ).rejects.toMatchObject({ code: "GAME_POSITIVE_AVAILABILITY_REQUIRED" });
   });
+  it("updates PRIVATE Event availability with a second Table join, enforcing the same complete positive choices", async () => {
+    const f = setup("PRIVATE"),
+      event = await f.create();
+    f.tables.set(other, { ...f.tables.get(id)!, id: other, order: 1 });
+    await f.service.join(
+      guest,
+      event.id,
+      id,
+      joinChoices({
+        version: event.version,
+        dateVotes: { [id]: "YES" },
+        locationVotes: { [id]: "IF_NEEDED" },
+      }),
+    );
+    const availability = {
+      version: f.events.get(event.id)!.version,
+      dateVotes: { [id]: "IF_NEEDED" as const },
+      locationVotes: { [id]: "YES" as const },
+    };
+    await expect(
+      f.service.join(
+        guest,
+        event.id,
+        other,
+        joinChoices({ ...availability, dateVotes: { [id]: "NO" } }),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_JOIN_AVAILABILITY" });
+    expect(f.repo.saveVoter).toHaveBeenCalledTimes(1);
+    const row = await f.service.join(guest, event.id, other, {
+      ...joinChoices(availability),
+      gameVotes: { "1": "IF_NEEDED" },
+    });
+    expect(row).toMatchObject({
+      status: "ACCEPTED",
+      tableId: other,
+      gameVotes: { "1": "IF_NEEDED" },
+    });
+    expect(f.votes.get(`${event.id}|${guest}`)).toMatchObject({
+      dateVotes: availability.dateVotes,
+      locationVotes: availability.locationVotes,
+    });
+    expect(f.repo.saveVoter).toHaveBeenCalledTimes(2);
+  });
   it("requires complete current PRIVATE availability before voluntary enrollment writes", async () => {
     const f = setup("PRIVATE"),
       event = await f.create();
