@@ -5,6 +5,7 @@ import {
   type StartOrganizationLogoInput,
   type UploadOrganizationLogoChunkInput,
 } from "@board-game-organizer/schemas";
+import { logoUploadQuotaEnabled } from "../community/logo-upload-policy";
 import { CommunityError } from "../community.error";
 import type { UsersRepository } from "../users/users.repository";
 import { requireBgoModerator } from "./community-role";
@@ -21,7 +22,7 @@ export class OrganizationAssetsService {
 
   async start(userId: string, input: StartOrganizationLogoInput) {
     await this.users.lock(userId);
-    if ((await this.assets.countUnclaimed(userId)) >= 5)
+    if (logoUploadQuotaEnabled() && (await this.assets.countUnclaimed(userId)) >= 5)
       throw new CommunityError(429, "TOO_MANY_LOGO_UPLOADS");
     const asset: OrganizationAsset = {
       id: randomUUID(),
