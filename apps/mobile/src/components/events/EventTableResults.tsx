@@ -79,9 +79,10 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
                   value={global?.delta}
                   format={number.format}
                 />
-                <LeaderboardStat
-                  label={t("Global ranking")}
-                  value={global ? number.format(global.score) : "—"}
+                <RatingDelta
+                  label={t("Group rating change")}
+                  value={group?.delta}
+                  format={number.format}
                 />
               </View>
             }
@@ -94,10 +95,9 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
               label={t("Rating before")}
               value={group ? number.format(group.score - group.delta) : "—"}
             />
-            <RatingDelta
-              label={t("Group rating change")}
-              value={group?.delta}
-              format={number.format}
+            <LeaderboardStat
+              label={t("Global ranking")}
+              value={global ? number.format(global.score) : "—"}
             />
             <LeaderboardStat
               label={t("Group ranking")}

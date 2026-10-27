@@ -65,6 +65,9 @@ it.each([null, "group"])(
     expect(metric("Score").children[1].textContent).toBe("1.50");
     expect(metric("Score").parentElement?.classList.contains("grid-cols-3")).toBe(true);
     expect(metric("Position").parentElement?.classList.contains("grid-cols-4")).toBe(true);
+    expect(metric("Global ranking").parentElement).toBe(metric("Position").parentElement);
+    expect(metric("Group rating change").parentElement).toBe(metric("Score").parentElement);
+    expect(metric("Global ranking").previousElementSibling).toBe(metric("Rating before"));
     expect(
       within(screen.getByText("ND player").closest(".card") as HTMLElement).getAllByText("ND"),
     ).toHaveLength(2);

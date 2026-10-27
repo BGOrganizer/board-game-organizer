@@ -56,8 +56,8 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
                   <RatingDelta value={global?.delta} format={number.format} />
                 </div>
                 <div>
-                  <p className="text-xs text-default-500">{t`Global ranking`}</p>
-                  <p>{global ? number.format(global.score) : "—"}</p>
+                  <p className="text-xs text-default-500">{t`Group rating change`}</p>
+                  <RatingDelta value={group?.delta} format={number.format} />
                 </div>
               </div>
             }
@@ -71,8 +71,8 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
               <p>{group ? number.format(group.score - group.delta) : "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-default-500">{t`Group rating change`}</p>
-              <RatingDelta value={group?.delta} format={number.format} />
+              <p className="text-xs text-default-500">{t`Global ranking`}</p>
+              <p>{global ? number.format(global.score) : "—"}</p>
             </div>
             <div>
               <p className="text-xs text-default-500">{t`Group ranking`}</p>
