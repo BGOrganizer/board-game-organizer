@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -68,14 +68,149 @@ const services = {
   },
   assets: { start: vi.fn(), append: vi.fn(), complete: vi.fn(), preview: vi.fn() },
 };
+afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(console, "info").mockImplementation(() => {});
   mocks.auth.mockResolvedValue({ userId: "owner" });
   mocks.ensure.mockResolvedValue(undefined);
   mocks.transaction.mockImplementation(async (fn) => fn(mocks.session, mocks.db));
   mocks.factory.mockReturnValue(services);
   for (const domain of Object.values(services))
     for (const call of Object.values(domain)) call.mockReset().mockResolvedValue({ id });
+});
+describe("safe Group write diagnostics", () => {
+  const entries = () =>
+    vi
+      .mocked(console.info)
+      .mock.calls.filter(([tag]) => tag === "[bgo.group-write]")
+      .map(
+        ([, entry]) =>
+          entry as {
+            operation: string;
+            requestId: string;
+            phase: string;
+            stage: string;
+            status?: number;
+            code?: string;
+          },
+      );
+  it.each([
+    ["group.create", () => groupsRoute.POST(request("POST", input)), 201],
+    [
+      "group.logo.start",
+      () => assetStart.POST(request("POST", { mimeType: "image/png", byteLength: 3 })),
+      201,
+    ],
+    [
+      "group.logo.chunk",
+      () => asset.PATCH(request("PATCH", { offset: 0, base64: "QUJD" }), context),
+      200,
+    ],
+    ["group.logo.complete", () => assetComplete.POST(request("POST", {}), context), 200],
+  ] as const)(
+    "traces %s entry and committed result without payloads",
+    async (operation, call, status) => {
+      expect((await call()).status).toBe(status);
+      expect(entries().map(({ phase, stage }) => [phase, stage])).toEqual([
+        ["received", "auth"],
+        ["starting", "services"],
+        ["starting", "user_sync"],
+        ["starting", "transaction"],
+        ["completed", "transaction"],
+      ]);
+      expect(
+        entries().every(
+          (row) => row.operation === operation && row.requestId === entries()[0].requestId,
+        ),
+      ).toBe(true);
+      expect(entries()[0].requestId).toMatch(/^[a-f0-9-]{36}$/);
+      expect(entries().at(-1)?.status).toBe(status);
+      const text = JSON.stringify(entries());
+      for (const privateValue of ["owner", input.name, "QUJD", id, "https://api.test"])
+        expect(text).not.toContain(privateValue);
+    },
+  );
+  it("records ingress before auth and preserves unauthorized rejection without loading services", async () => {
+    mocks.auth.mockImplementationOnce(async () => {
+      expect(entries()).toEqual([expect.objectContaining({ phase: "received", stage: "auth" })]);
+      return { userId: null };
+    });
+    expect((await groupsRoute.POST(request("POST", input))).status).toBe(401);
+    expect(entries().at(-1)).toMatchObject({
+      phase: "rejected",
+      stage: "auth",
+      status: 401,
+      code: "UNAUTHORIZED",
+    });
+    expect(mocks.factory).not.toHaveBeenCalled();
+  });
+  it("reports auth failure without exposing the exception or changing its propagation", async () => {
+    const failure = new Error("private-token@example.test");
+    mocks.auth.mockRejectedValueOnce(failure);
+    await expect(groupsRoute.POST(request("POST", input))).rejects.toBe(failure);
+    expect(entries().at(-1)).toMatchObject({
+      phase: "failed",
+      stage: "auth",
+      status: 500,
+      code: "AUTHENTICATION_ERROR",
+    });
+    expect(JSON.stringify(entries())).not.toContain(failure.message);
+    expect(mocks.factory).not.toHaveBeenCalled();
+  });
+  it("identifies user synchronization failures without logging database URLs, headers or bodies", async () => {
+    const secret = "never-log-private-value";
+    mocks.ensure.mockRejectedValueOnce(new Error(`mongodb://${secret}`));
+    const req = new Request(`https://api.test/api/groups?x-vercel-protection-bypass=${secret}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...input, name: secret }),
+    });
+    expect((await groupsRoute.POST(req)).status).toBe(500);
+    expect(entries().at(-1)).toMatchObject({
+      phase: "failed",
+      stage: "user_sync",
+      status: 500,
+      code: "INTERNAL_ERROR",
+    });
+    expect(JSON.stringify(entries())).not.toContain(secret);
+  });
+  it.each([
+    ["INVALID_LOGO", "INVALID_LOGO"],
+    ["private-name@example.test", "REQUEST_REJECTED"],
+  ])("logs only normalized domain codes, %s", async (message, code) => {
+    services.groups.save.mockRejectedValueOnce(new CommunityError(400, message));
+    expect((await groupsRoute.POST(request("POST", input))).status).toBe(400);
+    expect(entries().at(-1)).toMatchObject({
+      phase: "failed",
+      stage: "transaction",
+      status: 400,
+      code,
+    });
+    if (message !== code) expect(JSON.stringify(entries())).not.toContain(message);
+  });
+  it("keeps malformed input fail-closed and reports only its code", async () => {
+    expect(
+      (await groupsRoute.POST(request("POST", { ...input, unexpected: "private-content" }))).status,
+    ).toBe(400);
+    expect(services.groups.save).not.toHaveBeenCalled();
+    expect(entries().at(-1)).toMatchObject({
+      phase: "failed",
+      status: 400,
+      code: "INVALID_REQUEST",
+    });
+    expect(JSON.stringify(entries())).not.toContain("private-content");
+  });
+  it("does not log reads or duplicate completion across transaction retries", async () => {
+    await groupsRoute.GET(request());
+    expect(entries()).toEqual([]);
+    mocks.transaction.mockImplementationOnce(async (fn) => {
+      await fn(mocks.session, mocks.db);
+      return fn(mocks.session, mocks.db);
+    });
+    expect((await groupsRoute.POST(request("POST", input))).status).toBe(201);
+    expect(entries().filter((row) => row.phase === "completed")).toHaveLength(1);
+  });
 });
 describe("unified Group HTTP contracts", () => {
   it("authenticates Group-scoped invitation candidates and validates search/cursor paging without broad fallback", async () => {

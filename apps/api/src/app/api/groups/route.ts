@@ -17,5 +17,6 @@ export function POST(request: Request) {
       return groups.save(userId, await communityBody(request, createGroupRecordSchema));
     },
     201,
+    "group.create",
   );
 }

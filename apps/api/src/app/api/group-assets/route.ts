@@ -11,5 +11,6 @@ export function POST(request: Request) {
       return assets.start(userId, await communityBody(request, startGroupLogoSchema));
     },
     201,
+    "group.logo.start",
   );
 }

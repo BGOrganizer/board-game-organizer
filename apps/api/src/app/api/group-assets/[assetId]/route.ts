@@ -11,12 +11,17 @@ export function GET(request: Request, context: Context) {
   });
 }
 export function PATCH(request: Request, context: Context) {
-  return runRecordOperation(request, async (userId, { assets }) => {
-    recordQuery(request, emptyRecordQuery);
-    return assets.append(
-      userId,
-      communityId((await context.params).assetId),
-      await communityBody(request, uploadGroupLogoChunkSchema),
-    );
-  });
+  return runRecordOperation(
+    request,
+    async (userId, { assets }) => {
+      recordQuery(request, emptyRecordQuery);
+      return assets.append(
+        userId,
+        communityId((await context.params).assetId),
+        await communityBody(request, uploadGroupLogoChunkSchema),
+      );
+    },
+    200,
+    "group.logo.chunk",
+  );
 }
