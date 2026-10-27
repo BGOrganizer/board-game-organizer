@@ -451,10 +451,8 @@ msgstr "{count} date proposte"
 #. js-lingui-explicit-id
 #: apps/mobile/src/components/events/EventDraftTableCard.tsx
 #: apps/mobile/src/components/events/EventTableCard.tsx
-#: apps/mobile/src/components/events/EventTableSummaryCard.tsx
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "event.table.moreGames"
 msgstr "{remaining, plural, one {+# gioco} other {+# giochi}}"
 
@@ -521,6 +519,10 @@ msgstr "Giocatore accettato"
 #: apps/web/src/components/events/EventTableCard.tsx
 msgid "Accepted players"
 msgstr "Giocatori accettati"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Accepted players, including the waiting list."
+msgstr "Giocatori accettati, inclusa la lista d'attesa."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 msgid "Access to contacts"
@@ -1291,7 +1293,6 @@ msgid "Confirmed participants, counted once across active tables."
 msgstr "Partecipanti confermati, contati una sola volta sui tavoli attivi."
 
 #: apps/web/src/components/events/EventTableCard.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Confirmed player"
 msgstr "Giocatore confermato"
 
@@ -1972,6 +1973,7 @@ msgid "Delete notification?"
 msgstr "Eliminare la notifica?"
 
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableOverview.tsx
 msgid "Demonstrator"
 msgstr "Dimostratore"
@@ -2275,7 +2277,6 @@ msgstr "Escludi dal gruppo"
 #: apps/web/src/components/events/EventTableInfo.tsx
 #: apps/web/src/components/events/EventTableLeaderboard.tsx
 #: apps/web/src/components/events/EventTableResults.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Excluded from confirmation"
 msgstr "Escluso dalla conferma"
 
@@ -2319,7 +2320,6 @@ msgstr "Location preferite"
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableInfo.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 #: apps/web/src/components/events/EventWizardSummary.tsx
 #: apps/web/src/components/groups/GroupLogoPicker.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
@@ -2655,7 +2655,6 @@ msgid "Invitation pending"
 msgstr "Invito in attesa"
 
 #: apps/web/src/components/events/EventTableCard.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 #: apps/web/src/components/groups/GroupArtwork.tsx
 #: apps/web/src/components/groups/GroupCard.tsx
 #: apps/web/src/components/groups/GroupInvitationCard.tsx
@@ -3024,7 +3023,6 @@ msgstr "Il massimo deve essere almeno uguale al minimo"
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableInfo.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Maximum players"
 msgstr "Giocatori massimi"
 
@@ -3496,7 +3494,6 @@ msgid "Open settings"
 msgstr "Apri impostazioni"
 
 #: apps/web/src/components/events/EventTableCard.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Open table"
 msgstr "Apri tavolo"
 
@@ -3642,6 +3639,10 @@ msgstr "Gli inviti in attesa continuano a riservare posti."
 msgid "Pending players"
 msgstr "Giocatori in attesa di accettazione"
 
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Pending players, including reserved waiting-list places."
+msgstr "Giocatori in sospeso, inclusi i posti riservati in lista d'attesa."
+
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "People who follow you."
 msgstr "Persone che ti seguono."
@@ -3709,7 +3710,6 @@ msgstr "Giocatore rimosso dalla partita"
 #: apps/web/src/components/events/EventCard.tsx
 #: apps/web/src/components/events/EventResultTableCard.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Players"
 msgstr "Giocatori"
 
@@ -4853,7 +4853,6 @@ msgstr "Non seguire più"
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableLeaderboard.tsx
 #: apps/web/src/components/events/EventTableOverview.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 #: apps/web/src/components/events/EventVoteButtons.tsx
 #: apps/web/src/components/events/EventVoteCounts.tsx
 #: apps/web/src/components/events/EventVoteLegend.tsx
@@ -4972,7 +4971,6 @@ msgstr "In attesa"
 
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Waiting list"
 msgstr "Lista d'attesa"
 
@@ -5001,7 +4999,6 @@ msgid "Winner"
 msgstr "Vincitore"
 
 #: apps/web/src/components/events/EventTableCard.tsx
-#: apps/web/src/components/events/EventTableSummaryCard.tsx
 msgid "Winners"
 msgstr "Vincitori"
 
