@@ -1124,6 +1124,10 @@ msgstr "Choose exactly one verified location."
 msgid "Choose game"
 msgstr "Choose game"
 
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Choose games for this table without changing your event preferences."
+msgstr "Choose games for this table without changing your event preferences."
+
 #: apps/web/src/components/matches/MatchDetail.tsx
 msgid "Choose location"
 msgstr "Choose location"
@@ -1452,7 +1456,6 @@ msgid "Could not invite player. Refresh and try again."
 msgstr "Could not invite player. Refresh and try again."
 
 #: apps/web/src/components/events/EventJoinSheet.tsx
-#: apps/web/src/components/events/EventTableSeats.tsx
 msgid "Could not join table"
 msgstr "Could not join table"
 
@@ -2431,6 +2434,7 @@ msgid "games"
 msgstr "games"
 
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
 msgid "Games"
 msgstr "Games"
 
@@ -2776,6 +2780,10 @@ msgstr "JPEG, PNG or WebP, up to 5 MB."
 #: apps/web/src/components/organizations/OrganizationWizard.tsx
 msgid "JPEG, PNG or WebP, up to 5 MB. A logo can be replaced, not removed."
 msgstr "JPEG, PNG or WebP, up to 5 MB. A logo can be replaced, not removed."
+
+#: apps/web/src/components/events/EventVoteButtons.tsx
+msgid "Keep at least one Yes or If needed among the available options."
+msgstr "Keep at least one Yes or If needed among the available options."
 
 #: apps/web/src/components/events/EventVoteButtons.tsx
 msgid "Keep at least one Yes or If needed for dates and locations."
@@ -3294,6 +3302,7 @@ msgstr "No matches played in this group yet"
 msgid "No matches yet — create your first one!"
 msgstr "No matches yet — create your first one!"
 
+#: apps/web/src/components/contacts/PeoplePicker.tsx
 #: apps/web/src/components/groups/GroupMemberPicker.tsx
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "No members found"
@@ -4275,6 +4284,7 @@ msgstr "Search matches"
 #~ msgid "Search matches (at least 4 characters)"
 #~ msgstr "Search matches (at least 4 characters)"
 
+#: apps/web/src/components/contacts/PeoplePicker.tsx
 #: apps/web/src/components/groups/GroupMemberPicker.tsx
 msgid "Search members"
 msgstr "Search members"
@@ -4849,13 +4859,11 @@ msgstr "Unfollow"
 
 #: apps/web/src/components/events/EventDraftTableCard.tsx
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
 #: apps/web/src/components/events/EventResultTableCard.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableLeaderboard.tsx
 #: apps/web/src/components/events/EventTableOverview.tsx
-#: apps/web/src/components/events/EventVoteButtons.tsx
-#: apps/web/src/components/events/EventVoteCounts.tsx
-#: apps/web/src/components/events/EventVoteLegend.tsx
 msgid "Unknown"
 msgstr "Unknown"
 
@@ -4948,6 +4956,14 @@ msgstr "Vote count legend"
 #: apps/web/src/components/events/EventJoinSheet.tsx
 msgid "Vote on every date and location. Accept at least one of each to join. You can change these votes from the event."
 msgstr "Vote on every date and location. Accept at least one of each to join. You can change these votes from the event."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every date, location and game. Accept at least one of each to join."
+msgstr "Vote on every date, location and game. Accept at least one of each to join."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged."
+msgstr "Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged."
 
 #: apps/web/src/components/events/EventVoteCounts.tsx
 msgid "Votes"
