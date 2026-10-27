@@ -4,7 +4,7 @@ import { expect, it } from "vitest";
 import { plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventDraftTableCard } from "../EventDraftTableCard";
-import { EventTableSummaryCard } from "../EventTableSummaryCard";
+import { EventTableCard } from "../EventTableCard";
 import { EventWizardSummary } from "../EventWizardSummary";
 
 it.each([
@@ -46,7 +46,10 @@ it.each([
   const artwork = document.querySelector("img")?.getAttribute("src"),
     style = rating.className;
   view.rerender(
-    <EventTableSummaryCard table={{ ...plannedTable, rankingEnabled: fields.rankingEnabled }} />,
+    <EventTableCard
+      context="event"
+      table={{ ...plannedTable, rankingEnabled: fields.rankingEnabled }}
+    />,
   );
   expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
   expect(screen.getByRole("img", { name: badge }).className).toBe(style);

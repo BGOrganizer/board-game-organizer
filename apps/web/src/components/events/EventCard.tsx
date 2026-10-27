@@ -15,7 +15,7 @@ export function EventCard({ event }: { event: PlannedEventResponse }) {
   const planning = event.status === "PLANNING";
   return (
     <LinkedListCard href={`/events/${event.id}`} label={`${t`Open event`}: ${event.name}`}>
-      <AnimatedDicebearArtwork seed={event.id} variant="waves" />
+      <AnimatedDicebearArtwork seed={event.id} variant="constellation" />
       <ListCardBody
         title={event.name}
         titleIcon={<CalendarDays className="size-4 shrink-0" aria-hidden />}

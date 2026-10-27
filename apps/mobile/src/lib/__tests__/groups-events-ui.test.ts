@@ -51,7 +51,7 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(identity).toContain('t("Details")');
   expect(identity).toContain("<Info");
   expect(identity).toContain("<EventVoteLegend");
-  expect(identity).toContain('<AnimatedDicebearArtwork seed={event.id} variant="waves"');
+  expect(identity).toContain('<AnimatedDicebearArtwork seed={event.id} variant="constellation"');
   expect(identity).toContain("<CalendarDays");
   expect(identity).toContain("<UsersRound");
   expect(identity).toContain("<EventStatusBadge status={event.status}");
@@ -75,7 +75,7 @@ it("places Table Settings help before the identity card and keeps limits inside 
   expect(table).toContain('label={t("Settings")}');
   expect(table).toContain("The minimum is required for agreement.");
   expect(table.indexOf('label={t("Settings")}')).toBeLessThan(table.indexOf("<ListCard>"));
-  expect(table).toContain('<AnimatedDicebearArtwork seed={table.id} variant="shapes"');
+  expect(table).toContain('<AnimatedDicebearArtwork seed={table.id} variant="planets"');
   expect(table).toContain("<Dices");
   expect(table).toContain("<EventTableRatingBadge");
   for (const token of [
@@ -87,26 +87,26 @@ it("places Table Settings help before the identity card and keeps limits inside 
     expect(table).toContain(token);
   expect(table).not.toContain('label={t("Table name")}');
 });
-it("uses a distinct contextual card with independent help/navigation, horizontal stats and plural game count", () => {
-  const card = source("events", "EventTableSummaryCard");
-  expect(card).not.toContain("table.eventName");
-  expect(card).not.toContain('t("Planning")');
+it("shares one Table card across personal/Event lists with only the parent metadata row varying", () => {
+  const card = source("events", "EventTableCard");
+  expect(source("events", "Tables")).toContain('context="personal"');
+  expect(source("events", "EventDetail")).toContain('context="event"');
+  expect(card).toContain('context === "personal"');
+  expect(card).toContain('variant="planets"');
+  expect(card).toContain("leadingActions=");
   expect(card).toContain("<IconLegend");
-  expect(card).toContain('<AnimatedDicebearArtwork seed={table.id} variant="shapes"');
-  for (const label of ["Table name", "Games", "Reserved place"])
-    expect(card).not.toContain(`t("${label}")`);
-  expect(card).not.toContain('className="font-bold text-foreground">{t("Players")}');
-  expect(card).toContain('className="font-semibold text-foreground"');
-  expect(card).toContain("gap: 8, paddingBottom: 48");
-  expect(card).toMatch(/<Dices[^>]*\/>\s*<Typography/);
   expect(card).toContain("horizontal");
-  expect(card).toContain("number.format(table.seatedCount)");
-  expect(card).toContain("number.format(table.minPlayers)");
-  expect(card).toContain("number.format(table.maxPlayers)");
-  expect(card).toContain("number.format(table.waitingCount)");
-  expect(card).toContain("number.format(table.pendingCount)");
+  for (const field of [
+    "minPlayers",
+    "maxPlayers",
+    "acceptedCount",
+    "waitingCount",
+    "pendingRegistrationCount",
+  ])
+    expect(card).toContain(`table.${field}`);
   expect(card).toContain('id: "event.table.moreGames"');
-  expect(card).toContain("table.rankingEnabled");
+  expect(card).toContain("<EventTableRatingBadge");
   expect(card).toContain("<EventTableInvitationActions");
-  expect(source("events", "EventTableCard")).toContain("<EventTableInvitationActions");
+  expect(card).toContain("table.demonstratorUserId");
+  expect(card).not.toContain('t("Reserved place")');
 });

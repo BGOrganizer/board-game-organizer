@@ -34,7 +34,7 @@ export function EventResultTableCard({
         style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 12 }}
       >
         <View style={{ width: 64, height: 64, flexShrink: 0 }}>
-          <AnimatedDicebearArtwork seed={table.id} variant="shapes" />
+          <AnimatedDicebearArtwork seed={table.id} variant="planets" />
           {ready ? (
             <View
               accessible

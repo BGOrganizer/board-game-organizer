@@ -9,6 +9,8 @@ import {
   CalendarDays,
   Clock3,
   Dices,
+  ListOrdered,
+  Presentation,
   Trophy,
   UserRoundCheck,
   UserRoundMinus,
@@ -23,40 +25,65 @@ import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 import { useT } from "@/lib/i18n";
-import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableInvitationActions } from "./EventTableInvitationActions";
-
-export function EventTableCard({ table }: { table: PlannedTableResponse }) {
+import { EventTableRatingBadge } from "./EventTableRatingBadge";
+export function EventTableCard({
+  table,
+  context = "personal",
+}: {
+  table: PlannedTableResponse;
+  context?: "personal" | "event";
+}) {
   const t = useT(),
     { i18n } = useLingui(),
     router = useRouter(),
-    [muted, warning, success] = useThemeColor(["muted", "warning", "success"]);
-  const number = new Intl.NumberFormat(i18n.locale);
+    [muted, warning, success] = useThemeColor(["muted", "warning", "success"]),
+    number = new Intl.NumberFormat(i18n.locale);
   const registration = table.myRegistration,
-    actor = useCommunityApi().userId;
-  const winner =
-    table.eventStatus === "TERMINATED" && table.winners?.some((row) => row.userId === actor);
-  const accepted =
-      registration?.status === "ACCEPTED" ||
-      table.myPosition === "FROZEN" ||
-      table.myPosition === "WAITING",
+    pending = registration?.status === "PENDING",
+    invited = registration?.kind === "INVITATION",
     waiting = table.myPosition === "WAITING";
-  const StatusIcon = winner ? Trophy : waiting ? Clock3 : UserRoundCheck;
+  const accepted = registration?.status === "ACCEPTED" || table.myPosition === "FROZEN",
+    StatusIcon = waiting ? ListOrdered : UserRoundCheck;
   const games = table.gamesDetail.filter(
       (game) =>
         table.eventStatus === "PLANNING" || !table.confirmed || game.id === table.confirmed.gameId,
     ),
     remaining = Math.max(0, games.length - 1);
   const closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
-  const pending = registration?.status === "PENDING";
-  const invited = registration?.kind === "INVITATION";
   const canRespond =
     table.eventStatus === "PLANNING" && table.canRespond && !closed && pending && invited;
   const counts = [
-    { icon: UserRoundMinus, label: t("Minimum players"), value: table.minPlayers },
-    { icon: UserRoundPlus, label: t("Maximum players"), value: table.maxPlayers },
-    { icon: UserRoundCheck, label: t("Accepted players"), value: table.acceptedCount },
-    { icon: Clock3, label: t("Pending players"), value: table.pendingRegistrationCount },
+    {
+      icon: UserRoundMinus,
+      label: t("Minimum players"),
+      value: table.minPlayers,
+      description: t("Minimum players"),
+    },
+    {
+      icon: UserRoundPlus,
+      label: t("Maximum players"),
+      value: table.maxPlayers,
+      description: t("Maximum players"),
+    },
+    {
+      icon: UserRoundCheck,
+      label: t("Accepted players"),
+      value: table.acceptedCount,
+      description: t("Accepted players, including the waiting list."),
+    },
+    {
+      icon: ListOrdered,
+      label: t("Waiting list"),
+      value: table.waitingCount,
+      description: t("Waiting list"),
+    },
+    {
+      icon: Clock3,
+      label: t("Pending players"),
+      value: table.pendingRegistrationCount,
+      description: t("Pending players, including reserved waiting-list places."),
+    },
   ];
   return (
     <LinkedListCard
@@ -67,26 +94,29 @@ export function EventTableCard({ table }: { table: PlannedTableResponse }) {
           params: { eventId: table.eventId, tableId: table.id },
         })
       }
+      leadingActions={
+        <HelpPopover label={`${t("Players")}: ${t("Field help")}`} title={t("Players")}>
+          <IconLegend items={counts.map(({ icon, description }) => ({ icon, description }))} />
+        </HelpPopover>
+      }
       actions={
-        <>
-          <HelpPopover label={`${t("Players")}: ${t("Field help")}`} title={t("Players")}>
-            <IconLegend items={counts.map(({ icon, label }) => ({ icon, description: label }))} />
-          </HelpPopover>
-          {canRespond && registration ? (
-            <EventTableInvitationActions eventId={table.eventId} registration={registration} />
-          ) : null}
-        </>
+        canRespond && registration ? (
+          <EventTableInvitationActions eventId={table.eventId} registration={registration} />
+        ) : undefined
       }
     >
       <View style={{ width: 64, height: 64, flexShrink: 0 }}>
-        <AnimatedDicebearArtwork seed={table.id} variant="shapes" />
-        {winner || (!pending && accepted) ? (
+        <AnimatedDicebearArtwork seed={table.id} variant="planets" />
+        {pending ? (
+          <PendingArtworkBadge
+            kind={invited ? "invitation" : "request"}
+            label={invited ? t("Invitation received") : t("Participation requested")}
+          />
+        ) : waiting || accepted ? (
           <View
             accessible
             accessibilityRole="image"
-            accessibilityLabel={
-              winner ? t("Winner") : waiting ? t("Waiting list") : t("Confirmed player")
-            }
+            accessibilityLabel={waiting ? t("Waiting list") : t("Confirmed player")}
             className="bg-surface"
             style={{
               position: "absolute",
@@ -96,40 +126,57 @@ export function EventTableCard({ table }: { table: PlannedTableResponse }) {
               borderTopLeftRadius: 8,
             }}
           >
-            <StatusIcon
-              size={16}
-              color={winner || waiting ? warning : success}
-              accessible={false}
-            />
+            <StatusIcon size={16} color={waiting ? warning : success} accessible={false} />
           </View>
-        ) : pending ? (
-          <PendingArtworkBadge
-            kind={invited ? "invitation" : "request"}
-            label={invited ? t("Invitation received") : t("Participation requested")}
-          />
         ) : null}
       </View>
       <ListCardBody
         title={table.name}
         titleIcon={<Dices size={16} color={muted} accessible={false} />}
+        titleAccessory={<EventTableRatingBadge enabled={table.rankingEnabled} />}
       >
         <View style={{ gap: 8, paddingBottom: 48 }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-            <CalendarDays size={16} color={muted} accessible={false} />
-            <Typography className="text-sm text-foreground" style={{ flex: 1 }}>
-              {table.eventName}
-            </Typography>
-          </View>
-          {table.groupId ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <UsersRound size={16} color={muted} accessible={false} />
-              {table.groupName ? (
-                <Typography className="text-sm text-muted" style={{ flex: 1 }}>
-                  {table.groupName}
+          {context === "personal" ? (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  flexShrink: 1,
+                  maxWidth: "100%",
+                }}
+              >
+                <CalendarDays size={16} color={muted} accessible={false} />
+                <Typography className="text-sm text-foreground" style={{ flexShrink: 1 }}>
+                  {table.eventName}
                 </Typography>
-              ) : (
-                <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
-              )}
+              </View>
+              {table.groupId ? (
+                <>
+                  <Typography className="text-muted" accessible={false}>
+                    ·
+                  </Typography>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      flexShrink: 1,
+                      maxWidth: "100%",
+                    }}
+                  >
+                    <UsersRound size={16} color={muted} accessible={false} />
+                    {table.groupName ? (
+                      <Typography className="text-sm text-muted" style={{ flexShrink: 1 }}>
+                        {table.groupName}
+                      </Typography>
+                    ) : (
+                      <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
+                    )}
+                  </View>
+                </>
+              ) : null}
             </View>
           ) : null}
           <ScrollView
@@ -164,15 +211,38 @@ export function EventTableCard({ table }: { table: PlannedTableResponse }) {
                 : ""}
             </Typography>
           </View>
+          {table.demonstratorUserId ? (
+            <View
+              accessible
+              accessibilityLabel={`${t("Demonstrator")}: ${table.demonstratorName === undefined ? t("Loading…") : table.demonstratorName || t("Unknown")}`}
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Presentation size={16} color={muted} accessible={false} />
+              {table.demonstratorName === undefined ? (
+                <Skeleton style={{ width: 112, height: 16, borderRadius: 4 }} />
+              ) : (
+                <Typography className="text-sm text-foreground" style={{ flex: 1 }}>
+                  {table.demonstratorName || t("Unknown")}
+                </Typography>
+              )}
+            </View>
+          ) : null}
           {table.eventStatus !== "PLANNING" && !table.confirmed ? (
             <Typography className="text-sm text-warning">
               {t("Excluded from confirmation")}
             </Typography>
           ) : null}
-          {table.winners?.length ? (
-            <Typography className="text-sm text-foreground">
-              {t("Winners")}: {table.winners.map((row) => row.name).join(", ")}
-            </Typography>
+          {table.eventStatus === "TERMINATED" && table.winners?.length ? (
+            <View
+              accessible
+              accessibilityLabel={`${t("Winners")}: ${table.winners.map((row) => row.name).join(", ")}`}
+              style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}
+            >
+              <Trophy size={16} color={warning} accessible={false} />
+              <Typography className="text-sm text-foreground" style={{ flex: 1 }}>
+                {table.winners.map((row) => row.name).join(", ")}
+              </Typography>
+            </View>
           ) : null}
         </View>
       </ListCardBody>

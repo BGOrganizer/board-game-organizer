@@ -25,7 +25,7 @@ export function EventCard({ event }: { event: PlannedEventResponse }) {
       label={`${t("Open event")}: ${event.name}`}
       onPress={() => router.push({ pathname: "/event/[eventId]", params: { eventId: event.id } })}
     >
-      <AnimatedDicebearArtwork seed={event.id} variant="waves" />
+      <AnimatedDicebearArtwork seed={event.id} variant="constellation" />
       <ListCardBody
         title={event.name}
         titleIcon={<CalendarDays size={18} color={fg} />}

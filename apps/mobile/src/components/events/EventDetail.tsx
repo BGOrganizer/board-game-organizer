@@ -36,7 +36,7 @@ import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDetailsCard } from "./EventDetailsCard";
-import { EventTableSummaryCard } from "./EventTableSummaryCard";
+import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
 export function EventDetail({ eventId }: { eventId: string }) {
@@ -327,7 +327,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
             <EmptyList icon={<Dices size={28} color={muted} />}>{t("No tables found")}</EmptyList>
           ) : null
         }
-        renderItem={({ item }) => <EventTableSummaryCard table={item} />}
+        renderItem={({ item }) => <EventTableCard table={item} context="event" />}
         onEndReached={() => {
           if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
             void tables.fetchNextPage();

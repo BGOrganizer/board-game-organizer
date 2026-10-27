@@ -9,7 +9,7 @@ import { AnimatedDicebearArtwork } from "../AnimatedDicebearArtwork";
 import { DateTimeInfo } from "../DateTimeInfo";
 
 it("keeps generated artwork motion variants and default/explicit dimensions", () => {
-  for (const variant of ["landscape", "planets", "waves", "shapes"] as const) {
+  for (const variant of ["landscape", "planets", "constellation", "waves", "shapes"] as const) {
     const q = renderWithI18n(
         <AnimatedDicebearArtwork
           seed="A group"

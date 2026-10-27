@@ -49,7 +49,7 @@ it("keeps date/time proposals and verified location add slots available only for
   expect(schedule).toContain("onChange={form.addDate}");
   expect(schedule).not.toContain('t("Common start time")');
   expect(schedule).toContain('eventDateWall(draft, date).replace("T", " ")');
-  const card = source("events", "EventTableSummaryCard");
+  const card = source("events", "EventTableCard");
   expect(card).toContain("<LinkedListCard");
   expect(card).toContain("onPress={() =>");
   expect(card).toContain("<AnimatedDicebearArtwork");
@@ -94,7 +94,7 @@ it("owns removal actions inside grouped location/game rows and uses constrained 
   expect(table).toContain("max={row.maxPlayers}");
   expect(table).toContain("min={row.minPlayers}");
   expect(source("events", "EventDraftTableCard")).toContain(
-    'seed={row.id ?? row.key} variant="shapes"',
+    'seed={row.id ?? row.key} variant="planets"',
   );
   expect(source("events", "EventDraftTableCard")).toContain("<EventTableRatingBadge");
   expect(table).toContain("value <= min");

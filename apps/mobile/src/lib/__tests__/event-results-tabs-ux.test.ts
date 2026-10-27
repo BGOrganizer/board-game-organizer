@@ -54,7 +54,7 @@ it("keeps staged table-result cards, explicit completion artwork and plural/sing
   expect(results).toContain("headerLeft:");
   expect(source("events", "TableScoreEditor")).not.toContain('t("Back to tables")');
   expect(source("events", "EventTableOverview")).toContain('t("Event")');
-  expect(source("events", "EventTableOverview")).toContain('variant="waves"');
+  expect(source("events", "EventTableOverview")).toContain('variant="constellation"');
   expect(source("events", "EventTableSeats")).toContain(
     'table.groupType === "PRIVATE" && !hasJoinedEvent',
   );

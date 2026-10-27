@@ -97,7 +97,7 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
             router.push({ pathname: "/event/[eventId]", params: { eventId: table.eventId } })
           }
         >
-          <AnimatedDicebearArtwork seed={table.eventId} variant="waves" size={40} />
+          <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
           <Typography
             className="font-medium text-foreground"
             style={{ flex: 1, alignSelf: "center" }}

@@ -7,12 +7,14 @@ export function LinkedListCard({
   onPress,
   disabled,
   actions,
+  leadingActions,
   children,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   actions?: ReactNode;
+  leadingActions?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -27,6 +29,23 @@ export function LinkedListCard({
       >
         {children}
       </Pressable>
+      {leadingActions ? (
+        <View
+          className="bg-surface"
+          style={{
+            position: "absolute",
+            left: 6,
+            bottom: 6,
+            flexDirection: "row",
+            gap: 8,
+            padding: 2,
+            borderRadius: 8,
+            zIndex: 1,
+          }}
+        >
+          {leadingActions}
+        </View>
+      ) : null}
       {actions ? (
         <View
           className="bg-surface"

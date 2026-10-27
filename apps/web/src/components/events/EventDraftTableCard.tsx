@@ -20,7 +20,7 @@ export function EventDraftTableCard({
   return (
     <ListCard>
       <div className="flex min-w-0 items-start gap-4 p-4">
-        <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="shapes" />
+        <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="planets" />
         <ListCardBody
           title={row.name}
           titleAccessory={<EventTableRatingBadge enabled={row.rankingEnabled} />}

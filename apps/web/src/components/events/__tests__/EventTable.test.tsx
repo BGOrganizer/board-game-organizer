@@ -434,7 +434,7 @@ it("shows the parent Event item with matching artwork and navigation below Table
   mount();
   const link = await screen.findByRole("link", { name: `Open event: ${plannedEvent.name}` });
   expect(link.getAttribute("href")).toBe(`/events/${eventId}`);
-  expect(link.querySelector(".match-waves")).not.toBeNull();
+  expect(link.querySelector(".dicebear-artwork")).not.toBeNull();
   expect(screen.getByRole("region", { name: "Event" }).contains(link)).toBe(true);
 });
 it.each([false, true])(

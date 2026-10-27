@@ -35,7 +35,7 @@ import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventDetailsCard } from "./EventDetailsCard";
-import { EventTableSummaryCard } from "./EventTableSummaryCard";
+import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
 export function EventDetail({ eventId }: { eventId: string }) {
@@ -291,7 +291,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
       <section aria-label={t`Tables`} className="space-y-3">
         <h2 className="font-semibold">{t`Tables`}</h2>
         {tables.items.map((row) => (
-          <EventTableSummaryCard key={row.id} table={row} />
+          <EventTableCard key={row.id} table={row} context="event" />
         ))}
         {!tables.isPending && !tables.isError && !tables.items.length ? (
           <EmptyList icon={<Dices className="size-7" />}>{t`No tables found`}</EmptyList>

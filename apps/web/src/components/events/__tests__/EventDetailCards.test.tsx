@@ -1,3 +1,5 @@
+import { Avatar, Style } from "@dicebear/core";
+import constellation from "@dicebear/styles/constellation.json" with { type: "json" };
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
@@ -41,7 +43,9 @@ it.each([
     const image = card.querySelector("img");
     expect(image?.getAttribute("alt")).toBe("");
     const artwork = image?.getAttribute("src");
-    expect(artwork).toMatch(/^data:image\/svg\+xml,/);
+    expect(artwork).toBe(
+      `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(constellation), { seed: event.id, size: 72 }).toString())}`,
+    );
     view.rerender(<EventCard event={event} />);
     expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
   },

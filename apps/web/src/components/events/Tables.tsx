@@ -38,7 +38,7 @@ export function Tables() {
         ]}
       />
       {(communityAccessDenied(q.error) ? [] : q.items).map((row) => (
-        <EventTableCard key={row.id} table={row} />
+        <EventTableCard key={row.id} table={row} context="personal" />
       ))}
       {q.isPending ? (
         <Skeleton className="h-32 w-full rounded-xl" />

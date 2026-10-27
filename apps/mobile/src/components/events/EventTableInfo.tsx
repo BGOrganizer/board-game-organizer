@@ -29,7 +29,7 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
       </View>
       <ListCard>
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 16, padding: 16 }}>
-          <AnimatedDicebearArtwork seed={table.id} variant="shapes" />
+          <AnimatedDicebearArtwork seed={table.id} variant="planets" />
           <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
               <Dices size={16} color={muted} accessible={false} style={{ marginTop: 2 }} />

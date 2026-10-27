@@ -80,7 +80,7 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
           href={`/events/${table.eventId}`}
           label={`${t`Open event`}: ${table.eventName}`}
         >
-          <AnimatedDicebearArtwork seed={table.eventId} variant="waves" size={40} />
+          <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
           <span className="min-w-0 self-center break-words font-medium">{table.eventName}</span>
         </LinkedListCard>
       </section>

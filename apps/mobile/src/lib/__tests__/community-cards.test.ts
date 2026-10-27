@@ -29,7 +29,11 @@ it("keeps personal Table metadata/counts compact and puts pending type badges on
   expect(table).toContain("<CalendarDays");
   expect(table).not.toContain("<EventStatusBadge status={table.eventStatus}");
   expect(table).toContain("StatusIcon");
-  expect(table).toContain('t("Winner")');
+  expect(table).toContain('t("Winners")');
+  expect(table).toContain("table.demonstratorUserId");
+  expect(table).toContain("<Presentation");
+  expect(table).toContain("leadingActions=");
+  expect(table).toContain('variant="planets"');
   expect(table).toContain("table.groupName");
   expect(table).toContain("<UsersRound");
   for (const token of [
@@ -37,6 +41,8 @@ it("keeps personal Table metadata/counts compact and puts pending type badges on
     "UserRoundPlus",
     "UserRoundCheck",
     "Clock3",
+    "ListOrdered",
+    "table.waitingCount",
     "table.acceptedCount",
     "table.pendingRegistrationCount",
   ])

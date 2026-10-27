@@ -25,7 +25,7 @@ export function EventDraftTableCard({
   return (
     <ListCard>
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 16, padding: 16 }}>
-        <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="shapes" />
+        <AnimatedDicebearArtwork seed={row.id ?? row.key} variant="planets" />
         <ListCardBody
           title={row.name}
           titleAccessory={<EventTableRatingBadge enabled={row.rankingEnabled} />}

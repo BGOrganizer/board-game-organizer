@@ -167,7 +167,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableSummaryCard,EventTableRatingBadge,EventTableInfo,EventTableSeats,EventVoteButtons,EventVoteCounts,EventDetail}.tsx":
+        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableRatingBadge,EventTableInfo,EventTableSeats,EventVoteButtons,EventVoteCounts,EventDetail}.tsx":
           {
             lines: 100,
             functions: 100,

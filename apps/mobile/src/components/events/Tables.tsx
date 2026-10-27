@@ -43,7 +43,7 @@ export function Tables() {
           ]}
         />
       }
-      renderItem={({ item }) => <EventTableCard table={item} />}
+      renderItem={({ item }) => <EventTableCard table={item} context="personal" />}
       onEndReached={() => {
         if (q.hasNextPage && !q.isFetchingNextPage && !q.isFetchNextPageError)
           void q.fetchNextPage();

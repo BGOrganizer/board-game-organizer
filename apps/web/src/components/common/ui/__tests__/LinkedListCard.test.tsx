@@ -10,6 +10,11 @@ it("shares match/group card padding, keeps actions outside link and blocks optim
       href="/matches/1"
       label="Open match"
       disabled
+      leadingActions={
+        <button type="button" onClick={onAction}>
+          Legend
+        </button>
+      }
       actions={
         <button type="button" onClick={onAction}>
           Accept
@@ -28,4 +33,12 @@ it("shares match/group card padding, keeps actions outside link and blocks optim
   expect(click.defaultPrevented).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Accept" }));
   expect(onAction).toHaveBeenCalledOnce();
+  const legend = screen.getByRole("button", { name: "Legend" });
+  expect(link.contains(legend)).toBe(false);
+  expect(legend.parentElement?.className).toContain("left-2");
+  expect(screen.getByRole("button", { name: "Accept" }).parentElement?.className).toContain(
+    "right-2",
+  );
+  fireEvent.click(legend);
+  expect(onAction).toHaveBeenCalledTimes(2);
 });

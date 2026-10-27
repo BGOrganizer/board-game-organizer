@@ -9,12 +9,14 @@ export function LinkedListCard({
   label,
   disabled,
   actions,
+  leadingActions,
   children,
 }: {
   href: string;
   label: string;
   disabled?: boolean;
   actions?: ReactNode;
+  leadingActions?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -30,6 +32,11 @@ export function LinkedListCard({
       >
         {children}
       </Link>
+      {leadingActions ? (
+        <div className="absolute left-2 bottom-2 z-10 flex gap-1 rounded-lg bg-surface p-0.5">
+          {leadingActions}
+        </div>
+      ) : null}
       {actions ? (
         <div className="absolute right-2 bottom-2 z-10 flex gap-1 rounded-lg bg-surface p-0.5">
           {actions}

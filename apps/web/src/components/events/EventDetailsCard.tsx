@@ -21,7 +21,7 @@ export function EventDetailsCard({ event }: { event: PlannedEventResponse }) {
       </div>
       <ListCard>
         <div className="flex min-w-0 items-start gap-4 p-4">
-          <AnimatedDicebearArtwork seed={event.id} variant="waves" />
+          <AnimatedDicebearArtwork seed={event.id} variant="constellation" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-start gap-2">
               <CalendarDays className="mt-0.5 size-4 shrink-0 text-default-500" aria-hidden />

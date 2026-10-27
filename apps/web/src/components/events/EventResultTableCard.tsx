@@ -31,7 +31,7 @@ export function EventResultTableCard({
         className="h-auto w-full items-start justify-start gap-3 rounded-xl p-3 text-left whitespace-normal"
       >
         <span className="relative size-16 shrink-0">
-          <AnimatedDicebearArtwork seed={table.id} variant="shapes" />
+          <AnimatedDicebearArtwork seed={table.id} variant="planets" />
           {ready ? (
             <span
               role="img"

@@ -54,8 +54,9 @@ it("keeps first game plus localized additional count and badges current viewer's
       }}
     />,
   );
+  expect(screen.getByRole("img", { name: "Confirmed player" })).not.toBeNull();
   expect(
-    screen.getByRole("img", { name: "Winner" }).querySelector("svg.lucide-trophy"),
+    screen.getByText("Owner, Guest").parentElement?.querySelector("svg.lucide-trophy"),
   ).not.toBeNull();
   expect(screen.queryByText("Confirmed player")).toBeNull();
   q.rerender(<EventTableCard table={{ ...plannedTable, gamesDetail: [] }} />);
@@ -104,7 +105,7 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
     <EventTableCard
       table={{
         ...plannedTable,
-        eventStatus: "CONFIRMED",
+        eventStatus: "TERMINATED",
         confirmed: { gameId: 1, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
         myPosition: "FROZEN",
         gamesDetail: [
@@ -119,7 +120,7 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
     />,
   );
   expect(screen.getByRole("img", { name: "Confirmed player" })).not.toBeNull();
-  expect(screen.getByText("Winners: Owner, Guest")).not.toBeNull();
+  expect(screen.getByText("Owner, Guest")).not.toBeNull();
   expect(screen.queryByText("Other game")).toBeNull();
   q.rerender(
     <EventTableCard
@@ -168,6 +169,7 @@ it("shows Event/Group identity and separate minimum, maximum, accepted and pendi
     ["Minimum players", "user-round-minus", "2"],
     ["Maximum players", "user-round-plus", "4"],
     ["Accepted players", "user-round-check", "7"],
+    ["Waiting list", "list-ordered", "8"],
     ["Pending players", "clock-3", "3"],
   ]) {
     const stat = screen.getByText(`${label}:`).parentElement!;
@@ -180,7 +182,7 @@ it("shows Event/Group identity and separate minimum, maximum, accepted and pendi
   expect(screen.queryByText("Reserved place")).toBeNull();
   expect(screen.queryByRole("img", { name: "Invitation received" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Players: Field help" }));
-  expect(screen.getByText("Accepted players")).not.toBeNull();
+  expect(screen.getByText("Accepted players, including the waiting list.")).not.toBeNull();
 });
 it("keeps old cached identity while missing new Group/total fields use skeletons, not guessed zeros", () => {
   const { container } = renderWithI18n(

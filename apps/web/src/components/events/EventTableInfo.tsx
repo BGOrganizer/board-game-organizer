@@ -23,7 +23,7 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
       </div>
       <ListCard>
         <div className="flex min-w-0 items-start gap-4 p-4">
-          <AnimatedDicebearArtwork seed={table.id} variant="shapes" />
+          <AnimatedDicebearArtwork seed={table.id} variant="planets" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-start gap-2">
               <Dices className="mt-0.5 size-4 shrink-0 text-default-500" aria-hidden />

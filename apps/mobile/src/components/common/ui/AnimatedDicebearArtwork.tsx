@@ -1,4 +1,5 @@
 import { Avatar as DiceBearAvatar, Style } from "@dicebear/core";
+import constellation from "@dicebear/styles/constellation.json" with { type: "json" };
 import landscape from "@dicebear/styles/landscape.json" with { type: "json" };
 import planets from "@dicebear/styles/planets.json" with { type: "json" };
 import shapes from "@dicebear/styles/shapes.json" with { type: "json" };
@@ -17,6 +18,7 @@ import Animated, {
 import { SvgXml } from "react-native-svg";
 
 const styles = {
+  constellation: new Style(constellation),
   landscape: new Style(landscape),
   planets: new Style(planets),
   shapes: new Style(shapes),

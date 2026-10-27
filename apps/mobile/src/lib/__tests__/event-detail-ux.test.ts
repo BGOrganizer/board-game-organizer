@@ -31,7 +31,9 @@ it("keeps manual agreement confirmation/replanning independent of cutoff and ter
   expect(event).toContain("Could not");
 });
 it("uses paged real table cards and loads missing detail fields without replacing usable content", () => {
-  expect(source("EventDetail")).toContain("<EventTableSummaryCard");
+  expect(source("EventDetail")).toContain("<EventTableCard");
+  expect(source("EventDetail")).toContain('context="event"');
+  expect(source("Tables")).toContain('context="personal"');
   expect(source("EventTable")).toContain("Could not load complete table details");
   expect(source("EventTableResults")).toContain("eventTablePeople");
   expect(source("EventTableResults")).toContain("<EventPlayerCard");
