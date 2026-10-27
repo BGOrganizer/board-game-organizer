@@ -1,5 +1,5 @@
 import { locationFavoriteKey } from "@board-game-organizer/schemas";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GeocodingError } from "@/app/lib/locations/geocoding";
 import { MatchError } from "@/app/lib/matches/match.service";
 import { DELETE, GET, OPTIONS, POST } from "../route";
@@ -60,8 +60,10 @@ function request(method = "GET", body?: unknown, query = "") {
   });
 }
 
+afterEach(() => vi.restoreAllMocks());
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(console, "info").mockImplementation(() => {});
   mocks.auth.mockResolvedValue({ userId: "user_one" });
   mocks.db.mockResolvedValue({ collection: () => ({}) });
   mocks.list.mockResolvedValue({ items: [{ key, location }], nextCursor: null });
@@ -74,6 +76,70 @@ beforeEach(() => {
   mocks.geocode.mockResolvedValue([location]);
 });
 
+describe("safe favorite diagnostics", () => {
+  const entries = () => vi.mocked(console.info).mock.calls;
+  it("logs DTO rejection before any provider or database work", async () => {
+    expect(
+      (await POST(request("POST", { location: { ...location, id: "provider.123" } }))).status,
+    ).toBe(400);
+    expect(entries().at(-1)).toEqual([
+      "[bgo.location-write]",
+      expect.objectContaining({
+        operation: "location.favorites.save",
+        phase: "rejected",
+        stage: "validation",
+        code: "INVALID_LOCATION_PAYLOAD",
+        status: 400,
+      }),
+    ]);
+    expect(mocks.geocode).not.toHaveBeenCalled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it("identifies provider mismatch without relaxing verification", async () => {
+    mocks.geocode.mockResolvedValueOnce([{ ...location, longitude: 1 }]);
+    const response = await POST(request("POST", { location }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Choose a verified address" });
+    expect(entries()).toContainEqual([
+      "[bgo.location-verify]",
+      expect.objectContaining({
+        phase: "rejected",
+        candidateCount: 1,
+        addressMatch: true,
+        coordinateMatch: false,
+      }),
+    ]);
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it("keeps ingress and completion correlated and never records request data", async () => {
+    const secret = "never-log-private-data";
+    const req = new Request(
+      `http://localhost/api/locations/favorites?x-vercel-protection-bypass=${secret}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ location: { ...location, name: secret } }),
+      },
+    );
+    expect((await POST(req)).status).toBe(201);
+    const traces = entries()
+      .filter(([tag]) => tag === "[bgo.location-write]")
+      .map(([, value]) => value);
+    expect(traces.filter((value) => value.phase === "received")).toHaveLength(1);
+    expect(traces.every((value) => value.requestId === traces[0].requestId)).toBe(true);
+    expect(traces.at(-1)).toMatchObject({ phase: "completed", status: 201 });
+    const serialized = JSON.stringify(entries());
+    for (const value of [
+      secret,
+      location.address,
+      location.id,
+      "user_one",
+      String(location.longitude),
+      String(location.latitude),
+    ])
+      expect(serialized).not.toContain(value);
+  });
+});
 describe("private location favorites", () => {
   it("requires authentication on every operation and exposes preflight", async () => {
     expect(OPTIONS(request("OPTIONS")).status).toBe(204);

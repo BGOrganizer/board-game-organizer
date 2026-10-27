@@ -5,10 +5,15 @@ import { corsOptions } from "@/app/lib/cors";
 export const OPTIONS = corsOptions;
 type Context = { params: Promise<{ assetId: string }> };
 export function GET(request: Request, context: Context) {
-  return runRecordOperation(request, async (userId, { assets }) => {
-    recordQuery(request, emptyRecordQuery);
-    return assets.preview(userId, communityId((await context.params).assetId));
-  });
+  return runRecordOperation(
+    request,
+    async (userId, { assets }) => {
+      recordQuery(request, emptyRecordQuery);
+      return assets.preview(userId, communityId((await context.params).assetId));
+    },
+    200,
+    "group.logo.preview",
+  );
 }
 export function PATCH(request: Request, context: Context) {
   return runRecordOperation(

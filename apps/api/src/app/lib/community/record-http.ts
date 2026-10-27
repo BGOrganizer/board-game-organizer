@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
 import type { ObjectId } from "mongodb";
 import { after } from "next/server";
@@ -8,6 +7,11 @@ import { getDb, withTransaction } from "../db";
 import { ensureCurrentUser } from "../ensureCurrentUser";
 import { dispatchNotifications } from "../notifications/push";
 import type { recordServices } from "./record-services";
+import {
+  createRequestDiagnostics,
+  type RequestDiagnosticOperation,
+  type RequestDiagnosticTrace,
+} from "./request-diagnostics";
 
 export { communityBody, communityId } from "./request";
 /** Old invitation/booking URLs must never recreate retired collections. */
@@ -23,31 +27,20 @@ export async function runRecordOperation<T>(
   request: Request,
   operation: (userId: string, services: ReturnType<typeof recordServices>) => Promise<T>,
   status = 200,
-  diagnostic?: "group.create" | "group.logo.start" | "group.logo.chunk" | "group.logo.complete",
+  diagnostic?: RequestDiagnosticOperation | RequestDiagnosticTrace,
 ) {
-  const requestId = diagnostic ? randomUUID() : undefined;
-  let stage = "auth";
-  const trace = (phase: string, responseStatus?: number, code?: string) => {
-    if (diagnostic)
-      console.info("[bgo.group-write]", {
-        operation: diagnostic,
-        requestId,
-        phase,
-        stage,
-        status: responseStatus,
-        code,
-      });
-  };
-  trace("received");
+  const trace =
+    typeof diagnostic === "function" ? diagnostic : createRequestDiagnostics(diagnostic);
+  let stage: "auth" | "services" | "user_sync" | "transaction" = "auth";
   let userId: string | null;
   try {
     ({ userId } = await auth());
   } catch (error) {
-    trace("failed", 500, "AUTHENTICATION_ERROR");
+    trace("failed", stage, 500, "AUTHENTICATION_ERROR");
     throw error;
   }
   if (!userId) {
-    trace("rejected", 401, "UNAUTHORIZED");
+    trace("rejected", stage, 401, "UNAUTHORIZED");
     return corsJson(
       { error: "Unauthorized" },
       { status: 401, headers: { "Cache-Control": "private, no-store" } },
@@ -56,14 +49,14 @@ export async function runRecordOperation<T>(
   }
   try {
     stage = "services";
-    trace("starting");
+    trace("starting", stage);
     const { recordServices } = await import("./record-services");
     stage = "user_sync";
-    trace("starting");
+    trace("starting", stage);
     await ensureCurrentUser(userId, await getDb());
     const ids: ObjectId[] = [];
     stage = "transaction";
-    trace("starting");
+    trace("starting", stage);
     const result = await withTransaction(async (session, db) => {
       ids.length = 0;
       return operation(userId, recordServices(db, session, ids));
@@ -73,18 +66,15 @@ export async function runRecordOperation<T>(
       const committed = [...ids];
       after(() => dispatchNotifications(committed));
     }
-    trace("completed", status);
+    trace("completed", stage, status);
     return corsJson(result, { status, headers: { "Cache-Control": "private, no-store" } }, request);
   } catch (error) {
     const domainError = error instanceof CommunityError;
     trace(
       "failed",
+      stage,
       domainError ? error.status : 500,
-      domainError && /^[A-Z][A-Z0-9_]{0,79}$/.test(error.message)
-        ? error.message
-        : domainError
-          ? "REQUEST_REJECTED"
-          : "INTERNAL_ERROR",
+      domainError ? error.message : "INTERNAL_ERROR",
     );
     return corsJson(
       { error: error instanceof CommunityError ? error.message : "Internal server error" },

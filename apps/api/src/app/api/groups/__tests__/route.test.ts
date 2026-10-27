@@ -98,6 +98,12 @@ describe("safe Group write diagnostics", () => {
   it.each([
     ["group.create", () => groupsRoute.POST(request("POST", input)), 201],
     [
+      "group.update",
+      () => detail.PATCH(request("PATCH", { name: input.name, version: 1 }), context),
+      200,
+    ],
+    ["group.logo.preview", () => asset.GET(request(), context), 200],
+    [
       "group.logo.start",
       () => assetStart.POST(request("POST", { mimeType: "image/png", byteLength: 3 })),
       201,

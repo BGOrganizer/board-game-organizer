@@ -21,12 +21,17 @@ export function DELETE(request: Request, context: Context) {
   });
 }
 export function PATCH(request: Request, context: Context) {
-  return runRecordOperation(request, async (userId, { groups }) => {
-    recordQuery(request, emptyRecordQuery);
-    return groups.save(
-      userId,
-      await communityBody(request, editGroupRecordSchema),
-      communityId((await context.params).groupId),
-    );
-  });
+  return runRecordOperation(
+    request,
+    async (userId, { groups }) => {
+      recordQuery(request, emptyRecordQuery);
+      return groups.save(
+        userId,
+        await communityBody(request, editGroupRecordSchema),
+        communityId((await context.params).groupId),
+      );
+    },
+    200,
+    "group.update",
+  );
 }
