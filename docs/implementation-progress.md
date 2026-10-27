@@ -1,5 +1,26 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Group creation / logo upload — scoped API diagnostics
+
+- Operator reports that a Group without logo/location can be created, while optional fields fail;
+  the logo shows a generic upload error and no API logs were visible. Root cause is not yet verified.
+- Four write endpoints now opt into `[bgo.group-write]` diagnostics: `group.create`,
+  `group.logo.start`, `group.logo.chunk` and `group.logo.complete`. Entry is logged before auth;
+  subsequent stages identify service loading, user synchronization, transaction and final status.
+  Per-request random IDs correlate those entries; transaction retries do not duplicate completion.
+- Logs exclude request URLs/query strings, headers, identity, names, locations, image/base64 content
+  and arbitrary exception messages. Only normalized domain codes or fixed generic codes are emitted.
+  Authentication, validation, status/CORS/private-cache behavior and committed-only notifications stay
+  unchanged. Read endpoints and other domains do not opt into this logging.
+- API coverage passes 668 tests with unchanged 100% HTTP gates; root typecheck 4/4, scoped Biome
+  6 files, isolated Mongo integration 81/81 and API/web production builds pass. Generated Next
+  references and private files are preserved. Existing clients/catalogs/dependencies are unchanged.
+  This diagnostic build is not a claimed fix for the reported optional-field failure; remove scoped
+  diagnostics once investigated.
+- Operator authorizes commit/push and a fresh build. Published PR APKs target the development API
+  Preview, not production; inspect that APK's recorded API origin and filter runtime logs by
+  `[bgo.group-write]`. If entry is absent there, the request did not enter these route handlers.
+
 ## Join sheet — always three tabs, participation-based initial selection
 
 - Web/native join sheets always expose Dates / Locations / Games. A player with no other ACCEPTED
