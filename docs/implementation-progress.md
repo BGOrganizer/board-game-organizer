@@ -1,5 +1,30 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Preview quota, location diagnostics and native wizard header restoration
+
+- Operator authorizes a Preview-only logo quota exception, expanded Group/associated-location API
+  diagnostics, scope-separated publication and Preview deployment. Only platform `VERCEL_ENV=preview`
+  skips the five-unclaimed check; production/unknown/local environments fail closed. The shared policy
+  covers current Group and retained Organization asset services without reviving retired routes.
+  Size/MIME/image validation, owner locking/authorization, claiming, TTL and existing assets are intact.
+- One request diagnostic helper retains safe Group create/logo logs and adds Group update/logo preview,
+  location search/reverse and favorite list/status/save/remove. Invalid query/body/DTO paths are visible;
+  arbitrary messages, tokens, URLs, identities and location/image values are not recorded.
+- Favorite writes and Group/Event venue verification share the same exact provider-match lookup.
+  `[bgo.location-verify]` reports only candidate count and independent address/coordinate match flags.
+  Favorite HTTP bodies/statuses, timezone authority and `CHOOSE_VERIFIED_ADDRESS` remain unchanged;
+  this is diagnostic coverage, not a claimed fix or weakened verification rule.
+- Native Group/Event wizards restore their full `HeaderTitle` renderer (`UsersRound`/`Dices`) after
+  inline LocationPicker return. Expo's `Stack.Screen` merges options without unmount cleanup; restoring
+  only title/back leaves the picker `MapPin` renderer attached. Actual option callbacks are tested for
+  create/edit and confirm/cancel merge paths; navigation/drafts, icons while picking and translations
+  remain unchanged. Real native rendering/gesture acceptance is still not claimed.
+- Local checks: schemas 110, shared 219, API 690, web 460, native pure/source 197 = 1,676 tests; unchanged
+  gates plus 100% policy/diagnostic/verifier gates pass. Root typecheck 4/4, scoped Biome 19 files, isolated
+  Mongo integration 81/81, API/web production builds and Android Metro export pass. Generated Next
+  references/private files are preserved; no catalogs, dependencies, workflows, providers or live data
+  changed. Guides used: BGO architecture, Expo Router/data fetching, native React and MapTiler guides.
+
 ## Group creation / logo upload — scoped API diagnostics
 
 - Operator reports that a Group without logo/location can be created, while optional fields fail;

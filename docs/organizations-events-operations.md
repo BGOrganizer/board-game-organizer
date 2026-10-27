@@ -13,6 +13,22 @@ The feature is not production-verified merely because unit tests, replica-set in
 - Grant moderators only through server-owned Clerk **public** metadata: `bgoRole: "ADMIN"`. Never grant authority through `unsafeMetadata` or a mirrored MongoDB role. Review handlers resolve fresh Clerk authority.
 - Pending/rejected changes stay private. Replacing a revision does not discard the approved revision. Referenced logos remain claimed; replaced, unreferenced assets are released for TTL deletion. MongoDB TTL cleanup is asynchronous.
 
+## Preview logo quota and scoped request diagnostics
+
+Only the platform-owned `VERCEL_ENV=preview` skips the five-unclaimed-logo upload quota. Production,
+local/missing values and unknown environments retain the guard. `NODE_ENV` and request/client values
+never select this exception. Owner locking, authorization, MIME/byte/chunk/image checks, claiming and
+24-hour expiry remain unchanged; no existing asset is reset/deleted by this exception.
+
+Group creation/update and logo start/chunk/complete/preview emit `[bgo.group-write]`. Location search
+(including reverse lookup) and favorite list/status/save/remove emit `[bgo.location-write]`, including
+query/body/DTO rejections before provider lookup. `[bgo.location-verify]` reports candidate counts and
+independent address/coordinate match booleans for strict provider re-verification shared by venues
+and favorites. It never accepts a near match. Logs omit tokens, URLs/query values, identity, names,
+addresses, coordinates, images and arbitrary exception messages. Inspect the API Preview baked into
+the tested APK, not a different deployment; this instrumentation does not prove the location failure
+is fixed. Remove temporary diagnostics after investigation.
+
 ## Durable deadlines
 
 Real Inngest configuration/registration/delivery remains excluded from local acceptance. By explicit
