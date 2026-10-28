@@ -173,6 +173,102 @@ it("adds and removes optimistically, keeps unrelated cache data and uses action-
   expect(client.getQueryData(["favoriteLocations", apiUrl, "user_one", "other"])).toBe("keep");
 });
 
+it("reconciles canonical provider coordinates while retaining both selection and canonical favorite identity", async () => {
+  const canonical = { ...location, longitude: 8.54, latitude: 47.37, timeZone: "Europe/Zurich" };
+  const acknowledged = { key: favorite.key, location: canonical };
+  const otherLocation = { ...location, address: "Other verified address" };
+  const other = { key: locationFavoriteKey(otherLocation), location: otherLocation };
+  const calls: RequestInit[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      if (init.method) {
+        calls.push(init);
+        return Response.json({ item: acknowledged });
+      }
+      return Response.json(
+        url.includes("keys=") ? { keys: [] } : { items: [other], nextCursor: null },
+      );
+    }),
+  );
+  const { client, wrapper } = setup();
+  const { result } = renderHook(() => useFavoriteLocations(options, [location, canonical]), {
+    wrapper,
+  });
+  await waitFor(() =>
+    expect(result.current.status.isSuccess && result.current.list.isSuccess).toBe(true),
+  );
+  vi.spyOn(client, "invalidateQueries").mockResolvedValue(undefined);
+  await act(async () => {
+    await result.current.toggle.mutateAsync({ location, favorite: false });
+  });
+  await waitFor(() => expect(result.current.items).toEqual([acknowledged, other]));
+  expect(result.current.isFavorite(location)).toBe(true);
+  expect(result.current.isFavorite(canonical)).toBe(true);
+  await act(async () => {
+    await result.current.toggle.mutateAsync({ location: canonical, favorite: true });
+  });
+  expect(JSON.parse(String(calls[1].body))).toEqual({ key: locationFavoriteKey(canonical) });
+  await waitFor(() => expect(result.current.items).toEqual([other]));
+  expect(result.current.isFavorite(location)).toBe(false);
+  expect(result.current.isFavorite(canonical)).toBe(false);
+});
+it("keeps acknowledgments in the original actor cache and never creates missing list data", async () => {
+  let release: ((response: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) =>
+      init.method
+        ? new Promise<Response>((resolve) => {
+            release = resolve;
+          })
+        : Response.json(url.includes("keys=") ? { keys: [] } : { items: [], nextCursor: null }),
+    ),
+  );
+  const { client, wrapper } = setup();
+  const { result, rerender } = renderHook(
+    ({ userId }) => useFavoriteLocations({ ...options, userId }),
+    { wrapper, initialProps: { userId: "user_one" } },
+  );
+  await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
+  vi.spyOn(client, "invalidateQueries").mockResolvedValue(undefined);
+  let pending: Promise<unknown>;
+  act(() => {
+    pending = result.current.toggle.mutateAsync({ location, favorite: false });
+  });
+  await waitFor(() => expect(release).toBeDefined());
+  rerender({ userId: "user_two" });
+  const canonical = { ...location, longitude: 8.54, latitude: 47.37 };
+  await act(async () => {
+    release?.(Response.json({ item: { key: favorite.key, location: canonical } }));
+    await pending;
+  });
+  expect(
+    client.getQueryData<{ pages: Array<{ items: FavoriteLocation[] }> }>([
+      "favoriteLocations",
+      apiUrl,
+      "user_one",
+      "list",
+    ])?.pages[0].items,
+  ).toEqual([{ key: favorite.key, location: canonical }]);
+  expect(result.current.items).toEqual([]);
+  const mutation = client.getMutationCache().getAll().at(-1);
+  if (!mutation) throw new Error("Expected cached mutation");
+  await mutation.options.onSuccess?.({}, { location, favorite: false }, undefined, {} as never);
+  await mutation.options.onSuccess?.(
+    {},
+    { location, favorite: false },
+    { listKey: ["favoriteLocations", "missing", "owner", "list"], key: favorite.key } as never,
+    {} as never,
+  );
+  await mutation.options.onSuccess?.(
+    { item: favorite },
+    { location, favorite: false },
+    { listKey: ["favoriteLocations", "missing", "owner", "list"], key: favorite.key } as never,
+    {} as never,
+  );
+  expect(client.getQueryData(["favoriteLocations", "missing", "owner", "list"])).toBeUndefined();
+});
 it("rolls failed adds and removals back without pretending network failure is an empty list", async () => {
   let stored: FavoriteLocation[] = [favorite];
   const feedback = { onOptimisticUpdate: vi.fn(), onError: vi.fn() };

@@ -1,6 +1,6 @@
 import {
-  type FavoriteLocation,
   type FavoriteLocationsResponse,
+  favoriteLocationSchema,
   locationFavoriteKey,
   type MatchLocation,
 } from "@board-game-organizer/schemas";
@@ -105,11 +105,20 @@ export function useFavoriteLocations(
       await client.cancelQueries({ queryKey: root });
       const snapshots = client.getQueriesData({ queryKey: root });
       const key = locationFavoriteKey(location);
+      const cached = client.getQueryData<InfiniteData<FavoriteLocationsResponse>>(listKey);
+      const equivalent =
+        cached?.pages
+          .flatMap((page) => page.items)
+          .filter((item) => item.key === key || locationFavoriteKey(item.location) === key) ?? [];
+      const affected = new Set([
+        key,
+        ...equivalent.flatMap((item) => [item.key, locationFavoriteKey(item.location)]),
+      ]);
       for (const [queryKey, data] of snapshots) {
         if (queryKey[3] === "status" && Array.isArray(data)) {
           client.setQueryData(
             queryKey,
-            favorite ? data.filter((item) => item !== key) : [...new Set([...data, key])],
+            favorite ? data.filter((item) => !affected.has(item)) : [...new Set([...data, key])],
           );
         } else if (queryKey[3] === "list" && data) {
           const pages = data as InfiniteData<FavoriteLocationsResponse>;
@@ -118,7 +127,9 @@ export function useFavoriteLocations(
             pages: pages.pages.map((page, index) => ({
               ...page,
               items: favorite
-                ? page.items.filter((item) => item.key !== key)
+                ? page.items.filter(
+                    (item) => item.key !== key && locationFavoriteKey(item.location) !== key,
+                  )
                 : index === 0
                   ? [{ key, location }, ...page.items.filter((item) => item.key !== key)]
                   : page.items.filter((item) => item.key !== key),
@@ -129,21 +140,41 @@ export function useFavoriteLocations(
       feedback?.onOptimisticUpdate?.(
         favorite ? "remove_favorite_location" : "add_favorite_location",
       );
-      return snapshots;
+      return { snapshots, listKey, key, root };
     },
-    onError: (error: Error, variables, snapshots) => {
-      for (const [key, data] of snapshots ?? []) client.setQueryData(key, data);
+    onSuccess: (response, variables, context) => {
+      if (variables.favorite || !context) return;
+      const parsed = favoriteLocationSchema.safeParse(response?.item);
+      if (!parsed.success) return;
+      client.setQueryData<InfiniteData<FavoriteLocationsResponse>>(context.listKey, (current) =>
+        current
+          ? {
+              ...current,
+              pages: current.pages.map((page) => ({
+                ...page,
+                items: page.items.map((item) => (item.key === context.key ? parsed.data : item)),
+              })),
+            }
+          : current,
+      );
+    },
+    onError: (error: Error, variables, context) => {
+      for (const [key, data] of context?.snapshots ?? []) client.setQueryData(key, data);
       feedback?.onError?.(
         error,
         variables.favorite ? "remove_favorite_location" : "add_favorite_location",
       );
     },
-    onSettled: () => client.invalidateQueries({ queryKey: root }),
+    onSettled: (_data, _error, _variables, context) =>
+      client.invalidateQueries({ queryKey: context?.root ?? root }),
   });
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
   const isFavorite = (location: MatchLocation) => {
     const key = locationFavoriteKey(location);
-    return Boolean(status.data?.includes(key) || items.some((item) => item.key === key));
+    return Boolean(
+      status.data?.includes(key) ||
+        items.some((item) => item.key === key || locationFavoriteKey(item.location) === key),
+    );
   };
   return { list, status, items, toggle, isFavorite };
 }
