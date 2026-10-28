@@ -70,6 +70,108 @@ it.each([false, true])(
     ).toBe(false);
   },
 );
+it("keeps unavailable candidates visible, disables invitation and opens accessible conflict help without a POST", async () => {
+  const fetch = vi.fn(
+    async (url: string, init?: RequestInit) =>
+      new Response(
+        JSON.stringify(
+          init?.method === "POST"
+            ? { ...seat("eligible"), status: "PENDING" }
+            : url.includes("/invitations")
+              ? {
+                  items: [
+                    {
+                      id: "busy",
+                      name: "Busy demonstrator",
+                      username: "busy",
+                      email: null,
+                      avatarUrl: null,
+                      invitationBlockReason: "TABLE_TIME_CONFLICT",
+                    },
+                    {
+                      id: "eligible",
+                      name: "Eligible player",
+                      username: null,
+                      email: null,
+                      avatarUrl: null,
+                      invitationBlockReason: null,
+                    },
+                  ],
+                  nextCursor: null,
+                }
+              : { ...plannedEvent, groupId: optionId, groupType: "PUBLIC" },
+        ),
+      ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  mount();
+  const unavailable = await screen.findByRole("button", { name: "Select user: Busy demonstrator" });
+  expect((unavailable as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText("Busy demonstrator")).not.toBeNull();
+  fireEvent.click(unavailable);
+  const help = screen.getByRole("button", {
+    name: "Why invitation is unavailable: Busy demonstrator",
+  });
+  expect(help.getAttribute("aria-disabled")).not.toBe("true");
+  fireEvent.click(help);
+  expect(await screen.findByRole("heading", { name: "Invitation unavailable" })).not.toBeNull();
+  expect(
+    screen.getByText(
+      "This user is already registered, invited, or assigned as a demonstrator at another table with overlapping times.",
+    ),
+  ).not.toBeNull();
+  expect(fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() =>
+    expect(screen.queryByRole("heading", { name: "Invitation unavailable" })).toBeNull(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select user: Eligible player" }));
+  await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
+  expect(fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+});
+it("reconciles a concurrent server conflict into disabled invitation/help rather than bypassing the POST guard", async () => {
+  let conflicting = false;
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (init?.method === "POST") {
+      conflicting = true;
+      return new Response('{"error":"TABLE_TIME_CONFLICT"}', { status: 409 });
+    }
+    return new Response(
+      JSON.stringify(
+        url.includes("/invitations")
+          ? {
+              items: [
+                {
+                  id: "busy",
+                  name: "Busy player",
+                  username: null,
+                  email: null,
+                  avatarUrl: null,
+                  invitationBlockReason: conflicting ? "TABLE_TIME_CONFLICT" : null,
+                },
+              ],
+              nextCursor: null,
+            }
+          : { ...plannedEvent, groupId: optionId, groupType: "PUBLIC" },
+      ),
+    );
+  });
+  vi.stubGlobal("fetch", fetch);
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Select user: Busy player" }));
+  await screen.findByText("Could not invite player. Refresh and try again.");
+  await waitFor(() =>
+    expect(
+      (screen.getByRole("button", { name: "Select user: Busy player" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true),
+  );
+  expect(
+    screen.getByRole("button", { name: "Why invitation is unavailable: Busy player" }),
+  ).not.toBeNull();
+  expect(m.back).not.toHaveBeenCalled();
+  expect(fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+});
 it("keeps candidate failures observable, retries, and retains failed invite feedback without pretending success", async () => {
   let broken = true;
   const fetch = vi.fn(async (url: string, init?: RequestInit) =>

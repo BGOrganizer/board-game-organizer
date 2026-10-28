@@ -11,6 +11,7 @@ import { ArrowLeft, UserRoundPlus, UsersRound } from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
@@ -81,30 +82,48 @@ export function PeoplePicker({
         onToggle={filters.toggle}
       />
       <GroupedList>
-        {items.map((person) => (
-          <GroupedRow key={person.id}>
-            <Avatar size="md">
-              <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
-              <Avatar.Fallback>{person.name.charAt(0)}</Avatar.Fallback>
-            </Avatar>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium">{person.name}</span>
-              <span className="block truncate text-xs text-default-500">
-                {person.username ?? person.email}
+        {items.map((person) => {
+          const unavailable = Boolean(
+            invitationTable &&
+              "invitationBlockReason" in person &&
+              person.invitationBlockReason === "TABLE_TIME_CONFLICT",
+          );
+          return (
+            <GroupedRow key={person.id}>
+              <Avatar size="md">
+                <Avatar.Image src={person.avatarUrl ?? undefined} alt="" />
+                <Avatar.Fallback>{person.name.charAt(0)}</Avatar.Fallback>
+              </Avatar>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{person.name}</span>
+                <span className="block truncate text-xs text-default-500">
+                  {person.username ?? person.email}
+                </span>
               </span>
-            </span>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="primary"
-              aria-label={`${t`Select user`}: ${person.name}`}
-              isDisabled={disabled}
-              onPress={() => onSelect(person)}
-            >
-              <UserRoundPlus className="size-4" aria-hidden />
-            </Button>
-          </GroupedRow>
-        ))}
+              <Button
+                isIconOnly
+                size="sm"
+                variant="primary"
+                aria-label={`${t`Select user`}: ${person.name}`}
+                isDisabled={disabled || unavailable}
+                onPress={() => {
+                  if (!disabled && !unavailable) onSelect(person);
+                }}
+              >
+                <UserRoundPlus className="size-4" aria-hidden />
+              </Button>
+              {unavailable ? (
+                <HelpPopover
+                  label={`${t`Why invitation is unavailable`}: ${person.name}`}
+                  title={t`Invitation unavailable`}
+                  className="max-w-72"
+                >
+                  <p>{t`This user is already registered, invited, or assigned as a demonstrator at another table with overlapping times.`}</p>
+                </HelpPopover>
+              ) : null}
+            </GroupedRow>
+          );
+        })}
       </GroupedList>
       {list.isPending ? <Skeleton className="h-32 w-full rounded-xl" /> : null}
       {list.needsSearch ? (

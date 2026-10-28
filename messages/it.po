@@ -2669,6 +2669,10 @@ msgstr "Invito in attesa"
 msgid "Invitation received"
 msgstr "Invito ricevuto"
 
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "Invitation unavailable"
+msgstr "Invito non disponibile"
+
 #: apps/web/src/components/groups/Groups.tsx
 msgid "Invitations"
 msgstr "Inviti"
@@ -4793,6 +4797,10 @@ msgstr "Il tavolo usa il luogo e l’indirizzo verificati dell’evento. Non si 
 msgid "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
 msgstr "Il gioco del tavolo è fisso. Copertina, voto e posizione BoardGameGeek descrivono il gioco scelto, non il rating dei giocatori."
 
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "This user is already registered, invited, or assigned as a demonstrator at another table with overlapping times."
+msgstr "Questo utente è già iscritto, invitato o assegnato come dimostratore a un altro tavolo con orari sovrapposti."
+
 #: apps/web/src/components/groups/GroupMembers.tsx
 msgid "This user is involved in a frozen public event and cannot be excluded."
 msgstr "Questo utente partecipa a un evento pubblico bloccato dopo il termine delle iscrizioni e non può essere escluso."
@@ -5024,6 +5032,10 @@ msgstr "Perché non posso prenotare questo posto?"
 #: apps/web/src/components/events/EventDetail.tsx
 msgid "Why confirmation is unavailable"
 msgstr "Perché la conferma non è disponibile"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "Why invitation is unavailable"
+msgstr "Perché l'invito non è disponibile"
 
 #: apps/web/src/components/events/EventTablePlayers.tsx
 msgid "Why is this place reserved?"

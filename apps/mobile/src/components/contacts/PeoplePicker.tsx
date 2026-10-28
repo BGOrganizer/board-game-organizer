@@ -7,8 +7,10 @@ import {
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
+import { Typography } from "heroui-native/text";
 import { UserRoundPlus, UsersRound } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { UserList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
@@ -89,28 +91,52 @@ export function PeoplePicker({
       }
       emptyIcon={<UsersRound size={28} color={foreground} />}
       error={t("Could not load users")}
-      renderRow={(person) => (
-        <UserListRow
-          name={person.name}
-          avatarUrl={person.avatarUrl}
-          secondary={person.username ?? person.email}
-          onPress={() => onSelect(person)}
-          isDisabled={disabled}
-          accessibilityLabel={`${t("Select user")}: ${person.name}`}
-          actions={
-            <Button
-              isIconOnly
-              size="sm"
-              style={{ minWidth: 44, minHeight: 44 }}
-              isDisabled={disabled}
-              accessibilityLabel={`${t("Select user")}: ${person.name}`}
-              onPress={() => onSelect(person)}
-            >
-              <UserRoundPlus size={18} color={accent} />
-            </Button>
-          }
-        />
-      )}
+      renderRow={(person) => {
+        const unavailable = Boolean(
+          invitationTable &&
+            "invitationBlockReason" in person &&
+            person.invitationBlockReason === "TABLE_TIME_CONFLICT",
+        );
+        const select = () => {
+          if (!disabled && !unavailable) onSelect(person);
+        };
+        return (
+          <UserListRow
+            name={person.name}
+            avatarUrl={person.avatarUrl}
+            secondary={person.username ?? person.email}
+            onPress={select}
+            isDisabled={disabled || unavailable}
+            accessibilityLabel={`${t("Select user")}: ${person.name}`}
+            actions={
+              <>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  style={{ minWidth: 44, minHeight: 44 }}
+                  isDisabled={disabled || unavailable}
+                  accessibilityLabel={`${t("Select user")}: ${person.name}`}
+                  onPress={select}
+                >
+                  <UserRoundPlus size={18} color={accent} />
+                </Button>
+                {unavailable ? (
+                  <HelpPopover
+                    label={`${t("Why invitation is unavailable")}: ${person.name}`}
+                    title={t("Invitation unavailable")}
+                  >
+                    <Typography className="text-foreground">
+                      {t(
+                        "This user is already registered, invited, or assigned as a demonstrator at another table with overlapping times.",
+                      )}
+                    </Typography>
+                  </HelpPopover>
+                ) : null}
+              </>
+            }
+          />
+        );
+      }}
     />
   );
 }
