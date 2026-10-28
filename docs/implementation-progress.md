@@ -1,5 +1,28 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Verified-address coordinate drift — provider canonicalization and favorite identity
+
+- Supplied runtime logs confirm the shared failure: one returned provider address matches the selected
+  address, but its coordinates differ. Exact-coordinate re-search rejected a valid selected address.
+- The shared verifier still prefers an exact provider key. Only one result with the same full normalized
+  address can supply canonical coordinates/timezone when the selected point drifts. Missing/ambiguous
+  addresses stay rejected, including matches split across candidates; no arbitrary distance tolerance
+  or trusted client coordinate fallback. Group/Event writes and favorites share this rule.
+- Favorite writes persist provider-derived location fields, not stale/forged client coordinates. Opaque
+  selection keys remain stable; optional server-derived `canonicalKey` supports bounded, owner-scoped
+  status lookups and equivalent-point removal. Old rows remain readable. Removal runs transactionally;
+  no database reset, backfill or provider configuration change is performed.
+- The shared favorite hook reconciles the acknowledged canonical row, recognizes selection/canonical
+  keys, restores affected snapshots on failure and keeps delayed replies in the original actor cache.
+  Unrelated favorites and missing/foreign caches stay intact; web/native share the same behavior.
+- Local checks: schemas 110, shared 219, API 695, web 462, native pure/source 197 = 1,683 tests; all
+  existing 100% gates remain enforced. Root typecheck 4/4, scoped Biome 9 source files, API/web
+  production builds and Android Metro export pass. After the operator started Docker, isolated Mongo
+  integration passes 82/82, including canonical alias ownership, idempotency, removal and rollback.
+  Native gesture/rendering/authenticated E2E acceptance is not claimed. EN/IT, dependencies, workflows,
+  private files and generated Next references are preserved. Guides: MapTiler, Expo networking,
+  TanStack Query and existing BGO architecture. Operator requests signed scoped commits and push.
+
 ## Preview quota, location diagnostics and native wizard header restoration
 
 - Operator authorizes a Preview-only logo quota exception, expanded Group/associated-location API

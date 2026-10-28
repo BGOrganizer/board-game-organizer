@@ -23,8 +23,11 @@ never select this exception. Owner locking, authorization, MIME/byte/chunk/image
 Group creation/update and logo start/chunk/complete/preview emit `[bgo.group-write]`. Location search
 (including reverse lookup) and favorite list/status/save/remove emit `[bgo.location-write]`, including
 query/body/DTO rejections before provider lookup. `[bgo.location-verify]` reports candidate counts and
-independent address/coordinate match booleans for strict provider re-verification shared by venues
-and favorites. It never accepts a near match. Logs omit tokens, URLs/query values, identity, names,
+independent address/coordinate match booleans, address-candidate count and canonicalization status.
+Verification prefers an exact provider key, otherwise accepts only a unique exact normalized address
+and uses that provider's coordinates/timezone. Ambiguous/missing addresses and nearby-only matches
+remain rejected. Favorites retain owner-scoped selection/canonical key resolution; no reset/migration
+of existing data is required. Logs omit tokens, URLs/query values, identity, names,
 addresses, coordinates, images and arbitrary exception messages. Inspect the API Preview baked into
 the tested APK, not a different deployment; this instrumentation does not prove the location failure
 is fixed. Remove temporary diagnostics after investigation.

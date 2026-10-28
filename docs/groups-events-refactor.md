@@ -41,6 +41,12 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 - PRIVATE requires a name; logo and verified venue are optional. It is never discoverable.
   PUBLIC requires name, owned logo and verified venue, with freshly authorized BGO moderation
   before public operation. Clerk Organizations have no BGO domain authority.
+- Venue/favorite verification prefers an exact normalized address/coordinate provider match. If that
+  point drifts, exactly one provider result with the same full normalized address may supply canonical
+  address, coordinates and derived timezone; client coordinates/timezone never become authoritative.
+  Missing or ambiguous address matches remain rejected, without a distance/nearby-match tolerance.
+  Favorites retain an opaque selection key while storing canonical location fields, so both the
+  original selection and verified point support owner-scoped status/removal. Existing rows stay readable.
 - Invitations are friend-only and require individual acceptance. Public membership requests require
   administrator approval. Pending invitees/requesters can read permitted group information and
   accepted members, but not group events, rankings or group-scoped social actions. Approved PUBLIC
