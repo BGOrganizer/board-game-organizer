@@ -6,10 +6,13 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import Link from "next/link";
+import { UsersRound } from "lucide-react";
+import { EmptyList } from "@/components/common/ui/EmptyList";
+import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { GroupCard } from "./GroupCard";
 export function GroupModeration() {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -22,7 +25,7 @@ export function GroupModeration() {
       fetchNextPage: q.fetchNextPage,
     });
   return (
-    <div className="space-y-4">
+    <ListPage>
       <ListSearch
         query={f.query}
         onQueryChange={f.setQuery}
@@ -33,32 +36,29 @@ export function GroupModeration() {
         onToggle={f.toggle}
       />
       {(communityAccessDenied(q.error) ? [] : q.items).map((row) => (
-        <Link
-          key={row.id}
-          href={`/moderation/${row.id}`}
-          className="block rounded-xl bg-default-100 p-4 text-accent"
-        >
-          {row.name}
-        </Link>
+        <GroupCard key={row.id} group={row} href={`/moderation/${row.id}`} />
       ))}
       {q.isPending ? (
-        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((key) => (
+            <Skeleton key={key} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
       ) : !q.isError && !q.items.length ? (
-        <p>{t`No pending reviews`}</p>
+        <EmptyList icon={<UsersRound className="size-7" />}>{t`No pending reviews`}</EmptyList>
       ) : null}
       {q.isError ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load moderation queue`}</p>
-          <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
+          <Button variant="outline" onPress={() => void q.refetch()}>{t`Try again`}</Button>
         </div>
       ) : null}
       <div ref={end} />
-      {q.hasNextPage ? (
-        <Button
-          isDisabled={q.isFetchingNextPage}
-          onPress={() => void q.fetchNextPage()}
-        >{t`Load more`}</Button>
+      {q.isFetchingNextPage ? (
+        <Skeleton className="h-24 w-full rounded-xl" />
+      ) : q.hasNextPage ? (
+        <Button variant="outline" onPress={() => void q.fetchNextPage()}>{t`Load more`}</Button>
       ) : null}
-    </div>
+    </ListPage>
   );
 }

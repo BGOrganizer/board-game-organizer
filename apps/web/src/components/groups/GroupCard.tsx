@@ -9,12 +9,14 @@ import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupCard({
   group,
-  pending,
+  pending = false,
   onRespond,
+  href = `/groups/${group.id}`,
 }: {
   group: GroupRecordResponse;
-  pending: boolean;
-  onRespond: (action: "accept" | "decline") => void;
+  pending?: boolean;
+  onRespond?: (action: "accept" | "decline") => void;
+  href?: string;
 }) {
   const { t } = useLingui();
   const invited =
@@ -22,10 +24,10 @@ export function GroupCard({
   const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
   return (
     <LinkedListCard
-      href={`/groups/${group.id}`}
+      href={href}
       label={`${t`Open group`}: ${group.name}`}
       actions={
-        invited ? (
+        invited && onRespond ? (
           <InvitationActions
             name={group.name}
             pending={pending}

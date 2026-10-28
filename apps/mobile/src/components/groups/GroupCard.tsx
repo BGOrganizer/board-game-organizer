@@ -1,6 +1,6 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { formatLocationAddress } from "@board-game-organizer/shared";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import {
@@ -19,12 +19,14 @@ import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupCard({
   group,
-  pending,
+  pending = false,
   onRespond,
+  href,
 }: {
   group: GroupRecordResponse;
-  pending: boolean;
-  onRespond: (action: "accept" | "decline") => void;
+  pending?: boolean;
+  onRespond?: (action: "accept" | "decline") => void;
+  href?: Href;
 }) {
   const t = useT(),
     router = useRouter(),
@@ -35,9 +37,11 @@ export function GroupCard({
   return (
     <LinkedListCard
       label={`${t("Open group")}: ${group.name}`}
-      onPress={() => router.push({ pathname: "/group/[groupId]", params: { groupId: group.id } })}
+      onPress={() =>
+        router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } })
+      }
       actions={
-        invited ? (
+        invited && onRespond ? (
           <InvitationActions
             placement="card"
             name={group.name}
@@ -70,7 +74,7 @@ export function GroupCard({
             alignItems: "center",
             flexWrap: "wrap",
             gap: 8,
-            paddingRight: invited ? 88 : 0,
+            paddingRight: invited && onRespond ? 88 : 0,
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

@@ -68,7 +68,8 @@ export function notificationHref(
   | `/event/${string}`
   | `/event/table?eventId=${string}&tableId=${string}`
   | "/events"
-  | "/moderation" {
+  | "/moderation"
+  | `/moderation/${string}` {
   if (!data || typeof data !== "object") return "/notifications";
   const { href, kind } = data as { href?: unknown; kind?: unknown };
   if (typeof href === "string") {
@@ -94,6 +95,11 @@ export function notificationHref(
   if (href === "/events") return "/events";
   if (href === "/tables" || href === "/matches") return "/tables";
   if (href === "/moderation") return "/moderation";
+  if (
+    typeof href === "string" &&
+    /^\/moderation\/[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(href)
+  )
+    return href as `/moderation/${string}`;
   if (href === "/contacts" && kind === "friend_request") return "/contacts?tab=requests";
   if (href === "/contacts" && kind === "friend_request_accepted") {
     return "/contacts?tab=connections";

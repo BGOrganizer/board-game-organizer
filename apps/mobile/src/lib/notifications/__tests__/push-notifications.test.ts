@@ -57,6 +57,26 @@ describe("mobile push notifications", () => {
       expect(notificationHref({ href })).toBe("/notifications");
   });
 
+  it("opens the requested group review from inbox and push data without accepting arbitrary paths", () => {
+    const id = "11111111-1111-4111-8111-111111111111";
+    expect(notificationHref({ href: `/moderation/${id}`, kind: "group_review_requested" })).toBe(
+      `/moderation/${id}`,
+    );
+    expect(notificationHref({ href: "/moderation", kind: "group_review_requested" })).toBe(
+      "/moderation",
+    );
+    for (const href of [
+      "/moderation/invalid",
+      "/moderation/../profile",
+      `/moderation/${id}/edit`,
+      `/moderation/${id}?redirect=https://evil.test`,
+      `/moderation/${id}#profile`,
+      `https://evil.test/moderation/${id}`,
+      `//evil.test/moderation/${id}`,
+    ])
+      expect(notificationHref({ href, kind: "group_review_requested" })).toBe("/notifications");
+  });
+
   it("configures foreground notification behavior", async () => {
     configureNotificationHandler();
     const handler = mocks.setNotificationHandler.mock.calls[0]?.[0];

@@ -69,6 +69,35 @@ describe("unified group presentation", () => {
     expect(badge.parentElement?.querySelector("img")).not.toBeNull();
     expect(screen.queryByText("Events")).toBeNull();
   });
+  it("reuses group metadata for review navigation without exposing invitation actions", () => {
+    renderWithI18n(
+      <GroupCard
+        group={{
+          ...base,
+          type: "PUBLIC",
+          reviewStatus: "PENDING",
+          role: "invited",
+          myMembership: {
+            id,
+            groupId: id,
+            userId: "moderator",
+            kind: "INVITATION",
+            status: "PENDING",
+            version: 1,
+            createdAt: base.createdAt,
+            updatedAt: base.updatedAt,
+          },
+        }}
+        href={`/moderation/${id}`}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Open group: Game Club" }).getAttribute("href")).toBe(
+      `/moderation/${id}`,
+    );
+    expect(screen.getByText("Public")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
+  });
   it("marks an outgoing pending Group request with a warning clock and no invitation response actions", () => {
     renderWithI18n(
       <GroupCard group={{ ...base, role: "requested" }} pending={false} onRespond={vi.fn()} />,
