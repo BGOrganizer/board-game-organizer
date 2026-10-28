@@ -46,8 +46,12 @@ For 409, inspect the JSON response's `error` or the terminal diagnostic code:
   potentially created after the cached picker loaded or by another concurrent request.
 - `TABLE_TIME_CONFLICT`: a PUBLIC Event's target has an overlapping PENDING/ACCEPTED registration or
   demonstrator duty on another Table. Planning uses the longest candidate duration; adjacent bounds
-  are allowed. Candidate identity paging excludes same-Table active registrations, not every
-  other-Table timing conflict, so being selectable is not a promise that a later write will succeed.
+  are allowed. Candidate identity paging excludes same-Table active registrations. Other-Table
+  conflicts remain visible with `invitationBlockReason: TABLE_TIME_CONFLICT`; clear candidates return
+  null. Web/native disable the invitation action and keep a separate question-mark explanation
+  interactive. They reuse the write guard's policy, including non-playing demonstrators. No
+  conflicting Table identity is exposed. Cached availability cannot replace fresh transactional
+  validation; a concurrent assignment may still cause this 409 after an enabled selection.
 - `EVENT_NOT_PLANNING`: the Event is no longer planning.
 - `EVENT_BOOKING_CLOSED`: the exact PUBLIC registration cutoff has been reached.
 

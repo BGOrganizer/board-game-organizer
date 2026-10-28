@@ -133,8 +133,13 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   accepts an invitation. Accepted waiting players may vote. The organizer-only Table invitation
   candidate endpoint excludes every PENDING/ACCEPTED registration on that same Table, seated or queued,
   before search/cursor/limit paging. Declined/cancelled registrations and participation at other Tables
-  do not exclude a candidate. Existing approved Group membership, exclusions and standalone reciprocal
-  friendship/block rules remain authoritative. Group candidate responses expose no email/presence.
+  do not exclude a candidate. PUBLIC other-Table overlaps remain visible with
+  `invitationBlockReason: TABLE_TIME_CONFLICT`; clear candidates return null. Both clients disable
+  invitation/selection while a separate accessible question-mark popover explains pending/accepted
+  participation or demonstrator duties. No other Table identity is disclosed. This snapshot is
+  advisory: the POST revalidates atomically and may still reject a concurrent change. Existing
+  approved Group membership, exclusions and standalone reciprocal friendship/block rules remain
+  authoritative. Group candidate responses expose no email/presence.
 - Accepted members can enroll directly; no extra booking-approval workflow. Every voluntary join
   opens a platform HeroUI bottom sheet with Dates/Locations/Games tabs. PUBLIC Group Events always
   open Games initially. Other Events open Dates when the player has no other ACCEPTED Table in that

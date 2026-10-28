@@ -1,5 +1,24 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Table invitations — disabled conflicting candidates with contextual help
+
+- The operator confirmed the reported target was a non-playing demonstrator on an overlapping Table;
+  the existing transaction guard was correct. Candidate responses now reuse that same PUBLIC timing
+  policy and expose only nullable `invitationBlockReason`, without hiding unavailable identities or
+  changing source paging/cursors. Existing same-Table exclusions, friend/member/ban guards and
+  Group email/presence privacy remain. Non-public candidates stay unaffected; no data migration.
+- Web/native keep unavailable candidates visible, disable selection/invitation and provide a separate
+  accessible question-mark popover explaining registrations, pending invitations and demonstrator
+  duties. Help stays interactive beside the disabled action. Existing platform HelpPopover controls
+  and EN/IT catalogs are reused. Native identity presses cannot bypass the disabled invitation.
+  Query owns this advisory state; transaction validation remains authoritative for stale-data races.
+- Local coverage passes 1,734 tests (schemas 110, shared 222, API 710, web 472, native pure/source 220).
+  Existing deterministic 100% gates, Mongo integration 82/82, root typecheck 4/4, scoped Biome,
+  API/web production builds and Android export pass. Tests cover visible disabled/help behavior,
+  eligible selection, concurrent 409 reconciliation, demonstrator-only conflicts and clearing them
+  after Table removal. Native callback/source checks are not device/portal or authenticated E2E
+  acceptance. Dependencies, workflows and private files stay unchanged.
+
 ## Table invitation 409 — scoped conflict diagnostics
 
 - The supplied platform report contains status/timing but no response body, so it does not identify
