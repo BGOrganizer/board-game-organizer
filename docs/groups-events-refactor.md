@@ -278,5 +278,15 @@ there are no repeated identical notifications or player reminders to change vote
 - TanStack Query owns remote data with API/user/resource-scoped keys, fresh tokens per request,
   cancellation and selective rollback that preserves newer versions/profile fields. Zustand owns
   only transient unsaved selections. Platform UI/navigation/auth/permissions remain app-owned.
+  Shared startup orchestration prioritizes Tables/Groups/Events/Profile with three workers; mobile
+  splash waits only for these four or its original five-second budget. Other first-page reads warm
+  sequentially after release: favorites, BGG account/linked collection, bell/inbox, social lists and
+  suggestions, then up to two linked Events' details/Tables and two listed Groups' permitted
+  members/Events. Screen query factories own the keys; inbox readiness includes its active locale
+  and 20-item page, never the three-item bell or another actor/locale. Web uses the same plan without
+  a splash; routing does not cancel a started queue, and a slow priority read cannot starve background
+  work beyond five seconds. Logout/session changes clear private cache and stop queued reads.
+  Search terms, further pages, privileged/retired endpoints, geocoding and provider syncs are not
+  speculative warmup work; no full-catalog/database download or extra polling is introduced.
 - EN/IT source and compiled Lingui catalogs are committed together; native runtime IDs are preserved
   explicitly without adding a mobile Babel configuration.

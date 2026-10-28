@@ -374,14 +374,18 @@ request.
 
 Do not retain a token snapshot for later network calls.
 
-On an ordinary authenticated mobile launch, start loading the profile, first pages of tables,
-events, groups, each social list, and BGO contact suggestions, plus the first local address-book page if
-permission was already granted. Never request contacts permission at startup. A deep link
-prioritizes its own detail instead; other lists may warm afterward. Keep the existing five-second
-**total** splash limit: unfinished requests continue without blocking navigation. Paginate API lists
-at the source; fetch subsequent pages on demand, not all records during bootstrap. A partial
-address-book scan must never replace the complete server contact snapshot: finish the scan before
-syncing in the background.
+On an ordinary authenticated mobile launch, prioritize the first pages of Tables, Groups, Events
+and the profile with three warmup workers; only those four datasets gate early splash release.
+Keep the existing five-second **total** splash limit: unfinished requests continue without blocking
+navigation. After release, one background worker warms each social list, BGO suggestions, favorite
+locations, BGG account/available collection and bell/inbox first pages, then bounded Event details/
+Tables and authorized Group members/Events. Share canonical query factories with their screens.
+Warm the first local address-book page only if permission was already granted; never request contacts
+permission at startup. A deep link prioritizes its own detail instead; other reads warm afterward.
+Do not invent search terms, scan the BGG catalog, call privileged/retired endpoints or start provider
+synchronizations. Paginate API lists at source; fetch subsequent pages on demand, not all records
+during bootstrap. A partial address-book scan must never replace the complete server contact
+snapshot: finish the scan before syncing in the background.
 
 Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 

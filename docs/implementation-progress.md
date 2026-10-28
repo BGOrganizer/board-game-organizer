@@ -1,5 +1,31 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Startup — locale-correct inbox readiness and progressive background reads
+
+- Fixed native `/notifications` splash readiness to use the canonical notification key, including
+  active EN/IT locale and 20-item inbox size. Bell, retired locale-free, other-user/API and other-locale
+  entries cannot satisfy that gate. Existing total five-second native/animated splash budget remains.
+- Shared Query orchestration gives Tables/Groups/Events/Profile three priority workers. Mobile can
+  release splash once those four settle, without waiting for social/permissions/background work.
+  After release, one worker progressively warms favorites, BGG account/linked collection picker,
+  bell/inbox, all six social lists and suggestions. It also warms at most two linked Event details/
+  Table pages and two listed Groups' members/Events only when the response grants those capabilities.
+- Existing Query factories are shared with actual screens, including favorite, BGG and Group-member
+  reads; fresh tokens, existing cursor shapes and cancellation remain. No provider sync mutation,
+  invented search, bulk catalog download, eager cursor walk, extra polling or cache mirror is added.
+  Search-dependent/context-only reads and subsequent pages remain on demand. Native permission and
+  complete-before-sync address-book behavior stay app-owned. No localization strings change.
+- Web uses the same plan without a splash. Started warmup survives route changes; its five-second
+  fallback starts background work even if a priority request hangs. Auth/session changes clear
+  private cache, abort cancellable reads and stop queued work. Locale changes select distinct inboxes.
+  Notification first pages become stale after 30 seconds, matching existing polling, so a prewarmed
+  inbox revalidates on later navigation without hiding cached content or adding a polling loop.
+- Local validation passes 1,745 unit tests (schemas 110, shared 226, API 710, web 476, native
+  pure/source 223), Mongo integration 82/82, root typecheck 4/4, scoped Biome, API/web production
+  builds and Android export. The new shared scheduler meets 100% line/function/branch/statement
+  thresholds; all existing coverage gates remain. Native effect/VM checks are not device or E2E
+  acceptance. Dependencies, workflows and private files are unchanged.
+
 ## Table invitations — disabled conflicting candidates with contextual help
 
 - The operator confirmed the reported target was a non-playing demonstrator on an overlapping Table;
