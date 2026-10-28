@@ -13,6 +13,7 @@ import type {
   PlannedEventResponse,
   PlannedTableInput,
   PlannedTableResponse,
+  TableInviteeResponse,
   TableLeaderboardResponse,
   TableRecord,
   TableRegistration,
@@ -746,14 +747,25 @@ export class EventRecordsService {
     const table = await this.events.table(tableId);
     if (!table || table.eventId !== eventId) throw new CommunityError(404, "TABLE_NOT_FOUND");
     const rows = await this.events.invitationCandidates(group, userId, tableId, page);
+    // Same session: read sequentially and reuse the write guard's policy without hiding candidates.
+    const tables = group?.type === "PUBLIC" ? await this.events.allTables(event.id) : [];
+    const registrations =
+      group?.type === "PUBLIC" ? await this.events.allRegistrations(event.id) : [];
     return {
-      items: rows.slice(0, page.limit).map((row) => ({
-        id: row.clerkId,
-        name: row.name || row.username || row.clerkId,
-        username: row.username ?? null,
-        email: group ? null : (row.email ?? null),
-        avatarUrl: row.avatarUrl ?? null,
-      })),
+      items: rows.slice(0, page.limit).map(
+        (row): TableInviteeResponse => ({
+          invitationBlockReason:
+            group?.type === "PUBLIC" &&
+            hasPublicTableConflict(event, tables, registrations, table, row.clerkId)
+              ? "TABLE_TIME_CONFLICT"
+              : null,
+          id: row.clerkId,
+          name: row.name || row.username || row.clerkId,
+          username: row.username ?? null,
+          email: group ? null : (row.email ?? null),
+          avatarUrl: row.avatarUrl ?? null,
+        }),
+      ),
       nextCursor: rows.length > page.limit ? rows[page.limit - 1].clerkId : null,
     };
   }

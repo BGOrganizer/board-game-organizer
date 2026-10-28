@@ -289,6 +289,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
             id: guest,
             name: "Guest",
             username: null,
+            invitationBlockReason: null,
             email: type ? null : "guest@example.test",
             avatarUrl: null,
           },
@@ -345,6 +346,77 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       expect(f.repo.saveRegistration).not.toHaveBeenCalled();
     },
   );
+  it("keeps conflicting PUBLIC invitees visible with the write policy's reason, including non-playing demonstrators", async () => {
+    const f = setup("PUBLIC"),
+      input = {
+        ...body(),
+        groupId: other,
+        endsAt: "2027-01-03T18:00:00Z",
+        bookingClosesAt: "2027-01-02T08:00:00Z",
+      };
+    const adjacentId = "33333333-3333-4333-8333-333333333333";
+    input.tables.push(
+      {
+        ...input.tables[0],
+        id: other,
+        name: "Overlapping",
+        startsAt: "2027-01-03T08:30:00Z",
+        demonstratorUserId: "demo",
+      },
+      {
+        ...input.tables[0],
+        id: adjacentId,
+        name: "Adjacent",
+        startsAt: "2027-01-03T09:00:00Z",
+        demonstratorUserId: "adjacent",
+      },
+    );
+    const event = await f.service.create(owner, input);
+    await f.service.register(owner, event.id, other, "pending");
+    const accepted = await f.service.register(owner, event.id, other, "accepted");
+    await f.service.registrationAction("accepted", accepted.id, {
+      action: "accept",
+      version: accepted.version,
+    });
+    const cancelled = await f.service.register(owner, event.id, other, "cancelled");
+    await f.service.registrationAction(owner, cancelled.id, {
+      action: "remove",
+      version: cancelled.version,
+    });
+    const candidates = ["demo", "pending", "accepted", "adjacent", "cancelled", "free"];
+    f.repo.invitationCandidates.mockResolvedValue(
+      candidates.map((clerkId) => ({ clerkId, name: clerkId, email: `${clerkId}@example.test` })),
+    );
+    f.repo.allTables.mockClear();
+    f.repo.allRegistrations.mockClear();
+    const writes = f.repo.saveRegistration.mock.calls.length;
+    const page = await f.service.invitationCandidates(owner, event.id, id, { limit: 2 });
+    expect(page.items.map((row) => [row.id, row.invitationBlockReason])).toEqual([
+      ["demo", "TABLE_TIME_CONFLICT"],
+      ["pending", "TABLE_TIME_CONFLICT"],
+    ]);
+    expect(page.nextCursor).toBe("pending");
+    expect(f.repo.allTables).toHaveBeenCalledOnce();
+    expect(f.repo.allRegistrations).toHaveBeenCalledOnce();
+    const all = await f.service.invitationCandidates(owner, event.id, id, { limit: 20 });
+    expect(all.items.map((row) => [row.id, row.invitationBlockReason])).toEqual([
+      ["demo", "TABLE_TIME_CONFLICT"],
+      ["pending", "TABLE_TIME_CONFLICT"],
+      ["accepted", "TABLE_TIME_CONFLICT"],
+      ["adjacent", null],
+      ["cancelled", null],
+      ["free", null],
+    ]);
+    expect(
+      all.items.every(
+        (row) => row.email === null && !("presence" in row) && !("conflictingTableId" in row),
+      ),
+    ).toBe(true);
+    expect(f.repo.saveRegistration.mock.calls).toHaveLength(writes);
+    await expect(f.service.register(owner, event.id, id, "demo")).rejects.toMatchObject({
+      code: "TABLE_TIME_CONFLICT",
+    });
+  });
   it("requires explicit current game votes and protects the final positive game under the Event lock", async () => {
     const f = setup(),
       event = await f.create();

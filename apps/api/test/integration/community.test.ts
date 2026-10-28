@@ -2568,7 +2568,30 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(
       (await services().plannedEventService.list(OWNER, { limit: 5 }, group.id)).items,
     ).toEqual([]);
+    const demonstrationTableId = randomUUID();
+    input.tables.push({
+      ...input.tables[0],
+      id: demonstrationTableId,
+      name: "Overlapping demonstration",
+      startsAt: "2030-06-03T16:30:00Z",
+      demonstratorUserId: GUEST,
+    });
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const candidates = await services().plannedEventService.invitationCandidates(
+      OWNER,
+      event.id,
+      tableId,
+      { limit: 20 },
+    );
+    expect(candidates.items.find((row) => row.id === GUEST)?.invitationBlockReason).toBe(
+      "TABLE_TIME_CONFLICT",
+    );
+    expect(
+      await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).countDocuments({ eventId: event.id }),
+    ).toBe(0);
+    await expect(
+      transaction((s) => s.plannedEventService.register(OWNER, event.id, tableId, GUEST)),
+    ).rejects.toMatchObject({ code: "TABLE_TIME_CONFLICT" });
     expect((await services().eventRecords.table(tableId))?.startsAt).toBe(
       "2030-06-03T16:00:00.000Z",
     );
@@ -2585,6 +2608,21 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       ),
     ).rejects.toMatchObject({ code: "EVENT_END_SAME_DAY_REQUIRED" });
     expect((await services().eventRecords.find(event.id))?.version).toBe(event.version);
+    await transaction((s) =>
+      s.plannedEventService.update(OWNER, event.id, {
+        ...editable,
+        version: event.version,
+        tables: [],
+        removedTableIds: [demonstrationTableId],
+      }),
+    );
+    const afterRemoval = await services().plannedEventService.invitationCandidates(
+      OWNER,
+      event.id,
+      tableId,
+      { limit: 20 },
+    );
+    expect(afterRemoval.items.find((row) => row.id === GUEST)?.invitationBlockReason).toBeNull();
     expect(
       (
         await services().plannedEventService.list(

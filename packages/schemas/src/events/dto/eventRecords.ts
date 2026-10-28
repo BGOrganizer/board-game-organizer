@@ -238,6 +238,8 @@ export type TableLeaderboardPlayer = {
   nd: number;
 };
 export type TableInviteeResponse = {
+  /** Missing only on cached responses predating invitation availability metadata. */
+  invitationBlockReason?: "TABLE_TIME_CONFLICT" | null;
   id: string;
   name: string;
   username: string | null;
