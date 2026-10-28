@@ -220,18 +220,18 @@ export function EventDetail({ eventId }: { eventId: string }) {
         </section>
       ) : null}
       {event.bookingClosesAt ? (
-        <section aria-label={t`Booking Cutoff Date and Time`} className="space-y-3">
+        <section aria-label={t`Registration Deadline Date and Time`} className="space-y-3">
           <SearchHelpLabel
-            label={t`Booking Cutoff Date and Time`}
+            label={t`Registration Deadline Date and Time`}
             helpTitle={t`Field help`}
-            help={t`Registration closes at this local date and time, before the event starts. A new event needs a future cutoff.`}
+            help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
           />
           <GroupedList>
             <GroupedRow>
               <DateTimeInfo
                 startsAt={event.bookingClosesAt}
                 timeZone={event.timeZone}
-                timeLabel={t`Booking cutoff`}
+                timeLabel={t`Registration Deadline Date and Time`}
               />
             </GroupedRow>
           </GroupedList>

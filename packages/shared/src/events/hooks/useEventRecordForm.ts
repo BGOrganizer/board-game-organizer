@@ -22,7 +22,7 @@ import {
   tableDraft,
 } from "../eventRecordForm";
 import { eventDateWall } from "../eventRecordPolicy";
-import { nextEventDay, publicEventBounds, publicEventEndIsValid } from "../eventSchedule";
+import { nextEventDay, publicEventEndIsValid } from "../eventSchedule";
 import { useEventCutoff } from "./useEventCutoff";
 import { useRecordTables } from "./useEventRecords";
 export function useEventRecordForm(
@@ -97,7 +97,7 @@ export function useEventRecordForm(
               : "",
           })),
           endsWall: publicEventEndIsValid(wall, old.endsWall) ? old.endsWall : "",
-          cutoffWall: old.cutoffWall < wall ? old.cutoffWall : "",
+          cutoffWall: old.cutoffWall.slice(0, 10) < wall.slice(0, 10) ? old.cutoffWall : "",
           dates: [
             {
               id: old.dates[0]?.id ?? eventDateOptionId([]),
@@ -136,11 +136,7 @@ export function useEventRecordForm(
         ...old.tables,
         {
           ...newTableDraft(key),
-          startsWall: old.dates[0]
-            ? publicGroup
-              ? (publicEventBounds(eventDateWall(old, old.dates[0])).endMin ?? "")
-              : eventDateWall(old, old.dates[0])
-            : "",
+          startsWall: old.dates[0] ? eventDateWall(old, old.dates[0]) : "",
         },
       ],
     }));

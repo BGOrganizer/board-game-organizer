@@ -1027,6 +1027,10 @@ msgstr "Scegli un'azione per il posto"
 msgid "Choose a recognizable event name between 5 and 120 characters."
 msgstr "Scegli un nome riconoscibile per l’evento, tra 5 e 120 caratteri."
 
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a registration deadline on a day before the event."
+msgstr "Scegli un termine iscrizioni in un giorno precedente all'evento."
+
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Choose a table start and duration within the event."
 msgstr "Scegli inizio e durata del tavolo entro l’intervallo dell’evento."
@@ -3924,6 +3928,17 @@ msgstr "Registra risultati dei tavoli"
 msgid "Registration closes at this local date and time, before the event starts. A new event needs a future cutoff."
 msgstr "Le iscrizioni chiudono in questa data e ora locale, prima dell’inizio dell’evento. Per un nuovo evento la scadenza deve essere futura."
 
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Registration closes on a day before the event starts. A new event needs a future deadline."
+msgstr "Le iscrizioni terminano in un giorno precedente all'inizio dell'evento. Un nuovo evento richiede un termine futuro."
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Registration Deadline Date and Time"
+msgstr "Date e ora Termine iscrizioni"
+
 #: apps/web/src/components/groups/GroupMembers.tsx
 #: apps/web/src/components/groups/GroupReview.tsx
 msgid "Reject"
@@ -4615,6 +4630,10 @@ msgstr "La corona identifica l’amministratore del match."
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "The date is fixed to the event day. Choose a time after the event starts; the whole table must finish before it ends."
 msgstr "La data è fissata al giorno dell'evento. Scegli un orario successivo all'inizio; il tavolo deve terminare entro la fine dell'evento."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "The date is fixed to the event day. Choose a time at or after the event starts; the whole table must finish by the event end."
+msgstr "Il giorno è quello dell'evento. Scegli un orario uguale o successivo all'inizio dell'evento; l'intero tavolo deve concludersi entro la fine dell'evento."
 
 #: apps/web/src/components/events/EventTableOverview.tsx
 msgid "The demonstrator explains the game and can record this table's results. This role does not automatically reserve a player seat."

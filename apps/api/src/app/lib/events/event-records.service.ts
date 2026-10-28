@@ -356,11 +356,7 @@ export class EventRecordsService {
           ? {
               startsAt: table.startsAt
                 ? new Date(table.startsAt).toISOString()
-                : new Date(
-                    Date.parse(
-                      eventLocalToIso(eventDateWall(event, event.dates[0]), event.timeZone),
-                    ) + 60_000,
-                  ).toISOString(),
+                : eventLocalToIso(eventDateWall(event, event.dates[0]), event.timeZone),
             }
           : {}),
         ...(table.demonstratorUserId ? { demonstratorUserId: table.demonstratorUserId } : {}),
@@ -368,14 +364,7 @@ export class EventRecordsService {
         createdAt: current?.createdAt ?? at,
         updatedAt: at,
       };
-      if (group?.type === "PUBLIC") {
-        if (
-          Date.parse(row.startsAt as string) <=
-          Date.parse(eventLocalToIso(eventDateWall(event, event.dates[0]), event.timeZone))
-        )
-          throw new CommunityError(400, "TABLE_OUTSIDE_EVENT");
-        this.tableInterval(event, row, "PUBLIC");
-      }
+      if (group?.type === "PUBLIC") this.tableInterval(event, row, "PUBLIC");
       result.push(row);
     }
     return result;
@@ -420,7 +409,10 @@ export class EventRecordsService {
       throw new CommunityError(400, "EVENT_END_AFTER_START_REQUIRED");
     if (eventLocalDateTime(event.endsAt, event.timeZone).slice(0, 10) !== event.dates[0].day)
       throw new CommunityError(400, "EVENT_END_SAME_DAY_REQUIRED");
-    if (Date.parse(event.bookingClosesAt) >= Date.parse(start))
+    if (
+      Date.parse(event.bookingClosesAt) >= Date.parse(start) ||
+      eventLocalDateTime(event.bookingClosesAt, event.timeZone).slice(0, 10) >= event.dates[0].day
+    )
       throw new CommunityError(400, "EVENT_CUTOFF_BEFORE_START_REQUIRED");
     if (creating && Date.parse(event.bookingClosesAt) <= Date.now())
       throw new CommunityError(409, "EVENT_BOOKING_CLOSED");

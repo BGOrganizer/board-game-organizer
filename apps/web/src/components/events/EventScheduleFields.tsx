@@ -241,9 +241,9 @@ export function EventScheduleFields({
             isInvalid={fieldError("bookingClosesAt")}
           >
             <SearchHelpLabel
-              label={t`Booking cutoff`}
+              label={t`Registration Deadline Date and Time`}
               helpTitle={fieldHelp}
-              help={t`Registration closes at this local date and time, before the event starts. A new event needs a future cutoff.`}
+              help={t`Registration closes on a day before the event starts. A new event needs a future deadline.`}
             />
             <Input
               name="bookingClosesAt"
@@ -252,7 +252,7 @@ export function EventScheduleFields({
               min={cutoffMin}
               max={bounds.cutoffMax}
             />
-            {error("bookingClosesAt", t`Choose a valid booking cutoff before the event starts.`)}
+            {error("bookingClosesAt", t`Choose a registration deadline on a day before the event.`)}
           </TextField>
         </>
       ) : null}

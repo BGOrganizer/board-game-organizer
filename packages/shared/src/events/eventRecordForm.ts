@@ -163,7 +163,9 @@ function draftPolicyErrors(
     errors.push(["endsAt"]);
   if (
     !cutoff ||
-    (start && Date.parse(cutoff) >= Date.parse(start)) ||
+    (start &&
+      (Date.parse(cutoff) >= Date.parse(start) ||
+        draft.cutoffWall.slice(0, 10) >= draft.dates[0].day)) ||
     (draft.version === undefined && Date.parse(cutoff) <= Date.now())
   )
     errors.push(["bookingClosesAt"]);
@@ -171,7 +173,7 @@ function draftPolicyErrors(
     const at = zone ? draftIso(row.startsWall, zone) : undefined;
     if (
       !at ||
-      (start && Date.parse(at) <= Date.parse(start)) ||
+      (start && Date.parse(at) < Date.parse(start)) ||
       (end && Date.parse(at) >= Date.parse(end))
     )
       errors.push(["tables", index, "startsAt"]);

@@ -2556,6 +2556,10 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       bookingClosesAt: "2030-06-02T12:00:00Z",
     };
     input.tables[0].maxPlayers = input.tables[0].minPlayers;
+    for (const bookingClosesAt of ["2030-06-03T12:00:00Z", "2030-06-02T22:30:00Z"])
+      await expect(
+        transaction((s) => s.plannedEventService.create(OWNER, { ...input, bookingClosesAt })),
+      ).rejects.toMatchObject({ code: "EVENT_CUTOFF_BEFORE_START_REQUIRED" });
     await expect(
       transaction((s) =>
         s.plannedEventService.create(OWNER, { ...input, endsAt: "2030-06-03T23:30:00Z" }),
@@ -2565,6 +2569,9 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       (await services().plannedEventService.list(OWNER, { limit: 5 }, group.id)).items,
     ).toEqual([]);
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    expect((await services().eventRecords.table(tableId))?.startsAt).toBe(
+      "2030-06-03T16:00:00.000Z",
+    );
     const { groupId: _groupId, ...editable } = input;
     await expect(
       transaction((s) =>

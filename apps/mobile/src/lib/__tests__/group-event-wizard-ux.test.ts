@@ -17,8 +17,9 @@ it("routes grouped creation to Group Events and keeps public table time/demo and
   expect(editor).toContain("day={day}");
   expect(editor).toContain("<UserListRow");
   expect(editor).toContain("<AddUserRow");
-  expect(field).toContain('mode === "time" && (min || max)');
-  expect(field).toContain("<EventBoundedTimePicker");
+  expect(field).toContain('mode: mode === "datetime" ? "date" : mode');
+  expect(field).toContain("DateTimePickerAndroid.open");
+  expect(field).not.toContain("EventBoundedTimePicker");
   const invite = source("groups", "GroupInvitationCard");
   expect(invite).toContain('alignSelf: "center"');
   expect(invite).toContain('t("Accept")');
@@ -116,7 +117,11 @@ it("keeps draft Table game previews compact and their extra-game count localized
 });
 it("uses the same grouped datetime component for public Start, End and Cutoff in creation and editing", () => {
   const schedule = source("events", "EventScheduleFields");
-  for (const label of ["Start Date and Time", "End Date and Time", "Booking cutoff"]) {
+  for (const label of [
+    "Start Date and Time",
+    "End Date and Time",
+    "Registration Deadline Date and Time",
+  ]) {
     expect(schedule).toMatch(new RegExp(`<EventWallDateTime\\s+label=\\{t\\("${label}"\\)\\}`));
   }
   const start = schedule.match(
@@ -136,24 +141,32 @@ it("uses the same grouped datetime component for public Start, End and Cutoff in
 });
 it("uses public combined pickers with valid time bounds before the final Location field and no public removal action", () => {
   const schedule = source("events", "EventScheduleFields"),
-    field = source("events", "EventDateTimeField"),
-    bounded = source("events", "EventBoundedTimePicker");
+    field = source("events", "EventDateTimeField");
   expect(schedule).toContain("form.publicGroup");
   expect(schedule).toContain('t("Start Date and Time")');
   expect(schedule).toContain('t("End Date and Time")');
   expect(schedule).toContain("onChange={form.setStartDate}");
   expect(schedule.indexOf('label={t("End Date and Time")}')).toBeLessThan(
-    schedule.indexOf('label={t("Booking cutoff")}'),
+    schedule.indexOf('label={t("Registration Deadline Date and Time")}'),
   );
-  expect(schedule.indexOf('label={t("Booking cutoff")}')).toBeLessThan(
+  expect(schedule.indexOf('label={t("Registration Deadline Date and Time")}')).toBeLessThan(
     schedule.indexOf('label={t("Location")}'),
   );
   expect(schedule).toContain("min={bounds.endMin}");
   expect(schedule).toContain("max={bounds.endMax}");
   expect(schedule).toContain("max={bounds.cutoffMax}");
-  expect(field).toContain("<EventBoundedTimePicker");
-  expect(bounded).toContain("allowedEventTimes(");
-  expect(bounded).toContain("<FlatList");
+  expect(field).not.toContain("EventBoundedTimePicker");
+  expect(field).toContain("DateTimePickerAndroid.open");
+  expect(field).toContain("<DateTimePicker");
+  expect(field).toContain("next < min");
+  expect(field).toContain("next > max");
+  const summary = source("events", "EventWizardSummary");
+  expect(summary).toMatch(
+    /<GroupedRow>\s*<DateTimeInfo\s+startsAt=\{eventLocalToIso\(draft\.endsWall/,
+  );
+  expect(summary).toMatch(
+    /<GroupedRow>\s*<DateTimeInfo\s+startsAt=\{eventLocalToIso\(draft\.cutoffWall/,
+  );
   expect(source("events", "EventTable")).not.toContain('t("Back to event")');
 });
 it("centers the group tab strip itself below the header instead of relying on child alignment", () => {

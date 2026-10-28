@@ -126,7 +126,7 @@ export function EventDraftTableEditor({
             <SearchHelpLabel
               label={t`Table start`}
               helpTitle={helpTitle}
-              help={t`The date is fixed to the event day. Choose a time after the event starts; the whole table must finish before it ends.`}
+              help={t`The date is fixed to the event day. Choose a time at or after the event starts; the whole table must finish by the event end.`}
             />
             {day ? (
               <p className="text-sm text-default-500">

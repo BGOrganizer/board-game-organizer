@@ -12,7 +12,6 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
-import { EventBoundedTimePicker } from "./EventBoundedTimePicker";
 
 export function EventDateTimeField({
   label,
@@ -48,7 +47,6 @@ export function EventDateTimeField({
   const muted = useThemeColor("muted");
   const [draft, setDraft] = useState<Date | null>(null);
   const [pickerError, setPickerError] = useState("");
-  const [timeDraft, setTimeDraft] = useState<Date | null>(null);
   let today: string;
   let invalidZone = false;
   try {
@@ -83,10 +81,6 @@ export function EventDateTimeField({
       setDraft(initial);
       return;
     }
-    if (mode === "time" && (min || max)) {
-      setTimeDraft(initial);
-      return;
-    }
     DateTimePickerAndroid.open({
       value: initial,
       mode: mode === "datetime" ? "date" : mode,
@@ -101,11 +95,9 @@ export function EventDateTimeField({
           return;
         }
         // Android has no datetime mode: one field opens date then time; cancel commits nothing.
-        const selected = new Date(`${date.toISOString().slice(0, 10)}T${wall.slice(11, 16)}Z`);
-        if (min || max) {
-          setTimeDraft(selected);
-          return;
-        }
+        const selected = new Date(
+          `${date.toISOString().slice(0, 10)}T${initial.toISOString().slice(11, 16)}Z`,
+        );
         DateTimePickerAndroid.open({
           value: selected,
           mode: "time",
@@ -170,19 +162,6 @@ export function EventDateTimeField({
         <Typography accessibilityRole="alert" className="text-sm text-danger">
           {error || pickerError}
         </Typography>
-      ) : null}
-      {timeDraft ? (
-        <EventBoundedTimePicker
-          label={label}
-          value={timeDraft}
-          min={min}
-          max={max}
-          onCancel={() => setTimeDraft(null)}
-          onChange={(date) => {
-            commit(date);
-            setTimeDraft(null);
-          }}
-        />
       ) : null}
       {draft ? (
         <Dialog

@@ -1,8 +1,11 @@
 import { eventDraft, tableDraft } from "@board-game-organizer/shared";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { messages as italian } from "../../../../../../messages/it.js";
 import { EventDraftTableCard } from "../EventDraftTableCard";
 import { EventTableCard } from "../EventTableCard";
 import { EventWizardSummary } from "../EventWizardSummary";
@@ -92,17 +95,40 @@ it("reviews public start, same-day end and combined cutoff before the venue", ()
   const draft = {
     ...eventDraft(plannedEvent),
     endsWall: "2030-06-03T23:00",
-    cutoffWall: "2030-06-03T19:00",
+    cutoffWall: "2030-06-02T19:00",
   };
   renderWithI18n(<EventWizardSummary draft={draft} publicGroup />);
   const start = screen.getByText("Start Date and Time"),
     end = screen.getByText("End Date and Time"),
-    cutoff = screen.getByText("Booking cutoff"),
+    cutoff = screen.getByText("Registration Deadline Date and Time"),
     location = screen.getByText("Location");
   expect(start.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(end.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(cutoff.compareDocumentPosition(location) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  for (const label of [start, end, cutoff]) {
+    const section = label.closest("section");
+    expect(section?.querySelector("li time")).not.toBeNull();
+    expect(section?.querySelectorAll("li")).toHaveLength(1);
+  }
   expect(screen.queryByRole("button", { name: /^Remove/ })).toBeNull();
+});
+it("uses the requested Italian registration-deadline label in the grouped summary", () => {
+  const i18n = setupI18n({ locale: "it", messages: { it: italian } });
+  renderWithI18n(
+    <I18nProvider i18n={i18n}>
+      <EventWizardSummary
+        draft={{
+          ...eventDraft(plannedEvent),
+          endsWall: "2030-06-03T23:00",
+          cutoffWall: "2030-06-02T19:00",
+        }}
+        publicGroup
+      />
+    </I18nProvider>,
+  );
+  expect(
+    screen.getByText("Date e ora Termine iscrizioni").closest("section")?.querySelector("li time"),
+  ).not.toBeNull();
 });
 it.each(["Friday group", null])(
   "labels readonly single date/location summary, group=%s",

@@ -730,12 +730,12 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     });
   });
   it.each([
-    "2027-01-03T08:00:00Z",
     "2027-01-03T07:59:00Z",
+    "2027-01-03T21:01:00Z",
     "2027-01-03T22:00:00Z",
     "2027-01-04T08:30:00Z",
   ])(
-    "rejects a public table time outside the strict event interval as a client error: %s",
+    "rejects public table starts or full durations outside the inclusive event interval: %s",
     async (startsAt) => {
       const f = setup("PUBLIC"),
         input = {
@@ -752,13 +752,46 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       expect(f.events.size).toBe(0);
     },
   );
-  it("accepts same-day public ends and combined same-day cutoffs, rejecting overnight writes in the venue zone atomically", async () => {
+  it.each([undefined, "2027-01-03T08:00:00Z", "2027-01-03T21:00:00Z"])(
+    "accepts default/event-start/latest full-duration public table starts: %s",
+    async (startsAt) => {
+      const f = setup("PUBLIC"),
+        input = {
+          ...body(),
+          groupId: other,
+          endsAt: "2027-01-03T22:00:00Z",
+          bookingClosesAt: "2027-01-02T22:59:59Z",
+        };
+      input.tables[0].startsAt = startsAt;
+      await f.service.create(owner, input);
+      expect(f.tables.get(id)?.startsAt).toBe(
+        new Date(startsAt ?? "2027-01-03T08:00:00Z").toISOString(),
+      );
+    },
+  );
+  it.each(["2027-01-03T07:59:00Z", "2027-01-02T23:30:00Z"])(
+    "rejects event-day cutoffs in the verified venue zone, even before event start: %s",
+    async (bookingClosesAt) => {
+      const f = setup("PUBLIC");
+      await expect(
+        f.service.create(owner, {
+          ...body(),
+          groupId: other,
+          endsAt: "2027-01-03T22:00:00Z",
+          bookingClosesAt,
+        }),
+      ).rejects.toMatchObject({ code: "EVENT_CUTOFF_BEFORE_START_REQUIRED" });
+      expect(f.events.size).toBe(0);
+      expect(f.tables.size).toBe(0);
+    },
+  );
+  it("accepts same-day public ends and prior-day cutoffs, rejecting overnight writes in the venue zone atomically", async () => {
     const f = setup("PUBLIC"),
       input = {
         ...body(),
         groupId: other,
         endsAt: "2027-01-03T22:59:00Z",
-        bookingClosesAt: "2027-01-03T07:59:00Z",
+        bookingClosesAt: "2027-01-02T22:59:59Z",
       };
     const event = await f.service.create(owner, input);
     expect(event.endsAt).toBe(input.endsAt.replace("00Z", "00.000Z"));

@@ -4,10 +4,15 @@ export function publicEventBounds(start: string) {
     return {};
   const minute = (delta: number) =>
     new Date(Date.parse(`${start}Z`) + delta * 60_000).toISOString().slice(0, 16);
-  return { endMin: minute(1), endMax: `${start.slice(0, 10)}T23:59`, cutoffMax: minute(-1) };
+  const previousDay = new Date(Date.parse(`${start.slice(0, 10)}T00:00Z`) - 60_000);
+  return {
+    endMin: minute(1),
+    endMax: `${start.slice(0, 10)}T23:59`,
+    cutoffMax: previousDay.toISOString().slice(0, 16),
+  };
 }
 export function publicTableTimeBounds(start: string, end: string, duration = 1) {
-  const min = publicEventBounds(start).endMin;
+  const min = publicEventBounds(start).endMin ? start : undefined;
   const endAt = Date.parse(`${end}Z`);
   if (!min || !Number.isFinite(endAt) || !Number.isFinite(duration)) return {};
   return { min, max: new Date(endAt - Math.max(1, duration) * 60_000).toISOString().slice(0, 16) };
@@ -19,12 +24,4 @@ export function nextEventDay(now: Date) {
   const next = new Date(now);
   next.setDate(next.getDate() + 1);
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
-}
-/** A bounded day has at most 1,440 choices; native renders them through FlatList. */
-export function allowedEventTimes(day: string, min?: string, max?: string) {
-  return Array.from(
-    { length: 1440 },
-    (_, index) =>
-      `${day}T${String(Math.floor(index / 60)).padStart(2, "0")}:${String(index % 60).padStart(2, "0")}`,
-  ).filter((wall) => (!min || wall >= min) && (!max || wall <= max));
 }

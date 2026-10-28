@@ -26,13 +26,15 @@ it("fixes the public table date, exposes only bounded time and uses a grouped de
   );
   const time = screen.getByLabelText("Table start") as HTMLInputElement;
   expect(time.type).toBe("time");
-  expect(time.min).toBe("20:01");
+  expect(time.min).toBe("20:00");
   expect(time.max).toBe("22:00");
   expect(container.querySelector('input[type="date"], input[type="datetime-local"]')).toBeNull();
-  fireEvent.change(time, { target: { value: "20:00" } });
+  fireEvent.change(time, { target: { value: "19:59" } });
   expect(onChange).not.toHaveBeenCalled();
   fireEvent.change(time, { target: { value: "22:01" } });
   expect(onChange).not.toHaveBeenCalled();
+  fireEvent.change(time, { target: { value: "20:00" } });
+  expect(onChange).toHaveBeenLastCalledWith({ startsWall: "2030-06-03T20:00" });
   fireEvent.change(time, { target: { value: "22:00" } });
   expect(onChange).toHaveBeenLastCalledWith({ startsWall: "2030-06-03T22:00" });
   const choose = screen.getByRole("button", { name: "Choose demonstrator" });

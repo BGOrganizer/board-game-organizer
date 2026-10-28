@@ -153,12 +153,12 @@ it("initializes public start tomorrow without removal or venue defaults and boun
   expect(screen.getByRole("button", { name: "Choose a verified address" })).not.toBeNull();
   fireEvent.change(start, { target: { value: "2030-06-03T20:00" } });
   const end = screen.getByLabelText("End Date and Time") as HTMLInputElement,
-    cutoff = screen.getByLabelText("Booking cutoff") as HTMLInputElement;
+    cutoff = screen.getByLabelText("Registration Deadline Date and Time") as HTMLInputElement;
   expect(end.type).toBe("datetime-local");
   expect(cutoff.type).toBe("datetime-local");
   expect(end.min).toBe("2030-06-03T20:01");
   expect(end.max).toBe("2030-06-03T23:59");
-  expect(cutoff.max).toBe("2030-06-03T19:59");
+  expect(cutoff.max).toBe("2030-06-02T23:59");
   expect(end.compareDocumentPosition(cutoff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(
     cutoff.compareDocumentPosition(
@@ -174,14 +174,16 @@ it("initializes public start tomorrow without removal or venue defaults and boun
   fireEvent.change(cutoff, { target: { value: "2030-06-03T20:00" } });
   expect(cutoff.value).toBe("");
   fireEvent.change(cutoff, { target: { value: "2030-06-03T19:00" } });
-  expect(cutoff.value).toBe("2030-06-03T19:00");
+  expect(cutoff.value).toBe("");
   fireEvent.change(cutoff, { target: { value: "2030-06-02T23:00" } });
   expect(cutoff.value).toBe("2030-06-02T23:00");
   fireEvent.change(start, { target: { value: "2030-06-04T20:00" } });
   expect(end.value).toBe("");
   fireEvent.click(screen.getByRole("button", { name: "Choose a verified address" }));
   fireEvent.click(screen.getByRole("button", { name: "Choose verified location" }));
-  const locatedCutoff = screen.getByLabelText("Booking cutoff") as HTMLInputElement;
+  const locatedCutoff = screen.getByLabelText(
+    "Registration Deadline Date and Time",
+  ) as HTMLInputElement;
   expect(locatedCutoff.min).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
   fireEvent.change(locatedCutoff, { target: { value: "2000-01-01T00:00" } });
   expect(locatedCutoff.value).not.toBe("2000-01-01T00:00");

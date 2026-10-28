@@ -62,19 +62,29 @@ export function EventWizardSummary({
             <Typography className="font-semibold text-foreground">
               {t("End Date and Time")}
             </Typography>
-            <DateTimeInfo
-              startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
-              timeZone={draft.timeZone}
-              timeLabel={t("End time")}
-            />
+            <GroupedList>
+              <GroupedRow>
+                <DateTimeInfo
+                  startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
+                  timeZone={draft.timeZone}
+                  timeLabel={t("End time")}
+                />
+              </GroupedRow>
+            </GroupedList>
           </View>
           <View style={{ gap: 8 }}>
-            <Typography className="font-semibold text-foreground">{t("Booking cutoff")}</Typography>
-            <DateTimeInfo
-              startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
-              timeZone={draft.timeZone}
-              timeLabel={t("Booking cutoff")}
-            />
+            <Typography className="font-semibold text-foreground">
+              {t("Registration Deadline Date and Time")}
+            </Typography>
+            <GroupedList>
+              <GroupedRow>
+                <DateTimeInfo
+                  startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
+                  timeZone={draft.timeZone}
+                  timeLabel={t("Registration Deadline Date and Time")}
+                />
+              </GroupedRow>
+            </GroupedList>
           </View>
         </>
       ) : null}

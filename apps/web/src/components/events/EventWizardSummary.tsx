@@ -57,19 +57,27 @@ export function EventWizardSummary({
         <>
           <section className="space-y-2">
             <h2 className="font-semibold">{t`End Date and Time`}</h2>
-            <DateTimeInfo
-              startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
-              timeZone={draft.timeZone}
-              timeLabel={t`End time`}
-            />
+            <GroupedList>
+              <GroupedRow>
+                <DateTimeInfo
+                  startsAt={eventLocalToIso(draft.endsWall, draft.timeZone)}
+                  timeZone={draft.timeZone}
+                  timeLabel={t`End time`}
+                />
+              </GroupedRow>
+            </GroupedList>
           </section>
           <section className="space-y-2">
-            <h2 className="font-semibold">{t`Booking cutoff`}</h2>
-            <DateTimeInfo
-              startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
-              timeZone={draft.timeZone}
-              timeLabel={t`Booking cutoff`}
-            />
+            <h2 className="font-semibold">{t`Registration Deadline Date and Time`}</h2>
+            <GroupedList>
+              <GroupedRow>
+                <DateTimeInfo
+                  startsAt={eventLocalToIso(draft.cutoffWall, draft.timeZone)}
+                  timeZone={draft.timeZone}
+                  timeLabel={t`Registration Deadline Date and Time`}
+                />
+              </GroupedRow>
+            </GroupedList>
           </section>
         </>
       ) : null}

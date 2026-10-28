@@ -275,7 +275,11 @@ it("presents public start, end and booking cutoff with the same labelled date/ti
     bookingClosesAt: "2030-06-03T16:00:00Z",
   };
   mount();
-  for (const name of ["Start Date and Time", "End Date and Time", "Booking Cutoff Date and Time"]) {
+  for (const name of [
+    "Start Date and Time",
+    "End Date and Time",
+    "Registration Deadline Date and Time",
+  ]) {
     const section = await screen.findByRole("region", { name });
     expect(within(section).getByText(name)).not.toBeNull();
     expect(section.querySelector("li time")).not.toBeNull();

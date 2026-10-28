@@ -34,7 +34,10 @@ export function useEventJoinForm(
   const requiresAvailability = event?.groupType === "PRIVATE";
   useEffect(() => {
     if (!event || q.isPlaceholderData || event.myRegistrations === undefined) return;
-    const firstTab = hasOtherAcceptedTable(event.myRegistrations, tableId) ? "games" : "dates";
+    const firstTab =
+      event.groupType === "PUBLIC" || hasOtherAcceptedTable(event.myRegistrations, tableId)
+        ? "games"
+        : "dates";
     setInitialTab((current) => current ?? firstTab);
     const explicit = (choices: Record<string, EventVote> | undefined): Choices =>
       Object.fromEntries(

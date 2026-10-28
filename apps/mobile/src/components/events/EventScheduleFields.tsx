@@ -195,9 +195,9 @@ export function EventScheduleFields({
             onChange={(endsWall) => form.patch({ endsWall })}
           />
           <EventWallDateTime
-            label={t("Booking cutoff")}
+            label={t("Registration Deadline Date and Time")}
             help={t(
-              "Registration closes at this local date and time, before the event starts. A new event needs a future cutoff.",
+              "Registration closes on a day before the event starts. A new event needs a future deadline.",
             )}
             value={draft.cutoffWall}
             timeZone={draft.timeZone}
@@ -206,7 +206,7 @@ export function EventScheduleFields({
             isDisabled={busy || !startWall}
             error={
               fieldError("bookingClosesAt")
-                ? t("Choose a valid booking cutoff before the event starts.")
+                ? t("Choose a registration deadline on a day before the event.")
                 : undefined
             }
             onChange={(cutoffWall) => form.patch({ cutoffWall })}

@@ -401,6 +401,7 @@ describe("location-owned schedule and staged validation", () => {
     { endsWall: "2030-06-03T19:00", cutoffWall: "2030-06-02T12:00", field: "endsAt" },
     { endsWall: "2030-06-04T03:00", cutoffWall: "", field: "bookingClosesAt" },
     { endsWall: "2030-06-04T03:00", cutoffWall: "2030-06-03T20:00", field: "bookingClosesAt" },
+    { endsWall: "2030-06-03T23:00", cutoffWall: "2030-06-03T19:59", field: "bookingClosesAt" },
   ])("requires public endpoints and correct order: $field", ({ endsWall, cutoffWall, field }) => {
     const draft = { ...valid(), endsWall, cutoffWall };
     expect(eventDraftStepIssues(draft, true, 0)).toContain(field);
@@ -432,6 +433,16 @@ describe("location-owned schedule and staged validation", () => {
       const draft = valid();
       draft.tables[0].startsWall = startsWall;
       expect(eventDraftStepIssues(draft, true, 1)).toContain("tables.0.startsAt");
+    },
+  );
+  it.each(["2030-06-03T20:00", "2030-06-03T22:00"])(
+    "accepts inclusive table start bounds while keeping the full duration inside: %s",
+    (startsWall) => {
+      const draft = valid();
+      draft.tables[0].startsWall = startsWall;
+      draft.tables[0].games[0] = { ...draft.tables[0].games[0], maxPlayMinutes: 60 };
+      expect(eventDraftStepIssues(draft, true, 1)).toEqual([]);
+      expect(eventDraftInput(draft, true).success).toBe(true);
     },
   );
   it.each([undefined, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(

@@ -166,14 +166,17 @@ it.each(["PRIVATE", "PUBLIC", null] as const)(
   },
 );
 it.each(["PUBLIC", null] as const)(
-  "opens Dates for first enrollment with all tabs and read-only fixed schedule (%s)",
+  "opens Games for first PUBLIC enrollment and Dates for standalone enrollment, keeping fixed schedule read-only (%s)",
   async (groupType) => {
     event = { ...event, groupType };
     const { close } = mount();
-    expect((await screen.findByRole("tab", { name: "Dates" })).getAttribute("aria-selected")).toBe(
-      "true",
-    );
+    expect(
+      (
+        await screen.findByRole("tab", { name: groupType === "PUBLIC" ? "Games" : "Dates" })
+      ).getAttribute("aria-selected"),
+    ).toBe("true");
     expect(screen.getAllByRole("tab")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("tab", { name: "Dates" }));
     expect(screen.queryByRole("button", { name: "2030-06-03 20:00: Yes" })).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "Locations" }));
     await screen.findByText("Club venue");
