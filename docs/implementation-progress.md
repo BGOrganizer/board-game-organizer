@@ -1,5 +1,28 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Native location search — pinned input and keyboard-aware compact map
+
+- Native picker now keeps its existing HeroUI search input outside one flexible FlatList, so it
+  stays immediately below navigation when the keyboard opens. With search focus + keyboard visibility,
+  the same MapLibre map shrinks 240→120 points and name/favorite controls hide without losing values.
+  Results remain scrollable with the keyboard open, use accessible 48-point minimum rows and retain
+  one-tap selection. Selection dismisses the keyboard and restores the normal form/map.
+- iOS keyboard avoidance uses Expo Router's installed header-height context, without stacking automatic
+  keyboard insets. Android keeps its existing `adjustResize` behavior; no app-wide configuration,
+  dependency or animation changes. Keyboard show/hide listeners clean up, native visibility is read
+  with its required method binding, and hide/focus/selection reset only result-list scroll position.
+- Map instance, style, frozen initial viewport, loading/activity/camera guards, verified points,
+  MapTiler/OSM attribution and GPS action stay intact. Native clipping is disabled for the map header,
+  not map rendering; no conditional map recreation or zoom-on-focus. Favorites UI moved into its own
+  platform feature component with the same source paging, permissions, retry paths and selected key.
+  SearchInput forwards optional native focus/blur handlers; other callers remain unchanged.
+- No new localization IDs, API behavior, provider changes or web changes. Three/four visible results
+  depends on viewport, keyboard and accessibility font size; no fixed row-height or visibility marker.
+  Local coverage passes 1,753 unit tests (schemas 110, shared 226, API 710, web 476, native
+  pure/source 231), Mongo integration 82/82, root typecheck 4/4, scoped Biome, API/web production
+  builds and Android export. All existing coverage gates remain. Unit/source callback checks are
+  not native keyboard/gesture/device acceptance; visual viewport and touch verification remain pending.
+
 ## Startup — locale-correct inbox readiness and progressive background reads
 
 - Fixed native `/notifications` splash readiness to use the canonical notification key, including

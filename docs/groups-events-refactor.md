@@ -91,6 +91,15 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   new draft; its verified Location starts empty, never copied automatically from the Group. End Date
   and Time and the combined Booking Cutoff field precede Location, which is last. Nothing is written
   before final review.
+- Native address search keeps its HeroUI input pinned above one virtualized results region. With
+  the address input focused and the software keyboard visible, its existing map shrinks from 240
+  to 120 points; name/favorites temporarily hide without clearing their values. Keyboard dismissal
+  or selection restores normal layout, and selection dismisses the keyboard in one tap. The map,
+  frozen initial camera, readiness/activity guards, attribution and GPS control remain mounted;
+  scrolling results does not dismiss the keyboard or clip/detach the map header. iOS avoids the
+  keyboard with the actual navigation-header offset; Android retains its existing resize behavior.
+  Three/four visible results is a viewport/font-size target, not a fixed-row guarantee. Address
+  verification, four-character/300-ms search, canonical favorites and native Back remain unchanged.
 - Date options may store their own `startTime`; historical options without it inherit the Event's
   common clock. Times are local to the venue selected by agreement. The API derives IANA zones from
   verified coordinates and rejects clocks invalid at any proposed venue, never guessing a zone from
