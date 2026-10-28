@@ -7,7 +7,6 @@ import {
   withProtectionBypass,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
-import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import {
   Camera,
   type CameraRef,
@@ -18,16 +17,25 @@ import {
 import Constants from "expo-constants";
 import * as Location from "expo-location";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { usePreventRemove } from "expo-router/react-navigation";
+import { useHeaderHeight, usePreventRemove } from "expo-router/react-navigation";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
-import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Check, Heart, LocateFixed, MapPin } from "lucide-react-native";
+import { Check, LocateFixed, MapPin } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { AppState, Image, Keyboard, Linking, Pressable, ScrollView, View } from "react-native";
+import {
+  AppState,
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  Pressable,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -37,6 +45,7 @@ import { locationMapPoint } from "@/lib/locations/map-location";
 import { requestUserPosition } from "@/lib/locations/user-location";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
+import { LocationFavoriteSelect } from "./LocationFavoriteSelect";
 
 type Result = Pick<MatchLocation, "address" | "longitude" | "latitude" | "timeZone"> & {
   id: string;
@@ -60,6 +69,25 @@ export default function LocationPicker({
   // Inline pickers share the wizard route: native Back must close the picker, not discard the draft.
   usePreventRemove(Boolean(onClose), () => onClose?.());
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
+  const resultsList = useRef<FlatList<Result>>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
+  const compact = searchFocused && keyboardVisible;
+  useEffect(() => {
+    const shown = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardVisible(true),
+    );
+    const hidden = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardVisible(false);
+      resultsList.current?.scrollToOffset({ offset: 0, animated: false });
+    });
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
   const { getToken, userId } = useSessionAuth();
   const feedback = useMutationFeedback();
   const [foreground, accentForeground, muted] = useThemeColor([
@@ -114,7 +142,6 @@ export default function LocationPicker({
     userId,
     feedback,
   });
-  const selectedFavorite = favorites.items.find((item) => item.key === favoriteKey);
   const [center, setCenter] = useState<[number, number] | null>(null);
   const [initialViewState] = useState<{ center: [number, number]; zoom: number }>(() => {
     const point = locationMapPoint(initial?.longitude, initial?.latitude);
@@ -218,6 +245,8 @@ export default function LocationPicker({
     moveTo(location.longitude, location.latitude);
   };
   const locate = async () => {
+    Keyboard.dismiss();
+    setSearchFocused(false);
     cancelLocate();
     const requestId = locationRequest.current;
     setLocating(true);
@@ -252,16 +281,10 @@ export default function LocationPicker({
   };
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
       style={{ flex: 1 }}
-      contentInsetAdjustmentBehavior="automatic"
-      automaticallyAdjustKeyboardInsets
-      contentContainerStyle={{
-        padding: 16,
-        paddingBottom: Math.max(insets.bottom, 16) + 24,
-        gap: 12,
-      }}
-      keyboardShouldPersistTaps="handled"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={headerHeight}
     >
       <Stack.Screen
         options={{
@@ -271,303 +294,229 @@ export default function LocationPicker({
           headerTitle: ({ children }) => <HeaderTitle title={children} icon={MapPin} />,
         }}
       />
-      {mapStyle ? (
-        <View style={{ height: 240 }}>
-          <MapLibreMap
-            style={{ flex: 1 }}
-            mapStyle={mapStyle}
-            androidView="texture"
-            onWillStartLoadingMap={() => setMapReady(false)}
-            onDidFinishLoadingStyle={() => setMapReady(true)}
-            onDidFailLoadingMap={() => {
-              setMapReady(false);
-              setError(t("Map unavailable"));
-            }}
-            attribution
-            logo
-          >
-            <Camera ref={camera} initialViewState={initialViewState} />
-            {mapReady && selectedPoint && (
-              <GeoJSONSource
-                id="selected-location"
-                data={{
-                  type: "Feature",
-                  properties: {},
-                  geometry: { type: "Point", coordinates: selectedPoint },
-                }}
-              >
-                <Layer
-                  id="selected-location-point"
-                  type="circle"
-                  paint={{ "circle-radius": 9, "circle-color": "#006fee" }}
-                />
-              </GeoJSONSource>
-            )}
-          </MapLibreMap>
-          <Button
-            testID="location-map-locate"
-            isIconOnly
-            size="sm"
-            variant="secondary"
-            // Leave native map attribution reachable below the GPS control.
-            style={{ position: "absolute", right: 12, bottom: 40, minWidth: 44, minHeight: 44 }}
-            isDisabled={locating}
-            accessibilityLabel={
-              !permission.granted && !permission.canAskAgain
-                ? t("Open settings")
-                : t("Center map on my location")
-            }
-            onPress={() => void locate()}
-          >
-            <LocateFixed size={20} color={foreground} />
-          </Button>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={t("Map by MapTiler")}
-            onPress={() => void Linking.openURL("https://www.maptiler.com/")}
-            style={{
-              position: "absolute",
-              top: 8,
-              left: 8,
-              padding: 4,
-              borderRadius: 4,
-              backgroundColor: "#fff",
-            }}
-          >
-            <Image
-              source={require("../../../assets/maptiler-logo.png")}
-              resizeMode="contain"
-              style={{ width: 92, height: 24 }}
-            />
-          </Pressable>
-        </View>
-      ) : (
-        <Typography className="text-danger">{t("Map unavailable")}</Typography>
-      )}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <MapPin size={18} color={foreground} />
-        <Typography className="font-medium text-foreground">{t("Location name")}</Typography>
-      </View>
-      <Input
-        accessibilityLabel={t("Location name")}
-        placeholder={t("Location name")}
-        value={name}
-        onChangeText={setName}
-        maxLength={120}
-      />
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Heart size={18} color={foreground} />
-        <Typography className="font-medium text-foreground">{t("Favorite locations")}</Typography>
-      </View>
-      {favorites.list.isPending ? (
-        <Skeleton
-          isLoading
-          variant="pulse"
-          style={{ width: "100%", height: 48, borderRadius: 12 }}
+      <View style={{ padding: 16, paddingBottom: 12 }}>
+        <SearchInput
+          value={query}
+          onFocus={() => {
+            setSearchFocused(true);
+            resultsList.current?.scrollToOffset({ offset: 0, animated: false });
+          }}
+          onBlur={() => setSearchFocused(false)}
+          onChange={(text) => {
+            cancelLocate();
+            setQuery(text);
+            setSelected(null);
+            setFavoriteKey(null);
+            setResults([]);
+          }}
+          testID="location-address-input"
+          label={t("Search address")}
+          placeholder={t("Search address")}
         />
-      ) : (
-        <Select
-          presentation="bottom-sheet"
-          onOpenChange={(open) => {
-            if (open) Keyboard.dismiss();
-          }}
-          value={
-            selectedFavorite
-              ? {
-                  value: selectedFavorite.key,
-                  label: selectedFavorite.location.name,
-                }
-              : undefined
-          }
-          onValueChange={(value) => {
-            const item = favorites.items.find((item) => item.key === value?.value);
-            if (item) chooseFavorite(item.key, item.location);
-          }}
-          isDisabled={!favorites.items.length}
-        >
-          <Select.Trigger
-            testID="favorite-location-select"
-            accessibilityLabel={t("Favorite locations")}
-          >
-            <Select.Value
-              placeholder={
-                favorites.list.isError || favorites.items.length
-                  ? t("Select a favorite location")
-                  : t("No favorite locations")
-              }
-            />
-            <Select.TriggerIndicator />
-          </Select.Trigger>
-          <Select.Portal>
-            <Select.Overlay />
-            <Select.Content
-              presentation="bottom-sheet"
-              snapPoints={["60%", "85%"]}
-              enableDynamicSizing={false}
-              bottomInset={insets.bottom}
-              topInset={insets.top}
-              contentContainerProps={{ style: { flex: 1 } }}
+      </View>
+      <FlatList
+        ref={resultsList}
+        style={{ flex: 1 }}
+        data={results}
+        keyExtractor={(item) => item.id}
+        accessibilityLabel={t("Address results")}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
+        contentInsetAdjustmentBehavior="never"
+        // Keep the native map attached when its header scrolls out of view.
+        removeClippedSubviews={false}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: compact ? 16 : Math.max(insets.bottom, 16) + 24,
+          gap: 4,
+        }}
+        ListHeaderComponent={
+          <View style={{ gap: 12 }}>
+            {mapStyle ? (
+              <View style={{ height: compact ? 120 : 240 }}>
+                <MapLibreMap
+                  style={{ flex: 1 }}
+                  mapStyle={mapStyle}
+                  androidView="texture"
+                  onWillStartLoadingMap={() => setMapReady(false)}
+                  onDidFinishLoadingStyle={() => setMapReady(true)}
+                  onDidFailLoadingMap={() => {
+                    setMapReady(false);
+                    setError(t("Map unavailable"));
+                  }}
+                  attribution
+                  logo
+                >
+                  <Camera ref={camera} initialViewState={initialViewState} />
+                  {mapReady && selectedPoint && (
+                    <GeoJSONSource
+                      id="selected-location"
+                      data={{
+                        type: "Feature",
+                        properties: {},
+                        geometry: { type: "Point", coordinates: selectedPoint },
+                      }}
+                    >
+                      <Layer
+                        id="selected-location-point"
+                        type="circle"
+                        paint={{ "circle-radius": 9, "circle-color": "#006fee" }}
+                      />
+                    </GeoJSONSource>
+                  )}
+                </MapLibreMap>
+                <Button
+                  testID="location-map-locate"
+                  isIconOnly
+                  size="sm"
+                  variant="secondary"
+                  // Leave native map attribution reachable below the GPS control.
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    bottom: 40,
+                    minWidth: 44,
+                    minHeight: 44,
+                  }}
+                  isDisabled={locating}
+                  accessibilityLabel={
+                    !permission.granted && !permission.canAskAgain
+                      ? t("Open settings")
+                      : t("Center map on my location")
+                  }
+                  onPress={() => void locate()}
+                >
+                  <LocateFixed size={20} color={foreground} />
+                </Button>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={t("Map by MapTiler")}
+                  onPress={() => void Linking.openURL("https://www.maptiler.com/")}
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    left: 8,
+                    padding: 4,
+                    borderRadius: 4,
+                    backgroundColor: "#fff",
+                  }}
+                >
+                  <Image
+                    source={require("../../../assets/maptiler-logo.png")}
+                    resizeMode="contain"
+                    style={{ width: 92, height: 24 }}
+                  />
+                </Pressable>
+              </View>
+            ) : (
+              <Typography className="text-danger">{t("Map unavailable")}</Typography>
+            )}
+            <View
+              style={{ gap: 12, display: compact ? "none" : "flex" }}
+              accessibilityElementsHidden={compact}
+              importantForAccessibility={compact ? "no-hide-descendants" : "auto"}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Heart size={18} color={foreground} />
-                <Select.ListLabel>{t("Favorite locations")}</Select.ListLabel>
+                <MapPin size={18} color={foreground} />
+                <Typography className="font-medium text-foreground">
+                  {t("Location name")}
+                </Typography>
               </View>
-              <BottomSheetFlatList
-                style={{ flex: 1 }}
-                data={favorites.items}
-                ListEmptyComponent={
-                  !favorites.list.isPending && !favorites.list.isError ? (
-                    <EmptyList icon={<Heart size={28} color={muted} />}>
-                      {t("No favorite locations")}
-                    </EmptyList>
-                  ) : null
-                }
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}
-                keyExtractor={(item) => item.key}
-                onEndReachedThreshold={0.5}
-                onEndReached={() => {
-                  if (
-                    favorites.list.hasNextPage &&
-                    !favorites.list.isFetchingNextPage &&
-                    !favorites.list.isError
-                  )
-                    void favorites.list.fetchNextPage();
-                }}
-                renderItem={({ item, index }) => (
-                  <Select.Item
-                    testID={`favorite-location-${index}`}
-                    value={item.key}
-                    label={item.location.name}
-                  >
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Select.ItemLabel />
-                      <Select.ItemDescription numberOfLines={2}>
-                        {formatLocationAddress(item.location.address)}
-                      </Select.ItemDescription>
-                    </View>
-                    <Select.ItemIndicator />
-                  </Select.Item>
-                )}
-                ListFooterComponent={
-                  favorites.list.isFetchingNextPage ? (
-                    <Skeleton isLoading style={{ width: "100%", height: 48, borderRadius: 12 }} />
-                  ) : favorites.list.isError ? (
-                    <View style={{ gap: 8 }}>
-                      <Typography accessibilityRole="alert" className="text-danger">
-                        {t("Could not load favorite locations")}
-                      </Typography>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        isDisabled={favorites.list.isFetching}
-                        onPress={() => {
-                          if (favorites.list.isFetchNextPageError)
-                            void favorites.list.fetchNextPage();
-                          else void favorites.list.refetch();
-                        }}
-                      >
-                        <Button.Label>{t("Retry")}</Button.Label>
-                      </Button>
-                    </View>
-                  ) : null
-                }
+              <Input
+                accessibilityLabel={t("Location name")}
+                placeholder={t("Location name")}
+                value={name}
+                onChangeText={setName}
+                maxLength={120}
               />
-            </Select.Content>
-          </Select.Portal>
-        </Select>
-      )}
-      {favorites.list.isError && (
-        <Typography className="text-danger" accessibilityRole="alert">
-          {t("Could not load favorite locations")}
-        </Typography>
-      )}
-      <SearchInput
-        value={query}
-        onChange={(text) => {
-          cancelLocate();
-          setQuery(text);
-          setSelected(null);
-          setFavoriteKey(null);
-          setResults([]);
-        }}
-        testID="location-address-input"
-        label={t("Search address")}
-        placeholder={t("Search address")}
-      />
-      {(searching || locating) && (
-        <Skeleton
-          isLoading
-          variant="pulse"
-          style={{ width: "100%", height: 48, borderRadius: 12 }}
-        />
-      )}
-      {!searching &&
-      !locating &&
-      !error &&
-      query.trim().length >= 4 &&
-      selected?.address !== query.trim() &&
-      results.length === 0 ? (
-        <EmptyList icon={<MapPin size={28} color={muted} />}>{t("No addresses found")}</EmptyList>
-      ) : null}
-      {results.length > 0 && (
-        <View accessibilityLabel={t("Address results")}>
-          {results.map((item, index) => (
-            <Pressable
-              key={item.id}
-              testID={`address-result-${index}`}
-              accessibilityRole="button"
-              accessibilityLabel={item.address}
-              onPress={() => {
-                cancelLocate();
-                setSelected(item);
-                setFavoriteKey(null);
-                setResults([]);
-                setQuery(item.address);
-                moveTo(item.longitude, item.latitude);
-              }}
-              style={{ padding: 12 }}
-            >
-              <Typography className="text-foreground" numberOfLines={2}>
-                {formatLocationAddress(item.address)}
+              <LocationFavoriteSelect
+                favorites={favorites}
+                selectedKey={favoriteKey}
+                onSelect={chooseFavorite}
+              />
+            </View>
+            {(searching || locating) && (
+              <Skeleton
+                isLoading
+                variant="pulse"
+                style={{ width: "100%", height: 48, borderRadius: 12 }}
+              />
+            )}
+            {!searching &&
+            !locating &&
+            !error &&
+            query.trim().length >= 4 &&
+            selected?.address !== query.trim() &&
+            results.length === 0 ? (
+              <EmptyList icon={<MapPin size={28} color={muted} />}>
+                {t("No addresses found")}
+              </EmptyList>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <Pressable
+            testID={`address-result-${index}`}
+            accessibilityRole="button"
+            accessibilityLabel={item.address}
+            onPress={() => {
+              cancelLocate();
+              Keyboard.dismiss();
+              setSearchFocused(false);
+              resultsList.current?.scrollToOffset({ offset: 0, animated: false });
+              setSelected(item);
+              setFavoriteKey(null);
+              setResults([]);
+              setQuery(item.address);
+              moveTo(item.longitude, item.latitude);
+            }}
+            style={{ paddingHorizontal: 12, paddingVertical: 8, minHeight: 48 }}
+          >
+            <Typography className="text-foreground" numberOfLines={2}>
+              {formatLocationAddress(item.address)}
+            </Typography>
+          </Pressable>
+        )}
+        ListFooterComponent={
+          <View style={{ gap: 12 }}>
+            {error ? (
+              <Typography className="text-danger" accessibilityRole="alert">
+                {error}
               </Typography>
-            </Pressable>
-          ))}
-        </View>
-      )}
-      {error ? (
-        <Typography className="text-danger" accessibilityRole="alert">
-          {error}
-        </Typography>
-      ) : null}
-      <Button
-        variant="primary"
-        isDisabled={locating || !mapStyle || !selected || !selectedPoint || name.trim().length < 4}
-        onPress={() => {
-          if (!selected || !selectedPoint || name.trim().length < 4) return;
-          const location: MatchLocation = {
-            id:
-              initial?.id ??
-              "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
-                const digit = Math.floor(Math.random() * 16);
-                return (char === "x" ? digit : (digit & 3) | 8).toString(16);
-              }),
-            name: name.trim(),
-            address: selected.address,
-            longitude: selected.longitude,
-            latitude: selected.latitude,
-            timeZone: selected.timeZone,
-          };
-          if (onSelect) onSelect(location);
-          else {
-            setPendingLocation(slotId, location);
-            router.back();
-          }
-        }}
-      >
-        <Check size={20} color={accentForeground} />
-        <Button.Label>{t("Confirm location")}</Button.Label>
-      </Button>
-    </ScrollView>
+            ) : null}
+            <Button
+              variant="primary"
+              isDisabled={
+                locating || !mapStyle || !selected || !selectedPoint || name.trim().length < 4
+              }
+              onPress={() => {
+                if (!selected || !selectedPoint || name.trim().length < 4) return;
+                const location: MatchLocation = {
+                  id:
+                    initial?.id ??
+                    "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+                      const digit = Math.floor(Math.random() * 16);
+                      return (char === "x" ? digit : (digit & 3) | 8).toString(16);
+                    }),
+                  name: name.trim(),
+                  address: selected.address,
+                  longitude: selected.longitude,
+                  latitude: selected.latitude,
+                  timeZone: selected.timeZone,
+                };
+                if (onSelect) onSelect(location);
+                else {
+                  setPendingLocation(slotId, location);
+                  router.back();
+                }
+              }}
+            >
+              <Check size={20} color={accentForeground} />
+              <Button.Label>{t("Confirm location")}</Button.Label>
+            </Button>
+          </View>
+        }
+      />
+    </KeyboardAvoidingView>
   );
 }

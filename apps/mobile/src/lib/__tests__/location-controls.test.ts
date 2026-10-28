@@ -6,7 +6,10 @@ import { expect, it } from "vitest";
 it("anchors favorite sheets above system bars with viewport sizing", () => {
   const source = ts.createSourceFile(
     "search-location.tsx",
-    readFileSync(new URL("../../components/locations/LocationPicker.tsx", import.meta.url), "utf8"),
+    readFileSync(
+      new URL("../../components/locations/LocationFavoriteSelect.tsx", import.meta.url),
+      "utf8",
+    ),
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TSX,
@@ -63,7 +66,7 @@ it("places the GPS action on the map above attribution and leaves the search cle
       node.openingElement.getText(ast).includes('testID="location-map-locate"')
     ) {
       gps++;
-      expect(node.openingElement.getText(ast)).toContain("right: 12, bottom: 40");
+      expect(node.openingElement.getText(ast)).toMatch(/right:\s*12,\s*bottom:\s*40/);
       expect(node.openingElement.getText(ast)).toContain("onPress={() => void locate()}");
       expect(node.parent.getText(ast)).toContain("<MapLibreMap");
       expect(node.parent.getText(ast)).toContain("attribution");
