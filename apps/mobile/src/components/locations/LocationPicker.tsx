@@ -18,13 +18,14 @@ import {
 import Constants from "expo-constants";
 import * as Location from "expo-location";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ArrowLeft, Check, Heart, LocateFixed, MapPin } from "lucide-react-native";
+import { Check, Heart, LocateFixed, MapPin } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Image, Keyboard, Linking, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -56,6 +57,8 @@ export default function LocationPicker({
 } = {}) {
   const t = useT();
   const router = useRouter();
+  // Inline pickers share the wizard route: native Back must close the picker, not discard the draft.
+  usePreventRemove(Boolean(onClose), () => onClose?.());
   const insets = useSafeAreaInsets();
   const { getToken, userId } = useSessionAuth();
   const feedback = useMutationFeedback();
@@ -263,13 +266,8 @@ export default function LocationPicker({
       <Stack.Screen
         options={{
           title: t("Select location"),
-          headerLeft: onClose
-            ? () => (
-                <Button isIconOnly variant="ghost" accessibilityLabel={t("Back")} onPress={onClose}>
-                  <ArrowLeft color={foreground} size={20} />
-                </Button>
-              )
-            : undefined,
+          headerLeft: undefined,
+          headerBackVisible: true,
           headerTitle: ({ children }) => <HeaderTitle title={children} icon={MapPin} />,
         }}
       />
