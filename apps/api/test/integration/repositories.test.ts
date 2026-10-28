@@ -156,6 +156,59 @@ describe("API repositories on a MongoDB replica set", () => {
     expect(await repository.statuses(ACTOR, [key])).toEqual([]);
     expect(await repository.statuses(TARGET, [key])).toEqual([key]);
   });
+  it("keeps canonical favorite selection aliases private, idempotent and transactionally removable", async () => {
+    const repository = new FavoriteLocationsRepository(db);
+    const canonical = {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Verified venue",
+      address: "Main Street 10",
+      longitude: 8.54,
+      latitude: 47.37,
+      timeZone: "Europe/Zurich",
+    };
+    const selectedKey = locationFavoriteKey({ ...canonical, longitude: 12.5 });
+    const secondSelection = locationFavoriteKey({ ...canonical, latitude: 40 });
+    const canonicalKey = locationFavoriteKey(canonical);
+    await repository.save(ACTOR, canonical, selectedKey);
+    await repository.save(ACTOR, canonical, selectedKey);
+    await repository.save(ACTOR, canonical, secondSelection);
+    await repository.save(TARGET, canonical, selectedKey);
+    expect((await repository.list(ACTOR, 20)).items).toHaveLength(2);
+    expect(
+      (await repository.list(ACTOR, 20)).items.every(
+        (row) => row.location.longitude === canonical.longitude,
+      ),
+    ).toBe(true);
+    expect(await repository.statuses(ACTOR, [selectedKey, canonicalKey])).toEqual([
+      selectedKey,
+      canonicalKey,
+    ]);
+    expect(await repository.statuses(THIRD, [selectedKey, canonicalKey])).toEqual([]);
+    const session = client.startSession();
+    try {
+      await expect(
+        session.withTransaction(async () => {
+          await new FavoriteLocationsRepository(db, session).remove(ACTOR, canonicalKey);
+          throw new Error("abort canonical removal");
+        }),
+      ).rejects.toThrow("abort canonical removal");
+    } finally {
+      await session.endSession();
+    }
+    expect(await repository.statuses(ACTOR, [selectedKey, canonicalKey])).toEqual([
+      selectedKey,
+      canonicalKey,
+    ]);
+    await repository.save(ACTOR, canonical);
+    await repository.remove(ACTOR, canonicalKey);
+    expect((await repository.list(ACTOR, 20)).items).toEqual([]);
+    expect(await repository.statuses(TARGET, [selectedKey, canonicalKey])).toEqual([
+      selectedKey,
+      canonicalKey,
+    ]);
+    await repository.remove(TARGET, selectedKey);
+    expect(await repository.statuses(TARGET, [selectedKey, canonicalKey])).toEqual([]);
+  });
   it("persists and retrieves users through UsersRepository", async () => {
     expect(await relationships.userExists(ACTOR)).toBe(true);
     await expect(users.findById(ACTOR)).resolves.toMatchObject({

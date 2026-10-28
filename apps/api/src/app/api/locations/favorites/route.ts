@@ -1,4 +1,5 @@
 import {
+  locationFavoriteKey,
   removeFavoriteLocationSchema,
   saveFavoriteLocationSchema,
 } from "@board-game-organizer/schemas";
@@ -11,7 +12,7 @@ import {
 } from "@/app/lib/community/request-diagnostics";
 import { CommunityError } from "@/app/lib/community.error";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { getDb } from "@/app/lib/db";
+import { getDb, withTransaction } from "@/app/lib/db";
 import { findVerifiedAddress } from "@/app/lib/locations/community-location";
 import {
   badFavoriteRequest as badMatchRequest,
@@ -106,15 +107,27 @@ export async function POST(request: Request) {
     async (userId, { favorites }) => {
       const { location, matchId } = parsed.data;
       if (matchId) throw new CommunityError(410, "LEGACY_DOMAIN_RETIRED");
+      let verified: Awaited<ReturnType<typeof findVerifiedAddress>>;
       try {
-        if (!(await findVerifiedAddress(location)))
-          throw new CommunityError(400, "Choose a verified address");
+        verified = await findVerifiedAddress(location);
+        if (!verified) throw new CommunityError(400, "Choose a verified address");
       } catch (error) {
         if (error instanceof GeocodingError) throw new CommunityError(error.status, error.message);
         throw error;
       }
+      const canonical = {
+        ...location,
+        address: verified.address,
+        longitude: verified.longitude,
+        latitude: verified.latitude,
+        timeZone: locationTimeZone(verified),
+      };
+      const selectedKey = locationFavoriteKey(location);
       return {
-        item: await favorites.save(userId, { ...location, timeZone: locationTimeZone(location) }),
+        item:
+          selectedKey === locationFavoriteKey(canonical)
+            ? await favorites.save(userId, canonical)
+            : await favorites.save(userId, canonical, selectedKey),
       };
     },
     201,
@@ -138,7 +151,9 @@ export async function DELETE(request: Request) {
   if (!parsed.success) return invalid(request, trace, "validation", "INVALID_FAVORITE_KEY");
   try {
     trace("starting", "storage");
-    await new FavoriteLocationsRepository(await getDb()).remove(userId, parsed.data.key);
+    await withTransaction(async (session, db) => {
+      await new FavoriteLocationsRepository(db, session).remove(userId, parsed.data.key);
+    });
     trace("completed", "storage", 200);
     return corsJson({ success: true }, request);
   } catch {

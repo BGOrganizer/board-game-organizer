@@ -1,7 +1,6 @@
 import { locationFavoriteKey } from "@board-game-organizer/schemas";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GeocodingError } from "@/app/lib/locations/geocoding";
-import { MatchError } from "@/app/lib/matches/match.service";
 import { DELETE, GET, OPTIONS, POST } from "../route";
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +21,9 @@ vi.mock("@/app/lib/db", async (original) => ({
     operation({} as never, await mocks.db()),
 }));
 vi.mock("@/app/lib/ensureCurrentUser", () => ({ ensureCurrentUser: vi.fn() }));
+vi.mock("@/app/lib/community/record-services", () => ({
+  recordServices: () => ({ favorites: { save: mocks.save } }),
+}));
 vi.mock("@/app/lib/matches/match.service", async (original) => ({
   ...(await original<typeof import("@/app/lib/matches/match.service")>()),
   MatchService: class {
@@ -95,8 +97,11 @@ describe("safe favorite diagnostics", () => {
     expect(mocks.geocode).not.toHaveBeenCalled();
     expect(mocks.save).not.toHaveBeenCalled();
   });
-  it("identifies provider mismatch without relaxing verification", async () => {
-    mocks.geocode.mockResolvedValueOnce([{ ...location, longitude: 1 }]);
+  it("rejects an ambiguous provider address without trusting submitted coordinates", async () => {
+    mocks.geocode.mockResolvedValueOnce([
+      { ...location, longitude: 1 },
+      { ...location, longitude: 2 },
+    ]);
     const response = await POST(request("POST", { location }));
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "Choose a verified address" });
@@ -104,7 +109,7 @@ describe("safe favorite diagnostics", () => {
       "[bgo.location-verify]",
       expect.objectContaining({
         phase: "rejected",
-        candidateCount: 1,
+        candidateCount: 2,
         addressMatch: true,
         coordinateMatch: false,
       }),
@@ -194,6 +199,15 @@ describe("private location favorites", () => {
     expect(mocks.geocode).toHaveBeenCalledWith(location.address);
     expect(mocks.save).toHaveBeenCalledWith("user_one", canonicalLocation);
   });
+  it("saves the unique provider point, not stale or forged client coordinates", async () => {
+    const verified = { ...location, longitude: 8.54, latitude: 47.37 };
+    mocks.geocode.mockResolvedValueOnce([verified]);
+    const response = await POST(request("POST", { location }));
+    expect(response.status).toBe(201);
+    const canonical = { ...verified, timeZone: "Europe/Zurich" };
+    expect(mocks.save).toHaveBeenCalledWith("user_one", canonical, key);
+    expect(await response.json()).toEqual({ item: { key, location: canonical } });
+  });
   it("overwrites a client timezone using verified coordinates without changing the favorite key", async () => {
     const response = await POST(
       request("POST", { location: { ...location, timeZone: "Pacific/Honolulu" } }),
@@ -203,7 +217,9 @@ describe("private location favorites", () => {
     expect(mocks.save).toHaveBeenCalledWith("user_one", canonicalLocation);
   });
   it("preserves authorization, verification and upstream errors", async () => {
-    mocks.geocode.mockResolvedValueOnce([{ ...location, longitude: 1 }]);
+    mocks.geocode.mockResolvedValueOnce([
+      { ...location, address: "Different address", longitude: 1 },
+    ]);
     expect((await POST(request("POST", { location }))).status).toBe(400);
     mocks.geocode.mockRejectedValueOnce(new GeocodingError("Geocoding unavailable", 503));
     expect((await POST(request("POST", { location }))).status).toBe(503);

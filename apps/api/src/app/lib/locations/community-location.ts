@@ -2,19 +2,23 @@ import { locationFavoriteKey, type MatchLocation } from "@board-game-organizer/s
 import { CommunityError } from "../community.error";
 import { GeocodingError, geocodeAddresses } from "./geocoding";
 import { locationTimeZone } from "./location-time-zone";
-/** Reuse the same strict match for Group/Event venues and favorite writes. No raw location is logged. */
+/** Return only provider coordinates: exact key first, otherwise one unique exact address. */
 export async function findVerifiedAddress(location: MatchLocation) {
   console.info("[bgo.location-verify]", { phase: "lookup" });
   try {
     const candidates = await geocodeAddresses(location.address);
     const key = locationFavoriteKey(location);
-    const result = candidates.find((value) => locationFavoriteKey(value) === key);
+    const addressMatches = candidates.filter(
+      (value) => value.address.trim().toLowerCase() === location.address.trim().toLowerCase(),
+    );
+    const exact = candidates.find((value) => locationFavoriteKey(value) === key);
+    const result = exact ?? (addressMatches.length === 1 ? addressMatches[0] : undefined);
     console.info("[bgo.location-verify]", {
       phase: result ? "matched" : "rejected",
       candidateCount: candidates.length,
-      addressMatch: candidates.some(
-        (value) => value.address.trim().toLowerCase() === location.address.trim().toLowerCase(),
-      ),
+      addressMatch: addressMatches.length > 0,
+      addressCandidateCount: addressMatches.length,
+      canonicalized: Boolean(result && !exact),
       coordinateMatch: candidates.some(
         (value) => value.longitude === location.longitude && value.latitude === location.latitude,
       ),

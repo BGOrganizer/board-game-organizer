@@ -49,13 +49,42 @@ it("keeps strict normalized-address/coordinate matching and canonical provider f
     status: 200,
   });
 });
+it("canonicalizes one exact address using only provider coordinates and timezone", async () => {
+  const canonical = { ...location, longitude: 1, latitude: 2 };
+  mocks.geocode.mockResolvedValue([canonical]);
+  expect(await verifyCommunityLocation({ ...location, timeZone: "Pacific/Honolulu" })).toEqual({
+    ...canonical,
+    timeZone: "Europe/Rome",
+  });
+  expect(mocks.zone).toHaveBeenCalledWith(canonical);
+  expect(entries().at(-1)).toMatchObject({
+    phase: "matched",
+    addressMatch: true,
+    coordinateMatch: false,
+    canonicalized: true,
+    addressCandidateCount: 1,
+  });
+});
+it("prefers an exact key among ambiguous labels, never the first same-address candidate", async () => {
+  mocks.geocode.mockResolvedValue([{ ...location, longitude: 1 }, location]);
+  expect(await findVerifiedAddress(location)).toEqual(location);
+  expect(entries().at(-1)).toMatchObject({ canonicalized: false, addressCandidateCount: 2 });
+});
 it.each([
   [[], false, false],
-  [[{ ...location, longitude: 1 }], true, false],
+  [
+    [
+      { ...location, longitude: 1 },
+      { ...location, longitude: 2 },
+    ],
+    true,
+    false,
+  ],
   [[{ ...location, address: "Different address" }], false, true],
   [
     [
       { ...location, longitude: 1 },
+      { ...location, longitude: 2 },
       { ...location, address: "Different address" },
     ],
     true,

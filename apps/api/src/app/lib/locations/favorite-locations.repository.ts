@@ -7,7 +7,7 @@ import {
 import type { ClientSession, Collection, Db } from "mongodb";
 import { COLLECTIONS } from "../db";
 
-type FavoriteDocument = FavoriteLocation & { _id: string; userId: string };
+type FavoriteDocument = FavoriteLocation & { _id: string; userId: string; canonicalKey?: string };
 export class FavoriteLocationsRepository {
   private readonly col: Collection<FavoriteDocument>;
   constructor(
@@ -35,19 +35,41 @@ export class FavoriteLocationsRepository {
     const rows = await this.col
       .find({ userId, key: { $in: keys } }, { projection: { key: 1 }, session: this.session })
       .toArray();
-    return rows.map((row) => row.key);
+    const found = new Set(rows.map((row) => row.key));
+    const missing = keys.filter((key) => !found.has(key));
+    if (missing.length) {
+      // distinct bounds output by requested keys; the existing userId index keeps aliases owner-scoped.
+      // ponytail: alias lookup scans one user's favorites; add { userId, canonicalKey } if collections grow.
+      const canonical = await this.col.distinct(
+        "canonicalKey",
+        { userId, canonicalKey: { $in: missing } },
+        { session: this.session },
+      );
+      for (const key of canonical) if (key !== undefined) found.add(key);
+    }
+    return keys.filter((key) => found.has(key));
   }
-  async save(userId: string, location: MatchLocation): Promise<FavoriteLocation> {
-    const key = locationFavoriteKey(location);
+  async save(
+    userId: string,
+    location: MatchLocation,
+    selectedKey?: string,
+  ): Promise<FavoriteLocation> {
+    const canonicalKey = locationFavoriteKey(location);
+    const key = selectedKey ?? canonicalKey;
     const _id = `${userId}:${createHash("sha256").update(key).digest("hex")}`;
     await this.col.updateOne(
       { _id, userId },
-      { $set: { key, location, userId } },
+      { $set: { key, location, userId, canonicalKey } },
       { upsert: true, session: this.session },
     );
     return { key, location };
   }
   async remove(userId: string, key: string) {
-    await this.col.deleteOne({ userId, key }, { session: this.session });
+    const removed = await this.col.findOneAndDelete(
+      { userId, key },
+      { session: this.session, projection: { canonicalKey: 1 } },
+    );
+    if (!removed?.canonicalKey || removed.canonicalKey === key)
+      await this.col.deleteMany({ userId, canonicalKey: key }, { session: this.session });
   }
 }

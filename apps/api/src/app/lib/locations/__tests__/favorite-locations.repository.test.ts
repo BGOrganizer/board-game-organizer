@@ -17,12 +17,69 @@ function setup(session?: never) {
     limit: vi.fn().mockReturnThis(),
     toArray: vi.fn().mockResolvedValue([]),
   };
-  const col = { find: vi.fn(() => cursor), updateOne: vi.fn(), deleteOne: vi.fn() };
+  const col = {
+    find: vi.fn(() => cursor),
+    updateOne: vi.fn(),
+    findOneAndDelete: vi.fn(
+      async () =>
+        ({ canonicalKey: locationFavoriteKey(location) }) as { canonicalKey?: string } | null,
+    ),
+    deleteMany: vi.fn(),
+    distinct: vi.fn(async () => [] as Array<string | undefined>),
+  };
   const db = { collection: vi.fn(() => col) };
   return { repository: new FavoriteLocationsRepository(db as never, session), col, cursor, db };
 }
 
 describe("FavoriteLocationsRepository", () => {
+  it("preserves selection identity while storing canonical coordinates and bounded owner-scoped status aliases", async () => {
+    const { repository, col, cursor } = setup();
+    const selectedKey = locationFavoriteKey({ ...location, longitude: 1 });
+    const canonicalKey = locationFavoriteKey(location);
+    expect(await repository.save("owner", location, selectedKey)).toEqual({
+      key: selectedKey,
+      location,
+    });
+    expect(col.updateOne).toHaveBeenCalledWith(
+      { _id: `owner:${createHash("sha256").update(selectedKey).digest("hex")}`, userId: "owner" },
+      { $set: { key: selectedKey, canonicalKey, location, userId: "owner" } },
+      { upsert: true, session: undefined },
+    );
+    cursor.toArray.mockResolvedValue([{ key: selectedKey }]);
+    col.distinct.mockResolvedValueOnce([canonicalKey, undefined]);
+    const missing = "missing";
+    expect(await repository.statuses("owner", [selectedKey, canonicalKey, missing])).toEqual([
+      selectedKey,
+      canonicalKey,
+    ]);
+    expect(col.distinct).toHaveBeenCalledWith(
+      "canonicalKey",
+      { userId: "owner", canonicalKey: { $in: [canonicalKey, missing] } },
+      { session: undefined },
+    );
+    cursor.toArray.mockResolvedValue([]);
+    expect(await repository.statuses("foreign", [selectedKey, canonicalKey])).toEqual([]);
+  });
+  it("removes by exact selection first, then only equivalent canonical favorites owned by that user", async () => {
+    const { repository, col } = setup();
+    col.findOneAndDelete.mockResolvedValueOnce(null);
+    await repository.remove("owner", "canonical");
+    expect(col.deleteMany).toHaveBeenCalledWith(
+      { userId: "owner", canonicalKey: "canonical" },
+      { session: undefined },
+    );
+    col.deleteMany.mockClear();
+    col.findOneAndDelete.mockResolvedValueOnce({ canonicalKey: "canonical" });
+    await repository.remove("owner", "canonical");
+    expect(col.deleteMany).toHaveBeenCalledTimes(1);
+    col.deleteMany.mockClear();
+    col.findOneAndDelete.mockResolvedValueOnce({});
+    await repository.remove("owner", "legacy");
+    expect(col.deleteMany).toHaveBeenCalledTimes(1);
+    col.deleteMany.mockClear();
+    await repository.remove("owner", "selection");
+    expect(col.deleteMany).not.toHaveBeenCalled();
+  });
   it("paginates scoped rows without exposing internal document fields", async () => {
     const { repository, col, cursor, db } = setup();
     expect(await repository.list("user_one", 1)).toEqual({ items: [], nextCursor: null });
@@ -51,7 +108,7 @@ describe("FavoriteLocationsRepository", () => {
     expect(await repository.save("user_one", location)).toEqual({ key, location });
     expect(col.updateOne).toHaveBeenCalledWith(
       { _id: `user_one:${createHash("sha256").update(key).digest("hex")}`, userId: "user_one" },
-      { $set: { key, location, userId: "user_one" } },
+      { $set: { key, location, userId: "user_one", canonicalKey: key } },
       { upsert: true, session },
     );
     cursor.toArray.mockResolvedValue([{ key }]);
@@ -61,6 +118,9 @@ describe("FavoriteLocationsRepository", () => {
       { projection: { key: 1 }, session },
     );
     await repository.remove("user_one", key);
-    expect(col.deleteOne).toHaveBeenCalledWith({ userId: "user_one", key }, { session });
+    expect(col.findOneAndDelete).toHaveBeenCalledWith(
+      { userId: "user_one", key },
+      { session, projection: { canonicalKey: 1 } },
+    );
   });
 });
