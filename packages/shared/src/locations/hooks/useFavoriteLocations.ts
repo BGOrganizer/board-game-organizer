@@ -6,6 +6,7 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   type InfiniteData,
+  infiniteQueryOptions,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -21,44 +22,56 @@ export interface FavoriteLocationsOptions {
   protectionBypass?: string | null;
   feedback?: MutationFeedback;
 }
+async function requestFavoriteLocations(
+  options: FavoriteLocationsOptions,
+  path: string,
+  init?: RequestInit,
+) {
+  const token = await options.getToken();
+  if (!token) throw new Error("Unauthorized");
+  const response = await fetch(
+    withProtectionBypass(
+      `${options.apiUrl}/api/locations/favorites${path}`,
+      options.protectionBypass,
+    ),
+    {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      },
+    },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+export function favoriteLocationsQuery(options: FavoriteLocationsOptions) {
+  return infiniteQueryOptions({
+    queryKey: ["favoriteLocations", options.apiUrl, options.userId, "list"] as const,
+    queryFn: ({ pageParam, signal }) =>
+      requestFavoriteLocations(options, `?limit=20${pageParam ? `&cursor=${pageParam}` : ""}`, {
+        signal,
+      }) as Promise<FavoriteLocationsResponse>,
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: Boolean(options.apiUrl && options.userId),
+    staleTime: 5 * 60_000,
+  });
+}
 export function useFavoriteLocations(
   options: FavoriteLocationsOptions,
   locations: MatchLocation[] = [],
 ) {
-  const { apiUrl, userId, getToken, protectionBypass, feedback } = options;
+  const { apiUrl, userId, feedback } = options;
   const client = useQueryClient();
   const root = ["favoriteLocations", apiUrl, userId] as const;
   const listKey = [...root, "list"] as const;
   const keys = [...new Set(locations.map(locationFavoriteKey))].sort();
   const statusKey = [...root, "status", keys] as const;
   const enabled = Boolean(apiUrl && userId);
-  const request = async (path: string, init?: RequestInit) => {
-    const token = await getToken();
-    if (!token) throw new Error("Unauthorized");
-    const response = await fetch(
-      withProtectionBypass(`${apiUrl}/api/locations/favorites${path}`, protectionBypass),
-      {
-        ...init,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(init?.body ? { "Content-Type": "application/json" } : {}),
-        },
-      },
-    );
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
-  };
-  const list = useInfiniteQuery({
-    queryKey: listKey,
-    queryFn: ({ pageParam, signal }) =>
-      request(`?limit=20${pageParam ? `&cursor=${pageParam}` : ""}`, {
-        signal,
-      }) as Promise<FavoriteLocationsResponse>,
-    initialPageParam: "",
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    enabled,
-    staleTime: 5 * 60_000,
-  });
+  const request = (path: string, init?: RequestInit) =>
+    requestFavoriteLocations(options, path, init);
+  const list = useInfiniteQuery(favoriteLocationsQuery(options));
   const status = useQuery({
     queryKey: statusKey,
     queryFn: async ({ signal }) => {

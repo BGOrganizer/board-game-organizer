@@ -88,12 +88,14 @@ export async function fetchRelationshipPageWithToken(
   type: RelationshipListType,
   cursor = "",
   protectionBypass?: string | null,
+  signal?: AbortSignal,
 ): Promise<{ rows: RelationshipRow[]; nextCursor: string | null }> {
   const params = new URLSearchParams({ type, limit: "20", ...(cursor ? { cursor } : {}) });
   const res = await fetch(
     withProtectionBypass(`${apiUrl}/api/relationships?${params}`, protectionBypass),
     {
       headers: apiHeaders(await resolveToken(token, getToken)),
+      signal,
     },
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -132,12 +134,14 @@ export async function fetchSuggestionPageWithToken(
   getToken: (() => Promise<string | null>) | undefined,
   cursor = "",
   protectionBypass?: string | null,
+  signal?: AbortSignal,
 ): Promise<{ users: ContactUser[]; hasContacts: boolean; nextCursor: string | null }> {
   const params = new URLSearchParams({ limit: "20", ...(cursor ? { cursor } : {}) });
   const res = await fetch(
     withProtectionBypass(`${apiUrl}/api/users/suggestions?${params}`, protectionBypass),
     {
       headers: apiHeaders(await resolveToken(token, getToken)),
+      signal,
     },
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

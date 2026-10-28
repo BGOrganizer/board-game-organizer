@@ -1,104 +1,67 @@
 "use client";
 import {
-  eventRecordQuery,
-  eventRecordsQuery,
-  fetchRelationshipPageWithToken,
-  fetchSuggestionPageWithToken,
-  groupRecordsPageQuery,
-  profileQueryOptions,
-  recordTablesQuery,
   resolveApiUrl,
+  warmStartupBackground,
+  warmStartupPriority,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
+import { useLingui } from "@lingui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-const socialTypes = ["friends", "pending", "following", "followers", "sent", "blocked"] as const;
-/** First pages only. A cold deep link gets the connection budget before background warmup. */
+/** Same cache plan as mobile, without a web splash or navigation-blocking work. */
 export function WebDataWarmup() {
-  const { getToken, isLoaded, userId, sessionId } = useAuth(),
-    client = useQueryClient(),
-    pathname = usePathname(),
-    warmed = useRef<string | null>(null),
-    previous = useRef<string | null>(null);
+  const { getToken, isLoaded, userId, sessionId } = useAuth();
+  const { i18n } = useLingui();
+  const locale = i18n.locale.startsWith("it") ? "it" : "en";
+  const client = useQueryClient();
+  const initialPath = useRef(usePathname());
+  const warmed = useRef<string | null>(null);
+  const previous = useRef<string | null>(null);
   useEffect(() => {
     if (!isLoaded) return;
     const identity = userId && sessionId ? `${userId}/${sessionId}` : null;
     if (previous.current && previous.current !== identity) client.clear();
     previous.current = identity;
-    if (!userId || !identity || warmed.current === identity) return;
-    let cancelled = false;
+    const owner = JSON.stringify([identity, locale]);
+    if (!userId || !identity || warmed.current === owner) return;
+    let active = true;
+    let completed = false;
+    let backgroundTimer: ReturnType<typeof setTimeout> | undefined;
     const start = async () => {
-      if (cancelled) return;
-      warmed.current = identity;
-      const options = {
+      warmed.current = owner;
+      const options: Parameters<typeof warmStartupBackground>[1] = {
         apiUrl: resolveApiUrl(process.env.NEXT_PUBLIC_API_URL),
         getToken,
         userId,
+        locale,
         protectionBypass: process.env.NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS,
       };
-      const tasks = [
-        () => client.prefetchQuery(profileQueryOptions(options)),
-        () => client.prefetchInfiniteQuery(recordTablesQuery(options, null)),
-        () => client.prefetchInfiniteQuery(groupRecordsPageQuery(options)),
-        () => client.prefetchInfiniteQuery(eventRecordsQuery(options)),
-        ...socialTypes.map(
-          (type) => () =>
-            client.prefetchInfiniteQuery({
-              queryKey: ["contacts", type, options.apiUrl, userId],
-              queryFn: ({ pageParam }) =>
-                fetchRelationshipPageWithToken(
-                  options.apiUrl,
-                  null,
-                  getToken,
-                  type,
-                  pageParam,
-                  options.protectionBypass,
-                ),
-              initialPageParam: "",
-              getNextPageParam: (
-                page: Awaited<ReturnType<typeof fetchRelationshipPageWithToken>>,
-              ) => page.nextCursor ?? undefined,
-              staleTime: 5 * 60_000,
-            }),
-        ),
-        () =>
-          client.prefetchInfiniteQuery({
-            queryKey: ["contacts", "suggestions", options.apiUrl, userId],
-            queryFn: ({ pageParam }) =>
-              fetchSuggestionPageWithToken(
-                options.apiUrl,
-                null,
-                getToken,
-                pageParam,
-                options.protectionBypass,
-              ),
-            initialPageParam: "",
-            getNextPageParam: (page: Awaited<ReturnType<typeof fetchSuggestionPageWithToken>>) =>
-              page.nextCursor ?? undefined,
-            staleTime: 5 * 60_000,
-          }),
-      ];
-      let next = 0;
-      const worker = async () => {
-        while (!cancelled && next < tasks.length) await tasks[next++]();
+      let background: Promise<void> | undefined;
+      const startBackground = () => {
+        background ??= warmStartupBackground(client, options, () => active);
+        return background;
       };
-      await Promise.all([worker(), worker(), worker()]);
-      if (!cancelled) {
-        const list = client.getQueryData(recordTablesQuery(options, null).queryKey);
-        const ids = [...new Set(list?.pages[0]?.items.map((row) => row.eventId) ?? [])].slice(0, 2);
-        await Promise.all(ids.map((id) => client.prefetchQuery(eventRecordQuery(options, id))));
-      }
+      // A slow primary request must not starve unrelated background reads indefinitely.
+      backgroundTimer = setTimeout(() => {
+        void startBackground();
+      }, 5000);
+      await warmStartupPriority(client, options, () => active);
+      clearTimeout(backgroundTimer);
+      await startBackground();
+      completed = true;
     };
     const timer = setTimeout(
       () => void start(),
-      /^\/(events|groups)\/[^/]+/.test(pathname) ? 5000 : 0,
+      /^\/(events|groups)\/[^/]+/.test(initialPath.current) ? 5000 : 0,
     );
     return () => {
-      cancelled = true;
+      active = false;
       clearTimeout(timer);
+      clearTimeout(backgroundTimer);
+      if (!completed) warmed.current = null;
     };
-  }, [client, getToken, isLoaded, userId, sessionId, pathname]);
+  }, [client, getToken, isLoaded, userId, sessionId, locale]);
   return null;
 }

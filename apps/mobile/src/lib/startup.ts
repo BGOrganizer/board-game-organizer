@@ -1,19 +1,12 @@
 import {
   eventRecordKeys,
-  eventRecordsQuery,
   groupRecordKeys,
-  groupRecordsPageQuery,
-  recordTablesQuery,
+  notificationListKey,
+  startupRelationshipTypes,
 } from "@board-game-organizer/shared";
 import type { QueryClient } from "@tanstack/react-query";
-export const startupRelationshipTypes = [
-  "friends",
-  "pending",
-  "following",
-  "followers",
-  "sent",
-  "blocked",
-] as const;
+
+export { startupRelationshipTypes } from "@board-game-organizer/shared";
 export const STARTUP_SPLASH_LIMIT_MS = 5000;
 export function startupLinkPath(url: string | null | undefined): string | null {
   if (!url?.startsWith("bgo:")) return null;
@@ -43,6 +36,7 @@ export function isStartupDestinationSettled(
   pathname: string,
   apiUrl: string,
   userId: string,
+  locale: "en" | "it",
 ) {
   if (pathname === "/") return false;
   const o = { apiUrl, userId };
@@ -66,7 +60,8 @@ export function isStartupDestinationSettled(
       settled(client, ["contacts", type, apiUrl, userId]),
     );
   if (pathname === "/profile") return settled(client, ["profile", apiUrl, userId]);
-  if (pathname === "/notifications") return settled(client, ["notifications", apiUrl, userId, 20]);
+  if (pathname === "/notifications")
+    return settled(client, notificationListKey({ apiUrl, userId, locale }, 20));
   return true;
 }
 export function isStartupEssentialsSettled(client: QueryClient, apiUrl: string, userId: string) {
@@ -75,8 +70,6 @@ export function isStartupEssentialsSettled(client: QueryClient, apiUrl: string, 
     settled(client, ["profile", apiUrl, userId]) &&
     settled(client, eventRecordKeys.tables(o, null)) &&
     settled(client, groupRecordKeys.list(o, "mine")) &&
-    settled(client, eventRecordKeys.list(o)) &&
-    startupRelationshipTypes.every((type) => settled(client, ["contacts", type, apiUrl, userId])) &&
-    settled(client, ["contacts", "suggestions", apiUrl, userId])
+    settled(client, eventRecordKeys.list(o))
   );
 }

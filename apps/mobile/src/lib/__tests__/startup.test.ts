@@ -3,10 +3,11 @@ import {
   eventRecordsQuery,
   groupRecordKeys,
   groupRecordsPageQuery,
+  notificationListKey,
   recordTablesQuery,
 } from "@board-game-organizer/shared";
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import {
   isStartupAuthPending,
   isStartupDestinationSettled,
@@ -20,7 +21,7 @@ const apiUrl = "https://api.example.test",
   userId = "user-1",
   o = { apiUrl, userId, getToken: async () => null };
 const settled = (client: QueryClient, path: string) =>
-  isStartupDestinationSettled(client, path, apiUrl, userId);
+  isStartupDestinationSettled(client, path, apiUrl, userId, "en");
 function seed(client: QueryClient) {
   client.setQueryData(["profile", apiUrl, userId], { id: userId });
   for (const key of [
@@ -63,7 +64,7 @@ it("retains the total five-second budget including slow Clerk restoration", () =
   expect(isStartupAuthPending(true, true, true, true)).toBe(false);
   expect(isStartupAuthPending(true, false, false, false)).toBe(false);
 });
-it("waits for canonical first pages, not filtered or retired Match pages", () => {
+it("waits only for the four priority first pages, not social, filtered or retired pages", () => {
   const client = new QueryClient();
   expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(false);
   client.setQueryData(["matches", "paged", apiUrl, userId, "", "admin,invited,accepted"], {
@@ -75,15 +76,25 @@ it("waits for canonical first pages, not filtered or retired Match pages", () =>
   expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(true);
   for (const path of ["/tables", "/groups", "/events", "/contacts"])
     expect(settled(client, path)).toBe(true);
-  client.removeQueries({ queryKey: ["contacts", "blocked"] });
+  client.removeQueries({ queryKey: ["contacts"] });
+  expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(true);
+  client.removeQueries({ queryKey: groupRecordsPageQuery(o).queryKey });
   expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(false);
   client.clear();
 });
 it("prioritizes exact Group/Event/Table details and separates inbox page from bell", () => {
   const client = new QueryClient();
-  client.setQueryData(["notifications", apiUrl, userId, 3], {});
+  client.setQueryData(notificationListKey({ apiUrl, userId, locale: "en" }, 3), {});
+  client.setQueryData(["notifications", apiUrl, userId, 20], {}); // Retired locale-free key.
+  client.setQueryData(notificationListKey({ apiUrl, userId: "other", locale: "en" }, 20), {});
+  client.setQueryData(
+    notificationListKey({ apiUrl: "https://other.test", userId, locale: "en" }, 20),
+    {},
+  );
+  client.setQueryData(notificationListKey({ apiUrl, userId, locale: "it" }, 20), {});
   expect(settled(client, "/notifications")).toBe(false);
-  client.setQueryData(["notifications", apiUrl, userId, 20], {});
+  expect(isStartupDestinationSettled(client, "/notifications", apiUrl, userId, "it")).toBe(true);
+  client.setQueryData(notificationListKey({ apiUrl, userId, locale: "en" }, 20), {});
   expect(settled(client, "/notifications")).toBe(true);
   expect(settled(client, "/group/g1")).toBe(false);
   client.setQueryData(groupRecordKeys.detail(o, "g1"), {});

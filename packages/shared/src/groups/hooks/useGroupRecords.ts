@@ -161,13 +161,13 @@ export function useGroupRecord(options: CommunityApiOptions, id: string, review 
       : {}),
   });
 }
-export function useGroupPeople(
+export function groupPeopleQuery(
   options: CommunityApiOptions,
   id: string,
   mode: GroupPeopleScope = "accepted",
   query = "",
 ) {
-  const paging = useInfiniteQuery({
+  return infiniteQueryOptions({
     queryKey: groupRecordKeys.people(options, id, mode, query),
     queryFn: ({ pageParam, signal }) =>
       communityRequest<CommunityPageResponse<GroupPersonResponse>>(
@@ -187,6 +187,14 @@ export function useGroupPeople(
     staleTime: 5 * 60_000,
     gcTime: 30 * 60_000,
   });
+}
+export function useGroupPeople(
+  options: CommunityApiOptions,
+  id: string,
+  mode: GroupPeopleScope = "accepted",
+  query = "",
+) {
+  const paging = useInfiniteQuery(groupPeopleQuery(options, id, mode, query));
   return {
     ...paging,
     items:

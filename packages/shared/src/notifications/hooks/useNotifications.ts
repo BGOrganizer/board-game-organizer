@@ -109,13 +109,20 @@ function optimisticNotifications(
   };
 }
 
+export function notificationListKey(
+  options: Pick<NotificationsApiOptions, "apiUrl" | "userId" | "locale">,
+  limit: number,
+) {
+  return ["notifications", options.apiUrl, options.userId, limit, options.locale] as const;
+}
 export function notificationsPageQuery(options: NotificationsApiOptions, limit = 5) {
   return {
-    queryKey: ["notifications", options.apiUrl, options.userId, limit, options.locale] as const,
+    queryKey: notificationListKey(options, limit),
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal?: AbortSignal }) =>
       fetchNotifications(options, limit, pageParam, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page: NotificationListResponse) => page.nextCursor ?? undefined,
+    staleTime: 30_000,
   };
 }
 

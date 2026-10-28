@@ -1,8 +1,8 @@
 import type { BggPickerResponse } from "@board-game-organizer/schemas";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { infiniteQueryOptions, useInfiniteQuery } from "@tanstack/react-query";
 import { apiHeaders, withProtectionBypass } from "../../common/api";
 
-export function useBggPicker({
+export function bggPickerQuery({
   apiUrl,
   getToken,
   userId,
@@ -22,12 +22,12 @@ export function useBggPicker({
   protectionBypass?: string | null;
 }) {
   const trimmed = query.trim();
-  return useInfiniteQuery({
+  return infiniteQueryOptions({
     queryKey: ["bgg-picker", apiUrl, userId, trimmed, search, collection, snapshot],
     enabled:
       Boolean(userId) && ((search && trimmed.length >= 4) || (collection && Boolean(snapshot))),
     initialPageParam: "",
-    queryFn: async ({ pageParam }): Promise<BggPickerResponse> => {
+    queryFn: async ({ pageParam, signal }): Promise<BggPickerResponse> => {
       const token = await getToken();
       if (!token) throw new Error("No session token");
       const params = new URLSearchParams({
@@ -38,11 +38,16 @@ export function useBggPicker({
       });
       const response = await fetch(
         withProtectionBypass(`${apiUrl}/api/bgg/picker?${params}`, protectionBypass),
-        { headers: apiHeaders(token) },
+        { headers: apiHeaders(token), signal },
       );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return (await response.json()) as BggPickerResponse;
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+    staleTime: 5 * 60_000,
   });
+}
+
+export function useBggPicker(options: Parameters<typeof bggPickerQuery>[0]) {
+  return useInfiniteQuery(bggPickerQuery(options));
 }

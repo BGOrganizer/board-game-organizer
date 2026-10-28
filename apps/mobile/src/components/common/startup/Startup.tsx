@@ -1,16 +1,11 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import {
-  eventRecordQuery,
-  eventRecordsQuery,
-  fetchRelationshipPageWithToken,
-  fetchSuggestionPageWithToken,
-  groupRecordsPageQuery,
-  notificationsPageQuery,
-  profileQueryOptions,
-  recordTablesQuery,
   resolveApiUrl,
+  warmStartupBackground,
+  warmStartupPriority,
 } from "@board-game-organizer/shared";
 import { useAuth, useUser } from "@clerk/expo";
+import { useLingui } from "@lingui/react";
 import * as Sentry from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
@@ -21,7 +16,6 @@ import { Linking } from "react-native";
 import { AnimatedStartupSplash } from "@/components/common/startup/AnimatedStartupSplash";
 import { NotificationBadgeSync } from "@/components/notifications/NotificationBadgeSync";
 import { warmRegisteredContacts } from "@/lib/contacts/registeredContacts";
-import { defaultI18n } from "@/lib/i18n";
 import { hideStartupSplash } from "@/lib/splash";
 import {
   isStartupAuthPending,
@@ -29,7 +23,6 @@ import {
   isStartupEssentialsSettled,
   remainingSplashMs,
   startupLinkPath,
-  startupRelationshipTypes,
 } from "@/lib/startup";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -46,20 +39,19 @@ export function Startup({
     isLoaded: isAuthLoaded,
     isSignedIn: isRestoredSignedIn,
     sessionId,
-  } = useAuth({
-    treatPendingAsSignedOut: false,
-  });
+  } = useAuth({ treatPendingAsSignedOut: false });
   const { getToken, isSignedIn, userId } = useSessionAuth();
   const { isLoaded: isUserLoaded, user } = useUser();
+  const { i18n } = useLingui();
+  const locale = i18n.locale.startsWith("it") ? "it" : "en";
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const [ready, setReady] = useState(() => remainingSplashMs(startedAt, Date.now()) === 0);
-  const [deviceContactsReady, setDeviceContactsReady] = useState(false);
   const [initialLink, setInitialLink] = useState<string | null | undefined>();
   const previousSession = useRef<string | null>(null);
   const warmedSession = useRef<string | null>(null);
+  const backgroundSession = useRef<string | null>(null);
   const syncedSession = useRef<string | null>(null);
-  const prefetchedEvents = useRef(new Set<string>());
   const eligible =
     isAuthLoaded &&
     isRestoredSignedIn &&
@@ -91,21 +83,13 @@ export function Startup({
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(
-      () => {
-        setReady(true);
-      },
-      remainingSplashMs(startedAt, Date.now()),
-    );
+    const timer = setTimeout(() => setReady(true), remainingSplashMs(startedAt, Date.now()));
     return () => clearTimeout(timer);
   }, [startedAt]);
 
   useEffect(() => {
     if (!isAuthLoaded) return;
-    if (previousSession.current && previousSession.current !== sessionId) {
-      queryClient.clear();
-      prefetchedEvents.current.clear();
-    }
+    if (previousSession.current && previousSession.current !== sessionId) queryClient.clear();
     previousSession.current = sessionId ?? null;
   }, [isAuthLoaded, sessionId, queryClient]);
 
@@ -113,31 +97,24 @@ export function Startup({
     if (ready || isStartupAuthPending(isAuthLoaded, isRestoredSignedIn, isSignedIn, isUserLoaded))
       return;
     if (!eligible) {
-      setReady(true); // Sign-in and required mobile-number step do not wait for network lists.
+      setReady(true); // Sign-in/onboarding never waits for list requests.
       return;
     }
     if (initialNotificationHref === undefined || initialLink === undefined || !userId) return;
     let active = true;
     const check = () => {
       if (!active) return;
-      // A push notification may still be redirecting from /matches to its destination.
       if (!deepLink) {
-        if (
-          pathname !== "/" &&
-          deviceContactsReady &&
-          isStartupEssentialsSettled(queryClient, apiUrl, userId)
-        )
+        if (pathname !== "/" && isStartupEssentialsSettled(queryClient, apiUrl, userId))
           setReady(true);
         return;
       }
       if ((initialNotificationHref || linkPath) && pathname !== destination) return;
-      if (isStartupDestinationSettled(queryClient, destination, apiUrl, userId)) setReady(true);
+      if (isStartupDestinationSettled(queryClient, destination, apiUrl, userId, locale))
+        setReady(true);
     };
     check();
-    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
-      // Query observers may notify while another component renders.
-      queueMicrotask(check);
-    });
+    const unsubscribe = queryClient.getQueryCache().subscribe(() => queueMicrotask(check));
     return () => {
       active = false;
       unsubscribe();
@@ -157,7 +134,7 @@ export function Startup({
     destination,
     userId,
     queryClient,
-    deviceContactsReady,
+    locale,
   ]);
 
   useEffect(() => {
@@ -165,91 +142,62 @@ export function Startup({
   }, [ready]);
 
   useEffect(() => {
-    if (!canWarm || !userId || !sessionId) return;
-    if (warmedSession.current === sessionId) return;
+    if (!canWarm || !userId || !sessionId || warmedSession.current === sessionId) return;
     warmedSession.current = sessionId;
-    let cancelled = false;
-    void (async () => {
-      if (cancelled) return;
-      const options = { apiUrl, getToken, userId };
-      const tasks = [
-        async () => {
-          try {
-            const permission = await Contacts.getPermissionsAsync();
-            if (permission.granted)
-              await queryClient.prefetchQuery({
-                queryKey: ["device-contacts", apiUrl, userId],
-                queryFn: () =>
-                  Contacts.Contact.getAllDetails(
-                    [
-                      Contacts.ContactField.FULL_NAME,
-                      Contacts.ContactField.EMAILS,
-                      Contacts.ContactField.PHONES,
-                    ],
-                    { limit: 40, offset: 0, sortOrder: Contacts.ContactsSortOrder.GivenName },
-                  ),
-                staleTime: 60_000,
-              });
-          } catch (error) {
-            Sentry.captureException(error, { tags: { operation: "contacts.startup-page" } });
-          } finally {
-            if (!cancelled) setDeviceContactsReady(true);
-          }
-        },
-        () => queryClient.prefetchQuery(profileQueryOptions({ apiUrl, getToken, userId })),
-        () => queryClient.prefetchInfiniteQuery(recordTablesQuery(options, null)),
-        () => queryClient.prefetchInfiniteQuery(groupRecordsPageQuery(options)),
-        () => queryClient.prefetchInfiniteQuery(eventRecordsQuery(options)),
-        ...startupRelationshipTypes.map(
-          (type) => () =>
-            queryClient.prefetchInfiniteQuery({
-              queryKey: ["contacts", type, apiUrl, userId],
-              queryFn: ({ pageParam }) =>
-                fetchRelationshipPageWithToken(apiUrl, null, getToken, type, pageParam),
-              initialPageParam: "",
-              getNextPageParam: (page: { nextCursor: string | null }) =>
-                page.nextCursor ?? undefined,
-              staleTime: 5 * 60_000,
-            }),
-        ),
-        () =>
-          queryClient.prefetchInfiniteQuery({
-            queryKey: ["contacts", "suggestions", apiUrl, userId],
-            queryFn: ({ pageParam }) =>
-              fetchSuggestionPageWithToken(apiUrl, null, getToken, pageParam),
-            initialPageParam: "",
-            getNextPageParam: (page: { nextCursor: string | null }) => page.nextCursor ?? undefined,
-            staleTime: 5 * 60_000,
-          }),
-        () =>
-          queryClient.prefetchInfiniteQuery(
-            notificationsPageQuery(
-              {
-                apiUrl,
-                getToken,
-                userId,
-                enabled: true,
-                locale: defaultI18n.locale.startsWith("it") ? "it" : "en",
-              },
-              3,
-            ),
-          ),
-      ];
-      let next = 0;
-      const worker = async () => {
-        while (!cancelled && next < tasks.length) {
-          const task = tasks[next++];
-          await task(); // prefetch never turns a failed request into cached empty data.
-        }
-      };
-      await Promise.all([worker(), worker(), worker()]);
-    })().catch(() => {
-      /* Unavailable token/network: mounted screens retain their error UI. */
-    });
+    let active = true;
+    let completed = false;
+    void warmStartupPriority(queryClient, { apiUrl, getToken, userId }, () => active).finally(
+      () => {
+        completed = true;
+      },
+    );
     return () => {
-      cancelled = true;
+      active = false;
+      if (!completed) warmedSession.current = null;
     };
   }, [canWarm, userId, sessionId, getToken, queryClient]);
+
+  useEffect(() => {
+    if (!ready || !eligible || !userId || !sessionId) return;
+    const owner = JSON.stringify([sessionId, locale]);
+    if (backgroundSession.current === owner) return;
+    backgroundSession.current = owner;
+    let active = true;
+    let completed = false;
+    void warmStartupBackground(
+      queryClient,
+      { apiUrl, getToken, userId, locale },
+      () => active,
+    ).finally(() => {
+      completed = true;
+    });
+    // Local permissions/contacts stay platform-owned; never prompt at startup.
+    void (async () => {
+      try {
+        const permission = await Contacts.getPermissionsAsync();
+        if (active && permission.granted)
+          await queryClient.prefetchQuery({
+            queryKey: ["device-contacts", apiUrl, userId],
+            queryFn: () =>
+              Contacts.Contact.getAllDetails(
+                [
+                  Contacts.ContactField.FULL_NAME,
+                  Contacts.ContactField.EMAILS,
+                  Contacts.ContactField.PHONES,
+                ],
+                { limit: 40, offset: 0, sortOrder: Contacts.ContactsSortOrder.GivenName },
+              ),
+            staleTime: 60_000,
+          });
+      } catch (error) {
+        Sentry.captureException(error, { tags: { operation: "contacts.startup-page" } });
+      }
+    })();
+    return () => {
+      active = false;
+      if (!completed) backgroundSession.current = null;
+    };
+  }, [ready, eligible, userId, sessionId, locale, getToken, queryClient]);
 
   useEffect(() => {
     if (!ready || !eligible || !sessionId || !userId || syncedSession.current === sessionId) return;
@@ -272,31 +220,6 @@ export function Startup({
       cancelled = true;
     };
   }, [ready, eligible, userId, sessionId, getToken, queryClient]);
-
-  useEffect(() => {
-    if (!ready || !eligible || !userId) return;
-    let active = true;
-    const prefetchVisible = () => {
-      if (!active) return;
-      const options = { apiUrl, getToken, userId };
-      const data = queryClient.getQueryData(recordTablesQuery(options, null).queryKey);
-      for (const eventId of [
-        ...new Set(data?.pages[0]?.items.map((row) => row.eventId) ?? []),
-      ].slice(0, 2)) {
-        if (prefetchedEvents.current.has(eventId)) continue;
-        prefetchedEvents.current.add(eventId);
-        void queryClient.prefetchQuery(eventRecordQuery(options, eventId));
-      }
-    };
-    prefetchVisible();
-    const unsubscribe = queryClient
-      .getQueryCache()
-      .subscribe(() => queueMicrotask(prefetchVisible));
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [ready, eligible, userId, getToken, queryClient]);
 
   return ready ? <NotificationBadgeSync /> : <AnimatedStartupSplash startedAt={startedAt} />;
 }

@@ -7,6 +7,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["lcov", "html", "text"],
       include: [
+        "src/common/startupQueries.ts",
         "src/events/eventAgreement.ts",
         "src/events/eventJoinAvailability.ts",
         "src/events/eventRecordPolicy.ts",
@@ -42,6 +43,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/common/startupQueries.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/{eventRecordForm,tableScoreForm,eventTablePeople,eventVotes,eventTableRoster,eventSchedule,eventJoinAvailability}.ts":
           {
             lines: 100,
