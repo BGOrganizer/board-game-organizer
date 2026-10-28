@@ -8,20 +8,19 @@ it("keeps unselected domains silent", () => {
   trace("failed", "transaction", 500, "INTERNAL_ERROR");
   expect(console.info).not.toHaveBeenCalled();
 });
-it.each(["group.create", "location.search"] as const)(
+it.each([
+  ["group.create", "[bgo.group-write]"],
+  ["location.search", "[bgo.location-write]"],
+  ["event.table.invite", "[bgo.event-write]"],
+] as const)(
   "correlates safe stages for %s without arbitrary messages",
-  (operation) => {
+  (operation, expectedTag) => {
     const trace = createRequestDiagnostics(operation);
     trace("completed", "storage", 200);
     trace("failed", "lookup", 503, "GEOCODING_UNAVAILABLE");
     trace("failed", "lookup", 500, "private-address@example.test");
     const calls = vi.mocked(console.info).mock.calls;
-    expect(
-      calls.every(
-        ([tag]) =>
-          tag === (operation.startsWith("group.") ? "[bgo.group-write]" : "[bgo.location-write]"),
-      ),
-    ).toBe(true);
+    expect(calls.every(([tag]) => tag === expectedTag)).toBe(true);
     const entries = calls.map(([, value]) => value);
     expect(entries[0]).toMatchObject({
       operation,

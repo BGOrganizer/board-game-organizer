@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 export type RequestDiagnosticOperation =
+  | "event.table.invite"
   | "group.create"
   | "group.update"
   | "group.logo.start"
@@ -32,7 +33,13 @@ export function createRequestDiagnostics(operation?: RequestDiagnosticOperation)
     code?: string,
   ) => {
     if (!operation) return;
-    console.info(operation.startsWith("group.") ? "[bgo.group-write]" : "[bgo.location-write]", {
+    const tag =
+      operation === "event.table.invite"
+        ? "[bgo.event-write]"
+        : operation.startsWith("group.")
+          ? "[bgo.group-write]"
+          : "[bgo.location-write]";
+    console.info(tag, {
       operation,
       requestId,
       phase,

@@ -31,5 +31,6 @@ export function POST(
       return events.register(userId, communityId(eventId), communityId(tableId), target);
     },
     201,
+    "event.table.invite",
   );
 }

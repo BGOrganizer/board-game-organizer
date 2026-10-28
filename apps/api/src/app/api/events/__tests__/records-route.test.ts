@@ -1,4 +1,5 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { CommunityError } from "@/app/lib/community.error";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -77,11 +78,13 @@ const events = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(console, "info").mockImplementation(() => {});
   mocks.auth.mockResolvedValue({ userId: "actor" });
   mocks.transaction.mockImplementation(async (fn) => fn({}, {}));
   mocks.factory.mockReturnValue({ events });
   for (const method of Object.values(events)) method.mockReset().mockResolvedValue({ id });
 });
+afterEach(() => vi.restoreAllMocks());
 it("passes strict unified event create/edit contracts without legacy drafts or partial table deletion", async () => {
   expect((await root.POST(request("POST", input))).status).toBe(201);
   expect(events.create).toHaveBeenCalledWith("actor", input);
@@ -143,6 +146,10 @@ it("keeps explicit registrations, invitations and invitation consent distinct", 
   expect(events.join).toHaveBeenLastCalledWith("actor", id, tableId, choices);
   expect((await invitation.POST(request("POST", { userId: "friend" }), context)).status).toBe(201);
   expect(events.register).toHaveBeenLastCalledWith("actor", id, tableId, "friend");
+  expect(vi.mocked(console.info).mock.calls.at(-1)).toEqual([
+    "[bgo.event-write]",
+    expect.objectContaining({ operation: "event.table.invite", phase: "completed", status: 201 }),
+  ]);
   await response.PATCH(request("PATCH", { action: "accept", version: 1 }), context);
   expect(events.registrationAction).toHaveBeenCalledWith("actor", id, {
     action: "accept",
@@ -154,6 +161,105 @@ it("keeps explicit registrations, invitations and invitation consent distinct", 
     context,
   );
   expect(events.seats).toHaveBeenCalledWith("actor", id, tableId, { limit: 20, cursor }, true);
+});
+it.each([
+  "REGISTRATION_ALREADY_ACTIVE",
+  "TABLE_TIME_CONFLICT",
+  "EVENT_NOT_PLANNING",
+  "EVENT_BOOKING_CLOSED",
+])(
+  "traces invitation conflict %s without request/user data or changing the response",
+  async (code) => {
+    events.register.mockRejectedValueOnce(new CommunityError(409, code));
+    const response = await invitation.POST(
+      new Request(
+        `https://api.test/api/events/${id}/tables/${tableId}/invitations?x-vercel-protection-bypass=private-preview-sentinel`,
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer private-auth-sentinel" },
+          body: JSON.stringify({ userId: "private-target-sentinel" }),
+        },
+      ),
+      context,
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: code });
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    const calls = vi.mocked(console.info).mock.calls;
+    expect(calls.every(([tag]) => tag === "[bgo.event-write]")).toBe(true);
+    const entries = calls.map(([, entry]) => entry);
+    expect(entries[0]).toMatchObject({
+      operation: "event.table.invite",
+      phase: "received",
+      stage: "auth",
+    });
+    expect(entries.at(-1)).toMatchObject({
+      operation: "event.table.invite",
+      phase: "failed",
+      stage: "transaction",
+      status: 409,
+      code,
+    });
+    expect(new Set(entries.map((entry) => entry.requestId)).size).toBe(1);
+    for (const privateValue of [
+      "private-preview-sentinel",
+      "private-auth-sentinel",
+      "private-target-sentinel",
+      id,
+      tableId,
+    ])
+      expect(JSON.stringify(calls)).not.toContain(privateValue);
+    expect(mocks.after).not.toHaveBeenCalled();
+  },
+);
+it("traces unauthorized invitations before services without invoking registration", async () => {
+  mocks.auth.mockResolvedValueOnce({ userId: null });
+  const response = await invitation.POST(request("POST", { userId: "friend" }), context);
+  expect(response.status).toBe(401);
+  expect(events.register).not.toHaveBeenCalled();
+  expect(mocks.factory).not.toHaveBeenCalled();
+  expect(vi.mocked(console.info).mock.calls.at(-1)).toEqual([
+    "[bgo.event-write]",
+    expect.objectContaining({
+      phase: "rejected",
+      stage: "auth",
+      status: 401,
+      code: "UNAUTHORIZED",
+    }),
+  ]);
+});
+it("redacts arbitrary invitation exceptions and preserves the generic 500 response", async () => {
+  events.register.mockRejectedValueOnce(new Error("private-user-and-address-sentinel"));
+  const response = await invitation.POST(request("POST", { userId: "friend" }), context);
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({ error: "Internal server error" });
+  expect(vi.mocked(console.info).mock.calls.at(-1)).toEqual([
+    "[bgo.event-write]",
+    expect.objectContaining({ phase: "failed", status: 500, code: "INTERNAL_ERROR" }),
+  ]);
+  expect(JSON.stringify(vi.mocked(console.info).mock.calls)).not.toContain(
+    "private-user-and-address-sentinel",
+  );
+});
+it("emits one terminal invitation result even when MongoDB retries a consumed request body", async () => {
+  events.register
+    .mockResolvedValueOnce({ id })
+    .mockRejectedValueOnce(new CommunityError(409, "REGISTRATION_ALREADY_ACTIVE"));
+  mocks.transaction.mockImplementationOnce(async (fn) => {
+    await fn({}, {});
+    return fn({}, {});
+  });
+  expect((await invitation.POST(request("POST", { userId: "friend" }), context)).status).toBe(409);
+  expect(events.register).toHaveBeenCalledTimes(2);
+  const entries = vi.mocked(console.info).mock.calls.map(([, entry]) => entry);
+  expect(entries.filter((entry) => entry.phase === "received")).toHaveLength(1);
+  expect(entries.filter((entry) => entry.phase === "failed")).toHaveLength(1);
+  expect(entries.filter((entry) => entry.phase === "completed")).toHaveLength(0);
+  expect(mocks.after).not.toHaveBeenCalled();
+});
+it("keeps Table invitation candidate reads outside write diagnostics", async () => {
+  expect((await invitation.GET(request(), context)).status).toBe(200);
+  expect(console.info).not.toHaveBeenCalled();
 });
 it("validates initial availability and game preferences, rejecting UNKNOWN in every write", async () => {
   const availability = {
