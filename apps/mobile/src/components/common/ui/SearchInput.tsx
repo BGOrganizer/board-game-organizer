@@ -11,6 +11,8 @@ export function SearchInput({
   maxLength,
   inputStyle,
   clearButtonStyle,
+  onFocus,
+  onBlur,
   children,
 }: {
   value: string;
@@ -21,6 +23,8 @@ export function SearchInput({
   maxLength?: number;
   inputStyle?: ComponentProps<typeof SearchField.Input>["style"];
   clearButtonStyle?: ComponentProps<typeof SearchField.ClearButton>["style"];
+  onFocus?: ComponentProps<typeof SearchField.Input>["onFocus"];
+  onBlur?: ComponentProps<typeof SearchField.Input>["onBlur"];
   children?: ReactNode;
 }) {
   const t = useT();
@@ -36,6 +40,8 @@ export function SearchInput({
           placeholder={placeholder}
           maxLength={maxLength}
           style={inputStyle}
+          onFocus={onFocus}
+          onBlur={onBlur}
         />
         <SearchField.ClearButton accessibilityLabel={t("Clear search")} style={clearButtonStyle} />
         {children}
