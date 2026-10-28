@@ -172,8 +172,9 @@ explicit consent, exact public cutoffs, duration/overlap constraints, manual agr
 and immutable results. Standalone and PUBLIC Group Events have one date/time and verified location;
 PRIVATE Group Events may propose multiple date/time and verified-location options for voting. New/edited Tables require a minimum of at
 least two players not exceeding their maximum; historical record shapes remain readable. PUBLIC
-Group Events end later on their start's local calendar day. Booking cutoff is one combined instant
-before the start (the same day is allowed); new public drafts default to tomorrow with no preset venue.
+Group Events end later on their start's local calendar day. Registration deadline must fall on an
+earlier local calendar day and remain future for creation. Table starts include Event start and the
+latest full-duration start ending by Event end. New public drafts default to tomorrow with no preset venue.
 
 Unified Groups/Events/Tables are **implemented in this branch; acceptance is incomplete**, not
 production-verified. Legacy automatic deadline functions are unregistered. Confirmation stays

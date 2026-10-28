@@ -1,5 +1,58 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Public Group Events — native clocks and inclusive scheduling
+
+- Native Event end, registration deadline and Table start use the installed system clock picker,
+  including bounded fields. Android date/time selection stays staged and cancel writes nothing;
+  the native clock cannot disable individual times, so out-of-range choices show validation instead
+  of being accepted or silently clamped. The obsolete custom hour/minute picker is removed.
+- Registration deadline is restricted to a calendar day before the Event in its verified venue zone;
+  creation still requires a future instant. UI bounds, draft validation and API writes agree,
+  including cases where a preceding UTC day is already the Event day locally. Existing records stay
+  readable; no backfill/reset occurs. Table starts include Event start and the last full-duration
+  start ending by Event end; duration and overlap guards remain. New Table defaults use Event start.
+- Summary end/deadline values use the same grouped items as Start. Wizard/detail labels share
+  `Registration Deadline Date and Time`, translated exactly as `Date e ora Termine iscrizioni`.
+  PUBLIC Group joins open Games even on first enrollment; all three tabs remain available and fixed
+  date/location values remain read-only. PRIVATE repeat-join preference/consent behavior is unchanged.
+- Local coverage passes 1,716 tests: schemas 110, shared 222, API 700, web 470, native pure/source 214.
+  Existing 100% deterministic-logic gates pass; Mongo integration 82/82, root typecheck 4/4,
+  scoped Biome, EN/IT extraction/compilation, API/web production builds and Android export pass.
+  Native callback/source checks are not real device/clock/push or authenticated E2E acceptance.
+  Workflows, dependencies, private files and generated Next references are preserved. Operator
+  requests signed scoped commits/push, including earlier Back and moderation work; no new PR/merge.
+
+## Group moderation — notification destinations and pending-list parity
+
+- The API already emits `/moderation/{groupId}` for Group review requests. The shared native
+  notification adapter now accepts only UUID-shaped review paths, instead of falling back to the
+  inbox; bell, inbox and cold/warm push readers all use it. External, traversal, query/fragment and
+  unsupported paths remain rejected. Existing review routes and fresh BGO moderator checks are unchanged.
+- Both moderation queues reuse their platform-owned Group cards with explicit review destinations,
+  artwork, status and metadata, rather than name-only buttons/links. Optional invitation callbacks
+  keep membership actions out of review cards. Ordinary Group destinations and consent stay intact.
+  Existing list/search frames, source paging, cached content, access-denied filtering, retry and
+  loading/empty states remain; mobile stays virtualized. All labels reuse existing EN/IT messages.
+- Local checks pass: native pure/source coverage 208 tests, web coverage 469 tests (677 total), root
+  typecheck 4/4, scoped Biome 9 files, web production build and Android Metro export. Native URL
+  logic retains its existing 100% coverage gate; web GroupCard/GroupModeration also measure 100%.
+  Callback/source checks are not native rendering, real push or authenticated E2E acceptance.
+  Included in the requested scoped publication; no API, database, dependency, provider or workflow
+  mutation. Earlier single-Back
+  work and private files are preserved. Detailed local evidence: `.git/moderation-result.json`.
+
+## Location picker — one native Back control
+
+- LocationPicker clears inherited/custom `headerLeft` and explicitly keeps native Back visible;
+  the duplicate ArrowLeft button is removed. Native route removal closes an inline picker through
+  Expo's supported `usePreventRemove` hook instead of discarding the Group/Event wizard draft.
+  Standalone picker navigation remains unguarded. Parent header/icon restoration is preserved.
+- Actual option/callback tests cover inherited custom-button clearing, inline/standalone guards and
+  Group/Event header restoration. Native pure/source coverage passes 200 tests, root typecheck 4/4,
+  scoped Biome 2 files and Android Metro export pass. No native gesture/rendering acceptance is
+  claimed. Included in the requested scoped publication; no dependency, localization, API, provider
+  or workflow change.
+
 ## Verified-address coordinate drift — provider canonicalization and favorite identity
 
 - Supplied runtime logs confirm the shared failure: one returned provider address matches the selected

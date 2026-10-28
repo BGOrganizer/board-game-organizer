@@ -136,8 +136,9 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   do not exclude a candidate. Existing approved Group membership, exclusions and standalone reciprocal
   friendship/block rules remain authoritative. Group candidate responses expose no email/presence.
 - Accepted members can enroll directly; no extra booking-approval workflow. Every voluntary join
-  opens a platform HeroUI bottom sheet with Dates/Locations/Games tabs. Dates opens initially when
-  the player has no other ACCEPTED Table in that Event; otherwise Games opens initially. Metadata
+  opens a platform HeroUI bottom sheet with Dates/Locations/Games tabs. PUBLIC Group Events always
+  open Games initially. Other Events open Dates when the player has no other ACCEPTED Table in that
+  Event; otherwise Games opens initially. Metadata
   must be known before choosing this default, which never overrides a later manual tab selection.
   Pending/declined/cancelled registrations do not qualify as prior participation. Stored PRIVATE Event
   preferences are prefilled and remain editable for any Table join; fixed non-private schedules remain
@@ -165,16 +166,18 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   never contribute or imply consent; missing detail totals remain partial skeletons.
 - Public events additionally require an end and exact booking cutoff. Their tables have
   fixed starts and BGG-derived duration; missing metadata requires explicit administrator duration.
-  Table editors fix the date to the Event day and expose only a start-time field, strictly after
-  Event start and before Event end, with the entire duration fitting by Event end. API rejects
-  invalid intervals before writes. Demonstrators use the existing grouped player identity pattern.
-  Public detail uses matching Start Date and Time, End Date and Time and Booking Cutoff Date and
-  Time information items.
+  Table editors fix the date to the Event day and expose only a start-time field, including Event
+  start and the latest start that fits the full duration by Event end. API rejects invalid intervals
+  before writes. Native end/deadline/Table clocks use the installed system time picker; Android
+  bounds are revalidated after selection because its native clock cannot disable individual times.
+  Demonstrators use the existing grouped player identity pattern. Public detail and wizard summary
+  use matching grouped Start Date and Time, End Date and Time and Registration Deadline Date and
+  Time information items (Italian: `Date e ora Termine iscrizioni`).
   Planning uses the longest candidate duration; confirmation snapshots the selected game duration.
   New/edited public ends must be strictly later on the start's local calendar day, enforced in UI
-  bounds and by API venue-zone validation. Booking cutoff compares the combined date/time instant
-  with the start, not independent day/clock components: same-day earlier cutoffs and prior-day later
-  clocks are valid. A new cutoff must still be in the future. Older overnight/multiday records remain
+  bounds and by API venue-zone validation. Registration deadline must be on a local calendar day
+  before the event, regardless of clock time; event-day deadlines are rejected even before its start.
+  A new deadline must still be in the future. Older overnight/multiday records remain
   readable and are not migrated; an explicit planning edit must satisfy current rules. Player and
   demonstrator duties cannot overlap; half-open boundaries permit adjacent tables. Other modes do
   not restrict overlaps.
