@@ -32,6 +32,31 @@ addresses, coordinates, images and arbitrary exception messages. Inspect the API
 the tested APK, not a different deployment; this instrumentation does not prove the location failure
 is fixed. Remove temporary diagnostics after investigation.
 
+### Table invitation conflicts
+
+`POST /api/events/{eventId}/tables/{tableId}/invitations` emits `[bgo.event-write]` with fixed
+operation `event.table.invite`. Follow its random `requestId` from `received` through one terminal
+result after transaction retries. `status` and normalized `code` preserve the actual response;
+no request, Event/Table/user IDs, headers, tokens, URL/query values or arbitrary exceptions are logged.
+Candidate GETs and other Event operations remain untraced.
+
+For 409, inspect the JSON response's `error` or the terminal diagnostic code:
+
+- `REGISTRATION_ALREADY_ACTIVE`: the target already has a PENDING/ACCEPTED registration on this Table,
+  potentially created after the cached picker loaded or by another concurrent request.
+- `TABLE_TIME_CONFLICT`: a PUBLIC Event's target has an overlapping PENDING/ACCEPTED registration or
+  demonstrator duty on another Table. Planning uses the longest candidate duration; adjacent bounds
+  are allowed. Candidate identity paging excludes same-Table active registrations, not every
+  other-Table timing conflict, so being selectable is not a promise that a later write will succeed.
+- `EVENT_NOT_PLANNING`: the Event is no longer planning.
+- `EVENT_BOOKING_CLOSED`: the exact PUBLIC registration cutoff has been reached.
+
+Invitations submit a target user only, not an Event version: `EVENT_CHANGED` is not this POST's
+version guard. A status/timing-only platform report cannot distinguish the above causes. Share
+only the diagnostic fields or sanitized response body. New logging requires the corresponding API
+Preview; an installed APK pointing to an older immutable origin does not switch to a new deployment.
+These logs do not relax any consent, membership, transaction, duplicate or overlap guard.
+
 ## Durable deadlines
 
 Real Inngest configuration/registration/delivery remains excluded from local acceptance. By explicit

@@ -1,5 +1,24 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Table invitation 409 — scoped conflict diagnostics
+
+- The supplied platform report contains status/timing but no response body, so it does not identify
+  one specific cause. Invitation POSTs carry no Event version: possible domain conflicts are
+  `REGISTRATION_ALREADY_ACTIVE`, `TABLE_TIME_CONFLICT`, `EVENT_NOT_PLANNING` and `EVENT_BOOKING_CLOSED`,
+  not the voluntary join's `EVENT_CHANGED` check. No duplicate, consent, cutoff or overlap guard is
+  weakened, and no speculative retry/idempotency or candidate-filter behavior is introduced.
+- This POST alone opts into `[bgo.event-write]` / `event.table.invite` diagnostics. Fixed stages,
+  random correlation ID, HTTP status and normalized code identify the actual next failure; terminal
+  logging stays outside transaction callbacks so retries cannot report uncommitted success. URLs,
+  bypass/auth tokens, headers, payloads, identities and Event/Table IDs are not logged. Candidate
+  GETs and unrelated Event routes remain silent. Operational triage is documented in
+  [operations](organizations-events-operations.md#table-invitation-conflicts).
+- Local checks pass: API coverage 709 tests, existing diagnostic helper 100% gate, root typecheck
+  4/4, scoped Biome 4 files, Mongo integration 82/82 and API production build. Tests exercise all
+  four 409 codes, 201/401/500, privacy redaction and transaction/body retries. This is instrumentation,
+  not proof of a deployed root cause or native/E2E acceptance. The tested APK must target the API
+  Preview containing this change; an older immutable origin does not update itself.
+
 ## Public Group Events — native clocks and inclusive scheduling
 
 - Native Event end, registration deadline and Table start use the installed system clock picker,
