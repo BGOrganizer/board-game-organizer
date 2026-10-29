@@ -2962,6 +2962,10 @@ msgstr "Durata manuale in minuti"
 msgid "Map by MapTiler"
 msgstr "Mappa di MapTiler"
 
+#: apps/mobile/src/components/locations/LocationPicker.tsx
+msgid "© OpenStreetMap contributors"
+msgstr "© Collaboratori OpenStreetMap"
+
 #: apps/web/src/components/locations/SearchLocationPage.tsx
 msgid "Map unavailable"
 msgstr "Mappa non disponibile"
