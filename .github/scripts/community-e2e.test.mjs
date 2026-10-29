@@ -1340,15 +1340,20 @@ test("retained legacy preference flow requires explicit sheet closure before edi
   assert.deepEqual(edit[1].tapOn, { id: "edit-match-fab" });
 });
 
-test("unified table scores retain real native sheet focus and keyboard interactions", () => {
+test("unified table scores retain native focus handlers and keyboard-relative positioning", () => {
   const editor = readFileSync(
     new URL("../../apps/mobile/src/components/events/TableScoreEditor.tsx", import.meta.url),
     "utf8",
   );
   assert(editor.includes("useBottomSheetAwareHandlers"));
-  assert(editor.includes('keyboardBehavior="extend"'));
+  assert(editor.includes('keyboardBehavior="interactive"'));
+  assert(editor.includes('keyboardBlurBehavior="restore"'));
+  assert(editor.includes('android_keyboardInputMode="adjustResize"'));
   assert(editor.includes("onFocus={onFocus}"));
   assert(editor.includes("onBlur={onBlur}"));
+  assert(editor.includes("ReduceMotion.System"));
+  assert(!editor.includes("KeyboardAvoidingView"));
+  assert(!editor.includes("Keyboard.addListener"));
 });
 
 test("native confirmation titles match literal question marks, not background action buttons", () => {
