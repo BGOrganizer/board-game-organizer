@@ -85,7 +85,7 @@ it.each(["android", "ios"])(
     const focusEvent = { nativeEvent: { target: 17 } };
     (input.props.onFocus as (event: typeof focusEvent) => void)(focusEvent);
     expect(onFocus).toHaveBeenCalledWith(focusEvent);
-    expect(snapToPosition).toHaveBeenCalledWith("100%");
+    expect(snapToPosition).toHaveBeenCalledWith("80%");
     expect(onChange).not.toHaveBeenCalled();
     expect(onFocus.mock.invocationCallOrder[0]).toBeLessThan(
       snapToPosition.mock.invocationCallOrder[0],
@@ -101,7 +101,7 @@ it.each(["android", "ios"])(
     expect(nodes(nd).find((n) => n.type === "input")?.props.editable).toBe(false);
   },
 );
-it("configures full-parent expansion within the safe area and preserves local score drafts on close/reopen", () => {
+it("configures an 80% keyboard detent within the safe area and preserves local score drafts on close/reopen", () => {
   const onSubmit = vi.fn(),
     states: unknown[] = [],
     props = {
@@ -143,12 +143,12 @@ it("configures full-parent expansion within the safe area and preserves local sc
   const tree = rerender(),
     content = nodes(tree).find((n) => n.type === "content")!;
   expect(content.props).toMatchObject({
-    keyboardBehavior: "fillParent",
+    keyboardBehavior: "extend",
     keyboardBlurBehavior: "restore",
     android_keyboardInputMode: "adjustResize",
     topInset: 24,
   });
-  expect(content.props.snapPoints).toBeUndefined();
+  expect(content.props.snapPoints).toEqual(["80%"]);
   expect(source).not.toContain("KeyboardAvoidingView");
   expect(source).not.toContain("Keyboard.addListener");
   const input = nodes(content).find((n) => n.type === "score-input")!;
@@ -170,7 +170,12 @@ it("configures full-parent expansion within the safe area and preserves local sc
 
 // Exercise the installed SDK worklet, rather than only checking our prop strings.
 // This explains the former Android failure; it is still not a rendered-device test.
-function sdkPosition(behavior: "interactive" | "fillParent", os: "android" | "ios") {
+function sdkPosition(
+  behavior: "interactive" | "fillParent" | "extend",
+  os: "android" | "ios",
+  detents = [520],
+  currentIndex = 0,
+) {
   const sdkSource = readFileSync(
     new URL(
       "../../../../../node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheet.tsx",
@@ -210,10 +215,14 @@ function sdkPosition(behavior: "interactive" | "fillParent", os: "android" | "io
       keyboardBehavior: behavior,
       keyboardBlurBehavior: "restore",
       android_keyboardInputMode: "adjustResize",
-      animatedCurrentIndex: { value: 0 },
+      animatedCurrentIndex: { value: currentIndex },
       animatedPosition: { value: 520 },
       animatedDetentsState: {
-        get: () => ({ detents: [520], highestDetentPosition: 520, closedDetentPosition: 800 }),
+        get: () => ({
+          detents,
+          highestDetentPosition: Math.min(...detents),
+          closedDetentPosition: 800,
+        }),
       },
       animatedKeyboardState: { get: () => keyboard },
       animatedAnimationState: { get: () => ({ status: "stopped" }) },
@@ -226,6 +235,15 @@ function sdkPosition(behavior: "interactive" | "fillParent", os: "android" | "io
   ) as () => number;
   return { evaluate, keyboard, temporary };
 }
+it.each(["android", "ios"] as const)(
+  "installed SDK keeps the focused 80% detent on %s when the keyboard opens",
+  (os) => {
+    const sheet = sdkPosition("extend", os, [520, 160], 1);
+    expect(sheet.evaluate()).toBe(160);
+    sheet.keyboard.status = "hidden";
+    expect(sheet.evaluate()).toBe(160);
+  },
+);
 it("reproduces the installed SDK ignoring interactive keyboard offset on Android with adjustResize", () => {
   expect(sdkPosition("interactive", "android").evaluate()).toBe(520);
   expect(sdkPosition("interactive", "ios").evaluate()).toBe(220);

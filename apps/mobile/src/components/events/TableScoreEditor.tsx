@@ -46,7 +46,7 @@ function ScoreInput({
         onFocus={(event) => {
           onFocus(event);
           // Expand even before Android delivers a keyboard/resize event.
-          snapToPosition("100%");
+          snapToPosition("80%");
         }}
         onBlur={onBlur}
       />
@@ -286,7 +286,8 @@ export function TableScoreEditor({
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
-            keyboardBehavior="fillParent"
+            snapPoints={["80%"]}
+            keyboardBehavior="extend"
             keyboardBlurBehavior="restore"
             topInset={insets.top}
             android_keyboardInputMode="adjustResize"

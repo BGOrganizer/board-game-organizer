@@ -1346,12 +1346,13 @@ test("unified table scores retain native focus handlers and keyboard-relative po
     "utf8",
   );
   assert(editor.includes("useBottomSheetAwareHandlers"));
-  assert(editor.includes('keyboardBehavior="fillParent"'));
+  assert(editor.includes('keyboardBehavior="extend"'));
+  assert(editor.includes('snapPoints={["80%"]}'));
   assert(editor.includes('keyboardBlurBehavior="restore"'));
   assert(editor.includes('android_keyboardInputMode="adjustResize"'));
   assert(editor.includes("useBottomSheet"));
   assert(editor.includes("onFocus(event)"));
-  assert(editor.includes('snapToPosition("100%")'));
+  assert(editor.includes('snapToPosition("80%")'));
   assert(editor.includes("topInset={insets.top}"));
   assert(editor.includes("onBlur={onBlur}"));
   assert(editor.includes("ReduceMotion.System"));
