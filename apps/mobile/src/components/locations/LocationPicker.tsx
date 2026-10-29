@@ -71,16 +71,14 @@ export default function LocationPicker({
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const resultsList = useRef<FlatList<Result>>(null);
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
-  const compact = searchFocused && keyboardVisible;
+  const addressFocused = useRef(false);
+  const [searchMode, setSearchMode] = useState(false);
   useEffect(() => {
-    const shown = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => setKeyboardVisible(true),
-    );
+    const shown = Keyboard.addListener("keyboardDidShow", () => {
+      if (addressFocused.current) setSearchMode(true);
+    });
     const hidden = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardVisible(false);
+      setSearchMode(false);
       resultsList.current?.scrollToOffset({ offset: 0, animated: false });
     });
     return () => {
@@ -246,7 +244,8 @@ export default function LocationPicker({
   };
   const locate = async () => {
     Keyboard.dismiss();
-    setSearchFocused(false);
+    addressFocused.current = false;
+    setSearchMode(false);
     cancelLocate();
     const requestId = locationRequest.current;
     setLocating(true);
@@ -294,26 +293,6 @@ export default function LocationPicker({
           headerTitle: ({ children }) => <HeaderTitle title={children} icon={MapPin} />,
         }}
       />
-      <View style={{ padding: 16, paddingBottom: 12 }}>
-        <SearchInput
-          value={query}
-          onFocus={() => {
-            setSearchFocused(true);
-            resultsList.current?.scrollToOffset({ offset: 0, animated: false });
-          }}
-          onBlur={() => setSearchFocused(false)}
-          onChange={(text) => {
-            cancelLocate();
-            setQuery(text);
-            setSelected(null);
-            setFavoriteKey(null);
-            setResults([]);
-          }}
-          testID="location-address-input"
-          label={t("Search address")}
-          placeholder={t("Search address")}
-        />
-      </View>
       <FlatList
         ref={resultsList}
         style={{ flex: 1 }}
@@ -326,14 +305,27 @@ export default function LocationPicker({
         // Keep the native map attached when its header scrolls out of view.
         removeClippedSubviews={false}
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: compact ? 16 : Math.max(insets.bottom, 16) + 24,
+          padding: 16,
+          paddingBottom: searchMode ? 16 : Math.max(insets.bottom, 16) + 24,
           gap: 4,
         }}
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
             {mapStyle ? (
-              <View style={{ height: compact ? 120 : 240 }}>
+              <View
+                collapsable={false}
+                style={{
+                  height: 240,
+                  width: "100%",
+                  top: 0,
+                  left: 0,
+                  position: searchMode ? "absolute" : "relative",
+                  opacity: searchMode ? 0 : 1,
+                }}
+                pointerEvents={searchMode ? "none" : "auto"}
+                accessibilityElementsHidden={searchMode}
+                importantForAccessibility={searchMode ? "no-hide-descendants" : "auto"}
+              >
                 <MapLibreMap
                   style={{ flex: 1 }}
                   mapStyle={mapStyle}
@@ -409,12 +401,14 @@ export default function LocationPicker({
                 </Pressable>
               </View>
             ) : (
-              <Typography className="text-danger">{t("Map unavailable")}</Typography>
+              <Typography style={{ display: searchMode ? "none" : "flex" }} className="text-danger">
+                {t("Map unavailable")}
+              </Typography>
             )}
             <View
-              style={{ gap: 12, display: compact ? "none" : "flex" }}
-              accessibilityElementsHidden={compact}
-              importantForAccessibility={compact ? "no-hide-descendants" : "auto"}
+              style={{ gap: 12, display: searchMode ? "none" : "flex" }}
+              accessibilityElementsHidden={searchMode}
+              importantForAccessibility={searchMode ? "no-hide-descendants" : "auto"}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <MapPin size={18} color={foreground} />
@@ -433,6 +427,32 @@ export default function LocationPicker({
                 favorites={favorites}
                 selectedKey={favoriteKey}
                 onSelect={chooseFavorite}
+              />
+            </View>
+            <View
+              onLayout={() => {
+                if (searchMode) resultsList.current?.scrollToOffset({ offset: 0, animated: false });
+              }}
+            >
+              <SearchInput
+                value={query}
+                onFocus={() => {
+                  addressFocused.current = true;
+                  setSearchMode(true);
+                }}
+                onBlur={() => {
+                  addressFocused.current = false;
+                }}
+                onChange={(text) => {
+                  cancelLocate();
+                  setQuery(text);
+                  setSelected(null);
+                  setFavoriteKey(null);
+                  setResults([]);
+                }}
+                testID="location-address-input"
+                label={t("Search address")}
+                placeholder={t("Search address")}
               />
             </View>
             {(searching || locating) && (
@@ -462,7 +482,8 @@ export default function LocationPicker({
             onPress={() => {
               cancelLocate();
               Keyboard.dismiss();
-              setSearchFocused(false);
+              addressFocused.current = false;
+              setSearchMode(false);
               resultsList.current?.scrollToOffset({ offset: 0, animated: false });
               setSelected(item);
               setFavoriteKey(null);
@@ -484,39 +505,86 @@ export default function LocationPicker({
                 {error}
               </Typography>
             ) : null}
-            <Button
-              variant="primary"
-              isDisabled={
-                locating || !mapStyle || !selected || !selectedPoint || name.trim().length < 4
-              }
-              onPress={() => {
-                if (!selected || !selectedPoint || name.trim().length < 4) return;
-                const location: MatchLocation = {
-                  id:
-                    initial?.id ??
-                    "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
-                      const digit = Math.floor(Math.random() * 16);
-                      return (char === "x" ? digit : (digit & 3) | 8).toString(16);
-                    }),
-                  name: name.trim(),
-                  address: selected.address,
-                  longitude: selected.longitude,
-                  latitude: selected.latitude,
-                  timeZone: selected.timeZone,
-                };
-                if (onSelect) onSelect(location);
-                else {
-                  setPendingLocation(slotId, location);
-                  router.back();
-                }
-              }}
+            <View
+              style={{ display: searchMode ? "none" : "flex" }}
+              accessibilityElementsHidden={searchMode}
+              importantForAccessibility={searchMode ? "no-hide-descendants" : "auto"}
             >
-              <Check size={20} color={accentForeground} />
-              <Button.Label>{t("Confirm location")}</Button.Label>
-            </Button>
+              <Button
+                variant="primary"
+                isDisabled={
+                  locating || !mapStyle || !selected || !selectedPoint || name.trim().length < 4
+                }
+                onPress={() => {
+                  if (!selected || !selectedPoint || name.trim().length < 4) return;
+                  const location: MatchLocation = {
+                    id:
+                      initial?.id ??
+                      "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+                        const digit = Math.floor(Math.random() * 16);
+                        return (char === "x" ? digit : (digit & 3) | 8).toString(16);
+                      }),
+                    name: name.trim(),
+                    address: selected.address,
+                    longitude: selected.longitude,
+                    latitude: selected.latitude,
+                    timeZone: selected.timeZone,
+                  };
+                  if (onSelect) onSelect(location);
+                  else {
+                    setPendingLocation(slotId, location);
+                    router.back();
+                  }
+                }}
+              >
+                <Check size={20} color={accentForeground} />
+                <Button.Label>{t("Confirm location")}</Button.Label>
+              </Button>
+            </View>
           </View>
         }
       />
+      {searchMode && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+            paddingHorizontal: 16,
+            paddingBottom: insets.bottom,
+          }}
+        >
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={t("Map by MapTiler")}
+            onPress={() => void Linking.openURL("https://www.maptiler.com/")}
+            style={{
+              minHeight: 44,
+              minWidth: 44,
+              justifyContent: "center",
+              padding: 4,
+              backgroundColor: "#fff",
+              borderRadius: 4,
+            }}
+          >
+            <Image
+              source={require("../../../assets/maptiler-logo.png")}
+              resizeMode="contain"
+              style={{ width: 92, height: 24 }}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={t("© OpenStreetMap contributors")}
+            onPress={() => void Linking.openURL("https://www.openstreetmap.org/copyright")}
+            style={{ flex: 1, minHeight: 44, justifyContent: "center" }}
+          >
+            <Typography className="text-xs text-foreground">
+              {t("© OpenStreetMap contributors")}
+            </Typography>
+          </Pressable>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }

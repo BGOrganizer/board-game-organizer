@@ -13,8 +13,8 @@ const load = (path: string) =>
     true,
     ts.ScriptKind.TSX,
   );
-const picker = load("locations/LocationPicker.tsx");
-const input = load("common/ui/SearchInput.tsx");
+const picker = load("locations/LocationPicker.tsx"),
+  input = load("common/ui/SearchInput.tsx");
 function nodes(file: ts.SourceFile, match: (node: ts.Node) => boolean) {
   const found: ts.Node[] = [];
   function visit(node: ts.Node) {
@@ -32,61 +32,69 @@ function element(file: ts.SourceFile, tag: string) {
       node.tagName.getText(file) === tag,
   )[0] as ts.JsxOpeningElement | ts.JsxSelfClosingElement;
 }
-function prop(file: ts.SourceFile, tag: string, name: string) {
-  const attr = element(file, tag).attributes.properties.find(
-    (node) => ts.isJsxAttribute(node) && node.name.getText(file) === name,
+function expression(
+  file: ts.SourceFile,
+  node: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
+  name: string,
+) {
+  const attr = node.attributes.properties.find(
+    (p) => ts.isJsxAttribute(p) && p.name.getText(file) === name,
   ) as ts.JsxAttribute;
   if (!attr?.initializer || !ts.isJsxExpression(attr.initializer) || !attr.initializer.expression)
-    throw Error(`Missing expression: ${tag}.${name}`);
+    throw Error(`Missing expression: ${name}`);
   return attr.initializer.expression.getText(file);
 }
-function evaluate<T>(expression: string, bindings: Record<string, unknown> = {}): T {
-  const js = ts.transpileModule(`(${expression});`, {
+function prop(file: ts.SourceFile, tag: string, name: string) {
+  return expression(file, element(file, tag), name);
+}
+function evaluate<T>(code: string, bindings: Record<string, unknown> = {}): T {
+  const js = ts.transpileModule(`(${code});`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React },
   }).outputText;
   return runInNewContext(js, bindings) as T;
 }
-it("reads initial keyboard visibility without detaching the native instance method", () => {
-  const state = nodes(
-    picker,
-    (node) =>
-      ts.isCallExpression(node) &&
-      node.expression.getText(picker) === "useState" &&
-      node.arguments[0]?.getText(picker).includes("Keyboard.isVisible"),
-  )[0] as ts.CallExpression;
-  const Keyboard = {
-    visible: true,
-    isVisible() {
-      return this.visible;
-    },
-  };
-  const initialize = evaluate<() => boolean>(state.arguments[0].getText(picker), { Keyboard });
-  expect(initialize()).toBe(true);
-  Keyboard.visible = false;
-  expect(initialize()).toBe(false);
-});
-it("keeps the input pinned outside the only vertical list and avoids double keyboard compensation", () => {
-  const search = element(picker, "SearchInput");
-  let parent: ts.Node | undefined = search.parent;
-  while (parent) {
-    if (ts.isJsxElement(parent))
-      expect(parent.openingElement.tagName.getText(picker)).not.toBe("FlatList");
-    parent = parent.parent;
+function visibilityParent(node: ts.Node) {
+  let current = node.parent;
+  while (current) {
+    if (
+      ts.isJsxElement(current) &&
+      current.openingElement.tagName.getText(picker) === "View" &&
+      current.openingElement.getText(picker).includes("display: searchMode")
+    )
+      return current.openingElement;
+    current = current.parent;
   }
+  throw Error("Missing search visibility container");
+}
+it("restores the original map/name/favorites/search order inside the one virtualized list", () => {
+  const map = element(picker, "MapLibreMap"),
+    name = element(picker, "Input"),
+    favorites = element(picker, "LocationFavoriteSelect"),
+    search = element(picker, "SearchInput");
+  expect(map.pos).toBeLessThan(name.pos);
+  expect(name.pos).toBeLessThan(favorites.pos);
+  expect(favorites.pos).toBeLessThan(search.pos);
+  let parent: ts.Node | undefined = search.parent;
+  while (
+    parent &&
+    !(ts.isJsxAttribute(parent) && parent.name.getText(picker) === "ListHeaderComponent")
+  )
+    parent = parent.parent;
+  expect(parent).toBeDefined();
   expect(
     nodes(
       picker,
-      (node) =>
-        (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
-        node.tagName.getText(picker) === "ScrollView",
+      (node) => ts.isJsxOpeningElement(node) && node.tagName.getText(picker) === "ScrollView",
     ),
   ).toHaveLength(0);
   const list = element(picker, "FlatList").getText(picker);
-  expect(list).toContain('keyboardShouldPersistTaps="handled"');
-  expect(list).toContain('keyboardDismissMode="none"');
-  expect(list).toContain('contentInsetAdjustmentBehavior="never"');
-  expect(list).toContain("removeClippedSubviews={false}");
-  expect(list).toContain("data={results}");
+  for (const p of [
+    'keyboardShouldPersistTaps="handled"',
+    'keyboardDismissMode="none"',
+    "removeClippedSubviews={false}",
+    "data={results}",
+  ])
+    expect(list).toContain(p);
   expect(picker.text).not.toContain("automaticallyAdjustKeyboardInsets");
   expect(prop(picker, "KeyboardAvoidingView", "keyboardVerticalOffset")).toBe("headerHeight");
   expect(
@@ -96,89 +104,134 @@ it("keeps the input pinned outside the only vertical list and avoids double keyb
     evaluate(prop(picker, "KeyboardAvoidingView", "behavior"), { Platform: { OS: "android" } }),
   ).toBeUndefined();
 });
-it("shrinks the existing map to 120 instead of remounting or altering its viewport", () => {
-  const compact = nodes(
-    picker,
-    (node) => ts.isVariableDeclaration(node) && node.name.getText(picker) === "compact",
-  )[0] as ts.VariableDeclaration;
-  for (const searchFocused of [true, false])
-    for (const keyboardVisible of [true, false])
-      expect(
-        evaluate(compact.initializer?.getText(picker) ?? "", { searchFocused, keyboardVisible }),
-      ).toBe(searchFocused && keyboardVisible);
+it("hides the same mounted map without changing its 240-point bounds, style or frozen camera", () => {
   const maps = nodes(
     picker,
     (node) => ts.isJsxOpeningElement(node) && node.tagName.getText(picker) === "MapLibreMap",
   );
   expect(maps).toHaveLength(1);
-  const map = maps[0] as ts.JsxOpeningElement;
-  const frame = (map.parent.parent as ts.JsxElement).openingElement;
-  const style = frame.attributes.properties.find(
-    (a) => ts.isJsxAttribute(a) && a.name.getText(picker) === "style",
-  ) as ts.JsxAttribute;
-  const code = (style.initializer as ts.JsxExpression).expression?.getText(picker) ?? "";
-  expect(evaluate(code, { compact: true })).toMatchObject({ height: 120 });
-  expect(evaluate(code, { compact: false })).toMatchObject({ height: 240 });
+  const map = maps[0] as ts.JsxOpeningElement,
+    frame = (map.parent.parent as ts.JsxElement).openingElement;
+  const code = expression(picker, frame, "style");
+  expect(evaluate(code, { searchMode: true })).toMatchObject({
+    height: 240,
+    width: "100%",
+    position: "absolute",
+    opacity: 0,
+  });
+  expect(evaluate(code, { searchMode: false })).toMatchObject({
+    height: 240,
+    width: "100%",
+    position: "relative",
+    opacity: 1,
+  });
+  expect(frame.getText(picker)).toContain("collapsable={false}");
+  for (const searchMode of [true, false]) {
+    expect(evaluate(expression(picker, frame, "pointerEvents"), { searchMode })).toBe(
+      searchMode ? "none" : "auto",
+    );
+    expect(evaluate(expression(picker, frame, "accessibilityElementsHidden"), { searchMode })).toBe(
+      searchMode,
+    );
+  }
   let parent: ts.Node | undefined = map.parent;
   while (parent) {
     if (ts.isConditionalExpression(parent))
-      expect(parent.condition.getText(picker)).not.toContain("compact");
+      expect(parent.condition.getText(picker)).not.toContain("searchMode");
     parent = parent.parent;
   }
   expect(map.getText(picker)).toContain("attribution");
   expect(map.getText(picker)).toContain("logo");
   expect(prop(picker, "Camera", "initialViewState")).toBe("initialViewState");
 });
-it("focus scrolls only the results region to its start without modifying draft or selected coordinates", () => {
-  const setSearchFocused = vi.fn(),
-    scrollToOffset = vi.fn();
-  const focus = evaluate<() => void>(prop(picker, "SearchInput", "onFocus"), {
-    setSearchFocused,
-    resultsList: { current: { scrollToOffset } },
-  });
-  focus();
-  expect(setSearchFocused).toHaveBeenCalledWith(true);
-  expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false });
-  evaluate<() => void>(prop(picker, "SearchInput", "onBlur"), { setSearchFocused })();
-  expect(setSearchFocused).toHaveBeenLastCalledWith(false);
-});
-it.each(["ios", "android"])(
-  "handles native keyboard show/hide and removes subscriptions: %s",
-  (OS) => {
-    const effect = nodes(
-      picker,
-      (node) =>
-        ts.isCallExpression(node) &&
-        node.expression.getText(picker) === "useEffect" &&
-        node.arguments[0].getText(picker).includes("Keyboard.addListener"),
-    )[0] as ts.CallExpression;
-    const handlers = new Map<string, () => void>();
-    const remove = vi.fn(),
-      setKeyboardVisible = vi.fn(),
-      scrollToOffset = vi.fn();
-    const Keyboard = {
-      addListener: (name: string, fn: () => void) => {
-        handlers.set(name, fn);
-        return { remove };
-      },
-    };
-    const callback = evaluate<() => () => void>(effect.arguments[0].getText(picker), {
-      Keyboard,
-      Platform: { OS },
-      setKeyboardVisible,
-      resultsList: { current: { scrollToOffset } },
+it("hides name, favorites and confirm together, preserving controlled draft values and restoring visibility", () => {
+  const confirm = nodes(
+    picker,
+    (node) =>
+      ts.isJsxOpeningElement(node) &&
+      node.tagName.getText(picker) === "Button" &&
+      node.parent.getText(picker).includes('t("Confirm location")'),
+  )[0];
+  expect(confirm).toBeDefined();
+  for (const node of [
+    element(picker, "Input"),
+    element(picker, "LocationFavoriteSelect"),
+    confirm,
+  ]) {
+    const wrapper = visibilityParent(node);
+    expect(evaluate(expression(picker, wrapper, "style"), { searchMode: true })).toMatchObject({
+      display: "none",
     });
-    const cleanup = callback();
-    handlers.get(OS === "ios" ? "keyboardWillShow" : "keyboardDidShow")?.();
-    expect(setKeyboardVisible).toHaveBeenLastCalledWith(true);
-    handlers.get("keyboardDidHide")?.();
-    expect(setKeyboardVisible).toHaveBeenLastCalledWith(false);
-    expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false });
-    cleanup();
-    expect(remove).toHaveBeenCalledTimes(2);
-  },
-);
-it("result selection dismisses keyboard and preserves the exact verified address/zone and camera target", () => {
+    expect(evaluate(expression(picker, wrapper, "style"), { searchMode: false })).toMatchObject({
+      display: "flex",
+    });
+    expect(
+      evaluate(expression(picker, wrapper, "accessibilityElementsHidden"), { searchMode: true }),
+    ).toBe(true);
+  }
+  expect(prop(picker, "Input", "value")).toBe("name");
+  expect(prop(picker, "LocationFavoriteSelect", "selectedKey")).toBe("favoriteKey");
+});
+it("focus activates search immediately; blur does not move a row before its selection press", () => {
+  const setSearchMode = vi.fn(),
+    addressFocused = { current: false };
+  evaluate<() => void>(prop(picker, "SearchInput", "onFocus"), { setSearchMode, addressFocused })();
+  expect(addressFocused.current).toBe(true);
+  expect(setSearchMode).toHaveBeenCalledWith(true);
+  setSearchMode.mockClear();
+  evaluate<() => void>(prop(picker, "SearchInput", "onBlur"), { addressFocused })();
+  expect(addressFocused.current).toBe(false);
+  expect(setSearchMode).not.toHaveBeenCalled();
+  const wrapper = (element(picker, "SearchInput").parent as ts.JsxElement).openingElement;
+  const scrollToOffset = vi.fn();
+  for (const searchMode of [true, false]) {
+    scrollToOffset.mockClear();
+    evaluate<() => void>(expression(picker, wrapper, "onLayout"), {
+      searchMode,
+      resultsList: { current: { scrollToOffset } },
+    })();
+    expect(scrollToOffset).toHaveBeenCalledTimes(searchMode ? 1 : 0);
+  }
+});
+it.each(["ios", "android"])("handles keyboard reopen/hide and removes subscriptions: %s", (OS) => {
+  const effect = nodes(
+    picker,
+    (node) =>
+      ts.isCallExpression(node) &&
+      node.expression.getText(picker) === "useEffect" &&
+      node.arguments[0].getText(picker).includes("Keyboard.addListener"),
+  )[0] as ts.CallExpression;
+  const handlers = new Map<string, () => void>(),
+    remove = vi.fn(),
+    setSearchMode = vi.fn(),
+    scrollToOffset = vi.fn(),
+    addressFocused = { current: false };
+  const Keyboard = {
+    addListener: (name: string, fn: () => void) => {
+      handlers.set(name, fn);
+      return { remove };
+    },
+  };
+  const cleanup = evaluate<() => () => void>(effect.arguments[0].getText(picker), {
+    Keyboard,
+    Platform: { OS },
+    setSearchMode,
+    addressFocused,
+    resultsList: { current: { scrollToOffset } },
+  })();
+  const shown = handlers.get("keyboardDidShow");
+  shown?.();
+  expect(setSearchMode).not.toHaveBeenCalled();
+  addressFocused.current = true;
+  shown?.();
+  expect(setSearchMode).toHaveBeenLastCalledWith(true);
+  handlers.get("keyboardDidHide")?.();
+  expect(setSearchMode).toHaveBeenLastCalledWith(false);
+  expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false });
+  cleanup();
+  expect(remove).toHaveBeenCalledTimes(2);
+});
+it("selection dismisses keyboard, exits focus mode and preserves verified address/zone and camera target", () => {
   const createElement = (
     type: unknown,
     props: Record<string, unknown>,
@@ -187,7 +240,7 @@ it("result selection dismisses keyboard and preserves the exact verified address
   const callbacks = Object.fromEntries(
     [
       "cancelLocate",
-      "setSearchFocused",
+      "setSearchMode",
       "setSelected",
       "setFavoriteKey",
       "setResults",
@@ -196,7 +249,8 @@ it("result selection dismisses keyboard and preserves the exact verified address
     ].map((key) => [key, vi.fn()]),
   );
   const dismiss = vi.fn(),
-    scrollToOffset = vi.fn();
+    scrollToOffset = vi.fn(),
+    addressFocused = { current: true };
   const render = evaluate<(value: unknown) => { props: { onPress: () => void } }>(
     prop(picker, "FlatList", "renderItem"),
     {
@@ -205,6 +259,7 @@ it("result selection dismisses keyboard and preserves the exact verified address
       Pressable: "Pressable",
       Typography: "Typography",
       Keyboard: { dismiss },
+      addressFocused,
       resultsList: { current: { scrollToOffset } },
       formatLocationAddress: (s: string) => s,
     },
@@ -218,7 +273,8 @@ it("result selection dismisses keyboard and preserves the exact verified address
   };
   render({ item, index: 0 }).props.onPress();
   expect(dismiss).toHaveBeenCalledTimes(1);
-  expect(callbacks.setSearchFocused).toHaveBeenCalledWith(false);
+  expect(addressFocused.current).toBe(false);
+  expect(callbacks.setSearchMode).toHaveBeenCalledWith(false);
   expect(callbacks.cancelLocate).toHaveBeenCalledTimes(1);
   expect(callbacks.setSelected).toHaveBeenCalledWith(item);
   expect(callbacks.setFavoriteKey).toHaveBeenCalledWith(null);
@@ -227,7 +283,7 @@ it("result selection dismisses keyboard and preserves the exact verified address
   expect(callbacks.moveTo).toHaveBeenCalledWith(12, 42);
   expect(scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: false });
 });
-it("forwards optional focus handlers through the existing HeroUI input, leaving its clear control intact", () => {
+it("keeps native focus forwarding, clear control and visible licensed attribution during search", () => {
   expect(prop(input, "SearchField.Input", "onFocus")).toBe("onFocus");
   expect(prop(input, "SearchField.Input", "onBlur")).toBe("onBlur");
   expect(
@@ -238,7 +294,14 @@ it("forwards optional focus handlers through the existing HeroUI input, leaving 
         node.tagName.getText(input) === "SearchField.ClearButton",
     ),
   ).toHaveLength(1);
-  expect(picker.text).toContain('display: compact ? "none" : "flex"');
-  expect(picker.text).toContain("accessibilityElementsHidden={compact}");
-  expect(picker.text).toContain("<LocationFavoriteSelect");
+  const footer = nodes(
+    picker,
+    (node) => ts.isConditionalExpression(node) || ts.isBinaryExpression(node),
+  ).find(
+    (node) =>
+      node.getText(picker).startsWith("searchMode &&") &&
+      node.getText(picker).includes("openstreetmap.org/copyright"),
+  );
+  expect(footer?.getText(picker)).toContain('t("© OpenStreetMap contributors")');
+  expect(footer?.getText(picker)).toContain('t("Map by MapTiler")');
 });
