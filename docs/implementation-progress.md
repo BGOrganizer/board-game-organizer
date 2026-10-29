@@ -1,6 +1,28 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
-## Score sheet — localized hint and keyboard anchoring
+## Score sheet — explicit focus-driven expansion
+
+- A device report disproved the earlier offset-only strategy below. In installed Gorhom 5.2.14,
+  Android + `adjustResize` bypasses `interactive` positioning and waits for container resize;
+  setting that prop did not guarantee that the score input moved above the keyboard.
+- Native score focus now registers its target through HeroUI's aware handler, then calls the public
+  `useBottomSheet().snapToPosition("100%")` method immediately. `fillParent` keeps subsequent keyboard
+  events consistent with expansion; `restore` handles keyboard dismissal and the added top safe-area
+  inset bounds expansion. The compact sheet still uses measured content initially, with no fixed detents, keyboard listeners,
+  extra avoidance layer, library patch or dependency/global Android setting changes.
+- Callback tests require explicit expansion after keyboard-target registration and preserve ND,
+  exact decimal drafts and close/reopen behavior. Regression tests execute the installed SDK's
+  position evaluator: old Android interactive/resize stays at its compact position; fill-parent
+  expands and restores on both platforms. These are logical SDK tests, not rendered-device proof.
+- Local checks pass: mobile 241 and shared 226 unit tests with unchanged coverage gates, 95 CI policy
+  tests, typecheck 4/4, scoped Biome and Android export. Web score/result smoke tests pass 11/11;
+  web rendering, translations and server result semantics are unchanged.
+- No Android device is connected locally. Physical keyboard/position acceptance remains pending;
+  exports and CI must not be described as proof that the reported device is fixed.
+- Guides applied: `expo-overview`, `vercel-react-native-skills`, `heroui-native`, `uniwind`;
+  installed Gorhom 5.2.14 source/types and public methods/hooks documentation remain authoritative.
+
+## Superseded offset-only strategy — score sheet placeholder and keyboard configuration
 
 - Both score inputs now show the EN/IT "Enter a score" placeholder without replacing their labels.
   Native score entry uses Gorhom `interactive` keyboard positioning, `restore` on blur and
