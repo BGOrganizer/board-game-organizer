@@ -1,6 +1,17 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
-## Score sheet — explicit focus-driven expansion
+## Score sheet — 80% focus expansion
+
+- Operator confirmed the full-height focus-driven expansion works on device, but requested 80%.
+  Focus now snaps to `80%`; the provided 80% detent and `extend` keyboard behavior prevent a later
+  keyboard event from forcing the sheet back to 100%. Natural content measurement, safe-area
+  bounds, native focus/blur handlers, ND and exact decimal drafts remain unchanged.
+- Callback, installed-SDK position and CI policy tests cover the 80% target and keyboard behavior
+  on both platforms. Mobile 243, shared 226 and CI policy 95 checks pass, alongside typecheck 4/4,
+  scoped Biome and Android export. Physical acceptance of the reduced 80% height remains pending.
+- Guides: `expo-overview`, `vercel-react-native-skills`, `heroui-native`, `uniwind`.
+
+## Previous full-height focus expansion — operator confirmed
 
 - A device report disproved the earlier offset-only strategy below. In installed Gorhom 5.2.14,
   Android + `adjustResize` bypasses `interactive` positioning and waits for container resize;
@@ -17,8 +28,8 @@
 - Local checks pass: mobile 241 and shared 226 unit tests with unchanged coverage gates, 95 CI policy
   tests, typecheck 4/4, scoped Biome and Android export. Web score/result smoke tests pass 11/11;
   web rendering, translations and server result semantics are unchanged.
-- No Android device is connected locally. Physical keyboard/position acceptance remains pending;
-  exports and CI must not be described as proof that the reported device is fixed.
+- The operator subsequently confirmed the full-height behavior works on device. No Android device
+  is connected locally; exports and CI alone remain insufficient proof of rendered positioning.
 - Guides applied: `expo-overview`, `vercel-react-native-skills`, `heroui-native`, `uniwind`;
   installed Gorhom 5.2.14 source/types and public methods/hooks documentation remain authoritative.
 

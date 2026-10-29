@@ -276,9 +276,9 @@ there are no repeated identical notifications or player reminders to change vote
   list without discarding other Table drafts; web list Back uses ordinary route history. No server Event drafts
   or independent per-Table result writes are introduced. Score inputs have a localized placeholder
   on both clients. Native score-input focus first registers the keyboard target, then explicitly
-  calls the sheet's public `snapToPosition("100%")` method. `fillParent` retains expanded placement
-  while the keyboard opens, `restore` handles keyboard dismissal, and the top safe-area inset bounds
-  expansion. Android keeps its existing resize mode. Local drafts and automatic content sizing stay
+  calls the sheet's public `snapToPosition("80%")` method. A provided 80% snap point and `extend`
+  keep keyboard events on that detent instead of `fillParent` forcing full height. `restore` handles
+  keyboard dismissal, and the top safe-area inset bounds expansion. Android keeps its existing resize mode. Local drafts and automatic content sizing stay
   intact, without a second keyboard-avoidance layer or manual keyboard listeners.
 - Finalization is one atomic operation over every included table's complete frozen roster. Exact
   signed decimal scores, ND, lower-wins and explicit tie-break ordering retain their existing
