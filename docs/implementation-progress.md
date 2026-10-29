@@ -1,5 +1,30 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Invitation acceptance — explicit preferences before consent
+
+- Web/native Table invitation Accept now opens the existing availability sheet without accepting
+  immediately. PRIVATE invitations require complete current date/location/game choices with a positive
+  option in every category, including when the player already accepted another Table. PUBLIC
+  invitation sheets show only games; standalone fixed schedules remain read-only. Cancellation
+  changes no remote state; decline remains direct and versioned.
+- The strict accept DTO carries registration version plus current Event version, game votes and
+  PRIVATE availability. Shared participation validation serves joins and acceptance. Acceptance,
+  preferences, Event version and notifications commit together, preserving invitation ID/priority;
+  stale/invalid choices fail closed. Real replica-set tests inject a voter-storage failure after
+  the registration update and verify rollback of participation, preferences, Event and notifications.
+- Both clients reuse the shared form and platform sheet. Pending requests keep the sheet mounted and
+  dismissal disabled; errors retain choices for retry. Acknowledgments reconcile owned caches with
+  existing newer-version safeguards. Missing/foreign/closed invitations cannot submit.
+- Checks pass: 1,777 unit tests (schemas 111, shared 226, API 720, web 485, native pure/source 235),
+  Mongo integration 83/83, typecheck 4/4, scoped Biome, EN/IT compilation, API/web production builds
+  and Android export. Existing 100% gates for participation logic and web sheet remain unchanged
+  and pass. Native callback checks and exports are not rendered-device acceptance; authenticated
+  Playwright/Maestro acceptance remains unperformed and retained E2E suites/jobs are unchanged.
+- Applied project guides: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `expo-overview`,
+  `expo-data-fetching`, `tanstack-query-development`, `heroui-react`, `heroui-native`, `uniwind`,
+  `lingui-best-practices`, `web-design-guidelines`. No dependency or skill updates.
+
 ## Native location search — focus-only visibility, no map resizing
 
 - Operator feedback supersedes the compact-map design below. Normal order is restored to map,

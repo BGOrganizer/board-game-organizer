@@ -138,6 +138,15 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 - Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
   are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
   deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
+- Accepting a Table invitation opens the existing availability sheet on both clients, without
+  changing participation. PRIVATE Group invitations require a YES/IF_NEEDED/NO response for every
+  current date, location and Table game, including when another Table is already accepted, with at
+  least one YES/IF_NEEDED per category. PUBLIC Group invitation sheets show only Table games;
+  standalone Events keep their fixed schedule read-only and require explicit game preferences.
+  Final confirmation PATCHes the existing registration with its version and `participation`
+  (current Event version, game votes and PRIVATE availability). Consent and choices commit in one
+  transaction; invalid/stale choices or a storage failure leave the invitation pending. Cancellation
+  writes nothing, failure preserves the draft, and decline remains a direct versioned action.
 - Each invitation has its own accept/decline response. Creation/request time, then server sequence
   and stable ID determine priority, not acceptance time. Pending invitations reserve seat/queue
   priority but **cannot vote, count toward minimums, agreement or the frozen roster**. Voting never
@@ -199,7 +208,8 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   not restrict overlaps.
 - Accepted legacy/invitation participation retains implicit availability for fixed PUBLIC choices
   only where no explicit ballot exists; fixed game identity never overrides an explicit NO/UNKNOWN.
-  New voluntary joins store the user's explicit game preferences, not manufactured votes. After
+  New voluntary joins and invitation acceptances store explicit game preferences, not manufactured
+  votes. After
   cutoff no user, including the administrator, may
   invite, register, vote, respond or leave. Confirmation/reopening remain manual operations.
 - Confirmation freezes selected date/location/games and accepted eligible rosters. At least one
