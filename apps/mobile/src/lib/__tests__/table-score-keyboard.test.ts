@@ -38,7 +38,7 @@ const base = {
   Switch: { Thumb: "thumb" },
   ScoreInput: "score-input",
   FlatList: "list",
-  useSafeAreaInsets: () => ({ bottom: 20 }),
+  useSafeAreaInsets: () => ({ top: 24, bottom: 20 }),
   useThemeColor: () => "theme-color",
   normalizeMatchScore,
   previewTableResults,
@@ -65,11 +65,13 @@ it.each(["android", "ios"])(
   (os) => {
     const onFocus = vi.fn(),
       onBlur = vi.fn(),
-      onChange = vi.fn();
+      onChange = vi.fn(),
+      snapToPosition = vi.fn();
     const row = { userId: "a", rawScore: "-12.50", notParticipated: false };
     const context = {
       Platform: { OS: os },
       useBottomSheetAwareHandlers: () => ({ onFocus, onBlur }),
+      useBottomSheet: () => ({ snapToPosition }),
     };
     const tree = render("ScoreInput", { name: "Alice", row, onChange }, context);
     const input = nodes(tree).find((n) => n.type === "input")!;
@@ -80,7 +82,14 @@ it.each(["android", "ios"])(
       editable: true,
       keyboardType: os === "android" ? "numeric" : "numbers-and-punctuation",
     });
-    expect(input.props.onFocus).toBe(onFocus);
+    const focusEvent = { nativeEvent: { target: 17 } };
+    (input.props.onFocus as (event: typeof focusEvent) => void)(focusEvent);
+    expect(onFocus).toHaveBeenCalledWith(focusEvent);
+    expect(snapToPosition).toHaveBeenCalledWith("100%");
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onFocus.mock.invocationCallOrder[0]).toBeLessThan(
+      snapToPosition.mock.invocationCallOrder[0],
+    );
     expect(input.props.onBlur).toBe(onBlur);
     (input.props.onChangeText as (text: string) => void)("-0.25");
     expect(onChange).toHaveBeenCalledWith("-0.25");
@@ -92,7 +101,7 @@ it.each(["android", "ios"])(
     expect(nodes(nd).find((n) => n.type === "input")?.props.editable).toBe(false);
   },
 );
-it("moves the existing sheet with the keyboard, restores its anchor and preserves local score drafts on close/reopen", () => {
+it("configures full-parent expansion within the safe area and preserves local score drafts on close/reopen", () => {
   const onSubmit = vi.fn(),
     states: unknown[] = [],
     props = {
@@ -134,9 +143,10 @@ it("moves the existing sheet with the keyboard, restores its anchor and preserve
   const tree = rerender(),
     content = nodes(tree).find((n) => n.type === "content")!;
   expect(content.props).toMatchObject({
-    keyboardBehavior: "interactive",
+    keyboardBehavior: "fillParent",
     keyboardBlurBehavior: "restore",
     android_keyboardInputMode: "adjustResize",
+    topInset: 24,
   });
   expect(content.props.snapPoints).toBeUndefined();
   expect(source).not.toContain("KeyboardAvoidingView");
@@ -157,3 +167,77 @@ it("moves the existing sheet with the keyboard, restores its anchor and preserve
   });
   expect(onSubmit).not.toHaveBeenCalled();
 });
+
+// Exercise the installed SDK worklet, rather than only checking our prop strings.
+// This explains the former Android failure; it is still not a rendered-device test.
+function sdkPosition(behavior: "interactive" | "fillParent", os: "android" | "ios") {
+  const sdkSource = readFileSync(
+    new URL(
+      "../../../../../node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheet.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const sdk = ts.createSourceFile(
+    "BottomSheet.tsx",
+    sdkSource,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let expression = "";
+  function visit(node: ts.Node) {
+    if (ts.isFunctionExpression(node) && node.name?.text === "getEvaluatedPosition")
+      expression = node.getText(sdk);
+    ts.forEachChild(node, visit);
+  }
+  visit(sdk);
+  if (!expression) throw new Error("Installed SDK position evaluator missing");
+  const keyboard = { status: "shown", heightWithinContainer: os === "android" ? 0 : 300 },
+    temporary = { value: false };
+  const evaluate = runInNewContext(
+    ts.transpileModule(`() => (${expression})(ANIMATION_SOURCE.KEYBOARD)`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022 },
+    }).outputText,
+    {
+      Platform: { OS: os },
+      State: { ACTIVE: "active" },
+      ANIMATION_SOURCE: { KEYBOARD: "keyboard", SNAP_POINT_CHANGE: "snap" },
+      ANIMATION_STATUS: { RUNNING: "running" },
+      KEYBOARD_STATUS: { SHOWN: "shown", HIDDEN: "hidden" },
+      KEYBOARD_BLUR_BEHAVIOR: { restore: "restore" },
+      KEYBOARD_BEHAVIOR: { interactive: "interactive", fillParent: "fillParent", extend: "extend" },
+      keyboardBehavior: behavior,
+      keyboardBlurBehavior: "restore",
+      android_keyboardInputMode: "adjustResize",
+      animatedCurrentIndex: { value: 0 },
+      animatedPosition: { value: 520 },
+      animatedDetentsState: {
+        get: () => ({ detents: [520], highestDetentPosition: 520, closedDetentPosition: 800 }),
+      },
+      animatedKeyboardState: { get: () => keyboard },
+      animatedAnimationState: { get: () => ({ status: "stopped" }) },
+      animatedContentGestureState: { value: "idle" },
+      animatedHandleGestureState: { value: "idle" },
+      isInTemporaryPosition: temporary,
+      didAnimateOnMount: { value: true },
+      _providedIndex: 0,
+    },
+  ) as () => number;
+  return { evaluate, keyboard, temporary };
+}
+it("reproduces the installed SDK ignoring interactive keyboard offset on Android with adjustResize", () => {
+  expect(sdkPosition("interactive", "android").evaluate()).toBe(520);
+  expect(sdkPosition("interactive", "ios").evaluate()).toBe(220);
+});
+it.each(["android", "ios"] as const)(
+  "installed SDK expands fillParent and restores compact position on %s",
+  (os) => {
+    const sheet = sdkPosition("fillParent", os);
+    expect(sheet.evaluate()).toBe(0);
+    expect(sheet.temporary.value).toBe(true);
+    sheet.keyboard.status = "hidden";
+    expect(sheet.evaluate()).toBe(520);
+    expect(sheet.temporary.value).toBe(false);
+  },
+);

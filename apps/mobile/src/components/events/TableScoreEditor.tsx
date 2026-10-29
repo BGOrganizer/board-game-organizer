@@ -5,6 +5,7 @@ import {
   type ScorePlayer,
   type TableScoreInput,
 } from "@board-game-organizer/shared";
+import { useBottomSheet } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native/bottom-sheet";
 import { Button } from "heroui-native/button";
 import { useBottomSheetAwareHandlers, useThemeColor } from "heroui-native/hooks";
@@ -30,7 +31,8 @@ function ScoreInput({
   onChange: (score: string) => void;
 }) {
   const t = useT(),
-    { onFocus, onBlur } = useBottomSheetAwareHandlers();
+    { onFocus, onBlur } = useBottomSheetAwareHandlers(),
+    { snapToPosition } = useBottomSheet();
   return (
     <View style={{ gap: 8, flex: 1 }}>
       <Typography className="text-foreground">{t("Score")}</Typography>
@@ -41,7 +43,11 @@ function ScoreInput({
         editable={!row.notParticipated}
         value={row.rawScore}
         onChangeText={onChange}
-        onFocus={onFocus}
+        onFocus={(event) => {
+          onFocus(event);
+          // Expand even before Android delivers a keyboard/resize event.
+          snapToPosition("100%");
+        }}
         onBlur={onBlur}
       />
       {!row.notParticipated && row.rawScore !== "" && normalizeMatchScore(row.rawScore) === null ? (
@@ -280,8 +286,9 @@ export function TableScoreEditor({
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
-            keyboardBehavior="interactive"
+            keyboardBehavior="fillParent"
             keyboardBlurBehavior="restore"
+            topInset={insets.top}
             android_keyboardInputMode="adjustResize"
           >
             <BottomSheet.Title>{active?.name ?? t("Score")}</BottomSheet.Title>
