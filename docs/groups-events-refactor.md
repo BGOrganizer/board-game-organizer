@@ -274,7 +274,10 @@ there are no repeated identical notifications or player reminders to change vote
   Finalization and its confirmation share a terminal-state icon. Back belongs only to the app header
   (and native hardware Back), not a duplicate editor/body button. Selected-editor Back returns to the
   list without discarding other Table drafts; web list Back uses ordinary route history. No server Event drafts
-  or independent per-Table result writes are introduced.
+  or independent per-Table result writes are introduced. Score inputs have a localized placeholder
+  on both clients. The native score sheet uses interactive keyboard positioning with restore-on-blur
+  and Android's existing resize mode, preserving bottom-sheet-aware focus handlers and local drafts
+  without a second keyboard-avoidance layer or manual keyboard listeners.
 - Finalization is one atomic operation over every included table's complete frozen roster. Exact
   signed decimal scores, ND, lower-wins and explicit tie-break ordering retain their existing
   semantics. Results/profiles and immutable GLOBAL/GROUP deltas are available on table detail.

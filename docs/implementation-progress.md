@@ -1,5 +1,20 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Score sheet — localized hint and keyboard anchoring
+
+- Both score inputs now show the EN/IT "Enter a score" placeholder without replacing their labels.
+  Native score entry uses Gorhom `interactive` keyboard positioning, `restore` on blur and
+  `adjustResize` matching the existing Android Activity. Bottom-sheet-aware focus/blur handlers,
+  automatic content sizing, exact signed decimals, ND and local drafts remain intact. No manual
+  keyboard listeners, second avoidance wrapper, global configuration or dependency changes.
+- Checks pass: mobile 238, web 487 and shared 226 unit tests with unchanged coverage gates;
+  typecheck 4/4, scoped Biome, EN/IT compilation, web production build and Android export. Native
+  tests execute actual input/sheet callbacks and draft preservation, not keyboard geometry on a
+  rendered device. Device/keyboard and authenticated E2E acceptance remain pending; retained
+  Playwright/Maestro suites/jobs are unchanged.
+- Guides applied: `expo-overview`, `vercel-react-native-skills`, `heroui-native`, `uniwind`,
+  `vercel-react-best-practices`, `heroui-react`, `lingui-best-practices`, `web-design-guidelines`.
+
 ## Invitation acceptance — explicit preferences before consent
 
 - Web/native Table invitation Accept now opens the existing availability sheet without accepting
