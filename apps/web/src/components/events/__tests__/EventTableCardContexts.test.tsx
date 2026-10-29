@@ -7,6 +7,15 @@ import { renderWithI18n } from "@/test-utils";
 import { EventTableCard } from "../EventTableCard";
 
 const m = vi.hoisted(() => ({ busy: false, respond: { mutate: vi.fn() } }));
+vi.mock("../EventJoinSheet", () => ({
+  EventJoinSheet: ({ onClose }: { onClose: () => void }) => (
+    <div role="dialog">
+      <button type="button" onClick={onClose}>
+        Cancel choices
+      </button>
+    </div>
+  ),
+}));
 vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
   useEventRecordActions: () => m,
@@ -186,10 +195,9 @@ it("keeps versioned invitation consent in Event context, with pending/busy guard
     table = { ...plannedTable, canRespond: true, myRegistration: registration };
   const q = renderWithI18n(<EventTableCard context="event" table={table} />);
   fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
-  expect(m.respond.mutate).toHaveBeenLastCalledWith({
-    registrationId: registration.id,
-    input: { action: "accept", version: 3 },
-  });
+  expect(m.respond.mutate).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel choices" }));
   fireEvent.click(screen.getByRole("button", { name: "Decline invitation" }));
   expect(m.respond.mutate).toHaveBeenLastCalledWith({
     registrationId: registration.id,

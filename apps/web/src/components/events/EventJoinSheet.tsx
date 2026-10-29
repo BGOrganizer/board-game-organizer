@@ -14,13 +14,15 @@ export function EventJoinSheet({
   eventId,
   tableId,
   onClose,
+  registrationId,
 }: {
   eventId: string;
   tableId: string;
   onClose: () => void;
+  registrationId?: string;
 }) {
   const { t } = useLingui(),
-    form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose),
+    form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose, registrationId),
     event = form.event,
     table = form.table;
   return (
@@ -38,9 +40,13 @@ export function EventJoinSheet({
           <Drawer.Header>
             <Drawer.Heading>{t`Choose availability`}</Drawer.Heading>
             <p className="text-sm text-default-500">
-              {form.requiresAvailability
-                ? t`Vote on every date, location and game. Accept at least one of each to join.`
-                : t`Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged.`}
+              {form.isInvitation
+                ? form.requiresAvailability
+                  ? t`Vote on every date, location and game. Accept at least one of each to accept the invitation.`
+                  : t`Vote on every game for this table. Accept at least one to accept the invitation.`
+                : form.requiresAvailability
+                  ? t`Vote on every date, location and game. Accept at least one of each to join.`
+                  : t`Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged.`}
             </p>
           </Drawer.Header>
           <Drawer.Body className="overflow-y-auto">
@@ -56,63 +62,71 @@ export function EventJoinSheet({
               <Tabs defaultSelectedKey={form.initialTab}>
                 <Tabs.ListContainer className="mx-auto mb-3 w-fit">
                   <Tabs.List aria-label={t`Availability`}>
-                    <Tabs.Tab id="dates">
-                      {t`Dates`}
-                      <Tabs.Indicator />
-                    </Tabs.Tab>
-                    <Tabs.Tab id="locations">
-                      {t`Locations`}
-                      <Tabs.Indicator />
-                    </Tabs.Tab>
+                    {!form.gamesOnly ? (
+                      <>
+                        <Tabs.Tab id="dates">
+                          {t`Dates`}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                        <Tabs.Tab id="locations">
+                          {t`Locations`}
+                          <Tabs.Indicator />
+                        </Tabs.Tab>
+                      </>
+                    ) : null}
                     <Tabs.Tab id="games">
                       {t`Games`}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
-                <Tabs.Panel id="dates">
-                  <GroupedList>
-                    {event.dates.map((row) => (
-                      <GroupedRow key={row.id} className="flex-wrap">
-                        <DateTimeInfo
-                          startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                          timeZone={event.timeZone}
-                        />
-                        {form.requiresAvailability ? (
-                          <EventVoteButtons
-                            inline
-                            label={eventDateWall(event, row).replace("T", " ")}
-                            value={form.votes.dateVotes[row.id]}
-                            busy={form.busy}
-                            onChange={(vote) => form.choose("date", row.id, vote)}
-                          />
-                        ) : null}
-                      </GroupedRow>
-                    ))}
-                  </GroupedList>
-                </Tabs.Panel>
-                <Tabs.Panel id="locations">
-                  <GroupedList>
-                    {event.locations.map((row) => (
-                      <LocationListRow
-                        key={row.id}
-                        name={row.name}
-                        address={row.address}
-                        actions={
-                          form.requiresAvailability ? (
-                            <EventVoteButtons
-                              inline
-                              label={row.name}
-                              value={form.votes.locationVotes[row.id]}
-                              busy={form.busy}
-                              onChange={(vote) => form.choose("location", row.id, vote)}
+                {!form.gamesOnly ? (
+                  <>
+                    <Tabs.Panel id="dates">
+                      <GroupedList>
+                        {event.dates.map((row) => (
+                          <GroupedRow key={row.id} className="flex-wrap">
+                            <DateTimeInfo
+                              startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                              timeZone={event.timeZone}
                             />
-                          ) : undefined
-                        }
-                      />
-                    ))}
-                  </GroupedList>
-                </Tabs.Panel>
+                            {form.requiresAvailability ? (
+                              <EventVoteButtons
+                                inline
+                                label={eventDateWall(event, row).replace("T", " ")}
+                                value={form.votes.dateVotes[row.id]}
+                                busy={form.busy}
+                                onChange={(vote) => form.choose("date", row.id, vote)}
+                              />
+                            ) : null}
+                          </GroupedRow>
+                        ))}
+                      </GroupedList>
+                    </Tabs.Panel>
+                    <Tabs.Panel id="locations">
+                      <GroupedList>
+                        {event.locations.map((row) => (
+                          <LocationListRow
+                            key={row.id}
+                            name={row.name}
+                            address={row.address}
+                            actions={
+                              form.requiresAvailability ? (
+                                <EventVoteButtons
+                                  inline
+                                  label={row.name}
+                                  value={form.votes.locationVotes[row.id]}
+                                  busy={form.busy}
+                                  onChange={(vote) => form.choose("location", row.id, vote)}
+                                />
+                              ) : undefined
+                            }
+                          />
+                        ))}
+                      </GroupedList>
+                    </Tabs.Panel>
+                  </>
+                ) : null}
                 <Tabs.Panel id="games">
                   {!table || form.tableQuery.isPlaceholderData ? (
                     <Skeleton className="h-40 w-full rounded-xl" />
@@ -142,8 +156,13 @@ export function EventJoinSheet({
                 </Tabs.Panel>
               </Tabs>
             )}
+            {form.invitationUnavailable ? (
+              <p role="alert" className="text-danger">{t`Invitation unavailable`}</p>
+            ) : null}
             {form.failed ? (
-              <p role="alert" className="text-danger">{t`Could not join table`}</p>
+              <p role="alert" className="text-danger">
+                {form.isInvitation ? t`Could not accept invitation` : t`Could not join table`}
+              </p>
             ) : null}
           </Drawer.Body>
           <Drawer.Footer>
@@ -154,7 +173,7 @@ export function EventJoinSheet({
             >{t`Cancel`}</Button>
             <Button isDisabled={!form.canSubmit} onPress={() => void form.submit()}>
               <UserRoundCheck className="size-4" aria-hidden />
-              {t`Join table`}
+              {form.isInvitation ? t`Accept invitation` : t`Join table`}
             </Button>
           </Drawer.Footer>
         </Drawer.Dialog>

@@ -456,6 +456,10 @@ msgstr "{count} date proposte"
 msgid "event.table.moreGames"
 msgstr "{remaining, plural, one {+# gioco} other {+# giochi}}"
 
+#: apps/mobile/src/components/locations/LocationPicker.tsx
+msgid "© OpenStreetMap contributors"
+msgstr "© Collaboratori OpenStreetMap"
+
 msgid "A demonstrator is no longer a confirmed member. Edit the affected table and remove or replace them."
 msgstr "Un dimostratore non è più un membro confermato. Modifica il tavolo interessato e rimuovilo o sostituiscilo."
 
@@ -480,6 +484,7 @@ msgid "Accept group invitation"
 msgstr "Accetta l'invito al gruppo"
 
 #: apps/web/src/components/common/ui/InvitationActions.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
 msgid "Accept invitation"
 msgstr "Accetta invito"
 
@@ -1349,6 +1354,10 @@ msgstr "Impossibile accettare la richiesta di amicizia"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not accept group invitation"
 msgstr "Impossibile accettare l'invito al gruppo"
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Could not accept invitation"
+msgstr ""
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not accept match invitation"
@@ -2670,6 +2679,7 @@ msgid "Invitation received"
 msgstr "Invito ricevuto"
 
 #: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
 msgid "Invitation unavailable"
 msgstr "Invito non disponibile"
 
@@ -2961,10 +2971,6 @@ msgstr "Durata manuale in minuti"
 
 msgid "Map by MapTiler"
 msgstr "Mappa di MapTiler"
-
-#: apps/mobile/src/components/locations/LocationPicker.tsx
-msgid "© OpenStreetMap contributors"
-msgstr "© Collaboratori OpenStreetMap"
 
 #: apps/web/src/components/locations/SearchLocationPage.tsx
 msgid "Map unavailable"
@@ -4989,8 +4995,16 @@ msgid "Vote on every date and location. Accept at least one of each to join. You
 msgstr "Vota ogni data e luogo. Accetta almeno una data e un luogo per partecipare. Puoi modificare questi voti nei dettagli dell’evento."
 
 #: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every date, location and game. Accept at least one of each to accept the invitation."
+msgstr "Esprimi un voto per ogni data, luogo e gioco. Accetta almeno un'opzione per categoria per accettare l'invito."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
 msgid "Vote on every date, location and game. Accept at least one of each to join."
 msgstr "Vota ogni data, luogo e gioco. Per partecipare indica almeno un Sì o Se necessario per ciascuna categoria."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every game for this table. Accept at least one to accept the invitation."
+msgstr "Esprimi un voto per ogni gioco di questo tavolo. Accettane almeno uno per accettare l'invito."
 
 #: apps/web/src/components/events/EventJoinSheet.tsx
 msgid "Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged."

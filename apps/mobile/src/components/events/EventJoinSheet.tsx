@@ -22,13 +22,15 @@ export function EventJoinSheet({
   eventId,
   tableId,
   onClose,
+  registrationId,
 }: {
   eventId: string;
   tableId: string;
   onClose: () => void;
+  registrationId?: string;
 }) {
   const t = useT(),
-    form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose),
+    form = useEventJoinForm(useCommunityApi(), eventId, tableId, onClose, registrationId),
     event = form.event,
     table = form.table,
     { height } = useWindowDimensions(),
@@ -54,11 +56,19 @@ export function EventJoinSheet({
         >
           <BottomSheet.Title>{t("Choose availability")}</BottomSheet.Title>
           <BottomSheet.Description>
-            {form.requiresAvailability
-              ? t("Vote on every date, location and game. Accept at least one of each to join.")
-              : t(
-                  "Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged.",
-                )}
+            {form.isInvitation
+              ? form.requiresAvailability
+                ? t(
+                    "Vote on every date, location and game. Accept at least one of each to accept the invitation.",
+                  )
+                : t(
+                    "Vote on every game for this table. Accept at least one to accept the invitation.",
+                  )
+              : form.requiresAvailability
+                ? t("Vote on every date, location and game. Accept at least one of each to join.")
+                : t(
+                    "Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged.",
+                  )}
           </BottomSheet.Description>
           {form.q.isError || form.tableQuery.isError ? (
             <View style={{ gap: 8 }}>
@@ -75,12 +85,16 @@ export function EventJoinSheet({
           ) : (
             <Tabs value={tab} onValueChange={setTab} style={{ flex: 1 }}>
               <TabBar style={{ alignSelf: "center", width: "auto" }}>
-                <Tabs.Trigger value="dates">
-                  <Tabs.Label>{t("Dates")}</Tabs.Label>
-                </Tabs.Trigger>
-                <Tabs.Trigger value="locations">
-                  <Tabs.Label>{t("Locations")}</Tabs.Label>
-                </Tabs.Trigger>
+                {!form.gamesOnly ? (
+                  <>
+                    <Tabs.Trigger value="dates">
+                      <Tabs.Label>{t("Dates")}</Tabs.Label>
+                    </Tabs.Trigger>
+                    <Tabs.Trigger value="locations">
+                      <Tabs.Label>{t("Locations")}</Tabs.Label>
+                    </Tabs.Trigger>
+                  </>
+                ) : null}
                 <Tabs.Trigger value="games">
                   <Tabs.Label>{t("Games")}</Tabs.Label>
                 </Tabs.Trigger>
@@ -165,9 +179,14 @@ export function EventJoinSheet({
               )}
             </Tabs>
           )}
+          {form.invitationUnavailable ? (
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Invitation unavailable")}
+            </Typography>
+          ) : null}
           {form.failed ? (
             <Typography accessibilityRole="alert" className="text-danger">
-              {t("Could not join table")}
+              {form.isInvitation ? t("Could not accept invitation") : t("Could not join table")}
             </Typography>
           ) : null}
           <View style={{ flexDirection: "row", gap: 12, paddingBottom: insets.bottom }}>
@@ -185,7 +204,9 @@ export function EventJoinSheet({
               style={{ flex: 1 }}
             >
               <UserRoundCheck size={16} color={accent} accessible={false} />
-              <Button.Label>{t("Join table")}</Button.Label>
+              <Button.Label>
+                {form.isInvitation ? t("Accept invitation") : t("Join table")}
+              </Button.Label>
             </Button>
           </View>
         </BottomSheet.Content>

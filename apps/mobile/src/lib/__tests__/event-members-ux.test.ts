@@ -7,8 +7,11 @@ const source = (file: string) =>
 it("uses consent responses and queue/seat states, never approval actions on spontaneous table joins", () => {
   const card = source("events/EventTableCard") + source("events/EventTableInvitationActions"),
     table = source("events/EventTableOverview") + source("events/EventTableSeats");
-  expect(card).toContain('respond("accept")');
-  expect(card).toContain('respond("decline")');
+  expect(card).toContain("setAccepting(true)");
+  expect(card).toContain("<EventJoinSheet");
+  expect(card).toContain("registrationId={registration.id}");
+  expect(card).not.toContain('action: "accept"');
+  expect(card).toContain('action: "decline"');
   expect(card).toContain('registration.status !== "PENDING"');
   expect(card).toContain('registration.kind !== "INVITATION"');
   expect(card).toContain("<InvitationActions");

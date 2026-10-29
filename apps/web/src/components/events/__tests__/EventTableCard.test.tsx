@@ -7,6 +7,15 @@ import { EventTableCard } from "../EventTableCard";
 import { EventTableInvitationActions } from "../EventTableInvitationActions";
 
 const m = vi.hoisted(() => ({ busy: false, respond: { mutate: vi.fn() } }));
+vi.mock("../EventJoinSheet", () => ({
+  EventJoinSheet: ({ onClose }: { onClose: () => void }) => (
+    <div role="dialog">
+      <button type="button" onClick={onClose}>
+        Cancel choices
+      </button>
+    </div>
+  ),
+}));
 vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
   useEventRecordActions: () => m,
@@ -75,10 +84,9 @@ it("separates explicit invitation acceptance/decline from reservations and navig
       />,
     );
   fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
-  expect(m.respond.mutate).toHaveBeenLastCalledWith({
-    registrationId: registration.id,
-    input: { action: "accept", version: 1 },
-  });
+  expect(m.respond.mutate).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel choices" }));
   fireEvent.click(screen.getByRole("button", { name: "Decline invitation" }));
   expect(m.respond.mutate).toHaveBeenLastCalledWith({
     registrationId: registration.id,

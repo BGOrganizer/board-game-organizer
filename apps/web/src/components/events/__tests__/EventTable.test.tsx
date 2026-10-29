@@ -99,6 +99,7 @@ beforeEach(() => {
               ? ("DECLINED" as const)
               : ("CANCELLED" as const),
         version: target.version + 1,
+        ...(input.action === "accept" ? { gameVotes: input.participation.gameVotes } : {}),
       };
       rows = rows.filter((r) => r.id !== next.id);
       if (next.status === "ACCEPTED") rows.push(next);
@@ -814,6 +815,12 @@ it.each(["accept", "decline"])(
         name: action === "accept" ? "Accept invitation" : "Decline invitation",
       }),
     );
+    if (action === "accept") {
+      const dialog = await screen.findByRole("dialog");
+      expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
+      fireEvent.click(await screen.findByRole("button", { name: "Chess: Yes" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "Accept invitation" }));
+    }
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull(),
     );
