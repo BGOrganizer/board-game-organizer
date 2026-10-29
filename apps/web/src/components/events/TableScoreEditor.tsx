@@ -142,6 +142,7 @@ export function TableScoreEditor({
                 type="text"
                 inputMode="decimal"
                 aria-label={`${t`Score`}: ${player.name}`}
+                placeholder={t`Enter a score`}
                 value={scoreDraft.rawScore}
                 disabled={scoreDraft.notParticipated || busy}
                 onChange={(event) =>

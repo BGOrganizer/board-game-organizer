@@ -36,6 +36,7 @@ function ScoreInput({
       <Typography className="text-foreground">{t("Score")}</Typography>
       <Input
         accessibilityLabel={`${t("Score")}: ${name}`}
+        placeholder={t("Enter a score")}
         keyboardType={Platform.OS === "android" ? "numeric" : "numbers-and-punctuation"}
         editable={!row.notParticipated}
         value={row.rawScore}
@@ -278,7 +279,11 @@ export function TableScoreEditor({
       >
         <BottomSheet.Portal>
           <BottomSheet.Overlay />
-          <BottomSheet.Content keyboardBehavior="extend">
+          <BottomSheet.Content
+            keyboardBehavior="interactive"
+            keyboardBlurBehavior="restore"
+            android_keyboardInputMode="adjustResize"
+          >
             <BottomSheet.Title>{active?.name ?? t("Score")}</BottomSheet.Title>
             {active && activeRow ? (
               <>

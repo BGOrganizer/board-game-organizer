@@ -1,12 +1,41 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
+import { messages as en } from "../../../../../../messages/en.js";
+import { messages as itMessages } from "../../../../../../messages/it.js";
 import { TableScoreEditor } from "../TableScoreEditor";
 
 const players = [
   { id: "a", name: "Alice", email: "a@example.test", avatarUrl: null },
   { id: "b", name: "Bob", email: "b@example.test", avatarUrl: null },
 ];
+it.each([
+  ["en", en, "Score: Alice", "Enter a score", "Close"],
+  ["it", itMessages, "Punteggio: Alice", "Inserisci un punteggio", "Chiudi"],
+] as const)(
+  "shows a localized score placeholder and retains the decimal draft in %s",
+  async (locale, messages, label, placeholder, close) => {
+    const submit = vi.fn(),
+      i18n = setupI18n({ locale, messages: { [locale]: messages } });
+    render(
+      <I18nProvider i18n={i18n}>
+        <TableScoreEditor players={players} busy={false} onSubmit={submit} />
+      </I18nProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    const input = await screen.findByRole("textbox", { name: label });
+    expect(input.getAttribute("placeholder")).toBe(placeholder);
+    fireEvent.change(input, { target: { value: "-12.50" } });
+    fireEvent.click(screen.getByRole("button", { name: close }));
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    expect(((await screen.findByRole("textbox", { name: label })) as HTMLInputElement).value).toBe(
+      "-12.50",
+    );
+    expect(submit).not.toHaveBeenCalled();
+  },
+);
 it("preserves exact decimal ties and uses explicit table draft confirmation, not a synthetic Match submission", () => {
   const submit = vi.fn();
   renderWithI18n(
