@@ -2134,6 +2134,10 @@ msgstr "Ends at"
 msgid "Enter a name, logo and verified address"
 msgstr "Enter a name, logo and verified address"
 
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Enter a score"
+msgstr "Enter a score"
+
 #: apps/web/src/components/matches/MatchResultsEditor.tsx
 msgid "Enter a score for each participant or mark them as not participating. At least one must participate."
 msgstr "Enter a score for each participant or mark them as not participating. At least one must participate."

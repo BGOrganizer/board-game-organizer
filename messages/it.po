@@ -2134,6 +2134,10 @@ msgstr "Termina alle"
 msgid "Enter a name, logo and verified address"
 msgstr "Inserisci nome, logo e indirizzo verificato"
 
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Enter a score"
+msgstr "Inserisci un punteggio"
+
 #: apps/web/src/components/matches/MatchResultsEditor.tsx
 msgid "Enter a score for each participant or mark them as not participating. At least one must participate."
 msgstr "Inserisci un punteggio per ogni giocatore o indica che non ha partecipato. Almeno un giocatore deve aver partecipato."
