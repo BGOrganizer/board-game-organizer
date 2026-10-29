@@ -1,6 +1,26 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
-## Native location search — pinned input and keyboard-aware compact map
+## Native location search — focus-only visibility, no map resizing
+
+- Operator feedback supersedes the compact-map design below. Normal order is restored to map,
+  name, favorites, then address input. Search focus immediately hides map/GPS, name, favorites and
+  the confirmation action; search/results use the freed viewport. Selection restores all controls
+  and dismisses the keyboard without resetting nickname/favorite draft data on focus.
+- The native map remains mounted in a non-collapsable, fixed 240-point/full-width container. Hidden
+  mode changes opacity and flow placement only, with touch/accessibility disabled; it never sets
+  display:none or changes map bounds. Existing camera/style/readiness/activity guards remain.
+  Other controls use visibility containers; their controlled values remain untouched.
+- Input stays in the same React tree position. Post-layout scrolling brings it to the top without
+  delays/guessed offsets. Blur does not restore layout before an entry press; keyboard hide restores
+  normal mode and keyboard reopen respects native input focus. Both platform event lifecycles clean up.
+- MapTiler/OSM credits remain in a small independent search-mode footer for licensing, with EN/IT
+  copyright text and accessible links. No new dependency, provider/API change or web UI change.
+- Local checks pass: 1,753 unit tests (schemas 110, shared 226, API 710, web 476, native pure/source
+  231), Mongo integration 82/82, typecheck 4/4, scoped Biome, EN/IT compilation, API/web production
+  builds and Android export. Callback/source checks are not native map/keyboard/device acceptance;
+  visual device validation remains pending.
+
+## Superseded compact design — native location search
 
 - Native picker now keeps its existing HeroUI search input outside one flexible FlatList, so it
   stays immediately below navigation when the keyboard opens. With search focus + keyboard visibility,
