@@ -215,8 +215,43 @@ describe("unified event request boundaries", () => {
       changeEventVoteSchema.safeParse({ kind: "date", optionId: id, vote: "YES", accepted: true })
         .success,
     ).toBe(false);
-    for (const action of ["accept", "decline", "cancel", "remove"])
+    for (const action of ["decline", "cancel", "remove"])
       expect(decideTableRegistrationSchema.safeParse({ version: 1, action }).success).toBe(true);
+  });
+  it("requires a strict versioned participation payload only when accepting an invitation", () => {
+    const participation = {
+      version: 2,
+      gameVotes: { "1": "YES" },
+      availability: {
+        version: 2,
+        dateVotes: { [id]: "YES" },
+        locationVotes: { [other]: "IF_NEEDED" },
+      },
+    };
+    const accept = { action: "accept", version: 1, participation };
+    expect(decideTableRegistrationSchema.parse(accept)).toEqual(accept);
+    for (const invalid of [
+      { action: "accept", version: 1 },
+      { ...accept, participation: { ...participation, gameVotes: { "1": "UNKNOWN" } } },
+      { ...accept, participation: { ...participation, version: 0 } },
+      { ...accept, participation: { ...participation, accepted: true } },
+      {
+        ...accept,
+        participation: {
+          ...participation,
+          availability: { ...participation.availability, accepted: true },
+        },
+      },
+      {
+        ...accept,
+        participation: {
+          ...participation,
+          availability: { ...participation.availability, dateVotes: { invalid: "YES" } },
+        },
+      },
+      ...["decline", "cancel", "remove"].map((action) => ({ action, version: 1, participation })),
+    ])
+      expect(decideTableRegistrationSchema.safeParse(invalid).success).toBe(false);
   });
   it("requires bounded explicit game choices for joins and rejects UNKNOWN in every new vote", () => {
     const choices = { version: 1, gameVotes: { "1": "YES", "2": "IF_NEEDED" } };

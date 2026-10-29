@@ -53,6 +53,16 @@ const input = {
     },
   ],
 };
+it("rejects bare invitation acceptance and choice payloads on non-accept actions before service writes", async () => {
+  for (const input of [
+    { action: "accept", version: 1 },
+    { action: "decline", version: 1, participation: { version: 1, gameVotes: { "1": "YES" } } },
+  ]) {
+    const result = await response.PATCH(request("PATCH", input), context);
+    expect(result.status).toBe(400);
+  }
+  expect(events.registrationAction).not.toHaveBeenCalled();
+});
 const request = (method = "GET", body?: unknown, query = "") =>
   new Request(`https://api.test/api/events${query}`, {
     method,
@@ -150,10 +160,12 @@ it("keeps explicit registrations, invitations and invitation consent distinct", 
     "[bgo.event-write]",
     expect.objectContaining({ operation: "event.table.invite", phase: "completed", status: 201 }),
   ]);
-  await response.PATCH(request("PATCH", { action: "accept", version: 1 }), context);
+  const participation = { version: 1, gameVotes: { "1": "YES" } };
+  await response.PATCH(request("PATCH", { action: "accept", version: 1, participation }), context);
   expect(events.registrationAction).toHaveBeenCalledWith("actor", id, {
     action: "accept",
     version: 1,
+    participation,
   });
   const cursor = `2030-06-01T12:00:00.000Z|3|${id}`;
   await seats.GET(

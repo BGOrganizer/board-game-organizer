@@ -73,7 +73,11 @@ it("reconciles owned Event participation from registration responses without dep
   await act(async () => {
     await q.result.current.respond.mutateAsync({
       registrationId: response.id,
-      input: { action: "accept", version: 1 },
+      input: {
+        action: "accept",
+        version: 1,
+        participation: { version: 1, gameVotes: { "1": "YES" } },
+      },
     });
   });
   expect(owned().myRegistrations.find((row) => row.tableId === tableId)?.version).toBe(3);
@@ -409,7 +413,14 @@ it.each(["accept", "decline", "cancel", "remove"] as const)(
       await expect(
         q.result.current.respond.mutateAsync({
           registrationId: registration.id,
-          input: { action, version: registration.version },
+          input:
+            action === "accept"
+              ? {
+                  action,
+                  version: registration.version,
+                  participation: { version: 1, gameVotes: { "1": "YES" } },
+                }
+              : { action, version: registration.version },
         }),
       ).rejects.toThrow("CLOSED");
     });

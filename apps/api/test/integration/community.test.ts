@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { CreatePlannedEventInput } from "@board-game-organizer/schemas";
+import type { CreatePlannedEventInput, JoinTableInput } from "@board-game-organizer/schemas";
 import {
   registerMatchResultsSchema,
   type SaveEventInput,
@@ -124,6 +124,28 @@ function services(session?: ClientSession) {
     plannedEventService,
     unifiedGroupService,
     groupAssetService,
+  };
+}
+async function participation(eventId: string, tableId: string): Promise<JoinTableInput> {
+  const s = services(),
+    event = await s.eventRecords.find(eventId),
+    table = await s.eventRecords.table(tableId);
+  if (!event || !table) throw new Error("Missing participation fixture");
+  const group = event.groupId ? await s.groupRecords.find(event.groupId) : null;
+  return {
+    version: event.version,
+    gameVotes: Object.fromEntries(table.games.map((game) => [String(game.gameId), "YES" as const])),
+    ...(group?.type === "PRIVATE"
+      ? {
+          availability: {
+            version: event.version,
+            dateVotes: Object.fromEntries(event.dates.map((row) => [row.id, "YES" as const])),
+            locationVotes: Object.fromEntries(
+              event.locations.map((row) => [row.id, "YES" as const]),
+            ),
+          },
+        }
+      : {}),
   };
 }
 async function transaction<T>(fn: (s: ReturnType<typeof services>) => Promise<T>) {
@@ -1775,10 +1797,12 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         transaction((s) => s.plannedEventService.register(OWNER, event.id, target, userId));
       const accept = async (userId: string) => {
         const row = await invite(userId);
+        const choices = await participation(event.id, tableId);
         await transaction((s) =>
           s.plannedEventService.registrationAction(userId, row.id, {
             action: "accept",
             version: row.version,
+            participation: choices,
           }),
         );
         return row;
@@ -1872,6 +1896,72 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       ).not.toContain("f_declined");
     },
   );
+  it("atomically accepts a pending PRIVATE invitation with all choices and rolls back an intervening storage failure", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.dates.push({ id: secondId, day: "2030-06-04" });
+    input.locations.push({ ...input.locations[0], id: secondId, name: "Second venue" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const invite = await transaction((s) =>
+      s.plannedEventService.register(OWNER, event.id, tableId, GUEST),
+    );
+    const choices = await participation(event.id, tableId);
+    const count = await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments();
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.registrationAction(GUEST, invite.id, {
+          action: "accept",
+          version: invite.version,
+          participation: { ...choices, gameVotes: { "1": "NO" } },
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_JOIN_GAME_VOTES" });
+    expect((await services().eventRecords.registration(invite.id))?.status).toBe("PENDING");
+    expect(await services().eventRecords.voter(event.id, GUEST)).toBeNull();
+    const failure = vi
+      .spyOn(EventRecordsRepository.prototype, "saveVoter")
+      .mockRejectedValueOnce(new Error("Vote storage failed"));
+    try {
+      await expect(
+        transaction((s) =>
+          s.plannedEventService.registrationAction(GUEST, invite.id, {
+            action: "accept",
+            version: invite.version,
+            participation: choices,
+          }),
+        ),
+      ).rejects.toThrow("Vote storage failed");
+    } finally {
+      failure.mockRestore();
+    }
+    expect(await services().eventRecords.registration(invite.id)).toMatchObject({
+      status: "PENDING",
+      version: invite.version,
+      gameVotes: {},
+    });
+    expect((await services().eventRecords.find(event.id))?.version).toBe(choices.version);
+    expect(await services().eventRecords.voter(event.id, GUEST)).toBeNull();
+    expect(await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments()).toBe(count);
+    const accepted = await transaction((s) =>
+      s.plannedEventService.registrationAction(GUEST, invite.id, {
+        action: "accept",
+        version: invite.version,
+        participation: choices,
+      }),
+    );
+    expect(accepted).toMatchObject({
+      id: invite.id,
+      status: "ACCEPTED",
+      priorityAt: invite.priorityAt,
+      sequence: invite.sequence,
+      gameVotes: choices.gameVotes,
+    });
+    expect(await services().eventRecords.voter(event.id, GUEST)).toMatchObject({
+      dateVotes: choices.availability!.dateVotes,
+      locationVotes: choices.availability!.locationVotes,
+    });
+    expect((await services().eventRecords.find(event.id))?.version).toBe(choices.version + 1);
+  });
   it("serializes concurrent game rejections and commits explicit join games atomically", async () => {
     const group = await privateGroup();
     await db
@@ -2147,10 +2237,12 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const waiting = await transaction((s) =>
       s.plannedEventService.register(OWNER, event.id, tableId, OTHER),
     );
+    const choices = await participation(event.id, tableId);
     await transaction((s) =>
       s.plannedEventService.registrationAction(OTHER, waiting.id, {
         action: "accept",
         version: waiting.version,
+        participation: choices,
       }),
     );
     await expect(

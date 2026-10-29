@@ -1,6 +1,10 @@
 "use client";
 
-import type { EventVote, JoinEventAvailability } from "@board-game-organizer/schemas";
+import type {
+  EventVote,
+  JoinEventAvailability,
+  JoinTableInput,
+} from "@board-game-organizer/schemas";
 import { useEffect, useRef, useState } from "react";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
 import {
@@ -18,6 +22,7 @@ export function useEventJoinForm(
   eventId: string,
   tableId: string,
   onComplete: () => void,
+  registrationId?: string,
 ) {
   const q = useEventRecord(o, eventId),
     tableQuery = useRecordTable(o, eventId, tableId),
@@ -32,6 +37,19 @@ export function useEventJoinForm(
   const event = denied ? undefined : q.data,
     table = denied ? undefined : tableQuery.data;
   const requiresAvailability = event?.groupType === "PRIVATE";
+  const isInvitation = registrationId !== undefined;
+  const gamesOnly = isInvitation && event?.groupType === "PUBLIC";
+  const invitation = table?.myRegistration;
+  const invitationAvailable = Boolean(
+    table?.canRespond &&
+      invitation?.id === registrationId &&
+      invitation?.userId === o.userId &&
+      invitation?.status === "PENDING" &&
+      invitation?.kind === "INVITATION",
+  );
+  const invitationUnavailable = Boolean(
+    isInvitation && table && !tableQuery.isPlaceholderData && !invitationAvailable,
+  );
   useEffect(() => {
     if (!event || q.isPlaceholderData || event.myRegistrations === undefined) return;
     const firstTab =
@@ -70,7 +88,7 @@ export function useEventJoinForm(
       table &&
       table.eventId === eventId &&
       table.id === tableId &&
-      table.canRegister &&
+      (isInvitation ? invitationAvailable : table.canRegister) &&
       !q.isError &&
       !tableQuery.isError &&
       !q.isPlaceholderData &&
@@ -98,8 +116,7 @@ export function useEventJoinForm(
     if (!canSubmit || !event) return;
     setFailed(false);
     try {
-      await actions.register.mutateAsync({
-        tableId,
+      const participation: JoinTableInput = {
         version: event.version,
         gameVotes: votes.gameVotes,
         ...(requiresAvailability
@@ -111,7 +128,13 @@ export function useEventJoinForm(
               },
             }
           : {}),
-      });
+      };
+      if (isInvitation) {
+        await actions.respond.mutateAsync({
+          registrationId,
+          input: { action: "accept", version: invitation!.version, participation },
+        });
+      } else await actions.register.mutateAsync({ tableId, ...participation });
       onComplete();
     } catch {
       setFailed(true);
@@ -124,6 +147,9 @@ export function useEventJoinForm(
     event,
     table,
     requiresAvailability,
+    isInvitation,
+    gamesOnly,
+    invitationUnavailable,
     initialTab,
     votes,
     choose,

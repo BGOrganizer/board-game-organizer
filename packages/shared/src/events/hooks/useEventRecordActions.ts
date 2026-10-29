@@ -300,7 +300,8 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
           "myRegistration" in row && row.myRegistration?.id === registrationId
             ? {
                 ...row,
-                canRespond: false,
+                // Keep the invitation's sheet mounted until acceptance actually commits.
+                canRespond: input.action === "accept" ? row.canRespond : false,
                 canLeave: false,
                 ...(input.action === "cancel" || input.action === "remove"
                   ? { myPosition: null }
@@ -312,7 +313,11 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
               ? { ...row, status: "CANCELLED" }
               : row,
       ),
-    onSuccess: (value) => registrationSuccess(value),
+    onSuccess: (value, { input }) =>
+      registrationSuccess(
+        value,
+        input.action === "accept" ? input.participation.availability : undefined,
+      ),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });

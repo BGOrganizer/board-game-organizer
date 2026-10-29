@@ -167,12 +167,21 @@ export const changeEventVoteSchema = z.discriminatedUnion("kind", [
 ]);
 export type ChangeEventVoteInput = z.infer<typeof changeEventVoteSchema>;
 export const inviteTablePlayerSchema = z.object({ userId: targetUserIdSchema }).strict();
-export const decideTableRegistrationSchema = z
-  .object({
-    version: z.number().int().positive(),
-    action: z.enum(["accept", "decline", "cancel", "remove"]),
-  })
-  .strict();
+export const decideTableRegistrationSchema = z.discriminatedUnion("action", [
+  z
+    .object({
+      version: z.number().int().positive(),
+      action: z.literal("accept"),
+      participation: joinTableSchema,
+    })
+    .strict(),
+  z
+    .object({
+      version: z.number().int().positive(),
+      action: z.enum(["decline", "cancel", "remove"]),
+    })
+    .strict(),
+]);
 export type DecideTableRegistrationInput = z.infer<typeof decideTableRegistrationSchema>;
 export const tableResultsInputSchema = z
   .object({

@@ -4,6 +4,7 @@ import type {
   EventVoter,
   GroupRecord,
   JoinEventAvailability,
+  JoinTableInput,
   TableRecord,
   TableRegistration,
 } from "@board-game-organizer/schemas";
@@ -228,8 +229,33 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     await service.vote(userId, eventId, { kind: "location", optionId: id, vote: "YES" });
     await service.vote(userId, eventId, { kind: "game", tableId, gameId: 1, vote: "YES" });
   };
+  const participation = (eventId: string, tableId: string): JoinTableInput => {
+    const event = events.get(eventId)!,
+      table = tables.get(tableId)!;
+    return {
+      version: event.version,
+      gameVotes: Object.fromEntries(
+        table.games.map((game) => [String(game.gameId), "YES" as const]),
+      ),
+      ...(type === "PRIVATE"
+        ? {
+            availability: {
+              version: event.version,
+              dateVotes: Object.fromEntries(event.dates.map((row) => [row.id, "YES" as const])),
+              locationVotes: Object.fromEntries(
+                event.locations.map((row) => [row.id, "YES" as const]),
+              ),
+            },
+          }
+        : {}),
+    };
+  };
   const accept = async (row: TableRegistration) =>
-    service.registrationAction(row.userId, row.id, { action: "accept", version: row.version });
+    service.registrationAction(row.userId, row.id, {
+      action: "accept",
+      version: row.version,
+      participation: participation(row.eventId, row.tableId),
+    });
   const confirm = async (eventId: string) =>
     service.transition(owner, eventId, {
       action: "confirm",
@@ -251,6 +277,7 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     create,
     yes,
     accept,
+    participation,
     confirm,
   };
 }
@@ -261,6 +288,149 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe("atomic invitation acceptance", () => {
+  it.each([false, true])(
+    "rejects missing/foreign invitation Tables before writes: foreign=%s",
+    async (foreign) => {
+      const f = setup(),
+        event = await f.create(),
+        invite = await f.service.register(owner, event.id, id, guest);
+      f.repo.table.mockResolvedValueOnce(foreign ? { ...f.tables.get(id)!, eventId: other } : null);
+      f.repo.saveRegistration.mockClear();
+      await expect(f.accept(invite)).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+      expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+      expect(f.registrations.get(invite.id)?.status).toBe("PENDING");
+    },
+  );
+  it.each([null, "PRIVATE", "PUBLIC"] as const)(
+    "requires valid current choices before any acceptance write: %s",
+    async (type) => {
+      const f = setup(type),
+        event = await f.create(),
+        invite = await f.service.register(owner, event.id, id, guest);
+      const choices = f.participation(event.id, id);
+      const invalid: Array<{ input: JoinTableInput | undefined; code: string }> = [
+        { input: undefined, code: "TABLE_GAME_AVAILABILITY_REQUIRED" },
+        { input: { ...choices, version: choices.version - 1 }, code: "EVENT_CHANGED" },
+        { input: { ...choices, gameVotes: {} }, code: "INVALID_JOIN_GAME_VOTES" },
+        { input: { ...choices, gameVotes: { "1": "NO" } }, code: "INVALID_JOIN_GAME_VOTES" },
+        { input: { ...choices, gameVotes: { "2": "YES" } }, code: "INVALID_JOIN_GAME_VOTES" },
+        {
+          input: { ...choices, gameVotes: { "1": "YES", "2": "NO" } },
+          code: "INVALID_JOIN_GAME_VOTES",
+        },
+      ];
+      if (type === "PRIVATE") {
+        const availability = choices.availability!;
+        invalid.push(
+          { input: { ...choices, availability: undefined }, code: "EVENT_AVAILABILITY_REQUIRED" },
+          {
+            input: {
+              ...choices,
+              availability: { ...availability, version: availability.version - 1 },
+            },
+            code: "EVENT_CHANGED",
+          },
+          {
+            input: { ...choices, availability: { ...availability, dateVotes: {} } },
+            code: "INVALID_JOIN_AVAILABILITY",
+          },
+          {
+            input: { ...choices, availability: { ...availability, locationVotes: { [id]: "NO" } } },
+            code: "INVALID_JOIN_AVAILABILITY",
+          },
+          {
+            input: { ...choices, availability: { ...availability, dateVotes: { [other]: "YES" } } },
+            code: "INVALID_JOIN_AVAILABILITY",
+          },
+        );
+      } else
+        invalid.push({
+          input: {
+            ...choices,
+            availability: {
+              version: choices.version,
+              dateVotes: { [id]: "YES" },
+              locationVotes: { [id]: "YES" },
+            },
+          },
+          code: "INVALID_JOIN_AVAILABILITY",
+        });
+      const before = structuredClone(f.events.get(event.id));
+      f.repo.saveRegistration.mockClear();
+      f.repo.saveVoter.mockClear();
+      f.repo.save.mockClear();
+      for (const { input, code } of invalid)
+        await expect(
+          f.service.registrationAction(guest, invite.id, {
+            action: "accept",
+            version: invite.version,
+            participation: input as JoinTableInput,
+          }),
+        ).rejects.toMatchObject({ code });
+      expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+      expect(f.repo.saveVoter).not.toHaveBeenCalled();
+      expect(f.repo.save).not.toHaveBeenCalled();
+      expect(f.events.get(event.id)).toEqual(before);
+      expect(f.registrations.get(invite.id)?.status).toBe("PENDING");
+      expect(f.registrations.get(invite.id)?.gameVotes).toEqual({});
+    },
+  );
+  it.each([null, "PRIVATE", "PUBLIC"] as const)(
+    "accepts with choices without changing invitation priority or creating another registration: %s",
+    async (type) => {
+      const f = setup(type),
+        event = await f.create(),
+        invite = await f.service.register(owner, event.id, id, guest);
+      const participation = f.participation(event.id, id);
+      participation.gameVotes = { "1": "IF_NEEDED" };
+      const accepted = await f.service.registrationAction(guest, invite.id, {
+        action: "accept",
+        version: invite.version,
+        participation,
+      });
+      expect(accepted).toMatchObject({
+        id: invite.id,
+        status: "ACCEPTED",
+        version: invite.version + 1,
+        priorityAt: invite.priorityAt,
+        sequence: invite.sequence,
+        gameVotes: { "1": "IF_NEEDED" },
+      });
+      expect(f.registrations.size).toBe(1);
+      if (type === "PRIVATE")
+        expect(f.repo.saveVoter).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            eventId: event.id,
+            userId: guest,
+            dateVotes: participation.availability!.dateVotes,
+            locationVotes: participation.availability!.locationVotes,
+          }),
+        );
+      else expect(f.repo.saveVoter).not.toHaveBeenCalled();
+    },
+  );
+  it("still requires date/location choices for PRIVATE invitations when another Table is already accepted", async () => {
+    const f = setup("PRIVATE"),
+      input = body();
+    input.groupId = other;
+    input.tables.push({ ...input.tables[0], id: other, name: "Second table" });
+    const event = await f.service.create(owner, input);
+    await f.service.join(guest, event.id, id, f.participation(event.id, id));
+    const invite = await f.service.register(owner, event.id, other, guest);
+    const choices = f.participation(event.id, other);
+    delete choices.availability;
+    await expect(
+      f.service.registrationAction(guest, invite.id, {
+        action: "accept",
+        version: invite.version,
+        participation: choices,
+      }),
+    ).rejects.toMatchObject({ code: "EVENT_AVAILABILITY_REQUIRED" });
+    expect(f.registrations.get(invite.id)?.status).toBe("PENDING");
+  });
 });
 
 describe("unified event core — real consent, no synthetic Match writes", () => {
@@ -374,10 +544,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
     const event = await f.service.create(owner, input);
     await f.service.register(owner, event.id, other, "pending");
     const accepted = await f.service.register(owner, event.id, other, "accepted");
-    await f.service.registrationAction("accepted", accepted.id, {
-      action: "accept",
-      version: accepted.version,
-    });
+    await f.accept(accepted);
     const cancelled = await f.service.register(owner, event.id, other, "cancelled");
     await f.service.registrationAction(owner, cancelled.id, {
       action: "remove",
@@ -1146,10 +1313,18 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
       event = await f.create(),
       invite = await f.service.register(owner, event.id, id, guest);
     await expect(
-      f.service.registrationAction(owner, invite.id, { action: "accept", version: 1 }),
+      f.service.registrationAction(owner, invite.id, {
+        action: "accept",
+        version: 1,
+        participation: f.participation(event.id, id),
+      }),
     ).rejects.toMatchObject({ code: "INVITATION_RECIPIENT_REQUIRED" });
     await expect(
-      f.service.registrationAction(guest, invite.id, { action: "accept", version: 99 }),
+      f.service.registrationAction(guest, invite.id, {
+        action: "accept",
+        version: 99,
+        participation: f.participation(event.id, id),
+      }),
     ).rejects.toMatchObject({ code: "REGISTRATION_CHANGED" });
     const accepted = await f.accept(invite);
     expect(accepted.priorityAt).toBe(invite.priorityAt);
