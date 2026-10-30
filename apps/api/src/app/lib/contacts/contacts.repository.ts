@@ -1,4 +1,4 @@
-import type { Db } from "mongodb";
+import type { ClientSession, Db } from "mongodb";
 import { COLLECTIONS } from "@/app/lib/db";
 
 /**
@@ -21,7 +21,11 @@ export class ContactLinksRepository {
    * device address book is the source of truth: if the user removed a
    * contact (or revoked access), stale links disappear.
    */
-  async replaceForUser(userId: string, matches: Array<{ contactClerkId: string; email: string }>) {
+  async replaceForUser(
+    userId: string,
+    matches: Array<{ contactClerkId: string; email: string }>,
+    session: ClientSession,
+  ) {
     const now = new Date();
     const links = matches.map((m) => ({
       userId,
@@ -29,8 +33,8 @@ export class ContactLinksRepository {
       email: m.email,
       createdAt: now,
     }));
-    await this.col().deleteMany({ userId });
-    if (links.length) await this.col().insertMany(links);
+    await this.col().deleteMany({ userId }, { session });
+    if (links.length) await this.col().insertMany(links, { session });
     return links.length;
   }
 

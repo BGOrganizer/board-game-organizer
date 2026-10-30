@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OPTIONS, POST } from "../route";
 
+const transaction = vi.hoisted(() => ({ run: vi.fn(), session: { id: "contact-sync" } }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: vi.fn() }));
 vi.mock("@/app/lib/db", () => ({
   getDb: vi.fn(),
+  withTransaction: transaction.run,
   COLLECTIONS: { USERS: "users", CONTACT_LINKS: "contactLinks" },
 }));
 
@@ -21,12 +23,13 @@ function fakeDb(
   }> = [],
 ) {
   const userFind = vi.fn(() => ({ toArray: vi.fn(async () => users) }));
+  const lock = vi.fn(async () => ({ matchedCount: 1 }));
   const deleteMany = vi.fn(async () => ({ deletedCount: 0 }));
   const insertMany = vi.fn(async () => ({ insertedCount: users.length }));
   const db = {
     collection: vi.fn((name: string) =>
       name === "users"
-        ? { find: userFind }
+        ? { find: userFind, updateOne: lock }
         : {
             deleteMany,
             insertMany,
@@ -34,12 +37,15 @@ function fakeDb(
           },
     ),
   };
-  return { db, userFind, deleteMany, insertMany };
+  return { db, userFind, lock, deleteMany, insertMany };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   authMock.mockResolvedValue({ userId: "user_1" });
+  transaction.run.mockImplementation(async (operation) =>
+    operation(transaction.session, await getDbMock()),
+  );
 });
 
 describe("POST /api/contacts/sync", () => {
@@ -125,8 +131,17 @@ describe("POST /api/contacts/sync", () => {
       },
       { projection: { _id: 0, clerkId: 1, email: 1, mobileNumberNormalized: 1 } },
     );
-    expect(database.deleteMany).toHaveBeenCalledWith({ userId: "user_1" });
+    expect(database.deleteMany).toHaveBeenCalledWith(
+      { userId: "user_1" },
+      { session: transaction.session },
+    );
+    expect(database.lock).toHaveBeenCalledWith(
+      { clerkId: "user_1" },
+      { $inc: { "community.uploadLock": 1 } },
+      { session: transaction.session },
+    );
     expect(database.insertMany).toHaveBeenCalledOnce();
+    expect(database.insertMany.mock.calls[0]).toHaveLength(2);
   });
 
   it("keeps email-only clients compatible", async () => {
@@ -162,9 +177,40 @@ describe("POST /api/contacts/sync", () => {
       registeredIdentifiers: { emails: [], phoneNumbers: [] },
     });
     expect(database.userFind).not.toHaveBeenCalled();
-    expect(database.deleteMany).toHaveBeenCalledWith({ userId: "user_1" });
+    expect(database.deleteMany).toHaveBeenCalledWith(
+      { userId: "user_1" },
+      { session: transaction.session },
+    );
     expect(database.insertMany).not.toHaveBeenCalled();
   });
+});
+
+it("does not replace links before the actor's mirror can supply a stable transaction lock", async () => {
+  const database = fakeDb();
+  database.lock.mockResolvedValueOnce({ matchedCount: 0 });
+  getDbMock.mockResolvedValue(database.db);
+  const response = await POST(
+    new Request("http://localhost/api/contacts/sync", {
+      method: "POST",
+      body: JSON.stringify({ emails: [] }),
+    }),
+  );
+  expect(response.status).toBe(409);
+  expect(await response.json()).toEqual({ error: "USER_MIRROR_NOT_READY" });
+  expect(database.deleteMany).not.toHaveBeenCalled();
+});
+it("reports a transactional storage failure without returning a successful replacement", async () => {
+  const database = fakeDb([{ clerkId: "friend", email: "friend@example.com" }]);
+  database.insertMany.mockRejectedValueOnce(new Error("storage"));
+  getDbMock.mockResolvedValue(database.db);
+  const response = await POST(
+    new Request("http://localhost/api/contacts/sync", {
+      method: "POST",
+      body: JSON.stringify({ emails: ["friend@example.com"] }),
+    }),
+  );
+  expect(response.status).toBe(500);
+  expect(await response.json()).toEqual({ error: "Could not synchronize contacts" });
 });
 
 describe("OPTIONS /api/contacts/sync", () => {

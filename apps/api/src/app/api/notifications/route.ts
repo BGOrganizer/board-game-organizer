@@ -1,7 +1,7 @@
 import { notificationListQuerySchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { getDb } from "@/app/lib/db";
+import { getDb, withTransaction } from "@/app/lib/db";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 
 export const OPTIONS = corsOptions;
@@ -45,7 +45,9 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    await new NotificationsRepository(await getDb()).markAllRead(userId);
+    await withTransaction(async (session, db) => {
+      await new NotificationsRepository(db, session).markAllRead(userId);
+    });
     return corsJson({ success: true }, {}, request);
   } catch {
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);

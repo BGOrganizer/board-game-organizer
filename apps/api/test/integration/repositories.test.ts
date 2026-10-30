@@ -6,6 +6,7 @@ import { type Db, MongoClient, type ObjectId } from "mongodb";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { importDirectCsv } from "../../scripts/import-boardgames-direct";
+import { ContactLinksRepository } from "../../src/app/lib/contacts/contacts.repository";
 import { RelationshipRepository } from "../../src/app/lib/contacts/relationship.repository";
 import { RelationshipService } from "../../src/app/lib/contacts/relationship.service";
 import { COLLECTIONS } from "../../src/app/lib/db";
@@ -108,6 +109,80 @@ beforeEach(async () => {
 });
 
 describe("API repositories on a MongoDB replica set", () => {
+  async function replaceContacts(matches: Array<{ contactClerkId: string; email: string }>) {
+    const session = client.startSession();
+    try {
+      return await session.withTransaction(async () => {
+        await new UsersRepository(db, session).lock(ACTOR);
+        return new ContactLinksRepository(db).replaceForUser(ACTOR, matches, session);
+      });
+    } finally {
+      await session.endSession();
+    }
+  }
+  it("rolls back the complete contact snapshot and its actor lock when insertion fails after deletion", async () => {
+    await replaceContacts([{ contactClerkId: THIRD, email: "third@example.com" }]);
+    const before = await db.collection(COLLECTIONS.CONTACT_LINKS).find({ userId: ACTOR }).toArray();
+    const userBefore = await users.findById(ACTOR);
+    // Real Mongo failure injection, scoped to this disposable test database. There
+    // is deliberately no assumed unique index on the production contact snapshot.
+    await db.command({
+      collMod: COLLECTIONS.CONTACT_LINKS,
+      validator: { contactClerkId: { $ne: TARGET } },
+    });
+    await expect(
+      replaceContacts([{ contactClerkId: TARGET, email: "target@example.com" }]),
+    ).rejects.toMatchObject({ code: 121 });
+    expect(
+      await db.collection(COLLECTIONS.CONTACT_LINKS).find({ userId: ACTOR }).toArray(),
+    ).toEqual(before);
+    expect(await users.findById(ACTOR)).toEqual(userBefore);
+  });
+  it("serializes two initially empty address-book replacements instead of publishing their union", async () => {
+    await Promise.all([
+      replaceContacts([{ contactClerkId: TARGET, email: "target@example.com" }]),
+      replaceContacts([{ contactClerkId: THIRD, email: "third@example.com" }]),
+    ]);
+    const links = await new ContactLinksRepository(db).contactClerkIdsForUser(ACTOR);
+    expect(links).toHaveLength(1);
+    expect([TARGET, THIRD]).toContain(links[0]);
+  });
+  it("marks an entire inbox atomically and leaves another owner's inbox untouched", async () => {
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertMany([
+      { recipientUserId: ACTOR, createdAt: new Date() },
+      { recipientUserId: ACTOR, createdAt: new Date() },
+      { recipientUserId: TARGET, createdAt: new Date() },
+    ]);
+    const session = client.startSession();
+    try {
+      await expect(
+        session.withTransaction(async () => {
+          await new NotificationsRepository(db, session).markAllRead(ACTOR);
+          throw new Error("failure after bulk update");
+        }),
+      ).rejects.toThrow("failure after bulk update");
+      expect(
+        await db
+          .collection(COLLECTIONS.NOTIFICATIONS)
+          .countDocuments({ readAt: { $exists: true } }),
+      ).toBe(0);
+      await session.withTransaction(() =>
+        new NotificationsRepository(db, session).markAllRead(ACTOR),
+      );
+      expect(
+        await db
+          .collection(COLLECTIONS.NOTIFICATIONS)
+          .countDocuments({ recipientUserId: ACTOR, readAt: { $exists: true } }),
+      ).toBe(2);
+      expect(
+        await db
+          .collection(COLLECTIONS.NOTIFICATIONS)
+          .countDocuments({ recipientUserId: TARGET, readAt: { $exists: true } }),
+      ).toBe(0);
+    } finally {
+      await session.endSession();
+    }
+  });
   it("persists private favorites with pagination, idempotency and transaction rollback", async () => {
     const repository = new FavoriteLocationsRepository(db);
     expect(await db.collection("favoriteLocations").indexes()).toEqual(

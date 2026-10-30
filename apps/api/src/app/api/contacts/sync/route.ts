@@ -5,9 +5,11 @@ import {
   type User,
 } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
+import { CommunityError } from "@/app/lib/community.error";
 import { ContactLinksRepository } from "@/app/lib/contacts/contacts.repository";
 import { corsJson, corsOptions } from "@/app/lib/cors";
-import { COLLECTIONS, getDb } from "@/app/lib/db";
+import { COLLECTIONS, getDb, withTransaction } from "@/app/lib/db";
+import { UsersRepository } from "@/app/lib/users/users.repository";
 
 /**
  * POST /api/contacts/sync
@@ -64,7 +66,21 @@ export async function POST(request: Request) {
     })
     .map((user) => ({ contactClerkId: user.clerkId, email: user.email }));
 
-  const stored = await new ContactLinksRepository(db).replaceForUser(userId, matches);
+  let stored: number;
+  try {
+    stored = await withTransaction(async (session, transactionDb) => {
+      // One stable actor lock serializes even two initially empty contact snapshots.
+      const lock = await new UsersRepository(transactionDb, session).lock(userId);
+      if (!lock.matchedCount) throw new CommunityError(409, "USER_MIRROR_NOT_READY");
+      return new ContactLinksRepository(transactionDb).replaceForUser(userId, matches, session);
+    });
+  } catch (error) {
+    return corsJson(
+      { error: error instanceof CommunityError ? error.code : "Could not synchronize contacts" },
+      { status: error instanceof CommunityError ? error.status : 500 },
+      request,
+    );
+  }
   return corsJson(
     {
       stored,
