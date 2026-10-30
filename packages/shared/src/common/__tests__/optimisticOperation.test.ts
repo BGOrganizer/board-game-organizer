@@ -177,6 +177,117 @@ describe("operation-scoped optimistic cache updates", () => {
     noop.rollback();
   });
 
+  it("preserves age and invalidation for no-op and partial publishers outside a tracked operation", async () => {
+    const client = makeClient();
+    client.setQueryData(list, initial, { updatedAt: 1 });
+    await client.invalidateQueries({ ...filters, refetchType: "none" });
+    updateOptimisticBase(client, list, (data) => ({ ...(data as Data) }));
+    expect(client.getQueryState(list)).toMatchObject({ dataUpdatedAt: 1, isInvalidated: true });
+    updateOptimisticBase(client, list, patch("b"));
+    expect(client.getQueryState(list)).toMatchObject({ dataUpdatedAt: 1, isInvalidated: true });
+    expect(client.getQueryData(list)).toEqual({ a: false, b: true, count: 1 });
+    updateOptimisticBase(client, detail, () => initial);
+    expect(client.getQueryData(detail)).toEqual(initial);
+  });
+
+  it.each(["commit", "rollback"] as const)(
+    "preserves cache age and invalidation through projections and %s",
+    async (finish) => {
+      const client = makeClient();
+      client.setQueryData(list, initial, { updatedAt: 1 });
+      await client.invalidateQueries({ ...filters, refetchType: "none" });
+      const operation = await beginOptimisticOperation(client, root, filters, patch("a"));
+      expect(client.getQueryState(list)).toMatchObject({ dataUpdatedAt: 1, isInvalidated: true });
+      updateOptimisticBase(client, list, patch("b"));
+      expect(client.getQueryState(list)).toMatchObject({ dataUpdatedAt: 1, isInvalidated: true });
+      operation[finish]();
+      expect(client.getQueryState(list)).toMatchObject({ dataUpdatedAt: 1, isInvalidated: true });
+      expect(client.getQueryData(list)).toMatchObject({ a: finish === "commit", b: true });
+    },
+  );
+
+  it.each(["begin", "acknowledge"] as const)(
+    "retains invalidation when %s cancels a read whose revert snapshot was fresh",
+    async (phase) => {
+      const client = makeClient();
+      seed(client);
+      const operation =
+        phase === "acknowledge"
+          ? await beginOptimisticOperation(client, root, filters, patch("a"))
+          : undefined;
+      const fetching = client.fetchQuery({
+        queryKey: list,
+        queryFn: ({ signal }) => {
+          expect(signal.aborted).toBe(false);
+          return new Promise<Data>(() => undefined);
+        },
+      });
+      await client.invalidateQueries({ ...filters, refetchType: "none" });
+      const current =
+        operation ?? (await beginOptimisticOperation(client, root, filters, patch("a")));
+      if (operation) operation.acknowledge();
+      await expect(fetching).resolves.toBeDefined();
+      expect(client.getQueryState(list)?.isInvalidated).toBe(true);
+      current.rollback();
+      expect(client.getQueryState(list)?.isInvalidated).toBe(true);
+    },
+  );
+
+  it("does not re-notify evicted queries while preserving invalidation during cancellation", async () => {
+    const client = makeClient();
+    seed(client);
+    await client.invalidateQueries({ ...filters, refetchType: "none" });
+    const invalidations = client
+      .getQueryCache()
+      .findAll(filters)
+      .map((query) => vi.spyOn(query, "invalidate"));
+    const cancel = client.cancelQueries.bind(client);
+    vi.spyOn(client, "cancelQueries").mockImplementation((filters) => {
+      const pending = cancel(filters);
+      clearSessionQueryCache(client);
+      return pending;
+    });
+    await expect(beginOptimisticOperation(client, root, filters, patch("a"))).rejects.toThrow(
+      "MUTATION_OWNER_CHANGED",
+    );
+    for (const invalidate of invalidations) expect(invalidate).not.toHaveBeenCalled();
+    expect(client.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it("cancels pre-ACK reads once without cancelling post-ACK reads on completion", async () => {
+    const client = makeClient();
+    seed(client);
+    const operation = await beginOptimisticOperation(client, root, filters, patch("a"));
+    let beforeSignal: AbortSignal | undefined;
+    const before = client.fetchQuery({
+      queryKey: list,
+      queryFn: ({ signal }) => {
+        beforeSignal = signal;
+        return new Promise<Data>(() => undefined);
+      },
+    });
+    operation.acknowledge();
+    expect(beforeSignal?.aborted).toBe(true);
+    await expect(before).resolves.toBeDefined();
+    let afterSignal: AbortSignal | undefined;
+    let release!: (data: Data) => void;
+    const after = client.fetchQuery({
+      queryKey: list,
+      queryFn: ({ signal }) => {
+        afterSignal = signal;
+        return new Promise<Data>((resolve) => {
+          release = resolve;
+        });
+      },
+    });
+    operation.commit();
+    operation.acknowledge();
+    expect(afterSignal?.aborted).toBe(false);
+    release({ a: true, b: true, count: 2 });
+    await expect(after).resolves.toEqual({ a: true, b: true, count: 2 });
+    expect(client.getQueryData(list)).toEqual({ a: true, b: true, count: 2 });
+  });
+
   it("handles cache invalidation and unrelated fetches without changing its baseline", async () => {
     const client = makeClient();
     seed(client);

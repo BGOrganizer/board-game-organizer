@@ -3,6 +3,9 @@ import {
   eventRecordKeys,
   eventRecordsQuery,
   useEventRecordActions,
+  useEventTableRoster,
+  useRecordTable,
+  useRecordTables,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -36,6 +39,100 @@ function setup() {
   return { client, options, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+it.each([
+  ["invite", true],
+  ["invite", false],
+  ["remove", true],
+  ["remove", false],
+] as const)(
+  "reconciles invitation rows and Table-list counts after %s with metadata first=%s",
+  async (action, metadataFirst) => {
+    const { client, options, wrapper } = setup();
+    const invitation = { ...seat("guest"), status: "PENDING" as const };
+    const before = { ...plannedTable, pendingCount: action === "remove" ? 1 : 0 };
+    const saved = { ...plannedTable, pendingCount: action === "invite" ? 1 : 0 };
+    const rows = action === "invite" ? [invitation] : [];
+    const pendingKey = [...eventRecordKeys.root(options), "seats", eventId, tableId, true, ""];
+    client.setQueryData(eventRecordKeys.table(options, eventId, tableId), before);
+    client.setQueryData(eventRecordKeys.tables(options, null), {
+      pages: [{ items: [before], nextCursor: null }],
+      pageParams: [""],
+    });
+    for (const pending of [false, true])
+      client.setQueryData(
+        [...eventRecordKeys.root(options), "seats", eventId, tableId, pending, ""],
+        {
+          pages: [{ items: pending && action === "remove" ? [invitation] : [], nextCursor: null }],
+          pageParams: [""],
+        },
+      );
+    let releaseEvent!: (response: Response) => void;
+    let releaseRoster!: (response: Response) => void;
+    let rosterSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "POST") return Response.json(invitation);
+        if (init?.method === "PATCH")
+          return Response.json({ ...invitation, status: "CANCELLED", version: 2 });
+        if (url.endsWith(`/events/${eventId}`))
+          return new Promise<Response>((resolve) => {
+            releaseEvent = resolve;
+          });
+        if (url.includes("/seats?")) {
+          if (!url.includes("pending=true")) return Response.json({ items: [], nextCursor: null });
+          rosterSignal = init?.signal ?? undefined;
+          return new Promise<Response>((resolve) => {
+            releaseRoster = resolve;
+          });
+        }
+        return url.includes("/api/tables?")
+          ? Response.json({ items: [saved], nextCursor: null })
+          : Response.json(saved);
+      }),
+    );
+    const hook = renderHook(
+      () => {
+        const table = useRecordTable(options, eventId, tableId);
+        return {
+          actions: useEventRecordActions(options, eventId),
+          table,
+          cards: useRecordTables(options, null),
+          roster: useEventTableRoster(options, table.data ?? before),
+        };
+      },
+      { wrapper },
+    );
+    await act(() =>
+      action === "invite"
+        ? hook.result.current.actions.invite.mutateAsync({ tableId, userId: "guest" })
+        : hook.result.current.actions.respond.mutateAsync({
+            registrationId: invitation.id,
+            input: { action: "remove", version: 1 },
+          }),
+    );
+    await waitFor(() => expect(releaseRoster).toBeDefined());
+    if (!metadataFirst)
+      await act(async () => releaseRoster(Response.json({ items: rows, nextCursor: null })));
+    await act(async () => releaseEvent(Response.json({ ...plannedEvent, version: 2 })));
+    await waitFor(() => expect(hook.result.current.actions.busy).toBe(false));
+    expect(rosterSignal?.aborted).toBe(false);
+    if (metadataFirst)
+      await act(async () => releaseRoster(Response.json({ items: rows, nextCursor: null })));
+    await waitFor(() =>
+      expect(hook.result.current.roster.rows.filter((row) => row.kind === "player")).toEqual(
+        rows.map((user) => ({ key: user.id, kind: "player", user })),
+      ),
+    );
+    expect(hook.result.current.roster.rows.some((row) => row.kind === "reserved")).toBe(false);
+    expect(hook.result.current.table.data?.pendingCount).toBe(saved.pendingCount);
+    expect(hook.result.current.cards.items[0]?.pendingCount).toBe(saved.pendingCount);
+    expect(client.getQueryData(pendingKey)).toMatchObject({ pages: [{ items: rows }] });
+    expect(options.feedback.onError).not.toHaveBeenCalled();
+    hook.unmount();
+    client.clear();
+  },
+);
 it("resolves a saved registration before metadata GET completes while locking only its Event", async () => {
   const { client, options, wrapper } = setup();
   const registration = { ...seat("owner"), gameVotes: { "1": "YES" as const } };

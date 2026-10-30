@@ -53,19 +53,38 @@ export function optimisticFailureAction(
     ? action
     : "verify_saved_changes";
 }
+function cancelReads(client: QueryClient, filters: QueryFilters) {
+  const invalidated = client
+    .getQueryCache()
+    .findAll(filters)
+    .filter((query) => query.state.isInvalidated);
+  const cancelled = client.cancelQueries(filters);
+  // SDK cancellation restores its fetch-start snapshot, including an obsolete fresh flag.
+  for (const query of invalidated)
+    if (client.getQueryCache().get(query.queryHash) === query) query.invalidate();
+  return cancelled;
+}
 function changed(journal: Journal) {
   journal.revision++;
   for (const listener of journal.listeners) listener();
 }
+function publishLocalData(client: QueryClient, query: Query, data: unknown) {
+  if (client.getQueryCache().get(query.queryHash) !== query) return;
+  const next = replaceEqualDeep(query.state.data, data);
+  if (next === query.state.data) return;
+  const { dataUpdatedAt, isInvalidated } = query.state;
+  // A local projection/partial ACK is not a fresh GET and must not clear a pending refresh.
+  client.setQueryData(query.queryKey, next, { updatedAt: dataUpdatedAt });
+  if (isInvalidated) query.invalidate();
+}
 function project(client: QueryClient, journal: Journal, entry: Entry) {
-  if (client.getQueryCache().get(entry.query.queryHash) !== entry.query) return;
   let data = entry.base;
   for (const operation of journal.operations)
     if (operation.ready && matchQuery(operation.filters, entry.query))
       data = operation.change(data, entry.query.queryKey);
   journal.writing = true;
   try {
-    client.setQueryData(entry.query.queryKey, data);
+    publishLocalData(client, entry.query, data);
   } finally {
     journal.writing = false;
   }
@@ -169,7 +188,8 @@ export function updateOptimisticBase(
   if (entry) {
     entry.base = change(entry.base);
     project(client, journal, entry);
-  } else client.setQueryData(key, change);
+  } else if (query) publishLocalData(client, query, change(query.state.data));
+  else client.setQueryData(key, change);
 }
 
 /** One operation across every affected cache. Independent commits survive its rollback. */
@@ -207,6 +227,13 @@ export async function beginOptimisticOperation(
   };
   journal.operations.add(operation);
   changed(journal);
+  let acknowledged = false;
+  function acknowledge() {
+    if (!journal.operations.has(operation) || acknowledged) return;
+    acknowledged = true;
+    // Cancel pre-ACK reads once, never the post-ACK refreshes during metadata recovery.
+    void cancelReads(client, filters);
+  }
   function finish(commit: boolean, reconcile?: OptimisticChange) {
     if (!journal.operations.delete(operation)) return;
     notifyManager.batch(() => {
@@ -248,7 +275,7 @@ export async function beginOptimisticOperation(
         .findAll(filters)
         .filter((query) => query.state.data !== undefined);
       if (!queries.length) throw new Error("MUTATION_OUTCOME_UNKNOWN");
-      await client.cancelQueries(filters);
+      await cancelReads(client, filters);
       if (!journal.operations.has(operation)) return;
       const reads = await Promise.allSettled(
         queries.map((query) =>
@@ -293,7 +320,7 @@ export async function beginOptimisticOperation(
     }
   }
   try {
-    await client.cancelQueries(filters);
+    await cancelReads(client, filters);
     if (!journal.operations.has(operation)) throw new Error("MUTATION_OWNER_CHANGED");
     let modified = false;
     if (journal.operations.has(operation)) {
@@ -319,11 +346,10 @@ export async function beginOptimisticOperation(
       },
       modified,
       read,
+      acknowledge,
       commit: (reconcile?: OptimisticChange) => {
         if (!journal.operations.has(operation)) return;
-        // Also stop reads started between onMutate and the write acknowledgement.
-        // Query cancellation reverts synchronously before the owned base is published.
-        void client.cancelQueries(filters);
+        acknowledge();
         finish(true, reconcile);
       },
       rollback: () => finish(false),

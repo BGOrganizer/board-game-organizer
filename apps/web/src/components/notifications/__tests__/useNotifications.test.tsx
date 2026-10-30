@@ -1,8 +1,10 @@
-import { useNotifications } from "@board-game-organizer/shared";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { NotificationDto } from "@board-game-organizer/schemas";
+import { eventRecordKeys, useNotifications, useRecordTable } from "@board-game-organizer/shared";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { eventId, plannedTable, seat, tableId } from "@/test-fixtures/eventRecords";
 
 function wrapper(
   client = new QueryClient({
@@ -54,6 +56,174 @@ describe("useNotifications", () => {
     );
   });
 
+  it.each([false, true])(
+    "refreshes an open Table on a remote invitation, including an initially empty inbox (%s)",
+    async (hadNotifications) => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const inactive = [...eventRecordKeys.root(options), "detail", "inactive"];
+      const foreign = eventRecordKeys.table({ ...options, userId: "foreign" }, eventId, tableId);
+      const otherApi = eventRecordKeys.table(
+        { ...options, apiUrl: "https://other.test" },
+        eventId,
+        tableId,
+      );
+      const readInactive = vi.fn(async () => ({ name: "Not open" }));
+      await client.fetchQuery({ queryKey: inactive, queryFn: readInactive });
+      for (const key of [eventRecordKeys.table(options, eventId, tableId), foreign, otherApi])
+        client.setQueryData(key, plannedTable);
+      let notifications: NotificationDto[] = hadNotifications
+        ? [item("000000000000000000000001")]
+        : [];
+      const invitation = { ...seat(options.userId), status: "PENDING" as const };
+      const fetch = vi.fn(async (url: RequestInfo | URL) =>
+        String(url).includes("/api/notifications?")
+          ? Response.json({ notifications, unreadCount: notifications.length, nextCursor: null })
+          : Response.json({ ...plannedTable, myRegistration: invitation, canRespond: true }),
+      );
+      vi.stubGlobal("fetch", fetch);
+      const hook = renderHook(
+        () => ({
+          inbox: useNotifications(options),
+          table: useRecordTable(options, eventId, tableId),
+        }),
+        { wrapper: wrapper(client) },
+      );
+      await waitFor(() => expect(hook.result.current.inbox.list.isSuccess).toBe(true));
+      notifications = [
+        { ...item("000000000000000000000002"), kind: "table_invitation" },
+        ...notifications,
+      ];
+      await act(() => hook.result.current.inbox.list.refetch());
+      await waitFor(() =>
+        expect(hook.result.current.table.data?.myRegistration).toEqual(invitation),
+      );
+      expect(hook.result.current.table.data?.canRespond).toBe(true);
+      expect(readInactive).toHaveBeenCalledOnce();
+      expect(client.getQueryState(inactive)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(foreign)?.isInvalidated).toBe(false);
+      expect(client.getQueryState(otherApi)?.isInvalidated).toBe(false);
+      expect(fetch.mock.calls.filter(([url]) => String(url).includes("/tables/"))).toHaveLength(1);
+      hook.unmount();
+      client.clear();
+    },
+  );
+  it.each([false, true])(
+    "reconciles all new notification kinds, with conservative active-only refresh across a missed page (%s)",
+    async (gap) => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      let notifications: NotificationDto[] = [item("000000000000000000000001")];
+      let nextCursor: string | null = null;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ notifications, unreadCount: 2, nextCursor })),
+      );
+      const eventRead = vi.fn(async () => "Updated Table");
+      const contactRead = vi.fn(async () => "Updated Contacts");
+      const foreignRead = vi.fn(async () => "Foreign Contacts");
+      const hook = renderHook(
+        () => ({
+          inbox: useNotifications(options, 2),
+          event: useQuery({
+            queryKey: eventRecordKeys.table(options, eventId, tableId),
+            queryFn: eventRead,
+            initialData: "Cached Table",
+            staleTime: Infinity,
+          }),
+          contacts: useQuery({
+            queryKey: ["contacts", "pending", options.apiUrl, options.userId],
+            queryFn: contactRead,
+            initialData: "Cached Contacts",
+            staleTime: Infinity,
+          }),
+          foreign: useQuery({
+            queryKey: ["contacts", "pending", options.apiUrl, "foreign"],
+            queryFn: foreignRead,
+            initialData: "Foreign Contacts",
+            staleTime: Infinity,
+          }),
+        }),
+        { wrapper: wrapper(client) },
+      );
+      await waitFor(() => expect(hook.result.current.inbox.list.isSuccess).toBe(true));
+      notifications = [
+        item("000000000000000000000004"),
+        {
+          ...item("000000000000000000000003"),
+          kind: gap ? "friend_request" : "event_booking_confirmed",
+        },
+      ];
+      nextCursor = gap ? "older" : null;
+      await act(() => hook.result.current.inbox.list.refetch());
+      await waitFor(() => expect(hook.result.current.event.data).toBe("Updated Table"));
+      await waitFor(() => expect(hook.result.current.contacts.data).toBe("Updated Contacts"));
+      expect(eventRead).toHaveBeenCalledOnce();
+      expect(contactRead).toHaveBeenCalledOnce();
+      expect(foreignRead).not.toHaveBeenCalled();
+      hook.unmount();
+      client.clear();
+    },
+  );
+  it.each(["apiUrl", "userId"] as const)(
+    "starts a new notification baseline after %s changes and honors createdAt before ID order",
+    async (field) => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      let notifications = [item("000000000000000000000002")];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ notifications, unreadCount: 1, nextCursor: null })),
+      );
+      const hook = renderHook((owner) => useNotifications(owner), {
+        wrapper: wrapper(client),
+        initialProps: options,
+      });
+      await waitFor(() => expect(hook.result.current.list.isSuccess).toBe(true));
+      const next =
+        field === "apiUrl"
+          ? { ...options, apiUrl: "https://next.test" }
+          : { ...options, userId: "next-user" };
+      const oldGroup = ["groups", options.apiUrl, options.userId, "detail", "group"];
+      const currentGroup = ["groups", next.apiUrl, next.userId, "detail", "group"];
+      for (const key of [oldGroup, currentGroup]) client.setQueryData(key, "Cached Group");
+      notifications = [item("000000000000000000000003")];
+      hook.rerender(next);
+      await waitFor(() =>
+        expect(hook.result.current.notifications[0]?.id).toBe(notifications[0].id),
+      );
+      expect(client.getQueryState(currentGroup)?.isInvalidated).toBe(false);
+      notifications = [
+        { ...item("000000000000000000000001"), createdAt: "2027-01-01T00:00:00.000Z" },
+      ];
+      await act(() => hook.result.current.list.refetch());
+      await waitFor(() => expect(client.getQueryState(currentGroup)?.isInvalidated).toBe(true));
+      expect(client.getQueryState(oldGroup)?.isInvalidated).toBe(false);
+      hook.unmount();
+      client.clear();
+    },
+  );
+  it("does not mistake local removal, read changes or older rows for a remote update", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let notifications = [item("000000000000000000000002"), item("000000000000000000000001")];
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      if (init?.method === "DELETE") {
+        notifications = notifications.slice(1);
+        return Response.json({});
+      }
+      return Response.json({ notifications, unreadCount: notifications.length, nextCursor: null });
+    });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const hook = renderHook(() => useNotifications(options), { wrapper: wrapper(client) });
+    await waitFor(() => expect(hook.result.current.notifications).toHaveLength(2));
+    await act(() => hook.result.current.deleteNotification.mutateAsync("000000000000000000000002"));
+    await waitFor(() => expect(hook.result.current.notifications).toHaveLength(1));
+    await act(() => hook.result.current.markRead.mutateAsync("000000000000000000000001"));
+    expect(
+      invalidate.mock.calls.filter(([filters]) =>
+        ["contacts", "groups", "events"].includes(String(filters?.queryKey?.[0])),
+      ),
+    ).toHaveLength(0);
+    hook.unmount();
+    client.clear();
+  });
   it("marks only owning group and event caches stale when remote membership changes", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const current = ["groups", options.apiUrl, options.userId, "detail", "group"];

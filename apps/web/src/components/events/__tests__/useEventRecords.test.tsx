@@ -14,6 +14,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { eventId, plannedEvent, plannedTable, seat, tableId } from "@/test-fixtures/eventRecords";
+import { beginOptimisticOperation } from "../../../../../../packages/shared/src/common/optimisticOperation";
+import { mapCommunityCache } from "../../../../../../packages/shared/src/community/queryCache";
 
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
@@ -148,6 +150,50 @@ it("seeds complete table metadata from cached first pages without a duplicate re
   const final = renderHook(() => useRecordTable(options, eventId, tableId), { wrapper });
   await waitFor(() => expect(final.result.current.data?.resultProfiles).toEqual([]));
   expect(fetch).toHaveBeenCalledOnce();
+});
+it("revalidates invalidated Table-list seeds instead of reviving a fresh-looking old invitation", async () => {
+  const { client, options, wrapper } = setup();
+  const key = recordTablesQuery(options, null).queryKey;
+  const cached = { ...plannedTable, gameVoteCounts: {} };
+  client.setQueryData(key, {
+    pages: [{ items: [cached], nextCursor: null }],
+    pageParams: [""],
+  });
+  await client.invalidateQueries({ queryKey: key, exact: true, refetchType: "none" });
+  const invitation = { ...seat("owner"), status: "PENDING" as const };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ ...cached, myRegistration: invitation, canRespond: true })),
+  );
+  const hook = renderHook(() => useRecordTable(options, eventId, tableId), { wrapper });
+  expect(hook.result.current.data?.name).toBe(plannedTable.name);
+  await waitFor(() => expect(hook.result.current.data?.myRegistration).toEqual(invitation));
+  expect(fetch).toHaveBeenCalledOnce();
+  hook.unmount();
+  client.clear();
+});
+it("does not absorb an optimistic Table-list projection into a newly opened detail", async () => {
+  const { client, options, wrapper } = setup();
+  const key = recordTablesQuery(options, null).queryKey;
+  client.setQueryData(key, {
+    pages: [{ items: [{ ...plannedTable, gameVoteCounts: {} }], nextCursor: null }],
+    pageParams: [""],
+  });
+  const operation = await beginOptimisticOperation(
+    client,
+    [...eventRecordKeys.root(options), eventId],
+    { queryKey: eventRecordKeys.root(options) },
+    (data) =>
+      mapCommunityCache<PlannedTableResponse>(data, (row) => ({ ...row, canRegister: false })),
+  );
+  const hook = renderHook(() => useRecordTable({ ...options, enabled: false }, eventId, tableId), {
+    wrapper,
+  });
+  expect(hook.result.current.data?.canRegister).toBe(false);
+  act(() => operation.rollback());
+  await waitFor(() => expect(hook.result.current.data?.canRegister).toBe(true));
+  hook.unmount();
+  client.clear();
 });
 it("retains cached table fields while fetching missing vote totals instead of treating a list summary as complete", async () => {
   const { client, options, wrapper } = setup();

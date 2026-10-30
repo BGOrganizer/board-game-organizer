@@ -15,8 +15,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { optimisticBaseData } from "../../common/optimisticOperation";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
-
 import { isPersonalEventTableVisible } from "../eventList";
 
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
@@ -181,7 +181,10 @@ export function useRecordTable(o: CommunityApiOptions, id: string, table: string
       predicate: (q) => q.queryKey[3] === "tables",
     })
     .flatMap(
-      ([key, data]) => data?.pages.flatMap((p) => p.items.map((row) => ({ row, key }))) ?? [],
+      ([key, data]) =>
+        (optimisticBaseData(client, key) as typeof data)?.pages.flatMap((p) =>
+          p.items.map((row) => ({ row, key })),
+        ) ?? [],
     )
     .find(({ row }) => row.id === table && row.eventId === id);
   const q = useQuery({
@@ -202,7 +205,9 @@ export function useRecordTable(o: CommunityApiOptions, id: string, table: string
         (cached.row.eventStatus !== "TERMINATED" || cached.row.resultProfiles)
         ? {
             initialData: cached.row,
-            initialDataUpdatedAt: client.getQueryState(cached.key)?.dataUpdatedAt,
+            initialDataUpdatedAt: client.getQueryState(cached.key)?.isInvalidated
+              ? 0
+              : client.getQueryState(cached.key)?.dataUpdatedAt,
           }
         : { placeholderData: cached.row }
       : {}),

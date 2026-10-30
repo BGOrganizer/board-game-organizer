@@ -78,6 +78,61 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("unified group Query ownership", () => {
+  it("keeps pending-member refreshes alive after the acknowledged Group version arrives", async () => {
+    const { client, options, wrapper } = setup();
+    client.setQueryData(groupRecordKeys.detail(options, id), group);
+    client.setQueryData(groupRecordKeys.people(options, id, "pending", ""), page([]));
+    const membership: GroupMembership = {
+      id: otherId,
+      groupId: id,
+      userId: "guest",
+      kind: "INVITATION",
+      status: "PENDING",
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+    };
+    const person: GroupPersonResponse = {
+      userId: "guest",
+      name: "Guest",
+      username: "guest",
+      avatarUrl: null,
+      isAdmin: false,
+      membership,
+      ban: null,
+    };
+    const metadata = deferred();
+    const people = deferred();
+    let peopleSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "POST") return Response.json(membership);
+        if (url.includes("/members?")) {
+          peopleSignal = init?.signal ?? undefined;
+          return people.promise;
+        }
+        return metadata.promise;
+      }),
+    );
+    const hook = renderHook(
+      () => ({
+        actions: useGroupRecordActions(options, id),
+        pending: useGroupPeople(options, id, "pending"),
+      }),
+      { wrapper },
+    );
+    await act(() => hook.result.current.actions.invite.mutateAsync({ id, userId: "guest" }));
+    await waitFor(() => expect(peopleSignal).toBeDefined());
+    await act(async () => metadata.resolve(Response.json({ ...group, version: 2 })));
+    await waitFor(() => expect(hook.result.current.actions.busy).toBe(false));
+    expect(peopleSignal?.aborted).toBe(false);
+    await act(async () => people.resolve(Response.json({ items: [person], nextCursor: null })));
+    await waitFor(() => expect(hook.result.current.pending.items).toEqual([person]));
+    expect(options.feedback.onError).not.toHaveBeenCalled();
+    hook.unmount();
+    client.clear();
+  });
   it.each([true, false])(
     "evicts verified lost access and ignores late Event ACKs after a saved/rejected membership write (%s)",
     async (saved) => {

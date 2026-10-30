@@ -1,6 +1,10 @@
 "use client";
 
-import type { NotificationListResponse, PushPlatform } from "@board-game-organizer/schemas";
+import type {
+  NotificationDto,
+  NotificationListResponse,
+  PushPlatform,
+} from "@board-game-organizer/schemas";
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -118,29 +122,55 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     enabled: options.enabled && Boolean(options.userId) && !resourceBusy(),
     refetchInterval: resourceBusy() ? false : 30_000,
   });
-  const lastSeen = useRef<{ userId: string; id: string } | null>(null);
+  const lastSeen = useRef<{
+    apiUrl: string;
+    userId: string;
+    latest: Pick<NotificationDto, "id" | "createdAt"> | null;
+  } | null>(null);
   useEffect(() => {
-    if (!options.userId) {
+    if (!options.enabled || !options.userId) {
       lastSeen.current = null;
       return;
     }
-    const latest = list.data?.pages[0]?.notifications[0];
-    if (!latest) return;
-    if (lastSeen.current?.userId === options.userId && lastSeen.current.id !== latest.id) {
-      if (/^(follow|friend|block|contact)/.test(latest.kind))
-        void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
-      void queryClient.invalidateQueries({
-        queryKey: ["groups", options.apiUrl, options.userId],
-        refetchType: "none",
-      });
-      if (/^(event_|table_|group_)/.test(latest.kind))
-        void queryClient.invalidateQueries({
-          queryKey: ["events", options.apiUrl, options.userId],
-          refetchType: "none",
-        });
+    const page = list.data?.pages[0];
+    if (!page) return;
+    const previous = lastSeen.current;
+    if (previous?.apiUrl !== options.apiUrl || previous.userId !== options.userId) {
+      // An empty first page is also a baseline: its first later invitation is new.
+      lastSeen.current = {
+        apiUrl: options.apiUrl,
+        userId: options.userId,
+        latest: page.notifications[0] ?? null,
+      };
+      return;
     }
-    lastSeen.current = { userId: options.userId, id: latest.id };
-  }, [list.data, options.userId, options.apiUrl, queryClient]);
+    // Match the inbox's createdAt/_id order. Deleting/reading older rows must not
+    // move this watermark backwards or masquerade as an unrelated remote write.
+    const latest = previous.latest;
+    const incoming = page.notifications.filter(
+      (row) =>
+        !latest ||
+        row.createdAt > latest.createdAt ||
+        (row.createdAt === latest.createdAt && row.id > latest.id),
+    );
+    if (!incoming.length) return;
+    previous.latest = incoming[0] ?? null;
+    // The old watermark fell beyond this bounded page; unseen kinds may be missing.
+    const gap = Boolean(latest && page.nextCursor && incoming.length === page.notifications.length);
+    if (gap || incoming.some((row) => /^(follow|friend|block|contact)/.test(row.kind)))
+      void queryClient.invalidateQueries({
+        queryKey: ["contacts"],
+        predicate: ({ queryKey }) =>
+          queryKey[2] === options.apiUrl && queryKey[3] === options.userId,
+      });
+    void queryClient.invalidateQueries({
+      queryKey: ["groups", options.apiUrl, options.userId],
+    });
+    if (gap || incoming.some((row) => /^(event_|table_|group_)/.test(row.kind)))
+      void queryClient.invalidateQueries({
+        queryKey: ["events", options.apiUrl, options.userId],
+      });
+  }, [list.data, options.enabled, options.userId, options.apiUrl, queryClient]);
 
   const begin = async (action: "read" | "delete", id?: string) => {
     let knownUnread: boolean | undefined;

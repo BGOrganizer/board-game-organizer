@@ -378,6 +378,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
   ) {
     if (!context?.operation.active || !context.id) return;
     try {
+      context.operation.acknowledge();
       notifyManager.batch(() => {
         if (
           value &&

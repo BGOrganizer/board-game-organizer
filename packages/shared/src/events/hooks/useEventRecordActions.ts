@@ -157,6 +157,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   ) {
     if (!context?.operation.active) return;
     try {
+      context.operation.acknowledge();
       notifyManager.batch(() => {
         if (value.userId === context.owner.userId) {
           for (const [key] of client.getQueriesData({
