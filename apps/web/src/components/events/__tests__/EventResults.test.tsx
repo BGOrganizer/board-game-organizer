@@ -1,18 +1,28 @@
-import type { ScorePlayer, TableScoreInput } from "@board-game-organizer/shared";
+import {
+  clearSessionQueryCache,
+  eventRecordKeys,
+  type ScorePlayer,
+  type TableScoreInput,
+} from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { eventId, plannedEvent, plannedTable, seat, tableId } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventResults } from "../EventResults";
 
-const m = vi.hoisted(() => ({ replace: vi.fn(), back: vi.fn() }));
+const m = vi.hoisted(() => ({
+  replace: vi.fn(),
+  back: vi.fn(),
+  feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => m }));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
     userId: "owner",
     getToken: async () => "fresh",
+    feedback: m.feedback,
   }),
 }));
 vi.mock("../TableScoreEditor", () => ({
@@ -82,18 +92,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
 });
-function mount() {
-  renderWithI18n(
-    <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-        })
-      }
-    >
+function mount(
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  }),
+) {
+  const view = renderWithI18n(
+    <QueryClientProvider client={client}>
       <EventResults eventId={eventId} />
     </QueryClientProvider>,
   );
+  return { ...view, client };
 }
 it("uses only app-header Back for selected/loading editors and route Back for the list", async () => {
   mount();
@@ -186,9 +195,16 @@ it("keeps each Table draft when switching screens and cannot finalize before eve
           nextCursor: null,
         }),
       );
+    if (init?.method === "POST")
+      return Response.json({
+        ...plannedEvent,
+        status: "TERMINATED",
+        canFinalize: false,
+        version: 4,
+      });
     return original(url, init);
   });
-  mount();
+  const { client } = mount();
   fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
   fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
   expect(await screen.findAllByRole("img", { name: "Scores ready" })).toHaveLength(1);
@@ -201,12 +217,35 @@ it("keeps each Table draft when switching screens and cannot finalize before eve
   expect(
     (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
   ).toBe(false);
+  const detailKey = eventRecordKeys.detail(
+    { apiUrl: "https://api.test", userId: "owner" },
+    eventId,
+  );
+  await act(async () =>
+    client.setQueryData(detailKey, (current) => (current ? { ...current, version: 3 } : current)),
+  );
+  await waitFor(() =>
+    expect(screen.queryAllByRole("img", { name: "Scores ready" })).toHaveLength(0),
+  );
+  expect(
+    screen.getByText("This event changed. Go back and reopen the editor before saving."),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Edit scores: First table" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
+  expect(screen.getAllByRole("img", { name: "Scores ready" })).toHaveLength(1);
+  expect(
+    (screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Edit scores: Second table" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
+  expect(screen.getAllByRole("img", { name: "Scores ready" })).toHaveLength(2);
   fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
   fireEvent.click(
     within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
   );
   await waitFor(() => expect(m.replace).toHaveBeenCalled());
   const post = fetcher.mock.calls.find(([, init]) => init?.method === "POST")!;
+  expect(JSON.parse(String(post[1]?.body)).version).toBe(3);
   expect(
     JSON.parse(String(post[1]?.body)).results.map((row: { tableId: string }) => row.tableId),
   ).toEqual([tableId, secondId]);
@@ -230,20 +269,65 @@ it.each([403, 503])(
     expect(await screen.findByRole("button", { name: "Draft all ND" })).not.toBeNull();
   },
 );
-it("preserves draft scores and a retryable error when finalization cannot be verified", async () => {
-  fail = true;
-  mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
-  fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
-  fireEvent.click(
-    within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
-  );
-  expect(
-    await screen.findByText(
-      "Could not verify event finalization. Refresh the event before retrying.",
-    ),
-  ).not.toBeNull();
-  expect(screen.getByRole("dialog")).not.toBeNull();
-  expect(m.replace).not.toHaveBeenCalled();
-});
+it.each([409, 503])(
+  "closes and navigates before finalization HTTP, retains all Table scores and never retries an unknown result: status=%s",
+  async (status) => {
+    const original = fetcher.getMockImplementation();
+    if (!original) throw new Error("Missing API reader");
+    let release: ((response: Response) => void) | undefined;
+    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? new Promise<Response>((resolve) => {
+            release = resolve;
+          })
+        : original(url, init),
+    );
+    const { client, unmount } = mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit scores: First table" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Draft all ND" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finalize event" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(m.replace).toHaveBeenCalledWith(`/events/${eventId}`);
+    await waitFor(() => expect(release).toBeDefined());
+    const key = eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId);
+    expect(client.getQueryData(key)).toMatchObject({ status: "CONFIRMED", canFinalize: false });
+    expect(m.feedback.onOptimisticUpdate).toHaveBeenCalledWith("finalize_event");
+    unmount();
+    const respond = release;
+    if (!respond) throw new Error("Missing held finalization");
+    await act(async () =>
+      respond(Response.json({ error: status === 409 ? "EVENT_CHANGED" : "UNKNOWN" }, { status })),
+    );
+    await waitFor(() =>
+      expect(
+        client
+          .getMutationCache()
+          .getAll()
+          .some((mutation) => mutation.state.status === "error"),
+      ).toBe(true),
+    );
+    const restored = mount(client);
+    await screen.findByRole("img", { name: "Scores ready" });
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    const finalize = screen.getByRole("button", { name: "Finalize event" }) as HTMLButtonElement;
+    if (status === 503) {
+      expect(finalize.disabled).toBe(true);
+      expect(screen.getByText("Checking saved changes")).toBeTruthy();
+    } else {
+      await waitFor(() => expect(finalize.disabled).toBe(false));
+      fetcher.mockImplementation(original);
+      fireEvent.click(finalize);
+      fireEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Finalize event" }),
+      );
+      expect(screen.queryByRole("dialog")).toBeNull();
+      await waitFor(() => expect(client.getQueryData(key)).toMatchObject({ status: "TERMINATED" }));
+      expect(fetcher.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+    }
+    restored.unmount();
+    clearSessionQueryCache(client);
+  },
+);

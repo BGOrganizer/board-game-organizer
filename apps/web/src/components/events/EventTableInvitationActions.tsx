@@ -15,13 +15,14 @@ export function EventTableInvitationActions({
 }) {
   const a = useEventRecordActions(useCommunityApi(), eventId);
   const [accepting, setAccepting] = useState(false);
+  const pending = a.blocking || a.isResponding(registration.id);
   if (registration.status !== "PENDING" || registration.kind !== "INVITATION") return null;
   return (
     <>
       <InvitationActions
-        pending={a.busy}
+        pending={pending}
         onAccept={() => {
-          if (!a.busy) setAccepting(true);
+          if (!pending) setAccepting(true);
         }}
         onDecline={() =>
           a.respond.mutate({

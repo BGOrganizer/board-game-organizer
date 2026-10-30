@@ -48,7 +48,7 @@ it("keeps staged table-result cards, explicit completion artwork and plural/sing
   expect(results).toContain('t("Register Table Result")');
   expect(results).toContain('t("Register Tables Results")');
   expect(results).toContain("<EventResultTableCard");
-  expect(results).toContain("ready={Boolean(f.scores[item.id])}");
+  expect(results).toContain("ready={f.isScoreCurrent(item.id)}");
   expect(results).toContain("hardwareBackPress");
   expect(results).toContain("f.close()");
   expect(results).toContain("headerLeft:");

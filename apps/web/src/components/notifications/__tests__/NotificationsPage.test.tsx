@@ -48,6 +48,7 @@ function setState(overrides: Record<string, unknown> = {}) {
     notifications: [item],
     unreadCount: 1,
     busy: false,
+    isBusy: () => false,
     hasMore: false,
     markRead: { mutate: mocks.markRead },
     markAllRead: { mutate: mocks.markAllRead },
@@ -80,12 +81,14 @@ describe("NotificationsPage", () => {
     const dialog = screen.getByRole("dialog", { name: "Delete notification?" });
     expect(mocks.markRead).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete notification" }));
-    expect(mocks.deleteNotification).toHaveBeenCalledWith(item.id, expect.any(Object));
+    expect(mocks.deleteNotification).toHaveBeenCalledWith(item.id);
+    expect(screen.queryByRole("dialog", { name: "Delete notification?" })).toBeNull();
   });
 
   it("keeps inbox navigation available while conflicting notification writes stay disabled", () => {
     setState({
       busy: true,
+      isBusy: () => true,
       deleteNotification: { mutate: mocks.deleteNotification, isPending: true },
     });
     renderWithI18n(<NotificationsPage />);
@@ -101,6 +104,18 @@ describe("NotificationsPage", () => {
     expect(mocks.markRead).not.toHaveBeenCalled();
   });
 
+  it("does not block a different notification while one row is updating", () => {
+    const other = { ...item, id: "1123456789abcdef01234567", title: "Other notification" };
+    setState({ busy: true, notifications: [item, other], isBusy: (id: string) => id === item.id });
+    renderWithI18n(<NotificationsPage />);
+    const remove = screen.getAllByRole("button", {
+      name: "Delete notification",
+    }) as HTMLButtonElement[];
+    expect(remove[0].disabled).toBe(true);
+    expect(remove[1].disabled).toBe(false);
+    fireEvent.click(screen.getByText("Other notification"));
+    expect(mocks.markRead).toHaveBeenCalledWith(other.id);
+  });
   it("renders loading, error retry, and empty states", () => {
     setState({ list: { isPending: true, isError: false }, notifications: [], unreadCount: 0 });
     const loading = renderWithI18n(<NotificationsPage />);

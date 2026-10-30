@@ -30,7 +30,7 @@ function setup() {
 }
 afterEach(() => vi.unstubAllGlobals());
 
-it("announces a cold-cache save only on ACK and locks only the selected location", async () => {
+it("paints and announces a cold-cache favorite before ACK while locking only the selected location", async () => {
   const { wrapper } = setup();
   const feedback = { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() };
   let saved = false;
@@ -66,7 +66,9 @@ it("announces a cold-cache save only on ACK and locks only the selected location
   await waitFor(() => expect(release).toBeDefined());
   expect(hook.result.current.isBusy(location)).toBe(true);
   expect(hook.result.current.isBusy({ ...location, address: "Other address" })).toBe(false);
-  expect(feedback.onOptimisticUpdate).not.toHaveBeenCalled();
+  expect(hook.result.current.isFavorite(location)).toBe(true);
+  expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("add_favorite_location");
+  expect(feedback.onSuccess).not.toHaveBeenCalled();
   await act(async () => {
     release(Response.json({ item: favorite }));
     await write;
@@ -74,10 +76,10 @@ it("announces a cold-cache save only on ACK and locks only the selected location
   });
   await waitFor(() => expect(hook.result.current.isFavorite(location)).toBe(true));
   expect(hook.result.current.isBusy(location)).toBe(false);
-  expect(feedback.onSuccess).toHaveBeenCalledWith("add_favorite_location");
+  expect(feedback.onSuccess).not.toHaveBeenCalled();
 });
 
-it("acknowledges an already-absent favorite without an optimistic success flash", async () => {
+it("announces explicit removal even when the cached favorite is already absent without duplicate ACK feedback", async () => {
   const { wrapper } = setup();
   const feedback = { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn() };
   vi.stubGlobal(
@@ -99,8 +101,8 @@ it("acknowledges an already-absent favorite without an optimistic success flash"
     expect(hook.result.current.list.isSuccess && hook.result.current.status.isSuccess).toBe(true),
   );
   await act(() => hook.result.current.toggle.mutateAsync({ location, favorite: true }));
-  expect(feedback.onOptimisticUpdate).not.toHaveBeenCalled();
-  expect(feedback.onSuccess).toHaveBeenCalledWith("remove_favorite_location");
+  expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("remove_favorite_location");
+  expect(feedback.onSuccess).not.toHaveBeenCalled();
 });
 
 it("deduplicates independently acknowledged aliases without relying on a successful background read", async () => {

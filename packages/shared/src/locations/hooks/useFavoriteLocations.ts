@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-query";
 import { withProtectionBypass } from "../../common/api";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
+import { useScopedMutations } from "../../common/hooks/useScopedMutations";
 import type { MutationFeedback } from "../../common/mutationFeedback";
 import {
   beginOptimisticOperation,
@@ -173,10 +174,9 @@ export function useFavoriteLocations(
         },
         [...affected].map((alias) => [...root, alias]),
       );
-      if (operation.modified)
-        feedback?.onOptimisticUpdate?.(
-          favorite ? "remove_favorite_location" : "add_favorite_location",
-        );
+      feedback?.onOptimisticUpdate?.(
+        favorite ? "remove_favorite_location" : "add_favorite_location",
+      );
       return { operation, key, root };
     },
     onSuccess: (response, variables, context) => {
@@ -199,10 +199,6 @@ export function useFavoriteLocations(
           })),
         };
       });
-      if (!context.operation.modified)
-        feedback?.onSuccess?.(
-          variables.favorite ? "remove_favorite_location" : "add_favorite_location",
-        );
     },
     onError: async (error: Error, variables, context) => {
       if (context && !context.operation.active) return;
@@ -217,9 +213,18 @@ export function useFavoriteLocations(
       });
     },
   });
+  const pending = useScopedMutations({ mutationKey: root, status: "pending" }).map((mutation) =>
+    (mutation.state.context as { operation?: { active: boolean } } | undefined)?.operation?.active
+      ? (mutation.state.variables as Parameters<typeof toggle.mutate>[0])
+      : undefined,
+  );
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
   const isFavorite = (location: MatchLocation) => {
     const key = locationFavoriteKey(location);
+    const intent = pending.find(
+      (input) => input && resourceKey(input.location) === resourceKey(location),
+    );
+    if (intent) return !intent.favorite;
     return Boolean(
       status.data?.includes(key) ||
         items.some((item) => item.key === key || locationFavoriteKey(item.location) === key),

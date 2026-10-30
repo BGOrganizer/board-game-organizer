@@ -53,7 +53,7 @@ function nodes(value: unknown): Tree[] {
   return [node, ...nodes(node.props.children)];
 }
 it.each([false, true])(
-  "native Accept opens choices only; decline stays direct, busy=%s",
+  "native Accept ignores unrelated busy state, guards its own target and never submits implicit consent: targetBusy=%s",
   (busy) => {
     const setAccepting = vi.fn(),
       mutate = vi.fn();
@@ -66,7 +66,15 @@ it.each([false, true])(
     };
     const context = {
       useState: () => [false, setAccepting],
-      useEventRecordActions: () => ({ busy, respond: { mutate } }),
+      useEventRecordActions: () => ({
+        busy: true,
+        blocking: false,
+        isResponding: (id: string) => {
+          expect(id).toBe(registration.id);
+          return busy;
+        },
+        respond: { mutate },
+      }),
       InvitationActions: "actions",
       EventJoinSheet: "sheet",
     };
@@ -119,7 +127,7 @@ it.each([false, true])(
       isInvitation: true,
       requiresAvailability: !gamesOnly,
       gamesOnly,
-      busy: false,
+      checking: false,
       canSubmit: true,
       submit,
       votes: {},
@@ -178,19 +186,15 @@ it.each([false, true])(
     expect(onClose).toHaveBeenCalledOnce();
     const pending = render(
       "EventJoinSheet",
-      { ...context, useEventJoinForm: () => ({ ...form, busy: true, canSubmit: false }) },
+      { ...context, useEventJoinForm: () => ({ ...form, checking: true, canSubmit: false }) },
       { eventId: "event", tableId: "table", registrationId: "registration", onClose },
     );
     (pending.props.onOpenChange as (open: boolean) => void)(false);
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(nodes(pending).find((n) => n.type === "overlay")?.props.isCloseOnPress).toBe(false);
-    expect(nodes(pending).find((n) => n.type === "content")?.props.enablePanDownToClose).toBe(
-      false,
-    );
-    expect(
-      nodes(pending)
-        .filter((n) => n.type === Button)
-        .every((n) => n.props.isDisabled === true),
-    ).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(nodes(pending).find((n) => n.type === "overlay")?.props.isCloseOnPress).not.toBe(false);
+    expect(nodes(pending).find((n) => n.type === "content")?.props.enablePanDownToClose).toBe(true);
+    const pendingButtons = nodes(pending).filter((n) => n.type === Button);
+    expect(pendingButtons.at(-2)?.props.isDisabled).not.toBe(true);
+    expect(pendingButtons.at(-1)?.props.isDisabled).toBe(true);
   },
 );

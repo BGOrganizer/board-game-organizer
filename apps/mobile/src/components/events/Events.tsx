@@ -50,7 +50,13 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
             ]}
           />
         }
-        renderItem={({ item }) => <EventCard event={item} />}
+        renderItem={({ item }) => (
+          <EventCard
+            event={item}
+            checking={list.isFetching}
+            onVerify={() => void list.refetch({ cancelRefetch: false })}
+          />
+        )}
         onEndReached={() => {
           if (list.hasNextPage && !list.isFetchingNextPage && !list.isFetchNextPageError)
             void list.fetchNextPage();

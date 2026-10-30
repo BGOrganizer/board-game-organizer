@@ -122,12 +122,16 @@ describe("unified group Query ownership", () => {
       }),
       { wrapper },
     );
-    await act(() => hook.result.current.actions.invite.mutateAsync({ id, userId: "guest" }));
-    await waitFor(() => expect(peopleSignal).toBeDefined());
+    act(() => hook.result.current.actions.invite.mutate({ id, userId: "guest" }));
+    await waitFor(() =>
+      expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("invite_group_member"),
+    );
     await act(async () => metadata.resolve(Response.json({ ...group, version: 2 })));
-    await waitFor(() => expect(hook.result.current.actions.busy).toBe(false));
+    await waitFor(() => expect(peopleSignal).toBeDefined());
+    expect(hook.result.current.actions.busy).toBe(true);
     expect(peopleSignal?.aborted).toBe(false);
     await act(async () => people.resolve(Response.json({ items: [person], nextCursor: null })));
+    await waitFor(() => expect(hook.result.current.actions.busy).toBe(false));
     await waitFor(() => expect(hook.result.current.pending.items).toEqual([person]));
     expect(options.feedback.onError).not.toHaveBeenCalled();
     hook.unmount();

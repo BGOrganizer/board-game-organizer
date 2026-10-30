@@ -22,15 +22,15 @@ it("uses consent responses and queue/seat states, never approval actions on spon
   expect(table).toContain("Pending invitations");
   expect(table).toContain("Waiting list");
 });
-it("keeps leave/removal destructive, confirmed and pending-disabled; view permissions remain server capabilities", () => {
+it("keeps leave/removal destructive, confirmed and target-pending-disabled; view permissions remain server capabilities", () => {
   const table = source("events/EventTableOverview") + source("events/EventTableSeats");
   for (const token of [
     "canLeave",
     "canInvite",
     "<ConfirmDialog",
     'variant: "danger"',
-    "busy={a.busy}",
-    "Could not update table registration",
+    "busy={a.blocking || a.isResponding(confirm.registrationId)}",
+    "a.respond.mutate(",
   ])
     expect(table).toContain(token);
   expect(table).toMatch(/version:\s*confirm\.version/);

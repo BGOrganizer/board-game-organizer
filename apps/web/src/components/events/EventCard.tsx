@@ -1,25 +1,66 @@
 "use client";
-import type { PlannedEventResponse } from "@board-game-organizer/schemas";
+import type { ClientEventRecord } from "@board-game-organizer/shared";
 import { eventDateWall, eventRecordPreviewDate } from "@board-game-organizer/shared";
+import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { CalendarDays, Dices, UsersRound } from "lucide-react";
+import { CalendarDays, Dices, RefreshCw, UsersRound } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
+import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { EventStatusBadge } from "./EventStatusBadge";
-export function EventCard({ event }: { event: PlannedEventResponse }) {
+export function EventCard({
+  event,
+  onVerify,
+  checking = false,
+}: {
+  event: ClientEventRecord;
+  onVerify?: () => void;
+  checking?: boolean;
+}) {
   const { t, i18n } = useLingui(),
     date = eventRecordPreviewDate(event),
     number = new Intl.NumberFormat(i18n.locale);
   const planning = event.status === "PLANNING";
+  const local = event.optimistic,
+    status = useClientRecordStatus(local?.phase);
+  const href = local
+    ? local.phase === "failed"
+      ? `/events/new?draftId=${encodeURIComponent(local.draftId)}`
+      : "/events"
+    : `/events/${event.id}`;
   return (
-    <LinkedListCard href={`/events/${event.id}`} label={`${t`Open event`}: ${event.name}`}>
+    <LinkedListCard
+      href={href}
+      disabled={Boolean(local && local.phase !== "failed")}
+      label={`${status || t`Open event`}: ${event.name}`}
+      actions={
+        local?.phase === "verifying" && onVerify ? (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={t`Check saved changes`}
+            isDisabled={checking}
+            onPress={onVerify}
+          >
+            <RefreshCw className="size-4" aria-hidden />
+          </Button>
+        ) : undefined
+      }
+    >
       <AnimatedDicebearArtwork seed={event.id} variant="constellation" />
       <ListCardBody
         title={event.name}
         titleIcon={<CalendarDays className="size-4 shrink-0" aria-hidden />}
-        titleAccessory={<EventStatusBadge status={event.status} />}
+        titleAccessory={
+          local ? (
+            <ClientRecordBadge phase={local.phase} />
+          ) : (
+            <EventStatusBadge status={event.status} />
+          )
+        }
       >
         {event.groupName ? (
           <p className="flex items-center gap-1 text-sm text-default-500">
@@ -49,7 +90,9 @@ export function EventCard({ event }: { event: PlannedEventResponse }) {
             </span>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div
+          className={`flex flex-wrap items-center gap-3 text-sm ${local?.phase === "verifying" && onVerify ? "pr-10" : ""}`}
+        >
           <span className="inline-flex items-center gap-1">
             <Dices className="size-4 text-default-500" aria-hidden />
             {t`Tables`}: {number.format(event.tableCount)}

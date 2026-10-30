@@ -9,13 +9,21 @@ export default defineConfig({
       include: [
         "src/common/startupQueries.ts",
         "src/common/optimisticOperation.ts",
+        "src/common/clientMutation.ts",
         "src/notifications/notificationOptimistic.ts",
         "src/events/eventAgreement.ts",
         "src/events/eventJoinAvailability.ts",
         "src/events/eventRecordPolicy.ts",
+        "src/events/eventOptimisticVote.ts",
+        "src/events/eventConsentVersion.ts",
+        "src/events/eventOptimisticCreation.ts",
+        "src/events/eventRegistrationCache.ts",
+        "src/events/eventTablePending.ts",
         "src/groups/groupPolicy.ts",
         "src/groups/groupBanForm.ts",
         "src/groups/groupDeletionCache.ts",
+        "src/groups/groupAccessCache.ts",
+        "src/groups/groupOptimisticCreation.ts",
         "src/community/queryCache.ts",
         "src/community/logoUpload.ts",
         "src/groups/groupLogoUpload.ts",
@@ -45,7 +53,7 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
-        "src/{common/optimisticOperation,notifications/notificationOptimistic,contacts/hooks/contactOptimistic}.ts":
+        "src/{common/optimisticOperation,common/clientMutation,notifications/notificationOptimistic,contacts/hooks/contactOptimistic}.ts":
           {
             lines: 100,
             functions: 100,
@@ -58,7 +66,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/events/{eventRecordForm,tableScoreForm,eventTablePeople,eventVotes,eventTableRoster,eventSchedule,eventJoinAvailability,eventRegistrationCache}.ts":
+        "src/events/{eventRecordForm,tableScoreForm,eventTablePeople,eventVotes,eventTableRoster,eventSchedule,eventJoinAvailability,eventRegistrationCache,eventOptimisticVote,eventOptimisticCreation,eventTablePending,eventConsentVersion}.ts":
           {
             lines: 100,
             functions: 100,
@@ -71,7 +79,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/groups/{groupDeletionCache,groupAccessCache}.ts": {
+        "src/groups/{groupDeletionCache,groupAccessCache,groupOptimisticCreation}.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

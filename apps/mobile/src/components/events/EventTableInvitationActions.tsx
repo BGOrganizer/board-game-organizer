@@ -16,6 +16,7 @@ export function EventTableInvitationActions({
   const t = useT();
   const a = useEventRecordActions(useCommunityApi(), eventId);
   const [accepting, setAccepting] = useState(false);
+  const pending = a.blocking || a.isResponding(registration.id);
   if (registration.status !== "PENDING" || registration.kind !== "INVITATION") return null;
   return (
     <>
@@ -23,9 +24,9 @@ export function EventTableInvitationActions({
         placement="card"
         acceptLabel={t("Accept invitation")}
         declineLabel={t("Decline invitation")}
-        pending={a.busy}
+        pending={pending}
         onAccept={() => {
-          if (!a.busy) setAccepting(true);
+          if (!pending) setAccepting(true);
         }}
         onDecline={() =>
           a.respond.mutate({

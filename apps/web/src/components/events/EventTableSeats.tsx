@@ -73,6 +73,35 @@ export function EventTableSeats({
       </div>
       <GroupedList>
         {roster.rows.map((item) => {
+          if (item.kind === "pending") {
+            const label =
+              item.phase === "verifying"
+                ? t`Checking saved changes`
+                : item.action === "join"
+                  ? t`Joining table`
+                  : item.action === "accept"
+                    ? t`Accepting invitation`
+                    : t`Sending invitation`;
+            const Icon = item.action ? Clock3 : Mail;
+            return (
+              <GroupedRow key={item.key}>
+                <UserIdentity
+                  name={item.name || t`You`}
+                  avatarUrl={item.avatarUrl}
+                  secondary={label}
+                  badge={
+                    <span
+                      role="img"
+                      aria-label={label}
+                      className="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5 text-warning"
+                    >
+                      <Icon className="size-4" aria-hidden />
+                    </span>
+                  }
+                />
+              </GroupedRow>
+            );
+          }
           if (item.kind !== "player") {
             const reserved = item.kind === "reserved",
               label = reserved
@@ -91,7 +120,7 @@ export function EventTableSeats({
                 <Button
                   className="min-h-11 min-w-0 flex-1 justify-start px-0"
                   variant="ghost"
-                  isDisabled={reserved || !canAdd || a.busy}
+                  isDisabled={reserved || !canAdd || a.blocking}
                   onPress={() => {
                     if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
                     else void join();
@@ -151,7 +180,7 @@ export function EventTableSeats({
                     isIconOnly
                     size="sm"
                     variant="danger-soft"
-                    isDisabled={a.busy}
+                    isDisabled={a.blocking}
                     aria-label={own ? t`Leave table` : `${t`Remove player`}: ${name}`}
                     onPress={() => onRemove(row, own)}
                   >
@@ -191,7 +220,7 @@ export function EventTableSeats({
               ? t`Join this table yourself or invite another player.`
               : t`Choose your availability before joining this table.`
           }
-          busy={a.busy}
+          busy={a.blocking}
           onCancel={() => setChoose(false)}
           actions={[
             ...(!closed && table.canRegister

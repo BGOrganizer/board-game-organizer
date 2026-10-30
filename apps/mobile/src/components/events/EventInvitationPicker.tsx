@@ -7,7 +7,6 @@ import {
 import { Stack, useRouter } from "expo-router";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { useState } from "react";
 import { View } from "react-native";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { useT } from "@/lib/i18n";
@@ -18,17 +17,24 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
     q = useEventRecord(o, eventId),
     a = useEventRecordActions(o, eventId),
     router = useRouter(),
-    [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
-  const pick = async (userId: string) => {
-    if (a.busy) return;
-    setError(false);
-    try {
-      await a.invite.mutateAsync({ tableId, userId });
-      router.back();
-    } catch {
-      setError(true);
-    }
+  const pick = (person: {
+    id: string;
+    name: string;
+    username?: string | null;
+    avatarUrl: string | null;
+  }) => {
+    if (a.blocking || a.isInviting(tableId, person.id)) return;
+    a.invite.mutate({
+      tableId,
+      userId: person.id,
+      person: {
+        name: person.name,
+        username: person.username ?? null,
+        avatarUrl: person.avatarUrl,
+      },
+    });
+    router.back();
   };
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   if (!event || !event.canInvite || closed)
@@ -50,14 +56,9 @@ export function EventInvitationPicker({ eventId, tableId }: { eventId: string; t
         key={tableId}
         friendsOnly={!event.groupId}
         invitationTable={{ eventId, tableId }}
-        disabled={a.busy}
-        onSelect={(person) => void pick(person.id)}
+        disabled={a.blocking}
+        onSelect={pick}
       />
-      {error ? (
-        <Typography accessibilityRole="alert" className="text-danger">
-          {t("Could not invite player. Refresh and try again.")}
-        </Typography>
-      ) : null}
     </View>
   );
 }

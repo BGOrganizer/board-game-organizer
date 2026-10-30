@@ -33,11 +33,10 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
     event = useEventRecord(o, eventId),
     a = useEventRecordActions(o, eventId);
   const [confirm, setConfirm] = useState<{
-      registrationId: string;
-      version: number;
-      action: "cancel" | "remove";
-    } | null>(null),
-    [error, setError] = useState(false);
+    registrationId: string;
+    version: number;
+    action: "cancel" | "remove";
+  } | null>(null);
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
   const closed = useEventCutoff(table?.bookingClosesAt, table?.groupType === "PUBLIC");
@@ -63,18 +62,24 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
         )}
       </View>
     );
-  const run = async () => {
-    if (!confirm) return;
-    setError(false);
-    try {
-      await a.respond.mutateAsync({
-        registrationId: confirm.registrationId,
-        input: { action: confirm.action, version: confirm.version },
-      });
-      setConfirm(null);
-    } catch {
-      setError(true);
-    }
+  const run = () => {
+    if (
+      !confirm ||
+      closed ||
+      table.eventStatus !== "PLANNING" ||
+      a.blocking ||
+      a.isResponding(confirm.registrationId) ||
+      (confirm.action === "remove"
+        ? !table.canInvite
+        : !table.canLeave || table.myRegistration?.id !== confirm.registrationId)
+    )
+      return;
+    a.respond.mutate({
+      tableId,
+      registrationId: confirm.registrationId,
+      input: { action: confirm.action, version: confirm.version },
+    });
+    setConfirm(null);
   };
   const confirmed = table.confirmed;
   const gameVotes = table.myRegistration?.gameVotes ?? {};
@@ -188,7 +193,7 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
                         ? []
                         : ["NO"]
                     }
-                    busy={a.busy || q.isPlaceholderData || event.isPlaceholderData}
+                    busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
                     onChange={(vote) =>
                       a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
                     }
@@ -224,16 +229,10 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
         <ConfirmDialog
           title={confirm.action === "cancel" ? t("Leave table") : t("Remove player")}
           description={t("This removes the active table registration.")}
-          busy={a.busy}
+          busy={a.blocking || a.isResponding(confirm.registrationId)}
           onCancel={() => setConfirm(null)}
           actions={[{ label: t("Confirm"), variant: "danger", onPress: () => void run() }]}
-        >
-          {error ? (
-            <Typography accessibilityRole="alert" className="text-danger">
-              {t("Could not update table registration")}
-            </Typography>
-          ) : null}
-        </ConfirmDialog>
+        />
       ) : null}
     </View>
   );

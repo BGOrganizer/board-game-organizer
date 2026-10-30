@@ -1,7 +1,12 @@
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
+import type { CreateEventVariables, EditEventVariables } from "@board-game-organizer/shared";
 import {
   communityAccessDenied,
+  creationState,
   eventDateWall,
+  eventRecordKeys,
+  useClientMutationDraft,
+  useEventCreationDraft,
   useEventRecord,
   useEventRecordActions,
   useEventRecordForm,
@@ -20,7 +25,7 @@ import {
   Save,
   Trash2,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BackHandler, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
@@ -35,7 +40,15 @@ import { EventDraftTableEditor } from "./EventDraftTableEditor";
 import { EventScheduleFields } from "./EventScheduleFields";
 import { EventWizardSummary } from "./EventWizardSummary";
 
-export function EventWizard({ eventId, groupId }: { eventId?: string; groupId?: string }) {
+export function EventWizard({
+  eventId,
+  groupId,
+  draftId,
+}: {
+  eventId?: string;
+  groupId?: string;
+  draftId?: string;
+}) {
   const t = useT(),
     o = useCommunityApi(),
     q = useEventRecord({ ...o, enabled: o.enabled !== false && !!eventId }, eventId ?? "");
@@ -59,15 +72,42 @@ export function EventWizard({ eventId, groupId }: { eventId?: string; groupId?: 
         )}
       </View>
     );
+  if (draftId) return <RecoveredEditor draftId={draftId} />;
   return (
     <Editor
-      key={eventId ?? groupId ?? "new"}
+      key={`${o.apiUrl}/${o.userId}/${eventId ?? groupId ?? "new"}`}
       event={eventId ? q.data : undefined}
       groupId={groupId}
     />
   );
 }
-function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: string }) {
+function RecoveredEditor({ draftId }: { draftId: string }) {
+  const t = useT(),
+    o = useCommunityApi(),
+    recovery = useEventCreationDraft(o, draftId);
+  if (!recovery?.variables.clientDraft || creationState(recovery).phase !== "failed")
+    return (
+      <Typography accessibilityRole="alert" className="text-danger">
+        {t("Could not recover draft")}
+      </Typography>
+    );
+  return (
+    <Editor
+      key={`${o.apiUrl}/${o.userId}/${draftId}`}
+      recovery={recovery.variables}
+      groupId={recovery.variables.clientInitialGroupId}
+    />
+  );
+}
+function Editor({
+  event,
+  groupId,
+  recovery,
+}: {
+  event?: PlannedEventResponse;
+  groupId?: string;
+  recovery?: CreateEventVariables;
+}) {
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -77,13 +117,25 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
       "accent-foreground",
       "danger-foreground",
     ]),
-    form = useEventRecordForm(o, event, groupId),
-    a = useEventRecordActions(o, event?.id ?? "");
+    a = useEventRecordActions(o, event?.id ?? ""),
+    edit = useClientMutationDraft<EditEventVariables>(
+      [...eventRecordKeys.mutation(o, event?.id ?? ""), "update"],
+      event?.version,
+    ),
+    editDraft = event ? edit?.variables?.clientDraft : undefined,
+    checking = edit?.phase === "saving" || edit?.phase === "verifying",
+    form = useEventRecordForm(
+      o,
+      event,
+      groupId,
+      editDraft && event ? { ...editDraft, version: event.version } : recovery?.clientDraft,
+    );
   const [pick, setPick] = useState<
       { kind: "game" | "demonstrator"; key: string } | "location" | null
     >(null),
     [remove, setRemove] = useState<string | null>(null),
-    [serverError, setServerError] = useState(false);
+    [submitting, setSubmitting] = useState(false);
+  const submitted = useRef(false);
   const { draft, step } = form,
     publicGroup = (form.group?.type ?? event?.groupType) === "PUBLIC";
   useEffect(() => {
@@ -94,25 +146,31 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
     });
     return () => listener.remove();
   }, [pick]);
-  const save = async () => {
+  const save = () => {
     const parsed = form.validate();
-    if (!parsed.success || a.busy || form.conflict) return;
-    setServerError(false);
-    try {
-      const result =
-        "version" in parsed.data
-          ? await a.update.mutateAsync(parsed.data)
-          : await a.create.mutateAsync(parsed.data);
-      if (event) router.dismissTo({ pathname: "/event/[eventId]", params: { eventId: result.id } });
-      else if (result.groupId)
-        router.dismissTo({
-          pathname: "/group/[groupId]",
-          params: { groupId: result.groupId, tab: "events" },
-        });
-      else router.dismissTo("/(tabs)/events");
-    } catch {
-      setServerError(true);
-    }
+    if (!parsed.success || submitted.current || (event && (a.busy || checking)) || form.conflict)
+      return;
+    submitted.current = true;
+    setSubmitting(true);
+    if ("version" in parsed.data) a.update.mutate({ ...parsed.data, clientDraft: draft });
+    else
+      a.create.mutate({
+        ...parsed.data,
+        clientRequestId: recovery?.clientRequestId,
+        clientDraft: draft,
+        clientInitialGroupId: groupId,
+        clientGroup: form.group
+          ? { id: form.group.id, name: form.group.name, type: form.group.type }
+          : undefined,
+      });
+    const targetGroup = "groupId" in parsed.data ? parsed.data.groupId : event?.groupId;
+    if (event) router.dismissTo({ pathname: "/event/[eventId]", params: { eventId: event.id } });
+    else if (targetGroup)
+      router.dismissTo({
+        pathname: "/group/[groupId]",
+        params: { groupId: targetGroup, tab: "events" },
+      });
+    else router.dismissTo("/(tabs)/events");
   };
   const pickerHeader = (
     <Stack.Screen
@@ -177,16 +235,21 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
     );
   const header = (
     <View style={{ gap: 16 }}>
+      {checking ? (
+        <Typography accessibilityLiveRegion="polite" className="text-foreground">
+          {t("Checking saved changes")}
+        </Typography>
+      ) : null}
       {form.conflict ? (
         <Typography accessibilityRole="alert" className="text-danger">
           {t("This event changed. Go back and reopen the editor before saving.")}
         </Typography>
       ) : null}
       {step === 0 ? (
-        <EventScheduleFields form={form} busy={a.busy} onLocation={() => setPick("location")} />
+        <EventScheduleFields form={form} busy={submitting} onLocation={() => setPick("location")} />
       ) : step === 1 ? (
         <>
-          <Button variant="outline" isDisabled={a.busy} onPress={form.addTable}>
+          <Button variant="outline" isDisabled={submitting} onPress={form.addTable}>
             <Plus size={18} color={fg} />
             <Button.Label>{t("Add table")}</Button.Label>
           </Button>
@@ -233,7 +296,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             size="sm"
             variant={step === index ? "primary" : "ghost"}
             accessibilityState={{ selected: step === index }}
-            isDisabled={a.busy || index > step}
+            isDisabled={submitting || index > step}
             onPress={() => form.goToStep(index)}
           >
             <Button.Label>
@@ -256,7 +319,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
               timeZone={draft.timeZone}
               eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
               eventEndWall={draft.endsWall}
-              busy={a.busy}
+              busy={submitting}
               fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
               onChange={(value) => form.patchTable(row.key, value)}
               onRemove={() => setRemove(row.key)}
@@ -307,13 +370,6 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
                 {t("Check required fields, dates, player limits, games and durations.")}
               </Typography>
             ) : null}
-            {serverError ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t(
-                  "Could not save event. Check timing, conflicts and permissions, then try again.",
-                )}
-              </Typography>
-            ) : null}
           </View>
         }
       />
@@ -332,7 +388,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             isIconOnly
             variant="ghost"
             accessibilityLabel={t("Back")}
-            isDisabled={a.busy}
+            isDisabled={submitting}
             onPress={() => form.goToStep(step - 1)}
           >
             <ArrowLeft size={20} color={fg} />
@@ -343,7 +399,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             isIconOnly
             variant="primary"
             accessibilityLabel={t("Next")}
-            isDisabled={a.busy || form.closed || form.conflict || !form.canNext}
+            isDisabled={submitting || form.closed || form.conflict || !form.canNext}
             onPress={form.next}
           >
             <ArrowRight size={20} color={accentForeground} />
@@ -354,7 +410,8 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             variant="primary"
             accessibilityLabel={event ? t("Save event") : t("Create event")}
             isDisabled={
-              a.busy ||
+              submitting ||
+              Boolean(event && (a.busy || checking)) ||
               form.conflict ||
               form.closed ||
               (!!draft.groupId && (!form.group?.canInvite || form.group.role !== "admin"))
@@ -375,7 +432,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           description={t(
             "This table and its active registrations will be removed only when you save the event.",
           )}
-          busy={a.busy}
+          busy={submitting}
           onCancel={() => setRemove(null)}
           actions={[
             {

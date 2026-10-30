@@ -5,10 +5,19 @@ import { eventId, optionId, plannedEvent, seat, tableId } from "@/test-fixtures/
 import { renderWithI18n } from "@/test-utils";
 import { EventInvitationPicker } from "../EventInvitationPicker";
 
-const m = vi.hoisted(() => ({ back: vi.fn(), token: vi.fn(async () => "fresh") }));
+const m = vi.hoisted(() => ({
+  back: vi.fn(),
+  token: vi.fn(async () => "fresh"),
+  feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ back: m.back }) }));
 vi.mock("@/lib/useCommunityApi", () => ({
-  useCommunityApi: () => ({ apiUrl: "https://api.test", userId: "owner", getToken: m.token }),
+  useCommunityApi: () => ({
+    apiUrl: "https://api.test",
+    userId: "owner",
+    getToken: m.token,
+    feedback: m.feedback,
+  }),
 }));
 beforeEach(() => {
   vi.clearAllMocks();
@@ -159,7 +168,10 @@ it("reconciles a concurrent server conflict into disabled invitation/help rather
   vi.stubGlobal("fetch", fetch);
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Select user: Busy player" }));
-  await screen.findByText("Could not invite player. Refresh and try again.");
+  expect(m.back).toHaveBeenCalledOnce();
+  await waitFor(() =>
+    expect(m.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "invite_event_player"),
+  );
   await waitFor(() =>
     expect(
       (screen.getByRole("button", { name: "Select user: Busy player" }) as HTMLButtonElement)
@@ -169,7 +181,7 @@ it("reconciles a concurrent server conflict into disabled invitation/help rather
   expect(
     screen.getByRole("button", { name: "Why invitation is unavailable: Busy player" }),
   ).not.toBeNull();
-  expect(m.back).not.toHaveBeenCalled();
+  expect(m.back).toHaveBeenCalledOnce();
   expect(fetch.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
 });
 it("keeps candidate failures observable, retries, and retains failed invite feedback without pretending success", async () => {
@@ -194,8 +206,10 @@ it("keeps candidate failures observable, retries, and retains failed invite feed
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   fireEvent.click(await screen.findByRole("button", { name: "Select user: Eligible player" }));
-  await screen.findByText("Could not invite player. Refresh and try again.");
-  expect(m.back).not.toHaveBeenCalled();
+  expect(m.back).toHaveBeenCalledOnce();
+  await waitFor(() =>
+    expect(m.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "invite_event_player"),
+  );
 });
 it("does not query candidates when Event permissions or cutoff deny invitations", async () => {
   const fetch = vi.fn(

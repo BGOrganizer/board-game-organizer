@@ -8,6 +8,7 @@ import {
   finalizeEventSchema,
   joinTableSchema,
   plannedTableInputSchema,
+  tableRegistrationReceiptSchema,
 } from "../dto/eventRecords";
 import {
   eventRecordSchema,
@@ -43,6 +44,74 @@ const input = {
 };
 const at = "2027-01-01T00:00:00Z";
 describe("unified event request boundaries", () => {
+  it("requires the committed parent epoch on mutation receipts without adding it to stored registration models", () => {
+    const registration = {
+      id,
+      eventId: id,
+      tableId: other,
+      userId: "user_guest",
+      kind: "INVITATION",
+      status: "PENDING",
+      priorityAt: at,
+      sequence: 0,
+      version: 1,
+      gameVotes: {},
+      createdAt: at,
+      updatedAt: at,
+    };
+    expect(
+      tableRegistrationReceiptSchema.parse({ ...registration, eventVersion: 2 }).eventVersion,
+    ).toBe(2);
+    expect(tableRegistrationSchema.safeParse({ ...registration, eventVersion: 2 }).success).toBe(
+      false,
+    );
+    for (const eventVersion of [undefined, 0, -1, 1.5, "2"])
+      expect(
+        tableRegistrationReceiptSchema.safeParse({ ...registration, eventVersion }).success,
+      ).toBe(false);
+  });
+  it("allows only optional UUID creation correlation, not client resource identity or edit replacement", () => {
+    const clientRequestId = "99999999-9999-4999-8999-999999999999";
+    expect(createPlannedEventSchema.parse({ ...input, clientRequestId }).clientRequestId).toBe(
+      clientRequestId,
+    );
+    const { groupId: _group, ...fields } = input;
+    expect(
+      editPlannedEventSchema.safeParse({
+        ...fields,
+        version: 1,
+        removedTableIds: [],
+        clientRequestId,
+      }).success,
+    ).toBe(false);
+    expect(
+      createPlannedEventSchema.safeParse({ ...input, clientRequestId, id: clientRequestId })
+        .success,
+    ).toBe(false);
+    const { tables: _tables, ...stored } = input;
+    const record = {
+      ...stored,
+      id: other,
+      clientRequestId,
+      adminUserId: "user_owner",
+      status: "PLANNING",
+      version: 1,
+      planningGeneration: 1,
+      nextPriority: 0,
+      nextTableOrder: 0,
+      createdAt: at,
+      updatedAt: at,
+    };
+    expect(eventRecordSchema.parse(record).clientRequestId).toBe(clientRequestId);
+    for (const invalid of ["", "not-a-uuid", null, 123]) {
+      expect(
+        createPlannedEventSchema.safeParse({ ...input, clientRequestId: invalid }).success,
+      ).toBe(false);
+      expect(eventRecordSchema.safeParse({ ...record, clientRequestId: invalid }).success).toBe(
+        false,
+      );
+    }
+  });
   it("accepts bounded private proposals including distinct times on one day, with strict optional clocks for legacy compatibility", () => {
     const proposed = {
       ...input,

@@ -1,8 +1,13 @@
 "use client";
 import type { PlannedEventResponse } from "@board-game-organizer/schemas";
+import type { CreateEventVariables, EditEventVariables } from "@board-game-organizer/shared";
 import {
   communityAccessDenied,
+  creationState,
   eventDateWall,
+  eventRecordKeys,
+  useClientMutationDraft,
+  useEventCreationDraft,
   useEventRecord,
   useEventRecordActions,
   useEventRecordForm,
@@ -12,7 +17,7 @@ import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, CalendarPlus, Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
 import { GroupMemberPicker } from "@/components/groups/GroupMemberPicker";
@@ -23,7 +28,15 @@ import { EventDraftTableEditor } from "./EventDraftTableEditor";
 import { EventScheduleFields } from "./EventScheduleFields";
 import { EventWizardSummary } from "./EventWizardSummary";
 
-export function EventWizard({ eventId, groupId }: { eventId?: string; groupId?: string }) {
+export function EventWizard({
+  eventId,
+  groupId,
+  draftId,
+}: {
+  eventId?: string;
+  groupId?: string;
+  draftId?: string;
+}) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     q = useEventRecord({ ...o, enabled: o.enabled !== false && !!eventId }, eventId ?? "");
@@ -39,48 +52,85 @@ export function EventWizard({ eventId, groupId }: { eventId?: string; groupId?: 
         <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
       </div>
     );
+  if (draftId) return <RecoveredEditor draftId={draftId} />;
   return (
     <Editor
-      key={eventId ?? groupId ?? "new"}
+      key={`${o.apiUrl}/${o.userId}/${eventId ?? groupId ?? "new"}`}
       event={eventId ? q.data : undefined}
       groupId={groupId}
     />
   );
 }
-function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: string }) {
+function RecoveredEditor({ draftId }: { draftId: string }) {
+  const { t } = useLingui(),
+    o = useCommunityApi(),
+    recovery = useEventCreationDraft(o, draftId);
+  if (!recovery?.variables.clientDraft || creationState(recovery).phase !== "failed")
+    return <p role="alert" className="text-danger">{t`Could not recover draft`}</p>;
+  return (
+    <Editor
+      key={`${o.apiUrl}/${o.userId}/${draftId}`}
+      recovery={recovery.variables}
+      groupId={recovery.variables.clientInitialGroupId}
+    />
+  );
+}
+function Editor({
+  event,
+  groupId,
+  recovery,
+}: {
+  event?: PlannedEventResponse;
+  groupId?: string;
+  recovery?: CreateEventVariables;
+}) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     router = useRouter(),
-    form = useEventRecordForm(o, event, groupId),
-    a = useEventRecordActions(o, event?.id ?? "");
+    a = useEventRecordActions(o, event?.id ?? ""),
+    edit = useClientMutationDraft<EditEventVariables>(
+      [...eventRecordKeys.mutation(o, event?.id ?? ""), "update"],
+      event?.version,
+    ),
+    editDraft = event ? edit?.variables?.clientDraft : undefined,
+    checking = edit?.phase === "saving" || edit?.phase === "verifying",
+    form = useEventRecordForm(
+      o,
+      event,
+      groupId,
+      editDraft && event ? { ...editDraft, version: event.version } : recovery?.clientDraft,
+    );
   const [newDateTime, setNewDateTime] = useState(""),
     [pick, setPick] = useState<{ kind: "game" | "demonstrator"; key: string } | "location" | null>(
       null,
     ),
     [remove, setRemove] = useState<string | null>(null),
-    [serverError, setServerError] = useState(false);
+    [submitting, setSubmitting] = useState(false);
+  const submitted = useRef(false);
   const favorites = useFavoriteLocations(o, form.draft.locations);
   const { draft, step } = form,
     publicGroup = (form.group?.type ?? event?.groupType) === "PUBLIC";
-  const save = async () => {
+  const save = () => {
     const parsed = form.validate();
-    if (!parsed.success || a.busy || form.conflict) return;
-    setServerError(false);
-    try {
-      const result =
-        "version" in parsed.data
-          ? await a.update.mutateAsync(parsed.data)
-          : await a.create.mutateAsync(parsed.data);
-      router.replace(
-        event
-          ? `/events/${result.id}`
-          : result.groupId
-            ? `/groups/${result.groupId}?tab=events`
-            : "/events",
-      );
-    } catch {
-      setServerError(true);
-    }
+    if (!parsed.success || submitted.current || (event && (a.busy || checking)) || form.conflict)
+      return;
+    submitted.current = true;
+    setSubmitting(true);
+    if ("version" in parsed.data) a.update.mutate({ ...parsed.data, clientDraft: draft });
+    else
+      a.create.mutate({
+        ...parsed.data,
+        clientRequestId: recovery?.clientRequestId,
+        clientDraft: draft,
+        clientInitialGroupId: groupId,
+        clientGroup: form.group
+          ? { id: form.group.id, name: form.group.name, type: form.group.type }
+          : undefined,
+      });
+    const targetGroup = "groupId" in parsed.data ? parsed.data.groupId : event?.groupId;
+    router.replace(
+      event ? `/events/${event.id}` : targetGroup ? `/groups/${targetGroup}?tab=events` : "/events",
+    );
   };
   if (pick === "location")
     return (
@@ -140,13 +190,14 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             key={label}
             variant={step === index ? "primary" : "ghost"}
             aria-current={step === index ? "step" : undefined}
-            isDisabled={a.busy || index > step}
+            isDisabled={submitting || index > step}
             onPress={() => form.goToStep(index)}
           >
             {index + 1}. {label}
           </Button>
         ))}
       </div>
+      {checking ? <p role="status">{t`Checking saved changes`}</p> : null}
       {form.conflict ? (
         <p
           role="alert"
@@ -156,14 +207,14 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
       {step === 0 ? (
         <EventScheduleFields
           form={form}
-          busy={a.busy}
+          busy={submitting}
           dateTime={newDateTime}
           onDateTimeChange={setNewDateTime}
           onLocation={() => setPick("location")}
         />
       ) : step === 1 ? (
         <>
-          <Button variant="outline" isDisabled={a.busy} onPress={form.addTable}>
+          <Button variant="outline" isDisabled={submitting} onPress={form.addTable}>
             <Plus className="size-4" aria-hidden />
             {t`Add table`}
           </Button>
@@ -174,7 +225,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
               publicGroup={publicGroup}
               eventStartWall={draft.dates[0] ? eventDateWall(draft, draft.dates[0]) : ""}
               eventEndWall={draft.endsWall}
-              busy={a.busy}
+              busy={submitting}
               fieldError={(path) => form.fieldError(`tables.${index}.${path}`)}
               onChange={(value) => form.patchTable(row.key, value)}
               onRemove={() => setRemove(row.key)}
@@ -223,19 +274,13 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
           className="text-danger"
         >{t`Check required fields, dates, player limits, games and durations.`}</p>
       ) : null}
-      {serverError ? (
-        <p
-          role="alert"
-          className="text-danger"
-        >{t`Could not save event. Check timing, conflicts and permissions, then try again.`}</p>
-      ) : null}
       <div className={`flex gap-3 ${step > 0 ? "justify-between" : "justify-end"}`}>
         {step > 0 ? (
           <Button
             isIconOnly
             variant="ghost"
             aria-label={t`Back`}
-            isDisabled={a.busy}
+            isDisabled={submitting}
             onPress={() => form.goToStep(step - 1)}
           >
             <ArrowLeft className="size-5" aria-hidden />
@@ -246,7 +291,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             isIconOnly
             variant="primary"
             aria-label={t`Next`}
-            isDisabled={a.busy || form.closed || form.conflict || !form.canNext}
+            isDisabled={submitting || form.closed || form.conflict || !form.canNext}
             onPress={form.next}
           >
             <ArrowRight className="size-5" aria-hidden />
@@ -257,7 +302,8 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
             variant="primary"
             aria-label={event ? t`Save event` : t`Create event`}
             isDisabled={
-              a.busy ||
+              submitting ||
+              Boolean(event && (a.busy || checking)) ||
               form.conflict ||
               form.closed ||
               (!!draft.groupId && (!form.group?.canInvite || form.group.role !== "admin"))
@@ -276,7 +322,7 @@ function Editor({ event, groupId }: { event?: PlannedEventResponse; groupId?: st
         <ContactConfirmDialog
           title={t`Remove table`}
           description={t`This table and its active registrations will be removed only when you save the event.`}
-          busy={a.busy}
+          busy={submitting}
           onCancel={() => setRemove(null)}
           actions={[
             {

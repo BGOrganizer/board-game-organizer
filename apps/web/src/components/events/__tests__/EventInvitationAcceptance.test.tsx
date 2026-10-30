@@ -37,10 +37,31 @@ beforeEach(() => {
   event = {
     ...plannedEvent,
     groupType: "PRIVATE",
+    groupId: optionId,
+    role: "invited",
+    canEdit: false,
+    canInvite: false,
+    canVote: false,
+    canConfirm: false,
+    canReplan: false,
+    canFinalize: false,
     myRegistrations: [registration],
     myVotes: undefined,
   };
-  table = { ...plannedTable, canRegister: false, canRespond: true, myRegistration: registration };
+  table = {
+    ...plannedTable,
+    groupId: optionId,
+    groupType: "PRIVATE",
+    canInvite: false,
+    canRegister: false,
+    canRespond: true,
+    myRegistration: registration,
+    myPosition: "SEATED",
+    acceptedCount: 0,
+    seatedCount: 0,
+    pendingCount: 1,
+    pendingRegistrationCount: 1,
+  };
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === "PATCH") {
       if (hold)
@@ -55,13 +76,26 @@ beforeEach(() => {
         version: registration.version + 1,
         gameVotes: input.participation.gameVotes,
       };
-      table = { ...table, canRespond: false, canLeave: true, myRegistration: registration };
+      table = {
+        ...table,
+        canRespond: false,
+        canLeave: true,
+        myRegistration: registration,
+        acceptedCount: 1,
+        seatedCount: 1,
+        pendingCount: 0,
+        pendingRegistrationCount: 0,
+      };
       event = {
         ...event,
+        version: event.version + 1,
+        role: "participant",
+        canVote: true,
+        participantCount: 1,
         myRegistrations: [registration],
         ...(input.participation.availability ? { myVotes: input.participation.availability } : {}),
       };
-      return new Response(JSON.stringify(registration));
+      return new Response(JSON.stringify({ ...registration, eventVersion: event.version }));
     }
     return new Response(JSON.stringify(url.includes("/tables/") ? table : event));
   });
@@ -116,8 +150,9 @@ it("opens choices without accepting; cancellation leaves the invitation and serv
       ?.myRegistration?.status,
   ).toBe("PENDING");
 });
-it("PRIVATE acceptance atomically submits all three categories, preserves drafts after failure and keeps the sheet mounted while pending", async () => {
+it("PRIVATE acceptance submits all three categories atomically, closes before HTTP and restores rejected choices on explicit reopening", async () => {
   const { client, dialog } = await mount();
+  const initialVersion = event.version;
   await chooseAll();
   const confirm = within(dialog).getByRole("button", {
     name: "Accept invitation",
@@ -126,30 +161,57 @@ it("PRIVATE acceptance atomically submits all three categories, preserves drafts
   fail = true;
   hold = true;
   fireEvent.click(confirm);
+  expect(screen.queryByRole("dialog")).toBeNull();
   await waitFor(() => expect(release).toBeDefined());
-  expect(screen.getByRole("dialog")).not.toBeNull();
-  expect(confirm.disabled).toBe(true);
   expect(
     client.getQueryData<PlannedTableResponse>(eventRecordKeys.table(options, eventId, tableId))
       ?.myRegistration?.status,
   ).toBe("PENDING");
-  expect(
-    (within(dialog).getAllByRole("button", { name: "Cancel" })[0] as HTMLButtonElement).disabled,
-  ).toBe(true);
   await act(async () => {
     release?.();
   });
-  await screen.findByText("Could not accept invitation");
-  expect(screen.getByRole("dialog")).not.toBeNull();
-  expect(screen.getByRole("button", { name: "Chess: Yes" }).getAttribute("aria-pressed")).toBe(
-    "true",
+  await waitFor(() =>
+    expect(
+      client
+        .getMutationCache()
+        .getAll()
+        .some((mutation) => mutation.state.status === "error"),
+    ).toBe(true),
   );
+  expect(screen.queryByRole("dialog")).toBeNull();
+  fireEvent.click(await screen.findByRole("button", { name: "Accept invitation" }));
+  const restored = await screen.findByRole("dialog");
+  await screen.findByText("Could not accept invitation");
+  expect(
+    (await screen.findByRole("button", { name: "2030-06-03 20:00: Yes" })).getAttribute(
+      "aria-pressed",
+    ),
+  ).toBe("true");
+  fireEvent.click(screen.getByRole("tab", { name: "Locations" }));
+  expect(
+    (await screen.findByRole("button", { name: "Club venue: If needed" })).getAttribute(
+      "aria-pressed",
+    ),
+  ).toBe("true");
+  fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+  expect(
+    (await screen.findByRole("button", { name: "Chess: Yes" })).getAttribute("aria-pressed"),
+  ).toBe("true");
   fail = false;
   hold = false;
-  await waitFor(() => expect(confirm.disabled).toBe(false));
-  fireEvent.click(confirm);
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  expect(writes()).toHaveLength(2);
+  const retry = within(restored).getByRole("button", {
+    name: "Accept invitation",
+  }) as HTMLButtonElement;
+  await waitFor(() => expect(retry.disabled).toBe(false));
+  fireEvent.click(retry);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await waitFor(() => expect(writes()).toHaveLength(2));
+  await waitFor(() =>
+    expect(
+      client.getQueryData<PlannedTableResponse>(eventRecordKeys.table(options, eventId, tableId))
+        ?.myRegistration?.status,
+    ).toBe("ACCEPTED"),
+  );
   expect(
     writes().every(
       ([url, init]) =>
@@ -160,10 +222,10 @@ it("PRIVATE acceptance atomically submits all three categories, preserves drafts
     action: "accept",
     version: 1,
     participation: {
-      version: event.version,
+      version: initialVersion,
       gameVotes: { "1": "YES" },
       availability: {
-        version: event.version,
+        version: initialVersion,
         dateVotes: { [optionId]: "YES" },
         locationVotes: { [optionId]: "IF_NEEDED" },
       },
@@ -179,6 +241,8 @@ it("PRIVATE acceptance atomically submits all three categories, preserves drafts
 });
 it("PUBLIC invitation shows only Games and cannot accept an all-NO ballot", async () => {
   event = { ...event, groupType: "PUBLIC" };
+  table = { ...table, groupType: "PUBLIC" };
+  const initialVersion = event.version;
   const { dialog } = await mount();
   const games = await screen.findByRole("tab", { name: "Games" });
   expect(games.getAttribute("aria-selected")).toBe("true");
@@ -197,7 +261,7 @@ it("PUBLIC invitation shows only Games and cannot accept an all-NO ballot", asyn
   expect(JSON.parse(String(writes()[0][1].body))).toEqual({
     action: "accept",
     version: 1,
-    participation: { version: event.version, gameVotes: { "1": "IF_NEEDED" } },
+    participation: { version: initialVersion, gameVotes: { "1": "IF_NEEDED" } },
   });
 });
 it("shows an unavailable-invitation error instead of accepting stale invitation identity", async () => {

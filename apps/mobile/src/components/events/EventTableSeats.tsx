@@ -96,6 +96,26 @@ export function EventTableSeats({
           </View>
         }
         renderItem={({ item }) => {
+          if (item.kind === "pending") {
+            const label =
+              item.phase === "verifying"
+                ? t("Checking saved changes")
+                : item.action === "join"
+                  ? t("Joining table")
+                  : item.action === "accept"
+                    ? t("Accepting invitation")
+                    : t("Sending invitation");
+            return (
+              <GroupedList>
+                <UserListRow
+                  name={item.name || t("You")}
+                  avatarUrl={item.avatarUrl}
+                  secondary={label}
+                  badge={{ icon: item.action ? Clock3 : Mail, label, color: "warning" }}
+                />
+              </GroupedList>
+            );
+          }
           if (item.kind !== "player") {
             const reserved = item.kind === "reserved",
               label = reserved
@@ -106,7 +126,7 @@ export function EventTableSeats({
             return (
               <AddUserRow
                 label={label}
-                isDisabled={reserved || !canAdd || a.busy}
+                isDisabled={reserved || !canAdd || a.blocking}
                 onPress={() => {
                   if (table.canInvite || table.groupType === "PRIVATE") setChoose(true);
                   else void join();
@@ -157,7 +177,7 @@ export function EventTableSeats({
                         size="sm"
                         variant="danger-soft"
                         style={{ minWidth: 44, minHeight: 44 }}
-                        isDisabled={a.busy}
+                        isDisabled={a.blocking}
                         accessibilityLabel={
                           own ? t("Leave table") : `${t("Remove player")}: ${name}`
                         }
@@ -222,7 +242,7 @@ export function EventTableSeats({
               ? t("Join this table yourself or invite another player.")
               : t("Choose your availability before joining this table.")
           }
-          busy={a.busy}
+          busy={a.blocking}
           onCancel={() => setChoose(false)}
           actions={[
             ...(!closed && table.canRegister

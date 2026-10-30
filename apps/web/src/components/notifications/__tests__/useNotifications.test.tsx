@@ -1,5 +1,11 @@
 import type { NotificationDto } from "@board-game-organizer/schemas";
-import { eventRecordKeys, useNotifications, useRecordTable } from "@board-game-organizer/shared";
+import {
+  clearSessionQueryCache,
+  eventRecordKeys,
+  notificationListKey,
+  useNotifications,
+  useRecordTable,
+} from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -452,6 +458,95 @@ describe("useNotifications", () => {
     expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "verify_saved_changes");
   });
 
+  it("dispatches independent notification deletes while responses are held and rolls back only the rejected row", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const ids = [
+      "000000000000000000000003",
+      "000000000000000000000002",
+      "000000000000000000000001",
+    ];
+    let rows = ids.map(item);
+    const writes: Array<{ id: string; resolve: (response: Response) => void }> = [];
+    const feedback = { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "DELETE")
+          return new Promise<Response>((resolve) =>
+            writes.push({ id: String(url).split("?")[0].split("/").at(-1) ?? "", resolve }),
+          );
+        return Response.json({ notifications: rows, unreadCount: rows.length, nextCursor: null });
+      }),
+    );
+    const hook = renderHook(() => useNotifications({ ...options, feedback }), {
+      wrapper: wrapper(client),
+    });
+    await waitFor(() => expect(hook.result.current.notifications).toHaveLength(3));
+    act(() => {
+      hook.result.current.deleteNotification.mutate(ids[0]);
+      hook.result.current.deleteNotification.mutate(ids[1]);
+    });
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(hook.result.current.notifications.map((row) => row.id)).toEqual([ids[2]]);
+    expect(hook.result.current.unreadCount).toBe(1);
+    expect(hook.result.current.isBusy(ids[2])).toBe(false);
+    expect(hook.result.current.busy).toBe(true);
+    expect(feedback.onOptimisticUpdate).toHaveBeenCalledTimes(2);
+    const first = writes.find((write) => write.id === ids[0]),
+      second = writes.find((write) => write.id === ids[1]);
+    if (!first || !second) throw new Error("Missing independent deletion");
+    rows = rows.filter((row) => row.id !== ids[0]);
+    await act(async () => first.resolve(Response.json({})));
+    await waitFor(() => expect(hook.result.current.isBusy(ids[0])).toBe(false));
+    expect(hook.result.current.notifications.map((row) => row.id)).toEqual([ids[2]]);
+    await act(async () => second.resolve(Response.json({ error: "REJECTED" }, { status: 409 })));
+    await waitFor(() =>
+      expect(hook.result.current.notifications.map((row) => row.id)).toEqual([ids[1], ids[2]]),
+    );
+    expect(hook.result.current.unreadCount).toBe(2);
+    expect(feedback.onSuccess).not.toHaveBeenCalled();
+    expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "delete_notification");
+    hook.unmount();
+    clearSessionQueryCache(client);
+  });
+  it("never sends an old notification write or invalidates the new actor after token resolution crosses an API/session switch", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    let token: ((value: string) => void) | undefined;
+    const getToken = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          token = resolve;
+        }),
+    );
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const first = { ...options, enabled: false, getToken },
+      next = { ...options, apiUrl: "https://other.test", userId: "other", enabled: false };
+    const hook = renderHook(({ settings }) => useNotifications(settings), {
+      wrapper: wrapper(client),
+      initialProps: { settings: first as typeof options },
+    });
+    act(() => hook.result.current.deleteNotification.mutate("000000000000000000000001"));
+    await waitFor(() => expect(token).toBeDefined());
+    clearSessionQueryCache(client);
+    client.setQueryData(notificationListKey(next, 5), {
+      pages: [{ notifications: [], unreadCount: 0, nextCursor: null }],
+      pageParams: [undefined],
+    });
+    hook.rerender({ settings: next });
+    const finish = token;
+    if (!finish) throw new Error("Missing held token");
+    await act(async () => finish("old-token"));
+    await waitFor(() => expect(hook.result.current.deleteNotification.isPending).toBe(false));
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(client.getQueryState(notificationListKey(next, 5))?.isInvalidated).toBe(false);
+    hook.unmount();
+    clearSessionQueryCache(client);
+  });
   it("exposes HTTP and missing-auth failures without fetching while disabled", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 500 }));
     const failed = renderHook(() => useNotifications(options), { wrapper: wrapper() });

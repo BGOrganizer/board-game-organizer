@@ -1,79 +1,124 @@
 "use client";
 
-import { useState } from "react";
+import type { FinalizeEventInput } from "@board-game-organizer/schemas";
+import { useEffect, useRef, useState } from "react";
+import { useClientMutationDraft } from "../../common/hooks/useClientMutationDraft";
 import { type CommunityApiOptions, communityAccessDenied } from "../../community/communityApi";
 import type { TableScoreInput } from "../tableScoreForm";
 import { useEventRecordActions } from "./useEventRecordActions";
-import { useEventRecord, useRecordTable, useRecordTables, useTableSeats } from "./useEventRecords";
+import {
+  eventRecordKeys,
+  useEventRecord,
+  useRecordTable,
+  useRecordTables,
+  useTableSeats,
+} from "./useEventRecords";
 export function useEventResultsForm(options: CommunityApiOptions, eventId: string) {
   const event = useEventRecord(options, eventId),
     tables = useRecordTables(options, eventId),
+    actions = useEventRecordActions(options, eventId);
+  const draft = useClientMutationDraft<FinalizeEventInput>(
+    [...eventRecordKeys.mutation(options, eventId), "finalize"],
+    communityAccessDenied(event.error) || event.isPlaceholderData ? undefined : event.data?.version,
+  );
+  const recovered = draft?.variables;
+  const scope = JSON.stringify([options.apiUrl, options.userId, eventId]);
+  const [owner, setOwner] = useState(scope),
     [selected, setSelected] = useState<string | null>(null),
-    [scores, setScores] = useState<Record<string, TableScoreInput>>({}),
-    [baseVersion, setBaseVersion] = useState<number | null>(null),
-    [error, setError] = useState(false),
-    [confirm, setConfirm] = useState(false),
-    actions = useEventRecordActions(options, eventId),
-    table = useRecordTable(
-      { ...options, enabled: options.enabled !== false && !!selected },
+    [scores, setScores] = useState<Record<string, TableScoreInput>>(() =>
+      Object.fromEntries(
+        (recovered?.results ?? []).map(({ tableId, ...score }) => [tableId, score]),
+      ),
+    ),
+    [scoreVersions, setScoreVersions] = useState<Record<string, number>>(() =>
+      Object.fromEntries(
+        (recovered?.results ?? []).map((row) => [row.tableId, recovered?.version ?? 0]),
+      ),
+    ),
+    [baseVersion, setBaseVersion] = useState<number | null>(recovered?.version ?? null),
+    [confirm, setConfirm] = useState(false);
+  const submitted = useRef(false);
+  const sameOwner = owner === scope;
+  useEffect(() => {
+    if (owner === scope) return;
+    setOwner(scope);
+    setSelected(null);
+    setScores({});
+    setScoreVersions({});
+    setBaseVersion(null);
+    setConfirm(false);
+    submitted.current = false;
+  }, [owner, scope]);
+  const table = useRecordTable(
+      { ...options, enabled: options.enabled !== false && sameOwner && !!selected },
       eventId,
-      selected ?? "",
+      sameOwner ? (selected ?? "") : "",
     ),
     seats = useTableSeats(
-      { ...options, enabled: options.enabled !== false && !!selected },
+      { ...options, enabled: options.enabled !== false && sameOwner && !!selected },
       eventId,
-      selected ?? "",
+      sameOwner ? (selected ?? "") : "",
     );
-  const included = tables.items.filter((row) => Boolean(row.confirmed)),
-    players = (table.data?.confirmed?.playerIds ?? []).flatMap((id) => {
-      const p = seats.items.find((row) => row.userId === id);
-      return p ? [{ id, name: p.name ?? id, email: p.email ?? null, avatarUrl: p.avatarUrl }] : [];
-    }),
-    ready = Boolean(
+  const included = tables.items.filter((row) => Boolean(row.confirmed));
+  const currentScores = sameOwner ? scores : {};
+  const isScoreCurrent = (id: string) =>
+    Boolean(sameOwner && scores[id] && scoreVersions[id] === event.data?.version);
+  const players = (table.data?.confirmed?.playerIds ?? []).flatMap((id) => {
+    const person = seats.items.find((row) => row.userId === id);
+    return person
+      ? [{ id, name: person.name ?? id, email: person.email ?? null, avatarUrl: person.avatarUrl }]
+      : [];
+  });
+  const ready = Boolean(
+    sameOwner &&
       included.length &&
-        !tables.hasNextPage &&
-        !tables.isPending &&
-        !tables.isError &&
-        included.every((row) => scores[row.id]) &&
-        event.data?.canFinalize &&
-        (baseVersion === null || baseVersion === event.data.version),
-    );
+      !tables.hasNextPage &&
+      !tables.isPending &&
+      !tables.isError &&
+      included.every((row) => isScoreCurrent(row.id)) &&
+      event.data?.canFinalize &&
+      baseVersion === event.data.version &&
+      draft?.phase !== "saving" &&
+      draft?.phase !== "verifying",
+  );
   const open = (id: string) => {
-    if (baseVersion === null && event.data) setBaseVersion(event.data.version);
+    if (!sameOwner || !event.data) return;
+    // Opening/reviewing a current frozen roster is explicit; old Table drafts keep
+    // their own version and all must be reviewed again after an Event change.
+    setBaseVersion(event.data.version);
     setSelected(id);
   };
   const save = (input: TableScoreInput) => {
-    if (selected) setScores((old) => ({ ...old, [selected]: input }));
+    if (!selected || !sameOwner || !event.data || baseVersion === null) return;
+    setScores((old) => ({ ...old, [selected]: input }));
+    setScoreVersions((old) => ({ ...old, [selected]: baseVersion }));
     setSelected(null);
   };
-  const finalize = async () => {
-    if (!ready || !event.data || actions.busy) return null;
-    setError(false);
-    try {
-      const result = await actions.finalize.mutateAsync({
-        version: baseVersion ?? event.data.version,
-        results: included.map((row) => ({ tableId: row.id, ...scores[row.id] })),
-      });
-      setConfirm(false);
-      return result;
-    } catch {
-      setError(true);
-      return null;
-    }
+  const finalize = () => {
+    if (submitted.current || !ready || !event.data || actions.busy) return false;
+    submitted.current = true;
+    actions.finalize.mutate({
+      version: baseVersion ?? event.data.version,
+      results: included.map((row) => ({ tableId: row.id, ...scores[row.id] })),
+    });
+    setConfirm(false);
+    return true;
   };
   return {
     event,
     tables,
-    selected,
+    selected: sameOwner ? selected : null,
     table,
     seats,
     players,
     included,
-    scores,
+    scores: currentScores,
+    isScoreCurrent,
     ready,
     actions,
-    error,
-    confirm,
+    error: draft?.phase === "failed",
+    checking: draft?.phase === "verifying",
+    confirm: sameOwner && confirm,
     setConfirm,
     open,
     save,
@@ -85,6 +130,10 @@ export function useEventResultsForm(options: CommunityApiOptions, eventId: strin
         players.length === table.data.confirmed.playerIds.length &&
         !seats.isError,
     ),
-    conflict: Boolean(event.data && baseVersion !== null && baseVersion !== event.data.version),
+    conflict: Boolean(
+      sameOwner &&
+        event.data &&
+        Object.keys(scores).some((id) => scoreVersions[id] !== event.data.version),
+    ),
   };
 }

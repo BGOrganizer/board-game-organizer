@@ -1,5 +1,7 @@
 import {
   communityAccessDenied,
+  groupRecordKeys,
+  useClientMutationDraft,
   useGroupRecord,
   useGroupRecordActions,
 } from "@board-game-organizer/shared";
@@ -20,24 +22,31 @@ export function GroupReview({ groupId }: { groupId: string }) {
     o = useCommunityApi(),
     q = useGroupRecord(o, groupId, true),
     a = useGroupRecordActions(o, groupId),
-    [reason, setReason] = useState(""),
-    [error, setError] = useState(false),
+    draft = useClientMutationDraft<Parameters<typeof a.review.mutate>[0]>(
+      groupRecordKeys.mutation(o, groupId, "review"),
+      communityAccessDenied(q.error) ? undefined : q.data?.version,
+    ),
+    [reason, setReason] = useState(
+      draft?.variables?.input.decision === "reject" ? draft.variables.input.reason : "",
+    ),
     group = communityAccessDenied(q.error) ? undefined : q.data;
-  const decide = async (decision: "approve" | "reject") => {
-    if (!group) return;
-    setError(false);
-    try {
-      await a.review.mutateAsync({
-        id: group.id,
-        input:
-          decision === "approve"
-            ? { decision, version: group.version }
-            : { decision, version: group.version, reason: reason.trim() },
-      });
-      router.dismissTo("/moderation");
-    } catch {
-      setError(true);
-    }
+  const busy = a.busy || draft?.phase === "saving" || draft?.phase === "verifying";
+  const decide = (decision: "approve" | "reject") => {
+    if (
+      !group ||
+      busy ||
+      group.reviewStatus !== "PENDING" ||
+      (decision === "reject" && !reason.trim())
+    )
+      return;
+    a.review.mutate({
+      id: group.id,
+      input:
+        decision === "approve"
+          ? { decision, version: group.version }
+          : { decision, version: group.version, reason: reason.trim() },
+    });
+    router.dismissTo("/moderation");
   };
   if (!group)
     return (
@@ -67,15 +76,15 @@ export function GroupReview({ groupId }: { groupId: string }) {
             value={reason}
             onChangeText={setReason}
             maxLength={1000}
-            editable={!a.busy}
+            editable
           />
           <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button isDisabled={a.busy} onPress={() => void decide("approve")}>
+            <Button isDisabled={busy} onPress={() => void decide("approve")}>
               <Button.Label>{t("Approve")}</Button.Label>
             </Button>
             <Button
               variant="danger"
-              isDisabled={a.busy || !reason.trim()}
+              isDisabled={busy || !reason.trim()}
               onPress={() => void decide("reject")}
             >
               <Button.Label>{t("Reject")}</Button.Label>
@@ -85,9 +94,9 @@ export function GroupReview({ groupId }: { groupId: string }) {
       ) : (
         <Typography className="text-foreground">{t("Review completed")}</Typography>
       )}
-      {error ? (
-        <Typography accessibilityRole="alert" className="text-danger">
-          {t("Could not update group review")}
+      {draft?.phase === "verifying" ? (
+        <Typography accessibilityLiveRegion="polite" className="text-foreground">
+          {t("Checking saved changes")}
         </Typography>
       ) : null}
     </ScreenScrollView>

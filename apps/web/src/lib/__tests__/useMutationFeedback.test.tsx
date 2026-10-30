@@ -18,6 +18,20 @@ function FeedbackProbe() {
       <button type="button" onClick={() => feedback.onError?.(new Error("failed"), "follow")}>
         error
       </button>
+      <button
+        type="button"
+        onClick={() =>
+          feedback.onError?.(new Error("BAN_FROZEN_PARTICIPATION"), "ban_group_member")
+        }
+      >
+        frozen ban
+      </button>
+      <button
+        type="button"
+        onClick={() => feedback.onError?.(new Error("other failure"), "ban_group_member")}
+      >
+        failed ban
+      </button>
       <button type="button" onClick={() => feedback.onOptimisticUpdate?.("update_match")}>
         update success
       </button>
@@ -29,6 +43,19 @@ function FeedbackProbe() {
 }
 
 describe("useMutationFeedback", () => {
+  it("keeps the frozen-participation explanation observable after an immediate Group dialog close", () => {
+    renderWithI18n(<FeedbackProbe />);
+    fireEvent.click(screen.getByRole("button", { name: "frozen ban" }));
+    expect(toastMocks.danger).toHaveBeenLastCalledWith(
+      "This user is involved in a frozen public event and cannot be excluded.",
+      expect.any(Object),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "failed ban" }));
+    expect(toastMocks.danger).toHaveBeenLastCalledWith(
+      "Could not apply group ban",
+      expect.any(Object),
+    );
+  });
   it("shows default confirmation and danger failure toasts", () => {
     renderWithI18n(<FeedbackProbe />);
 

@@ -60,6 +60,7 @@ it("renders moderation items through the existing Group card and opens their rev
   const router = { push: vi.fn() };
   const press = runInNewContext(expression("GroupCard", "LinkedListCard", "onPress"), {
     router,
+    local: undefined,
     group: item,
     href: row.props.href,
   });
@@ -67,6 +68,7 @@ it("renders moderation items through the existing Group card and opens their rev
   expect(router.push).toHaveBeenCalledWith(row.props.href);
   const ordinary = runInNewContext(expression("GroupCard", "LinkedListCard", "onPress"), {
     router,
+    local: undefined,
     group: item,
     href: undefined,
   });
@@ -94,6 +96,7 @@ it.each([
 it("omits membership actions when a review card has no response callback", () => {
   expect(
     runInNewContext(expression("GroupCard", "LinkedListCard", "actions"), {
+      local: undefined,
       invited: true,
       onRespond: undefined,
     }),

@@ -1,6 +1,7 @@
-import type { GroupRecordResponse } from "@board-game-organizer/schemas";
+import type { ClientGroupRecord } from "@board-game-organizer/shared";
 import { formatLocationAddress } from "@board-game-organizer/shared";
 import { type Href, useRouter } from "expo-router";
+import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import {
@@ -8,9 +9,11 @@ import {
   LockKeyhole,
   LockKeyholeOpen,
   MapPin,
+  RefreshCw,
   UsersRound,
 } from "lucide-react-native";
 import { View } from "react-native";
+import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
@@ -22,11 +25,15 @@ export function GroupCard({
   pending = false,
   onRespond,
   href,
+  onVerify,
+  checking = false,
 }: {
-  group: GroupRecordResponse;
+  group: ClientGroupRecord;
   pending?: boolean;
   onRespond?: (action: "accept" | "decline") => void;
   href?: Href;
+  onVerify?: () => void;
+  checking?: boolean;
 }) {
   const t = useT(),
     router = useRouter(),
@@ -34,14 +41,30 @@ export function GroupCard({
   const invited =
     group.myMembership?.kind === "INVITATION" && group.myMembership.status === "PENDING";
   const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
+  const local = group.optimistic,
+    status = useClientRecordStatus(local?.phase);
   return (
     <LinkedListCard
-      label={`${t("Open group")}: ${group.name}`}
+      label={`${status || t("Open group")}: ${group.name}`}
+      disabled={Boolean(local && local.phase !== "failed")}
       onPress={() =>
-        router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } })
+        local
+          ? router.push({ pathname: "/group/wizard", params: { draftId: local.draftId } })
+          : router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } })
       }
       actions={
-        invited && onRespond ? (
+        local?.phase === "verifying" && onVerify ? (
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            accessibilityLabel={t("Check saved changes")}
+            isDisabled={checking}
+            onPress={onVerify}
+          >
+            <RefreshCw size={18} color={muted} />
+          </Button>
+        ) : invited && onRespond ? (
           <InvitationActions
             placement="card"
             name={group.name}
@@ -53,7 +76,12 @@ export function GroupCard({
       }
     >
       <GroupArtwork group={group} />
-      <ListCardBody title={group.name} titleAccessory={<GroupStatusBadge group={group} />}>
+      <ListCardBody
+        title={group.name}
+        titleAccessory={
+          local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />
+        }
+      >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
           <Visibility size={14} color={muted} accessible={false} />
           <Typography className="text-muted" style={{ fontSize: 12 }}>
@@ -74,7 +102,8 @@ export function GroupCard({
             alignItems: "center",
             flexWrap: "wrap",
             gap: 8,
-            paddingRight: invited && onRespond ? 88 : 0,
+            paddingRight:
+              invited && onRespond ? 88 : local?.phase === "verifying" && onVerify ? 40 : 0,
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { targetUserIdSchema } from "../../common/dto/common";
+import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
 import { verifiedLocationSchema } from "../../locations/models/locations";
 
 export const groupTypeSchema = z.enum(["PRIVATE", "PUBLIC"]);
@@ -14,6 +14,7 @@ export type GroupRevision = z.infer<typeof groupRevisionSchema>;
 export const groupRecordSchema = z
   .object({
     id: z.uuid(),
+    clientRequestId: clientRequestIdSchema.optional(),
     adminUserId: targetUserIdSchema,
     type: groupTypeSchema,
     approved: groupRevisionSchema.optional(),

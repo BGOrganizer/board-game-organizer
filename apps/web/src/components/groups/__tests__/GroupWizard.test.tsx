@@ -1,5 +1,10 @@
+import {
+  clearSessionQueryCache,
+  groupRecordDetailQuery,
+  groupRecordKeys,
+} from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -61,5 +66,98 @@ it.each([false, true])(
         ? { version: 1, name: "Friday group" }
         : { type: "PRIVATE", name: "Friday group", invitedUserIds: [] },
     );
+  },
+);
+
+it.each([409, 503])(
+  "retains a rejected Group edit outside Query pages, closes before HTTP and prevents unknown-outcome retries: %s",
+  async (status) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    let release: ((response: Response) => void) | undefined;
+    let canonical = groupRecord;
+    const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PATCH")
+        return new Promise<Response>((resolve) => {
+          release = resolve;
+        });
+      return Response.json(
+        url.includes("/favorites") ? { items: [], nextCursor: null } : canonical,
+      );
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const mount = () =>
+      renderWithI18n(
+        <QueryClientProvider client={client}>
+          <GroupWizard groupId={groupRecord.id} />
+        </QueryClientProvider>,
+      );
+    const form = mount();
+    fireEvent.change(await screen.findByRole("textbox", { name: "Group name" }), {
+      target: { value: "Retained group edit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(navigation.replace).toHaveBeenCalledWith(`/groups/${groupRecord.id}`);
+    await waitFor(() => expect(release).toBeDefined());
+    const key = groupRecordKeys.detail(
+      { apiUrl: "https://api.test", userId: "owner" },
+      groupRecord.id,
+    );
+    expect(client.getQueryData(key)).toMatchObject({
+      name: "Retained group edit",
+      version: groupRecord.version,
+    });
+    form.unmount();
+    const respond = release;
+    if (!respond) throw new Error("Missing Group edit response");
+    await act(async () =>
+      respond(Response.json({ error: status === 409 ? "GROUP_CHANGED" : "UNKNOWN" }, { status })),
+    );
+    await waitFor(() =>
+      expect(
+        client
+          .getMutationCache()
+          .getAll()
+          .some((mutation) => mutation.state.status === "error"),
+      ).toBe(true),
+    );
+    const restored = mount();
+    expect(
+      ((await screen.findByRole("textbox", { name: "Group name" })) as HTMLInputElement).value,
+    ).toBe("Retained group edit");
+    expect(client.getQueryData(key)).toMatchObject({ name: groupRecord.name });
+    expect(
+      (screen.getByRole("button", { name: "Save changes" }) as HTMLButtonElement).disabled,
+    ).toBe(status === 503);
+    if (status === 503) expect(screen.getByText("Checking saved changes")).toBeTruthy();
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
+    if (status === 503) {
+      canonical = { ...groupRecord, name: "Verified canonical club", version: 2 };
+      await act(async () =>
+        client.fetchQuery({
+          ...groupRecordDetailQuery(
+            { apiUrl: "https://api.test", userId: "owner", getToken: async () => "fresh" },
+            groupRecord.id,
+          ),
+          staleTime: 0,
+        }),
+      );
+      await screen.findByText("This group changed. Go back and reopen the editor before saving.");
+      expect(
+        (screen.getByRole("button", { name: "Save changes" }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+      restored.unmount();
+      const current = mount();
+      expect(
+        ((await screen.findByRole("textbox", { name: "Group name" })) as HTMLInputElement).value,
+      ).toBe(canonical.name);
+      expect(
+        (screen.getByRole("button", { name: "Save changes" }) as HTMLButtonElement).disabled,
+      ).toBe(false);
+      expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
+      current.unmount();
+    } else restored.unmount();
+    clearSessionQueryCache(client);
   },
 );

@@ -138,20 +138,11 @@ export function Profile() {
     }
   }, [signOut, router]);
 
-  const synchronize = async () => {
+  const synchronize = () => {
     if (!username.trim() || bgg.busy) return;
     setFormError(null);
-    try {
-      await bgg.link.mutateAsync(username.trim());
-      setDialogOpen(false);
-      bgg.sync.mutate(false);
-    } catch (cause) {
-      setFormError(
-        cause instanceof Error && cause.message === "BGG user not found"
-          ? t("BGG user not found")
-          : t("Could not connect to BoardGameGeek. Try again."),
-      );
-    }
+    bgg.link.mutate({ username: username.trim(), synchronize: true });
+    setDialogOpen(false);
   };
 
   if (isLoading) {
@@ -246,7 +237,6 @@ export function Profile() {
             variant="primary"
             isDisabled={bgg.busy}
             onPress={() => {
-              setUsername("");
               setFormError(null);
               setDialogOpen(true);
             }}
@@ -331,8 +321,10 @@ export function Profile() {
             {
               label: t("Disconnect"),
               variant: "danger",
-              onPress: () =>
-                bgg.unlink.mutate(undefined, { onSuccess: () => setDisconnectOpen(false) }),
+              onPress: () => {
+                bgg.unlink.mutate();
+                setDisconnectOpen(false);
+              },
             },
           ]}
         />

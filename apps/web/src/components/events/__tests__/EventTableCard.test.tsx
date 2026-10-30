@@ -6,7 +6,12 @@ import { renderWithI18n } from "@/test-utils";
 import { EventTableCard } from "../EventTableCard";
 import { EventTableInvitationActions } from "../EventTableInvitationActions";
 
-const m = vi.hoisted(() => ({ busy: false, respond: { mutate: vi.fn() } }));
+const m = vi.hoisted(() => ({
+  busy: false,
+  blocking: false,
+  isResponding: vi.fn(() => false),
+  respond: { mutate: vi.fn() },
+}));
 vi.mock("../EventJoinSheet", () => ({
   EventJoinSheet: ({ onClose }: { onClose: () => void }) => (
     <div role="dialog">
@@ -29,6 +34,8 @@ vi.mock("@/lib/useCommunityApi", () => ({
 }));
 beforeEach(() => {
   m.busy = false;
+  m.blocking = false;
+  m.isResponding.mockReturnValue(false);
   vi.clearAllMocks();
 });
 it("keeps first game plus localized additional count and badges current viewer's real state", () => {
@@ -101,6 +108,21 @@ it("separates explicit invitation acceptance/decline from reservations and navig
   expect(badge.parentElement?.querySelector("img")).not.toBeNull();
   expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
   m.busy = true;
+  q.rerender(
+    <EventTableCard table={{ ...plannedTable, canRespond: true, myRegistration: registration }} />,
+  );
+  expect(
+    (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
+  ).toBe(false);
+  m.isResponding.mockReturnValue(true);
+  q.rerender(
+    <EventTableCard table={{ ...plannedTable, canRespond: true, myRegistration: registration }} />,
+  );
+  expect(
+    (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
+  ).toBe(true);
+  m.isResponding.mockReturnValue(false);
+  m.blocking = true;
   q.rerender(
     <EventTableCard table={{ ...plannedTable, canRespond: true, myRegistration: registration }} />,
   );

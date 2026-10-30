@@ -39,7 +39,12 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
         ]}
       />
       {(communityAccessDenied(list.error) ? [] : list.items).map((event) => (
-        <EventCard key={event.id} event={event} />
+        <EventCard
+          key={event.id}
+          event={event}
+          checking={list.isFetching}
+          onVerify={() => void list.refetch({ cancelRefetch: false })}
+        />
       ))}
       {list.isPending ? (
         <Skeleton className="h-32 w-full rounded-xl" />

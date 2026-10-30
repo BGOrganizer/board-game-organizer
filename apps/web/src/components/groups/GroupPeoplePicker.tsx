@@ -7,7 +7,6 @@ import {
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { PeoplePicker } from "@/components/contacts/PeoplePicker";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
@@ -17,7 +16,6 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
     router = useRouter();
   const detail = useGroupRecord(options, groupId),
     actions = useGroupRecordActions(options, groupId);
-  const [error, setError] = useState(false);
   const group = communityAccessDenied(detail.error) ? undefined : detail.data;
   if (group?.role !== "admin" || !group.canInvite)
     return detail.isPending ? (
@@ -34,31 +32,25 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
         <Button variant="outline" onPress={() => void detail.refetch()}>{t`Try again`}</Button>
       </div>
     );
-  const invite = async (userId: string) => {
-    if (actions.busy) return;
-    setError(false);
-    try {
-      await actions.invite.mutateAsync({ id: groupId, userId });
-      router.back();
-    } catch {
-      setError(true);
-    }
+  const invite = (person: {
+    id: string;
+    name: string;
+    username?: string | null;
+    avatarUrl: string | null;
+  }) => {
+    if (actions.isPersonBusy(groupId, person.id)) return;
+    actions.invite.mutate({ id: groupId, userId: person.id, person });
+    router.back();
   };
   return (
     <>
       <PeoplePicker
         friendsOnly
         invitationGroupId={groupId}
-        disabled={actions.busy}
+        disabled={actions.blocking}
         onClose={() => router.back()}
-        onSelect={(person) => void invite(person.id)}
+        onSelect={invite}
       />
-      {error ? (
-        <p
-          role="alert"
-          className="text-danger"
-        >{t`Could not update group member. Try again or refresh the list.`}</p>
-      ) : null}
     </>
   );
 }

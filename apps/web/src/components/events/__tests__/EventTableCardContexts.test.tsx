@@ -6,7 +6,12 @@ import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventTableCard } from "../EventTableCard";
 
-const m = vi.hoisted(() => ({ busy: false, respond: { mutate: vi.fn() } }));
+const m = vi.hoisted(() => ({
+  busy: false,
+  blocking: false,
+  isResponding: vi.fn(() => false),
+  respond: { mutate: vi.fn() },
+}));
 vi.mock("../EventJoinSheet", () => ({
   EventJoinSheet: ({ onClose }: { onClose: () => void }) => (
     <div role="dialog">
@@ -29,6 +34,8 @@ vi.mock("@/lib/useCommunityApi", () => ({
 }));
 beforeEach(() => {
   m.busy = false;
+  m.blocking = false;
+  m.isResponding.mockReturnValue(false);
   vi.clearAllMocks();
 });
 it("uses exactly the same card/controls in both lists, changing only the inline parent context", () => {
@@ -208,6 +215,11 @@ it("keeps versioned invitation consent in Event context, with pending/busy guard
       ?.className,
   ).toContain("right-2");
   m.busy = true;
+  q.rerender(<EventTableCard context="event" table={table} />);
+  expect(
+    (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
+  ).toBe(false);
+  m.isResponding.mockReturnValue(true);
   q.rerender(<EventTableCard context="event" table={table} />);
   expect(
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,

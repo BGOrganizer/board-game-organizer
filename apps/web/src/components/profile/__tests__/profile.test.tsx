@@ -52,7 +52,10 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useProfileQuery: () => useProfileQueryMock(),
-  useBggAccount: () => useBggAccountMock(),
+  useBggAccount: () => {
+    const result = useBggAccountMock();
+    return { ...result, link: { ...result.link, mutate: result.link.mutateAsync } };
+  },
 }));
 
 describe("Profile", () => {
@@ -84,7 +87,7 @@ describe("Profile", () => {
     expect(screen.getByRole("button", { name: "Logout" }).className).toContain("button--danger");
   });
 
-  it("keeps the BGG dialog open on an unknown username", async () => {
+  it("closes the BGG form before account validation and retains its username on explicit reopening", async () => {
     HTMLDialogElement.prototype.showModal = function () {
       this.setAttribute("open", "");
     };
@@ -97,7 +100,7 @@ describe("Profile", () => {
       isError: false,
       refetch: vi.fn(),
     });
-    const link = vi.fn().mockRejectedValue(new Error("BGG user not found"));
+    const link = vi.fn();
     useBggAccountMock.mockReturnValue({
       account: {
         data: { active: null, pending: null },
@@ -122,12 +125,13 @@ describe("Profile", () => {
       target: { value: "unknown" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Sync", hidden: true }));
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain("BGG user not found"),
+    expect(screen.queryByRole("dialog", { name: "Sync with BoardGameGeek" })).toBeNull();
+    expect(link).toHaveBeenCalledWith({ username: "unknown", synchronize: true });
+    fireEvent.click(linkButton);
+    expect((screen.getByRole("textbox", { name: "BGG username" }) as HTMLInputElement).value).toBe(
+      "unknown",
     );
-    expect(screen.getByRole("dialog", { name: "Sync with BoardGameGeek" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cancel", hidden: true }));
-    expect(link).toHaveBeenCalledWith("unknown");
   });
 
   it("shows a muted account row and a spinner while syncing, not a message", () => {

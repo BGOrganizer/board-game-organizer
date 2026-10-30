@@ -1,4 +1,5 @@
 import {
+  type MutationKey,
   matchQuery,
   notifyManager,
   type Query,
@@ -14,7 +15,10 @@ export type OptimisticChange = (data: unknown, key: QueryKey) => unknown;
 type Entry = { query: Query; base: unknown; readRevision: number };
 type Operation = {
   resource: QueryKey;
+  lock: QueryKey;
   aliases: readonly QueryKey[];
+  dependencies: readonly QueryKey[];
+  queue?: string;
   controller: AbortController;
   filters: QueryFilters;
   change: OptimisticChange;
@@ -30,6 +34,7 @@ type Journal = {
   listeners: Set<() => void>;
   revision: number;
   readRevision: number;
+  sequence: number;
   writing: boolean;
 };
 // Only in-flight rollback snapshots/flags live here. Query remains the server-data owner.
@@ -98,6 +103,7 @@ function journalFor(client: QueryClient): Journal {
     listeners: new Set(),
     revision: 0,
     readRevision: 0,
+    sequence: 0,
     writing: false,
   };
   journals.set(client, journal);
@@ -147,14 +153,33 @@ export function clearSessionQueryCache(client: QueryClient) {
   for (const operation of journal.operations) operation.controller.abort();
   journal.operations.clear();
   journal.entries.clear();
+  const paused = client
+    .getMutationCache()
+    .getAll()
+    .filter(
+      (mutation) =>
+        mutation.state.isPaused && mutationOperation(mutation.state.context)?.signal?.aborted,
+    );
   client.clear();
   changed(journal);
+  // Removed SDK scopes no longer resume their queued promises. Drain only our
+  // aborted work: its owner guard rejects before resolving a token or sending HTTP.
+  for (const mutation of paused) void mutation.continue().catch(() => undefined);
 }
 
 /** A committed cascade invalidates in-flight writers for the deleted resource too. */
-export function cancelOptimisticResource(client: QueryClient, resource: QueryKey) {
+export function cancelOptimisticResource(
+  client: QueryClient,
+  resource: QueryKey,
+  dependentsOnly = false,
+) {
   for (const operation of [...journalFor(client).operations])
-    if ([operation.resource, ...operation.aliases].some((key) => overlaps(key, resource)))
+    if (
+      (dependentsOnly
+        ? operation.dependencies
+        : [operation.resource, ...operation.aliases, ...operation.dependencies]
+      ).some((key) => overlaps(key, resource))
+    )
       operation.cancel();
 }
 
@@ -167,6 +192,34 @@ export function optimisticOperationSignal(client: QueryClient, resource: QueryKe
   const cancelled = new AbortController();
   cancelled.abort();
   return cancelled.signal;
+}
+
+type MutationOperation = {
+  active: boolean;
+  signal: AbortSignal;
+  prepare: () => Promise<AbortSignal>;
+};
+function mutationOperation(context: unknown): MutationOperation | undefined {
+  const value = context as (MutationOperation & { operation?: MutationOperation }) | undefined;
+  return value?.operation ?? value;
+}
+
+/** A serialized request must use its own operation, never another queued intent's signal. */
+export async function optimisticMutationSignal(
+  client: QueryClient,
+  mutationKey: MutationKey | undefined,
+  variables: unknown,
+): Promise<AbortSignal> {
+  const mutation =
+    mutationKey &&
+    client.getMutationCache().find({
+      mutationKey,
+      predicate: (value) => value.state.status === "pending" && value.state.variables === variables,
+    });
+  const operation = mutationOperation(mutation?.state.context);
+  if (!operation?.active || !operation.signal || !operation.prepare)
+    throw new Error("MUTATION_OWNER_CHANGED");
+  return operation.prepare();
 }
 
 /** Seed another query from the server snapshot, never from a pending projection. */
@@ -200,19 +253,31 @@ export async function beginOptimisticOperation(
   change: OptimisticChange = (data) => data,
   aliases: readonly QueryKey[] = [],
   onReadDenied?: (key: QueryKey) => void,
+  queue?: string,
+  dependencies: readonly QueryKey[] = [],
 ) {
   const journal = journalFor(client);
+  // Explicit queues permit immediate projections. prepare() serializes dispatch;
+  // SDK scopes may provide the same FIFO for fixed-resource mutation hooks.
+  const firstInQueue =
+    queue === undefined || ![...journal.operations].some((operation) => operation.queue === queue);
+  const target = queue === undefined ? resource : [...resource, "operation", ++journal.sequence];
   if (
-    [...journal.operations].some((operation) =>
-      [operation.resource, ...operation.aliases].some((existing) =>
-        [resource, ...aliases].some((target) => overlaps(existing, target)),
-      ),
+    [...journal.operations].some(
+      (operation) =>
+        !(queue !== undefined && operation.queue === queue) &&
+        [operation.lock, ...operation.aliases].some((existing) =>
+          [resource, ...aliases].some((next) => overlaps(existing, next)),
+        ),
     )
   )
     throw new Error("MUTATION_IN_PROGRESS");
   const operation: Operation = {
-    resource,
+    resource: target,
+    lock: resource,
     aliases,
+    dependencies,
+    queue,
     controller: new AbortController(),
     filters,
     change,
@@ -320,7 +385,7 @@ export async function beginOptimisticOperation(
     }
   }
   try {
-    await cancelReads(client, filters);
+    if (firstInQueue) await cancelReads(client, filters);
     if (!journal.operations.has(operation)) throw new Error("MUTATION_OWNER_CHANGED");
     let modified = false;
     if (journal.operations.has(operation)) {
@@ -340,9 +405,43 @@ export async function beginOptimisticOperation(
       });
     }
     return {
-      resource,
+      resource: operation.resource,
+      signal: operation.controller.signal,
+      prepare: async () => {
+        if (!journal.operations.has(operation)) throw new Error("MUTATION_OWNER_CHANGED");
+        if (queue !== undefined)
+          await new Promise<void>((resolve, reject) => {
+            const ready = () => {
+              const ordered = [...journal.operations];
+              const index = ordered.indexOf(operation);
+              if (index >= 0 && ordered.slice(0, index).some((other) => other.queue === queue))
+                return;
+              journal.listeners.delete(ready);
+              if (index < 0) reject(new Error("MUTATION_OWNER_CHANGED"));
+              else resolve();
+            };
+            journal.listeners.add(ready);
+            ready();
+          });
+        await cancelReads(client, filters);
+        if (!journal.operations.has(operation)) throw new Error("MUTATION_OWNER_CHANGED");
+        return operation.controller.signal;
+      },
+      wait: () =>
+        new Promise<void>((resolve) => {
+          const settled = () => {
+            if (journal.operations.has(operation)) return;
+            journal.listeners.delete(settled);
+            resolve();
+          };
+          journal.listeners.add(settled);
+          settled();
+        }),
       get active() {
         return journal.operations.has(operation);
+      },
+      get uncertain() {
+        return operation.uncertain;
       },
       modified,
       read,

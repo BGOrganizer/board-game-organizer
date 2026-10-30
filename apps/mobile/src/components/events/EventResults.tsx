@@ -65,8 +65,8 @@ export function EventResults({ eventId }: { eventId: string }) {
       </Button>
     </View>
   ) : null;
-  const finish = async () => {
-    if (await f.finalize()) router.dismissTo({ pathname: "/event/[eventId]", params: { eventId } });
+  const finish = () => {
+    if (f.finalize()) router.dismissTo({ pathname: "/event/[eventId]", params: { eventId } });
   };
   if (!event)
     return (
@@ -157,6 +157,11 @@ export function EventResults({ eventId }: { eventId: string }) {
                 "Record results for every table to finalize the event. Finalization is irreversible. All-ND tables do not change ratings or statistics.",
               )}
             />
+            {f.checking ? (
+              <Typography accessibilityLiveRegion="polite" className="text-foreground">
+                {t("Checking saved changes")}
+              </Typography>
+            ) : null}
             {f.conflict ? (
               <Typography accessibilityRole="alert" className="text-danger">
                 {t("This event changed. Go back and reopen the editor before saving.")}
@@ -167,7 +172,7 @@ export function EventResults({ eventId }: { eventId: string }) {
         renderItem={({ item }) => (
           <EventResultTableCard
             table={item}
-            ready={Boolean(f.scores[item.id])}
+            ready={f.isScoreCurrent(item.id)}
             busy={f.actions.busy}
             onPress={() => f.open(item.id)}
           />

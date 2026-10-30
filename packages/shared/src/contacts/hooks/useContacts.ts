@@ -484,7 +484,7 @@ export function useContacts(
             ? optimisticContactData(key, data, action, variables, currentUserId)
             : optimisticPeopleSocialData(data, action, variables.targetUserId),
       );
-      if (operation.modified) feedback?.onOptimisticUpdate?.(action);
+      feedback?.onOptimisticUpdate?.(action);
       return operation;
     },
     onSuccess: (
@@ -494,7 +494,6 @@ export function useContacts(
     ) => {
       if (!operation?.active) return;
       operation.commit();
-      if (!operation.modified) feedback?.onSuccess?.(action);
     },
     onError: async (
       error: Error,

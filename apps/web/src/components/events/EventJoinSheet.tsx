@@ -28,14 +28,13 @@ export function EventJoinSheet({
   return (
     <Drawer.Backdrop
       isOpen
-      isDismissable={!form.busy}
       onOpenChange={(open) => {
-        if (!open && !form.busy) onClose();
+        if (!open) onClose();
       }}
     >
       <Drawer.Content placement="bottom">
         <Drawer.Dialog className="mx-auto max-h-[85dvh] w-full max-w-2xl">
-          <Drawer.CloseTrigger aria-label={t`Cancel`} isDisabled={form.busy} />
+          <Drawer.CloseTrigger aria-label={t`Cancel`} />
           <Drawer.Handle />
           <Drawer.Header>
             <Drawer.Heading>{t`Choose availability`}</Drawer.Heading>
@@ -95,7 +94,7 @@ export function EventJoinSheet({
                                 inline
                                 label={eventDateWall(event, row).replace("T", " ")}
                                 value={form.votes.dateVotes[row.id]}
-                                busy={form.busy}
+                                busy={false}
                                 onChange={(vote) => form.choose("date", row.id, vote)}
                               />
                             ) : null}
@@ -116,7 +115,7 @@ export function EventJoinSheet({
                                   inline
                                   label={row.name}
                                   value={form.votes.locationVotes[row.id]}
-                                  busy={form.busy}
+                                  busy={false}
                                   onChange={(vote) => form.choose("location", row.id, vote)}
                                 />
                               ) : undefined
@@ -144,7 +143,7 @@ export function EventJoinSheet({
                                 inline
                                 label={game?.name ?? t`Unknown`}
                                 value={form.votes.gameVotes[String(gameId)]}
-                                busy={form.busy}
+                                busy={false}
                                 onChange={(vote) => form.choose("game", String(gameId), vote)}
                               />
                             }
@@ -159,6 +158,12 @@ export function EventJoinSheet({
             {form.invitationUnavailable ? (
               <p role="alert" className="text-danger">{t`Invitation unavailable`}</p>
             ) : null}
+            {form.checking ? (
+              <div role="status">
+                <p>{t`Checking saved changes`}</p>
+                <Button onPress={form.refetch}>{t`Check saved changes`}</Button>
+              </div>
+            ) : null}
             {form.failed ? (
               <p role="alert" className="text-danger">
                 {form.isInvitation ? t`Could not accept invitation` : t`Could not join table`}
@@ -166,11 +171,7 @@ export function EventJoinSheet({
             ) : null}
           </Drawer.Body>
           <Drawer.Footer>
-            <Button
-              variant="secondary"
-              isDisabled={form.busy}
-              onPress={onClose}
-            >{t`Cancel`}</Button>
+            <Button variant="secondary" onPress={onClose}>{t`Cancel`}</Button>
             <Button isDisabled={!form.canSubmit} onPress={() => void form.submit()}>
               <UserRoundCheck className="size-4" aria-hidden />
               {form.isInvitation ? t`Accept invitation` : t`Join table`}

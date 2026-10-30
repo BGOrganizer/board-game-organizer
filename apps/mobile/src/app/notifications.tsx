@@ -130,7 +130,7 @@ export default function NotificationsScreen() {
               className="rounded-xl p-4 active:bg-muted/20"
               style={{ flexDirection: "row", gap: 10, width: "100%", paddingRight: 56 }}
               onPress={() => {
-                if (!notifications.busy) notifications.markRead.mutate(item.id);
+                if (!notifications.isBusy(item.id)) notifications.markRead.mutate(item.id);
                 router.push(notificationHref({ href: item.href, kind: item.kind }));
               }}
             >
@@ -158,7 +158,7 @@ export default function NotificationsScreen() {
               accessibilityLabel={t("Delete notification")}
               testID={`delete-notification-${item.id}`}
               hitSlop={8}
-              isDisabled={notifications.busy}
+              isDisabled={notifications.isBusy(item.id)}
               style={{ position: "absolute", right: 8, bottom: 8, width: 40, height: 40 }}
               onPress={() => setDeletingId(item.id)}
             >
@@ -171,16 +171,16 @@ export default function NotificationsScreen() {
         <ConfirmDialog
           title={t("Delete notification?")}
           description={t("This notification will be permanently deleted.")}
-          busy={notifications.busy}
+          busy={notifications.isBusy(deletingId)}
           onCancel={() => setDeletingId(null)}
           actions={[
             {
               label: t("Delete notification"),
               variant: "danger",
-              onPress: () =>
-                notifications.deleteNotification.mutate(deletingId, {
-                  onSuccess: () => setDeletingId(null),
-                }),
+              onPress: () => {
+                notifications.deleteNotification.mutate(deletingId);
+                setDeletingId(null);
+              },
             },
           ]}
         />

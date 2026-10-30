@@ -13,6 +13,7 @@ import {
   hasOtherAcceptedTable,
 } from "../eventJoinAvailability";
 import { useEventCutoff } from "./useEventCutoff";
+import { useEventParticipationIntent } from "./useEventParticipationIntent";
 import { useEventRecordActions } from "./useEventRecordActions";
 import { useEventRecord, useRecordTable } from "./useEventRecords";
 
@@ -27,18 +28,29 @@ export function useEventJoinForm(
   const q = useEventRecord(o, eventId),
     tableQuery = useRecordTable(o, eventId, tableId),
     actions = useEventRecordActions(o, eventId);
-  const [dateVotes, setDates] = useState<Choices>({}),
-    [locationVotes, setLocations] = useState<Choices>({}),
-    [gameVotes, setGames] = useState<Choices>({}),
-    [failed, setFailed] = useState(false),
-    [initialTab, setInitialTab] = useState<"dates" | "games">(),
-    initialized = useRef({ availability: false, games: false });
   const denied = communityAccessDenied(q.error) || communityAccessDenied(tableQuery.error);
   const event = denied ? undefined : q.data,
     table = denied ? undefined : tableQuery.data;
-  const requiresAvailability = event?.groupType === "PRIVATE";
-  const isInvitation = registrationId !== undefined;
-  const gamesOnly = isInvitation && event?.groupType === "PUBLIC";
+  const intent = useEventParticipationIntent(
+    o,
+    eventId,
+    tableId,
+    !tableQuery.isPlaceholderData &&
+      table?.myRegistration?.userId === o.userId &&
+      table?.myRegistration?.status === "ACCEPTED",
+  );
+  const recovery = intent?.phase === "failed" ? intent.input : undefined;
+  const scope = JSON.stringify([o.apiUrl, o.userId, eventId, tableId, registrationId]);
+  const [draftScope, setDraftScope] = useState(scope),
+    [dateVotes, setDates] = useState<Choices>({}),
+    [locationVotes, setLocations] = useState<Choices>({}),
+    [gameVotes, setGames] = useState<Choices>({}),
+    [initialTab, setInitialTab] = useState<"dates" | "games">();
+  const initialized = useRef({ scope, availability: false, games: false, submitted: false });
+  const sameOwner = draftScope === scope;
+  const requiresAvailability = event?.groupType === "PRIVATE",
+    isInvitation = registrationId !== undefined,
+    gamesOnly = isInvitation && event?.groupType === "PUBLIC";
   const invitation = table?.myRegistration;
   const invitationAvailable = Boolean(
     table?.canRespond &&
@@ -51,6 +63,14 @@ export function useEventJoinForm(
     isInvitation && table && !tableQuery.isPlaceholderData && !invitationAvailable,
   );
   useEffect(() => {
+    if (initialized.current.scope !== scope) {
+      initialized.current = { scope, availability: false, games: false, submitted: false };
+      setDraftScope(scope);
+      setDates({});
+      setLocations({});
+      setGames({});
+      setInitialTab(undefined);
+    }
     if (!event || q.isPlaceholderData || event.myRegistrations === undefined) return;
     const firstTab =
       event.groupType === "PUBLIC" || hasOtherAcceptedTable(event.myRegistrations, tableId)
@@ -62,18 +82,18 @@ export function useEventJoinForm(
         Object.entries(choices ?? {}).filter(([, vote]) => vote !== "UNKNOWN"),
       ) as Choices;
     if (!initialized.current.availability) {
-      setDates(explicit(event.myVotes?.dateVotes));
-      setLocations(explicit(event.myVotes?.locationVotes));
+      setDates(explicit(recovery?.availability?.dateVotes ?? event.myVotes?.dateVotes));
+      setLocations(explicit(recovery?.availability?.locationVotes ?? event.myVotes?.locationVotes));
       initialized.current.availability = true;
     }
     if (!table || tableQuery.isPlaceholderData || initialized.current.games) return;
-    setGames(explicit(table.myRegistration?.gameVotes));
+    setGames(explicit(recovery?.gameVotes ?? table.myRegistration?.gameVotes));
     initialized.current.games = true;
-  }, [event, table, q.isPlaceholderData, tableQuery.isPlaceholderData, tableId]);
+  }, [event, table, q.isPlaceholderData, tableQuery.isPlaceholderData, tableId, scope, recovery]);
   const current = (options: Array<{ id: string }> | undefined, choices: Choices): Choices =>
     Object.fromEntries(
       (options ?? [])
-        .filter((option) => choices[option.id])
+        .filter((option) => sameOwner && choices[option.id])
         .map((option) => [option.id, choices[option.id]]),
     );
   const gameOptions = (table?.games ?? []).map((game) => ({ id: String(game.gameId) }));
@@ -83,8 +103,10 @@ export function useEventJoinForm(
     locationVotes: current(event?.locations, locationVotes),
     gameVotes: current(gameOptions, gameVotes),
   };
+  const checking = intent?.phase === "verifying";
   const canSubmit = Boolean(
-    event &&
+    sameOwner &&
+      event &&
       table &&
       table.eventId === eventId &&
       table.id === tableId &&
@@ -93,7 +115,9 @@ export function useEventJoinForm(
       !tableQuery.isError &&
       !q.isPlaceholderData &&
       !tableQuery.isPlaceholderData &&
-      !actions.busy &&
+      !actions.blocking &&
+      intent?.phase !== "saving" &&
+      !checking &&
       !closed &&
       event.status === "PLANNING" &&
       table.eventStatus === "PLANNING" &&
@@ -102,44 +126,40 @@ export function useEventJoinForm(
       eventOptionVotesAreComplete(gameOptions, votes.gameVotes),
   );
   const choose = (kind: "date" | "location" | "game", id: string, vote: EventVote) => {
-    if (vote !== "UNKNOWN" && !actions.busy)
+    if (vote !== "UNKNOWN")
       (kind === "date" ? setDates : kind === "location" ? setLocations : setGames)((previous) => ({
         ...previous,
         [id]: vote,
       }));
   };
   const refetch = () => {
-    void q.refetch();
-    void tableQuery.refetch();
+    void q.refetch({ cancelRefetch: false });
+    void tableQuery.refetch({ cancelRefetch: false });
   };
-  const submit = async () => {
-    if (!canSubmit || !event) return;
-    setFailed(false);
-    try {
-      const participation: JoinTableInput = {
-        version: event.version,
-        gameVotes: votes.gameVotes,
-        ...(requiresAvailability
-          ? {
-              availability: {
-                version: event.version,
-                dateVotes: votes.dateVotes,
-                locationVotes: votes.locationVotes,
-              },
-            }
-          : {}),
-      };
-      if (isInvitation) {
-        await actions.respond.mutateAsync({
-          registrationId,
-          input: { action: "accept", version: invitation!.version, participation },
-        });
-      } else await actions.register.mutateAsync({ tableId, ...participation });
-      onComplete();
-    } catch {
-      setFailed(true);
-      refetch();
-    }
+  const submit = () => {
+    if (initialized.current.submitted || !canSubmit || !event) return;
+    initialized.current.submitted = true;
+    const participation: JoinTableInput = {
+      version: event.version,
+      gameVotes: votes.gameVotes,
+      ...(requiresAvailability
+        ? {
+            availability: {
+              version: event.version,
+              dateVotes: votes.dateVotes,
+              locationVotes: votes.locationVotes,
+            },
+          }
+        : {}),
+    };
+    if (isInvitation)
+      actions.respond.mutate({
+        tableId,
+        registrationId,
+        input: { action: "accept", version: invitation!.version, participation },
+      });
+    else actions.register.mutate({ tableId, ...participation });
+    onComplete();
   };
   return {
     q,
@@ -150,12 +170,12 @@ export function useEventJoinForm(
     isInvitation,
     gamesOnly,
     invitationUnavailable,
-    initialTab,
+    initialTab: sameOwner ? initialTab : undefined,
     votes,
     choose,
     canSubmit,
-    busy: actions.busy,
-    failed,
+    failed: intent?.phase === "failed",
+    checking,
     submit,
     refetch,
   };

@@ -3,36 +3,57 @@
 import type {
   ChangeEventStateInput,
   ChangeEventVoteInput,
-  CreatePlannedEventInput,
   DecideTableRegistrationInput,
-  EditPlannedEventInput,
   FinalizeEventInput,
   JoinTableInput,
   PlannedEventResponse,
   PlannedTableResponse,
   TableInviteeResponse,
   TableRegistration,
+  TableRegistrationReceipt,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
-import { notifyManager, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  hashKey,
+  type MutationFunctionContext,
+  notifyManager,
+  type QueryKey,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { withClientRequestId } from "../../common/clientMutation";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { MutationFeedbackAction } from "../../common/mutationFeedback";
 import {
   beginOptimisticOperation,
+  cancelOptimisticResource,
   optimisticBaseData,
   optimisticFailureAction,
+  optimisticMutationSignal,
   optimisticOperationSignal,
   updateOptimisticBase,
 } from "../../common/optimisticOperation";
 import {
+  CommunityApiError,
   type CommunityApiOptions,
   communityAccessDenied,
   communityRequest,
 } from "../../community/communityApi";
 import { mapCommunityCache, versionedCommunityChange } from "../../community/queryCache";
+import { groupRecordDetailQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
+import {
+  captureEventConsent,
+  type EventConsentSnapshot,
+  rebaseEventConsent,
+} from "../eventConsentVersion";
+import {
+  type CreateEventVariables,
+  type EditEventVariables,
+  eventCreationMatches,
+} from "../eventOptimisticCreation";
+import { optimisticEventVote } from "../eventOptimisticVote";
 import { acknowledgeTableRegistration } from "../eventRegistrationCache";
-import { changeEventVoteCounts } from "../eventVotes";
-import { eventRecordKeys, eventRecordQuery } from "./useEventRecords";
+import { eventRecordKeys, eventRecordQuery, eventRecordsQuery } from "./useEventRecords";
 
 type Row =
   | PlannedEventResponse
@@ -42,11 +63,29 @@ type Row =
 export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const client = useQueryClient(),
     root = eventRecordKeys.root(o),
-    mutationKey = [...root, "mutation", id];
+    mutationKey = eventRecordKeys.mutation(o, id);
   const resource = [...root, id || "new"];
-  const busy = useOptimisticBusy(resource)();
-  const write = <T>(path: string, method: string, input: unknown) =>
-    communityRequest<T>(o, path, method, input, optimisticOperationSignal(client, resource));
+  const resourceBusy = useOptimisticBusy(resource);
+  const busy = resourceBusy();
+  const blocking = resourceBusy([...resource, "write"]);
+  const queue = JSON.stringify(["event-actions", ...resource]);
+  const scope = { id: queue };
+  const write = async <T>(
+    path: string,
+    method: string,
+    input: unknown,
+    context?: MutationFunctionContext,
+    variables: unknown = input,
+  ) =>
+    communityRequest<T>(
+      o,
+      path,
+      method,
+      input,
+      context
+        ? await optimisticMutationSignal(client, context.mutationKey, variables)
+        : optimisticOperationSignal(client, resource),
+    );
   const affected = (key: readonly unknown[], eventId = id) =>
     key[3] === "list" ||
     (key[3] === "tables" && (key[4] === null || key[4] === eventId)) ||
@@ -55,29 +94,49 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   async function begin(
     action: MutationFeedbackAction,
     change: (row: Row, key: readonly unknown[]) => Row = (row) => row,
+    lane: QueryKey = ["write"],
+    project?: (data: unknown, key: QueryKey) => unknown,
+    eventId = id,
+    dependencies: readonly QueryKey[] = [],
   ) {
     const guarded = versionedCommunityChange<Row>(
       change,
       (row) =>
         `${"dates" in row ? "event" : "gameIds" in row ? "table" : "tableId" in row ? "seat" : "invitee"}:${row.id}`,
     );
+    const target = [...root, eventId || "new"];
+    const targetQueue = JSON.stringify(["event-actions", ...target]);
     const operation = await beginOptimisticOperation(
       client,
-      [...root, id || "new"],
-      { queryKey: root, predicate: (q) => affected(q.queryKey) },
-      guarded.change,
+      [...target, ...lane],
+      { queryKey: root, predicate: (q) => affected(q.queryKey, eventId) },
+      project ?? guarded.change,
+      [],
+      undefined,
+      targetQueue,
+      dependencies,
     );
     guarded.seal();
-    const announced =
-      operation.modified &&
-      ["update_event", "set_event_vote", "invite_event_player"].includes(action);
-    if (announced) o.feedback?.onOptimisticUpdate?.(action);
-    return { action, operation, guarded, announced, owner: o, eventId: id };
+    const announced = true;
+    o.feedback?.onOptimisticUpdate?.(action);
+    return {
+      action,
+      operation,
+      guarded,
+      announced,
+      owner: o,
+      eventId,
+      receipt: undefined as PlannedEventResponse | undefined,
+      acknowledgedVersion: undefined as number | undefined,
+      consent: undefined as EventConsentSnapshot | undefined,
+    };
   }
   async function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
     if (context?.operation.active)
       context.owner.feedback?.onError?.(error, optimisticFailureAction(error, context.action));
     await context?.operation.reject(error);
+    // An unknown outcome holds background FIFO, not the screen or the next intent.
+    if (context?.operation.active) await context.operation.wait();
   }
   function settle(
     _data: unknown,
@@ -101,7 +160,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   }
   function complete(context: Awaited<ReturnType<typeof begin>> | undefined) {
     if (!context?.operation.active) return;
-    context.operation.commit();
+    context.operation.commit((_data, key) => optimisticBaseData(client, key));
     if (!context.announced) context.owner.feedback?.onSuccess?.(context.action);
   }
   function eventSuccess(
@@ -110,6 +169,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     context: Awaited<ReturnType<typeof begin>> | undefined,
   ) {
     if (!context?.operation.active) return;
+    context.operation.acknowledge();
     let saved = value;
     for (const [key] of client.getQueriesData({
       queryKey: eventRecordKeys.root(context.owner),
@@ -119,8 +179,12 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         if (row.id === value.id && row.version > saved.version) saved = row;
         return row;
       });
+    context.receipt = saved;
     notifyManager.batch(() => {
-      updateOptimisticBase(client, eventRecordKeys.detail(context.owner, saved.id), () => saved);
+      updateOptimisticBase(client, eventRecordKeys.detail(context.owner, saved.id), (current) => {
+        const previous = current as PlannedEventResponse | undefined;
+        return previous?.version === saved.version ? { ...previous, ...saved } : saved;
+      });
       for (const [key] of client.getQueriesData({
         queryKey: eventRecordKeys.root(context.owner),
         predicate: (q) => q.queryKey[3] === "list",
@@ -135,7 +199,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         predicate: (q) => q.queryKey[3] === "table" || q.queryKey[3] === "tables",
       }))
         updateOptimisticBase(client, key, (current) =>
-          context.guarded.apply<PlannedTableResponse>(current, key, (row) => {
+          mapCommunityCache<PlannedTableResponse>(current, (row) => {
             if (row.eventId !== saved.id) return row;
             return saved.myRegistrations.reduce(
               (table, registration) =>
@@ -147,8 +211,94 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       complete(context);
     });
   }
-  function registrationSuccess(...args: Parameters<typeof reconcileRegistration>) {
-    void reconcileRegistration(...args);
+  function eventReceiptSuccess(...args: Parameters<typeof eventSuccess>) {
+    const [value, , context] = args;
+    if (context?.operation.active && value.id === context.eventId)
+      context.acknowledgedVersion = value.version;
+    return eventSuccess(...args);
+  }
+  function registrationSuccess(
+    value: TableRegistrationReceipt,
+    availability: JoinTableInput["availability"] | undefined,
+    context: Awaited<ReturnType<typeof begin>> | undefined,
+    expected: Pick<TableRegistration, "tableId" | "userId"> | Pick<TableRegistration, "id">,
+  ) {
+    const { eventVersion, ...registration } = value;
+    const matches =
+      "id" in expected
+        ? value.id === expected.id
+        : value.tableId === expected.tableId && value.userId === expected.userId;
+    if (context?.operation.active && value.eventId === context.eventId && matches)
+      context.acknowledgedVersion = eventVersion;
+    return reconcileRegistration(registration, availability, context);
+  }
+  function currentEvent() {
+    let current = optimisticBaseData(client, eventRecordKeys.detail(o, id)) as
+      | PlannedEventResponse
+      | undefined;
+    for (const [key] of client.getQueriesData({
+      queryKey: root,
+      predicate: (q) => q.queryKey[3] === "detail" || q.queryKey[3] === "list",
+    }))
+      mapCommunityCache<PlannedEventResponse>(optimisticBaseData(client, key), (row) => {
+        if (row.id === id && "dates" in row && (!current || row.version > current.version))
+          current = row;
+        return row;
+      });
+    return current;
+  }
+  function currentTable(tableId: string | undefined, registrationId?: string) {
+    let current: PlannedTableResponse | undefined;
+    for (const [key] of client.getQueriesData({
+      queryKey: root,
+      predicate: (q) => q.queryKey[3] === "table" || q.queryKey[3] === "tables",
+    }))
+      mapCommunityCache<PlannedTableResponse>(optimisticBaseData(client, key), (row) => {
+        if (
+          "games" in row &&
+          row.eventId === id &&
+          (tableId ? row.id === tableId : row.myRegistration?.id === registrationId) &&
+          (!current || row.updatedAt > current.updatedAt)
+        )
+          current = row;
+        return row;
+      });
+    return current;
+  }
+  async function participationRequest(context: MutationFunctionContext, variables: unknown) {
+    const signal = await optimisticMutationSignal(client, context.mutationKey, variables);
+    const mutation = client
+      .getMutationCache()
+      .findAll({ mutationKey: context.mutationKey, exact: true, status: "pending" })
+      .find(
+        (value) =>
+          value.state.variables === variables &&
+          (value.state.context as Awaited<ReturnType<typeof begin>> | undefined)?.operation.active,
+      );
+    const local = mutation?.state.context as Awaited<ReturnType<typeof begin>> | undefined;
+    if (!local?.operation.active) throw new Error("MUTATION_OWNER_CHANGED");
+    return { signal, local };
+  }
+  function preparedConsent(input: JoinTableInput, context: Awaited<ReturnType<typeof begin>>) {
+    const event = currentEvent();
+    const table = currentTable(context.consent?.tableId);
+    const owned = client
+      .getMutationCache()
+      .getAll()
+      .some(
+        (mutation) =>
+          mutation.state.status === "success" &&
+          mutation.options.scope?.id === queue &&
+          (mutation.state.context as Awaited<ReturnType<typeof begin>> | undefined)
+            ?.acknowledgedVersion === event?.version,
+      );
+    return rebaseEventConsent(
+      input,
+      context.consent,
+      event,
+      table,
+      owned ? event?.version : undefined,
+    );
   }
   async function reconcileRegistration(
     value: TableRegistration,
@@ -178,6 +328,17 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
                   return row;
                 return {
                   ...row,
+                  ...(!["PENDING", "ACCEPTED"].includes(value.status) &&
+                  current.some(
+                    (registration) =>
+                      registration.id === value.id && registration.status === "ACCEPTED",
+                  ) &&
+                  !current.some(
+                    (registration) =>
+                      registration.tableId !== value.tableId && registration.status === "ACCEPTED",
+                  )
+                    ? { participantCount: Math.max(0, row.participantCount - 1), canVote: false }
+                    : {}),
                   myRegistrations: [
                     ...current.filter((registration) => registration.tableId !== value.tableId),
                     ...(["PENDING", "ACCEPTED"].includes(value.status) ? [value] : []),
@@ -209,17 +370,40 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
         context.owner.feedback?.onSuccess?.(context.action);
         context.announced = true;
       }
-      // Registration responses do not contain the incremented Event version. Only this
-      // authoritative detail is required before another versioned action can start.
+      // The atomic receipt proves its parent epoch, not the complete capabilities,
+      // counts or agreement. Canonical detail and materialized roster reads still gate FIFO.
       const query = eventRecordQuery(context.owner, value.eventId);
-      const current = await context.operation.read(query.queryKey, () =>
-        client.fetchQuery({
-          ...query,
-          staleTime: 0,
-          retry: false,
-        }),
-      );
-      eventSuccess(current, undefined, context);
+      const rosters = client.getQueryCache().findAll({
+        queryKey: eventRecordKeys.root(context.owner),
+        predicate: (cached) =>
+          cached.queryKey[3] === "seats" &&
+          cached.queryKey[4] === value.eventId &&
+          cached.queryKey[5] === value.tableId &&
+          !cached.isDisabled() &&
+          typeof cached.options.queryFn === "function",
+      });
+      const [eventRead, rosterReads] = await Promise.allSettled([
+        context.operation.read(query.queryKey, () =>
+          client.fetchQuery({ ...query, staleTime: 0, retry: false }),
+        ),
+        Promise.allSettled(
+          rosters.map((roster) =>
+            context.operation.read(roster.queryKey, () =>
+              client.fetchQuery({
+                ...roster.options,
+                queryKey: roster.queryKey,
+                staleTime: 0,
+                retry: false,
+                networkMode: "always",
+              }),
+            ),
+          ),
+        ),
+      ] as const);
+      if (eventRead.status === "rejected") throw eventRead.reason;
+      if (rosterReads.status === "rejected") throw rosterReads.reason;
+      for (const read of rosterReads.value) if (read.status === "rejected") throw read.reason;
+      eventSuccess(eventRead.value, undefined, context);
     } catch (error) {
       if (!context.operation.active) return;
       // The acknowledgement is already in the base. Keep a resource-only read barrier
@@ -231,21 +415,182 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
           "refresh_saved_changes",
         );
       await context.operation.reject(error instanceof Error ? error : new Error("Refresh failed"));
+      if (context.operation.active) await context.operation.wait();
     }
   }
   const create = useMutation({
-    mutationKey,
-    mutationFn: (input: CreatePlannedEventInput) =>
-      write<PlannedEventResponse>("events", "POST", input),
-    onMutate: () => begin("create_event"),
-    onSuccess: eventSuccess,
-    onError: (error, _v, c) => failure(error, c),
+    mutationKey: eventRecordKeys.mutation(o, "", "create"),
+    scope: { id: JSON.stringify(["event-actions", ...root, "new"]) },
+    gcTime: 30 * 60_000,
+    networkMode: "always",
+    mutationFn: async (variables: CreateEventVariables, context) => {
+      const signal = await optimisticMutationSignal(client, context.mutationKey, variables);
+      if (variables.groupId) {
+        const parent = [...groupRecordKeys.root(o), variables.groupId];
+        try {
+          const group = await client.fetchQuery({
+            ...groupRecordDetailQuery(o, variables.groupId),
+            staleTime: 0,
+            retry: false,
+          });
+          if (signal.aborted) throw new Error("MUTATION_OWNER_CHANGED");
+          if (
+            group.id !== variables.groupId ||
+            group.role !== "admin" ||
+            !group.canInvite ||
+            !group.canEdit
+          )
+            throw new CommunityApiError(403, "GROUP_ADMIN_REQUIRED");
+        } catch (error) {
+          if (!signal.aborted && communityAccessDenied(error)) {
+            o.feedback?.onError?.(
+              error instanceof Error ? error : new Error("GROUP_NOT_FOUND"),
+              "create_event",
+            );
+            cancelOptimisticResource(client, parent, true);
+          }
+          throw error;
+        }
+      }
+      const {
+        clientDraft: _draft,
+        clientGroup: _group,
+        clientInitialGroupId: _initialGroup,
+        ...input
+      } = variables;
+      return write<PlannedEventResponse>("events", "POST", input, context, variables);
+    },
+    onMutate: (input) =>
+      begin(
+        "create_event",
+        undefined,
+        ["create"],
+        undefined,
+        "",
+        input.groupId ? [[...groupRecordKeys.root(o), input.groupId]] : [],
+      ),
+    onSuccess: async (saved, input, context) => {
+      if (!context?.operation.active) return;
+      context.operation.acknowledge();
+      context.receipt = saved;
+      const detail = eventRecordQuery(context.owner, saved.id);
+      client
+        .getQueryCache()
+        .build(client, { ...detail, queryKey: eventRecordKeys.detail(context.owner, saved.id) });
+      updateOptimisticBase(client, detail.queryKey, (current) =>
+        current && (current as PlannedEventResponse).version >= saved.version ? current : saved,
+      );
+      try {
+        let canonical = saved;
+        const choose = (row: PlannedEventResponse) => {
+          if (row.id === saved.id && row.version >= canonical.version)
+            canonical = { ...(row.version === canonical.version ? canonical : {}), ...row };
+          return row;
+        };
+        const list = eventRecordsQuery(
+          context.owner,
+          saved.groupId ? { groupId: saved.groupId } : {},
+        );
+        const page = await context.operation.read(list.queryKey, () =>
+          client.fetchInfiniteQuery({ ...list, staleTime: 0, retry: false, networkMode: "always" }),
+        );
+        mapCommunityCache<PlannedEventResponse>(page, choose);
+        context.receipt = canonical;
+        const visible = client.getQueryCache().findAll({
+          queryKey: eventRecordKeys.root(context.owner),
+          predicate: (query) => {
+            if (
+              query.queryKey[3] !== "list" ||
+              query.queryHash === hashKey(list.queryKey) ||
+              !query.isActive() ||
+              typeof query.options.queryFn !== "function"
+            )
+              return false;
+            if (
+              !query.queryKey[4] ||
+              typeof query.queryKey[4] !== "object" ||
+              Array.isArray(query.queryKey[4])
+            )
+              return false;
+            const filters = query.queryKey[4] as {
+              groupId?: string | null;
+              query?: string;
+              periods?: ("past" | "future")[];
+            };
+            return eventCreationMatches(canonical, {
+              ...filters,
+              groupId: filters.groupId ?? undefined,
+            });
+          },
+        });
+        const reads = await Promise.allSettled(
+          visible.map(async (query) => {
+            const data = await context.operation.read(query.queryKey, () =>
+              client.fetchQuery({
+                ...query.options,
+                queryKey: query.queryKey,
+                staleTime: 0,
+                retry: false,
+                networkMode: "always",
+              }),
+            );
+            mapCommunityCache<PlannedEventResponse>(data, choose);
+          }),
+        );
+        const failed = reads.find((read) => read.status === "rejected");
+        if (failed) throw failed.reason;
+        eventSuccess(canonical, input, context);
+      } catch (error) {
+        if (!context.operation.active) return;
+        if (communityAccessDenied(error)) {
+          context.receipt = undefined;
+          client.removeQueries({
+            queryKey: eventRecordKeys.detail(context.owner, saved.id),
+            exact: true,
+          });
+        }
+        context.owner.feedback?.onError?.(
+          error instanceof Error ? error : new Error("Refresh failed"),
+          "refresh_saved_changes",
+        );
+        await context.operation.reject(
+          error instanceof Error ? error : new Error("Refresh failed"),
+        );
+        if (context.operation.active) await context.operation.wait();
+      }
+    },
+    onError: async (error, input, context) => {
+      if (context?.operation.active && input.groupId && communityAccessDenied(error)) {
+        try {
+          await client.fetchQuery({
+            ...groupRecordDetailQuery(context.owner, input.groupId),
+            staleTime: 0,
+            retry: false,
+          });
+        } catch (parentError) {
+          if (context.operation.active && communityAccessDenied(parentError)) {
+            context.owner.feedback?.onError?.(error, "create_event");
+            cancelOptimisticResource(
+              client,
+              [...groupRecordKeys.root(context.owner), input.groupId],
+              true,
+            );
+          }
+        }
+      }
+      await failure(error, context);
+    },
     onSettled: settle,
   });
   const update = useMutation({
-    mutationKey,
-    mutationFn: (input: EditPlannedEventInput) =>
-      write<PlannedEventResponse>(`events/${id}`, "PATCH", input),
+    mutationKey: [...mutationKey, "update"],
+    gcTime: 30 * 60_000,
+    scope,
+    networkMode: "always",
+    mutationFn: (variables: EditEventVariables, context) => {
+      const { clientDraft: _draft, ...input } = variables;
+      return write<PlannedEventResponse>(`events/${id}`, "PATCH", input, context, variables);
+    },
     onMutate: (input) =>
       begin("update_event", (row) =>
         "dates" in row && row.id === id
@@ -258,108 +603,135 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
             }
           : row,
       ),
-    onSuccess: eventSuccess,
+    onSuccess: eventReceiptSuccess,
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
   const vote = useMutation({
-    mutationKey,
-    mutationFn: (input: ChangeEventVoteInput) =>
-      write<PlannedEventResponse>(`events/${id}/votes`, "PATCH", input),
+    mutationKey: [...mutationKey, "vote"],
+    scope,
+    networkMode: "always",
+    mutationFn: (input: ChangeEventVoteInput, context) =>
+      write<PlannedEventResponse>(`events/${id}/votes`, "PATCH", input, context),
     onMutate: (input) =>
-      begin("set_event_vote", (row) => {
-        if (input.kind !== "game" && "dates" in row && row.id === id) {
-          const field = input.kind === "date" ? "dateVotes" : "locationVotes";
-          return {
-            ...row,
-            ...(row.voteCounts
-              ? {
-                  voteCounts: {
-                    ...row.voteCounts,
-                    [input.kind === "date" ? "dates" : "locations"]: changeEventVoteCounts(
-                      row.voteCounts[input.kind === "date" ? "dates" : "locations"],
-                      input.optionId,
-                      row.myVotes?.[field][input.optionId] ?? "UNKNOWN",
-                      input.vote,
-                    ),
-                  },
-                }
-              : {}),
-            myVotes: {
-              dateVotes: { ...row.myVotes?.dateVotes },
-              locationVotes: { ...row.myVotes?.locationVotes },
-              [field]: { ...row.myVotes?.[field], [input.optionId]: input.vote },
-            },
-          };
-        }
-        if (
-          input.kind === "game" &&
-          "myRegistration" in row &&
-          row.id === input.tableId &&
-          row.myRegistration
-        )
-          return {
-            ...row,
-            ...(row.gameVoteCounts
-              ? {
-                  gameVoteCounts: changeEventVoteCounts(
-                    row.gameVoteCounts,
-                    String(input.gameId),
-                    row.myRegistration.gameVotes[String(input.gameId)] ?? "UNKNOWN",
-                    input.vote,
-                  ),
-                }
-              : {}),
-            myRegistration: {
-              ...row.myRegistration,
-              gameVotes: { ...row.myRegistration.gameVotes, [input.gameId]: input.vote },
-            },
-          };
-        return row;
-      }),
-    onSuccess: eventSuccess,
+      begin("set_event_vote", undefined, ["vote"], (data) =>
+        optimisticEventVote(data, id, o.userId, input),
+      ),
+    onSuccess: eventReceiptSuccess,
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
   const register = useMutation({
-    mutationKey,
-    mutationFn: ({ tableId, ...input }: JoinTableInput & { tableId: string }) =>
-      write<TableRegistration>(`events/${id}/tables/${tableId}/registrations`, "POST", input),
-    onMutate: (value) =>
-      begin("join_table", (row) =>
-        "canRegister" in row && row.id === value.tableId ? { ...row, canRegister: false } : row,
-      ),
-    onSuccess: (value, input, context) => registrationSuccess(value, input.availability, context),
+    mutationKey: [...mutationKey, "register"],
+    gcTime: 30 * 60_000,
+    scope,
+    networkMode: "always",
+    mutationFn: async (variables: JoinTableInput & { tableId: string }, context) => {
+      const { signal, local } = await participationRequest(context, variables);
+      const { tableId, ...input } = variables;
+      return communityRequest<TableRegistrationReceipt>(
+        o,
+        `events/${id}/tables/${tableId}/registrations`,
+        "POST",
+        preparedConsent(input, local),
+        signal,
+      );
+    },
+    onMutate: async (value) => {
+      const consent = captureEventConsent(value, currentEvent(), currentTable(value.tableId));
+      const context = await begin(
+        "join_table",
+        (row) =>
+          "canRegister" in row && row.id === value.tableId ? { ...row, canRegister: false } : row,
+        ["registration", value.tableId],
+      );
+      context.consent = consent;
+      return context;
+    },
+    onSuccess: (value, input, context) =>
+      registrationSuccess(value, input.availability, context, {
+        tableId: input.tableId,
+        userId: o.userId ?? "",
+      }),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
   const invite = useMutation({
-    mutationKey,
-    mutationFn: ({ tableId, userId }: { tableId: string; userId: string }) =>
-      write<TableRegistration>(`events/${id}/tables/${tableId}/invitations`, "POST", {
-        userId,
-      }),
-    onMutate: ({ tableId, userId }) =>
-      begin("invite_event_player", (row, key) =>
-        key[3] === "invitees" && key[5] === tableId && row.id === userId
-          ? { ...row, optimisticInvited: true }
-          : row,
+    mutationKey: [...mutationKey, "invite"],
+    scope,
+    networkMode: "always",
+    mutationFn: (
+      variables: {
+        tableId: string;
+        userId: string;
+        person?: Pick<TableInviteeResponse, "name" | "username" | "avatarUrl">;
+      },
+      context,
+    ) =>
+      write<TableRegistrationReceipt>(
+        `events/${id}/tables/${variables.tableId}/invitations`,
+        "POST",
+        {
+          userId: variables.userId,
+        },
+        context,
+        variables,
       ),
-    onSuccess: (value, _input, context) => registrationSuccess(value, undefined, context),
+    onMutate: ({ tableId, userId }) =>
+      begin(
+        "invite_event_player",
+        (row, key) =>
+          key[3] === "invitees" && key[5] === tableId && row.id === userId
+            ? { ...row, optimisticInvited: true }
+            : row,
+        ["invite", tableId, userId],
+      ),
+    onSuccess: (value, input, context) =>
+      registrationSuccess(value, undefined, context, {
+        tableId: input.tableId,
+        userId: input.userId,
+      }),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
   const respond = useMutation({
-    mutationKey,
-    mutationFn: ({
-      registrationId,
-      input,
-    }: {
-      registrationId: string;
-      input: DecideTableRegistrationInput;
-    }) => write<TableRegistration>(`table-registrations/${registrationId}`, "PATCH", input),
-    onMutate: ({ registrationId, input }) =>
-      begin(
+    mutationKey: [...mutationKey, "respond"],
+    gcTime: 30 * 60_000,
+    scope,
+    networkMode: "always",
+    mutationFn: async (
+      variables: {
+        registrationId: string;
+        tableId?: string;
+        input: DecideTableRegistrationInput;
+      },
+      context,
+    ) => {
+      const { signal, local } = await participationRequest(context, variables);
+      const input =
+        variables.input.action === "accept"
+          ? {
+              ...variables.input,
+              participation: preparedConsent(variables.input.participation, local),
+            }
+          : variables.input;
+      return communityRequest<TableRegistrationReceipt>(
+        o,
+        `table-registrations/${variables.registrationId}`,
+        "PATCH",
+        input,
+        signal,
+      );
+    },
+    onMutate: async ({ registrationId, tableId, input }) => {
+      if (resourceBusy([...resource, "registration", registrationId]))
+        throw new Error("MUTATION_IN_PROGRESS");
+      const table = currentTable(tableId, registrationId);
+      const consent =
+        input.action === "accept" && table?.myRegistration?.id === registrationId
+          ? captureEventConsent(input.participation, currentEvent(), table)
+          : undefined;
+      const context = await begin(
         (
           {
             accept: "accept_event_invitation",
@@ -368,55 +740,110 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
             remove: "remove_event_player",
           } as const
         )[input.action],
-        (row) =>
-          "myRegistration" in row && row.myRegistration?.id === registrationId
-            ? {
-                ...row,
-                // Keep the invitation's sheet mounted until acceptance actually commits.
-                canRespond: input.action === "accept" ? row.canRespond : false,
-                canLeave: false,
-                ...(input.action === "cancel" || input.action === "remove"
-                  ? { myPosition: null }
-                  : {}),
-              }
-            : "tableId" in row &&
-                row.id === registrationId &&
-                (input.action === "cancel" || input.action === "remove")
-              ? { ...row, status: "CANCELLED" }
-              : row,
-      ),
-    onSuccess: (value, { input }, context) =>
+        (row) => {
+          const negative = input.action !== "accept";
+          const status =
+            input.action === "decline" ? ("DECLINED" as const) : ("CANCELLED" as const);
+          if (negative && "dates" in row && row.id === id) {
+            const mine = row.myRegistrations?.find(
+              (registration) =>
+                registration.id === registrationId && registration.userId === o.userId,
+            );
+            if (!mine) return row;
+            const remaining = row.myRegistrations.filter(
+              (registration) => registration.id !== registrationId,
+            );
+            const accepted = remaining.some((registration) => registration.status === "ACCEPTED");
+            return {
+              ...row,
+              myRegistrations: remaining,
+              canVote: row.canVote && accepted,
+              participantCount:
+                mine.status === "ACCEPTED" && !accepted
+                  ? Math.max(0, row.participantCount - 1)
+                  : row.participantCount,
+            };
+          }
+          if ("myRegistration" in row && row.myRegistration?.id === registrationId)
+            return {
+              ...row,
+              canRespond: false,
+              canLeave: false,
+              ...(negative
+                ? { myPosition: null, myRegistration: { ...row.myRegistration, status } }
+                : {}),
+            };
+          return negative && "tableId" in row && row.id === registrationId
+            ? { ...row, status }
+            : row;
+        },
+        ["registration", registrationId],
+      );
+      context.consent = consent;
+      return context;
+    },
+    onSuccess: (value, { registrationId, input }, context) =>
       registrationSuccess(
         value,
         input.action === "accept" ? input.participation.availability : undefined,
         context,
+        { id: registrationId },
       ),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
   const transition = useMutation({
-    mutationKey,
-    mutationFn: (input: ChangeEventStateInput) =>
-      write<PlannedEventResponse>(`events/${id}/state`, "PATCH", input),
+    mutationKey: [...mutationKey, "transition"],
+    scope,
+    networkMode: "always",
+    mutationFn: (input: ChangeEventStateInput, context) =>
+      write<PlannedEventResponse>(`events/${id}/state`, "PATCH", input, context),
     onMutate: (input) =>
       begin(input.action === "confirm" ? "confirm_event" : "replan_event", (row) =>
         "dates" in row && row.id === id ? { ...row, canConfirm: false, canReplan: false } : row,
       ),
-    onSuccess: eventSuccess,
+    onSuccess: eventReceiptSuccess,
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
   const finalize = useMutation({
-    mutationKey,
-    mutationFn: (input: FinalizeEventInput) =>
-      write<PlannedEventResponse>(`events/${id}/results`, "POST", input),
+    mutationKey: [...mutationKey, "finalize"],
+    gcTime: 30 * 60_000,
+    scope,
+    networkMode: "always",
+    mutationFn: (input: FinalizeEventInput, context) =>
+      write<PlannedEventResponse>(`events/${id}/results`, "POST", input, context),
     onMutate: () =>
       begin("finalize_event", (row) =>
         "dates" in row && row.id === id ? { ...row, canFinalize: false } : row,
       ),
-    onSuccess: eventSuccess,
+    onSuccess: eventReceiptSuccess,
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
-  return { create, update, vote, register, invite, respond, transition, finalize, busy };
+  const isInviting = (tableId: string, userId: string) =>
+    resourceBusy([...resource, "invite", tableId, userId]);
+  const isResponding = (registrationId: string) =>
+    resourceBusy([...resource, "registration", registrationId]);
+  const creation = {
+    ...create,
+    mutate: (...args: Parameters<typeof create.mutate>) =>
+      create.mutate(withClientRequestId(args[0]), args[1]),
+    mutateAsync: (...args: Parameters<typeof create.mutateAsync>) =>
+      create.mutateAsync(withClientRequestId(args[0]), args[1]),
+  };
+  return {
+    create: creation,
+    update,
+    vote,
+    register,
+    invite,
+    respond,
+    transition,
+    finalize,
+    busy,
+    blocking,
+    isInviting,
+    isResponding,
+  };
 }

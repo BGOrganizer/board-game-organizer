@@ -109,7 +109,8 @@ export function NotificationsPage() {
             <Link
               href={notification.href}
               onClick={() => {
-                if (!notifications.busy) notifications.markRead.mutate(notification.id);
+                if (!notifications.isBusy(notification.id))
+                  notifications.markRead.mutate(notification.id);
               }}
               className="block rounded-xl p-4 pe-12"
             >
@@ -143,7 +144,7 @@ export function NotificationsPage() {
               variant="danger-soft"
               aria-label={t`Delete notification`}
               className="absolute end-3 bottom-3"
-              isDisabled={notifications.busy}
+              isDisabled={notifications.isBusy(notification.id)}
               onPress={() => setDeletingId(notification.id)}
             >
               <Trash2 className="size-4" aria-hidden="true" />
@@ -171,15 +172,15 @@ export function NotificationsPage() {
         <ContactConfirmDialog
           title={t`Delete notification?`}
           description={t`This notification will be permanently deleted.`}
-          busy={notifications.busy}
+          busy={notifications.isBusy(deletingId)}
           actions={[
             {
               label: t`Delete notification`,
               variant: "danger",
-              onPress: () =>
-                notifications.deleteNotification.mutate(deletingId, {
-                  onSuccess: () => setDeletingId(null),
-                }),
+              onPress: () => {
+                notifications.deleteNotification.mutate(deletingId);
+                setDeletingId(null);
+              },
             },
           ]}
           onCancel={() => setDeletingId(null)}

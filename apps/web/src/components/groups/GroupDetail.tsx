@@ -37,6 +37,7 @@ export function GroupDetail({
     [confirm, setConfirm] = useState<"decline" | "cancel" | "delete" | null>(null),
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
+  const ownBusy = a.isPersonBusy(groupId, o.userId ?? "");
   const failure =
     confirm === "delete" ? t`Could not delete group` : t`Could not update group membership`;
   if (!group)
@@ -48,29 +49,25 @@ export function GroupDetail({
         <Button variant="outline" onPress={() => void q.refetch()}>{t`Try again`}</Button>
       </div>
     );
-  const run = async (action: "request" | "accept" | "decline" | "cancel" | "delete") => {
-    setError(false);
-    try {
-      if (action === "delete") {
-        await a.remove.mutateAsync({
-          id: group.id,
-          input: { version: group.version, deleteEvents: true },
-        });
-        setConfirm(null);
-        router.replace("/groups");
-        return;
-      }
-      if (action === "request") await a.requestJoin.mutateAsync(group.id);
-      else if (group.myMembership)
-        await a.membership.mutateAsync({
-          id: group.id,
-          userId: group.myMembership.userId,
-          input: { action, version: group.myMembership.version },
-        });
+  const run = (action: "request" | "accept" | "decline" | "cancel" | "delete") => {
+    if (action === "delete") {
+      if (!group.canEdit || a.isBusy(group.id)) return;
+      a.remove.mutate({ id: group.id, input: { version: group.version, deleteEvents: true } });
       setConfirm(null);
-    } catch {
-      setError(true);
+      router.replace("/groups");
+      return;
     }
+    if (a.isPersonBusy(group.id, o.userId ?? "") || !ownGroupActions(group).includes(action))
+      return;
+    if (action === "request") a.requestJoin.mutate(group.id);
+    else if (group.myMembership)
+      a.membership.mutate({
+        id: group.id,
+        userId: group.myMembership.userId,
+        input: { action, version: group.myMembership.version },
+      });
+    setError(false);
+    setConfirm(null);
   };
   const bodyActions = ownGroupActions(group).filter(
     (action) => action === "request" || (action === "cancel" && group.role !== "accepted"),
@@ -84,7 +81,7 @@ export function GroupDetail({
             variant="danger"
             className="min-h-11 min-w-11"
             aria-label={group.canEdit ? t`Delete group` : t`Leave group`}
-            isDisabled={a.busy}
+            isDisabled={group.canEdit ? a.busy : ownBusy}
             onPress={() => {
               setError(false);
               setConfirm(group.canEdit ? "delete" : "cancel");
@@ -128,7 +125,7 @@ export function GroupDetail({
           {bodyActions.length ? (
             <GroupJoinRequest
               pending={group.role === "requested"}
-              busy={a.busy}
+              busy={ownBusy}
               onRequest={() => void run("request")}
               onCancel={() => {
                 setError(false);
@@ -138,7 +135,7 @@ export function GroupDetail({
           ) : null}
           {group.role === "invited" ? (
             <GroupInvitationCard
-              busy={a.busy}
+              busy={ownBusy}
               onAccept={() => void run("accept")}
               onDecline={() => {
                 setError(false);
@@ -186,7 +183,7 @@ export function GroupDetail({
               ? t`Permanently delete this group and all its events, tables, registrations, votes, results and group rankings? Personal GLOBAL ratings remain unchanged. This cannot be undone.`
               : t`Active table registrations are removed. Historical results remain unchanged.`
           }
-          busy={a.busy}
+          busy={confirm === "delete" ? a.busy : ownBusy}
           onCancel={() => {
             setConfirm(null);
             setError(false);

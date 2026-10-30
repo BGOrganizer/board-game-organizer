@@ -62,6 +62,8 @@ export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
         <GroupCard
           key={group.id}
           group={group}
+          checking={list.isFetching}
+          onVerify={() => void list.refetch({ cancelRefetch: false })}
           pending={actions.isBusy(group.id)}
           onRespond={(action) => {
             if (group.myMembership)

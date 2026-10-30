@@ -59,11 +59,11 @@ export function useMutationFeedback(): MutationFeedback {
         error: t("Could not mark notifications as read"),
       },
       link_bgg: {
-        success: t("BoardGameGeek account linked"),
+        success: t("BoardGameGeek connection requested"),
         error: t("Could not link BoardGameGeek account"),
       },
       sync_bgg: {
-        success: t("BoardGameGeek synchronization started"),
+        success: t("BoardGameGeek synchronization requested"),
         error: t("Could not synchronize BoardGameGeek collection"),
       },
       disconnect_bgg: {
@@ -155,7 +155,15 @@ export function useMutationFeedback(): MutationFeedback {
     return {
       onOptimisticUpdate: (action) => show(messages[action].success, "success"),
       onSuccess: (action) => show(messages[action].success, "success"),
-      onError: (_error, action) => show(messages[action].error, "danger"),
+      onError: (error, action) =>
+        show(
+          action === "ban_group_member" && error.message === "BAN_FROZEN_PARTICIPATION"
+            ? t("This user is involved in a frozen public event and cannot be excluded.")
+            : action === "link_bgg" && error.message === "BGG user not found"
+              ? t("BGG user not found")
+              : messages[action].error,
+          "danger",
+        ),
     };
   }, [t, toast]);
 }

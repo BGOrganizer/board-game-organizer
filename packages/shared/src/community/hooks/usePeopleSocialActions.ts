@@ -51,7 +51,7 @@ export function usePeopleSocialActions<Person extends SocialPerson>(options: Com
       if (!person.social || person.userId === options.userId || contacts.isBusy(person.userId))
         return;
       // One Contacts operation owns both social lists and every authorized Group row.
-      await mutations[action].mutateAsync({
+      mutations[action].mutate({
         targetUserId: person.userId,
         targetUser: communityPersonContact(person),
       });

@@ -42,16 +42,16 @@ export function EventJoinSheet({
     <BottomSheet
       isOpen
       onOpenChange={(open) => {
-        if (!open && !form.busy) onClose();
+        if (!open) onClose();
       }}
     >
       <BottomSheet.Portal>
-        <BottomSheet.Overlay isCloseOnPress={!form.busy} />
+        <BottomSheet.Overlay />
         <BottomSheet.Content
           snapPoints={["85%"]}
           enableOverDrag={false}
           enableDynamicSizing={false}
-          enablePanDownToClose={!form.busy}
+          enablePanDownToClose
           contentContainerProps={{ style: { height: height * 0.8, padding: 20, gap: 12 } }}
         >
           <BottomSheet.Title>{t("Choose availability")}</BottomSheet.Title>
@@ -118,7 +118,7 @@ export function EventJoinSheet({
                           inline
                           label={eventDateWall(event, item).replace("T", " ")}
                           value={form.votes.dateVotes[item.id]}
-                          busy={form.busy}
+                          busy={false}
                           onChange={(vote) => form.choose("date", item.id, vote)}
                         />
                       ) : null}
@@ -141,7 +141,7 @@ export function EventJoinSheet({
                             inline
                             label={item.name}
                             value={form.votes.locationVotes[item.id]}
-                            busy={form.busy}
+                            busy={false}
                             onChange={(vote) => form.choose("location", item.id, vote)}
                           />
                         ) : undefined
@@ -168,7 +168,7 @@ export function EventJoinSheet({
                             inline
                             label={game?.name ?? t("Unknown")}
                             value={form.votes.gameVotes[String(item.gameId)]}
-                            busy={form.busy}
+                            busy={false}
                             onChange={(vote) => form.choose("game", String(item.gameId), vote)}
                           />
                         }
@@ -184,18 +184,23 @@ export function EventJoinSheet({
               {t("Invitation unavailable")}
             </Typography>
           ) : null}
+          {form.checking ? (
+            <View style={{ gap: 8 }}>
+              <Typography accessibilityLiveRegion="polite" className="text-foreground">
+                {t("Checking saved changes")}
+              </Typography>
+              <Button onPress={form.refetch}>
+                <Button.Label>{t("Check saved changes")}</Button.Label>
+              </Button>
+            </View>
+          ) : null}
           {form.failed ? (
             <Typography accessibilityRole="alert" className="text-danger">
               {form.isInvitation ? t("Could not accept invitation") : t("Could not join table")}
             </Typography>
           ) : null}
           <View style={{ flexDirection: "row", gap: 12, paddingBottom: insets.bottom }}>
-            <Button
-              variant="secondary"
-              isDisabled={form.busy}
-              onPress={onClose}
-              style={{ flex: 1 }}
-            >
+            <Button variant="secondary" onPress={onClose} style={{ flex: 1 }}>
               <Button.Label>{t("Cancel")}</Button.Label>
             </Button>
             <Button

@@ -6,6 +6,104 @@ import { afterEach, expect, it, vi } from "vitest";
 
 afterEach(() => vi.unstubAllGlobals());
 
+it("announces the request before HTTP without inventing a verified BGG identity and starts dependent sync only after the link receipt", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const feedback = { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() };
+  const writes: Array<{ url: string; body?: string; resolve: (response: Response) => void }> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (url: string, init?: RequestInit) =>
+        new Promise<Response>((resolve) =>
+          writes.push({ url, body: init?.body as string | undefined, resolve }),
+        ),
+    ),
+  );
+  const getToken = vi.fn().mockResolvedValueOnce("fresh-1").mockResolvedValue("fresh-2");
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  client.setQueryData(["bgg-account", "https://api.test", "owner"], {
+    active: null,
+    pending: null,
+  });
+  const hook = renderHook(
+    () =>
+      useBggAccount({
+        apiUrl: "https://api.test",
+        userId: "owner",
+        getToken,
+        enabled: false,
+        feedback,
+      }),
+    { wrapper },
+  );
+  act(() => hook.result.current.link.mutate({ username: "alice", synchronize: true }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].body).toBe(JSON.stringify({ username: "alice" }));
+  expect(feedback.onOptimisticUpdate).toHaveBeenCalledOnce();
+  expect(hook.result.current.account.data).toEqual({ active: null, pending: null });
+  const identity = { id: 42, username: "alice", avatarUrl: null };
+  await act(async () =>
+    writes[0].resolve(
+      Response.json({
+        active: null,
+        pending: { ...identity, status: "syncing", nextAttemptAt: null, error: null },
+      }),
+    ),
+  );
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1].url).toBe("https://api.test/api/bgg/account/sync");
+  expect(writes[1].body).toBeUndefined();
+  expect(hook.result.current.account.data?.pending?.username).toBe("alice");
+  const active = { ...identity, snapshot: "snapshot", syncedAt: new Date().toISOString() };
+  await act(async () => writes[1].resolve(Response.json({ active, pending: null })));
+  await waitFor(() => expect(hook.result.current.account.data?.active).toEqual(active));
+  expect(getToken).toHaveBeenCalledTimes(2);
+  expect(feedback.onOptimisticUpdate).toHaveBeenCalledOnce();
+  expect(feedback.onSuccess).not.toHaveBeenCalled();
+  hook.unmount();
+  clearSessionQueryCache(client);
+});
+
+it("keeps a rejected BGG identity unpublished and never launches its dependent synchronization", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const feedback = { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() };
+  const fetcher = vi.fn(async () =>
+    Response.json({ error: "BGG_USER_NOT_FOUND" }, { status: 404 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const hook = renderHook(
+    () =>
+      useBggAccount({
+        apiUrl: "https://api.test",
+        userId: "owner",
+        getToken: async () => "fresh",
+        enabled: false,
+        feedback,
+      }),
+    { wrapper },
+  );
+  act(() => hook.result.current.link.mutate({ username: "missing-user", synchronize: true }));
+  await waitFor(() =>
+    expect(feedback.onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "BGG user not found" }),
+      "link_bgg",
+    ),
+  );
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(hook.result.current.account.data).toBeUndefined();
+  expect(feedback.onSuccess).not.toHaveBeenCalled();
+  hook.unmount();
+  clearSessionQueryCache(client);
+});
 it("does not send an old account action after token resolution crosses a session/API change", async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },

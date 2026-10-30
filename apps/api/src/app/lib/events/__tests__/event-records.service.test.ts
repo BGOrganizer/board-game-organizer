@@ -290,7 +290,62 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("creation correlation without client identity authority", () => {
+  it("persists and returns the optional correlation on create/read/list and keeps it immutable across planning edits", async () => {
+    const f = setup();
+    const clientRequestId = "99999999-9999-4999-8999-999999999999";
+    const input = { ...body(), clientRequestId };
+    const created = await f.service.create(owner, input);
+    expect(created.clientRequestId).toBe(clientRequestId);
+    expect(created.id).not.toBe(clientRequestId);
+    expect(f.events.get(created.id)).toMatchObject({
+      id: created.id,
+      clientRequestId,
+      adminUserId: owner,
+    });
+    expect((await f.service.detail(owner, created.id)).clientRequestId).toBe(clientRequestId);
+    expect((await f.service.list(owner, { limit: 20 })).items[0].clientRequestId).toBe(
+      clientRequestId,
+    );
+    const { groupId: _group, clientRequestId: _request, ...fields } = input;
+    await f.service.update(owner, created.id, {
+      ...fields,
+      name: "Edited event",
+      version: created.version,
+      tables: [],
+      removedTableIds: [],
+    });
+    expect(f.events.get(created.id)).toMatchObject({
+      clientRequestId,
+      name: "Edited event",
+      version: 2,
+    });
+    expect(created.myRegistrations).toEqual([]);
+    expect(created.participantCount).toBe(0);
+  });
+});
+
 describe("atomic invitation acceptance", () => {
+  it("returns only the exact committed parent epoch, separately from the stored registration version", async () => {
+    const f = setup();
+    const event = await f.create();
+    const invite = await f.service.register(owner, event.id, id, guest);
+    expect(invite.eventVersion).toBe(f.events.get(event.id)?.version);
+    expect(invite.eventVersion).toBe(event.version + 1);
+    expect(f.registrations.get(invite.id)).not.toHaveProperty("eventVersion");
+    const accepted = await f.accept(invite);
+    expect(accepted.eventVersion).toBe(f.events.get(event.id)?.version);
+    expect(accepted.eventVersion).toBe(invite.eventVersion + 1);
+    expect(accepted.version).toBe(invite.version + 1);
+    expect(f.registrations.get(invite.id)).not.toHaveProperty("eventVersion");
+    const cancelled = await f.service.registrationAction(guest, invite.id, {
+      action: "cancel",
+      version: accepted.version,
+    });
+    expect(cancelled.eventVersion).toBe(f.events.get(event.id)?.version);
+    expect(cancelled.eventVersion).toBe(accepted.eventVersion + 1);
+    expect(f.registrations.get(invite.id)).not.toHaveProperty("eventVersion");
+  });
   it.each([false, true])(
     "rejects missing/foreign invitation Tables before writes: foreign=%s",
     async (foreign) => {

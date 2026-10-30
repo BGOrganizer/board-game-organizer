@@ -29,8 +29,9 @@ export function useEventRecordForm(
   options: CommunityApiOptions,
   event: PlannedEventResponse | undefined,
   initialGroupId?: string,
+  recoveredDraft?: EventRecordDraft,
 ) {
-  const [draft, setDraft] = useState(() => eventDraft(event, initialGroupId)),
+  const [draft, setDraft] = useState(() => recoveredDraft ?? eventDraft(event, initialGroupId)),
     [error, setError] = useState(false),
     [step, setStep] = useState(0),
     [attempted, setAttempted] = useState([false, false]),

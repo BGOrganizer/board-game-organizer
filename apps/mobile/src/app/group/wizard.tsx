@@ -5,12 +5,16 @@ import { useT } from "@/lib/i18n";
 
 export default function GroupWizardScreen() {
   const t = useT();
-  const { groupId: value } = useLocalSearchParams<{ groupId?: string | string[] }>();
+  const { groupId: value, draftId: draft } = useLocalSearchParams<{
+    groupId?: string | string[];
+    draftId?: string | string[];
+  }>();
   const groupId = Array.isArray(value) ? value[0] : value;
+  const draftId = Array.isArray(draft) ? draft[0] : draft;
   return (
     <View style={{ flex: 1 }}>
       <Stack.Screen options={{ title: groupId ? t("Edit group") : t("New group") }} />
-      <GroupWizard groupId={groupId} />
+      <GroupWizard groupId={groupId} draftId={draftId} />
     </View>
   );
 }

@@ -190,18 +190,15 @@ export default function ContactsScreen() {
   };
   const handleUserAction = (user: ContactUser) => async (key: UserActionKey) => {
     const variables = { targetUserId: user.id, targetUser: user };
-    if (key === "follow") await contacts.follow.mutateAsync(variables);
-    else if (key === "unfollow") await contacts.unfollow.mutateAsync(variables);
-    else if (key === "unfriend") await contacts.unfriend.mutateAsync(variables);
-    else if (key === "friend_request") await contacts.friendRequest.mutateAsync(variables);
-    else if (key === "cancel_friend_request") {
-      await contacts.cancelFriendRequest.mutateAsync(variables);
-    } else if (key === "accept_friend_request") {
-      await contacts.acceptFriendRequest.mutateAsync(variables);
-    } else if (key === "reject_friend_request") {
-      await contacts.rejectFriendRequest.mutateAsync(variables);
-    } else if (key === "block") await contacts.block.mutateAsync(variables);
-    else if (key === "unblock") await contacts.unblock.mutateAsync(variables);
+    if (key === "follow") contacts.follow.mutate(variables);
+    else if (key === "unfollow") contacts.unfollow.mutate(variables);
+    else if (key === "unfriend") contacts.unfriend.mutate(variables);
+    else if (key === "friend_request") contacts.friendRequest.mutate(variables);
+    else if (key === "cancel_friend_request") contacts.cancelFriendRequest.mutate(variables);
+    else if (key === "accept_friend_request") contacts.acceptFriendRequest.mutate(variables);
+    else if (key === "reject_friend_request") contacts.rejectFriendRequest.mutate(variables);
+    else if (key === "block") contacts.block.mutate(variables);
+    else if (key === "unblock") contacts.unblock.mutate(variables);
     // profile: not implemented yet — no-op.
   };
 

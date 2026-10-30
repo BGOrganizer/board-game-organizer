@@ -15,9 +15,17 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { mergeCreationIntents } from "../../common/clientMutation";
+import { useOptimisticCreations } from "../../common/hooks/useOptimisticCreations";
 import { optimisticBaseData } from "../../common/optimisticOperation";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
 import { isPersonalEventTableVisible } from "../eventList";
+import {
+  type ClientEventRecord,
+  type CreateEventVariables,
+  eventCreationMatches,
+  eventCreationRecord,
+} from "../eventOptimisticCreation";
 
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
 type ListFilters = { groupId?: string; periods?: readonly ("past" | "future")[]; query?: string };
@@ -49,6 +57,8 @@ export const eventRecordKeys = {
       },
     ] as const,
   root: (o: KeyOwner) => ["events", o.apiUrl, o.userId] as const,
+  mutation: (o: KeyOwner, eventId: string, action?: string) =>
+    [...eventRecordKeys.root(o), "mutation", eventId, ...(action ? [action] : [])] as const,
   detail: (o: KeyOwner, id: string) => [...eventRecordKeys.root(o), "detail", id] as const,
   table: (o: KeyOwner, id: string, table: string) =>
     [...eventRecordKeys.root(o), "table", id, table] as const,
@@ -96,8 +106,22 @@ export function useEventRecords(
   filters: Parameters<typeof eventRecordsQuery>[1] = {},
 ) {
   const q = useInfiniteQuery(eventRecordsQuery(o, filters));
-  const items = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
-  return { ...q, items };
+  const records = useMemo(() => q.data?.pages.flatMap((p) => p.items) ?? [], [q.data]);
+  const creations = useOptimisticCreations<CreateEventVariables, PlannedEventResponse>(
+    eventRecordKeys.mutation(o, "", "create"),
+  );
+  const local = o.userId
+    ? creations
+        .map((intent) => eventCreationRecord(intent, o.userId as string))
+        .filter((row) => eventCreationMatches(row, filters))
+    : [];
+  const items: ClientEventRecord[] = mergeCreationIntents(records, local);
+  return { ...q, isPending: q.isPending && !items.length, items };
+}
+export function useEventCreationDraft(o: CommunityApiOptions, draftId?: string) {
+  return useOptimisticCreations<CreateEventVariables, PlannedEventResponse>(
+    eventRecordKeys.mutation(o, "", "create"),
+  ).find((intent) => intent.draftId === draftId);
 }
 export function eventRecordQuery(o: CommunityApiOptions, id: string) {
   return queryOptions({

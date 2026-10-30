@@ -196,6 +196,8 @@ export class GroupRecordsService {
       throw new CommunityError(400, "PUBLIC_GROUP_REQUIRES_LOGO_VENUE");
     for (const target of invites) await this.friend(userId, target);
     const groupId = current?.id ?? randomUUID();
+    const clientRequestId =
+      current?.clientRequestId ?? ("clientRequestId" in input ? input.clientRequestId : undefined);
     const location = input.location
       ? await verifyCommunityLocation(
           input.location,
@@ -214,6 +216,7 @@ export class GroupRecordsService {
     const at = new Date().toISOString();
     const next = groupRecordSchema.parse({
       id: groupId,
+      ...(clientRequestId ? { clientRequestId } : {}),
       adminUserId: userId,
       type,
       ...(type === "PRIVATE"

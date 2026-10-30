@@ -9,7 +9,7 @@ import type { MutationFeedback } from "../../common/mutationFeedback";
 import {
   beginOptimisticOperation,
   optimisticFailureAction,
-  optimisticOperationSignal,
+  optimisticMutationSignal,
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
 
@@ -80,27 +80,34 @@ export function useBggAccount({
     beginOptimisticOperation(client, key, { queryKey: key, exact: true }, (data) =>
       unlink && data ? empty : data,
     );
-  const request = (method = "GET", path = "account", input?: unknown) =>
-    requestBggAccount(
-      options,
-      method,
-      path,
-      input,
-      method === "GET" ? undefined : optimisticOperationSignal(client, key),
-    );
+  const request = (method = "GET", path = "account", input?: unknown, signal?: AbortSignal) =>
+    requestBggAccount(options, method, path, input, signal);
   const account = useQuery({
     ...query,
     enabled: enabled && Boolean(userId) && !busy,
     refetchInterval: (query) => (query.state.data?.pending?.status === "syncing" ? 5000 : false),
   });
   const link = useMutation({
-    mutationKey: key,
-    mutationFn: (username: string) => request("POST", "account", { username }),
-    onMutate: () => begin(),
-    onSuccess: (data, _input, operation) => {
+    mutationKey: [...key, "link"],
+    gcTime: 30 * 60_000,
+    mutationFn: async (input: string | { username: string; synchronize: true }, context) =>
+      request(
+        "POST",
+        "account",
+        { username: typeof input === "string" ? input : input.username },
+        await optimisticMutationSignal(client, context.mutationKey, input),
+      ),
+    onMutate: async () => {
+      const operation = await begin();
+      feedback?.onOptimisticUpdate?.("link_bgg");
+      return operation;
+    },
+    onSuccess: (data, input, operation) => {
       if (!operation?.active) return;
       // Linking only stages a validated identity; it is not a published collection yet.
       operation.commit(() => data);
+      if (typeof input !== "string" && input.synchronize)
+        sync.mutate({ retry: false, silent: true });
     },
     onError: async (error, _input, operation) => {
       if (operation && !operation.active) return;
@@ -109,20 +116,25 @@ export function useBggAccount({
     },
   });
   const sync = useMutation({
-    mutationKey: key,
-    mutationFn: (input: boolean | { retry: boolean; silent: true }) =>
+    mutationKey: [...key, "sync"],
+    mutationFn: async (input: boolean | { retry: boolean; silent: true }, context) =>
       request(
         "POST",
         `account/sync${(typeof input === "boolean" ? input : input.retry) ? "?retry=true" : ""}`,
+        undefined,
+        await optimisticMutationSignal(client, context.mutationKey, input),
       ),
-    onMutate: () => begin(),
+    onMutate: async (input) => {
+      const operation = await begin();
+      if (typeof input === "boolean") feedback?.onOptimisticUpdate?.("sync_bgg");
+      return operation;
+    },
     onSuccess: (data, input, operation) => {
       if (!operation?.active) return;
       operation.commit(() => data);
       if (typeof input === "boolean") {
         if (data.pending?.status === "failed")
           feedback?.onError?.(new Error("BGG_SYNC_FAILED"), "sync_bgg");
-        else feedback?.onSuccess?.("sync_bgg");
       }
       if (data.active)
         void client.invalidateQueries({
@@ -137,11 +149,17 @@ export function useBggAccount({
     },
   });
   const unlink = useMutation({
-    mutationKey: key,
-    mutationFn: () => request("DELETE"),
+    mutationKey: [...key, "unlink"],
+    mutationFn: async (input: void, context) =>
+      request(
+        "DELETE",
+        "account",
+        undefined,
+        await optimisticMutationSignal(client, context.mutationKey, input),
+      ),
     onMutate: async () => {
       const operation = await begin(true);
-      if (operation.modified) feedback?.onOptimisticUpdate?.("disconnect_bgg");
+      feedback?.onOptimisticUpdate?.("disconnect_bgg");
       return operation;
     },
     onError: async (error, _variables, operation) => {
@@ -152,7 +170,7 @@ export function useBggAccount({
     onSuccess: (data, _input, operation) => {
       if (!operation?.active) return;
       operation.commit(() => data);
-      if (!operation.modified) feedback?.onSuccess?.("disconnect_bgg");
+
       void client.invalidateQueries({
         queryKey: ["bgg-picker", operation.resource[1], operation.resource[2]],
       });

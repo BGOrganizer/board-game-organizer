@@ -529,6 +529,10 @@ msgstr "Giocatori accettati"
 msgid "Accepted players, including the waiting list."
 msgstr "Giocatori accettati, inclusa la lista d'attesa."
 
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Accepting invitation"
+msgstr "Accettazione dell'invito in corso"
+
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 msgid "Access to contacts"
 msgstr "Accesso ai contatti"
@@ -815,7 +819,7 @@ msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi d
 #~ msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Removed members cannot rejoin until their exclusion is revoked."
 #~ msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati. I membri rimossi non possono rientrare finché non viene revocata l'esclusione."
 
-#: apps/web/src/components/profile/Profile.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "BGG user not found"
 msgstr "Utente BGG non trovato"
 
@@ -857,6 +861,10 @@ msgid "BoardGameGeek account linked"
 msgstr "Account BoardGameGeek collegato"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek connection requested"
+msgstr "Collegamento a BoardGameGeek richiesto"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "BoardGameGeek disconnected"
 msgstr "BoardGameGeek scollegato"
 
@@ -867,6 +875,10 @@ msgstr "BoardGameGeek non indica la durata di questo gioco. Inserisci un numero 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "BoardGameGeek sync started"
 #~ msgstr "Sincronizzazione BoardGameGeek avviata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek synchronization requested"
+msgstr "Sincronizzazione con BoardGameGeek richiesta"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "BoardGameGeek synchronization started"
@@ -993,11 +1005,27 @@ msgstr "Controlla nome dell'evento, date, fuso orario, indirizzo verificato e ta
 msgid "Check required fields, dates, player limits, games and durations."
 msgstr "Controlla i campi obbligatori, le date, i limiti dei giocatori, i giochi e le durate."
 
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/groups/GroupCard.tsx
+msgid "Check saved changes"
+msgstr "Controlla le modifiche salvate"
+
 msgid "Check table times: every table must be inside the event. Publishing requires at least one table."
 msgstr "Controlla gli orari dei tavoli: devono essere compresi nell'evento. Per pubblicare serve almeno un tavolo."
 
 msgid "Check this field."
 msgstr "Controlla questo campo."
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/groups/GroupReview.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Checking saved changes"
+msgstr "Verifica delle modifiche salvate in corso"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Choice saved"
@@ -1722,6 +1750,11 @@ msgstr "Impossibile aprire le impostazioni"
 msgid "Could not read photo permissions"
 msgstr "Impossibile leggere i permessi delle foto"
 
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Could not recover draft"
+msgstr "Impossibile recuperare la bozza"
+
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not register match"
 msgstr "Impossibile registrare la partita"
@@ -1823,7 +1856,6 @@ msgid "Could not update group"
 msgstr "Impossibile aggiornare il gruppo"
 
 #: apps/web/src/components/groups/GroupMembers.tsx
-#: apps/web/src/components/groups/GroupPeoplePicker.tsx
 msgid "Could not update group member. Try again or refresh the list."
 msgstr "Impossibile aggiornare il membro del gruppo. Riprova o aggiorna la lista."
 
@@ -2827,6 +2859,10 @@ msgstr "Mettiti in coda"
 msgid "Joined groups"
 msgstr "Gruppi accettati"
 
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Joining table"
+msgstr "Iscrizione al tavolo in corso"
+
 #: apps/web/src/components/groups/GroupLogoPicker.tsx
 msgid "JPEG, PNG or WebP, up to 5 MB."
 msgstr "JPEG, PNG o WebP, fino a 5 MB."
@@ -3470,6 +3506,14 @@ msgstr "Non conosciuta"
 #: apps/web/src/components/ratings/GameRating.tsx
 msgid "Not rated"
 msgstr "Senza rating"
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Not saved"
+msgstr "Non salvato"
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Not saved. Edit draft"
+msgstr "Non salvato. Modifica la bozza"
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Nothing is saved until final confirmation. The organizer has no automatic playing seat."
@@ -4263,6 +4307,10 @@ msgstr "Salva evento"
 msgid "Save table"
 msgstr "Salva tavolo"
 
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Saving"
+msgstr "Salvataggio in corso"
+
 #: apps/web/src/app/mobile-number/page.tsx
 msgid "Saving…"
 msgstr "Salvataggio…"
@@ -4481,6 +4529,11 @@ msgstr "Invia invito"
 #: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Send request"
 msgstr "Invia richiesta"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Sending invitation"
+msgstr "Invio dell'invito in corso"
 
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Sent"
@@ -4788,6 +4841,10 @@ msgstr "L’evento appartiene a questo gruppo. Il gruppo non può essere modific
 msgid "This event changed. Go back and reopen the editor before saving."
 msgstr "L'evento è cambiato. Torna indietro e riapri la modifica prima di salvare."
 
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "This group changed. Go back and reopen the editor before saving."
+msgstr "Questo gruppo è cambiato. Torna indietro e riapri l'editor prima di salvare."
+
 #: apps/web/src/components/events/EventTableInfo.tsx
 #~ msgid "This name identifies the table within its event."
 #~ msgstr "Questo nome identifica il tavolo all'interno del suo evento."
@@ -4849,6 +4906,7 @@ msgid "This user is already registered, invited, or assigned as a demonstrator a
 msgstr "Questo utente è già iscritto, invitato o assegnato come dimostratore a un altro tavolo con orari sovrapposti."
 
 #: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "This user is involved in a frozen public event and cannot be excluded."
 msgstr "Questo utente partecipa a un evento pubblico bloccato dopo il termine delle iscrizioni e non può essere escluso."
 
@@ -5011,6 +5069,10 @@ msgstr "Icona utenti: partecipanti con un posto confermato in un tavolo attivo, 
 msgid "Verified addresses proposed for this event."
 msgstr "Indirizzi verificati proposti per questo evento."
 
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Verifying"
+msgstr "Verifica in corso"
+
 #: apps/web/src/components/notifications/NotificationBell.tsx
 msgid "View all notifications"
 msgstr "Vedi tutte le notifiche"
@@ -5110,7 +5172,7 @@ msgstr "Vincitori"
 msgid "Yes"
 msgstr "Sì"
 
-#: apps/web/src/components/events/EventTablePlayers.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
 msgid "You"
 msgstr "Tu"
 

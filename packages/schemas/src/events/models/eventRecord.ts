@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { targetUserIdSchema } from "../../common/dto/common";
+import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
 import { verifiedLocationSchema } from "../../locations/models/locations";
 import { resultsSchema } from "../../ratings/models/results";
 
@@ -15,6 +15,7 @@ export const eventDateOptionSchema = z
 export const eventRecordSchema = z
   .object({
     id: z.uuid(),
+    clientRequestId: clientRequestIdSchema.optional(),
     groupId: z.uuid().nullable(),
     adminUserId: targetUserIdSchema,
     name: z.string().trim().min(5).max(120),

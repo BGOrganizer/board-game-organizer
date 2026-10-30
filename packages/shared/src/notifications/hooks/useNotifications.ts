@@ -7,6 +7,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import {
   type InfiniteData,
+  type MutationFunctionContext,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
@@ -18,7 +19,7 @@ import type { MutationFeedback } from "../../common/mutationFeedback";
 import {
   beginOptimisticOperation,
   optimisticFailureAction,
-  optimisticOperationSignal,
+  optimisticMutationSignal,
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
 import { optimisticNotificationData } from "../notificationOptimistic";
@@ -172,6 +173,19 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
       });
   }, [list.data, options.enabled, options.userId, options.apiUrl, queryClient]);
 
+  const notificationResource = (id?: string) => (id ? [...root, "item", id] : root);
+  const write = async (
+    method: "PATCH" | "DELETE",
+    id: string | undefined,
+    variables: unknown,
+    context: MutationFunctionContext,
+  ) =>
+    mutateNotification(
+      options,
+      method,
+      id,
+      await optimisticMutationSignal(queryClient, context.mutationKey, variables),
+    );
   const begin = async (action: "read" | "delete", id?: string) => {
     let knownUnread: boolean | undefined;
     let capturing = true;
@@ -179,7 +193,7 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     const readAt = new Date().toISOString();
     const operation = await beginOptimisticOperation(
       queryClient,
-      root,
+      notificationResource(id),
       { queryKey: root },
       (data, key) => {
         knownUnread ??= queryClient
@@ -212,11 +226,21 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     capturing = false;
     return operation;
   };
-  const settled = () => {
-    void queryClient.invalidateQueries({ queryKey: root });
+  const settled = (
+    _data: unknown,
+    _error: Error | null,
+    _variables: unknown,
+    _operation: unknown,
+    context: MutationFunctionContext,
+  ) => {
+    const ownerRoot = context.mutationKey?.slice(0, 3) ?? root;
+    void queryClient.invalidateQueries({
+      queryKey: ownerRoot,
+      refetchType: resourceBusy(ownerRoot) ? "none" : "active",
+    });
   };
   const optimisticRead = (notificationId?: string) => ({
-    mutationKey: root,
+    mutationKey: [...root, notificationId ? "read" : "read-all"],
     onMutate: () => begin("read", notificationId),
     onSuccess: (
       _data: unknown,
@@ -242,39 +266,28 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   });
 
   const markRead = useMutation({
-    mutationFn: (notificationId: string) =>
-      mutateNotification(
-        options,
-        "PATCH",
-        notificationId,
-        optimisticOperationSignal(queryClient, root),
-      ),
+    mutationFn: (notificationId: string, context) =>
+      write("PATCH", notificationId, notificationId, context),
     ...optimisticRead(undefined),
+    mutationKey: [...root, "read"],
     onMutate: (notificationId) => begin("read", notificationId),
   });
   const markAllRead = useMutation({
-    mutationFn: () =>
-      mutateNotification(options, "PATCH", undefined, optimisticOperationSignal(queryClient, root)),
+    mutationFn: (variables: void, context) => write("PATCH", undefined, variables, context),
     ...optimisticRead(),
   });
   const deleteNotification = useMutation({
-    mutationKey: root,
-    mutationFn: (notificationId: string) =>
-      mutateNotification(
-        options,
-        "DELETE",
-        notificationId,
-        optimisticOperationSignal(queryClient, root),
-      ),
+    mutationKey: [...root, "delete"],
+    mutationFn: (notificationId: string, context) =>
+      write("DELETE", notificationId, notificationId, context),
     onMutate: async (notificationId) => {
       const operation = await begin("delete", notificationId);
-      if (operation.modified) options.feedback?.onOptimisticUpdate?.("delete_notification");
+      options.feedback?.onOptimisticUpdate?.("delete_notification");
       return operation;
     },
     onSuccess: (_data, _id, operation) => {
       if (!operation?.active) return;
       operation.commit();
-      if (!operation.modified) options.feedback?.onSuccess?.("delete_notification");
     },
     onError: async (error, _id, operation) => {
       if (operation && !operation.active) return;
@@ -304,5 +317,6 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     registerPush,
     removePush,
     busy: resourceBusy(),
+    isBusy: (notificationId: string) => resourceBusy(notificationResource(notificationId)),
   };
 }

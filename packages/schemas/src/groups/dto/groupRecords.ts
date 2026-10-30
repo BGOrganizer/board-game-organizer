@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { targetUserIdSchema } from "../../common/dto/common";
+import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
 import {
   GROUP_LOGO_CHUNK_BYTES,
   GROUP_LOGO_MAX_BYTES,
@@ -20,10 +20,20 @@ export const groupRecordListRoles = ["admin", "invited", "accepted"] as const;
 export type GroupRecordListRole = (typeof groupRecordListRoles)[number];
 
 export const createGroupRecordSchema = z.discriminatedUnion("type", [
-  groupRevisionSchema.extend({ type: z.literal("PRIVATE"), invitedUserIds: invitedUsers }).strict(),
+  groupRevisionSchema
+    .extend({
+      type: z.literal("PRIVATE"),
+      invitedUserIds: invitedUsers,
+      clientRequestId: clientRequestIdSchema.optional(),
+    })
+    .strict(),
   groupRevisionSchema
     .required({ logoAssetId: true, location: true })
-    .extend({ type: z.literal("PUBLIC"), invitedUserIds: invitedUsers })
+    .extend({
+      type: z.literal("PUBLIC"),
+      invitedUserIds: invitedUsers,
+      clientRequestId: clientRequestIdSchema.optional(),
+    })
     .strict(),
 ]);
 export type CreateGroupRecordInput = z.infer<typeof createGroupRecordSchema>;

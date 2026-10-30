@@ -1,5 +1,12 @@
 import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
-import { eventRecordKeys, useEventJoinForm } from "@board-game-organizer/shared";
+import {
+  clearSessionQueryCache,
+  eventRecordKeys,
+  useEventJoinForm,
+  useEventRecord,
+  useEventRecordActions,
+  useRecordTable,
+} from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -14,7 +21,9 @@ import {
 } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventJoinSheet } from "../EventJoinSheet";
+import { EventTableSeats } from "../EventTableSeats";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const token = vi.hoisted(() => vi.fn(async () => "fresh"));
 const options = { apiUrl: "https://api.test", userId: "owner", getToken: token };
 vi.mock("@/lib/useCommunityApi", () => ({
@@ -39,7 +48,7 @@ beforeEach(() => {
           JSON.stringify(
             failed ? {} : { ...seat("owner"), gameVotes: JSON.parse(String(init.body)).gameVotes },
           ),
-          { status: failed ? 503 : 201 },
+          { status: failed ? 409 : 201 },
         )
       : new Response(JSON.stringify(url.includes("/tables/") ? table : event), {
           status: url.includes("/tables/") ? tableStatus : loadStatus,
@@ -48,17 +57,18 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetcher);
 });
 afterEach(() => vi.unstubAllGlobals());
-function mount() {
-  const client = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    }),
-    close = vi.fn();
-  renderWithI18n(
+function mount(
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  }),
+) {
+  const close = vi.fn();
+  const view = renderWithI18n(
     <QueryClientProvider client={client}>
       <EventJoinSheet eventId={eventId} tableId={tableId} onClose={close} />
     </QueryClientProvider>,
   );
-  return { client, close };
+  return { client, close, ...view };
 }
 function hook() {
   const client = new QueryClient({
@@ -73,6 +83,209 @@ function hook() {
   return { ...q, client, close };
 }
 const posts = () => fetcher.mock.calls.filter(([, init]) => init?.method === "POST");
+it.each(["apiUrl", "userId"] as const)(
+  "drops old local ballot choices immediately when %s changes",
+  async (field) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const close = vi.fn();
+    const view = renderHook(({ settings }) => useEventJoinForm(settings, eventId, tableId, close), {
+      initialProps: { settings: options },
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(view.result.current.initialTab).toBe("dates"));
+    act(() => {
+      view.result.current.choose("date", optionId, "YES");
+      view.result.current.choose("location", optionId, "YES");
+      view.result.current.choose("game", "1", "YES");
+    });
+    expect(view.result.current.votes.gameVotes).toEqual({ "1": "YES" });
+    view.rerender({
+      settings: { ...options, [field]: field === "apiUrl" ? "https://other.test" : "other-user" },
+    });
+    await waitFor(() => expect(view.result.current.initialTab).toBe("dates"));
+    expect(view.result.current.votes).toEqual({ dateVotes: {}, locationVotes: {}, gameVotes: {} });
+    expect(view.result.current.canSubmit).toBe(false);
+    expect(posts()).toHaveLength(0);
+    view.unmount();
+    clearSessionQueryCache(client);
+  },
+);
+it("renders an unknown join as intent, not an accepted seat, and offers reads without reposting its consent", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
+    init?.method === "POST"
+      ? Response.json({ error: "UNKNOWN" }, { status: 503 })
+      : Response.json(
+          url.includes("/seats?")
+            ? { items: [], nextCursor: null }
+            : url.includes("/tables/")
+              ? table
+              : event,
+        ),
+  );
+  const provider = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const driver = renderHook(
+    () => ({
+      event: useEventRecord(options, eventId),
+      table: useRecordTable(options, eventId, tableId),
+      actions: useEventRecordActions(options, eventId),
+    }),
+    { wrapper: provider },
+  );
+  await waitFor(() =>
+    expect(driver.result.current.table.isSuccess && driver.result.current.event.isSuccess).toBe(
+      true,
+    ),
+  );
+  const roster = renderWithI18n(
+    <QueryClientProvider client={client}>
+      <EventTableSeats table={table} hasJoinedEvent={false} onRemove={vi.fn()} />
+    </QueryClientProvider>,
+  );
+  act(() =>
+    driver.result.current.actions.register.mutate({
+      tableId,
+      version: event.version,
+      gameVotes: { "1": "YES" },
+      availability: {
+        version: event.version,
+        dateVotes: { [optionId]: "YES" },
+        locationVotes: { [optionId]: "YES" },
+      },
+    }),
+  );
+  await screen.findByRole("img", { name: "Checking saved changes" });
+  expect(screen.getByText("You")).toBeTruthy();
+  const editor = mount(client);
+  const reads = fetcher.mock.calls.filter(
+    ([, init]) => !init?.method || init.method === "GET",
+  ).length;
+  fireEvent.click(await screen.findByRole("button", { name: "Check saved changes" }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.filter(([, init]) => !init?.method || init.method === "GET").length,
+    ).toBeGreaterThanOrEqual(reads + 2),
+  );
+  expect((screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  expect(posts()).toHaveLength(1);
+  expect(driver.result.current.table.data?.myRegistration).toBeNull();
+  editor.unmount();
+  roster.unmount();
+  driver.unmount();
+  clearSessionQueryCache(client);
+});
+it.each(["accept", "invite"] as const)(
+  "paints %s intent in existing roster rows before HTTP, without granting an accepted registration",
+  async (action) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const invitation = { ...seat("owner"), status: "PENDING" as const };
+    if (action === "accept") {
+      event = {
+        ...event,
+        adminUserId: "organizer",
+        groupId: optionId,
+        role: "invited",
+        canEdit: false,
+        canInvite: false,
+        myRegistrations: [invitation],
+      };
+      table = {
+        ...table,
+        adminUserId: "organizer",
+        groupId: optionId,
+        groupType: "PRIVATE",
+        canInvite: false,
+        canRegister: false,
+        canRespond: true,
+        myRegistration: invitation,
+      };
+    }
+    let release: ((response: Response) => void) | undefined;
+    fetcher.mockImplementation(async (url: string, init?: RequestInit) =>
+      init?.method === "POST" || init?.method === "PATCH"
+        ? new Promise<Response>((resolve) => {
+            release = resolve;
+          })
+        : Response.json(
+            url.includes("/seats?")
+              ? { items: [], nextCursor: null }
+              : url.includes("/tables/")
+                ? table
+                : event,
+          ),
+    );
+    const provider = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const driver = renderHook(
+      () => ({
+        event: useEventRecord(options, eventId),
+        table: useRecordTable(options, eventId, tableId),
+        actions: useEventRecordActions(options, eventId),
+      }),
+      { wrapper: provider },
+    );
+    await waitFor(() =>
+      expect(driver.result.current.table.isSuccess && driver.result.current.event.isSuccess).toBe(
+        true,
+      ),
+    );
+    const roster = renderWithI18n(
+      <QueryClientProvider client={client}>
+        <EventTableSeats table={table} hasJoinedEvent={false} onRemove={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    act(() => {
+      if (action === "invite")
+        driver.result.current.actions.invite.mutate({
+          tableId,
+          userId: "friend",
+          person: { name: "Known friend", username: "friend", avatarUrl: null },
+        });
+      else
+        driver.result.current.actions.respond.mutate({
+          tableId,
+          registrationId: invitation.id,
+          input: {
+            action: "accept",
+            version: invitation.version,
+            participation: {
+              version: event.version,
+              gameVotes: { "1": "YES" },
+              availability: {
+                version: event.version,
+                dateVotes: { [optionId]: "YES" },
+                locationVotes: { [optionId]: "YES" },
+              },
+            },
+          },
+        });
+    });
+    const label = action === "accept" ? "Accepting invitation" : "Sending invitation";
+    await screen.findByRole("img", { name: label });
+    await waitFor(() => expect(release).toBeDefined());
+    expect(driver.result.current.table.data?.myRegistration?.status).not.toBe("ACCEPTED");
+    const respond = release;
+    if (!respond) throw new Error("Missing held roster request");
+    await act(async () => respond(Response.json({ error: "REJECTED" }, { status: 409 })));
+    await waitFor(() => expect(screen.queryByRole("img", { name: label })).toBeNull());
+    roster.unmount();
+    driver.unmount();
+    clearSessionQueryCache(client);
+  },
+);
 it("requires three explicit dimensions and saves game votes and initial availability in one join", async () => {
   const { close } = mount(),
     confirm = screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement;
@@ -251,26 +464,49 @@ it("keeps known date choices visible while Table loading fails, offers retry, an
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
   expect(posts()).toHaveLength(0);
 });
-it("retains game/date drafts after failure and never saves partial preferences", async () => {
+it("closes immediately and restores rejected game/date drafts on explicit reopening without saving partial preferences", async () => {
   event = {
     ...event,
     myVotes: { dateVotes: { [optionId]: "YES" }, locationVotes: { [optionId]: "IF_NEEDED" } },
   };
   failed = true;
-  const { close } = mount();
+  const { client, close, unmount } = mount();
   fireEvent.click(await screen.findByRole("tab", { name: "Games" }));
   fireEvent.click(await screen.findByRole("button", { name: "Chess: Yes" }));
   const confirm = screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement;
   await waitFor(() => expect(confirm.disabled).toBe(false));
   fireEvent.click(confirm);
+  expect(close).toHaveBeenCalledOnce();
+  unmount();
+  await waitFor(() =>
+    expect(
+      client
+        .getMutationCache()
+        .getAll()
+        .some((mutation) => mutation.state.status === "error"),
+    ).toBe(true),
+  );
+  expect(posts()).toHaveLength(1);
+  const restored = mount(client);
   await screen.findByText("Could not join table");
-  expect(close).not.toHaveBeenCalled();
+  expect(
+    (await screen.findByRole("button", { name: "2030-06-03 20:00: Yes" })).getAttribute(
+      "aria-pressed",
+    ),
+  ).toBe("true");
+  fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+  expect(
+    (await screen.findByRole("button", { name: "Chess: Yes" })).getAttribute("aria-pressed"),
+  ).toBe("true");
   failed = false;
-  await waitFor(() => expect(confirm.disabled).toBe(false));
-  fireEvent.click(confirm);
-  await waitFor(() => expect(close).toHaveBeenCalledOnce());
-  expect(posts()).toHaveLength(2);
+  const retry = screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement;
+  await waitFor(() => expect(retry.disabled).toBe(false));
+  fireEvent.click(retry);
+  expect(restored.close).toHaveBeenCalledOnce();
+  await waitFor(() => expect(posts()).toHaveLength(2));
   expect(fetcher.mock.calls.every(([url]) => !String(url).includes("/votes"))).toBe(true);
+  restored.unmount();
+  client.clear();
 });
 it("trims replaced game/date IDs, ignores UNKNOWN edits and submits the fresh Event version", async () => {
   event = {

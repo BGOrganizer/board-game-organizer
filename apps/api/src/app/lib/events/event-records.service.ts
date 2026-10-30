@@ -451,6 +451,7 @@ export class EventRecordsService {
       );
     const event: EventRecord = {
       id: randomUUID(),
+      ...(input.clientRequestId ? { clientRequestId: input.clientRequestId } : {}),
       groupId: input.groupId,
       adminUserId: userId,
       name: input.name,
@@ -964,7 +965,7 @@ export class EventRecordsService {
       tableId,
     );
     await this.saveSituation(event, group, userId);
-    return row;
+    return { ...row, eventVersion: event.version };
   }
   async registrationAction(
     userId: string,
@@ -1047,7 +1048,7 @@ export class EventRecordsService {
       row.tableId,
     );
     await this.saveSituation(event, group, userId);
-    return next;
+    return { ...next, eventVersion: event.version };
   }
   async vote(userId: string, id: string, input: ChangeEventVoteInput) {
     const { event, group, own } = await this.context(userId, id, true);

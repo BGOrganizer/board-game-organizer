@@ -70,7 +70,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
         <Button onPress={() => void q.refetch()}>{t`Try again`}</Button>
       </div>
     );
-  const transition = async (action: "confirm" | "replan") => {
+  const transition = (action: "confirm" | "replan") => {
     if (
       a.busy ||
       q.isPlaceholderData ||
@@ -82,12 +82,8 @@ export function EventDetail({ eventId }: { eventId: string }) {
       return;
     }
     setError(false);
-    try {
-      await a.transition.mutateAsync({ action, version: event.version });
-      setConfirm(null);
-    } catch {
-      setError(true);
-    }
+    a.transition.mutate({ action, version: event.version });
+    setConfirm(null);
   };
   return (
     <div className="mx-auto max-w-4xl space-y-3 pb-24">
@@ -193,7 +189,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                         ? []
                         : ["NO"]
                     }
-                    busy={a.busy || q.isPlaceholderData}
+                    busy={a.blocking || q.isPlaceholderData}
                     onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
                   />
                 ) : null}
@@ -267,7 +263,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                           ? []
                           : ["NO"]
                       }
-                      busy={a.busy || q.isPlaceholderData}
+                      busy={a.blocking || q.isPlaceholderData}
                       onChange={(vote) =>
                         a.vote.mutate({ kind: "location", optionId: row.id, vote })
                       }

@@ -81,6 +81,69 @@ afterEach(() => {
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
 });
+it.each([true, false])(
+  "closes manual confirmation and announces intent before HTTP without inventing frozen state: committed=%s",
+  async (committed) => {
+    event = {
+      ...event,
+      canConfirm: true,
+      participantCount: 2,
+      agreement: {
+        agreed: true,
+        dateId: event.dates[0].id,
+        locationId: event.locations[0].id,
+        tables: [{ tableId: plannedTable.id, gameId: 1, participantIds: ["first", "second"] }],
+        reasons: [],
+      },
+    };
+    let finish: ((response: Response) => void) | undefined;
+    const original = fetcher.getMockImplementation();
+    if (!original) throw new Error("Missing read adapter");
+    fetcher.mockImplementation((url: string, init?: RequestInit) =>
+      url.endsWith("/state") && init?.method === "PATCH"
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : original(url, init),
+    );
+    const client = mount();
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm event" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(finish).toBeDefined());
+    expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("confirm_event");
+    const key = eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId);
+    expect(client.getQueryData(key)).toMatchObject({ status: "PLANNING", canConfirm: false });
+    expect(screen.queryByRole("link", { name: "Register results" })).toBeNull();
+    const respond = finish;
+    if (!respond) throw new Error("Missing held confirmation");
+    if (committed) {
+      event = {
+        ...event,
+        status: "CONFIRMED",
+        version: event.version + 1,
+        canConfirm: false,
+        canReplan: true,
+      };
+      await act(async () => respond(Response.json(event)));
+      await waitFor(() =>
+        expect(client.getQueryData(key)).toMatchObject({ status: "CONFIRMED", version: 2 }),
+      );
+    } else {
+      await act(async () => respond(Response.json({ error: "EVENT_CHANGED" }, { status: 409 })));
+      await waitFor(() =>
+        expect(client.getQueryData(key)).toMatchObject({ status: "PLANNING", canConfirm: true }),
+      );
+      expect(mocks.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "confirm_event");
+    }
+    expect(
+      fetcher.mock.calls.filter(
+        ([url, init]) => url.endsWith("/state") && init?.method === "PATCH",
+      ),
+    ).toHaveLength(1);
+    expect(mocks.feedback.onSuccess).not.toHaveBeenCalled();
+  },
+);
 it("allows No only when another current location stays usable, independent of the date votes", async () => {
   const second = "77777777-7777-4777-8777-777777777777",
     first = event.locations[0].id;
@@ -420,10 +483,16 @@ it("confirms manually, permits replan after cutoff, and keeps failed transitions
   failWrite = true;
   fireEvent.click(screen.getByRole("button", { name: "Reopen planning" }));
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
-  expect(
-    await screen.findByText("Could not change event state. Refresh and try again."),
-  ).not.toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await waitFor(() =>
+    expect(mocks.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "replan_event"),
+  );
   failWrite = false;
+  const reopen = (await screen.findByRole("button", {
+    name: "Reopen planning",
+  })) as HTMLButtonElement;
+  await waitFor(() => expect(reopen.disabled).toBe(false));
+  fireEvent.click(reopen);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(
@@ -588,8 +657,8 @@ it("requires explicit manual confirmation and freezes only server-authorized agr
       ),
     ).toMatchObject({ status: "CONFIRMED" }),
   );
-  expect(mocks.feedback.onOptimisticUpdate).not.toHaveBeenCalledWith("confirm_event");
-  expect(mocks.feedback.onSuccess).toHaveBeenCalledWith("confirm_event");
+  expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("confirm_event");
+  expect(mocks.feedback.onSuccess).not.toHaveBeenCalledWith("confirm_event");
 });
 it("leaves failed confirmation actionable and selectively restores optimistic capabilities", async () => {
   event = { ...event, canConfirm: true, agreement: { agreed: true, tables: [], reasons: [] } };
@@ -597,15 +666,17 @@ it("leaves failed confirmation actionable and selectively restores optimistic ca
   const client = mount();
   fireEvent.click(await screen.findByRole("button", { name: "Confirm event" }));
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
-  expect(
-    await screen.findByText("Could not change event state. Refresh and try again."),
-  ).not.toBeNull();
-  expect(screen.getByRole("dialog")).not.toBeNull();
-  expect(
-    client.getQueryData(
-      eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
-    ),
-  ).toMatchObject({ status: "PLANNING", canConfirm: true });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await waitFor(() =>
+    expect(mocks.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "confirm_event"),
+  );
+  await waitFor(() =>
+    expect(
+      client.getQueryData(
+        eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+      ),
+    ).toMatchObject({ status: "PLANNING", canConfirm: true }),
+  );
   expect(mocks.feedback.onError).toHaveBeenCalled();
 });
 it("preserves an observable error/retry path instead of treating failures as empty success", async () => {

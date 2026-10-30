@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { targetUserIdSchema } from "../../common/dto/common";
+import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
 import type { BggSearchItem } from "../../games/dto/boardGames";
 import { verifiedLocationSchema } from "../../locations/models/locations";
 import type { MatchGameRating } from "../../matches/dto/matches";
@@ -14,6 +14,7 @@ import {
   MAX_EVENT_OPTIONS,
   type TableRecord,
   type TableRegistration,
+  tableRegistrationSchema,
 } from "../models/eventRecord";
 
 const zoneSchema = z
@@ -57,9 +58,15 @@ export const plannedTableInputSchema = z
     message: "Maximum must not be below minimum",
   });
 export type PlannedTableInput = z.infer<typeof plannedTableInputSchema>;
+// Mutation receipt only: the parent epoch is captured in the same transaction, never stored on a registration.
+export const tableRegistrationReceiptSchema = tableRegistrationSchema.extend({
+  eventVersion: z.number().int().min(1),
+});
+export type TableRegistrationReceipt = z.infer<typeof tableRegistrationReceiptSchema>;
 export const createPlannedEventSchema = z
   .object({
     groupId: z.uuid().nullable(),
+    clientRequestId: clientRequestIdSchema.optional(),
     name: z.string().trim().min(5).max(120),
     timeZone: zoneSchema,
     startTime: eventTimeSchema,
@@ -98,7 +105,7 @@ export const createPlannedEventSchema = z
   .strict();
 export type CreatePlannedEventInput = z.infer<typeof createPlannedEventSchema>;
 export const editPlannedEventSchema = createPlannedEventSchema
-  .omit({ groupId: true, tables: true })
+  .omit({ groupId: true, tables: true, clientRequestId: true })
   .extend({
     version: z.number().int().positive(),
     tables: z

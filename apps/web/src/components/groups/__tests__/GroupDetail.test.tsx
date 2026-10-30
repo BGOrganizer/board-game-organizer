@@ -1,3 +1,4 @@
+import { groupRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -10,33 +11,35 @@ vi.mock("@/lib/useCommunityApi", () => ({
     apiUrl: "https://api.test",
     userId: "guest",
     getToken: async () => "fresh",
+    feedback: navigation.feedback,
   }),
 }));
-const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn(),
+  feedback: { onOptimisticUpdate: vi.fn(), onError: vi.fn(), onSuccess: vi.fn() },
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ ...navigation, push: vi.fn(), back: vi.fn() }),
 }));
 afterEach(() => {
   vi.unstubAllGlobals();
-  navigation.replace.mockClear();
+  vi.clearAllMocks();
 });
 function mount(initialTab: "info" | "members" | "events" = "info") {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   renderWithI18n(
     <>
       <header data-testid="app-header">
         <div id="page-header-actions" />
       </header>
-      <QueryClientProvider
-        client={
-          new QueryClient({
-            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-          })
-        }
-      >
+      <QueryClientProvider client={client}>
         <GroupDetail groupId={groupRecord.id} initialTab={initialTab} />
       </QueryClientProvider>
     </>,
   );
+  return client;
 }
 it("pending members can read permitted information and accepted members, never events/rankings/social actions", async () => {
   const invited = {
@@ -314,7 +317,7 @@ it("keeps public request/pending cancellation centered after Overview and permit
     JSON.parse(String(fetch.mock.calls.find(([, init]) => init?.method === "PATCH")?.[1]?.body)),
   ).toEqual({ action: "cancel", version: 1 });
 });
-it("puts owner deletion in app header and requires explicit cascade confirmation; blocks repeat/cancel while pending", async () => {
+it("requires explicit cascade confirmation, then closes and navigates before DELETE without permitting repeat submission", async () => {
   let finish!: (value: Response) => void;
   let deleted = false;
   const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
@@ -348,13 +351,10 @@ it("puts owner deletion in app header and requires explicit cascade confirmation
   await waitFor(() =>
     expect(fetch.mock.calls.filter(([, init]) => init?.method === "DELETE")).toHaveLength(1),
   );
-  expect(confirm.hasAttribute("disabled")).toBe(true);
-  expect(within(dialog).getByRole("button", { name: "Cancel" }).hasAttribute("disabled")).toBe(
-    true,
-  );
-  fireEvent.click(confirm);
-  fireEvent.keyDown(window, { key: "Escape" });
-  expect(screen.getByRole("dialog", { name: "Delete group" })).not.toBeNull();
+  expect(screen.queryByRole("dialog", { name: "Delete group" })).toBeNull();
+  expect(navigation.replace).toHaveBeenCalledWith("/groups");
+  expect(button.hasAttribute("disabled")).toBe(true);
+  expect(navigation.feedback.onOptimisticUpdate).toHaveBeenCalledWith("delete_group");
   expect(
     JSON.parse(fetch.mock.calls.find(([, init]) => init?.method === "DELETE")?.[1]?.body as string),
   ).toEqual({ version: groupRecord.version, deleteEvents: true });
@@ -363,26 +363,29 @@ it("puts owner deletion in app header and requires explicit cascade confirmation
   await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/groups"));
   expect(fetch.mock.calls.filter(([, init]) => init?.method === "DELETE")).toHaveLength(1);
 });
-it("keeps the deletion dialog on failure without navigation and permits safe cancellation", async () => {
+it("reports a definite deletion rejection after immediate navigation and restores only its removed list row", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(
       async (_url: string, init?: RequestInit) =>
         new Response(
-          JSON.stringify(
-            init?.method === "DELETE" ? { error: "Internal server error" } : groupRecord,
-          ),
-          { status: init?.method === "DELETE" ? 500 : 200 },
+          JSON.stringify(init?.method === "DELETE" ? { error: "GROUP_CHANGED" } : groupRecord),
+          { status: init?.method === "DELETE" ? 409 : 200 },
         ),
     ),
   );
-  mount();
+  const client = mount();
+  const key = groupRecordKeys.list({ apiUrl: "https://api.test", userId: "guest" }, "mine");
+  const previous = { pages: [{ items: [groupRecord], nextCursor: null }], pageParams: [""] };
+  client.setQueryData(key, previous);
   fireEvent.click(await screen.findByRole("button", { name: "Delete group" }));
   const dialog = await screen.findByRole("dialog", { name: "Delete group" });
   fireEvent.click(within(dialog).getByRole("button", { name: "Delete group and events" }));
-  expect(await within(dialog).findByText("Could not delete group")).not.toBeNull();
-  expect(navigation.replace).not.toHaveBeenCalled();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog", { name: "Delete group" })).toBeNull();
-  expect(screen.queryByText("Could not update group membership")).toBeNull();
+  expect(navigation.replace).toHaveBeenCalledWith("/groups");
+  await waitFor(() =>
+    expect(navigation.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "delete_group"),
+  );
+  await waitFor(() => expect(client.getQueryData(key)).toEqual(previous));
+  expect(navigation.feedback.onSuccess).not.toHaveBeenCalled();
 });

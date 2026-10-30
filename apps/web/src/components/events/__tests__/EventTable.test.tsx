@@ -14,13 +14,18 @@ import {
 import { renderWithI18n } from "@/test-utils";
 import { EventTable } from "../EventTable";
 
-const m = vi.hoisted(() => ({ actor: "owner", push: vi.fn() }));
+const m = vi.hoisted(() => ({
+  actor: "owner",
+  push: vi.fn(),
+  feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push }) }));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
     userId: m.actor,
     getToken: async () => "fresh",
+    feedback: m.feedback,
   }),
 }));
 let table: PlannedTableResponse,
@@ -613,9 +618,21 @@ it("lets a new member join directly, never reads another user's pending stream, 
   mount();
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   await submitGameChoices();
-  await screen.findByText("Could not join table");
-  expect(screen.getByRole("dialog", { name: "Choose availability" })).not.toBeNull();
+  expect(screen.queryByRole("dialog", { name: "Choose availability" })).toBeNull();
+  await waitFor(() =>
+    expect(m.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "join_table"),
+  );
   expect(fetcher.mock.calls.some(([url]) => url.includes("pending=true"))).toBe(false);
+  const free = (
+    await screen.findAllByRole("button", { name: "Free place" })
+  )[0] as HTMLButtonElement;
+  await waitFor(() => expect(free.disabled).toBe(false));
+  fireEvent.click(free);
+  await screen.findByText("Could not join table");
+  fireEvent.click(screen.getByRole("tab", { name: "Games" }));
+  expect(
+    (await screen.findByRole("button", { name: "Chess: Yes" })).getAttribute("aria-pressed"),
+  ).toBe("true");
   fail = false;
   await waitFor(() =>
     expect((screen.getByRole("button", { name: "Join table" }) as HTMLButtonElement).disabled).toBe(
@@ -623,9 +640,10 @@ it("lets a new member join directly, never reads another user's pending stream, 
     ),
   );
   fireEvent.click(screen.getByRole("button", { name: "Join table" }));
+  expect(screen.queryByRole("dialog", { name: "Choose availability" })).toBeNull();
   await screen.findByText("guest");
 });
-it("preserves organizer join errors inside the game preference sheet", async () => {
+it("reports organizer rejection after immediate close and recovers preferences on explicit reopening", async () => {
   rows = [];
   table = { ...table, canRegister: true, myRegistration: null, myPosition: null, seatedCount: 0 };
   fail = true;
@@ -633,16 +651,28 @@ it("preserves organizer join errors inside the game preference sheet", async () 
   fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Join table" }));
   await submitGameChoices();
+  expect(screen.queryByRole("dialog", { name: "Choose availability" })).toBeNull();
+  await waitFor(() =>
+    expect(m.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "join_table"),
+  );
+  fireEvent.click((await screen.findAllByRole("button", { name: "Free place" }))[0]);
+  fireEvent.click(
+    await within(screen.getByRole("dialog")).findByRole("button", { name: "Join table" }),
+  );
   expect(await screen.findByText("Could not join table")).not.toBeNull();
   expect(screen.getByRole("dialog", { name: "Choose availability" })).not.toBeNull();
 });
-it("confirms departure, retains failed destructive dialogs and never bypasses registration versions", async () => {
+it("closes departure immediately, restores a rejected participant for explicit retry and keeps registration versions", async () => {
   fail = true;
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
-  await screen.findByText("Could not update table registration");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await waitFor(() =>
+    expect(m.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "leave_table"),
+  );
   fail = false;
+  fireEvent.click(await screen.findByRole("button", { name: "Leave table" }));
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(

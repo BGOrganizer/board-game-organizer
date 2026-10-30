@@ -40,8 +40,8 @@ export function EventResults({ eventId }: { eventId: string }) {
       <Button onPress={() => void f.table.refetch()}>{t`Try again`}</Button>
     </div>
   ) : null;
-  const finish = async () => {
-    if (await f.finalize()) router.replace(`/events/${eventId}`);
+  const finish = () => {
+    if (f.finalize()) router.replace(`/events/${eventId}`);
   };
   if (!event)
     return f.event.isPending ? (
@@ -105,6 +105,7 @@ export function EventResults({ eventId }: { eventId: string }) {
         helpTitle={t`Field help`}
         help={t`Record results for every table to finalize the event. Finalization is irreversible. All-ND tables do not change ratings or statistics.`}
       />
+      {f.checking ? <p role="status">{t`Checking saved changes`}</p> : null}
       {f.conflict ? (
         <p
           role="alert"
@@ -115,7 +116,7 @@ export function EventResults({ eventId }: { eventId: string }) {
         <EventResultTableCard
           key={row.id}
           table={row}
-          ready={Boolean(f.scores[row.id])}
+          ready={f.isScoreCurrent(row.id)}
           busy={f.actions.busy}
           onPress={() => f.open(row.id)}
         />

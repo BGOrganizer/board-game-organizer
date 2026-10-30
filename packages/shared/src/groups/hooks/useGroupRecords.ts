@@ -1,12 +1,12 @@
+"use client";
+
 import type {
   BanGroupUserInput,
   CommunityPageResponse,
-  CreateGroupRecordInput,
   DecideGroupMembershipInput,
   DecideGroupReviewInput,
   DeletedGroupRecordResponse,
   DeleteGroupRecordInput,
-  EditGroupRecordInput,
   GroupBan,
   GroupMembership,
   GroupPersonResponse,
@@ -15,22 +15,28 @@ import type {
 } from "@board-game-organizer/schemas";
 import { groupRecordListRoles } from "@board-game-organizer/schemas";
 import {
+  hashKey,
   infiniteQueryOptions,
+  type MutationFunctionContext,
   notifyManager,
+  type QueryKey,
   queryOptions,
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { mergeCreationIntents, withClientRequestId } from "../../common/clientMutation";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
+import { useOptimisticCreations } from "../../common/hooks/useOptimisticCreations";
 import type { MutationFeedbackAction } from "../../common/mutationFeedback";
 import {
   beginOptimisticOperation,
   cancelOptimisticResource,
   optimisticBaseData,
   optimisticFailureAction,
-  optimisticOperationSignal,
+  optimisticMutationSignal,
   updateOptimisticBase,
 } from "../../common/optimisticOperation";
 import {
@@ -43,11 +49,19 @@ import { mapCommunityCache, versionedCommunityChange } from "../../community/que
 import type { ContactUser } from "../../contacts/hooks/useContacts";
 import { revokeCachedGroupAccess } from "../groupAccessCache";
 import { belongsToDeletedGroup, removeDeletedGroupData } from "../groupDeletionCache";
+import {
+  type ClientGroupRecord,
+  type CreateGroupVariables,
+  type EditGroupVariables,
+  groupCreationRecord,
+} from "../groupOptimisticCreation";
 export type GroupRecordScope = "mine" | "public" | "moderation";
 export type GroupPeopleScope = "accepted" | "pending" | "bans";
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
 export const groupRecordKeys = {
   root: (options: KeyOwner) => ["groups", options.apiUrl, options.userId] as const,
+  mutation: (options: KeyOwner, id: string, action: string) =>
+    [...groupRecordKeys.root(options), "mutation", id, action] as const,
   list: (
     options: KeyOwner,
     scope: GroupRecordScope,
@@ -126,7 +140,26 @@ export function useGroupRecords(
   roles: readonly GroupRecordListRole[] = groupRecordListRoles,
 ) {
   const paging = useInfiniteQuery(groupRecordsPageQuery(options, scope, query, roles));
-  return { ...paging, items: paging.data?.pages.flatMap((page) => page.items) ?? [] };
+  const creations = useOptimisticCreations<CreateGroupVariables, GroupRecordResponse>(
+    groupRecordKeys.mutation(options, "", "create"),
+  );
+  const actor = options.userId;
+  const local =
+    actor && scope === "mine" && roles.includes("admin")
+      ? creations
+          .map((intent) => groupCreationRecord(intent, actor))
+          .filter((row) => row.name.toLowerCase().includes(query.trim().toLowerCase()))
+      : [];
+  const items: ClientGroupRecord[] = mergeCreationIntents(
+    paging.data?.pages.flatMap((page) => page.items) ?? [],
+    local,
+  );
+  return { ...paging, isPending: paging.isPending && !items.length, items };
+}
+export function useGroupCreationDraft(options: CommunityApiOptions, draftId?: string) {
+  return useOptimisticCreations<CreateGroupVariables, GroupRecordResponse>(
+    groupRecordKeys.mutation(options, "", "create"),
+  ).find((intent) => intent.draftId === draftId);
 }
 export function groupRecordDetailQuery(options: CommunityApiOptions, id: string, review = false) {
   return queryOptions({
@@ -161,7 +194,7 @@ export function useGroupRecord(options: CommunityApiOptions, id: string, review 
         ) ?? [],
     )
     .find((item) => item.row.id === id);
-  return useQuery({
+  const result = useQuery({
     ...groupRecordDetailQuery(options, id, review),
     ...(cached
       ? {
@@ -172,6 +205,11 @@ export function useGroupRecord(options: CommunityApiOptions, id: string, review 
         }
       : {}),
   });
+  useEffect(() => {
+    if (!review && communityAccessDenied(result.error))
+      cancelOptimisticResource(client, [...groupRecordKeys.root(options), id], true);
+  }, [client, options.apiUrl, options.userId, id, review, result.error]);
+  return result;
 }
 export function groupPeopleQuery(
   options: CommunityApiOptions,
@@ -236,15 +274,25 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
   const client = useQueryClient(),
     root = groupRecordKeys.root(options);
   const resourceBusy = useOptimisticBusy(root);
+  const creationQueue = JSON.stringify(["group-actions", ...root, "new"]);
   const busy = resourceBusy([...root, groupId || "new"]);
   const isBusy = (id: string) => resourceBusy([...root, id]);
-  const write = <T>(id: string | undefined, path: string, method: string, input?: unknown) =>
+  const isBlocking = (id: string) => resourceBusy([...root, id, "write"]);
+  const isPersonBusy = (id: string, userId: string) =>
+    isBlocking(id) || resourceBusy([...root, id, "person", userId]);
+  const write = async <T>(
+    path: string,
+    method: string,
+    input: unknown,
+    context: MutationFunctionContext,
+    variables: unknown,
+  ) =>
     communityRequest<T>(
       options,
       path,
       method,
       input,
-      optimisticOperationSignal(client, [...root, id || "new"]),
+      await optimisticMutationSignal(client, context.mutationKey, variables),
     );
   async function begin(
     action: MutationFeedbackAction,
@@ -252,7 +300,10 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
     groupChange?: (row: GroupRecordResponse) => GroupRecordResponse,
     personChange?: (row: GroupPersonResponse) => GroupPersonResponse,
     inviteeId?: string,
+    personId?: string,
   ) {
+    const lane: QueryKey = personId || inviteeId ? ["person", personId ?? inviteeId] : ["write"];
+    if (id && resourceBusy([...root, id, ...lane])) throw new Error("MUTATION_IN_PROGRESS");
     type Row =
       | GroupRecordResponse
       | GroupPersonResponse
@@ -261,7 +312,8 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
       (row, key) => {
         if (
           groupChange &&
-          "approved" in row &&
+          "adminUserId" in row &&
+          "type" in row &&
           row.id === id &&
           (key[3] === "list" || (key[3] === "detail" && key.length === 5))
         )
@@ -274,11 +326,11 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
       (row) =>
         "userId" in row
           ? `person:${row.userId}`
-          : `${"approved" in row ? "group" : "invitee"}:${row.id}`,
+          : `${"adminUserId" in row && "type" in row ? "group" : "invitee"}:${row.id}`,
     );
     const operation = await beginOptimisticOperation(
       client,
-      [...root, id || "new"],
+      [...root, id || "new", ...lane],
       {
         queryKey: root,
         predicate: (query) => query.queryKey[3] === "list" || query.queryKey[4] === id,
@@ -296,12 +348,14 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         if (id && key[3] === "detail" && key[4] === id && key.length === 5)
           revokeCachedGroupAccess(client, options, id, false);
       },
+      id ? JSON.stringify(["group-actions", ...root, id]) : creationQueue,
     );
     guarded.seal();
-    if (operation.modified) options.feedback?.onOptimisticUpdate?.(action);
+    options.feedback?.onOptimisticUpdate?.(action);
     return {
       operation,
-      announced: operation.modified,
+      announced: true,
+      receipt: undefined as GroupRecordResponse | undefined,
       guarded,
       action,
       id,
@@ -316,10 +370,15 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         optimisticFailureAction(error, context.action),
       );
     await context?.operation.reject(error);
+    if (context?.operation.active) await context.operation.wait();
   }
   function complete(context: Awaited<ReturnType<typeof begin>> | undefined) {
     if (!context?.operation.active) return;
-    context.operation.commit();
+    context.operation.commit(
+      context.action === "delete_group"
+        ? undefined
+        : (_data, key) => optimisticBaseData(client, key),
+    );
     if (!context.announced) context.requestOptions.feedback?.onSuccess?.(context.action);
   }
   function settle(
@@ -369,7 +428,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
     complete(context);
   }
   function membershipSuccess(...args: Parameters<typeof reconcileMembership>) {
-    void reconcileMembership(...args);
+    return reconcileMembership(...args);
   }
   async function reconcileMembership(
     value: unknown,
@@ -456,6 +515,28 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
         }),
       );
       if (!current.canViewEvents) revokeCachedGroupAccess(client, context.owner, context.id, true);
+      const people = client.getQueryCache().findAll({
+        queryKey: groupRecordKeys.root(context.owner),
+        predicate: (cached) =>
+          cached.queryKey[3] === "people" &&
+          cached.queryKey[4] === context.id &&
+          !cached.isDisabled() &&
+          typeof cached.options.queryFn === "function",
+      });
+      const reads = await Promise.allSettled(
+        people.map((cached) =>
+          context.operation.read(cached.queryKey, () =>
+            client.fetchQuery({
+              ...cached.options,
+              queryKey: cached.queryKey,
+              staleTime: 0,
+              retry: false,
+              networkMode: "always",
+            }),
+          ),
+        ),
+      );
+      for (const read of reads) if (read.status === "rejected") throw read.reason;
       reconcile(current, undefined, context);
     } catch (error) {
       if (!context.operation.active) return;
@@ -473,34 +554,135 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
           "refresh_saved_changes",
         );
       await context.operation.reject(error instanceof Error ? error : new Error("Refresh failed"));
+      if (context.operation.active) await context.operation.wait();
     }
   }
   const create = useMutation({
-    mutationKey: root,
-    mutationFn: (input: CreateGroupRecordInput) =>
-      write<GroupRecordResponse>(undefined, "groups", "POST", input),
+    mutationKey: groupRecordKeys.mutation(options, "", "create"),
+    scope: { id: creationQueue },
+    gcTime: 30 * 60_000,
+    networkMode: "always",
+    mutationFn: async (variables: CreateGroupVariables, context) => {
+      const { clientDraft: _draft, ...input } = variables;
+      return communityRequest<GroupRecordResponse>(
+        options,
+        "groups",
+        "POST",
+        input,
+        await optimisticMutationSignal(client, context.mutationKey, variables),
+      );
+    },
     onMutate: (input) => begin(input.type === "PUBLIC" ? "submit_group_review" : "create_group"),
-    onSuccess: reconcile,
+    onSuccess: async (saved, input, context) => {
+      if (!context?.operation.active) return;
+      context.operation.acknowledge();
+      context.receipt = saved;
+      const detail = groupRecordDetailQuery(context.requestOptions, saved.id);
+      client
+        .getQueryCache()
+        .build(client, { ...detail, queryKey: groupRecordKeys.detail(context.owner, saved.id) });
+      updateOptimisticBase(client, detail.queryKey, (current) =>
+        current && (current as GroupRecordResponse).version >= saved.version ? current : saved,
+      );
+      try {
+        let canonical = saved;
+        const choose = (row: GroupRecordResponse) => {
+          if (row.id === saved.id && row.version >= canonical.version) canonical = row;
+          return row;
+        };
+        const list = groupRecordsPageQuery(context.requestOptions);
+        const page = await context.operation.read(list.queryKey, () =>
+          client.fetchInfiniteQuery({ ...list, staleTime: 0, retry: false, networkMode: "always" }),
+        );
+        mapCommunityCache<GroupRecordResponse>(page, choose);
+        context.receipt = canonical;
+        const visible = client.getQueryCache().findAll({
+          queryKey: groupRecordKeys.root(context.owner),
+          predicate: (query) => {
+            const key = query.queryKey;
+            return (
+              key[3] === "list" &&
+              key[4] === "mine" &&
+              query.queryHash !== hashKey(list.queryKey) &&
+              query.isActive() &&
+              typeof query.options.queryFn === "function" &&
+              (typeof key[6] !== "string" || key[6].split(",").includes("admin")) &&
+              (typeof key[5] !== "string" ||
+                canonical.name.toLowerCase().includes(key[5].trim().toLowerCase()))
+            );
+          },
+        });
+        const reads = await Promise.allSettled(
+          visible.map(async (query) => {
+            const data = await context.operation.read(query.queryKey, () =>
+              client.fetchQuery({
+                ...query.options,
+                queryKey: query.queryKey,
+                staleTime: 0,
+                retry: false,
+                networkMode: "always",
+              }),
+            );
+            mapCommunityCache<GroupRecordResponse>(data, choose);
+          }),
+        );
+        const failed = reads.find((read) => read.status === "rejected");
+        if (failed) throw failed.reason;
+        context.receipt = canonical;
+        reconcile(canonical, input, context);
+      } catch (error) {
+        if (!context.operation.active) return;
+        if (communityAccessDenied(error)) {
+          context.receipt = undefined;
+          client.removeQueries({
+            queryKey: groupRecordKeys.detail(context.owner, saved.id),
+            exact: true,
+          });
+        }
+        context.requestOptions.feedback?.onError?.(
+          error instanceof Error ? error : new Error("Refresh failed"),
+          "refresh_saved_changes",
+        );
+        await context.operation.reject(
+          error instanceof Error ? error : new Error("Refresh failed"),
+        );
+        if (context.operation.active) await context.operation.wait();
+      }
+    },
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
   const update = useMutation({
-    mutationKey: root,
-    mutationFn: ({ id, input }: { id: string; input: EditGroupRecordInput }) =>
-      write<GroupRecordResponse>(id, `groups/${encodeURIComponent(id)}`, "PATCH", input),
+    mutationKey: groupRecordKeys.mutation(options, groupId, "update"),
+    gcTime: 30 * 60_000,
+    mutationFn: (variables: EditGroupVariables, context) =>
+      write<GroupRecordResponse>(
+        `groups/${encodeURIComponent(variables.id)}`,
+        "PATCH",
+        variables.input,
+        context,
+        variables,
+      ),
     onMutate: ({ id, input }) => begin("update_group", id, (row) => ({ ...row, name: input.name })),
     onSuccess: reconcile,
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
   const remove = useMutation({
-    mutationKey: root,
-    mutationFn: ({ id, input }: { id: string; input: DeleteGroupRecordInput }) =>
-      write<DeletedGroupRecordResponse>(id, `groups/${encodeURIComponent(id)}`, "DELETE", input),
+    mutationKey: groupRecordKeys.mutation(options, groupId, "remove"),
+    mutationFn: (variables: { id: string; input: DeleteGroupRecordInput }, context) =>
+      write<DeletedGroupRecordResponse>(
+        `groups/${encodeURIComponent(variables.id)}`,
+        "DELETE",
+        variables.input,
+        context,
+        variables,
+      ),
     onMutate: ({ id }) => begin("delete_group", id),
     onSuccess: async (deleted, _input, context) => {
       if (!context?.operation.active) return;
       complete(context);
+      cancelOptimisticResource(client, [...groupRecordKeys.root(context.owner), deleted.id]);
       const owner = context?.owner ?? options;
       const eventIds = new Set(deleted.eventIds);
       const owned = {
@@ -572,9 +754,16 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
       error ? settle(data, error, input, context) : undefined,
   });
   const review = useMutation({
-    mutationKey: root,
-    mutationFn: ({ id, input }: { id: string; input: DecideGroupReviewInput }) =>
-      write<GroupRecordResponse>(id, `groups/${encodeURIComponent(id)}/review`, "PATCH", input),
+    mutationKey: groupRecordKeys.mutation(options, groupId, "review"),
+    gcTime: 30 * 60_000,
+    mutationFn: (variables: { id: string; input: DecideGroupReviewInput }, context) =>
+      write<GroupRecordResponse>(
+        `groups/${encodeURIComponent(variables.id)}/review`,
+        "PATCH",
+        variables.input,
+        context,
+        variables,
+      ),
     onMutate: ({ id, input }) =>
       begin(input.decision === "approve" ? "approve_group" : "reject_group", id),
     onSuccess: (row, _input, context) => {
@@ -591,91 +780,135 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
     onSettled: settle,
   });
   const requestJoin = useMutation({
-    mutationKey: root,
-    mutationFn: (id: string) =>
-      write<GroupMembership>(id, `groups/${encodeURIComponent(id)}/membership`, "POST", {}),
-    onMutate: (id) => begin("request_group_join", id),
+    mutationKey: groupRecordKeys.mutation(options, groupId, "request"),
+    mutationFn: (id: string, context) =>
+      write<GroupMembership>(
+        `groups/${encodeURIComponent(id)}/membership`,
+        "POST",
+        {},
+        context,
+        id,
+      ),
+    onMutate: (id) =>
+      begin("request_group_join", id, undefined, undefined, undefined, options.userId ?? ""),
     onSuccess: membershipSuccess,
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
   const invite = useMutation({
-    mutationKey: root,
-    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
-      write<GroupMembership>(id, `groups/${encodeURIComponent(id)}/members`, "POST", { userId }),
+    mutationKey: groupRecordKeys.mutation(options, groupId, "invite"),
+    mutationFn: (
+      variables: {
+        id: string;
+        userId: string;
+        person?: Pick<ContactUser, "name" | "username" | "avatarUrl">;
+      },
+      context,
+    ) =>
+      write<GroupMembership>(
+        `groups/${encodeURIComponent(variables.id)}/members`,
+        "POST",
+        { userId: variables.userId },
+        context,
+        variables,
+      ),
     onMutate: ({ id, userId }) => begin("invite_group_member", id, undefined, undefined, userId),
     onSuccess: membershipSuccess,
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
   const membership = useMutation({
-    mutationKey: root,
-    mutationFn: ({
-      id,
-      userId,
-      input,
-    }: {
-      id: string;
-      userId: string;
-      input: DecideGroupMembershipInput;
-    }) =>
+    mutationKey: groupRecordKeys.mutation(options, groupId, "membership"),
+    mutationFn: (
+      variables: { id: string; userId: string; input: DecideGroupMembershipInput },
+      context,
+    ) =>
       write<GroupMembership>(
-        id,
-        `groups/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`,
+        `groups/${encodeURIComponent(variables.id)}/members/${encodeURIComponent(variables.userId)}`,
         "PATCH",
-        input,
+        variables.input,
+        context,
+        variables,
       ),
     onMutate: ({ id, userId, input }) =>
-      begin(groupMembershipFeedback(input.action), id, undefined, (person) =>
-        person.userId === userId &&
-        person.membership &&
-        (input.action === "remove" ||
-          input.action === "cancel" ||
-          input.action === "reject" ||
-          input.action === "decline")
-          ? {
-              ...person,
-              membership: {
-                ...person.membership,
-                status:
-                  input.action === "decline" || input.action === "reject" ? "DECLINED" : "LEFT",
-              },
-            }
-          : person,
+      begin(
+        groupMembershipFeedback(input.action),
+        id,
+        undefined,
+        (person) =>
+          person.userId === userId &&
+          person.membership &&
+          (input.action === "remove" ||
+            input.action === "cancel" ||
+            input.action === "reject" ||
+            input.action === "decline")
+            ? {
+                ...person,
+                membership: {
+                  ...person.membership,
+                  status:
+                    input.action === "decline" || input.action === "reject" ? "DECLINED" : "LEFT",
+                },
+              }
+            : person,
+        undefined,
+        userId,
       ),
     onSuccess: membershipSuccess,
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
   const ban = useMutation({
-    mutationKey: root,
-    mutationFn: ({ id, input }: { id: string; input: BanGroupUserInput }) =>
-      write<GroupBan>(id, `groups/${encodeURIComponent(id)}/bans`, "POST", input),
+    mutationKey: groupRecordKeys.mutation(options, groupId, "ban"),
+    mutationFn: (variables: { id: string; input: BanGroupUserInput }, context) =>
+      write<GroupBan>(
+        `groups/${encodeURIComponent(variables.id)}/bans`,
+        "POST",
+        variables.input,
+        context,
+        variables,
+      ),
     onMutate: ({ id, input }) =>
-      begin("ban_group_member", id, undefined, (person) =>
-        person.userId === input.userId && person.membership
-          ? { ...person, membership: { ...person.membership, status: "LEFT" } }
-          : person,
+      begin(
+        "ban_group_member",
+        id,
+        undefined,
+        (person) =>
+          person.userId === input.userId && person.membership
+            ? { ...person, membership: { ...person.membership, status: "LEFT" } }
+            : person,
+        undefined,
+        input.userId,
       ),
     onSuccess: membershipSuccess,
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
   const revoke = useMutation({
-    mutationKey: root,
-    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+    mutationKey: groupRecordKeys.mutation(options, groupId, "revoke"),
+    mutationFn: (variables: { id: string; userId: string }, context) =>
       write<GroupBan>(
-        id,
-        `groups/${encodeURIComponent(id)}/bans/${encodeURIComponent(userId)}`,
+        `groups/${encodeURIComponent(variables.id)}/bans/${encodeURIComponent(variables.userId)}`,
         "DELETE",
+        undefined,
+        context,
+        variables,
       ),
-    onMutate: ({ id }) => begin("revoke_group_ban", id),
+    onMutate: ({ id, userId }) =>
+      begin("revoke_group_ban", id, undefined, undefined, undefined, userId),
     onSuccess: membershipSuccess,
     onError: (error, _input, context) => failure(error, context),
     onSettled: settle,
   });
+  const creation = {
+    ...create,
+    mutate: (...args: Parameters<typeof create.mutate>) =>
+      create.mutate(withClientRequestId(args[0]), args[1]),
+    mutateAsync: (...args: Parameters<typeof create.mutateAsync>) =>
+      create.mutateAsync(withClientRequestId(args[0]), args[1]),
+  };
   return {
-    create,
+    create: creation,
     update,
     remove,
     review,
@@ -686,5 +919,8 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
     revoke,
     busy,
     isBusy,
+    blocking: isBlocking(groupId || "new"),
+    isBlocking,
+    isPersonBusy,
   };
 }

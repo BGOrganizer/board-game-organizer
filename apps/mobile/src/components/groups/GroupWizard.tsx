@@ -3,9 +3,14 @@ import {
   type GroupRecordResponse,
   type MatchLocation,
 } from "@board-game-organizer/schemas";
+import type { CreateGroupVariables, EditGroupVariables } from "@board-game-organizer/shared";
 import {
   communityAccessDenied,
+  creationState,
+  groupRecordKeys,
+  useClientMutationDraft,
   useFavoriteLocations,
+  useGroupCreationDraft,
   useGroupRecord,
   useGroupRecordActions,
 } from "@board-game-organizer/shared";
@@ -18,7 +23,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Switch } from "heroui-native/switch";
 import { Typography } from "heroui-native/text";
 import { Save, Send, Trash2, UsersRound, X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
@@ -36,7 +41,7 @@ import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { GroupLogoPicker } from "./GroupLogoPicker";
 
 type Friend = { id: string; name: string; email: string | null; avatarUrl: string | null };
-export function GroupWizard({ groupId }: { groupId?: string }) {
+export function GroupWizard({ groupId, draftId }: { groupId?: string; draftId?: string }) {
   const t = useT(),
     options = useCommunityApi();
   const detail = useGroupRecord(
@@ -60,32 +65,78 @@ export function GroupWizard({ groupId }: { groupId?: string }) {
         )}
       </View>
     );
+  if (draftId) return <RecoveredEditor draftId={draftId} />;
   return (
     <Editor
-      key={`${options.userId}/${groupId ?? "new"}`}
+      key={`${options.apiUrl}/${options.userId}/${groupId ?? "new"}`}
       group={groupId ? detail.data : undefined}
     />
   );
 }
-function Editor({ group }: { group?: GroupRecordResponse }) {
+function RecoveredEditor({ draftId }: { draftId: string }) {
+  const options = useCommunityApi(),
+    t = useT(),
+    recovery = useGroupCreationDraft(options, draftId);
+  if (!recovery || creationState(recovery).phase !== "failed")
+    return (
+      <Typography accessibilityRole="alert" className="text-danger">
+        {t("Could not recover draft")}
+      </Typography>
+    );
+  return (
+    <Editor key={`${options.apiUrl}/${options.userId}/${draftId}`} recovery={recovery.variables} />
+  );
+}
+function Editor({
+  group,
+  recovery,
+}: {
+  group?: GroupRecordResponse;
+  recovery?: CreateGroupVariables;
+}) {
   const t = useT(),
     options = useCommunityApi(),
     router = useRouter(),
     insets = useSafeAreaInsets(),
     layout = useFloatingActionLayout(),
-    actions = useGroupRecordActions(options, group?.id);
+    actions = useGroupRecordActions(options, group?.id),
+    edit = useClientMutationDraft<EditGroupVariables>(
+      groupRecordKeys.mutation(options, group?.id ?? "", "update"),
+      group?.version,
+    ),
+    editDraft = group ? edit?.variables : undefined,
+    checking = edit?.phase === "saving" || edit?.phase === "verifying";
   const [accentForeground, danger] = useThemeColor(["accent-foreground", "danger"]);
-  const [name, setName] = useState(group?.name ?? ""),
-    [type, setType] = useState<"PRIVATE" | "PUBLIC">(group?.type ?? "PRIVATE"),
+  const [name, setName] = useState(
+      editDraft?.clientDraft?.name ??
+        editDraft?.input.name ??
+        group?.name ??
+        recovery?.clientDraft?.name ??
+        recovery?.name ??
+        "",
+    ),
+    [type, setType] = useState<"PRIVATE" | "PUBLIC">(group?.type ?? recovery?.type ?? "PRIVATE"),
     [baseVersion] = useState(group?.version ?? 0);
-  const [location, setLocation] = useState<MatchLocation | undefined>(group?.location),
+  const [location, setLocation] = useState<MatchLocation | undefined>(
+      editDraft ? editDraft.input.location : (group?.location ?? recovery?.location),
+    ),
     [logo, setLogo] = useState<{ id: string; preview: string } | null>(
-      group?.logoAssetId ? { id: group.logoAssetId, preview: group.logo ?? "" } : null,
+      editDraft
+        ? editDraft.input.logoAssetId
+          ? { id: editDraft.input.logoAssetId, preview: editDraft.clientDraft?.logoPreview ?? "" }
+          : null
+        : group?.logoAssetId
+          ? { id: group.logoAssetId, preview: group.logo ?? "" }
+          : recovery?.logoAssetId
+            ? { id: recovery.logoAssetId, preview: recovery.clientDraft?.logoPreview ?? "" }
+            : null,
     );
-  const [friends, setFriends] = useState<Friend[]>([]),
+  const [friends, setFriends] = useState<Friend[]>(recovery?.clientDraft?.friends ?? []),
     [picking, setPicking] = useState(false),
     [uploading, setUploading] = useState(false),
-    [error, setError] = useState("");
+    [submitting, setSubmitting] = useState(false);
+  const submitted = useRef(false);
+  const conflict = Boolean(group && group.version !== baseVersion);
   const [pickerSlot] = useState(() => `group-draft-${Math.random().toString(36).slice(2)}`);
   const pendingUser = useAppStore((state) => state.pendingUser),
     clearPending = useAppStore((state) => state.clearPending);
@@ -106,21 +157,37 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
     ...(location ? { location } : {}),
     invitedUserIds: type === "PRIVATE" && !group ? friends.map((user) => user.id) : [],
   });
-  const save = async () => {
-    if (!valid.success || actions.busy || uploading) return;
-    const { type: _type, invitedUserIds: _invited, ...revision } = valid.data;
-    setError("");
-    try {
-      const row = group
-        ? await actions.update.mutateAsync({
-            id: group.id,
-            input: { ...revision, version: baseVersion },
-          })
-        : await actions.create.mutateAsync(valid.data);
-      router.dismissTo(group ? `/group/${row.id}` : "/(tabs)/groups");
-    } catch {
-      setError(t("Could not save group"));
-    }
+  const save = () => {
+    if (
+      !valid.success ||
+      submitted.current ||
+      conflict ||
+      (group && (actions.busy || checking)) ||
+      uploading
+    )
+      return;
+    const {
+      type: _type,
+      invitedUserIds: _invited,
+      clientRequestId: _request,
+      ...revision
+    } = valid.data;
+    submitted.current = true;
+    setSubmitting(true);
+    const clientDraft = { name, logoPreview: logo?.preview, friends };
+    if (group)
+      actions.update.mutate({
+        id: group.id,
+        input: { ...revision, version: baseVersion },
+        clientDraft,
+      });
+    else
+      actions.create.mutate({
+        ...valid.data,
+        clientRequestId: recovery?.clientRequestId,
+        clientDraft,
+      });
+    router.dismissTo(group ? `/group/${group.id}` : "/(tabs)/groups");
   };
   if (picking)
     return (
@@ -175,7 +242,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
               >
                 <Typography className="text-foreground">{t("Public group")}</Typography>
                 <Switch
-                  isDisabled={actions.busy}
+                  isDisabled={submitting}
                   testID="group-public-switch"
                   accessibilityLabel={t("Public group")}
                   isSelected={type === "PUBLIC"}
@@ -201,8 +268,18 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
               helpTitle={t("Field help")}
               help={t("Choose a name, from 5 to 120 characters.")}
             />
+            {conflict ? (
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t("This group changed. Go back and reopen the editor before saving.")}
+              </Typography>
+            ) : null}
+            {checking ? (
+              <Typography accessibilityLiveRegion="polite" className="text-foreground">
+                {t("Checking saved changes")}
+              </Typography>
+            ) : null}
             <Input
-              editable={!actions.busy}
+              editable={!submitting}
               accessibilityLabel={t("Group name")}
               value={name}
               onChangeText={setName}
@@ -211,7 +288,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
             <GroupLogoPicker
               value={logo}
               required={type === "PUBLIC"}
-              disabled={actions.busy}
+              disabled={submitting}
               onChange={setLogo}
               onBusyChange={setUploading}
             />
@@ -220,7 +297,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
                 name={location?.name ?? t("Choose a verified address")}
                 accessibilityLabel={t("Choose a verified address")}
                 address={location?.address}
-                onPress={actions.busy || uploading ? undefined : () => setPicking(true)}
+                onPress={submitting || uploading ? undefined : () => setPicking(true)}
                 leading={
                   location ? (
                     <LocationFavoriteButton location={location} favorites={favorites} />
@@ -233,7 +310,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
                       size="sm"
                       variant="danger-soft"
                       accessibilityLabel={t("Remove location")}
-                      isDisabled={actions.busy || uploading}
+                      isDisabled={submitting}
                       onPress={() => setLocation(undefined)}
                     >
                       <X size={18} color={danger} />
@@ -266,7 +343,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
                   size="sm"
                   variant="danger-soft"
                   accessibilityLabel={`${t("Remove invite")}: ${user.name}`}
-                  isDisabled={actions.busy || uploading}
+                  isDisabled={submitting}
                   onPress={() =>
                     setFriends((current) => current.filter((item) => item.id !== user.id))
                   }
@@ -280,16 +357,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
         ListFooterComponent={
           <View style={{ gap: 12 }}>
             {!group && type === "PRIVATE" ? (
-              <AddUserRow
-                label={t("Add friend")}
-                onPress={chooseFriend}
-                isDisabled={actions.busy || uploading}
-              />
-            ) : null}
-            {error ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {error}
-              </Typography>
+              <AddUserRow label={t("Add friend")} onPress={chooseFriend} isDisabled={submitting} />
             ) : null}
           </View>
         }
@@ -301,7 +369,13 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
         testID="save-group-fab"
         variant="primary"
         onPress={() => void save()}
-        isDisabled={!valid.success || actions.busy || uploading}
+        isDisabled={
+          !valid.success ||
+          submitting ||
+          conflict ||
+          Boolean(group && (actions.busy || checking)) ||
+          uploading
+        }
       >
         {type === "PUBLIC" ? (
           <Send size={26} color={accentForeground} />

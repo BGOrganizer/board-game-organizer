@@ -56,7 +56,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              isDisabled={!group.canInvite || busy || denied}
+              isDisabled={!group.canInvite || workflow.blocking || denied}
               onPress={() => router.push(`/groups/${group.id}/invite`)}
             >
               <UserRoundPlus className="size-4" aria-hidden />
@@ -73,18 +73,20 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
       <GroupedList>
         {(denied ? [] : list.items).map((person) => {
           const allowed = groupPersonActions(group, person);
-          const badge = person.isAdmin
-            ? { Icon: Crown, label: t`Group admin`, color: "text-warning" }
-            : person.ban
-              ? { Icon: Ban, label: t`Excluded from group`, color: "text-danger" }
-              : person.membership?.status === "PENDING"
-                ? {
-                    Icon: Clock3,
-                    label:
-                      person.membership.kind === "REQUEST" ? t`Membership requested` : t`Invited`,
-                    color: "text-warning",
-                  }
-                : null;
+          const badge = person.optimisticInvited
+            ? { Icon: Clock3, label: t`Sending invitation`, color: "text-warning" }
+            : person.isAdmin
+              ? { Icon: Crown, label: t`Group admin`, color: "text-warning" }
+              : person.ban
+                ? { Icon: Ban, label: t`Excluded from group`, color: "text-danger" }
+                : person.membership?.status === "PENDING"
+                  ? {
+                      Icon: Clock3,
+                      label:
+                        person.membership.kind === "REQUEST" ? t`Membership requested` : t`Invited`,
+                      color: "text-warning",
+                    }
+                  : null;
           return (
             <GroupedRow key={person.userId}>
               <span className="relative shrink-0">
@@ -107,6 +109,9 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                 {person.username && person.username !== name(person) ? (
                   <span className="block truncate text-xs text-default-500">{person.username}</span>
                 ) : null}
+                {person.optimisticInvited ? (
+                  <span className="block text-xs text-default-500">{t`Sending invitation`}</span>
+                ) : null}
                 {person.ban ? (
                   <span className="block text-xs text-danger">
                     {person.ban.until
@@ -122,7 +127,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     size="sm"
                     variant="primary"
                     aria-label={`${t`Respond to membership request`}: ${name(person)}`}
-                    isDisabled={busy}
+                    isDisabled={workflow.isBusy(person.userId)}
                     onPress={() => workflow.open(person, "approve")}
                   >
                     <ClipboardCheck className="size-4" aria-hidden />
@@ -134,7 +139,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     size="sm"
                     variant="danger-soft"
                     aria-label={`${t`Remove member`}: ${name(person)}`}
-                    isDisabled={busy}
+                    isDisabled={workflow.isBusy(person.userId)}
                     onPress={() => workflow.open(person, "remove")}
                   >
                     <UserRoundMinus className="size-4" aria-hidden />
@@ -146,7 +151,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     size="sm"
                     variant="danger-soft"
                     aria-label={`${t`Ban from group`}: ${name(person)}`}
-                    isDisabled={busy}
+                    isDisabled={workflow.isBusy(person.userId)}
                     onPress={() => workflow.open(person, "ban")}
                   >
                     <Ban className="size-4" aria-hidden />
@@ -158,7 +163,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                     size="sm"
                     variant="primary"
                     aria-label={`${t`Revoke group exclusion`}: ${name(person)}`}
-                    isDisabled={busy}
+                    isDisabled={workflow.isBusy(person.userId)}
                     onPress={() => workflow.open(person, "revoke")}
                   >
                     <RotateCcw className="size-4" aria-hidden />

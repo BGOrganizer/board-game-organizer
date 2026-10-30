@@ -86,7 +86,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
             <View style={{ gap: 12 }}>
               <AddUserRow
                 label={t("Invite friends")}
-                isDisabled={!group.canInvite || busy || denied}
+                isDisabled={!group.canInvite || workflow.blocking || denied}
                 onPress={() =>
                   router.push({ pathname: "/group/invite", params: { groupId: group.id } })
                 }
@@ -105,32 +105,36 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         }
         renderRow={(person) => {
           const allowed = groupPersonActions(group, person);
-          const badge = person.isAdmin
-            ? { icon: Crown, label: t("Group admin"), color: "warning" as const }
-            : person.ban
-              ? { icon: Ban, label: t("Excluded from group"), color: "danger" as const }
-              : person.membership?.status === "PENDING"
-                ? {
-                    icon: Clock3,
-                    label:
-                      person.membership.kind === "REQUEST"
-                        ? t("Membership requested")
-                        : t("Invited"),
-                    color: "warning" as const,
-                  }
-                : undefined;
+          const badge = person.optimisticInvited
+            ? { icon: Clock3, label: t("Sending invitation"), color: "warning" as const }
+            : person.isAdmin
+              ? { icon: Crown, label: t("Group admin"), color: "warning" as const }
+              : person.ban
+                ? { icon: Ban, label: t("Excluded from group"), color: "danger" as const }
+                : person.membership?.status === "PENDING"
+                  ? {
+                      icon: Clock3,
+                      label:
+                        person.membership.kind === "REQUEST"
+                          ? t("Membership requested")
+                          : t("Invited"),
+                      color: "warning" as const,
+                    }
+                  : undefined;
           return (
             <UserListRow
               name={name(person)}
               avatarUrl={person.avatarUrl}
               secondary={
-                person.ban
-                  ? person.ban.until
-                    ? `${t("Exclusion ends")}: ${new Date(person.ban.until).toLocaleString(i18n.locale)}`
-                    : t("Permanent exclusion")
-                  : person.username !== name(person)
-                    ? person.username
-                    : undefined
+                person.optimisticInvited
+                  ? t("Sending invitation")
+                  : person.ban
+                    ? person.ban.until
+                      ? `${t("Exclusion ends")}: ${new Date(person.ban.until).toLocaleString(i18n.locale)}`
+                      : t("Permanent exclusion")
+                    : person.username !== name(person)
+                      ? person.username
+                      : undefined
               }
               badge={badge}
               actions={
@@ -141,7 +145,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       size="sm"
                       variant="primary"
                       style={{ minWidth: 44, minHeight: 44 }}
-                      isDisabled={busy}
+                      isDisabled={workflow.isBusy(person.userId)}
                       accessibilityLabel={`${t("Respond to membership request")}: ${name(person)}`}
                       onPress={() => workflow.open(person, "approve")}
                     >
@@ -154,7 +158,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       size="sm"
                       variant="danger-soft"
                       style={{ minWidth: 44, minHeight: 44 }}
-                      isDisabled={busy}
+                      isDisabled={workflow.isBusy(person.userId)}
                       accessibilityLabel={`${t("Remove member")}: ${name(person)}`}
                       onPress={() => workflow.open(person, "remove")}
                     >
@@ -167,7 +171,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       size="sm"
                       variant="danger-soft"
                       style={{ minWidth: 44, minHeight: 44 }}
-                      isDisabled={busy}
+                      isDisabled={workflow.isBusy(person.userId)}
                       accessibilityLabel={`${t("Ban from group")}: ${name(person)}`}
                       onPress={() => workflow.open(person, "ban")}
                     >
@@ -180,7 +184,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       size="sm"
                       variant="primary"
                       style={{ minWidth: 44, minHeight: 44 }}
-                      isDisabled={busy}
+                      isDisabled={workflow.isBusy(person.userId)}
                       accessibilityLabel={`${t("Revoke group exclusion")}: ${name(person)}`}
                       onPress={() => workflow.open(person, "revoke")}
                     >
@@ -193,7 +197,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                       size="sm"
                       variant="ghost"
                       style={{ minWidth: 44, minHeight: 44 }}
-                      isDisabled={busy}
+                      isDisabled={workflow.isBusy(person.userId)}
                       accessibilityLabel={`${t("Actions")}: ${name(person)}`}
                       onPress={() => setMenu(person.userId)}
                     >

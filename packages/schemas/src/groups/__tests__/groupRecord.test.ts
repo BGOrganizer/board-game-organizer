@@ -73,6 +73,29 @@ describe("unified group records", () => {
   });
 });
 describe("unified group commands", () => {
+  it("accepts optional creation correlation for either immutable type but not resource IDs or edit replacement", () => {
+    const clientRequestId = "99999999-9999-4999-8999-999999999999";
+    const body = { type: "PRIVATE", name: "Club group", invitedUserIds: [], clientRequestId };
+    expect(createGroupRecordSchema.parse(body).clientRequestId).toBe(clientRequestId);
+    expect(
+      createGroupRecordSchema.parse({ ...body, ...revision, type: "PUBLIC" }).clientRequestId,
+    ).toBe(clientRequestId);
+    expect(groupRecordSchema.parse({ ...privateGroup, clientRequestId }).clientRequestId).toBe(
+      clientRequestId,
+    );
+    expect(createGroupRecordSchema.safeParse({ ...body, id: clientRequestId }).success).toBe(false);
+    expect(
+      editGroupRecordSchema.safeParse({ name: body.name, version: 1, clientRequestId }).success,
+    ).toBe(false);
+    for (const invalid of ["", "not-a-uuid", null, 123]) {
+      expect(createGroupRecordSchema.safeParse({ ...body, clientRequestId: invalid }).success).toBe(
+        false,
+      );
+      expect(
+        groupRecordSchema.safeParse({ ...privateGroup, clientRequestId: invalid }).success,
+      ).toBe(false);
+    }
+  });
   it("validates private/public creation and unique friend invitations", () => {
     const base = { name: "Club group", invitedUserIds: [] };
     expect(createGroupRecordSchema.safeParse({ ...base, type: "PRIVATE" }).success).toBe(true);

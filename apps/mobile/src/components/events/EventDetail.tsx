@@ -147,7 +147,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
         )}
       </View>
     );
-  const transition = async () => {
+  const transition = () => {
     if (!confirm) return;
     if (
       a.busy ||
@@ -160,12 +160,8 @@ export function EventDetail({ eventId }: { eventId: string }) {
       return;
     }
     setError(false);
-    try {
-      await a.transition.mutateAsync({ action: confirm, version: event.version });
-      setConfirm(null);
-    } catch {
-      setError(true);
-    }
+    a.transition.mutate({ action: confirm, version: event.version });
+    setConfirm(null);
   };
   const header = (
     <View style={{ gap: 12 }}>
@@ -214,7 +210,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                         ? []
                         : ["NO"]
                     }
-                    busy={a.busy || q.isPlaceholderData}
+                    busy={a.blocking || q.isPlaceholderData}
                     onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
                   />
                 ) : null}
@@ -291,7 +287,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
                         ? []
                         : ["NO"]
                     }
-                    busy={a.busy || q.isPlaceholderData}
+                    busy={a.blocking || q.isPlaceholderData}
                     onChange={(vote) => a.vote.mutate({ kind: "location", optionId: row.id, vote })}
                   />
                 ) : undefined
