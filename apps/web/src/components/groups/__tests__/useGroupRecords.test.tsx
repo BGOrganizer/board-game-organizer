@@ -4,8 +4,10 @@ import type {
   GroupRecordResponse,
 } from "@board-game-organizer/schemas";
 import {
+  eventRecordKeys,
   groupMembershipFeedback,
   groupRecordKeys,
+  useEventRecordActions,
   useGroupPeople,
   useGroupRecord,
   useGroupRecordActions,
@@ -15,6 +17,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { optionId, plannedEvent, seat } from "@/test-fixtures/eventRecords";
+import { updateOptimisticBase } from "../../../../../../packages/shared/src/common/optimisticOperation";
 
 const id = "11111111-1111-4111-8111-111111111111",
   otherId = "22222222-2222-4222-8222-222222222222";
@@ -52,7 +56,7 @@ function setup() {
     apiUrl: "https://api.test",
     userId: "owner",
     getToken: vi.fn(async () => "fresh"),
-    feedback: { onOptimisticUpdate: vi.fn(), onError: vi.fn() },
+    feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
   };
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -74,6 +78,86 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("unified group Query ownership", () => {
+  it.each([true, false])(
+    "evicts verified lost access and ignores late Event ACKs after a saved/rejected membership write (%s)",
+    async (saved) => {
+      const { client, options, wrapper } = setup();
+      const membership: GroupMembership = {
+        id: otherId,
+        groupId: id,
+        userId: options.userId,
+        kind: "INVITATION",
+        status: "ACCEPTED",
+        version: 1,
+        createdAt: at,
+        updatedAt: at,
+      };
+      client.setQueryData(groupRecordKeys.detail(options, id), {
+        ...group,
+        adminUserId: "creator",
+        role: "accepted",
+        myMembership: membership,
+      });
+      const event = {
+        ...plannedEvent,
+        groupId: id,
+        groupType: "PRIVATE" as const,
+        adminUserId: "creator",
+        role: "participant" as const,
+        canVote: true,
+        myRegistrations: [seat("owner")],
+      };
+      const eventKey = eventRecordKeys.detail(options, event.id);
+      client.setQueryData(eventKey, event);
+      const late = deferred();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if (url.endsWith("/votes")) return late.promise;
+          if (init?.method === "PATCH" && saved)
+            return Response.json({ ...membership, status: "LEFT", version: 2 });
+          return Response.json({ error: "GROUP_MEMBER_REQUIRED" }, { status: 403 });
+        }),
+      );
+      const hook = renderHook(
+        () => ({
+          detail: useGroupRecord(options, id),
+          event: useEventRecordActions(options, event.id),
+          group: useGroupRecordActions(options, id),
+        }),
+        { wrapper },
+      );
+      let writing!: Promise<unknown>;
+      act(() => {
+        writing = hook.result.current.event.vote
+          .mutateAsync({ kind: "date", optionId, vote: "YES" })
+          .catch(() => undefined);
+      });
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/votes"), expect.anything()),
+      );
+      await act(() =>
+        hook.result.current.group.membership
+          .mutateAsync({
+            id,
+            userId: options.userId,
+            input: { action: "cancel", version: 1 },
+          })
+          .catch((error) => {
+            if (saved) throw error;
+            expect(error.status).toBe(403);
+          }),
+      );
+      await waitFor(() => expect(client.getQueryData(eventKey)).toBeUndefined());
+      expect(client.getQueryData(groupRecordKeys.detail(options, id))).toBeUndefined();
+      await act(async () => {
+        late.resolve(Response.json({ ...event, version: 2 }));
+        await writing;
+      });
+      expect(client.getQueryData(eventKey)).toBeUndefined();
+      expect(hook.result.current.event.busy).toBe(false);
+    },
+  );
   it("pages searches at source, fetches fresh credentials each time, and never keys by rotating JWT", async () => {
     const { options, wrapper } = setup();
     options.getToken.mockResolvedValueOnce("first-token").mockResolvedValueOnce("second-token");
@@ -153,10 +237,9 @@ describe("unified group Query ownership", () => {
     expect((client.getQueryData(key) as ReturnType<typeof page>).pages[0].items[0]).toMatchObject({
       name: "Optimistic club",
     });
-    client.setQueryData(
-      key,
+    updateOptimisticBase(client, key, () =>
       page([
-        { ...group, name: "Optimistic club", memberCount: 9 },
+        { ...group, memberCount: 9 },
         { ...group, id: otherId, name: "Second club changed" },
       ]),
     );
@@ -212,9 +295,7 @@ describe("unified group Query ownership", () => {
     expect((client.getQueryData(key) as ReturnType<typeof page>).pages[0].items[0]).toMatchObject({
       membership: { status: "LEFT" },
     });
-    const optimistic = (client.getQueryData(key) as ReturnType<typeof page>).pages[0]
-      .items[0] as GroupPersonResponse;
-    client.setQueryData(key, page([{ ...optimistic, name: "Updated profile" }]));
+    updateOptimisticBase(client, key, () => page([{ ...person, name: "Updated profile" }]));
     await act(async () => {
       response.resolve(new Response('{"error":"MEMBERSHIP_CHANGED"}', { status: 409 }));
       await mutation;
@@ -226,17 +307,40 @@ describe("unified group Query ownership", () => {
   });
   it("never invents membership permissions on acceptance and isolates review responses", async () => {
     const { options, client, wrapper } = setup();
+    const membership: GroupMembership = {
+      id: otherId,
+      groupId: id,
+      userId: options.userId,
+      kind: "INVITATION",
+      status: "PENDING",
+      version: 1,
+      createdAt: at,
+      updatedAt: at,
+    };
     const pending = {
       ...group,
+      adminUserId: "creator",
+      myMembership: membership,
       role: "invited",
+      canEdit: false,
+      canInvite: false,
       canViewEvents: false,
       canViewRankings: false,
     } as GroupRecordResponse;
+    const accepted = {
+      ...pending,
+      version: 2,
+      role: "accepted",
+      canViewEvents: true,
+      canViewRankings: true,
+    } as GroupRecordResponse;
     client.setQueryData(groupRecordKeys.detail(options, id), pending);
     const response = deferred();
-    const fetch = vi.fn(() => response.promise);
+    const fetch = vi.fn((_url: string, init?: RequestInit) =>
+      init?.method === "GET" ? Promise.resolve(Response.json(accepted)) : response.promise,
+    );
     vi.stubGlobal("fetch", fetch);
-    const hook = renderHook(() => useGroupRecordActions(options), { wrapper });
+    const hook = renderHook(() => useGroupRecordActions(options, id), { wrapper });
     let mutation!: Promise<unknown>;
     act(() => {
       mutation = hook.result.current.membership.mutateAsync({
@@ -251,7 +355,7 @@ describe("unified group Query ownership", () => {
       canViewRankings: false,
     });
     await act(async () => {
-      response.resolve(new Response('{"status":"ACCEPTED"}'));
+      response.resolve(Response.json({ ...membership, status: "ACCEPTED", version: 2 }));
       await mutation;
     });
     fetch.mockImplementation(
@@ -264,7 +368,7 @@ describe("unified group Query ownership", () => {
         input: { version: 1, decision: "reject", reason: "Needs another verified location" },
       }),
     );
-    expect(client.getQueryData(groupRecordKeys.detail(options, id))).toEqual(pending);
+    expect(client.getQueryData(groupRecordKeys.detail(options, id))).toEqual(accepted);
     expect(client.getQueryData(groupRecordKeys.detail(options, id, true))).toMatchObject({
       name: "Moderator-only rejected proposal",
     });
@@ -277,10 +381,22 @@ describe("unified group Query ownership", () => {
     options.feedback.onOptimisticUpdate.mockImplementation(() =>
       expect(client.getQueryData(key)).toMatchObject({ pages: [{ items: [{ id: otherId }] }] }),
     );
+    let serverGroup = group;
+    let serverPages = page([group, { ...group, id: otherId }]);
+    await client.fetchQuery({
+      queryKey: key,
+      queryFn: async () => serverPages,
+      staleTime: 0,
+    });
+    await client.fetchQuery({
+      queryKey: groupRecordKeys.detail(options, id),
+      queryFn: async () => serverGroup,
+      staleTime: 0,
+    });
     const response = deferred();
     const fetch = vi.fn(() => response.promise);
     vi.stubGlobal("fetch", fetch);
-    const hook = renderHook(() => useGroupRecordActions(options), { wrapper });
+    const hook = renderHook(() => useGroupRecordActions(options, id), { wrapper });
     let mutation!: Promise<unknown>;
     act(() => {
       mutation = hook.result.current.remove.mutateAsync({
@@ -292,18 +408,16 @@ describe("unified group Query ownership", () => {
     expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("delete_group");
     const later = { ...group, id: "later" };
     const other = { ...group, id: otherId, name: "Concurrent edit" };
-    client.setQueryData(key, {
+    serverGroup = { ...group, version: 2, name: "Newer server version" };
+    serverPages = {
       pages: [
-        { items: [other], nextCursor: "next" },
+        { items: [serverGroup, other], nextCursor: "next" },
         { items: [later], nextCursor: null },
       ],
       pageParams: ["", "next"],
-    });
-    client.setQueryData(groupRecordKeys.detail(options, id), {
-      ...group,
-      version: 2,
-      name: "Newer server version",
-    });
+    };
+    updateOptimisticBase(client, key, () => serverPages);
+    updateOptimisticBase(client, groupRecordKeys.detail(options, id), () => serverGroup);
     await act(async () => {
       response.resolve(new Response('{"error":"FAILED"}', { status: 500 }));
       await expect(mutation).rejects.toThrow("FAILED");
@@ -314,7 +428,10 @@ describe("unified group Query ownership", () => {
         { items: [later] },
       ],
     });
-    expect(options.feedback.onError).toHaveBeenCalledWith(expect.any(Error), "delete_group");
+    expect(options.feedback.onError).toHaveBeenCalledWith(
+      expect.any(Error),
+      "verify_saved_changes",
+    );
   });
   it("purges deleted Group/Event/Table history and inbox entries only inside the requesting API/user scope", async () => {
     const { options, client, wrapper } = setup();

@@ -3,7 +3,7 @@ import {
   locationFavoriteKey,
   type MatchLocation,
 } from "@board-game-organizer/schemas";
-import { useFavoriteLocations } from "@board-game-organizer/shared";
+import { clearSessionQueryCache, useFavoriteLocations } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -29,6 +29,170 @@ function setup() {
   return { client, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+
+it("announces a cold-cache save only on ACK and locks only the selected location", async () => {
+  const { wrapper } = setup();
+  const feedback = { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() };
+  let saved = false;
+  let release!: (response: Response) => void;
+  const pendingReads: Array<() => void> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        saved = true;
+        return new Promise<Response>((resolve) => {
+          release = resolve;
+        });
+      }
+      const read = () =>
+        Response.json(
+          url.includes("keys=")
+            ? { keys: saved ? [favorite.key] : [] }
+            : { items: saved ? [favorite] : [], nextCursor: null },
+        );
+      return saved
+        ? Promise.resolve(read())
+        : new Promise<Response>((resolve) => pendingReads.push(() => resolve(read())));
+    }),
+  );
+  const hook = renderHook(() => useFavoriteLocations({ ...options, feedback }, [location]), {
+    wrapper,
+  });
+  let write!: Promise<unknown>;
+  act(() => {
+    write = hook.result.current.toggle.mutateAsync({ location, favorite: false });
+  });
+  await waitFor(() => expect(release).toBeDefined());
+  expect(hook.result.current.isBusy(location)).toBe(true);
+  expect(hook.result.current.isBusy({ ...location, address: "Other address" })).toBe(false);
+  expect(feedback.onOptimisticUpdate).not.toHaveBeenCalled();
+  await act(async () => {
+    release(Response.json({ item: favorite }));
+    await write;
+    for (const resolve of pendingReads) resolve();
+  });
+  await waitFor(() => expect(hook.result.current.isFavorite(location)).toBe(true));
+  expect(hook.result.current.isBusy(location)).toBe(false);
+  expect(feedback.onSuccess).toHaveBeenCalledWith("add_favorite_location");
+});
+
+it("acknowledges an already-absent favorite without an optimistic success flash", async () => {
+  const { wrapper } = setup();
+  const feedback = { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn() };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) =>
+      Response.json(
+        init?.method === "DELETE"
+          ? {}
+          : url.includes("keys=")
+            ? { keys: [] }
+            : { items: [], nextCursor: null },
+      ),
+    ),
+  );
+  const hook = renderHook(() => useFavoriteLocations({ ...options, feedback }, [location]), {
+    wrapper,
+  });
+  await waitFor(() =>
+    expect(hook.result.current.list.isSuccess && hook.result.current.status.isSuccess).toBe(true),
+  );
+  await act(() => hook.result.current.toggle.mutateAsync({ location, favorite: true }));
+  expect(feedback.onOptimisticUpdate).not.toHaveBeenCalled();
+  expect(feedback.onSuccess).toHaveBeenCalledWith("remove_favorite_location");
+});
+
+it("deduplicates independently acknowledged aliases without relying on a successful background read", async () => {
+  const { wrapper } = setup();
+  const drifted = { ...location, longitude: location.longitude + 0.0001 };
+  const pending: Array<(response: Response) => void> = [];
+  let writing = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        writing = true;
+        return new Promise<Response>((resolve) => pending.push(resolve));
+      }
+      if (writing) throw new Error("background read unavailable");
+      return Response.json(url.includes("keys=") ? { keys: [] } : { items: [], nextCursor: null });
+    }),
+  );
+  const hook = renderHook(() => useFavoriteLocations(options, [location, drifted]), { wrapper });
+  await waitFor(() =>
+    expect(hook.result.current.list.isSuccess && hook.result.current.status.isSuccess).toBe(true),
+  );
+  let first!: Promise<unknown>, second!: Promise<unknown>;
+  act(() => {
+    first = hook.result.current.toggle.mutateAsync({ location, favorite: false });
+  });
+  await waitFor(() => expect(pending).toHaveLength(1));
+  act(() => {
+    second = hook.result.current.toggle.mutateAsync({ location: drifted, favorite: false });
+  });
+  await waitFor(() => expect(pending).toHaveLength(2));
+  await act(async () => {
+    pending[0](Response.json({ item: favorite }));
+    await first;
+  });
+  await act(async () => {
+    pending[1](Response.json({ item: favorite }));
+    await second;
+  });
+  await waitFor(() => expect(hook.result.current.list.isError).toBe(true));
+  expect(hook.result.current.items).toEqual([favorite]);
+  expect(hook.result.current.toggle.isSuccess).toBe(true);
+});
+
+it("ignores an old actor's late failure without restoring favorites into a new session", async () => {
+  const { client, wrapper } = setup();
+  let changed = false;
+  let reject!: (error: Error) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string, init?: RequestInit) =>
+      init?.method === "DELETE"
+        ? new Promise<Response>((_resolve, fail) => {
+            reject = fail;
+          })
+        : Promise.resolve(
+            Response.json(
+              url.includes("keys=")
+                ? { keys: changed ? [] : [favorite.key] }
+                : { items: changed ? [] : [favorite], nextCursor: null },
+            ),
+          ),
+    ),
+  );
+  const hook = renderHook(
+    ({ userId }) => useFavoriteLocations({ ...options, userId }, [location]),
+    { wrapper, initialProps: { userId: options.userId } },
+  );
+  await waitFor(() => expect(hook.result.current.isFavorite(location)).toBe(true));
+  let write!: Promise<unknown>;
+  act(() => {
+    write = hook.result.current.toggle
+      .mutateAsync({ location, favorite: true })
+      .catch(() => undefined);
+  });
+  await waitFor(() => expect(reject).toBeDefined());
+  act(() => {
+    clearSessionQueryCache(client);
+    changed = true;
+  });
+  hook.rerender({ userId: "new-owner" });
+  await act(async () => {
+    reject(new Error("old network failure"));
+    await write;
+  });
+  await waitFor(() => expect(hook.result.current.list.isSuccess).toBe(true));
+  expect(hook.result.current.items).toEqual([]);
+  expect(hook.result.current.isFavorite(location)).toBe(false);
+  expect(
+    client.getQueryData(["favoriteLocations", apiUrl, options.userId, "list"]),
+  ).toBeUndefined();
+});
 
 it("paginates favorites, batches status requests and resolves a fresh token for every request", async () => {
   const all = Array.from({ length: 51 }, (_, index) => ({
@@ -255,18 +419,21 @@ it("keeps acknowledgments in the original actor cache and never creates missing 
   const mutation = client.getMutationCache().getAll().at(-1);
   if (!mutation) throw new Error("Expected cached mutation");
   await mutation.options.onSuccess?.({}, { location, favorite: false }, undefined, {} as never);
-  await mutation.options.onSuccess?.(
-    {},
-    { location, favorite: false },
-    { listKey: ["favoriteLocations", "missing", "owner", "list"], key: favorite.key } as never,
-    {} as never,
-  );
-  await mutation.options.onSuccess?.(
-    { item: favorite },
-    { location, favorite: false },
-    { listKey: ["favoriteLocations", "missing", "owner", "list"], key: favorite.key } as never,
-    {} as never,
-  );
+  for (const response of [{}, { item: favorite }]) {
+    const missingRoot = ["favoriteLocations", "missing", "owner"];
+    const { beginOptimisticOperation } = await import(
+      "../../../../../../packages/shared/src/common/optimisticOperation"
+    );
+    const operation = await beginOptimisticOperation(client, missingRoot, {
+      queryKey: missingRoot,
+    });
+    await mutation.options.onSuccess?.(
+      response,
+      { location, favorite: false },
+      { operation, root: missingRoot, key: favorite.key } as never,
+      {} as never,
+    );
+  }
   expect(client.getQueryData(["favoriteLocations", "missing", "owner", "list"])).toBeUndefined();
 });
 it("rolls failed adds and removals back without pretending network failure is an empty list", async () => {
@@ -298,7 +465,7 @@ it("rolls failed adds and removals back without pretending network failure is an
   });
   expect(result.current.items).toEqual([favorite]);
   expect(result.current.isFavorite(location)).toBe(true);
-  expect(feedback.onError).toHaveBeenLastCalledWith(expect.any(Error), "remove_favorite_location");
+  expect(feedback.onError).toHaveBeenLastCalledWith(expect.any(Error), "verify_saved_changes");
   stored = [];
   await act(async () => {
     await result.current.list.refetch();
@@ -310,7 +477,7 @@ it("rolls failed adds and removals back without pretending network failure is an
     );
   });
   expect(result.current.items).toEqual([]);
-  expect(feedback.onError).toHaveBeenLastCalledWith(expect.any(Error), "add_favorite_location");
+  expect(feedback.onError).toHaveBeenLastCalledWith(expect.any(Error), "verify_saved_changes");
 });
 
 it("keeps cache untouched when cancellation fails before optimistic snapshots exist", async () => {

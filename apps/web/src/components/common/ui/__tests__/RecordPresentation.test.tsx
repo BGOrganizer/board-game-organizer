@@ -63,6 +63,7 @@ it("keeps favorite actions explicit and disables only pending/uncached errors", 
   const state = (favorite: boolean, pending = false, error = false, cached = false) =>
     ({
       isFavorite: () => favorite,
+      isBusy: () => pending,
       toggle: { isPending: pending, mutate },
       status: { isPending: false, isError: error, data: cached ? {} : undefined },
     }) as unknown as FavoriteLocationsState;

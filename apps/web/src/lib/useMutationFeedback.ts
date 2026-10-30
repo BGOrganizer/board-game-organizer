@@ -38,6 +38,30 @@ export function useMutationFeedback(): MutationFeedback {
         success: t`Contacts synchronized`,
         error: t`Could not synchronize contacts`,
       },
+      refresh_saved_changes: {
+        success: t`Changes refreshed`,
+        error: t`Changes were saved, but could not be refreshed. Refresh to see the latest data.`,
+      },
+      verify_saved_changes: {
+        success: t`Changes refreshed`,
+        error: t`Could not verify whether this action was saved. Check the current state before retrying.`,
+      },
+      read_notification: {
+        success: t`Notifications`,
+        error: t`Could not mark notification as read`,
+      },
+      read_all_notifications: {
+        success: t`Notifications`,
+        error: t`Could not mark notifications as read`,
+      },
+      link_bgg: {
+        success: t`BoardGameGeek account linked`,
+        error: t`Could not link BoardGameGeek account`,
+      },
+      sync_bgg: {
+        success: t`BoardGameGeek synchronization started`,
+        error: t`Could not synchronize BoardGameGeek collection`,
+      },
       disconnect_bgg: {
         success: t`BoardGameGeek disconnected`,
         error: t`Could not disconnect BoardGameGeek`,
@@ -101,11 +125,13 @@ export function useMutationFeedback(): MutationFeedback {
       },
     };
 
+    const success = (action: MutationFeedbackAction) =>
+      toast(messages[action].success, {
+        indicator: createElement(CircleCheck, { className: "h-5 w-5 text-success" }),
+      });
     return {
-      onOptimisticUpdate: (action) =>
-        toast(messages[action].success, {
-          indicator: createElement(CircleCheck, { className: "h-5 w-5 text-success" }),
-        }),
+      onOptimisticUpdate: success,
+      onSuccess: success,
       onError: (_error, action) =>
         toast.danger(messages[action].error, {
           indicator: createElement(CircleX, { className: "h-5 w-5" }),

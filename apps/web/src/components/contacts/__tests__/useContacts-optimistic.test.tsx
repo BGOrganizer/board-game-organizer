@@ -7,6 +7,7 @@ const apiUrl = "https://api.example.test";
 const token = "viewer";
 const feedback = {
   onOptimisticUpdate: vi.fn(),
+  onSuccess: vi.fn(),
   onError: vi.fn(),
 };
 
@@ -53,6 +54,44 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it("reconciles an acknowledged empty snapshot even when background suggestions cannot be refreshed", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const key = ["contacts", "suggestions", apiUrl, token];
+  client.setQueryData(key, {
+    pages: [{ users: [], hasContacts: true, nextCursor: null }],
+    pageParams: [""],
+  });
+  let saved = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        saved = true;
+        return Response.json({
+          stored: 0,
+          users: [],
+          registeredIdentifiers: { emails: [], phoneNumbers: [] },
+        });
+      }
+      if (String(input).includes("suggestions")) {
+        if (saved) throw new Error("background unavailable");
+        return Response.json({ users: [], hasContacts: true });
+      }
+      return Response.json([]);
+    }),
+  );
+  render(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Sync" }));
+  await waitFor(() => expect(feedback.onSuccess).toHaveBeenCalledWith("sync_contacts"));
+  await waitFor(() => expect(client.getQueryState(key)?.status).toBe("error"));
+  expect(screen.getByTestId("has-contacts").textContent).toBe("false");
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
 it("optimistically marks contact sync and rolls it back on failure", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(["contacts", "suggestions", apiUrl, token], {
@@ -82,11 +121,12 @@ it("optimistically marks contact sync and rolls it back on failure", async () =>
   fireEvent.click(screen.getByRole("button", { name: "Sync" }));
 
   await waitFor(() => expect(screen.getByTestId("has-contacts").textContent).toBe("true"));
-  expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("sync_contacts");
+  expect(feedback.onOptimisticUpdate).not.toHaveBeenCalledWith("sync_contacts");
+  expect(feedback.onSuccess).not.toHaveBeenCalled();
   failRequest();
   await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Sync failed"));
   expect(screen.getByTestId("has-contacts").textContent).toBe("false");
-  expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "sync_contacts");
+  expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "verify_saved_changes");
 });
 
 it("rolls all contact caches back when an optimistic mutation fails", async () => {
@@ -133,7 +173,7 @@ it("rolls all contact caches back when an optimistic mutation fails", async () =
   failRequest();
   await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("Failed"));
   expect(screen.getByTestId("sent").textContent).toBe("");
-  expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "friend_request");
+  expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "verify_saved_changes");
   expect(
     client.getQueryData<{ pages: { users: ContactUser[] }[] }>([
       "contacts",

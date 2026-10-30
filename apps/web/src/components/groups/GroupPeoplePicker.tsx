@@ -16,10 +16,10 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
     { t } = useLingui(),
     router = useRouter();
   const detail = useGroupRecord(options, groupId),
-    actions = useGroupRecordActions(options);
+    actions = useGroupRecordActions(options, groupId);
   const [error, setError] = useState(false);
   const group = communityAccessDenied(detail.error) ? undefined : detail.data;
-  if (!group || group.role !== "admin" || !group.canInvite)
+  if (group?.role !== "admin" || !group.canInvite)
     return detail.isPending ? (
       <Skeleton className="h-40 w-full rounded-xl" />
     ) : (

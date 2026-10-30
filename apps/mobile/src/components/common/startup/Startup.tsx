@@ -1,5 +1,6 @@
 import { getMobileNumber } from "@board-game-organizer/schemas";
 import {
+  clearSessionQueryCache,
   resolveApiUrl,
   warmStartupBackground,
   warmStartupPriority,
@@ -89,7 +90,8 @@ export function Startup({
 
   useEffect(() => {
     if (!isAuthLoaded) return;
-    if (previousSession.current && previousSession.current !== sessionId) queryClient.clear();
+    if (previousSession.current && previousSession.current !== sessionId)
+      clearSessionQueryCache(queryClient);
     previousSession.current = sessionId ?? null;
   }, [isAuthLoaded, sessionId, queryClient]);
 

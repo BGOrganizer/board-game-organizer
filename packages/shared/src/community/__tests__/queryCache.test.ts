@@ -1,7 +1,59 @@
 import { describe, expect, it } from "vitest";
-import { mapCommunityCache, restoreCommunityFields } from "../queryCache";
+import { mapCommunityCache, restoreCommunityFields, versionedCommunityChange } from "../queryCache";
 
 describe("owned community cache updates", () => {
+  it("replays only known entity versions across list/detail and preserves authoritative updates", () => {
+    type Row = {
+      id: string;
+      name: string;
+      version?: number;
+      updatedAt?: string;
+      membership?: { version: number } | null;
+    };
+    const guarded = versionedCommunityChange<Row>(
+      (row) => ({ ...row, name: "pending" }),
+      (row) => row.id,
+    );
+    const before = { id: "one", name: "before", version: 1 };
+    expect(guarded.change(before, ["list"])).toMatchObject({ name: "pending" });
+    guarded.change({ id: "time", name: "before", updatedAt: "old" }, ["table"]);
+    guarded.change({ id: "member", name: "before", membership: { version: 1 } }, ["people"]);
+    guarded.change({ id: "plain", name: "before", membership: null }, ["plain"]);
+    guarded.seal();
+    expect(guarded.change(before, ["new-detail"])).toMatchObject({ name: "pending" });
+    const newer = { ...before, name: "server", version: 2 };
+    expect(guarded.change(newer, ["list"])).toBe(newer);
+    const newRow = { id: "arrived", name: "server", version: 1 };
+    expect(guarded.change(newRow, ["list"])).toBe(newRow);
+    const newerTime = { id: "time", name: "server", updatedAt: "new" };
+    expect(guarded.change(newerTime, ["table"])).toBe(newerTime);
+    expect(
+      guarded.change({ id: "member", name: "server", membership: { version: 2 } }, ["people"]),
+    ).toMatchObject({ name: "server" });
+    expect(guarded.change({ id: "plain", name: "before" }, ["plain"])).toMatchObject({
+      name: "pending",
+    });
+  });
+  it.each(["membership", "myMembership", "myRegistration", "registration"])(
+    "protects newer nested %s versions even when the outer version is unchanged",
+    (field) => {
+      const guarded = versionedCommunityChange<Record<string, unknown>>(
+        (row) => ({ ...row, pending: true }),
+        (row) => String(row.id),
+      );
+      const before = { id: "row", version: 1, [field]: { version: 1 } };
+      guarded.change(before, ["first"]);
+      guarded.change({ ...before, version: 4 }, ["second"]);
+      guarded.seal();
+      const fresh = { ...before, [field]: { version: 2 } };
+      expect(guarded.change(fresh, ["first"])).toBe(fresh);
+      expect(guarded.change({ ...before, version: 4 }, ["first"])).not.toHaveProperty("pending");
+      expect(guarded.change({ ...before, version: 8 }, ["new-view"])).not.toHaveProperty("pending");
+      expect(
+        guarded.apply(before, ["first"], (row) => ({ ...row, acknowledged: true })),
+      ).toHaveProperty("acknowledged", true);
+    },
+  );
   it("protects unversioned table timestamps while retaining selective rollback", () => {
     const before = { name: "before", updatedAt: "old" },
       optimistic = { ...before, name: "pending" };

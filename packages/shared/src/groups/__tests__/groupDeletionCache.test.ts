@@ -2,6 +2,7 @@ import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { describe, expect, it } from "vitest";
 import {
   belongsToDeletedGroup,
+  cachedGroupEventIds,
   removeDeletedGroupData,
   restoreDeletedGroup,
 } from "../groupDeletionCache";
@@ -14,6 +15,50 @@ const pages = (items: unknown[], cursor = "") => ({
 const deleted = "deleted",
   eventIds = new Set(["event"]);
 describe("Group deletion cache ownership", () => {
+  it("discovers only already-cached Group Event IDs, never unrelated or malformed records", () => {
+    expect(
+      cachedGroupEventIds(
+        pages([
+          { id: "event", groupId: deleted, dates: [] },
+          { id: "table", groupId: deleted, eventId: "event" },
+          { groupId: "other", eventId: "foreign" },
+          { groupId: deleted },
+          { groupId: deleted, dates: [] },
+          { groupId: deleted, dates: [], id: 1 },
+          { groupId: deleted, eventId: 1 },
+        ]),
+        deleted,
+      ),
+    ).toEqual(["event", "event"]);
+    for (const data of [undefined, null, 1, {}, { id: "plain" }])
+      expect(cachedGroupEventIds(data, deleted)).toEqual([]);
+    expect(cachedGroupEventIds({ id: "event", groupId: deleted, dates: [] }, deleted)).toEqual([
+      "event",
+    ]);
+  });
+  it("purges real inbox DTOs and distinct unread counts while preserving other destinations and cursors", () => {
+    const target = { id: "notification", href: "/groups/deleted?tab=members", readAt: null };
+    const read = { id: "read", href: "/events/event/tables/table", readAt: "already-read" };
+    const other = { id: "other", href: "/groups/deleted-other", readAt: null };
+    const data = {
+      pages: [
+        { notifications: [target, read, other], unreadCount: 2, nextCursor: "next" },
+        { notifications: [target], unreadCount: 0, nextCursor: null },
+      ],
+      pageParams: ["", "next"],
+    };
+    expect(removeDeletedGroupData(data, deleted, eventIds)).toEqual({
+      ...data,
+      pages: [
+        { ...data.pages[0], notifications: [other], unreadCount: 1 },
+        { ...data.pages[1], notifications: [], unreadCount: 0 },
+      ],
+    });
+    expect(data.pages[0].notifications).toHaveLength(3);
+    expect(removeDeletedGroupData({ pages: [{ notifications: [] }] }, deleted, eventIds)).toEqual({
+      pages: [{ notifications: [] }],
+    });
+  });
   it("matches Group data, related Event/Table data and precise inbox destinations, not unrelated records", () => {
     for (const value of [
       { id: deleted },

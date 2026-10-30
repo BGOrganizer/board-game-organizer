@@ -1,11 +1,9 @@
 "use client";
 import type { GroupPersonResponse } from "@board-game-organizer/schemas";
-import { useIsMutating, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { type ContactAction, optimisticContactUser } from "../../contacts/hooks/contactOptimistic";
+import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
+import type { ContactAction } from "../../contacts/hooks/contactOptimistic";
 import { type ContactUser, useContacts } from "../../contacts/hooks/useContacts";
 import type { CommunityApiOptions } from "../communityApi";
-import { mapCommunityCache, restoreCommunityFields } from "../queryCache";
 
 type SocialPerson = Pick<GroupPersonResponse, "userId" | "social"> &
   Partial<Pick<GroupPersonResponse, "name" | "username" | "avatarUrl">>;
@@ -25,18 +23,8 @@ export function communityPersonContact(person: SocialPerson): ContactUser {
     blockedMe: false,
   };
 }
-export function usePeopleSocialActions<Person extends SocialPerson>(
-  options: CommunityApiOptions,
-  key: readonly unknown[],
-) {
-  const client = useQueryClient(),
-    active = useRef(false),
-    [starting, setStarting] = useState(false);
-  const socialMutations = {
-    predicate: (mutation: { options: { scope?: { id: string } } }) =>
-      mutation.options.scope?.id === "contacts",
-  };
-  const busy = useIsMutating(socialMutations) > 0;
+export function usePeopleSocialActions<Person extends SocialPerson>(options: CommunityApiOptions) {
+  const busy = useOptimisticBusy(["contacts", options.apiUrl, options.userId]);
   const contacts = useContacts(
     options.apiUrl,
     null,
@@ -57,75 +45,16 @@ export function usePeopleSocialActions<Person extends SocialPerson>(
     unblock: contacts.unblock,
   };
   return {
-    busy: starting || busy,
+    busy: busy(),
+    isBusy: (userId: string) => busy(["contacts", options.apiUrl, options.userId, userId]),
     async run(person: Person, action: ContactAction) {
-      if (
-        active.current ||
-        !person.social ||
-        person.userId === options.userId ||
-        client.isMutating(socialMutations)
-      )
+      if (!person.social || person.userId === options.userId || contacts.isBusy(person.userId))
         return;
-      active.current = true;
-      setStarting(true);
-      const rollback: Array<() => void> = [];
-      try {
-        await client.cancelQueries({ queryKey: key });
-        for (const [queryKey, data] of client.getQueriesData({ queryKey: key }))
-          client.setQueryData(
-            queryKey,
-            mapCommunityCache<Person>(data, (row) => {
-              if (row.userId !== person.userId || !row.social) return row;
-              const user = optimisticContactUser(communityPersonContact(row), action);
-              const optimistic = {
-                ...row,
-                social: {
-                  ...row.social,
-                  isFollowing: Boolean(user.isFollowing),
-                  isFollower: Boolean(user.isFollower),
-                  isFriend: Boolean(user.isFriend),
-                  blockedByMe: Boolean(user.blockedByMe),
-                  friendRequest:
-                    action === "friend_request"
-                      ? ("outgoing" as const)
-                      : [
-                            "cancel_friend_request",
-                            "reject_friend_request",
-                            "accept_friend_request",
-                            "block",
-                          ].includes(action)
-                        ? undefined
-                        : row.social.friendRequest,
-                },
-              };
-              rollback.push(() =>
-                client.setQueryData(queryKey, (current: unknown) =>
-                  mapCommunityCache<Person>(current, (value) =>
-                    value.userId === person.userId
-                      ? restoreCommunityFields(value, row, optimistic)
-                      : value,
-                  ),
-                ),
-              );
-              return optimistic;
-            }),
-          );
-        await mutations[action].mutateAsync({
-          targetUserId: person.userId,
-          targetUser: communityPersonContact(person),
-        });
-      } catch (error) {
-        for (const restore of rollback) restore();
-        // Contacts owns its action-specific failure toast and selective rollback.
-        throw error;
-      } finally {
-        try {
-          await client.invalidateQueries({ queryKey: key });
-        } finally {
-          active.current = false;
-          setStarting(false);
-        }
-      }
+      // One Contacts operation owns both social lists and every authorized Group row.
+      await mutations[action].mutateAsync({
+        targetUserId: person.userId,
+        targetUser: communityPersonContact(person),
+      });
     },
   };
 }

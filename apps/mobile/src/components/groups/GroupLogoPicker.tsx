@@ -98,9 +98,11 @@ export function GroupLogoPicker({
           : base64.startsWith("UklGR")
             ? "image/webp"
             : "invalid";
-      options.feedback?.onOptimisticUpdate?.("upload_group_logo");
       const ready = await uploadGroupLogo(options, base64, mime, current.signal);
-      if (!current.signal.aborted) onChange({ id: ready.id, preview: ready.preview });
+      if (!current.signal.aborted) {
+        onChange({ id: ready.id, preview: ready.preview });
+        options.feedback?.onSuccess?.("upload_group_logo");
+      }
     } catch (error) {
       if (!current.signal.aborted) {
         setError(t("Could not upload logo"));

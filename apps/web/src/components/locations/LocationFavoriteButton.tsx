@@ -24,7 +24,7 @@ export function LocationFavoriteButton({
       aria-label={favorite ? t`Remove location from favorites` : t`Add location to favorites`}
       aria-pressed={favorite}
       isDisabled={
-        favorites.toggle.isPending ||
+        favorites.isBusy(location) ||
         favorites.status.isPending ||
         (favorites.status.isError && !favorites.status.data)
       }

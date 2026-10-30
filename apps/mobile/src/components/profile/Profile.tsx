@@ -139,7 +139,7 @@ export function Profile() {
   }, [signOut, router]);
 
   const synchronize = async () => {
-    if (!username.trim()) return;
+    if (!username.trim() || bgg.busy) return;
     setFormError(null);
     try {
       await bgg.link.mutateAsync(username.trim());
@@ -244,6 +244,7 @@ export function Profile() {
           <Button
             className="mt-6"
             variant="primary"
+            isDisabled={bgg.busy}
             onPress={() => {
               setUsername("");
               setFormError(null);
@@ -289,7 +290,7 @@ export function Profile() {
                 variant="danger-soft"
                 style={{ minWidth: 44, minHeight: 44 }}
                 accessibilityLabel={t("Disconnect BoardGameGeek")}
-                isDisabled={bgg.unlink.isPending}
+                isDisabled={bgg.busy || bgg.unlink.isPending}
                 onPress={() => setDisconnectOpen(true)}
               >
                 <Unlink2 size={18} color="#f31260" />
@@ -324,7 +325,7 @@ export function Profile() {
           description={t(
             "Synced collection games will be removed from your profile. Existing matches remain unchanged.",
           )}
-          busy={bgg.unlink.isPending}
+          busy={bgg.busy || bgg.unlink.isPending}
           onCancel={() => setDisconnectOpen(false)}
           actions={[
             {
@@ -356,14 +357,14 @@ export function Profile() {
             >
               <Button
                 variant="ghost"
-                isDisabled={bgg.link.isPending}
+                isDisabled={bgg.busy || bgg.link.isPending}
                 onPress={() => setDialogOpen(false)}
               >
                 <Typography>{t("Cancel")}</Typography>
               </Button>
               <Button
                 variant="primary"
-                isDisabled={!username.trim() || bgg.link.isPending}
+                isDisabled={!username.trim() || bgg.busy || bgg.link.isPending}
                 onPress={() => void synchronize()}
               >
                 <Link2 size={16} color="#fff" />

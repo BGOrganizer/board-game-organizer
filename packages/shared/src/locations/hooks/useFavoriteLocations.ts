@@ -13,7 +13,14 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { withProtectionBypass } from "../../common/api";
+import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { MutationFeedback } from "../../common/mutationFeedback";
+import {
+  beginOptimisticOperation,
+  optimisticFailureAction,
+  optimisticOperationSignal,
+} from "../../common/optimisticOperation";
+import { CommunityApiError } from "../../community/communityApi";
 
 export interface FavoriteLocationsOptions {
   apiUrl: string;
@@ -28,7 +35,7 @@ async function requestFavoriteLocations(
   init?: RequestInit,
 ) {
   const token = await options.getToken();
-  if (!token) throw new Error("Unauthorized");
+  if (!token) throw new CommunityApiError(401, "Unauthorized");
   const response = await fetch(
     withProtectionBypass(
       `${options.apiUrl}/api/locations/favorites${path}`,
@@ -42,7 +49,7 @@ async function requestFavoriteLocations(
       },
     },
   );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) throw new CommunityApiError(response.status, `HTTP ${response.status}`);
   return response.json();
 }
 export function favoriteLocationsQuery(options: FavoriteLocationsOptions) {
@@ -66,6 +73,16 @@ export function useFavoriteLocations(
   const client = useQueryClient();
   const root = ["favoriteLocations", apiUrl, userId] as const;
   const listKey = [...root, "list"] as const;
+  const resourceBusy = useOptimisticBusy(root);
+  const resourceKey = (location: MatchLocation) => {
+    const key = locationFavoriteKey(location);
+    const cached = client.getQueryData<InfiniteData<FavoriteLocationsResponse>>(listKey);
+    return (
+      cached?.pages
+        .flatMap((page) => page.items)
+        .find((item) => item.key === key || locationFavoriteKey(item.location) === key)?.key ?? key
+    );
+  };
   const keys = [...new Set(locations.map(locationFavoriteKey))].sort();
   const statusKey = [...root, "status", keys] as const;
   const enabled = Boolean(apiUrl && userId);
@@ -96,6 +113,7 @@ export function useFavoriteLocations(
     staleTime: 5 * 60_000,
   });
   const toggle = useMutation({
+    mutationKey: root,
     mutationFn: async ({
       location,
       favorite,
@@ -107,6 +125,7 @@ export function useFavoriteLocations(
     }) => {
       return request("", {
         method: favorite ? "DELETE" : "POST",
+        signal: optimisticOperationSignal(client, [...root, locationFavoriteKey(location)]),
         body: JSON.stringify(
           favorite
             ? { key: locationFavoriteKey(location) }
@@ -115,9 +134,8 @@ export function useFavoriteLocations(
       });
     },
     onMutate: async ({ location, favorite }) => {
-      await client.cancelQueries({ queryKey: root });
-      const snapshots = client.getQueriesData({ queryKey: root });
       const key = locationFavoriteKey(location);
+      const identity = resourceKey(location);
       const cached = client.getQueryData<InfiniteData<FavoriteLocationsResponse>>(listKey);
       const equivalent =
         cached?.pages
@@ -127,59 +145,77 @@ export function useFavoriteLocations(
         key,
         ...equivalent.flatMap((item) => [item.key, locationFavoriteKey(item.location)]),
       ]);
-      for (const [queryKey, data] of snapshots) {
-        if (queryKey[3] === "status" && Array.isArray(data)) {
-          client.setQueryData(
-            queryKey,
-            favorite ? data.filter((item) => !affected.has(item)) : [...new Set([...data, key])],
-          );
-        } else if (queryKey[3] === "list" && data) {
+      const operation = await beginOptimisticOperation(
+        client,
+        [...root, identity],
+        { queryKey: root },
+        (data, queryKey) => {
+          if (queryKey[3] === "status" && Array.isArray(data))
+            return favorite
+              ? data.filter((item) => !affected.has(item))
+              : [...new Set([...data, key])];
+          if (queryKey[3] !== "list" || !data) return data;
           const pages = data as InfiniteData<FavoriteLocationsResponse>;
-          client.setQueryData(queryKey, {
+          return {
             ...pages,
             pages: pages.pages.map((page, index) => ({
               ...page,
               items: favorite
                 ? page.items.filter(
-                    (item) => item.key !== key && locationFavoriteKey(item.location) !== key,
+                    (item) =>
+                      !affected.has(item.key) && !affected.has(locationFavoriteKey(item.location)),
                   )
                 : index === 0
                   ? [{ key, location }, ...page.items.filter((item) => item.key !== key)]
                   : page.items.filter((item) => item.key !== key),
             })),
-          });
-        }
-      }
-      feedback?.onOptimisticUpdate?.(
-        favorite ? "remove_favorite_location" : "add_favorite_location",
+          };
+        },
+        [...affected].map((alias) => [...root, alias]),
       );
-      return { snapshots, listKey, key, root };
+      if (operation.modified)
+        feedback?.onOptimisticUpdate?.(
+          favorite ? "remove_favorite_location" : "add_favorite_location",
+        );
+      return { operation, key, root };
     },
     onSuccess: (response, variables, context) => {
-      if (variables.favorite || !context) return;
+      if (!context?.operation.active) return;
       const parsed = favoriteLocationSchema.safeParse(response?.item);
-      if (!parsed.success) return;
-      client.setQueryData<InfiniteData<FavoriteLocationsResponse>>(context.listKey, (current) =>
-        current
-          ? {
-              ...current,
-              pages: current.pages.map((page) => ({
-                ...page,
-                items: page.items.map((item) => (item.key === context.key ? parsed.data : item)),
-              })),
-            }
-          : current,
-      );
+      context.operation.commit((data, queryKey) => {
+        if (variables.favorite || !parsed.success || queryKey[3] !== "list" || !data) return data;
+        const current = data as InfiniteData<FavoriteLocationsResponse>;
+        const seen = new Set<string>();
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            items: page.items.flatMap((item) => {
+              const saved = item.key === context.key ? parsed.data : item;
+              if (seen.has(saved.key)) return [];
+              seen.add(saved.key);
+              return [saved];
+            }),
+          })),
+        };
+      });
+      if (!context.operation.modified)
+        feedback?.onSuccess?.(
+          variables.favorite ? "remove_favorite_location" : "add_favorite_location",
+        );
     },
-    onError: (error: Error, variables, context) => {
-      for (const [key, data] of context?.snapshots ?? []) client.setQueryData(key, data);
-      feedback?.onError?.(
-        error,
-        variables.favorite ? "remove_favorite_location" : "add_favorite_location",
-      );
+    onError: async (error: Error, variables, context) => {
+      if (context && !context.operation.active) return;
+      const action = variables.favorite ? "remove_favorite_location" : "add_favorite_location";
+      feedback?.onError?.(error, context ? optimisticFailureAction(error, action) : action);
+      await context?.operation.reject(error);
     },
-    onSettled: (_data, _error, _variables, context) =>
-      client.invalidateQueries({ queryKey: context?.root ?? root }),
+    onSettled: (_data, _error, _variables, context) => {
+      void client.invalidateQueries({
+        queryKey: context?.root ?? root,
+        refetchType: resourceBusy() ? "none" : "active",
+      });
+    },
   });
   const items = list.data?.pages.flatMap((page) => page.items) ?? [];
   const isFavorite = (location: MatchLocation) => {
@@ -189,6 +225,8 @@ export function useFavoriteLocations(
         items.some((item) => item.key === key || locationFavoriteKey(item.location) === key),
     );
   };
-  return { list, status, items, toggle, isFavorite };
+  const isBusy = (location: MatchLocation) =>
+    resourceBusy([...root, locationFavoriteKey(location)]);
+  return { list, status, items, toggle, isFavorite, isBusy };
 }
 export type FavoriteLocationsState = ReturnType<typeof useFavoriteLocations>;

@@ -7,7 +7,9 @@ import { eventId, plannedEvent, plannedTable } from "@/test-fixtures/eventRecord
 import { renderWithI18n } from "@/test-utils";
 import { EventDetail } from "../EventDetail";
 
-const mocks = vi.hoisted(() => ({ feedback: { onOptimisticUpdate: vi.fn(), onError: vi.fn() } }));
+const mocks = vi.hoisted(() => ({
+  feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
+}));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
@@ -586,7 +588,8 @@ it("requires explicit manual confirmation and freezes only server-authorized agr
       ),
     ).toMatchObject({ status: "CONFIRMED" }),
   );
-  expect(mocks.feedback.onOptimisticUpdate).toHaveBeenCalledWith("confirm_event");
+  expect(mocks.feedback.onOptimisticUpdate).not.toHaveBeenCalledWith("confirm_event");
+  expect(mocks.feedback.onSuccess).toHaveBeenCalledWith("confirm_event");
 });
 it("leaves failed confirmation actionable and selectively restores optimistic capabilities", async () => {
   event = { ...event, canConfirm: true, agreement: { agreed: true, tables: [], reasons: [] } };

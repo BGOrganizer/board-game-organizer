@@ -73,7 +73,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
     router = useRouter(),
     insets = useSafeAreaInsets(),
     layout = useFloatingActionLayout(),
-    actions = useGroupRecordActions(options);
+    actions = useGroupRecordActions(options, group?.id);
   const [accentForeground, danger] = useThemeColor(["accent-foreground", "danger"]);
   const [name, setName] = useState(group?.name ?? ""),
     [type, setType] = useState<"PRIVATE" | "PUBLIC">(group?.type ?? "PRIVATE"),

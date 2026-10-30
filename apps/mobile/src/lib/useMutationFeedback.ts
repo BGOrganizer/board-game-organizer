@@ -40,6 +40,32 @@ export function useMutationFeedback(): MutationFeedback {
         success: t("Contacts synchronized"),
         error: t("Could not synchronize contacts"),
       },
+      refresh_saved_changes: {
+        success: t("Changes refreshed"),
+        error: t("Changes were saved, but could not be refreshed. Refresh to see the latest data."),
+      },
+      verify_saved_changes: {
+        success: t("Changes refreshed"),
+        error: t(
+          "Could not verify whether this action was saved. Check the current state before retrying.",
+        ),
+      },
+      read_notification: {
+        success: t("Notifications"),
+        error: t("Could not mark notification as read"),
+      },
+      read_all_notifications: {
+        success: t("Notifications"),
+        error: t("Could not mark notifications as read"),
+      },
+      link_bgg: {
+        success: t("BoardGameGeek account linked"),
+        error: t("Could not link BoardGameGeek account"),
+      },
+      sync_bgg: {
+        success: t("BoardGameGeek synchronization started"),
+        error: t("Could not synchronize BoardGameGeek collection"),
+      },
       disconnect_bgg: {
         success: t("BoardGameGeek disconnected"),
         error: t("Could not disconnect BoardGameGeek"),
@@ -128,6 +154,7 @@ export function useMutationFeedback(): MutationFeedback {
       });
     return {
       onOptimisticUpdate: (action) => show(messages[action].success, "success"),
+      onSuccess: (action) => show(messages[action].success, "success"),
       onError: (_error, action) => show(messages[action].error, "danger"),
     };
   }, [t, toast]);

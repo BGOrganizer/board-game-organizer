@@ -167,7 +167,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                 {group.canSocialInteract && person.social && person.userId !== options.userId ? (
                   <UserMenu
                     user={groupPersonContact(person)}
-                    busy={busy}
+                    busy={workflow.isBusy(person.userId)}
                     blockLabel={t`Block user globally`}
                     friendRequest={person.social.friendRequest}
                     canSendFriendRequest={

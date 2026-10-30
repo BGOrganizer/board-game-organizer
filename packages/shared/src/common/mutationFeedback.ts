@@ -13,6 +13,10 @@ export type MutationFeedbackAction =
   | "unblock"
   | "sync_contacts"
   | "disconnect_bgg"
+  | "link_bgg"
+  | "sync_bgg"
+  | "refresh_saved_changes"
+  | "verify_saved_changes"
   | "create_invite"
   | "add_favorite_location"
   | "remove_favorite_location"
@@ -36,9 +40,12 @@ export type MutationFeedbackAction =
   | "remove_group_invitation"
   | "accept_group_invitation"
   | "decline_group_invitation"
+  | "read_notification"
+  | "read_all_notifications"
   | "delete_notification";
 
 export interface MutationFeedback {
   onOptimisticUpdate?: (action: MutationFeedbackAction) => void;
+  onSuccess?: (action: MutationFeedbackAction) => void;
   onError?: (error: Error, action: MutationFeedbackAction) => void;
 }

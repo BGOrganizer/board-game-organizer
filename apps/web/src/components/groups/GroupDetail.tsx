@@ -32,7 +32,7 @@ export function GroupDetail({
     o = useCommunityApi(),
     router = useRouter(),
     q = useGroupRecord(o, groupId),
-    a = useGroupRecordActions(o),
+    a = useGroupRecordActions(o, groupId),
     [tab, setTab] = useState<string>(initialTab),
     [confirm, setConfirm] = useState<"decline" | "cancel" | "delete" | null>(null),
     [error, setError] = useState(false);

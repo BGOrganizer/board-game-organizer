@@ -8,6 +8,8 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       include: [
         "src/common/startupQueries.ts",
+        "src/common/optimisticOperation.ts",
+        "src/notifications/notificationOptimistic.ts",
         "src/events/eventAgreement.ts",
         "src/events/eventJoinAvailability.ts",
         "src/events/eventRecordPolicy.ts",
@@ -43,13 +45,20 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/{common/optimisticOperation,notifications/notificationOptimistic,contacts/hooks/contactOptimistic}.ts":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
         "src/common/startupQueries.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "src/events/{eventRecordForm,tableScoreForm,eventTablePeople,eventVotes,eventTableRoster,eventSchedule,eventJoinAvailability}.ts":
+        "src/events/{eventRecordForm,tableScoreForm,eventTablePeople,eventVotes,eventTableRoster,eventSchedule,eventJoinAvailability,eventRegistrationCache}.ts":
           {
             lines: 100,
             functions: 100,
@@ -62,7 +71,7 @@ export default defineConfig({
           branches: 100,
           statements: 100,
         },
-        "src/groups/groupDeletionCache.ts": {
+        "src/groups/{groupDeletionCache,groupAccessCache}.ts": {
           lines: 100,
           functions: 100,
           branches: 100,

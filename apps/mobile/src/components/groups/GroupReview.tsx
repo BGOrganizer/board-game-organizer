@@ -19,7 +19,7 @@ export function GroupReview({ groupId }: { groupId: string }) {
     router = useRouter(),
     o = useCommunityApi(),
     q = useGroupRecord(o, groupId, true),
-    a = useGroupRecordActions(o),
+    a = useGroupRecordActions(o, groupId),
     [reason, setReason] = useState(""),
     [error, setError] = useState(false),
     group = communityAccessDenied(q.error) ? undefined : q.data;

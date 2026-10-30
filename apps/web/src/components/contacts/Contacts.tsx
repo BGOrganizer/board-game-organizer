@@ -204,16 +204,6 @@ export function Contacts() {
       fetchNextPage: () => contacts.suggestions.fetchNextPage(),
     }),
   };
-  const isBusy =
-    contacts.follow.isPending ||
-    contacts.unfollow.isPending ||
-    contacts.unfriend.isPending ||
-    contacts.friendRequest.isPending ||
-    contacts.cancelFriendRequest.isPending ||
-    contacts.acceptFriendRequest.isPending ||
-    contacts.rejectFriendRequest.isPending ||
-    contacts.block.isPending ||
-    contacts.unblock.isPending;
   const actionFailed =
     contacts.follow.isError ||
     contacts.unfollow.isError ||
@@ -330,7 +320,7 @@ export function Contacts() {
       menu={
         <UserMenu
           user={user}
-          busy={isBusy}
+          busy={contacts.isBusy(user.id)}
           canSendFriendRequest={canSendFriendRequest(user)}
           friendRequest={
             friendRequest ??

@@ -853,6 +853,10 @@ msgid "Board games"
 msgstr "Giochi da tavolo"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek account linked"
+msgstr "Account BoardGameGeek collegato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "BoardGameGeek disconnected"
 msgstr "BoardGameGeek scollegato"
 
@@ -863,6 +867,10 @@ msgstr "BoardGameGeek non indica la durata di questo gioco. Inserisci un numero 
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "BoardGameGeek sync started"
 #~ msgstr "Sincronizzazione BoardGameGeek avviata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek synchronization started"
+msgstr "Sincronizzazione BoardGameGeek avviata"
 
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
@@ -962,9 +970,17 @@ msgstr "Centra la mappa sulla mia posizione"
 #~ msgid "Changes applied"
 #~ msgstr "Modifiche applicate"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Changes refreshed"
+msgstr "Modifiche aggiornate"
+
 #: apps/web/src/components/groups/GroupStatusBadge.tsx
 msgid "Changes rejected"
 msgstr "Modifiche rifiutate"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Changes were saved, but could not be refreshed. Refresh to see the latest data."
+msgstr "Le modifiche sono state salvate, ma non è stato possibile aggiornare i dati. Aggiorna per visualizzare i dati più recenti."
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Check event name, dates, booking deadline, verified address and tables"
@@ -1357,7 +1373,7 @@ msgstr "Impossibile accettare l'invito al gruppo"
 
 #: apps/web/src/components/events/EventJoinSheet.tsx
 msgid "Could not accept invitation"
-msgstr ""
+msgstr "Impossibile accettare l'invito"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not accept match invitation"
@@ -1479,6 +1495,10 @@ msgstr "Impossibile uscire dal gruppo"
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not leave match"
 msgstr "Impossibile uscire dalla partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not link BoardGameGeek account"
+msgstr "Impossibile collegare l'account BoardGameGeek"
 
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Could not load BoardGameGeek connection. Retry"
@@ -1688,6 +1708,14 @@ msgstr "Impossibile caricare gli utenti"
 msgid "Could not load users. Retry"
 msgstr "Impossibile caricare gli utenti. Riprova"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not mark notification as read"
+msgstr "Impossibile segnare la notifica come letta"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not mark notifications as read"
+msgstr "Impossibile segnare le notifiche come lette"
+
 msgid "Could not open settings"
 msgstr "Impossibile aprire le impostazioni"
 
@@ -1771,9 +1799,9 @@ msgstr "Impossibile inviare la richiesta di amicizia"
 #~ msgid "Could not synchronize BoardGameGeek"
 #~ msgstr "Impossibile sincronizzare BoardGameGeek"
 
-#: apps/web/src/components/profile/Profile.tsx
-#~ msgid "Could not synchronize BoardGameGeek collection"
-#~ msgstr "Impossibile sincronizzare la collezione BoardGameGeek"
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not synchronize BoardGameGeek collection"
+msgstr "Impossibile sincronizzare la collezione BoardGameGeek"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not synchronize contacts"
@@ -1831,6 +1859,10 @@ msgstr "Impossibile caricare il logo"
 #: apps/web/src/components/events/EventResults.tsx
 msgid "Could not verify event finalization. Refresh the event before retrying."
 msgstr "Impossibile verificare la finalizzazione dell'evento. Aggiorna l'evento prima di riprovare."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not verify whether this action was saved. Check the current state before retrying."
+msgstr "Non è stato possibile verificare se l'operazione è stata salvata. Controlla lo stato attuale prima di riprovare."
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
@@ -3449,6 +3481,7 @@ msgstr "Notifica eliminata"
 
 #: apps/web/src/components/notifications/NotificationBell.tsx
 #: apps/web/src/components/notifications/NotificationsPage.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Notifications"
 msgstr "Notifiche"
 

@@ -90,7 +90,7 @@ export function useInvites({
   return useMutation({
     mutationFn: async () =>
       createInvite(apiUrl, await resolveToken(token, getToken), protectionBypass),
-    onMutate: () => feedback?.onOptimisticUpdate?.("create_invite"),
+    onSuccess: () => feedback?.onSuccess?.("create_invite"),
     onError: (error: Error) => feedback?.onError?.(error, "create_invite"),
   });
 }

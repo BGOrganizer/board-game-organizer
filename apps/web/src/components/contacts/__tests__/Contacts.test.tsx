@@ -146,6 +146,7 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
       isLoading: false,
       isError: mocks.searchError,
     },
+    isBusy: () => false,
     follow: { mutate: vi.fn(), isPending: false, isError: false },
     unfollow: { mutate: vi.fn(), isPending: false, isError: false },
     unfriend: { mutate: mocks.unfriend, isPending: false, isError: mocks.actionError },

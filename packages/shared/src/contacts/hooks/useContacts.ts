@@ -3,11 +3,20 @@
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
+import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { MutationFeedback } from "../../common/mutationFeedback";
+import {
+  beginOptimisticOperation,
+  optimisticFailureAction,
+  optimisticOperationSignal,
+} from "../../common/optimisticOperation";
+import { CommunityApiError } from "../../community/communityApi";
 import {
   type ContactAction,
   type ContactMutationVariables,
+  contactSnapshotPresence,
   optimisticContactData,
+  optimisticPeopleSocialData,
 } from "./contactOptimistic";
 
 /** Presence snapshot attached to a contact (Phase 2). */
@@ -77,7 +86,7 @@ async function resolveToken(
     const fresh = await getToken().catch(() => null);
     if (fresh) return fresh;
   }
-  if (!token) throw new Error("No session token");
+  if (!token) throw new CommunityApiError(401, "No session token");
   return token;
 }
 
@@ -169,6 +178,7 @@ export async function syncContactsWithToken(
   token: string | null | undefined,
   getToken: (() => Promise<string | null>) | undefined,
   protectionBypass?: string | null,
+  signal?: AbortSignal,
 ): Promise<{
   stored: number;
   users: Array<{ contactClerkId: string; email: string }>;
@@ -179,8 +189,9 @@ export async function syncContactsWithToken(
     method: "POST",
     headers: { ...apiHeaders(freshToken), "Content-Type": "application/json" },
     body: JSON.stringify({ emails, phoneNumbers }),
+    signal,
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new CommunityApiError(res.status, `HTTP ${res.status}`);
   return (await res.json()) as {
     stored: number;
     users: Array<{ contactClerkId: string; email: string }>;
@@ -248,6 +259,7 @@ function relationshipMutation(
   type: string,
   targetUserId: string,
   protectionBypass?: string | null,
+  signal?: AbortSignal,
 ) {
   return fetch(withProtectionBypass(`${apiUrl}/api/relationships?type=${type}`, protectionBypass), {
     method,
@@ -255,8 +267,9 @@ function relationshipMutation(
     // DELETE sends the body too: the handler requires targetUserId for all
     // methods (DELETE with no body previously crashed req.json() → 500).
     body: JSON.stringify({ targetUserId }),
+    signal,
   }).then(async (res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new CommunityApiError(res.status, `HTTP ${res.status}`);
     return (await res.json()) as { success: boolean };
   });
 }
@@ -269,6 +282,7 @@ async function relationshipMutationWithToken(
   type: string,
   targetUserId: string,
   protectionBypass?: string | null,
+  signal?: AbortSignal,
 ) {
   return relationshipMutation(
     apiUrl,
@@ -277,6 +291,7 @@ async function relationshipMutationWithToken(
     type,
     targetUserId,
     protectionBypass,
+    signal,
   );
 }
 
@@ -287,6 +302,7 @@ async function respondToFriendRequestWithToken(
   targetUserId: string,
   decision: "accept" | "reject",
   protectionBypass?: string | null,
+  signal?: AbortSignal,
 ) {
   const res = await fetch(
     withProtectionBypass(
@@ -297,9 +313,10 @@ async function respondToFriendRequestWithToken(
       method: "PATCH",
       headers: apiHeaders(await resolveToken(token, getToken)),
       body: JSON.stringify({ decision }),
+      signal,
     },
   );
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new CommunityApiError(res.status, `HTTP ${res.status}`);
   return (await res.json()) as { success: boolean };
 }
 
@@ -348,6 +365,18 @@ export function useContacts(
   feedback?: MutationFeedback,
 ) {
   const queryClient = useQueryClient();
+  const resource = ["contacts", apiUrl, currentUserId ?? token] as const;
+  const resourceBusy = useOptimisticBusy(resource);
+  const isBusy = useCallback(
+    (targetUserId: string) =>
+      resourceBusy(["contacts", apiUrl, currentUserId ?? token, targetUserId]),
+    [resourceBusy, apiUrl, currentUserId, token],
+  );
+  const owned = {
+    predicate: ({ queryKey: key }: { queryKey: readonly unknown[] }) =>
+      (key[0] === "contacts" && key[2] === apiUrl && key[3] === (currentUserId ?? token)) ||
+      (key[0] === "groups" && key[1] === apiUrl && key[2] === currentUserId && key[3] === "people"),
+  };
   const enabled = Boolean(apiUrl) && Boolean(token);
 
   const following = useRelationshipList(
@@ -444,26 +473,37 @@ export function useContacts(
   );
 
   const optimisticOptions = (action: ContactAction) => ({
-    scope: { id: "contacts" },
+    mutationKey: [...resource, "mutation", action],
     onMutate: async (variables: ContactMutationVariables) => {
-      await queryClient.cancelQueries({ queryKey: ["contacts"] });
-      const snapshots = queryClient.getQueriesData({ queryKey: ["contacts"] });
-      for (const [queryKey, data] of snapshots) {
-        queryClient.setQueryData(
-          queryKey,
-          optimisticContactData(queryKey, data, action, variables, currentUserId),
-        );
-      }
-      feedback?.onOptimisticUpdate?.(action);
-      return snapshots;
+      const operation = await beginOptimisticOperation(
+        queryClient,
+        [...resource, variables.targetUserId],
+        owned,
+        (data, key) =>
+          key[0] === "contacts"
+            ? optimisticContactData(key, data, action, variables, currentUserId)
+            : optimisticPeopleSocialData(data, action, variables.targetUserId),
+      );
+      if (operation.modified) feedback?.onOptimisticUpdate?.(action);
+      return operation;
     },
-    onError: (
-      _error: Error,
+    onSuccess: (
+      _data: unknown,
       _variables: ContactMutationVariables,
-      snapshots: Array<[readonly unknown[], unknown]> | undefined,
+      operation: Awaited<ReturnType<typeof beginOptimisticOperation>> | undefined,
     ) => {
-      for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
-      feedback?.onError?.(_error, action);
+      if (!operation?.active) return;
+      operation.commit();
+      if (!operation.modified) feedback?.onSuccess?.(action);
+    },
+    onError: async (
+      error: Error,
+      _variables: ContactMutationVariables,
+      operation: Awaited<ReturnType<typeof beginOptimisticOperation>> | undefined,
+    ) => {
+      if (operation && !operation.active) return;
+      feedback?.onError?.(error, optimisticFailureAction(error, action));
+      await operation?.reject(error);
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
@@ -477,6 +517,10 @@ export function useContacts(
           queryKey[2] === apiUrl &&
           queryKey[3] === (currentUserId ?? token) &&
           !String(queryKey[1]).startsWith("search:"),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["groups", apiUrl, currentUserId],
+        predicate: ({ queryKey }) => queryKey[3] === "people" || queryKey[3] === "invitees",
       });
       if (searchQuery.length >= 4)
         void queryClient.invalidateQueries({
@@ -496,6 +540,7 @@ export function useContacts(
         "follow",
         targetUserId,
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("follow"),
   });
@@ -510,6 +555,7 @@ export function useContacts(
         "follow",
         targetUserId,
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("unfollow"),
   });
@@ -524,6 +570,7 @@ export function useContacts(
         "friend",
         targetUserId,
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("unfriend"),
   });
@@ -538,6 +585,7 @@ export function useContacts(
         "friend_request",
         targetUserId,
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("friend_request"),
   });
@@ -552,6 +600,7 @@ export function useContacts(
         "friend_request",
         targetUserId,
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("cancel_friend_request"),
   });
@@ -565,6 +614,7 @@ export function useContacts(
         targetUserId,
         "accept",
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("accept_friend_request"),
   });
@@ -578,6 +628,7 @@ export function useContacts(
         targetUserId,
         "reject",
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("reject_friend_request"),
   });
@@ -592,6 +643,7 @@ export function useContacts(
         "block",
         targetUserId,
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("block"),
   });
@@ -606,11 +658,13 @@ export function useContacts(
         "block",
         targetUserId,
         protectionBypass,
+        optimisticOperationSignal(queryClient, [...resource, targetUserId]),
       ),
     ...optimisticOptions("unblock"),
   });
 
   const syncContacts = useMutation({
+    mutationKey: [...resource, "sync"],
     mutationFn: ({
       emails,
       phoneNumbers,
@@ -618,31 +672,41 @@ export function useContacts(
       emails: string[];
       phoneNumbers: string[];
       silent?: boolean;
-    }) => syncContactsWithToken(apiUrl, emails, phoneNumbers, token, getToken, protectionBypass),
+    }) =>
+      syncContactsWithToken(
+        apiUrl,
+        emails,
+        phoneNumbers,
+        token,
+        getToken,
+        protectionBypass,
+        optimisticOperationSignal(queryClient, ["contacts-sync", apiUrl, currentUserId ?? token]),
+      ),
     // New contacts → refresh suggestions (which read contactLinks from the DB).
-    onMutate: async ({ silent }) => {
-      const queryKey = ["contacts", "suggestions"] as const;
-      await queryClient.cancelQueries({ queryKey });
-      const snapshots = queryClient.getQueriesData<
-        { users: ContactUser[]; hasContacts: boolean } | { pages: Array<{ hasContacts: boolean }> }
-      >({ queryKey });
-      for (const [key, data] of snapshots) {
-        if (!data) continue;
-        queryClient.setQueryData(
-          key,
-          "pages" in data
-            ? { ...data, pages: data.pages.map((page) => ({ ...page, hasContacts: true })) }
-            : { ...data, hasContacts: true },
-        );
-      }
-      if (!silent) feedback?.onOptimisticUpdate?.("sync_contacts");
-      return snapshots;
+    onMutate: async () => {
+      const operation = await beginOptimisticOperation(
+        queryClient,
+        ["contacts-sync", apiUrl, currentUserId ?? token],
+        { queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token] },
+        (data) => contactSnapshotPresence(data, true),
+      );
+      return operation;
     },
-    onError: (error, { silent }, snapshots) => {
-      for (const [queryKey, data] of snapshots ?? []) queryClient.setQueryData(queryKey, data);
-      if (!silent) feedback?.onError?.(error, "sync_contacts");
+    onSuccess: (data, { silent }, operation) => {
+      if (!operation?.active) return;
+      operation.commit((current) => contactSnapshotPresence(current, data.stored > 0));
+      if (!silent) feedback?.onSuccess?.("sync_contacts");
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["contacts", "suggestions"] }),
+    onError: async (error, { silent }, operation) => {
+      if (operation && !operation.active) return;
+      if (!silent) feedback?.onError?.(error, optimisticFailureAction(error, "sync_contacts"));
+      await operation?.reject(error);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["contacts", "suggestions", apiUrl, currentUserId ?? token],
+      });
+    },
   });
 
   const runSearch = useCallback((query: string) => setSearchQuery(query.trim()), []);
@@ -669,6 +733,7 @@ export function useContacts(
       search,
       runSearch,
       refreshContacts,
+      isBusy,
     }),
     [
       following,
@@ -691,6 +756,7 @@ export function useContacts(
       search,
       runSearch,
       refreshContacts,
+      isBusy,
     ],
   );
 }

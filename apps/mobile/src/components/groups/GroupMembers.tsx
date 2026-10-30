@@ -272,7 +272,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
       <UserActionsSheet
         visible={Boolean(selected)}
         user={selected ? groupPersonContact(selected) : null}
-        busy={busy}
+        busy={Boolean(selected && workflow.isBusy(selected.userId))}
         blockLabel={t("Block user globally")}
         friendRequest={selected?.social?.friendRequest}
         canSendFriendRequest={Boolean(

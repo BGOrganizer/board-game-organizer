@@ -53,7 +53,7 @@ function Editor({ group }: { group?: GroupRecordResponse }) {
   const { t } = useLingui(),
     options = useCommunityApi(),
     router = useRouter(),
-    actions = useGroupRecordActions(options);
+    actions = useGroupRecordActions(options, group?.id);
   const [name, setName] = useState(group?.name ?? ""),
     [type, setType] = useState<"PRIVATE" | "PUBLIC">(group?.type ?? "PRIVATE"),
     [baseVersion] = useState(group?.version ?? 0);

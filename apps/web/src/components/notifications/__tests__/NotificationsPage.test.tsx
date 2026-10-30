@@ -47,6 +47,7 @@ function setState(overrides: Record<string, unknown> = {}) {
     },
     notifications: [item],
     unreadCount: 1,
+    busy: false,
     hasMore: false,
     markRead: { mutate: mocks.markRead },
     markAllRead: { mutate: mocks.markAllRead },
@@ -82,12 +83,21 @@ describe("NotificationsPage", () => {
     expect(mocks.deleteNotification).toHaveBeenCalledWith(item.id, expect.any(Object));
   });
 
-  it("blocks inbox navigation while a notification is being deleted", () => {
-    setState({ deleteNotification: { mutate: mocks.deleteNotification, isPending: true } });
+  it("keeps inbox navigation available while conflicting notification writes stay disabled", () => {
+    setState({
+      busy: true,
+      deleteNotification: { mutate: mocks.deleteNotification, isPending: true },
+    });
     renderWithI18n(<NotificationsPage />);
     const link = screen.getByText("New match invitation").closest("a");
-    expect(link?.closest("[inert]")).toBeTruthy();
-    expect(fireEvent.click(link as HTMLAnchorElement)).toBe(false);
+    expect(link?.closest("[inert]")).toBeNull();
+    expect(fireEvent.click(link as HTMLAnchorElement)).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Delete notification" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Mark all as read" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
     expect(mocks.markRead).not.toHaveBeenCalled();
   });
 

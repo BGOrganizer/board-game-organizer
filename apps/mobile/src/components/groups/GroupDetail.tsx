@@ -38,7 +38,7 @@ export function GroupDetail({
     accentForeground = useThemeColor("accent-foreground"),
     dangerForeground = useThemeColor("danger-foreground"),
     q = useGroupRecord(o, groupId),
-    a = useGroupRecordActions(o),
+    a = useGroupRecordActions(o, groupId),
     [tab, setTab] = useState<string>(initialTab),
     [confirm, setConfirm] = useState<"decline" | "cancel" | "delete" | null>(null),
     [error, setError] = useState(false);

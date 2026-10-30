@@ -1,5 +1,5 @@
 import type { CommunityPageResponse } from "@board-game-organizer/schemas";
-import { type InfiniteData, replaceEqualDeep } from "@tanstack/react-query";
+import { hashKey, type InfiniteData, type QueryKey, replaceEqualDeep } from "@tanstack/react-query";
 
 /** Call only for owned entity-detail or paginated-entity keys, not arbitrary Query caches. */
 export function mapCommunityCache<T>(data: unknown, change: (row: T) => T): unknown {
@@ -12,6 +12,55 @@ export function mapCommunityCache<T>(data: unknown, change: (row: T) => T): unkn
     pages: pages.pages.map((page) => ({ ...page, items: page.items.map(change) })),
   };
 }
+/** Freeze only the rows known at mutation start; newer authoritative versions always win. */
+export function versionedCommunityChange<T extends object>(
+  change: (row: T, key: QueryKey) => T,
+  identity: (row: T) => string,
+) {
+  const versions = new Map<string, Map<string, string>>();
+  let capturing = true;
+  function apply<R extends T>(
+    data: unknown,
+    key: QueryKey,
+    transform: (row: R, key: QueryKey) => R,
+  ): unknown {
+    const query = hashKey(key);
+    return mapCommunityCache<R>(data, (row) => {
+      const record = row as Record<string, unknown>;
+      const nestedVersion = (name: string) =>
+        (record[name] as { version?: number } | null | undefined)?.version;
+      const version = JSON.stringify([
+        record.version ?? record.updatedAt,
+        nestedVersion("membership"),
+        nestedVersion("myMembership"),
+        nestedVersion("myRegistration"),
+        nestedVersion("registration"),
+      ]);
+      const id = identity(row);
+      let known = versions.get(id);
+      if (capturing) {
+        if (!known) {
+          known = new Map();
+          versions.set(id, known);
+        }
+        known.set(query, version);
+      } else if (known && !known.has(query) && [...known.values()].includes(version)) {
+        // A newly opened view may project a known server snapshot, but a newer
+        // version in an existing view must never inherit an older view's intent.
+        known.set(query, version);
+      }
+      return known?.get(query) === version ? transform(row, key) : row;
+    });
+  }
+  return {
+    seal() {
+      capturing = false;
+    },
+    change: (data: unknown, key: QueryKey) => apply(data, key, change),
+    apply,
+  };
+}
+
 function plainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(
     value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype,

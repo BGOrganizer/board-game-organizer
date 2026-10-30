@@ -174,16 +174,6 @@ export default function ContactsScreen() {
 
   const contacts = useContacts(apiUrl(), token, getToken, undefined, userId, mutationFeedback);
   const invite = useInvites({ apiUrl: apiUrl(), token, getToken, feedback: mutationFeedback });
-  const isBusy =
-    contacts.follow.isPending ||
-    contacts.unfollow.isPending ||
-    contacts.unfriend.isPending ||
-    contacts.friendRequest.isPending ||
-    contacts.cancelFriendRequest.isPending ||
-    contacts.acceptFriendRequest.isPending ||
-    contacts.rejectFriendRequest.isPending ||
-    contacts.block.isPending ||
-    contacts.unblock.isPending;
   const openUserActions = (
     user: ContactUser,
     friendRequest?: FriendRequestContext,
@@ -917,7 +907,7 @@ export default function ContactsScreen() {
       <UserActionsSheet
         visible={menuUser !== null}
         user={menuUser}
-        busy={isBusy}
+        busy={menuUser !== null && contacts.isBusy(menuUser.id)}
         canSendFriendRequest={menuUser !== null && canSendFriendRequest(menuUser)}
         friendRequest={menuFriendRequest}
         initialConfirmAction={initialConfirmAction}

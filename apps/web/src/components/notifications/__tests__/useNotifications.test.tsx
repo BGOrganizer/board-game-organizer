@@ -263,9 +263,15 @@ describe("useNotifications", () => {
     expect(bell.result.current.notifications).toHaveLength(0);
     expect(bell.result.current.unreadCount).toBe(0);
     expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("delete_notification");
-    expect(fetch).toHaveBeenCalledWith(
-      "https://api.example.com/api/notifications/first?x-vercel-protection-bypass=bypass",
-      { method: "DELETE", headers: { Authorization: "Bearer fresh-token" } },
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "https://api.example.com/api/notifications/first?x-vercel-protection-bypass=bypass",
+        {
+          method: "DELETE",
+          headers: { Authorization: "Bearer fresh-token" },
+          signal: expect.any(AbortSignal),
+        },
+      ),
     );
 
     failDelete();
@@ -273,7 +279,7 @@ describe("useNotifications", () => {
     expect(inbox.result.current.notifications).toHaveLength(1);
     expect(bell.result.current.notifications).toHaveLength(1);
     expect(bell.result.current.unreadCount).toBe(1);
-    expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "delete_notification");
+    expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "verify_saved_changes");
   });
 
   it("exposes HTTP and missing-auth failures without fetching while disabled", async () => {

@@ -116,6 +116,7 @@ export function Profile() {
 
   const synchronize = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (bgg.busy) return;
     setFormError(null);
     try {
       await bgg.link.mutateAsync(username.trim());
@@ -214,6 +215,7 @@ export function Profile() {
         <Button
           className="mt-6 w-full sm:w-auto"
           variant="primary"
+          isDisabled={bgg.busy}
           onPress={() => {
             setUsername("");
             setFormError(null);
@@ -247,6 +249,7 @@ export function Profile() {
               size="sm"
               variant="danger-soft"
               aria-label={t`Disconnect BoardGameGeek`}
+              isDisabled={bgg.busy}
               onPress={() => setConfirmUnlink(true)}
             >
               <Unlink2 className="h-5 w-5" />
@@ -304,10 +307,10 @@ export function Profile() {
             <Button
               type="button"
               variant="ghost"
-              isDisabled={bgg.link.isPending}
+              isDisabled={bgg.busy || bgg.link.isPending}
               onPress={() => setDialogOpen(false)}
             >{t`Cancel`}</Button>
-            <Button type="submit" variant="primary" isDisabled={bgg.link.isPending}>
+            <Button type="submit" variant="primary" isDisabled={bgg.busy || bgg.link.isPending}>
               <Link2 className="h-4 w-4 text-white" />
               <span className="text-white">{t`Sync`}</span>
             </Button>
@@ -318,7 +321,7 @@ export function Profile() {
         <ContactConfirmDialog
           title={t`Disconnect BoardGameGeek?`}
           description={t`Synced collection games will be removed from your profile. Existing matches remain unchanged.`}
-          busy={bgg.unlink.isPending}
+          busy={bgg.busy || bgg.unlink.isPending}
           onCancel={() => setConfirmUnlink(false)}
           actions={[
             {

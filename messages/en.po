@@ -853,6 +853,10 @@ msgid "Board games"
 msgstr "Board games"
 
 #: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek account linked"
+msgstr "BoardGameGeek account linked"
+
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "BoardGameGeek disconnected"
 msgstr "BoardGameGeek disconnected"
 
@@ -863,6 +867,10 @@ msgstr "BoardGameGeek has no duration for this game. Enter a positive whole numb
 #: apps/web/src/lib/useMutationFeedback.ts
 #~ msgid "BoardGameGeek sync started"
 #~ msgstr "BoardGameGeek sync started"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek synchronization started"
+msgstr "BoardGameGeek synchronization started"
 
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
@@ -962,9 +970,17 @@ msgstr "Center map on my location"
 #~ msgid "Changes applied"
 #~ msgstr "Changes applied"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Changes refreshed"
+msgstr "Changes refreshed"
+
 #: apps/web/src/components/groups/GroupStatusBadge.tsx
 msgid "Changes rejected"
 msgstr "Changes rejected"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Changes were saved, but could not be refreshed. Refresh to see the latest data."
+msgstr "Changes were saved, but could not be refreshed. Refresh to see the latest data."
 
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Check event name, dates, booking deadline, verified address and tables"
@@ -1480,6 +1496,10 @@ msgstr "Could not leave group"
 msgid "Could not leave match"
 msgstr "Could not leave match"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not link BoardGameGeek account"
+msgstr "Could not link BoardGameGeek account"
+
 #: apps/web/src/components/profile/Profile.tsx
 msgid "Could not load BoardGameGeek connection. Retry"
 msgstr "Could not load BoardGameGeek connection. Retry"
@@ -1688,6 +1708,14 @@ msgstr "Could not load users"
 msgid "Could not load users. Retry"
 msgstr "Could not load users. Retry"
 
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not mark notification as read"
+msgstr "Could not mark notification as read"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not mark notifications as read"
+msgstr "Could not mark notifications as read"
+
 msgid "Could not open settings"
 msgstr "Could not open settings"
 
@@ -1771,9 +1799,9 @@ msgstr "Could not send friend request"
 #~ msgid "Could not synchronize BoardGameGeek"
 #~ msgstr "Could not synchronize BoardGameGeek"
 
-#: apps/web/src/components/profile/Profile.tsx
-#~ msgid "Could not synchronize BoardGameGeek collection"
-#~ msgstr "Could not synchronize BoardGameGeek collection"
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not synchronize BoardGameGeek collection"
+msgstr "Could not synchronize BoardGameGeek collection"
 
 #: apps/web/src/lib/useMutationFeedback.ts
 msgid "Could not synchronize contacts"
@@ -1831,6 +1859,10 @@ msgstr "Could not upload logo"
 #: apps/web/src/components/events/EventResults.tsx
 msgid "Could not verify event finalization. Refresh the event before retrying."
 msgstr "Could not verify event finalization. Refresh the event before retrying."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not verify whether this action was saved. Check the current state before retrying."
+msgstr "Could not verify whether this action was saved. Check the current state before retrying."
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
@@ -3449,6 +3481,7 @@ msgstr "Notification deleted"
 
 #: apps/web/src/components/notifications/NotificationBell.tsx
 #: apps/web/src/components/notifications/NotificationsPage.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
 msgid "Notifications"
 msgstr "Notifications"
 

@@ -1,5 +1,6 @@
 "use client";
 import {
+  clearSessionQueryCache,
   resolveApiUrl,
   warmStartupBackground,
   warmStartupPriority,
@@ -22,7 +23,7 @@ export function WebDataWarmup() {
   useEffect(() => {
     if (!isLoaded) return;
     const identity = userId && sessionId ? `${userId}/${sessionId}` : null;
-    if (previous.current && previous.current !== identity) client.clear();
+    if (previous.current && previous.current !== identity) clearSessionQueryCache(client);
     previous.current = identity;
     const owner = JSON.stringify([identity, locale]);
     if (!userId || !identity || warmed.current === owner) return;

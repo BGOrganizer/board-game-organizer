@@ -28,7 +28,7 @@ export function LocationFavoriteButton({
       }
       accessibilityState={{ selected: favorite }}
       isDisabled={
-        favorites.toggle.isPending ||
+        favorites.isBusy(location) ||
         favorites.status.isPending ||
         (favorites.status.isError && !favorites.status.data)
       }

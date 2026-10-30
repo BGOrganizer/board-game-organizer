@@ -1,4 +1,8 @@
-import type { CommunityPageResponse, GroupRecordResponse } from "@board-game-organizer/schemas";
+import type {
+  CommunityPageResponse,
+  GroupRecordResponse,
+  NotificationListResponse,
+} from "@board-game-organizer/schemas";
 import type { InfiniteData } from "@tanstack/react-query";
 
 type GroupPages = InfiniteData<CommunityPageResponse<GroupRecordResponse>>;
@@ -13,6 +17,27 @@ function paged(data: unknown): data is GroupPages {
       Array.isArray(data.pageParams),
   );
 }
+function inbox(data: unknown): data is InfiniteData<NotificationListResponse> {
+  const pages = data && typeof data === "object" && "pages" in data ? data.pages : null;
+  return Boolean(
+    Array.isArray(pages) &&
+      pages.every((page) => page && Array.isArray(page.notifications)) &&
+      data &&
+      typeof data === "object" &&
+      "pageParams" in data &&
+      Array.isArray(data.pageParams),
+  );
+}
+/** Discover only already-cached Events/Tables; never fetch or scan additional pages. */
+export function cachedGroupEventIds(data: unknown, groupId: string): string[] {
+  const rows: unknown[] = paged(data) ? data.pages.flatMap((page) => page.items) : [data];
+  return rows.flatMap((value) => {
+    if (!value || typeof value !== "object" || !("groupId" in value) || value.groupId !== groupId)
+      return [];
+    if ("eventId" in value && typeof value.eventId === "string") return [value.eventId];
+    return "dates" in value && "id" in value && typeof value.id === "string" ? [value.id] : [];
+  });
+}
 /** Only use for the deleting actor's Group/Event/Table/notification cache scopes. */
 export function belongsToDeletedGroup(value: unknown, id: string, eventIds: ReadonlySet<string>) {
   if (!value || typeof value !== "object") return false;
@@ -23,8 +48,9 @@ export function belongsToDeletedGroup(value: unknown, id: string, eventIds: Read
     (typeof row.eventId === "string" && eventIds.has(row.eventId))
   )
     return true;
-  if (typeof row.resourceHref !== "string") return false;
-  const [, section, resource] = row.resourceHref.split(/[?#]/)[0].split("/");
+  const href = typeof row.href === "string" ? row.href : row.resourceHref;
+  if (typeof href !== "string") return false;
+  const [, section, resource] = href.split(/[?#]/)[0].split("/");
   return (
     ((section === "groups" || section === "moderation") && resource === id) ||
     (section === "events" && eventIds.has(resource ?? ""))
@@ -35,6 +61,25 @@ export function removeDeletedGroupData(
   id: string,
   eventIds: ReadonlySet<string>,
 ): unknown {
+  if (inbox(data)) {
+    const unread = new Set(
+      data.pages.flatMap((page) =>
+        page.notifications
+          .filter((row) => !row.readAt && belongsToDeletedGroup(row, id, eventIds))
+          .map((row) => row.id),
+      ),
+    ).size;
+    return {
+      ...data,
+      pages: data.pages.map((page) => ({
+        ...page,
+        notifications: page.notifications.filter(
+          (row) => !belongsToDeletedGroup(row, id, eventIds),
+        ),
+        unreadCount: Math.max(0, page.unreadCount - unread),
+      })),
+    };
+  }
   if (!paged(data)) return data;
   return {
     ...data,

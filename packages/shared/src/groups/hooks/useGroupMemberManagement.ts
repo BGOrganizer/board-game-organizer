@@ -10,16 +10,17 @@ import { useGroupSocialActions } from "./useGroupSocialActions";
 /** One workflow, platform-owned dialogs, navigation and virtualized rows. */
 export function useGroupMemberManagement(options: CommunityApiOptions, group: GroupRecordResponse) {
   const list = useGroupPeopleFeed(options, group),
-    actions = useGroupRecordActions(options),
+    actions = useGroupRecordActions(options, group.id),
     social = useGroupSocialActions(options);
   const [managed, setManaged] = useState<{
     person: GroupPersonResponse;
     action: GroupPersonAction;
   } | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  const busy = actions.busy || social.busy;
+  const isBusy = (userId: string) => actions.busy || social.isBusy(userId);
+  const busy = actions.busy || Boolean(managed && social.isBusy(managed.person.userId));
   const allowed = (person: GroupPersonResponse, action: GroupPersonAction) =>
-    !busy &&
+    !isBusy(person.userId) &&
     !communityAccessDenied(list.error) &&
     groupPersonActions(group, person).includes(action);
   const open = (person: GroupPersonResponse, action: GroupPersonAction) => {
@@ -61,8 +62,9 @@ export function useGroupMemberManagement(options: CommunityApiOptions, group: Gr
     }
   };
   const runSocial = async (person: GroupPersonResponse, action: ContactAction) => {
-    if (!group.canSocialInteract || communityAccessDenied(list.error) || busy) return;
+    if (!group.canSocialInteract || communityAccessDenied(list.error) || isBusy(person.userId))
+      return;
     await social.run(person, action);
   };
-  return { list, busy, managed, error, open, close, confirm, runSocial };
+  return { list, busy, isBusy, managed, error, open, close, confirm, runSocial };
 }

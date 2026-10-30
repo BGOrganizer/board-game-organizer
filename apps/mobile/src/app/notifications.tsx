@@ -41,7 +41,6 @@ export default function NotificationsScreen() {
     <View style={{ flex: 1 }}>
       <FlatList
         className="flex-1 bg-background"
-        pointerEvents={notifications.deleteNotification.isPending ? "none" : "auto"}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ padding: 16, paddingBottom: 72, gap: 12, flexGrow: 1 }}
         data={notifications.notifications}
@@ -50,8 +49,7 @@ export default function NotificationsScreen() {
           if (
             notifications.hasMore &&
             !notifications.list.isFetchingNextPage &&
-            !notifications.list.isFetchNextPageError &&
-            !notifications.deleteNotification.isPending
+            !notifications.list.isFetchNextPageError
           )
             void notifications.list.fetchNextPage();
         }}
@@ -59,7 +57,12 @@ export default function NotificationsScreen() {
         ListHeaderComponent={
           <>
             {notifications.unreadCount > 0 && (
-              <Button variant="ghost" size="sm" onPress={() => notifications.markAllRead.mutate()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                isDisabled={notifications.busy}
+                onPress={() => notifications.markAllRead.mutate()}
+              >
                 <CheckCheck size={18} color="#737373" />
                 <Button.Label>{t("Mark all as read")}</Button.Label>
               </Button>
@@ -124,12 +127,10 @@ export default function NotificationsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${item.title}. ${item.description}`}
-              disabled={notifications.deleteNotification.isPending}
               className="rounded-xl p-4 active:bg-muted/20"
               style={{ flexDirection: "row", gap: 10, width: "100%", paddingRight: 56 }}
               onPress={() => {
-                if (notifications.deleteNotification.isPending) return;
-                notifications.markRead.mutate(item.id);
+                if (!notifications.busy) notifications.markRead.mutate(item.id);
                 router.push(notificationHref({ href: item.href, kind: item.kind }));
               }}
             >
@@ -157,7 +158,7 @@ export default function NotificationsScreen() {
               accessibilityLabel={t("Delete notification")}
               testID={`delete-notification-${item.id}`}
               hitSlop={8}
-              isDisabled={notifications.deleteNotification.isPending}
+              isDisabled={notifications.busy}
               style={{ position: "absolute", right: 8, bottom: 8, width: 40, height: 40 }}
               onPress={() => setDeletingId(item.id)}
             >
@@ -170,7 +171,7 @@ export default function NotificationsScreen() {
         <ConfirmDialog
           title={t("Delete notification?")}
           description={t("This notification will be permanently deleted.")}
-          busy={notifications.deleteNotification.isPending}
+          busy={notifications.busy}
           onCancel={() => setDeletingId(null)}
           actions={[
             {

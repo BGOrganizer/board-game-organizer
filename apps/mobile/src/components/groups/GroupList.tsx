@@ -74,7 +74,7 @@ export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
         renderItem={({ item: group }) => (
           <GroupCard
             group={group}
-            pending={actions.busy}
+            pending={actions.isBusy(group.id)}
             onRespond={(action) => {
               if (group.myMembership)
                 actions.membership.mutate({

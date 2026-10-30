@@ -2,6 +2,7 @@ export * from "./common/api";
 export * from "./common/hooks/listFilters";
 export * from "./common/hooks/useListSearch";
 export * from "./common/mutationFeedback";
+export { clearSessionQueryCache } from "./common/optimisticOperation";
 export * from "./common/startupQueries";
 export * from "./common/types";
 export * from "./community/communityApi";

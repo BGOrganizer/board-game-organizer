@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { type ContactAction, optimisticContactData } from "../hooks/contactOptimistic";
+import {
+  type ContactAction,
+  contactSnapshotPresence,
+  optimisticContactData,
+  optimisticPeopleSocialData,
+} from "../hooks/contactOptimistic";
 import type { ContactUser } from "../hooks/useContacts";
 
 const target: ContactUser = {
@@ -29,6 +34,64 @@ const applyUsers = (view: string, action: ContactAction) =>
   ) as { users: ContactUser[]; hasContacts: boolean };
 
 describe("optimisticContactData", () => {
+  it("reconciles empty/full contact snapshots without manufacturing missing cache data", () => {
+    for (const data of [undefined, null, 0, 1, "not-data"])
+      expect(contactSnapshotPresence(data, true)).toBe(data);
+    const scalar = { users: [target], hasContacts: true };
+    expect(contactSnapshotPresence(scalar, false)).toEqual({ ...scalar, hasContacts: false });
+    const data = { pages: [{ ...scalar, nextCursor: "next" }], pageParams: [""] };
+    expect(contactSnapshotPresence(data, false)).toEqual({
+      ...data,
+      pages: [{ ...data.pages[0], hasContacts: false }],
+    });
+    expect(contactSnapshotPresence({ users: [], hasContacts: false }, true)).toEqual({
+      users: [],
+      hasContacts: true,
+    });
+  });
+  it("updates only authorized existing social fields without granting membership or permissions", () => {
+    const person = {
+      userId: target.id,
+      name: "Member",
+      membership: { status: "PENDING" },
+      social: {
+        isFollowing: false,
+        isFollower: false,
+        isFriend: false,
+        blockedByMe: false,
+        friendRequest: "incoming",
+      },
+    };
+    for (const action of [
+      "follow",
+      "friend_request",
+      "cancel_friend_request",
+      "reject_friend_request",
+      "accept_friend_request",
+      "block",
+      "unfriend",
+    ] as const) {
+      const data = {
+        pages: [{ items: [person, { userId: "other" }, { userId: target.id }], nextCursor: null }],
+        pageParams: [""],
+      };
+      const result = optimisticPeopleSocialData(data, action, target.id) as typeof data;
+      expect(result.pages[0].items[0]).toMatchObject({
+        name: "Member",
+        membership: { status: "PENDING" },
+      });
+      expect(result.pages[0].items[1]).toBe(data.pages[0].items[1]);
+      expect(result.pages[0].items[2]).toBe(data.pages[0].items[2]);
+      expect(result.pages[0].items[0].social?.friendRequest).toBe(
+        action === "friend_request"
+          ? "outgoing"
+          : ["follow", "unfriend"].includes(action)
+            ? "incoming"
+            : undefined,
+      );
+    }
+    expect(optimisticPeopleSocialData(undefined, "follow", target.id)).toBeUndefined();
+  });
   it("patches paginated caches once across page boundaries", () => {
     const pages = {
       pages: [

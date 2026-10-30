@@ -54,15 +54,16 @@ export function NotificationsPage() {
   }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
 
   return (
-    <section
-      className="mx-auto flex w-full max-w-3xl flex-col gap-4"
-      inert={notifications.deleteNotification.isPending}
-      aria-busy={notifications.deleteNotification.isPending}
-    >
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t`Notifications`}</h1>
         {notifications.unreadCount > 0 && (
-          <Button size="sm" variant="ghost" onPress={() => notifications.markAllRead.mutate()}>
+          <Button
+            size="sm"
+            variant="ghost"
+            isDisabled={notifications.busy}
+            onPress={() => notifications.markAllRead.mutate()}
+          >
             <CheckCheck className="h-4 w-4" />
             {t`Mark all as read`}
           </Button>
@@ -107,12 +108,8 @@ export function NotificationsPage() {
           >
             <Link
               href={notification.href}
-              onClick={(event) => {
-                if (notifications.deleteNotification.isPending) {
-                  event.preventDefault();
-                  return;
-                }
-                notifications.markRead.mutate(notification.id);
+              onClick={() => {
+                if (!notifications.busy) notifications.markRead.mutate(notification.id);
               }}
               className="block rounded-xl p-4 pe-12"
             >
@@ -146,7 +143,7 @@ export function NotificationsPage() {
               variant="danger-soft"
               aria-label={t`Delete notification`}
               className="absolute end-3 bottom-3"
-              isDisabled={notifications.deleteNotification.isPending}
+              isDisabled={notifications.busy}
               onPress={() => setDeletingId(notification.id)}
             >
               <Trash2 className="size-4" aria-hidden="true" />
@@ -174,7 +171,7 @@ export function NotificationsPage() {
         <ContactConfirmDialog
           title={t`Delete notification?`}
           description={t`This notification will be permanently deleted.`}
-          busy={notifications.deleteNotification.isPending}
+          busy={notifications.busy}
           actions={[
             {
               label: t`Delete notification`,

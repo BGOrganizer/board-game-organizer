@@ -24,19 +24,35 @@ function Harness() {
 
   return (
     <>
-      <button type="button" onClick={() => contacts.friendRequest.mutate(variables)}>
+      <button
+        type="button"
+        disabled={contacts.isBusy(targetUser.id)}
+        onClick={() => contacts.friendRequest.mutate(variables)}
+      >
         Send
       </button>
-      <button type="button" onClick={() => contacts.unfriend.mutate(variables)}>
+      <button
+        type="button"
+        disabled={contacts.isBusy(targetUser.id)}
+        onClick={() => contacts.unfriend.mutate(variables)}
+      >
         Unfriend
       </button>
       <button type="button" onClick={() => contacts.runSearch("target")}>
         Search
       </button>
-      <button type="button" onClick={() => contacts.acceptFriendRequest.mutate(variables)}>
+      <button
+        type="button"
+        disabled={contacts.isBusy(targetUser.id)}
+        onClick={() => contacts.acceptFriendRequest.mutate(variables)}
+      >
         Accept
       </button>
-      <button type="button" onClick={() => contacts.rejectFriendRequest.mutate(variables)}>
+      <button
+        type="button"
+        disabled={contacts.isBusy(targetUser.id)}
+        onClick={() => contacts.rejectFriendRequest.mutate(variables)}
+      >
         Reject
       </button>
       {contacts.rejectFriendRequest.isError ? <span>Request failed</span> : null}
@@ -93,9 +109,12 @@ describe("useContacts friend request", () => {
     });
     expect(request?.body).toBe(JSON.stringify({ targetUserId: "user_2" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
-    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
-    fireEvent.click(screen.getByRole("button", { name: "Unfriend" }));
+    for (const name of ["Accept", "Reject", "Unfriend"]) {
+      const button = screen.getByRole("button", { name }) as HTMLButtonElement;
+      await waitFor(() => expect(button.disabled).toBe(false));
+      fireEvent.click(button);
+      await waitFor(() => expect(button.disabled).toBe(false));
+    }
 
     await waitFor(() => {
       const responses = fetchMock.mock.calls.filter(

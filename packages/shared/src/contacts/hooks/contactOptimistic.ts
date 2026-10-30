@@ -1,4 +1,6 @@
+import type { GroupPersonResponse } from "@board-game-organizer/schemas";
 import type { QueryKey } from "@tanstack/react-query";
+import { mapCommunityCache } from "../../community/queryCache";
 import type { ContactUser, RelationshipRow } from "./useContacts";
 
 export type ContactAction =
@@ -12,12 +14,22 @@ export type ContactAction =
   | "block"
   | "unblock";
 
+export function contactSnapshotPresence(data: unknown, hasContacts: boolean): unknown {
+  if (!data || typeof data !== "object") return data;
+  const current = data as { pages?: Array<{ hasContacts: boolean }> };
+  return current.pages
+    ? { ...current, pages: current.pages.map((page) => ({ ...page, hasContacts })) }
+    : { ...current, hasContacts };
+}
+
 export interface ContactMutationVariables {
   targetUserId: string;
   targetUser: ContactUser;
 }
 
-export function optimisticContactUser(user: ContactUser, action: ContactAction): ContactUser {
+export function optimisticContactUser<
+  T extends Pick<ContactUser, "isFollowing" | "isFollower" | "isFriend" | "blockedByMe">,
+>(user: T, action: ContactAction): T {
   switch (action) {
     case "follow":
       return { ...user, isFollowing: true };
@@ -70,6 +82,34 @@ function withTarget(
       profile: optimisticContactUser(variables.targetUser, action),
     },
   ];
+}
+
+/** Social fields only: cached Group membership/capabilities never become optimistic grants. */
+export function optimisticPeopleSocialData(
+  data: unknown,
+  action: ContactAction,
+  targetUserId: string,
+): unknown {
+  return mapCommunityCache<Pick<GroupPersonResponse, "userId" | "social">>(data, (row) => {
+    if (row.userId !== targetUserId || !row.social) return row;
+    return {
+      ...row,
+      social: {
+        ...optimisticContactUser(row.social, action),
+        friendRequest:
+          action === "friend_request"
+            ? ("outgoing" as const)
+            : [
+                  "cancel_friend_request",
+                  "reject_friend_request",
+                  "accept_friend_request",
+                  "block",
+                ].includes(action)
+              ? undefined
+              : row.social.friendRequest,
+      },
+    };
+  });
 }
 
 /** Applies one deterministic social action to any cached contacts view. */

@@ -14,12 +14,25 @@ import type {
   TableRegistration,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
-import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
+import { notifyManager, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { MutationFeedbackAction } from "../../common/mutationFeedback";
-import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
-import { mapCommunityCache, restoreCommunityFields } from "../../community/queryCache";
+import {
+  beginOptimisticOperation,
+  optimisticBaseData,
+  optimisticFailureAction,
+  optimisticOperationSignal,
+  updateOptimisticBase,
+} from "../../common/optimisticOperation";
+import {
+  type CommunityApiOptions,
+  communityAccessDenied,
+  communityRequest,
+} from "../../community/communityApi";
+import { mapCommunityCache, versionedCommunityChange } from "../../community/queryCache";
+import { acknowledgeTableRegistration } from "../eventRegistrationCache";
 import { changeEventVoteCounts } from "../eventVotes";
-import { eventRecordKeys } from "./useEventRecords";
+import { eventRecordKeys, eventRecordQuery } from "./useEventRecords";
 
 type Row =
   | PlannedEventResponse
@@ -29,131 +42,200 @@ type Row =
 export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const client = useQueryClient(),
     root = eventRecordKeys.root(o),
-    mutationKey = [...root, "mutation", id],
-    busy = useIsMutating({ mutationKey }) > 0;
-  const affected = (key: readonly unknown[]) =>
+    mutationKey = [...root, "mutation", id];
+  const resource = [...root, id || "new"];
+  const busy = useOptimisticBusy(resource)();
+  const write = <T>(path: string, method: string, input: unknown) =>
+    communityRequest<T>(o, path, method, input, optimisticOperationSignal(client, resource));
+  const affected = (key: readonly unknown[], eventId = id) =>
     key[3] === "list" ||
-    (key[3] === "tables" && (key[4] === null || key[4] === id)) ||
+    (key[3] === "tables" && (key[4] === null || key[4] === eventId)) ||
     (["detail", "table", "seats", "leaderboard", "invitees"].includes(String(key[3])) &&
-      key[4] === id);
+      key[4] === eventId);
   async function begin(
     action: MutationFeedbackAction,
     change: (row: Row, key: readonly unknown[]) => Row = (row) => row,
   ) {
-    await client.cancelQueries({ queryKey: root, predicate: (q) => affected(q.queryKey) });
-    const undo: Array<() => void> = [];
-    for (const [key, data] of client.getQueriesData({
-      queryKey: root,
-      predicate: (q) => affected(q.queryKey),
-    })) {
-      client.setQueryData(
-        key,
-        mapCommunityCache<Row>(data, (row) => {
-          const next = change(row, key);
-          if (next !== row)
-            undo.push(() =>
-              client.setQueryData(key, (current: unknown) =>
-                mapCommunityCache<Row>(current, (value) =>
-                  value.id === row.id ? restoreCommunityFields(value, row, next) : value,
-                ),
-              ),
-            );
-          return next;
-        }),
-      );
-    }
-    o.feedback?.onOptimisticUpdate?.(action);
-    return { action, undo };
+    const guarded = versionedCommunityChange<Row>(
+      change,
+      (row) =>
+        `${"dates" in row ? "event" : "gameIds" in row ? "table" : "tableId" in row ? "seat" : "invitee"}:${row.id}`,
+    );
+    const operation = await beginOptimisticOperation(
+      client,
+      [...root, id || "new"],
+      { queryKey: root, predicate: (q) => affected(q.queryKey) },
+      guarded.change,
+    );
+    guarded.seal();
+    const announced =
+      operation.modified &&
+      ["update_event", "set_event_vote", "invite_event_player"].includes(action);
+    if (announced) o.feedback?.onOptimisticUpdate?.(action);
+    return { action, operation, guarded, announced, owner: o, eventId: id };
   }
-  function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
-    context?.undo.forEach((run) => {
-      run();
-    });
-    if (context) o.feedback?.onError?.(error, context.action);
+  async function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
+    if (context?.operation.active)
+      context.owner.feedback?.onError?.(error, optimisticFailureAction(error, context.action));
+    await context?.operation.reject(error);
   }
-  async function settle() {
-    await client.invalidateQueries({ queryKey: root, predicate: (q) => affected(q.queryKey) });
-    await client.invalidateQueries({
-      queryKey: ["groups", o.apiUrl, o.userId],
+  function settle(
+    _data: unknown,
+    _error: Error | null,
+    _input: unknown,
+    context: Awaited<ReturnType<typeof begin>> | undefined,
+  ) {
+    const owner = context?.owner ?? o;
+    // These refreshes are not part of the write and must never turn a committed write into failure.
+    void client.invalidateQueries(
+      {
+        queryKey: eventRecordKeys.root(owner),
+        predicate: (q) => affected(q.queryKey, context?.eventId ?? id),
+      },
+      { cancelRefetch: false },
+    );
+    void client.invalidateQueries({
+      queryKey: ["groups", owner.apiUrl, owner.userId],
       refetchType: "active",
     });
   }
-  function eventSuccess(value: PlannedEventResponse) {
-    client.setQueryData(eventRecordKeys.detail(o, value.id), value);
-    for (const [key, data] of client.getQueriesData({
-      queryKey: root,
-      predicate: (q) => q.queryKey[3] === "list",
-    }))
-      client.setQueryData(
-        key,
-        mapCommunityCache<PlannedEventResponse>(data, (row) => (row.id === value.id ? value : row)),
-      );
+  function complete(context: Awaited<ReturnType<typeof begin>> | undefined) {
+    if (!context?.operation.active) return;
+    context.operation.commit();
+    if (!context.announced) context.owner.feedback?.onSuccess?.(context.action);
   }
-  function registrationSuccess(
-    value: TableRegistration,
-    availability?: JoinTableInput["availability"],
+  function eventSuccess(
+    value: PlannedEventResponse,
+    _input: unknown,
+    context: Awaited<ReturnType<typeof begin>> | undefined,
   ) {
-    if (value.userId === o.userId) {
-      for (const [key, data] of client.getQueriesData({
-        queryKey: root,
-        predicate: (q) => q.queryKey[3] === "detail" || q.queryKey[3] === "list",
+    if (!context?.operation.active) return;
+    let saved = value;
+    for (const [key] of client.getQueriesData({
+      queryKey: eventRecordKeys.root(context.owner),
+      predicate: (q) => q.queryKey[3] === "detail" || q.queryKey[3] === "list",
+    }))
+      mapCommunityCache<PlannedEventResponse>(optimisticBaseData(client, key), (row) => {
+        if (row.id === value.id && row.version > saved.version) saved = row;
+        return row;
+      });
+    notifyManager.batch(() => {
+      updateOptimisticBase(client, eventRecordKeys.detail(context.owner, saved.id), () => saved);
+      for (const [key] of client.getQueriesData({
+        queryKey: eventRecordKeys.root(context.owner),
+        predicate: (q) => q.queryKey[3] === "list",
       }))
-        client.setQueryData(
-          key,
-          mapCommunityCache<PlannedEventResponse>(data, (row) => {
-            if (row.id !== value.eventId) return row;
-            const current = row.myRegistrations ?? [];
-            if (
-              current.some(
-                (registration) =>
-                  registration.tableId === value.tableId && registration.version > value.version,
-              )
-            )
-              return row;
-            return {
-              ...row,
-              myRegistrations: [
-                ...current.filter((registration) => registration.tableId !== value.tableId),
-                ...(["PENDING", "ACCEPTED"].includes(value.status) ? [value] : []),
-              ],
-              ...(availability && row.version <= availability.version
-                ? {
-                    myVotes: {
-                      ...row.myVotes,
-                      dateVotes: availability.dateVotes,
-                      locationVotes: availability.locationVotes,
-                    },
-                  }
-                : {}),
-            };
+        updateOptimisticBase(client, key, (current) =>
+          mapCommunityCache<PlannedEventResponse>(current, (row) =>
+            row.id === saved.id ? saved : row,
+          ),
+        );
+      for (const [key] of client.getQueriesData({
+        queryKey: eventRecordKeys.root(context.owner),
+        predicate: (q) => q.queryKey[3] === "table" || q.queryKey[3] === "tables",
+      }))
+        updateOptimisticBase(client, key, (current) =>
+          context.guarded.apply<PlannedTableResponse>(current, key, (row) => {
+            if (row.eventId !== saved.id) return row;
+            return saved.myRegistrations.reduce(
+              (table, registration) =>
+                acknowledgeTableRegistration(table, registration, context.owner.userId),
+              row,
+            );
           }),
         );
-    }
-    for (const [key, data] of client.getQueriesData({
-      queryKey: root,
-      predicate: (q) => q.queryKey[3] === "table" || q.queryKey[3] === "tables",
-    }))
-      client.setQueryData(
-        key,
-        mapCommunityCache<PlannedTableResponse>(data, (row) =>
-          row.id === value.tableId &&
-          value.userId === o.userId &&
-          (!row.myRegistration || row.myRegistration.version <= value.version)
-            ? {
-                ...row,
-                myRegistration: { ...row.myRegistration, ...value },
-                ...(value.status === "CANCELLED" || value.status === "DECLINED"
-                  ? { myPosition: null }
-                  : {}),
-              }
-            : row,
-        ),
+      complete(context);
+    });
+  }
+  function registrationSuccess(...args: Parameters<typeof reconcileRegistration>) {
+    void reconcileRegistration(...args);
+  }
+  async function reconcileRegistration(
+    value: TableRegistration,
+    availability: JoinTableInput["availability"] | undefined,
+    context: Awaited<ReturnType<typeof begin>> | undefined,
+  ) {
+    if (!context?.operation.active) return;
+    try {
+      notifyManager.batch(() => {
+        if (value.userId === context.owner.userId) {
+          for (const [key] of client.getQueriesData({
+            queryKey: eventRecordKeys.root(context.owner),
+            predicate: (q) => q.queryKey[3] === "detail" || q.queryKey[3] === "list",
+          }))
+            updateOptimisticBase(client, key, (currentData) =>
+              context.guarded.apply<PlannedEventResponse>(currentData, key, (row) => {
+                if (row.id !== value.eventId) return row;
+                const current = row.myRegistrations ?? [];
+                if (
+                  current.some(
+                    (registration) =>
+                      registration.tableId === value.tableId &&
+                      registration.version > value.version,
+                  )
+                )
+                  return row;
+                return {
+                  ...row,
+                  myRegistrations: [
+                    ...current.filter((registration) => registration.tableId !== value.tableId),
+                    ...(["PENDING", "ACCEPTED"].includes(value.status) ? [value] : []),
+                  ],
+                  ...(availability && row.version <= availability.version
+                    ? {
+                        myVotes: {
+                          ...row.myVotes,
+                          dateVotes: availability.dateVotes,
+                          locationVotes: availability.locationVotes,
+                        },
+                      }
+                    : {}),
+                };
+              }),
+            );
+        }
+        for (const [key] of client.getQueriesData({
+          queryKey: eventRecordKeys.root(context.owner),
+          predicate: (q) => q.queryKey[3] === "table" || q.queryKey[3] === "tables",
+        }))
+          updateOptimisticBase(client, key, (currentData) =>
+            context.guarded.apply<PlannedTableResponse>(currentData, key, (row) =>
+              acknowledgeTableRegistration(row, value, context.owner.userId),
+            ),
+          );
+      });
+      if (!context.announced) {
+        context.owner.feedback?.onSuccess?.(context.action);
+        context.announced = true;
+      }
+      // Registration responses do not contain the incremented Event version. Only this
+      // authoritative detail is required before another versioned action can start.
+      const query = eventRecordQuery(context.owner, value.eventId);
+      const current = await context.operation.read(query.queryKey, () =>
+        client.fetchQuery({
+          ...query,
+          staleTime: 0,
+          retry: false,
+        }),
       );
+      eventSuccess(current, undefined, context);
+    } catch (error) {
+      if (!context.operation.active) return;
+      // The acknowledgement is already in the base. Keep a resource-only read barrier
+      // if its new version cannot be verified; never restore pre-commit participation.
+      if (!context.announced) context.owner.feedback?.onSuccess?.(context.action);
+      if (!communityAccessDenied(error))
+        context.owner.feedback?.onError?.(
+          error instanceof Error ? error : new Error("Refresh failed"),
+          "refresh_saved_changes",
+        );
+      await context.operation.reject(error instanceof Error ? error : new Error("Refresh failed"));
+    }
   }
   const create = useMutation({
     mutationKey,
     mutationFn: (input: CreatePlannedEventInput) =>
-      communityRequest<PlannedEventResponse>(o, "events", "POST", input),
+      write<PlannedEventResponse>("events", "POST", input),
     onMutate: () => begin("create_event"),
     onSuccess: eventSuccess,
     onError: (error, _v, c) => failure(error, c),
@@ -162,7 +244,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const update = useMutation({
     mutationKey,
     mutationFn: (input: EditPlannedEventInput) =>
-      communityRequest<PlannedEventResponse>(o, `events/${id}`, "PATCH", input),
+      write<PlannedEventResponse>(`events/${id}`, "PATCH", input),
     onMutate: (input) =>
       begin("update_event", (row) =>
         "dates" in row && row.id === id
@@ -182,7 +264,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const vote = useMutation({
     mutationKey,
     mutationFn: (input: ChangeEventVoteInput) =>
-      communityRequest<PlannedEventResponse>(o, `events/${id}/votes`, "PATCH", input),
+      write<PlannedEventResponse>(`events/${id}/votes`, "PATCH", input),
     onMutate: (input) =>
       begin("set_event_vote", (row) => {
         if (input.kind !== "game" && "dates" in row && row.id === id) {
@@ -241,24 +323,19 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const register = useMutation({
     mutationKey,
     mutationFn: ({ tableId, ...input }: JoinTableInput & { tableId: string }) =>
-      communityRequest<TableRegistration>(
-        o,
-        `events/${id}/tables/${tableId}/registrations`,
-        "POST",
-        input,
-      ),
+      write<TableRegistration>(`events/${id}/tables/${tableId}/registrations`, "POST", input),
     onMutate: (value) =>
       begin("join_table", (row) =>
         "canRegister" in row && row.id === value.tableId ? { ...row, canRegister: false } : row,
       ),
-    onSuccess: (value, input) => registrationSuccess(value, input.availability),
+    onSuccess: (value, input, context) => registrationSuccess(value, input.availability, context),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
   const invite = useMutation({
     mutationKey,
     mutationFn: ({ tableId, userId }: { tableId: string; userId: string }) =>
-      communityRequest<TableRegistration>(o, `events/${id}/tables/${tableId}/invitations`, "POST", {
+      write<TableRegistration>(`events/${id}/tables/${tableId}/invitations`, "POST", {
         userId,
       }),
     onMutate: ({ tableId, userId }) =>
@@ -267,7 +344,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
           ? { ...row, optimisticInvited: true }
           : row,
       ),
-    onSuccess: (value) => registrationSuccess(value),
+    onSuccess: (value, _input, context) => registrationSuccess(value, undefined, context),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
@@ -279,13 +356,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     }: {
       registrationId: string;
       input: DecideTableRegistrationInput;
-    }) =>
-      communityRequest<TableRegistration>(
-        o,
-        `table-registrations/${registrationId}`,
-        "PATCH",
-        input,
-      ),
+    }) => write<TableRegistration>(`table-registrations/${registrationId}`, "PATCH", input),
     onMutate: ({ registrationId, input }) =>
       begin(
         (
@@ -313,10 +384,11 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
               ? { ...row, status: "CANCELLED" }
               : row,
       ),
-    onSuccess: (value, { input }) =>
+    onSuccess: (value, { input }, context) =>
       registrationSuccess(
         value,
         input.action === "accept" ? input.participation.availability : undefined,
+        context,
       ),
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
@@ -324,7 +396,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const transition = useMutation({
     mutationKey,
     mutationFn: (input: ChangeEventStateInput) =>
-      communityRequest<PlannedEventResponse>(o, `events/${id}/state`, "PATCH", input),
+      write<PlannedEventResponse>(`events/${id}/state`, "PATCH", input),
     onMutate: (input) =>
       begin(input.action === "confirm" ? "confirm_event" : "replan_event", (row) =>
         "dates" in row && row.id === id ? { ...row, canConfirm: false, canReplan: false } : row,
@@ -336,7 +408,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   const finalize = useMutation({
     mutationKey,
     mutationFn: (input: FinalizeEventInput) =>
-      communityRequest<PlannedEventResponse>(o, `events/${id}/results`, "POST", input),
+      write<PlannedEventResponse>(`events/${id}/results`, "POST", input),
     onMutate: () =>
       begin("finalize_event", (row) =>
         "dates" in row && row.id === id ? { ...row, canFinalize: false } : row,

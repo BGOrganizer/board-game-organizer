@@ -16,6 +16,7 @@ import {
   seat,
   tableId,
 } from "@/test-fixtures/eventRecords";
+import { updateOptimisticBase } from "../../../../../../packages/shared/src/common/optimisticOperation";
 
 function setup() {
   const client = new QueryClient({
@@ -25,7 +26,7 @@ function setup() {
       apiUrl: "https://api.test",
       userId: "owner",
       getToken: vi.fn(async () => "fresh"),
-      feedback: { onOptimisticUpdate: vi.fn(), onError: vi.fn() },
+      feedback: { onOptimisticUpdate: vi.fn(), onSuccess: vi.fn(), onError: vi.fn() },
     };
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -35,6 +36,55 @@ function setup() {
   return { client, options, wrapper };
 }
 afterEach(() => vi.unstubAllGlobals());
+it("resolves a saved registration before metadata GET completes while locking only its Event", async () => {
+  const { client, options, wrapper } = setup();
+  const registration = { ...seat("owner"), gameVotes: { "1": "YES" as const } };
+  let release!: (response: Response) => void;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? Response.json(registration)
+        : new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+    ),
+  );
+  const hook = renderHook(
+    () => ({
+      own: useEventRecordActions(options, eventId),
+      other: useEventRecordActions(options, tableId),
+    }),
+    { wrapper },
+  );
+  await act(() =>
+    hook.result.current.own.register.mutateAsync({
+      tableId,
+      version: 1,
+      gameVotes: { "1": "YES" },
+    }),
+  );
+  await waitFor(() => expect(release).toBeDefined());
+  expect(hook.result.current.own.register.isSuccess).toBe(true);
+  expect(hook.result.current.own.busy).toBe(true);
+  expect(hook.result.current.other.busy).toBe(false);
+  expect(options.feedback.onOptimisticUpdate).not.toHaveBeenCalledWith("join_table");
+  expect(options.feedback.onSuccess).toHaveBeenCalledWith("join_table");
+  expect(client.getQueryData(eventRecordKeys.table(options, eventId, tableId))).toMatchObject({
+    myRegistration: registration,
+    myPosition: null,
+    canRegister: false,
+    canLeave: false,
+  });
+  await act(async () => {
+    release(Response.json({ ...plannedEvent, version: 2, myRegistrations: [registration] }));
+  });
+  await waitFor(() => expect(hook.result.current.own.busy).toBe(false));
+  expect(client.getQueryData(eventRecordKeys.detail(options, eventId))).toMatchObject({
+    version: 2,
+    myRegistrations: [registration],
+  });
+});
 it("reconciles owned Event participation from registration responses without depending on refetch or overwriting newer votes", async () => {
   const { client, options, wrapper } = setup(),
     detail = eventRecordKeys.detail(options, eventId),
@@ -49,9 +99,17 @@ it("reconciles owned Event participation from registration responses without dep
   const foreign = eventRecordKeys.detail({ ...options, userId: "foreign" }, eventId);
   client.setQueryData(foreign, initial);
   let response = seat("owner");
+  let serverEvent: PlannedEventResponse = {
+    ...initial,
+    version: 2,
+    myRegistrations: [other, response],
+  };
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(response))),
+    vi.fn(async (_url: string, init?: RequestInit) => {
+      if (!init?.method || init.method === "GET") return Response.json(serverEvent);
+      return new Response(JSON.stringify(response));
+    }),
   );
   const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
   const owned = () => client.getQueryData<PlannedEventResponse>(detail)!;
@@ -69,6 +127,11 @@ it("reconciles owned Event participation from registration responses without dep
     ...plannedTable,
     myRegistration: { ...response, version: 3, gameVotes: { "1": "IF_NEEDED" } },
   });
+  serverEvent = {
+    ...serverEvent,
+    version: 3,
+    myRegistrations: [other, { ...response, version: 3, gameVotes: { "1": "IF_NEEDED" } }],
+  };
   response = { ...response, version: 2 };
   await act(async () => {
     await q.result.current.respond.mutateAsync({
@@ -85,6 +148,7 @@ it("reconciles owned Event participation from registration responses without dep
     myRegistration: { version: 3, gameVotes: { "1": "IF_NEEDED" } },
   });
   response = { ...response, status: "CANCELLED", version: 4 };
+  serverEvent = { ...serverEvent, version: 4, myRegistrations: [other] };
   await act(async () => {
     await q.result.current.respond.mutateAsync({
       registrationId: response.id,
@@ -93,6 +157,7 @@ it("reconciles owned Event participation from registration responses without dep
   });
   expect(owned().myRegistrations).toEqual([other]);
   response = { ...seat("guest"), status: "PENDING" };
+  serverEvent = { ...serverEvent, version: 5 };
   await act(async () => {
     await q.result.current.invite.mutateAsync({ tableId, userId: "guest" });
   });
@@ -123,7 +188,10 @@ it("reconciles acknowledged PRIVATE preferences without overwriting newer or for
   client.setQueryData(foreign, { ...plannedEvent, myVotes: priorVotes });
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(seat("owner")))),
+    vi.fn(async (_url: string, init?: RequestInit) => {
+      if (!init?.method || init.method === "GET") throw new Error("detail refresh unavailable");
+      return new Response(JSON.stringify(seat("owner")));
+    }),
   );
   const actions = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
   const availability = {
@@ -224,7 +292,8 @@ it("creates/updates authoritative event records and does not patch foreign API/u
   expect(client.getQueryData(eventRecordKeys.detail(foreign, eventId))).toMatchObject({
     name: "Friday games",
   });
-  expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("create_event");
+  expect(options.feedback.onSuccess).toHaveBeenCalledWith("create_event");
+  expect(options.feedback.onOptimisticUpdate).not.toHaveBeenCalledWith("create_event");
 });
 it("selectively rolls back failed edits while preserving a newer authoritative version", async () => {
   const { client, options, wrapper } = setup();
@@ -258,11 +327,11 @@ it("selectively rolls back failed edits while preserving a newer authoritative v
   expect(client.getQueryData(eventRecordKeys.detail(options, eventId))).toMatchObject({
     name: "Edited",
   });
-  client.setQueryData(eventRecordKeys.detail(options, eventId), {
+  updateOptimisticBase(client, eventRecordKeys.detail(options, eventId), () => ({
     ...plannedEvent,
     name: "Newer",
     version: 5,
-  });
+  }));
   await act(async () => {
     done(new Response('{"error":"EVENT_CHANGED"}', { status: 409 }));
     await promise;
@@ -370,7 +439,11 @@ it("reserves an action without inventing capacity/priority, reconciles self vers
     registration = seat("owner");
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response(JSON.stringify(registration))),
+    vi.fn(async (_url: string, init?: RequestInit) => {
+      if (!init?.method || init.method === "GET")
+        return Response.json({ ...plannedEvent, version: 2, myRegistrations: [registration] });
+      return new Response(JSON.stringify(registration));
+    }),
   );
   const q = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
   await act(async () => {
@@ -384,8 +457,8 @@ it("reserves an action without inventing capacity/priority, reconciles self vers
   await act(async () => {
     await q.result.current.invite.mutateAsync({ tableId, userId: "guest" });
   });
-  expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("join_table");
-  expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("invite_event_player");
+  expect(options.feedback.onSuccess).toHaveBeenCalledWith("join_table");
+  expect(options.feedback.onSuccess).toHaveBeenCalledWith("invite_event_player");
 });
 it.each(["accept", "decline", "cancel", "remove"] as const)(
   "keeps %s response versioned and rolls failures back including already-cached seats",
@@ -456,7 +529,7 @@ it.each(["confirm", "replan"] as const)(
     expect(client.getQueryData(eventRecordKeys.detail(options, eventId))).toMatchObject({
       version: 2,
     });
-    expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith(
+    expect(options.feedback.onSuccess).toHaveBeenCalledWith(
       action === "confirm" ? "confirm_event" : "replan_event",
     );
   },
@@ -490,5 +563,5 @@ it("finalizes only explicit caller-supplied whole-event inputs and writes server
   expect(client.getQueryData(eventRecordKeys.detail(options, eventId))).toMatchObject({
     status: "TERMINATED",
   });
-  expect(options.feedback.onOptimisticUpdate).toHaveBeenCalledWith("finalize_event");
+  expect(options.feedback.onSuccess).toHaveBeenCalledWith("finalize_event");
 });

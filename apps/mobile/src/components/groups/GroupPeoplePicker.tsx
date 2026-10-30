@@ -18,10 +18,10 @@ export function GroupPeoplePicker({ groupId }: { groupId: string }) {
     t = useT(),
     router = useRouter();
   const detail = useGroupRecord(options, groupId),
-    actions = useGroupRecordActions(options);
+    actions = useGroupRecordActions(options, groupId);
   const [error, setError] = useState(false);
   const group = communityAccessDenied(detail.error) ? undefined : detail.data;
-  if (!group || group.role !== "admin" || !group.canInvite)
+  if (group?.role !== "admin" || !group.canInvite)
     return (
       <View style={{ padding: 20, gap: 12 }}>
         {detail.isPending ? (

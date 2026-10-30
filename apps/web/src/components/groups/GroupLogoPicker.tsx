@@ -43,14 +43,16 @@ export function GroupLogoPicker({
     setError("");
     try {
       startGroupLogoSchema.parse({ mimeType: file.type, byteLength: file.size });
-      options.feedback?.onOptimisticUpdate?.("upload_group_logo");
       const result = await uploadGroupLogo(
         options,
         bytesToBase64(new Uint8Array(await file.arrayBuffer())),
         file.type,
         current.signal,
       );
-      if (!current.signal.aborted) onChange({ id: result.id, preview: result.preview });
+      if (!current.signal.aborted) {
+        onChange({ id: result.id, preview: result.preview });
+        options.feedback?.onSuccess?.("upload_group_logo");
+      }
     } catch (error) {
       if (!current.signal.aborted) {
         setError(t`Could not upload logo`);
