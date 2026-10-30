@@ -1732,29 +1732,73 @@ describe("unified groups/events on the real MongoDB replica set", () => {
   }
   it("commits creation correlation without using it as resource identity, preserves it through edits and rolls back failed Event creation", async () => {
     const groupRequest = randomUUID();
-    const group = await transaction((s) => s.unifiedGroupService.save(OWNER, { type: "PRIVATE", name: "Correlated private club", invitedUserIds: [], clientRequestId: groupRequest }));
+    const group = await transaction((s) =>
+      s.unifiedGroupService.save(OWNER, {
+        type: "PRIVATE",
+        name: "Correlated private club",
+        invitedUserIds: [],
+        clientRequestId: groupRequest,
+      }),
+    );
     expect(group.id).not.toBe(groupRequest);
     expect((await services().groupRecords.find(group.id))?.clientRequestId).toBe(groupRequest);
-    expect((await services().unifiedGroupService.detail(OWNER, group.id)).clientRequestId).toBe(groupRequest);
-    expect((await services().unifiedGroupService.list(OWNER, "mine", { limit: 20 })).items.find((row) => row.id === group.id)?.clientRequestId).toBe(groupRequest);
-    const editedGroup = await transaction((s) => s.unifiedGroupService.save(OWNER, { name: "Edited correlated club", version: group.version }, group.id));
+    expect((await services().unifiedGroupService.detail(OWNER, group.id)).clientRequestId).toBe(
+      groupRequest,
+    );
+    expect(
+      (await services().unifiedGroupService.list(OWNER, "mine", { limit: 20 })).items.find(
+        (row) => row.id === group.id,
+      )?.clientRequestId,
+    ).toBe(groupRequest);
+    const editedGroup = await transaction((s) =>
+      s.unifiedGroupService.save(
+        OWNER,
+        { name: "Edited correlated club", version: group.version },
+        group.id,
+      ),
+    );
     expect(editedGroup.clientRequestId).toBe(groupRequest);
-    const request = randomUUID(), input = { ...plannedInput(group.id), clientRequestId: request };
+    const request = randomUUID(),
+      input = { ...plannedInput(group.id), clientRequestId: request };
     const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
     expect(event.id).not.toBe(request);
     expect((await services().eventRecords.find(event.id))?.clientRequestId).toBe(request);
-    expect((await services().plannedEventService.detail(OWNER, event.id)).clientRequestId).toBe(request);
-    expect((await services().plannedEventService.list(OWNER, { limit: 20 }, group.id)).items.find((row) => row.id === event.id)?.clientRequestId).toBe(request);
+    expect((await services().plannedEventService.detail(OWNER, event.id)).clientRequestId).toBe(
+      request,
+    );
+    expect(
+      (await services().plannedEventService.list(OWNER, { limit: 20 }, group.id)).items.find(
+        (row) => row.id === event.id,
+      )?.clientRequestId,
+    ).toBe(request);
     const { groupId: _group, clientRequestId: _request, ...fields } = input;
-    const edited = await transaction((s) => s.plannedEventService.update(OWNER, event.id, { ...fields, version: event.version, name: "Edited correlated evening", tables: [], removedTableIds: [] }));
+    const edited = await transaction((s) =>
+      s.plannedEventService.update(OWNER, event.id, {
+        ...fields,
+        version: event.version,
+        name: "Edited correlated evening",
+        tables: [],
+        removedTableIds: [],
+      }),
+    );
     expect(edited.clientRequestId).toBe(request);
-    expect(await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).countDocuments({ eventId: event.id })).toBe(0);
+    expect(
+      await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).countDocuments({ eventId: event.id }),
+    ).toBe(0);
     const rollbackRequest = randomUUID();
-    await expect(transaction(async (s) => {
-      await s.plannedEventService.create(OWNER, { ...plannedInput(group.id), clientRequestId: rollbackRequest, tables: [{ ...input.tables[0], id: randomUUID() }] });
-      throw new Error("Rollback correlated creation");
-    })).rejects.toThrow("Rollback correlated creation");
-    expect(await db.collection(COLLECTIONS.EVENTS).countDocuments({ clientRequestId: rollbackRequest })).toBe(0);
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.create(OWNER, {
+          ...plannedInput(group.id),
+          clientRequestId: rollbackRequest,
+          tables: [{ ...input.tables[0], id: randomUUID() }],
+        });
+        throw new Error("Rollback correlated creation");
+      }),
+    ).rejects.toThrow("Rollback correlated creation");
+    expect(
+      await db.collection(COLLECTIONS.EVENTS).countDocuments({ clientRequestId: rollbackRequest }),
+    ).toBe(0);
     expect((await services().eventRecords.find(event.id))?.clientRequestId).toBe(request);
   });
   it.each([false, true])(
@@ -1934,7 +1978,9 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     );
     const choices = await participation(event.id, tableId);
     expect(invite.eventVersion).toBe(choices.version);
-    expect(await services().eventRecords.registration(invite.id)).not.toHaveProperty("eventVersion");
+    expect(await services().eventRecords.registration(invite.id)).not.toHaveProperty(
+      "eventVersion",
+    );
     const count = await db.collection(COLLECTIONS.NOTIFICATIONS).countDocuments();
     await expect(
       transaction((s) =>
@@ -1991,11 +2037,20 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     });
     expect((await services().eventRecords.find(event.id))?.version).toBe(choices.version + 1);
     expect(accepted.eventVersion).toBe(choices.version + 1);
-    expect(await services().eventRecords.registration(accepted.id)).not.toHaveProperty("eventVersion");
-    const cancelled = await transaction((s) => s.plannedEventService.registrationAction(GUEST, accepted.id, { action: "cancel", version: accepted.version }));
+    expect(await services().eventRecords.registration(accepted.id)).not.toHaveProperty(
+      "eventVersion",
+    );
+    const cancelled = await transaction((s) =>
+      s.plannedEventService.registrationAction(GUEST, accepted.id, {
+        action: "cancel",
+        version: accepted.version,
+      }),
+    );
     expect(cancelled.eventVersion).toBe(accepted.eventVersion + 1);
     expect((await services().eventRecords.find(event.id))?.version).toBe(cancelled.eventVersion);
-    expect(await services().eventRecords.registration(cancelled.id)).not.toHaveProperty("eventVersion");
+    expect(await services().eventRecords.registration(cancelled.id)).not.toHaveProperty(
+      "eventVersion",
+    );
   });
   it("serializes concurrent game rejections and commits explicit join games atomically", async () => {
     const group = await privateGroup();
