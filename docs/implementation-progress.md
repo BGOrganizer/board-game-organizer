@@ -1,5 +1,37 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Invitation refresh regression and shared cache freshness
+
+- Reproduced a regression after the optimistic-state refactor: a successful invitation starts roster
+  refreshes while its required Event metadata read continues; completing that read cancelled the
+  roster refresh again. The same deferred-receipt path affected Group memberships. Acknowledgement
+  now cancels pre-receipt reads once, preserving post-receipt roster, membership and Table-list reads.
+- Local projections and partial/manual publishers no longer make old snapshots freshly fetched or
+  clear invalidation, including unchanged unrelated views. Query cancellation also preserves a stale
+  flag set after its fetch-start snapshot. Table details inherit invalidated list age and seed from
+  the authoritative base, so reopening cannot freeze either a stale invitation or another pending
+  operation's overlay into the detail cache.
+- Also reproduced missing remote refreshes: the first notification after an empty inbox was ignored,
+  only the latest notification kind was inspected, and active domain queries were merely marked
+  stale. The existing notification poll now refreshes related active owned queries, leaves inactive
+  ones stale, handles batches/page gaps without scanning the inbox, and retains a monotonic
+  createdAt/ID watermark across local read/delete changes. API/actor changes establish a new baseline.
+  No list polling, write retry, permission prediction or new server-state store was added.
+- Regression tests use the real QueryClient/hooks with controlled HTTP responses. They cover invitation
+  creation/removal, roster and card counts in both response orders, Group pending members, invalidated
+  Table seeds, rollback of newly opened details, first/batched notifications, owner changes and
+  unrelated/inactive cache isolation. Existing Contacts, favorites, BGG, result/consent, rollback,
+  privacy and concurrency tests still pass.
+- Local evidence: 1,897 unit tests pass with unchanged coverage gates (shared 310, web 511, mobile 243,
+  API 722, schemas 111); deterministic journal helpers retain 100% coverage. Replica-set integration
+  passes 86/86; retained domain/native policy checks pass 52/52. Typecheck 4/4, scoped Biome, API/web
+  production builds and Android export pass. Generated Next references and all seven protected local
+  files remain byte-for-byte unchanged. No database/provider/configuration/dependency or E2E-policy
+  changes. Rendered-device and authenticated Playwright/Maestro acceptance remain unperformed; these
+  local SDK/HTTP checks are not a substitute for them.
+- Guides used: `tanstack-query-development`, `vercel-react-best-practices`, `expo-overview`,
+  `expo-data-fetching`, `context-mode`, `ponytail`.
+
 ## Operation-scoped optimistic writes and targeted busy states
 
 - One transient QueryClient journal owns each multi-cache optimistic operation. Its rejection removes

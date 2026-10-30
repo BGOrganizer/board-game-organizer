@@ -330,9 +330,20 @@ there are no repeated identical notifications or player reminders to change vote
   guaranteed seating, permission grants, Event confirmation and immutable results wait for server
   acknowledgement. Registration responses update owned participation/votes, never invent a position.
 - Ordinary invalidation/refetch runs in the background and cannot turn a committed write into a failed
-  write. Where a receipt omits a required version or permission, only that resource remains locked
-  during authoritative detail recovery; the acknowledged form can close. A failed recovery retains
-  committed participation instead of restoring the pre-write state.
+  write. Projections and partial acknowledgements preserve the cache's original age and invalidation;
+  cancelling a GET must not restore an obsolete fresh flag. Pre-acknowledgement reads are cancelled
+  once at the receipt, not again when later metadata recovery finishes: post-receipt roster/list
+  refreshes must survive. Table detail seeds use authoritative list snapshots and retain their
+  invalidation instead of absorbing an optimistic overlay or reviving stale invitations.
+  Where a receipt omits a required version or permission, only that resource remains locked during
+  authoritative detail recovery; the acknowledged form can close. A failed recovery retains committed
+  participation instead of restoring the pre-write state.
+- The existing notification poll reconciles newly received changes into related active Contacts,
+  Group and Event/Table queries inside the owning API/user scope; inactive queries are only marked
+  stale. An empty inbox establishes a baseline too. Every new kind in the bounded first page counts;
+  if its previous watermark fell beyond that page, refresh active affected domains conservatively
+  without scanning older pages. Read/delete changes and older rows do not masquerade as remote writes.
+  No independent polling is added to domain lists.
 - Transport errors, timeouts and 5xx responses are not proof of rejection. Materialized owned caches
   are read back without retrying the write; failed verification keeps the affected resource locked
   until a subsequent authorized read. A cancelled SDK fetch resolving with optimistic cache data is
