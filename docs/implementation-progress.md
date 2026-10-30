@@ -1,5 +1,36 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Immediate client intent, existing layouts
+
+- Explicit valid social, Group/Event/Table, ballot, invitation, registration, favorite, inbox and BGG
+  actions stage local intent/feedback before HTTP completes. Existing dialogs/editors close or return
+  immediately; local choices and unrelated targets remain usable. No stylesheet, layout or design-system
+  redesign. Issued invite links, provider identities, assets and OS permissions still require real proof.
+- The shared journal uses operation-specific signals, ordered projection and selective rollback. Real
+  SDK FIFO/dynamic per-Group queues preserve independent intent and committed state through rejection,
+  metadata recovery and owner/API changes. Readback never automatically retries an uncertain write.
+- Event/Group creation-only UUID correlation supports permissionless local previews outside API pages,
+  receipt deduplication and explicit failed-draft recovery, not idempotency or client resource identity.
+  Registration response epochs are captured in the same transaction and are not persisted on rows.
+- A newer canonical epoch fences uncertain versioned requests without declaring success/rejection or
+  replaying structural Table creation/removal. Reopened editors use canonical data; already-open drafts
+  stay pinned. Whole-Event result submission retains exact scores and requires each frozen Table to be
+  explicitly reviewed again after an Event version change. No predicted immutable results/deltas.
+- Group deletion/fresh parent denial cancels dependent creations and local previews without locking
+  unrelated Groups or cancelling the deletion's own reconciliation. Fresh creator access is checked
+  before grouped creation dispatch. A write denial alone never proves parent revocation. Acknowledged
+  off-page invitations hand over to source paging without disappearance or stale-receipt resurrection.
+- Local evidence: 2,008 unit tests (web 571, mobile 243, shared 354, API 726, schemas 114), unchanged
+  coverage gates including deterministic 100% thresholds; 87 real replica-set integration tests and
+  95 policy tests. Typecheck, scoped Biome, API/web builds and Android export are checked before
+  publication. EN/IT source and compiled catalogs updated. Protected local files and generated Next
+  references remain byte-identical. No dependencies, provider configuration, migration or E2E policy
+  changes. External-provider mocks, SDK/HTTP tests and export are not physical-device/authenticated
+  Playwright/Maestro acceptance; those acceptance gaps remain explicit.
+- This section supersedes older client-creation/shared-inbox-lock limitations below; the linked
+  [reconciliation contract](groups-events-refactor.md#optimistic-writes-and-reconciliation) describes
+  current behavior. Existing native map, score-sheet and release safeguards are unchanged.
+
 ## Invitation refresh regression and shared cache freshness
 
 - Reproduced a regression after the optimistic-state refactor: a successful invitation starts roster

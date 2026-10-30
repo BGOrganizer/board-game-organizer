@@ -324,11 +324,17 @@ there are no repeated identical notifications or player reminders to change vote
   newer entity/registration/membership versions and unrelated profile fields survive. Query remains
   the server-data owner; the transient operation journal is neither a persisted cache nor Zustand data.
 - Contacts lock the target user, favorites their selected/canonical identity, and Groups/Events their
-  versioned resource. Inbox writes share an actor-level lock because they update one unread counter;
-  BGG writes share the account lock. Unrelated navigation and resources remain usable on both clients.
-- Safe visible changes may be optimistic. Creating invitations/assets without cached effects,
-  guaranteed seating, permission grants, Event confirmation and immutable results wait for server
-  acknowledgement. Registration responses update owned participation/votes, never invent a position.
+  incompatible versioned writes. Explicit queues project intent immediately and serialize dependent
+  dispatch; unrelated Groups, people and notification rows stay usable. Inbox mark-all conflicts with
+  row writes; independent row operations reconcile the shared unread counter selectively. BGG writes
+  share the account lock. Navigation and local form choices do not wait for HTTP.
+- After local validation, explicit actions stage intent/feedback and close their existing dialog or
+  return from their editor immediately. Known recipients and enrollment intent may appear in existing
+  rows, but do not create canonical invitations, consent, accepted membership, positions or permissions.
+  Guaranteed seating, verified provider identity, Event confirmation and immutable results still require
+  server acknowledgement. Issued invite credentials and OS permission grants cannot be predicted.
+  Registration receipts expose the committed parent Event epoch without storing that transport field
+  on registrations; complete capabilities/agreement still require authorized metadata reads.
 - Ordinary invalidation/refetch runs in the background and cannot turn a committed write into a failed
   write. Projections and partial acknowledgements preserve the cache's original age and invalidation;
   cancelling a GET must not restore an obsolete fresh flag. Pre-acknowledgement reads are cancelled
@@ -350,9 +356,20 @@ there are no repeated identical notifications or player reminders to change vote
   not a server receipt. A write 403/404 alone does not prove lost read access; fresh read denials
   revoke private cached access and dependent writers. Logout/session changes abort operations and
   clear private data before another actor can reuse them.
-- Readback is not a durable idempotency protocol: it cannot uniquely identify a non-idempotent creation
-  or rule out a remote commit still in progress. Creations remain non-optimistic without automatic
-  retries; unverified-outcome feedback asks the user to check current state before trying again.
+- Readback is not a durable idempotency protocol and cannot rule out a remote commit still in progress.
+  Event/Group creation accepts an optional creation-only UUID `clientRequestId` for correlation, never
+  resource identity or an automatic retry key. Permissionless local drafts stay in MutationCache,
+  outside canonical API pages; authorized receipts/reads deduplicate by resource ID/correlation.
+  Definite rejection retains input for explicit recovery; uncertain creations never automatically retry.
+  A strictly newer authorized canonical epoch fences an old version-guarded edit/review/finalization:
+  it does not claim that write succeeded or failed. A reopened editor then uses canonical data instead
+  of replaying uncertain structural Table writes. Already-open drafts remain pinned; changed frozen
+  Table result drafts require explicit review at one current Event version before atomic submission.
+- Parent dependencies cancel grouped creations without acquiring Group-wide locks. Creation verifies
+  current creator access before dispatch. Deletion acknowledgement or a fresh parent read denial
+  retires dependent pending intent and aborts queued dispatch; a write denial alone cannot revoke it.
+  Known invitation receipts outside loaded roster pages remain visible until authorized paging hands
+  them off; later target mutations and current complete pending reads supersede stale receipts.
 - Server atomicity is separate from client rollback. Unified domain writes keep their existing
   transactions. Contact-snapshot replacement, including an empty snapshot, now holds the mirrored
   actor lock and replaces all links in one transaction; inbox mark-all-read is transactional too.
