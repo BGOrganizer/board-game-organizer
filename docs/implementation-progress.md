@@ -1,5 +1,47 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Operation-scoped optimistic writes and targeted busy states
+
+- One transient QueryClient journal owns each multi-cache optimistic operation. Its rejection removes
+  only its projections; independent commits/pending operations and newer server versions survive.
+  Ordinary manual publishers use the same authoritative-base helper. Session changes abort old
+  operations before clearing private caches; mutation identity is scoped by API and stable actor.
+- Contacts and Group social rows now share one operation per target; favorites lock selected/known
+  canonical identities and deduplicate independently acknowledged aliases. Group/Event actions lock
+  their own resource, not unrelated screens. Notification writes retain their shared-counter lock;
+  account link/sync/unlink retain the BGG account lock. Navigation/scroll are not globally inert.
+- Safe cached changes can announce optimistically. Flags alone do not announce successful seating,
+  confirmation or finalization. Real registration receipts reconcile consent/votes and nested versions
+  without guessing a seat or granting capabilities. Ordinary refetches do not extend mutation pending
+  state or roll back a committed write. Required version/permission reads retain only their resource
+  lock; confirmed forms may close while that verification continues.
+- Uncertain transport/408/5xx outcomes read back materialized owned caches without retrying the write.
+  Cancelled SDK fetches resolving cached projections do not count as GET receipts. Partial read
+  failures cannot cause a retry storm. Fresh Group read denial purges dependent private Event/Table/
+  people/ranking data and cancels their in-flight writers, preventing late ACK resurrection while
+  preserving unrelated actors, APIs and authorized public basics.
+- Contact snapshot replacement now acquires the mirrored actor lock and replaces every link in one
+  Mongo transaction, including empty snapshots. Inbox mark-all-read is transactional. Replica-set
+  tests verify rollback after an actual post-delete insert failure, actor-lock rollback, concurrent
+  empty-snapshot replacement without a union, bulk-read rollback and owner isolation. No production
+  index, database reset, backfill or provider mutation was performed.
+- Limits remain explicit in [the domain contract](groups-events-refactor.md#optimistic-writes-and-reconciliation):
+  readback is not durable idempotency or proof against a still-running remote commit. Non-idempotent
+  creations remain non-optimistic without automatic retries; unverified-outcome copy asks the user
+  to check current state before resubmission. BGG keeps staged publication rather than a long-running
+  transaction spanning provider calls.
+- Local evidence: typecheck 4/4; coverage runs pass shared 303, web 497, mobile 243, API 722 and
+  schemas 111 tests (1,876 total), with existing thresholds retained and 100% gates for new deterministic
+  helpers. Replica-set integration passes 86/86 and retained CI policy checks pass 95/95. EN/IT source
+  and compiled catalogs are synchronized. API/web production builds and Android export pass; generated
+  Next reference files were restored byte-for-byte. CI status is recorded at delivery; none of these
+  checks establishes rendered-device or authenticated E2E acceptance. Existing
+  Playwright/Maestro suites and their operator-selected CI policy are unchanged.
+- Guides used: `tanstack-query-development`, `bgo-component-architecture`,
+  `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-native-skills`,
+  `expo-overview`, `expo-data-fetching`, `heroui-react`, `heroui-native`, `lingui-best-practices`,
+  `web-design-guidelines`, `context-mode`, `ponytail`. No dependencies or vendor skills were changed.
+
 ## Score sheet — 80% focus expansion
 
 - Operator confirmed the full-height focus-driven expansion works on device, but requested 80%.

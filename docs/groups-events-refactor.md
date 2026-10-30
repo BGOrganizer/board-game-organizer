@@ -316,3 +316,34 @@ there are no repeated identical notifications or player reminders to change vote
   speculative warmup work; no full-catalog/database download or extra polling is introduced.
 - EN/IT source and compiled Lingui catalogs are committed together; native runtime IDs are preserved
   explicitly without adding a mobile Babel configuration.
+
+## Optimistic writes and reconciliation
+
+- One user operation owns its complete optimistic package across existing API/actor-scoped caches.
+  A rejected operation removes only its projections; independent pending or acknowledged operations,
+  newer entity/registration/membership versions and unrelated profile fields survive. Query remains
+  the server-data owner; the transient operation journal is neither a persisted cache nor Zustand data.
+- Contacts lock the target user, favorites their selected/canonical identity, and Groups/Events their
+  versioned resource. Inbox writes share an actor-level lock because they update one unread counter;
+  BGG writes share the account lock. Unrelated navigation and resources remain usable on both clients.
+- Safe visible changes may be optimistic. Creating invitations/assets without cached effects,
+  guaranteed seating, permission grants, Event confirmation and immutable results wait for server
+  acknowledgement. Registration responses update owned participation/votes, never invent a position.
+- Ordinary invalidation/refetch runs in the background and cannot turn a committed write into a failed
+  write. Where a receipt omits a required version or permission, only that resource remains locked
+  during authoritative detail recovery; the acknowledged form can close. A failed recovery retains
+  committed participation instead of restoring the pre-write state.
+- Transport errors, timeouts and 5xx responses are not proof of rejection. Materialized owned caches
+  are read back without retrying the write; failed verification keeps the affected resource locked
+  until a subsequent authorized read. A cancelled SDK fetch resolving with optimistic cache data is
+  not a server receipt. A write 403/404 alone does not prove lost read access; fresh read denials
+  revoke private cached access and dependent writers. Logout/session changes abort operations and
+  clear private data before another actor can reuse them.
+- Readback is not a durable idempotency protocol: it cannot uniquely identify a non-idempotent creation
+  or rule out a remote commit still in progress. Creations remain non-optimistic without automatic
+  retries; unverified-outcome feedback asks the user to check current state before trying again.
+- Server atomicity is separate from client rollback. Unified domain writes keep their existing
+  transactions. Contact-snapshot replacement, including an empty snapshot, now holds the mirrored
+  actor lock and replaces all links in one transaction; inbox mark-all-read is transactional too.
+  BGG retains its existing valid staged workflow and atomic snapshot publication, not a transaction
+  held open across external provider requests. No live migration, reset or backfill is performed.
