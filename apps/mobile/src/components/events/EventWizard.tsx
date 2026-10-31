@@ -44,10 +44,12 @@ export function EventWizard({
   eventId,
   groupId,
   draftId,
+  fromGroup,
 }: {
   eventId?: string;
   groupId?: string;
   draftId?: string;
+  fromGroup?: string;
 }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -78,6 +80,7 @@ export function EventWizard({
       key={`${o.apiUrl}/${o.userId}/${eventId ?? groupId ?? "new"}`}
       event={eventId ? q.data : undefined}
       groupId={groupId}
+      fromGroup={fromGroup}
     />
   );
 }
@@ -103,10 +106,12 @@ function Editor({
   event,
   groupId,
   recovery,
+  fromGroup,
 }: {
   event?: PlannedEventResponse;
   groupId?: string;
   recovery?: CreateEventVariables;
+  fromGroup?: string;
 }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -164,7 +169,11 @@ function Editor({
           : undefined,
       });
     const targetGroup = "groupId" in parsed.data ? parsed.data.groupId : event?.groupId;
-    if (event) router.dismissTo({ pathname: "/event/[eventId]", params: { eventId: event.id } });
+    if (event)
+      router.dismissTo({
+        pathname: "/event/[eventId]",
+        params: { eventId: event.id, ...(fromGroup === event.groupId ? { fromGroup } : {}) },
+      });
     else if (targetGroup)
       router.dismissTo({
         pathname: "/group/[groupId]",

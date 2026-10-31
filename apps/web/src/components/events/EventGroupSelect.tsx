@@ -33,7 +33,7 @@ export function EventGroupSelect({
   const [open, setOpen] = useState(false);
   const search = useListSearch<never>([]);
   const groups = useGroupRecords(
-    { ...options, enabled: options.enabled !== false && open && !locked },
+    { ...options, enabled: options.enabled !== false && !locked },
     "mine",
     search.search,
     ["admin"],
@@ -78,7 +78,7 @@ export function EventGroupSelect({
         />
         <ListBox
           aria-label={t`Groups`}
-          className="max-h-80 overflow-y-auto"
+          className="max-h-48 overflow-y-auto"
           onScroll={({ currentTarget }) => {
             if (
               currentTarget.scrollHeight - currentTarget.scrollTop - currentTarget.clientHeight <
@@ -101,9 +101,9 @@ export function EventGroupSelect({
               id={row.id}
               textValue={row.name}
               isDisabled={!row.canInvite}
-              className="[content-visibility:auto] [contain-intrinsic-size:auto_6rem]"
+              className="[content-visibility:auto] [contain-intrinsic-size:auto_3.5rem]"
             >
-              <GroupArtwork group={row} />
+              <GroupArtwork group={row} size={40} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{row.name}</span>
                 <span className="text-xs text-default-500">

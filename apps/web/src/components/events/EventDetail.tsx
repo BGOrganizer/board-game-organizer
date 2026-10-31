@@ -36,10 +36,11 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
+import { EventGroupLink } from "./EventGroupLink";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
-export function EventDetail({ eventId }: { eventId: string }) {
+export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     q = useEventRecord(o, eventId),
@@ -88,7 +89,10 @@ export function EventDetail({ eventId }: { eventId: string }) {
   };
   return (
     <div className="mx-auto max-w-4xl space-y-3 pb-24">
-      <Link href="/events" className="inline-flex items-center gap-2 text-accent">
+      <Link
+        href={fromGroup === event.groupId ? `/groups/${event.groupId}` : "/events"}
+        className="inline-flex items-center gap-2 text-accent"
+      >
         <ArrowLeft className="size-4" aria-hidden />
         {t`Back`}
       </Link>
@@ -146,6 +150,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
         </HeaderActions>
       ) : null}
       <EventDetailsCard event={event} />
+      {event.groupId && fromGroup !== event.groupId ? (
+        <EventGroupLink groupId={event.groupId} name={event.groupName} />
+      ) : null}
       <section
         aria-label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
         className="space-y-3"
@@ -320,7 +327,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
       ) : null}
       {event.status === "PLANNING" && event.canEdit && !closed ? (
         <FloatingActions
-          href={`/events/${event.id}/edit`}
+          href={`/events/${event.id}/edit${fromGroup === event.groupId ? `?fromGroup=${encodeURIComponent(fromGroup)}` : ""}`}
           label={t`Edit event`}
           isDisabled={a.busy || q.isPlaceholderData}
         >

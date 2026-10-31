@@ -7,22 +7,24 @@ import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge"
 import { useT } from "@/lib/i18n";
 export function GroupArtwork({
   group,
+  size = 64,
 }: {
   group: Pick<GroupRecordResponse, "name" | "logo" | "role">;
+  size?: number;
 }) {
   const t = useT(),
     warning = useThemeColor("warning");
   return (
-    <View style={{ width: 64, height: 64, flexShrink: 0 }}>
+    <View style={{ width: size, height: size, flexShrink: 0 }}>
       {group.logo ? (
         <Image
           source={{ uri: group.logo }}
           resizeMode="contain"
           accessible={false}
-          style={{ width: 64, height: 64, borderRadius: 12 }}
+          style={{ width: size, height: size, borderRadius: 12 }}
         />
       ) : (
-        <AnimatedDicebearArtwork seed={group.name} variant="landscape" />
+        <AnimatedDicebearArtwork seed={group.name} variant="landscape" size={size} />
       )}
       {group.role === "admin" ? (
         <View

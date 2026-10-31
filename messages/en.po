@@ -5162,6 +5162,9 @@ msgstr "Waiting"
 msgid "Waiting list"
 msgstr "Waiting list"
 
+msgid "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves. Pending invitations do not count toward agreement."
+msgstr "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves. Pending invitations do not count toward agreement."
+
 #: apps/web/src/components/auth/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"
 msgstr "Welcome to Board Game Organizer"

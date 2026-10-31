@@ -116,10 +116,15 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   state icon and accessible label on both clients.
 - Event list/detail and parent links share stable-ID animated DiceBear Constellation artwork.
   Event detail starts with a Details label and voting-legend help above its artwork card:
-  name and status first, then the associated Group link when present. Table detail starts with
-  Settings and player-limit help above its Planets card: name, shared Rating badge, and minimum/
-  maximum counts with their existing icons. Immediately below, Event labels a linked item with the
-  parent Event's name and matching stable artwork; it opens that Event detail. Voting help states accepted-only voting, reserved
+  name and status first. When opened from the main Events list (or an unmarked direct link), a separate
+  Group section immediately below Details links the approved Group artwork/name; it is not nested in
+  the Event identity card. Opening from that same Group omits this redundant parent item. Table detail
+  starts with Settings and player-limit help above its Planets card: name, shared Rating badge, and
+  minimum/maximum counts with their existing icons. Immediately below, Event labels a linked item
+  with the parent Event's name and matching stable artwork when opened from Main Tables or an unmarked
+  direct link; entry from that same Event omits it. Explicit scalar parent-ID URL hints carry only
+  presentation context, never authority or shared global navigation state. Group context survives
+  Event edits; ordinary back navigation retains its existing stack behavior. Voting help states accepted-only voting, reserved
   pending places until acceptance, and participation through at least one Table.
 - Main Tables and parent Event lists use one platform-owned Table card. Animated DiceBear Planets
   artwork uses the persisted Table ID on the left, consistently with saved/edit/review cards. Its
@@ -135,6 +140,11 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
   and all joint winner names with trophy only when terminated. Group incoming/outgoing artwork
   keeps its existing warning mail/clock badges and creator crown.
+- From the main Events list, creation preloads only the source-filtered first page of creator Groups
+  into the same scoped Query cache as the picker. The selector also loads before opening in an
+  unlocked wizard, uses compact artwork and a bounded scroll viewport, and paginates/searches at source.
+  Opening the native selector dismisses/blurs the active input before displaying options. Locked
+  contextual selection starts no other-Group request; errors and explicit no-Group selection remain.
 - Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
   are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
   deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
@@ -201,8 +211,11 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   Clerk ID. This cache subscription starts no additional profile request and grants no participation
   or position. Other actors' cached profiles cannot supply self identity.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
-  occupied capacity retains an additional queue entry. Large rosters/placeholder ranges are source-paged
-  and rendered progressively. Empty places enroll the viewer; organizers first choose self-enrollment
+  occupied capacity retains an additional queue entry. Once primary places are exhausted, a separate
+  Waiting list section follows Seats list with its own explanation popover. Anonymous/unloaded primary
+  reservations precede queued people too, including across render pages. Local saving intent is never
+  assigned a seat or queue priority. Large rosters/placeholder ranges are source-paged and rendered
+  progressively; native uses one SectionList, never nested same-direction lists. Empty places enroll the viewer; organizers first choose self-enrollment
   (when eligible) or the existing invitation picker. Avatar badges distinguish accepted, pending and
   waiting players. Pending identities remain organizer/recipient-only; other reservations are anonymous.
 - Detail preference controls offer only YES/IF_NEEDED/NO for dates, locations and games. UNKNOWN remains

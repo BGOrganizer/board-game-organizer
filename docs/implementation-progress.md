@@ -1,5 +1,33 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Compact creation picker and contextual parent navigation
+
+- Main Events preloads only the creator-filtered first Group page into the same API/actor-scoped
+  Query cache used by creation. Unlocked selectors load before opening, with compact 40px artwork,
+  bounded option viewports and on-demand search/pages. Native opening dismisses/blurs the currently
+  focused input before opening the Select; contextual locked selection starts no other-Group read.
+- Primary seats and waiting entries have separate headings/help. Waiting appears only once capacity
+  is exhausted; anonymous/unloaded primary reservations precede queued people across render pages.
+  Native keeps a single SectionList and preserves empty/loading/error/retry states. Canonical
+  positions, priority, consent and counts are unchanged; local intent never receives a queue place.
+- Event/Table cards carry explicit scalar matching parent-ID URL hints, not global navigation state
+  or authorization. Table entry from its Event omits the redundant Event item; Event entry from its
+  Group omits the redundant Group item. Main/unmarked direct entry retains parent navigation. Group
+  origin survives Event edits. Group links now have their own section below Details, approved cached
+  artwork on the left and name on the right; missing images load independently of known names and
+  read failures remain observable without discarding usable cached content.
+- Local Node 26/pnpm 11.25 evidence: 2,112 unit tests with coverage (web 633, mobile 253, shared 377,
+  API 735, schemas 114), existing gates and deterministic roster/section logic at 100%; typecheck 4/4,
+  scoped Biome, API/web production builds and Android export (5,591 modules). EN/IT source/compiled
+  catalogs include waiting help and the requested Italian heading. Generated Next references and
+  seven protected hashes are unchanged. No API writers, dependencies, migrations, provider changes
+  or E2E policy changes. Native callback/source tests and export are not rendered keyboard/portal/
+  touch or authenticated Playwright/Maestro acceptance; existing intentional suites/jobs remain.
+- Guides used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `tanstack-query-development`,
+  `expo-overview`, `expo-router`, `heroui-react`, `heroui-native`, `uniwind`,
+  `lingui-best-practices`, `web-design-guidelines`, `context-mode`, `ponytail`.
+
 ## Immediate Table reinvitation after admin removal
 
 - Both confirmation callbacks retain only the already-visible recipient identity in owned MutationCache

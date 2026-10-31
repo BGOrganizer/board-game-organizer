@@ -91,7 +91,11 @@ export function EventTableCard({
       onPress={() =>
         router.push({
           pathname: "/event/table",
-          params: { eventId: table.eventId, tableId: table.id },
+          params: {
+            eventId: table.eventId,
+            tableId: table.id,
+            ...(context === "event" ? { fromEvent: table.eventId } : {}),
+          },
         })
       }
       leadingActions={

@@ -12,10 +12,12 @@ import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { EventStatusBadge } from "./EventStatusBadge";
 export function EventCard({
   event,
+  context = "personal",
   onVerify,
   checking = false,
 }: {
   event: ClientEventRecord;
+  context?: "personal" | "group";
   onVerify?: () => void;
   checking?: boolean;
 }) {
@@ -29,7 +31,7 @@ export function EventCard({
     ? local.phase === "failed"
       ? `/events/new?draftId=${encodeURIComponent(local.draftId)}`
       : "/events"
-    : `/events/${event.id}`;
+    : `/events/${event.id}${context === "group" && event.groupId ? `?fromGroup=${encodeURIComponent(event.groupId)}` : ""}`;
   return (
     <LinkedListCard
       href={href}

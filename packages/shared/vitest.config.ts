@@ -36,6 +36,7 @@ export default defineConfig({
         "src/events/eventTablePeople.ts",
         "src/events/eventTableSeats.ts",
         "src/events/eventTableRoster.ts",
+        "src/events/eventTableSections.ts",
         "src/events/eventVotes.ts",
         "src/events/eventSchedule.ts",
         "src/events/eventTableEditInput.ts",
@@ -55,6 +56,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/events/eventTableSections.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/eventTableInvitees.ts": {
           lines: 100,
           functions: 100,

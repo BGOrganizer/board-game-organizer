@@ -16,10 +16,12 @@ import { useT } from "@/lib/i18n";
 import { EventStatusBadge } from "./EventStatusBadge";
 export function EventCard({
   event,
+  context = "personal",
   onVerify,
   checking = false,
 }: {
   event: ClientEventRecord;
+  context?: "personal" | "group";
   onVerify?: () => void;
   checking?: boolean;
 }) {
@@ -53,7 +55,13 @@ export function EventCard({
       onPress={() =>
         local
           ? router.push({ pathname: "/event/wizard", params: { draftId: local.draftId } })
-          : router.push({ pathname: "/event/[eventId]", params: { eventId: event.id } })
+          : router.push({
+              pathname: "/event/[eventId]",
+              params: {
+                eventId: event.id,
+                ...(context === "group" && event.groupId ? { fromGroup: event.groupId } : {}),
+              },
+            })
       }
     >
       <AnimatedDicebearArtwork seed={event.id} variant="constellation" />

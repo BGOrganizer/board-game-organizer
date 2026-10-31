@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { plannedEvent } from "@/test-fixtures/eventRecords";
+import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { EventGroupSelect } from "../EventGroupSelect";
 import { Events } from "../Events";
 
 vi.mock("@/lib/useCommunityApi", () => ({
@@ -21,6 +23,38 @@ const render = (props: Parameters<typeof Events>[0] = {}) =>
       <Events {...props} />
     </QueryClientProvider>,
   );
+it("warms only the creator-filtered first page before creation and reuses it without a second request", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const fetcher = vi.fn(async (url: string) =>
+    Response.json(
+      url.includes("/groups?")
+        ? { items: [groupRecord], nextCursor: "more" }
+        : { items: [], nextCursor: null },
+    ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const wrap = (child: ReactNode) => (
+    <QueryClientProvider client={client}>{child}</QueryClientProvider>
+  );
+  const view = renderWithI18n(wrap(<Events />));
+  await waitFor(() =>
+    expect(fetcher.mock.calls.filter(([url]) => url.includes("/groups?"))).toHaveLength(1),
+  );
+  const request = fetcher.mock.calls.find(([url]) => url.includes("/groups?"));
+  if (!request) throw Error("Missing preload");
+  const params = new URL(request[0]).searchParams;
+  expect(params.get("roles")).toBe("admin");
+  expect(params.get("limit")).toBe("20");
+  expect(params.has("cursor")).toBe(false);
+  await screen.findByText("No events found");
+  view.rerender(
+    wrap(<EventGroupSelect groupId={null} locked={false} busy={false} onChange={vi.fn()} />),
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Group$/ }));
+  await screen.findByRole("option", { name: /Friday group/ });
+  expect(fetcher.mock.calls.filter(([url]) => url.includes("/groups?"))).toHaveLength(1);
+  expect(fetcher.mock.calls.some(([url]) => new URL(url).searchParams.has("cursor"))).toBe(false);
+});
 it("source-pages canonical group/period/search lists and exposes contextual creation", async () => {
   const fetch = vi.fn(
     async (url: string) =>
@@ -70,7 +104,8 @@ it("requires four search characters, then automatically queries after debounce",
   const search = screen.getByRole("searchbox");
   fireEvent.change(search, { target: { value: "abc" } });
   await new Promise((resolve) => setTimeout(resolve, 350));
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls.filter(([url]) => String(url).includes("/events?")).length).toBe(1);
+  expect(fetch.mock.calls.filter(([url]) => String(url).includes("/groups?")).length).toBe(1);
   fireEvent.change(search, { target: { value: "friday" } });
   await waitFor(() =>
     expect(fetch.mock.calls.some(([url]) => String(url).includes("query=friday"))).toBe(true),

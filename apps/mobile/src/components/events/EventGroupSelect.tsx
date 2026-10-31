@@ -11,7 +11,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { CircleOff } from "lucide-react-native";
 import { useState } from "react";
-import { FlatList, View } from "react-native";
+import { FlatList, Keyboard, View } from "react-native";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { GroupArtwork } from "@/components/groups/GroupArtwork";
@@ -37,7 +37,7 @@ export function EventGroupSelect({
   const [open, setOpen] = useState(false);
   const search = useListSearch<never>([]);
   const groups = useGroupRecords(
-    { ...options, enabled: options.enabled !== false && open && !locked },
+    { ...options, enabled: options.enabled !== false && !locked },
     "mine",
     search.search,
     ["admin"],
@@ -51,6 +51,7 @@ export function EventGroupSelect({
       isDisabled={busy || locked}
       isOpen={open}
       onOpenChange={(value) => {
+        if (value) Keyboard.dismiss();
         setOpen(value);
         if (!value) search.setQuery("");
       }}
@@ -68,7 +69,7 @@ export function EventGroupSelect({
       </Select.Trigger>
       <Select.Portal>
         <Select.Overlay />
-        <Select.Content presentation="popover" width="trigger" style={{ maxHeight: 420, gap: 8 }}>
+        <Select.Content presentation="popover" width="trigger" style={{ maxHeight: 320, gap: 8 }}>
           <SearchHelpLabel
             label={t("Search groups")}
             help={t("Type at least 4 characters to search")}
@@ -83,7 +84,7 @@ export function EventGroupSelect({
             data={rows}
             keyExtractor={(row) => row.id}
             keyboardShouldPersistTaps="handled"
-            style={{ height: 280, flexShrink: 1 }}
+            style={{ height: Math.min(192, Math.max(144, (rows.length + 1) * 56)), flexShrink: 1 }}
             ListHeaderComponent={
               <Select.Item value="none" label={t("No group")}>
                 <CircleOff size={20} color={muted} />
@@ -93,7 +94,7 @@ export function EventGroupSelect({
             }
             renderItem={({ item: row }) => (
               <Select.Item value={row.id} label={row.name} disabled={!row.canInvite}>
-                <GroupArtwork group={row} />
+                <GroupArtwork group={row} size={40} />
                 <View style={{ flex: 1, gap: 4 }}>
                   <Typography className="text-foreground" numberOfLines={1}>
                     {row.name}

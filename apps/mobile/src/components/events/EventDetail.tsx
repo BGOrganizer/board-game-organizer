@@ -37,10 +37,11 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
+import { EventGroupLink } from "./EventGroupLink";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
-export function EventDetail({ eventId }: { eventId: string }) {
+export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -170,6 +171,9 @@ export function EventDetail({ eventId }: { eventId: string }) {
       <View style={{ gap: 8 }}>
         <EventDetailsCard event={event} />
       </View>
+      {event.groupId && fromGroup !== event.groupId ? (
+        <EventGroupLink groupId={event.groupId} name={event.groupName} />
+      ) : null}
       <View style={{ gap: 8 }}>
         <SearchHelpLabel
           label={event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Date and time")}
@@ -365,7 +369,12 @@ export function EventDetail({ eventId }: { eventId: string }) {
         <FloatingActions
           label="Edit event"
           isDisabled={a.busy || q.isPlaceholderData}
-          onPress={() => router.push({ pathname: "/event/wizard", params: { eventId: event.id } })}
+          onPress={() =>
+            router.push({
+              pathname: "/event/wizard",
+              params: { eventId: event.id, ...(fromGroup === event.groupId ? { fromGroup } : {}) },
+            })
+          }
         >
           <Pencil size={20} color={accentForeground} />
         </FloatingActions>

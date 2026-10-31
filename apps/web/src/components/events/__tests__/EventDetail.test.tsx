@@ -3,7 +3,7 @@ import { eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { eventId, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
+import { eventId, groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventDetail } from "../EventDetail";
 
@@ -46,6 +46,12 @@ beforeEach(() => {
   failWrite = false;
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (fail) return new Response("{}", { status: 503 });
+    if (url.includes("/groups/"))
+      return Response.json({
+        ...groupRecord,
+        id: new URL(url).pathname.split("/").at(-1),
+        name: event.groupName ?? groupRecord.name,
+      });
     if (init?.method === "PATCH") {
       if (failWrite) return new Response('{"error":"EVENT_CHANGED"}', { status: 409 });
       const input = JSON.parse(String(init.body));
@@ -472,7 +478,7 @@ it("confirms manually, permits replan after cutoff, and keeps failed transitions
     },
   };
   mount();
-  expect(await screen.findByRole("link", { name: "Our group" })).not.toBeNull();
+  expect(await screen.findByRole("link", { name: "Open group: Our group" })).not.toBeNull();
   expect(screen.getByRole("link", { name: "Register results" }).getAttribute("href")).toContain(
     "/results",
   );

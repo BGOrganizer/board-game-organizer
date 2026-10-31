@@ -11,7 +11,7 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Clock3, LogOut, Mail, UserRoundCheck, UserRoundX } from "lucide-react-native";
 import { type ReactNode, useState } from "react";
-import { FlatList, View } from "react-native";
+import { SectionList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
@@ -54,47 +54,68 @@ export function EventTableSeats({
   };
   return (
     <View style={{ flex: 1 }}>
-      <FlatList
-        data={roster.rows}
+      <SectionList
+        sections={[
+          { key: "seats", title: t("Seats list"), data: roster.seatRows },
+          ...(roster.waitingRows.length
+            ? [{ key: "waiting", title: t("Waiting list"), data: roster.waitingRows }]
+            : []),
+        ]}
+        stickySectionHeadersEnabled={false}
         keyExtractor={(row) => row.key}
         contentContainerStyle={{ padding: 20, gap: 8, paddingBottom: insets.bottom + 32 }}
         keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
-          <View style={{ gap: 16, paddingBottom: 8 }}>
-            {header}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Typography accessibilityRole="header" className="font-semibold text-foreground">
-                {t("Seats list")}
-              </Typography>
-              <HelpPopover
-                label={`${t("Seats list")}: ${t("Field help")}`}
-                title={t("Seats list")}
-                width={300}
-              >
-                <IconLegend
-                  items={[
-                    { icon: UserRoundCheck, description: t("Accepted player") },
-                    { icon: Mail, description: t("Invitation pending") },
-                    { icon: Clock3, description: t("Waiting list") },
-                  ]}
-                />
+        ListHeaderComponent={<View style={{ gap: 16, paddingBottom: 8 }}>{header}</View>}
+        renderSectionHeader={({ section }) => (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              paddingTop: section.key === "waiting" ? 12 : 0,
+            }}
+          >
+            <Typography accessibilityRole="header" className="font-semibold text-foreground">
+              {section.title}
+            </Typography>
+            <HelpPopover
+              label={`${section.title}: ${t("Field help")}`}
+              title={section.title}
+              width={300}
+            >
+              {section.key === "waiting" ? (
                 <Typography className="text-sm text-foreground">
                   {t(
-                    "Pending invitations reserve a place but do not vote or count toward agreement. Accepted waiting players may vote.",
+                    "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves. Pending invitations do not count toward agreement.",
                   )}
                 </Typography>
-                <Typography className="text-sm text-foreground">
-                  {t(
-                    "Free places allow joining or invitations. When capacity is reserved, an extra place lets new players join the queue. Places are not assigned physical seats.",
-                  )}
-                </Typography>
-                <Typography className="text-sm text-foreground">
-                  {t("Only the organizer and recipient can see pending invitation identities.")}
-                </Typography>
-              </HelpPopover>
-            </View>
+              ) : (
+                <>
+                  <IconLegend
+                    items={[
+                      { icon: UserRoundCheck, description: t("Accepted player") },
+                      { icon: Mail, description: t("Invitation pending") },
+                      { icon: Clock3, description: t("Waiting list") },
+                    ]}
+                  />
+                  <Typography className="text-sm text-foreground">
+                    {t(
+                      "Pending invitations reserve a place but do not vote or count toward agreement. Accepted waiting players may vote.",
+                    )}
+                  </Typography>
+                  <Typography className="text-sm text-foreground">
+                    {t(
+                      "Free places allow joining or invitations. When capacity is reserved, an extra place lets new players join the queue. Places are not assigned physical seats.",
+                    )}
+                  </Typography>
+                  <Typography className="text-sm text-foreground">
+                    {t("Only the organizer and recipient can see pending invitation identities.")}
+                  </Typography>
+                </>
+              )}
+            </HelpPopover>
           </View>
-        }
+        )}
         renderItem={({ item }) => {
           if (item.kind === "pending") {
             const label =
@@ -201,13 +222,11 @@ export function EventTableSeats({
           if (roster.hasNextPage && !roster.isFetchingNextPage && !roster.isFetchNextPageError)
             roster.more();
         }}
-        ListEmptyComponent={
-          !roster.isPending && !roster.isError ? (
-            <Typography className="text-foreground">{t("No players found")}</Typography>
-          ) : null
-        }
         ListFooterComponent={
           <View style={{ gap: 8 }}>
+            {!roster.rows.length && !roster.isPending && !roster.isError ? (
+              <Typography className="text-foreground">{t("No players found")}</Typography>
+            ) : null}
             {roster.isPending || roster.isFetchingNextPage ? (
               <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />
             ) : null}

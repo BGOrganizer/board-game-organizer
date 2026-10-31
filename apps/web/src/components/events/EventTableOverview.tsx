@@ -23,7 +23,15 @@ import { EventTableInfo } from "./EventTableInfo";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
-export function EventTableOverview({ eventId, tableId }: { eventId: string; tableId: string }) {
+export function EventTableOverview({
+  eventId,
+  tableId,
+  context = "personal",
+}: {
+  eventId: string;
+  tableId: string;
+  context?: "personal" | "event";
+}) {
   const { t } = useLingui(),
     o = useCommunityApi(),
     q = useRecordTable(o, eventId, tableId),
@@ -82,16 +90,18 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
       <EventTableInfo table={table} />
-      <section className="space-y-2" aria-label={t`Event`}>
-        <h2 className="font-semibold">{t`Event`}</h2>
-        <LinkedListCard
-          href={`/events/${table.eventId}`}
-          label={`${t`Open event`}: ${table.eventName}`}
-        >
-          <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
-          <span className="min-w-0 self-center break-words font-medium">{table.eventName}</span>
-        </LinkedListCard>
-      </section>
+      {context === "personal" ? (
+        <section className="space-y-2" aria-label={t`Event`}>
+          <h2 className="font-semibold">{t`Event`}</h2>
+          <LinkedListCard
+            href={`/events/${table.eventId}`}
+            label={`${t`Open event`}: ${table.eventName}`}
+          >
+            <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
+            <span className="min-w-0 self-center break-words font-medium">{table.eventName}</span>
+          </LinkedListCard>
+        </section>
+      ) : null}
       {q.isError ? (
         <div role="alert">
           <p className="text-danger">{t`Could not load complete table details`}</p>

@@ -58,25 +58,38 @@ export function eventTableRoster(
   const total = people.length + hidden + empty;
   const size = Math.max(0, Math.min(limit, total));
   const profile = selfProfile?.id === userId ? selfProfile : undefined;
-  const rows: EventTablePlace[] = people.slice(0, size).map((user) => ({
-    key: user.id,
-    kind: "player",
-    user:
-      profile && user.userId === userId
-        ? {
-            ...user,
-            name: (user.name && user.name !== userId ? user.name : profile.name) || null,
-            avatarUrl: user.avatarUrl ?? profile.avatarUrl,
-          }
-        : user,
-  }));
-  for (let i = rows.length; i < size; i++) {
-    const reserved = i < people.length + hidden;
-    rows.push({
-      key: `${reserved ? "reserved" : "empty"}:${i}`,
-      kind: reserved ? "reserved" : "empty",
-      queue: occupied >= table.maxPlayers,
-    });
+  const seated = people.filter((row) => row.position !== "WAITING");
+  const waiting = people.filter((row) => row.position === "WAITING");
+  const rows: EventTablePlace[] = [];
+  for (let i = 0; i < size; i++) {
+    // Unloaded/anonymous primary reservations must precede the waiting section too.
+    const user =
+      i < seated.length
+        ? seated[i]
+        : i >= seated.length + hidden
+          ? waiting[i - seated.length - hidden]
+          : undefined;
+    if (user) {
+      rows.push({
+        key: user.id,
+        kind: "player",
+        user:
+          profile && user.userId === userId
+            ? {
+                ...user,
+                name: (user.name && user.name !== userId ? user.name : profile.name) || null,
+                avatarUrl: user.avatarUrl ?? profile.avatarUrl,
+              }
+            : user,
+      });
+    } else {
+      const reserved = i < seated.length + hidden;
+      rows.push({
+        key: `${reserved ? "reserved" : "empty"}:${i}`,
+        kind: reserved ? "reserved" : "empty",
+        queue: occupied >= table.maxPlayers,
+      });
+    }
   }
-  return { rows, total };
+  return { rows, total, queueOpen: occupied >= table.maxPlayers };
 }

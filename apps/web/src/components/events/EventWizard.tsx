@@ -32,10 +32,12 @@ export function EventWizard({
   eventId,
   groupId,
   draftId,
+  fromGroup,
 }: {
   eventId?: string;
   groupId?: string;
   draftId?: string;
+  fromGroup?: string;
 }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -58,6 +60,7 @@ export function EventWizard({
       key={`${o.apiUrl}/${o.userId}/${eventId ?? groupId ?? "new"}`}
       event={eventId ? q.data : undefined}
       groupId={groupId}
+      fromGroup={fromGroup}
     />
   );
 }
@@ -79,10 +82,12 @@ function Editor({
   event,
   groupId,
   recovery,
+  fromGroup,
 }: {
   event?: PlannedEventResponse;
   groupId?: string;
   recovery?: CreateEventVariables;
+  fromGroup?: string;
 }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -129,7 +134,11 @@ function Editor({
       });
     const targetGroup = "groupId" in parsed.data ? parsed.data.groupId : event?.groupId;
     router.replace(
-      event ? `/events/${event.id}` : targetGroup ? `/groups/${targetGroup}?tab=events` : "/events",
+      event
+        ? `/events/${event.id}${fromGroup === event.groupId ? `?fromGroup=${encodeURIComponent(fromGroup)}` : ""}`
+        : targetGroup
+          ? `/groups/${targetGroup}?tab=events`
+          : "/events",
     );
   };
   if (pick === "location")

@@ -1,6 +1,7 @@
 import {
   communityAccessDenied,
   useEventRecords,
+  useGroupRecords,
   useListSearch,
 } from "@board-game-organizer/shared";
 import { useRouter } from "expo-router";
@@ -24,6 +25,10 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
     accent = useThemeColor("accent-foreground"),
     filters = useListSearch(["past", "future"] as const),
     list = useEventRecords(o, { groupId, periods: filters.selected, query: filters.search });
+  // Warm the same source-filtered first page used by the creation picker; never scan all Groups.
+  useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
+    "admin",
+  ]);
   return (
     <View style={{ flex: 1 }}>
       <FlatList
@@ -53,6 +58,7 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
         renderItem={({ item }) => (
           <EventCard
             event={item}
+            context={groupId ? "group" : "personal"}
             checking={list.isFetching}
             onVerify={() => void list.refetch({ cancelRefetch: false })}
           />

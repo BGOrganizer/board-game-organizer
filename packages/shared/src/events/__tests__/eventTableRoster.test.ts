@@ -270,3 +270,22 @@ it("orders seated/frozen before waiters, then original timestamp, sequence and s
       .rows[0],
   ).toMatchObject({ user: { id: "new" } });
 });
+it("fills unloaded/anonymous primary capacity before showing any queued person, including across render pages", () => {
+  const full = { ...table, maxPlayers: 40, seatedCount: 39, pendingCount: 1, waitingCount: 1 };
+  const accepted = [seat("known"), seat("waiter", "ACCEPTED", "WAITING")];
+  const first = eventTableRoster(full, accepted, [], "member", 20);
+  expect(first.queueOpen).toBe(true);
+  expect(first.rows).toHaveLength(20);
+  expect(first.rows.slice(1).every((row) => row.kind === "reserved")).toBe(true);
+  expect(first.rows.some((row) => row.kind === "player" && row.user.position === "WAITING")).toBe(
+    false,
+  );
+  const all = eventTableRoster(full, accepted, [], "member", 60);
+  expect(all.rows.slice(0, 40).filter((row) => row.kind === "reserved")).toHaveLength(39);
+  expect(all.rows[40]).toMatchObject({
+    kind: "player",
+    user: { id: "waiter", position: "WAITING" },
+  });
+  expect(all.rows[41]).toMatchObject({ kind: "empty", queue: true });
+  expect(eventTableRoster(table, [], [], "member", 20).queueOpen).toBe(false);
+});

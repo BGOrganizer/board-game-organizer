@@ -5160,7 +5160,10 @@ msgstr "In attesa"
 #: apps/web/src/components/events/EventTableCard.tsx
 #: apps/web/src/components/events/EventTableSeats.tsx
 msgid "Waiting list"
-msgstr "Lista d'attesa"
+msgstr "Lista di attesa"
+
+msgid "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves. Pending invitations do not count toward agreement."
+msgstr "Quando tutti i posti sono riservati, i nuovi giocatori entrano nella lista di attesa. La priorità viene mantenuta e un posto può liberarsi quando un altro giocatore lascia il tavolo. Gli inviti in sospeso non contano per l'accordo."
 
 #: apps/web/src/components/auth/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"

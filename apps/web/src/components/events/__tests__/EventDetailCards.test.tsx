@@ -13,7 +13,7 @@ it.each([
   ["CONFIRMED", "Confirmed", "success"],
   ["TERMINATED", "Terminated", "default"],
 ] as const)(
-  "keeps %s event identity in its first card with linked Group and shared status",
+  "keeps %s event identity and shared status without embedding the separate Group item",
   (status, label, color) => {
     const event = { ...plannedEvent, status, groupId: groupRecord.id, groupName: groupRecord.name };
     const view = renderWithI18n(<EventDetailsCard event={event} />);
@@ -35,11 +35,8 @@ it.each([
         .closest(".chip")?.className,
     ).toContain(`chip--${color}`);
     expect(heading.className).toContain("break-words");
-    const link = within(card as HTMLElement).getByRole("link", { name: groupRecord.name });
-    expect(link.className).toContain("min-w-0 break-words");
-    expect(link.getAttribute("href")).toBe(`/groups/${groupRecord.id}`);
-    expect(link.previousElementSibling?.classList.contains("lucide-users-round")).toBe(true);
-    expect(heading.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(card as HTMLElement).queryByRole("link")).toBeNull();
+    expect(within(details).queryByText(groupRecord.name)).toBeNull();
     const image = card.querySelector("img");
     expect(image?.getAttribute("alt")).toBe("");
     const artwork = image?.getAttribute("src");
@@ -61,7 +58,7 @@ it("keeps available identity visible while a grouped summary is missing the Grou
     <EventDetailsCard event={{ ...plannedEvent, groupId: groupRecord.id, groupName: null }} />,
   );
   expect(screen.getByRole("heading", { name: plannedEvent.name })).not.toBeNull();
-  expect(container.querySelector(".skeleton")).not.toBeNull();
+  expect(container.querySelector(".skeleton")).toBeNull();
   expect(screen.queryByText("No group")).toBeNull();
 });
 it("keeps voting meanings and concise accepted/pending/participation rules in the Details help", () => {

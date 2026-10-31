@@ -81,7 +81,7 @@ export function EventTableCard({
   ];
   return (
     <LinkedListCard
-      href={`/events/${table.eventId}/tables/${table.id}`}
+      href={`/events/${table.eventId}/tables/${table.id}${context === "event" ? `?fromEvent=${encodeURIComponent(table.eventId)}` : ""}`}
       label={`${t`Open table`}: ${table.name}`}
       leadingActions={
         <HelpPopover label={`${t`Players`}: ${t`Field help`}`} title={t`Players`}>

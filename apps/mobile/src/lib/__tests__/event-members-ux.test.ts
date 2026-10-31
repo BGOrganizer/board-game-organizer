@@ -44,7 +44,9 @@ it("uses grouped games, virtualized user places, avatar badges and one explicit 
   expect(table).toMatch(/<GroupedList>[\s\S]*<GameListRow/);
   expect(table).toContain("metadata=");
   expect(table).toContain("<EventVoteCounts");
-  expect(roster).toContain("<FlatList");
+  expect(roster).toContain("<SectionList");
+  expect(roster).toContain("stickySectionHeadersEnabled={false}");
+  expect(roster).toContain("roster.waitingRows");
   expect(roster).toContain("<UserListRow");
   expect(roster).toContain("<AddUserRow");
   expect(roster).toContain("badge={{");

@@ -16,7 +16,15 @@ import { EventDeleteAction } from "./EventDeleteAction";
 import { EventTableLeaderboard } from "./EventTableLeaderboard";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTableResults } from "./EventTableResults";
-export function EventTable({ eventId, tableId }: { eventId: string; tableId: string }) {
+export function EventTable({
+  eventId,
+  tableId,
+  context = "personal",
+}: {
+  eventId: string;
+  tableId: string;
+  context?: "personal" | "event";
+}) {
   const t = useT(),
     o = useCommunityApi(),
     q = useRecordTable(o, eventId, tableId),
@@ -43,7 +51,7 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
     return (
       <>
         {header}
-        <EventTableOverview eventId={eventId} tableId={tableId} />
+        <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
       </>
     );
   const selected = tab === "results" && table.eventStatus !== "TERMINATED" ? "overview" : tab;
@@ -72,7 +80,7 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
           ) : selected === "results" ? (
             <EventTableResults table={table} />
           ) : (
-            <EventTableOverview eventId={eventId} tableId={tableId} />
+            <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
           )}
         </View>
       </Tabs>

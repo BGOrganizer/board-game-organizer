@@ -10,6 +10,7 @@ import {
   pendingParticipationPlaces,
 } from "../eventTablePending";
 import { eventTableRoster } from "../eventTableRoster";
+import { eventTableSections } from "../eventTableSections";
 import { useEventParticipationIntent } from "./useEventParticipationIntent";
 import { eventRecordKeys, useTableSeats } from "./useEventRecords";
 export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableResponse) {
@@ -67,13 +68,17 @@ export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableR
     canonicalAccepted,
     selfProfile,
   );
-  const rows = combined.slice(0, limit);
+  const grouped = eventTableSections(combined, view.queueOpen);
+  const rows = [...grouped.seats, ...grouped.waiting].slice(0, limit);
+  const sections = eventTableSections(rows, view.queueOpen);
   const total = view.total + Math.max(0, combined.length - view.rows.length);
   const fetching = pages.some((page) => page.isFetchingNextPage);
   const failedPage = pages.some((page) => page.isFetchNextPageError);
   return {
     ...view,
     rows,
+    seatRows: sections.seats,
+    waitingRows: sections.waiting,
     total,
     isPending: pages.some((page) => page.isPending && !page.data),
     isError: pages.some((page) => page.isError),

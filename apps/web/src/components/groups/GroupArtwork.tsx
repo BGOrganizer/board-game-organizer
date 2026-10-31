@@ -6,23 +6,26 @@ import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebear
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 export function GroupArtwork({
   group,
+  size = 64,
 }: {
   group: Pick<GroupRecordResponse, "name" | "logo" | "role">;
+  size?: number;
 }) {
   const { t } = useLingui();
   return (
-    <span className="relative size-16 shrink-0">
+    <span className="relative shrink-0" style={{ width: size, height: size }}>
       {group.logo ? (
         // biome-ignore lint/performance/noImgElement: Authenticated, optimized MongoDB data URI, not a remote image.
         <img
           src={group.logo}
           alt=""
-          width={64}
-          height={64}
-          className="size-16 rounded-xl object-contain"
+          width={size}
+          height={size}
+          className="rounded-xl object-contain"
+          style={{ width: size, height: size }}
         />
       ) : (
-        <AnimatedDicebearArtwork seed={group.name} variant="landscape" />
+        <AnimatedDicebearArtwork seed={group.name} variant="landscape" size={size} />
       )}
       {group.role === "admin" ? (
         <span

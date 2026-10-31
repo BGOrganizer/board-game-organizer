@@ -26,7 +26,15 @@ import { EventTableInfo } from "./EventTableInfo";
 import { EventTableSeats } from "./EventTableSeats";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
-export function EventTableOverview({ eventId, tableId }: { eventId: string; tableId: string }) {
+export function EventTableOverview({
+  eventId,
+  tableId,
+  context = "personal",
+}: {
+  eventId: string;
+  tableId: string;
+  context?: "personal" | "event";
+}) {
   const t = useT(),
     o = useCommunityApi(),
     router = useRouter(),
@@ -95,25 +103,27 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
   const header = (
     <View style={{ gap: 16 }}>
       <EventTableInfo table={table} />
-      <View style={{ gap: 8 }}>
-        <Typography accessibilityRole="header" className="font-semibold text-foreground">
-          {t("Event")}
-        </Typography>
-        <LinkedListCard
-          label={`${t("Open event")}: ${table.eventName}`}
-          onPress={() =>
-            router.push({ pathname: "/event/[eventId]", params: { eventId: table.eventId } })
-          }
-        >
-          <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
-          <Typography
-            className="font-medium text-foreground"
-            style={{ flex: 1, alignSelf: "center" }}
-          >
-            {table.eventName}
+      {context === "personal" ? (
+        <View style={{ gap: 8 }}>
+          <Typography accessibilityRole="header" className="font-semibold text-foreground">
+            {t("Event")}
           </Typography>
-        </LinkedListCard>
-      </View>
+          <LinkedListCard
+            label={`${t("Open event")}: ${table.eventName}`}
+            onPress={() =>
+              router.push({ pathname: "/event/[eventId]", params: { eventId: table.eventId } })
+            }
+          >
+            <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
+            <Typography
+              className="font-medium text-foreground"
+              style={{ flex: 1, alignSelf: "center" }}
+            >
+              {table.eventName}
+            </Typography>
+          </LinkedListCard>
+        </View>
+      ) : null}
       {q.isError ? (
         <View>
           <Typography accessibilityRole="alert" className="text-danger">

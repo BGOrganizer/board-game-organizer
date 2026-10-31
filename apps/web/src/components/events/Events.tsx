@@ -2,6 +2,7 @@
 import {
   communityAccessDenied,
   useEventRecords,
+  useGroupRecords,
   useListSearch,
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
@@ -24,6 +25,10 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
       isFetchNextPageError: list.isFetchNextPageError,
       fetchNextPage: list.fetchNextPage,
     });
+  // Share the creation picker's bounded, source-filtered cache before navigation.
+  useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
+    "admin",
+  ]);
   return (
     <ListPage>
       <ListSearch
@@ -42,6 +47,7 @@ export function Events({ groupId, canCreate = true }: { groupId?: string; canCre
         <EventCard
           key={event.id}
           event={event}
+          context={groupId ? "group" : "personal"}
           checking={list.isFetching}
           onVerify={() => void list.refetch({ cancelRefetch: false })}
         />

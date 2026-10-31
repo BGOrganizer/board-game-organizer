@@ -34,7 +34,7 @@ function mount(locked = false) {
   );
   return change;
 }
-it("uses a searchable Select with group artwork, explicit no-group and demand-only source pages", async () => {
+it("preloads a compact searchable Select with group artwork, explicit no-group and demand-only later pages", async () => {
   const second = {
     ...groupRecord,
     id: "22222222-2222-4222-8222-222222222222",
@@ -54,9 +54,12 @@ it("uses a searchable Select with group artwork, explicit no-group and demand-on
   });
   vi.stubGlobal("fetch", fetch);
   const change = mount();
-  expect(fetch).not.toHaveBeenCalled();
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  expect(new URL(fetch.mock.calls[0][0]).searchParams.get("roles")).toBe("admin");
+  expect(screen.queryByRole("listbox")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Group$/ }));
   const list = await screen.findByRole("listbox");
+  expect(list.className).toContain("max-h-48");
   await within(list).findByRole("option", { name: /Friday group/ });
   expect(
     within(list)

@@ -53,7 +53,10 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(identity).toContain("<EventVoteLegend");
   expect(identity).toContain('<AnimatedDicebearArtwork seed={event.id} variant="constellation"');
   expect(identity).toContain("<CalendarDays");
-  expect(identity).toContain("<UsersRound");
+  expect(identity).not.toContain("/group/[groupId]");
+  expect(detail).toContain("<EventGroupLink");
+  expect(source("events", "EventGroupLink")).toContain("<GroupArtwork");
+  expect(source("events", "EventGroupLink")).toContain('t("Group")');
   expect(identity).toContain("<EventStatusBadge status={event.status}");
   expect(source("events", "EventStatusBadge")).toContain('"warning"');
   expect(detail).toContain('t("Start Date and Time")');
