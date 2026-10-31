@@ -54,8 +54,8 @@ export function Header() {
 
   const navLinks = [
     { href: "/tables", label: t`Tables`, icon: Dices },
-    { href: "/groups", label: t`Groups`, icon: UsersRound },
     { href: "/events", label: t`Events`, icon: CalendarDays },
+    { href: "/groups", label: t`Groups`, icon: UsersRound },
     { href: "/contacts", label: t`Contacts`, icon: ContactRound },
   ];
 

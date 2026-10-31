@@ -251,6 +251,27 @@ describe("unified Group HTTP contracts", () => {
     expect((await invitees.GET(request(), context)).status).toBe(403);
     expect((await invitees.OPTIONS(request("OPTIONS"))).status).toBe(204);
   });
+  it.each(["PRIVATE", "PUBLIC"])(
+    "passes owned Group type/roles/cursor to the source reader (%s)",
+    async (type) => {
+      const cursor = `2030-06-01T12:00:00.000Z|${id}`;
+      const response = await groupsRoute.GET(
+        request(
+          "GET",
+          undefined,
+          `?scope=mine&type=${type}&roles=admin,accepted&limit=1&cursor=${encodeURIComponent(cursor)}`,
+        ),
+      );
+      expect(response.status).toBe(200);
+      expect(services.groups.list).toHaveBeenCalledWith("owner", "mine", {
+        type,
+        roles: ["admin", "accepted"],
+        limit: 1,
+        cursor,
+      });
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+    },
+  );
   it("lists canonical roles and source searches; validates creates without changing immutable type", async () => {
     expect((await groupsRoute.GET(request("GET", undefined, "?roles=accepted,admin"))).status).toBe(
       200,

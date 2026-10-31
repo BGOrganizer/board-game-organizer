@@ -62,6 +62,30 @@ describe("unified request boundaries", () => {
     expect(recordQuery(req(), eventSeatsQuery).pending).toBe(false);
     expect(recordQuery(req("x-vercel-protection-bypass=opaque"), emptyRecordQuery)).toEqual({});
   });
+  it.each(["PRIVATE", "PUBLIC"])(
+    "accepts a source type filter only for owned Group lists (%s)",
+    (type) => {
+      expect(
+        recordQuery(req(`scope=mine&type=${type}&roles=accepted,admin`), groupListQuery),
+      ).toEqual({
+        scope: "mine",
+        type,
+        roles: ["admin", "accepted"],
+        limit: 20,
+      });
+    },
+  );
+  it.each([
+    "type=private",
+    "type=",
+    "type=LEGACY",
+    "type=PRIVATE&type=PUBLIC",
+    "scope=public&query=club&type=PRIVATE",
+    "scope=public&query=club&type=PUBLIC",
+    "scope=moderation&type=PUBLIC",
+  ])("rejects invalid, duplicate or discovery/moderation type filters (%s)", (query) => {
+    expect(() => recordQuery(req(query), groupListQuery)).toThrow("INVALID_QUERY");
+  });
   it.each([
     "unknown=yes",
     "limit=0",

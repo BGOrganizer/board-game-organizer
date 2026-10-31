@@ -12,10 +12,13 @@ import { notificationHref } from "../notifications/push-notifications";
 const source = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), "utf8"),
   eventId = "11111111-1111-4111-8111-111111111111",
   tableId = "22222222-2222-4222-8222-222222222222";
-it("exposes Tables Groups Events Contacts, with profile separate and legacy tabs hidden", () => {
+it("exposes Tables Events Groups Contacts in order, with profile separate and legacy tabs hidden", () => {
   const s = source("app/(tabs)/_layout.tsx");
-  for (const tab of ["tables", "groups", "events", "contacts"])
-    expect(s).toContain(`name="${tab}"`);
+  const tabs = ["tables", "events", "groups", "contacts"];
+  for (const tab of tabs) expect(s).toContain(`name="${tab}"`);
+  expect(tabs.map((tab) => s.indexOf(`name="${tab}"`))).toEqual(
+    tabs.map((tab) => s.indexOf(`name="${tab}"`)).sort((a, b) => a - b),
+  );
   expect(s).toContain('name="matches" options={{ href: null }}');
   expect(s).toContain('name="organizations" options={{ href: null }}');
   expect(s).toContain("Group moderation");

@@ -1,4 +1,4 @@
-import { groupRecordListRoles } from "@board-game-organizer/schemas";
+import { type GroupRecord, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useGroupRecordActions,
@@ -10,7 +10,7 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Check, Crown, Mail, Plus, UsersRound } from "lucide-react-native";
+import { Check, Crown, Plus, UsersRound } from "lucide-react-native";
 import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -20,15 +20,21 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { GroupCard } from "./GroupCard";
-export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
+export function GroupList({
+  scope = "mine",
+  type,
+}: {
+  scope?: "mine" | "public";
+  type?: GroupRecord["type"];
+}) {
   const t = useT(),
     router = useRouter(),
     options = useCommunityApi(),
     layout = useFloatingActionLayout(),
     muted = useThemeColor("muted"),
     accentForeground = useThemeColor("accent-foreground");
-  const filters = useListSearch(groupRecordListRoles),
-    list = useGroupRecords(options, scope, filters.search, filters.selected),
+  const filters = useListSearch(groupRecordMemberRoles),
+    list = useGroupRecords(options, scope, filters.search, filters.selected, type),
     actions = useGroupRecordActions(options);
   const searchable = scope !== "public" || Boolean(filters.search);
   return (
@@ -58,7 +64,6 @@ export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
                 scope === "mine"
                   ? [
                       { key: "admin", label: t("Admin"), icon: Crown },
-                      { key: "invited", label: t("Invited"), icon: Mail },
                       { key: "accepted", label: t("Accepted"), icon: Check },
                     ]
                   : []

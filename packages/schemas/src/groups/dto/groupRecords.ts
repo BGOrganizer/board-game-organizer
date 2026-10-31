@@ -17,6 +17,7 @@ const invitedUsers = z
   .array(targetUserIdSchema)
   .refine((ids) => new Set(ids).size === ids.length, "Invitations must be unique");
 export const groupRecordListRoles = ["admin", "invited", "accepted"] as const;
+export const groupRecordMemberRoles = ["admin", "accepted"] as const;
 export type GroupRecordListRole = (typeof groupRecordListRoles)[number];
 
 export const createGroupRecordSchema = z.discriminatedUnion("type", [

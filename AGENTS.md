@@ -135,8 +135,8 @@ secrets into images. Client `NEXT_PUBLIC_*`/`EXPO_PUBLIC_*` values are public ev
 
 **Current branch domain override:** [Unified Groups / Events / Tables](docs/groups-events-refactor.md)
 is the active implementation contract. PRIVATE/PUBLIC Groups replace Groups + Organizations;
-Events containing Tables replace operational Matches + Events. Navigation is Tables / Groups /
-Events / Contacts. The legacy domain notes explicitly labeled below are historical, not authority
+Events containing Tables replace operational Matches + Events. Navigation is Tables / Events /
+Groups / Contacts. The legacy domain notes explicitly labeled below are historical, not authority
 for reintroducing old writers, archival/type conversion, server event drafts, automatic organizer
 seats or automatic deadline confirmation. No database deletion/reset or provider mutation is
 part of this refactor. Legacy documents remain intact and are excluded from unified readers.
@@ -597,8 +597,11 @@ complete CSV before enabling the search filter on an older catalog without `isEx
 interactive state or browser APIs. Auth middleware leaves `/`, sign-in, and sign-up public and
 protects application routes.
 
-Navigation exposes Tables, Groups, Events and Contacts, with Profile separate. Group discovery
-and BGO moderation are contextual Group destinations. Its lists share platform-specific page/search/filter patterns.
+Navigation exposes Tables, Events, Groups and Contacts, with Profile separate. Groups has Private,
+Public and Search top tabs: the first two source-page only creator/admin or accepted memberships of
+that immutable type; pending invitations/requests do not qualify. Search retains approved public
+Group discovery. BGO moderation remains a contextual Group destination. Group lists share
+platform-specific page/search/filter patterns.
 The main Events list contains participation, administration and demonstrations; standalone creation
 starts there and grouped creation is contextual to Groups. Past/Future uses the chosen local day;
 unchosen dates belong to both. Do not repeat a page or section title inside tab

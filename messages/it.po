@@ -4374,6 +4374,12 @@ msgstr "Punteggi richiesti"
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx
 #: apps/web/src/components/groups/Groups.tsx
+msgid "Private groups"
+msgstr "Privati"
+
+msgid "Public groups"
+msgstr "Pubblici"
+
 msgid "Search"
 msgstr "Ricerca"
 

@@ -1,3 +1,4 @@
+import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
   groupRecordKeys,
@@ -53,7 +54,8 @@ export function isStartupDestinationSettled(
       .some((q) => q.state.status !== "pending" && q.state.fetchStatus === "idle");
   if (pathname === "/tables" || pathname === "/matches")
     return settled(client, eventRecordKeys.tables(o, null));
-  if (pathname === "/groups") return settled(client, groupRecordKeys.list(o, "mine"));
+  if (pathname === "/groups")
+    return settled(client, groupRecordKeys.list(o, "mine", "", groupRecordMemberRoles, "PRIVATE"));
   if (pathname === "/events") return settled(client, eventRecordKeys.list(o));
   if (pathname === "/contacts")
     return startupRelationshipTypes.every((type) =>
@@ -69,7 +71,7 @@ export function isStartupEssentialsSettled(client: QueryClient, apiUrl: string, 
   return (
     settled(client, ["profile", apiUrl, userId]) &&
     settled(client, eventRecordKeys.tables(o, null)) &&
-    settled(client, groupRecordKeys.list(o, "mine")) &&
+    settled(client, groupRecordKeys.list(o, "mine", "", groupRecordMemberRoles, "PRIVATE")) &&
     settled(client, eventRecordKeys.list(o))
   );
 }

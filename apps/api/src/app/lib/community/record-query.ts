@@ -1,4 +1,8 @@
-import { groupRecordListRoles, targetUserIdSchema } from "@board-game-organizer/schemas";
+import {
+  groupRecordListRoles,
+  groupTypeSchema,
+  targetUserIdSchema,
+} from "@board-game-organizer/schemas";
 import { z } from "zod";
 import { CommunityError } from "../community.error";
 
@@ -25,6 +29,7 @@ export const groupInviteesQuery = recordPageQuery.extend({ cursor: targetUserIdS
 export const groupListQuery = recordPageQuery
   .extend({
     scope: z.enum(["mine", "public", "moderation"]).default("mine"),
+    type: groupTypeSchema.optional(),
     roles: z
       .string()
       .max(80)
@@ -34,7 +39,7 @@ export const groupListQuery = recordPageQuery
   })
   .refine(
     (value) =>
-      (value.scope === "mine" || value.roles === undefined) &&
+      (value.scope === "mine" || (value.roles === undefined && value.type === undefined)) &&
       (value.scope !== "public" || Boolean(value.query)),
   );
 export const groupPeopleQuery = recordPageQuery

@@ -87,19 +87,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="groups"
-        options={{
-          title: t("Groups"),
-          headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
-          tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="events"
         options={{
           title: t("Events"),
           headerTitle: () => <HeaderTitle title={t("Events")} icon={CalendarDays} />,
           tabBarIcon: ({ color }) => <CalendarDays size={26} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="groups"
+        options={{
+          title: t("Groups"),
+          headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
+          tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
         }}
       />
       <Tabs.Screen name="organizations" options={{ href: null }} />

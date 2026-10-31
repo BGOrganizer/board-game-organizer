@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { CreatePlannedEventInput, JoinTableInput } from "@board-game-organizer/schemas";
 import {
+  groupRecordMemberRoles,
+  groupRecordSchema,
   registerMatchResultsSchema,
   type SaveEventInput,
   saveEventSchema,
@@ -2708,6 +2710,145 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(repeat.every((result) => result.status === "rejected")).toBe(true);
     expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(4);
   });
+  it("source-pages private and public owned memberships before the limit, excluding pending/requested/left/banned and legacy Groups", async () => {
+    const rows: Array<{
+      id: string;
+      type: "PRIVATE" | "PUBLIC";
+      eligible: boolean;
+      createdAt: string;
+    }> = [];
+    for (const role of [
+      "member",
+      "invited",
+      "admin",
+      "requested",
+      "left",
+      "member",
+      "declined",
+      "banned",
+      "none",
+    ]) {
+      for (const type of ["PRIVATE", "PUBLIC"] as const) {
+        if (role === "requested" && type === "PRIVATE") continue;
+        const id = randomUUID(),
+          createdAt = new Date(Date.UTC(2030, 0, 1, 0, 0, rows.length)).toISOString();
+        const name = `Tabbed ${type} ${role} ${rows.length}`;
+        const revision = {
+          name,
+          ...(type === "PUBLIC"
+            ? { logoAssetId: randomUUID(), location: { ...location, timeZone: "Europe/Rome" } }
+            : {}),
+        };
+        await db.collection(COLLECTIONS.GROUPS).insertOne(
+          groupRecordSchema.parse({
+            id,
+            type,
+            adminUserId: role === "admin" ? GUEST : OWNER,
+            approved: revision,
+            reservedNames: type === "PUBLIC" ? [name.toLowerCase()] : [],
+            version: 1,
+            createdAt,
+            updatedAt: createdAt,
+          }),
+        );
+        if (!["admin", "none"].includes(role))
+          await db.collection(COLLECTIONS.GROUP_MEMBERSHIPS).insertOne({
+            id: randomUUID(),
+            groupId: id,
+            userId: GUEST,
+            kind: role === "requested" ? "REQUEST" : "INVITATION",
+            status: ["member", "banned"].includes(role)
+              ? "ACCEPTED"
+              : role === "left"
+                ? "LEFT"
+                : role === "declined"
+                  ? "DECLINED"
+                  : "PENDING",
+            version: 1,
+            createdAt,
+            updatedAt: createdAt,
+          });
+        if (role === "banned")
+          await db.collection(COLLECTIONS.GROUP_BANS).insertOne({
+            id: randomUUID(),
+            groupId: id,
+            userId: GUEST,
+            adminUserId: OWNER,
+            until: null,
+            createdAt,
+          });
+        rows.push({ id, type, createdAt, eligible: role === "admin" || role === "member" });
+      }
+    }
+    const proposalId = randomUUID(),
+      at = "2030-06-01T00:00:00.000Z";
+    await db.collection(COLLECTIONS.GROUPS).insertOne(
+      groupRecordSchema.parse({
+        id: proposalId,
+        type: "PUBLIC",
+        adminUserId: GUEST,
+        proposal: {
+          name: "Tabbed public proposal",
+          logoAssetId: randomUUID(),
+          location: { ...location, timeZone: "Europe/Rome" },
+        },
+        reviewStatus: "PENDING",
+        reservedNames: ["tabbed public proposal"],
+        version: 1,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    rows.push({ id: proposalId, type: "PUBLIC", createdAt: at, eligible: true });
+    await db.collection(COLLECTIONS.GROUPS).insertOne({
+      id: randomUUID(),
+      name: "Tabbed legacy",
+      adminUserId: GUEST,
+      isPublic: true,
+      createdAt: at,
+    });
+    for (const type of ["PRIVATE", "PUBLIC"] as const) {
+      const expected = rows
+        .filter((row) => row.type === type && row.eligible)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((row) => row.id);
+      const actual: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await services().unifiedGroupService.list(GUEST, "mine", {
+          type,
+          roles: groupRecordMemberRoles,
+          query: "Tabbed",
+          limit: 2,
+          cursor,
+        });
+        expect(page.items).toHaveLength(Math.min(2, expected.length - actual.length));
+        expect(
+          page.items.every((row) => row.type === type && ["admin", "accepted"].includes(row.role)),
+        ).toBe(true);
+        actual.push(...page.items.map((row) => row.id));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      expect(actual).toEqual(expected);
+      expect(
+        (
+          await services().unifiedGroupService.list(GUEST, "mine", {
+            type,
+            roles: groupRecordMemberRoles,
+            query: "Absent",
+            limit: 2,
+          })
+        ).items,
+      ).toEqual([]);
+    }
+    const discovery = await services().unifiedGroupService.list(GUEST, "public", {
+      query: "Tabbed",
+      limit: 50,
+    });
+    expect(discovery.items.every((row) => row.type === "PUBLIC" && row.approved)).toBe(true);
+    expect(discovery.items.some((row) => row.id === proposalId)).toBe(false);
+  });
+
   it("source-searches accepted, pending and excluded people without injecting an unrelated owner", async () => {
     await db
       .collection(COLLECTIONS.USERS)

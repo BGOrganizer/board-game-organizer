@@ -4,7 +4,9 @@
 ![Codecov](https://codecov.io/gh/BGOrganizer/board-game-organizer/branch/main/graph/badge.svg)
 
 Web and native mobile clients for board-game contacts, collections, groups, events and tables,
-backed by a shared TypeScript API. Main navigation is Tables / Groups / Events / Contacts.
+backed by a shared TypeScript API. Main navigation is Tables / Events / Groups / Contacts.
+Groups has Private / Public / Search tabs; Private/Public show only administered or joined Groups
+of that type, while Search retains public discovery.
 
 ## Current functionality
 

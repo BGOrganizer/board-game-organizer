@@ -14,6 +14,7 @@ export interface GroupRecordPage {
   cursor?: string;
   query?: string;
   roles?: readonly GroupRecordListRole[];
+  type?: GroupRecord["type"];
 }
 export class GroupRecordsRepository {
   private groups;
@@ -318,7 +319,7 @@ export class GroupRecordsRepository {
     now: string,
   ) {
     const pipeline: Record<string, unknown>[] = [
-      { $match: { type: { $in: ["PRIVATE", "PUBLIC"] } } },
+      { $match: { type: page.type ?? { $in: ["PRIVATE", "PUBLIC"] } } },
     ];
     if (scope === "public")
       pipeline.push({ $match: { type: "PUBLIC", approved: { $exists: true } } });

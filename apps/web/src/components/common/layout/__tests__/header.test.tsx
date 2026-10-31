@@ -54,6 +54,19 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 
 describe("Header", () => {
+  it("orders Events before Groups in both desktop links and the mobile menu", () => {
+    useUserMock.mockReturnValue({ user: { firstName: "Alessandro", emailAddresses: [] } });
+    renderWithI18n(<Header />);
+    const expected = ["/tables", "/events", "/groups", "/contacts"];
+    const paths = () =>
+      screen
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href"))
+        .filter((href) => expected.includes(href ?? ""));
+    expect(paths()).toEqual(expected);
+    fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
+    expect(paths()).toEqual([...expected, ...expected]);
+  });
   it("shows the brand and the main navigation for signed-in users", () => {
     renderWithI18n(<Header />);
     expect(screen.getByText("Board Game Organizer")).toBeTruthy();

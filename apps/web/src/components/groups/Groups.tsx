@@ -5,15 +5,23 @@ import { useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { GroupList } from "./GroupList";
 
-export function Groups({ initialSection = "groups" }: { initialSection?: "groups" | "search" }) {
+export function Groups({
+  initialSection = "private",
+}: {
+  initialSection?: "private" | "public" | "search";
+}) {
   const { t } = useLingui();
   const [section, setSection] = useState<string>(initialSection);
   return (
     <Tabs selectedKey={section} onSelectionChange={(key) => setSection(String(key))}>
       <Tabs.ListContainer className="mt-4 w-fit max-w-full self-center">
         <Tabs.List aria-label={t`Groups navigation`}>
-          <Tabs.Tab id="groups">
-            {t`Groups`}
+          <Tabs.Tab id="private">
+            {t`Private groups`}
+            <Tabs.Indicator />
+          </Tabs.Tab>
+          <Tabs.Tab id="public">
+            {t`Public groups`}
             <Tabs.Indicator />
           </Tabs.Tab>
           <Tabs.Tab id="search">
@@ -22,8 +30,11 @@ export function Groups({ initialSection = "groups" }: { initialSection?: "groups
           </Tabs.Tab>
         </Tabs.List>
       </Tabs.ListContainer>
-      <Tabs.Panel id="groups">
-        <GroupList scope="mine" />
+      <Tabs.Panel id="private">
+        <GroupList scope="mine" type="PRIVATE" />
+      </Tabs.Panel>
+      <Tabs.Panel id="public">
+        <GroupList scope="mine" type="PUBLIC" />
       </Tabs.Panel>
       <Tabs.Panel id="search">
         <GroupList scope="public" />

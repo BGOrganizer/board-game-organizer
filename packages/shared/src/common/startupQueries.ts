@@ -1,3 +1,4 @@
+import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { infiniteQueryOptions, type QueryClient } from "@tanstack/react-query";
 import type { CommunityApiOptions } from "../community/communityApi";
 import {
@@ -44,7 +45,10 @@ export function warmStartupPriority(
   return runReads(
     [
       () => client.prefetchInfiniteQuery(recordTablesQuery(options, null)),
-      () => client.prefetchInfiniteQuery(groupRecordsPageQuery(options)),
+      () =>
+        client.prefetchInfiniteQuery(
+          groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE"),
+        ),
       () => client.prefetchInfiniteQuery(eventRecordsQuery(options)),
       () => client.prefetchQuery(profileQueryOptions(options)),
     ],
@@ -140,7 +144,9 @@ export async function warmStartupBackground(
     reads.push(() => client.prefetchInfiniteQuery(recordTablesQuery(options, id)));
   }
   const groups =
-    client.getQueryData(groupRecordsPageQuery(options).queryKey)?.pages[0]?.items ?? [];
+    client.getQueryData(
+      groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,
+    )?.pages[0]?.items ?? [];
   for (const group of groups.slice(0, 2)) {
     if (group.canViewMembers)
       reads.push(() => client.prefetchInfiniteQuery(groupPeopleQuery(options, group.id)));

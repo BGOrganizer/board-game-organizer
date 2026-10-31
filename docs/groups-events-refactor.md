@@ -7,7 +7,7 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 
 ## Delivery and database scope
 
-- Web and native navigation: Tables / Groups / Events / Contacts. Contacts retain their own social
+- Web and native navigation: Tables / Events / Groups / Contacts. Contacts retain their own social
   workflows. Profile and BGO moderation remain separate destinations.
 - No database cancellation, reset, collection deletion, account recreation or provider mutation is
   authorized. Existing legacy documents remain intact. Unified Group/Event readers and locks reject
@@ -27,6 +27,13 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 
 - One immutable creator/administrator; no transfer, additional administrators, archiving or type
   conversion. PRIVATE/PUBLIC is fixed at creation.
+- Main Groups has Private / Public / Search top tabs (Italian: Privati / Pubblici / Ricerca).
+  Private/Public source-filter only the viewer's administered or accepted memberships by immutable
+  type before pagination; pending invitations, requests, departed members and active exclusions do
+  not qualify. Approved public discovery remains separate in Search with its four-character minimum.
+  Existing notification/detail invitation consent stays available. Query keys and provisional creation
+  rows retain the same type split. Startup warms the exact default Private member page without adding
+  a splash-gating dataset or changing the five-second total limit.
 - Only that creator may permanently delete the Group, after an explicit destructive confirmation
   acknowledging deletion of its Events. The versioned DELETE runs one transaction under the same
   Group lock used by membership and Event writers. All unified Events, including CONFIRMED and

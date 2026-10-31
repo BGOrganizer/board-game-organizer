@@ -1,5 +1,32 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Separate private/public memberships and main navigation order
+
+- Web and native Groups expose Private / Public / Search top tabs (Privati / Pubblici / Ricerca).
+  Private/Public send immutable type plus admin/accepted roles to the API before source pagination;
+  pending invitations, requests, departures, exclusions and legacy Group documents do not qualify.
+  Public memberships do not become discovery searches: approved public discovery stays in Search,
+  with its existing four-character minimum, consent paths, errors, paging and creation contexts.
+- Query keys and provisional creation rows are type-scoped; canonical creation readback respects the
+  active list's type. Startup and splash-settlement helpers reuse the exact default Private member
+  page without adding gating datasets, changing three-worker concurrency or the five-second total
+  limit. Existing creator Group selectors retain their mixed-type source query and permissions.
+- Main navigation is Tables / Events / Groups / Contacts on web, mobile-width web and native;
+  Tables remains the initial destination and Profile/moderation remain separate.
+- Local Node 26/pnpm 11.25 evidence: 2,171 covered unit tests (web 660, mobile 266, API 753,
+  schemas 114, shared 378), existing gates unchanged and request/startup logic at 100%; 91 real
+  replica-set integration tests, including interleaved type/role/cursor filters and an unapproved
+  creator's public proposal; typecheck 4/4; Biome 860/860 tracked/new source files; API/web production
+  builds and Android export (5,591 modules). EN/IT add only two tab messages, preserving all prior
+  translations. Generated references and seven protected hashes are unchanged. No dependencies,
+  migrations, provider configuration, API writers or E2E policies changed. Native expression/source tests
+  and export are not physical-device or authenticated Playwright/Maestro acceptance; retained suites
+  and jobs are unchanged.
+- Guides used: `bgo-component-architecture`, `vercel-react-best-practices`,
+  `vercel-react-native-skills`, `tanstack-query-development`, `expo-overview`, `expo-router`,
+  `expo-data-fetching`, `heroui-react`, `heroui-native`, `uniwind`, `lingui-best-practices`,
+  `web-design-guidelines`, `context-mode`, `ponytail`.
+
 ## Optimistic notification deletion
 
 - Single deletion remains immediate after confirmation. Both clients add a destructive trash action

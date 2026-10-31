@@ -10,6 +10,7 @@ import type {
   GroupBan,
   GroupMembership,
   GroupPersonResponse,
+  GroupRecord,
   GroupRecordListRole,
   GroupRecordResponse,
 } from "@board-game-organizer/schemas";
@@ -71,6 +72,7 @@ export const groupRecordKeys = {
     scope: GroupRecordScope,
     query = "",
     roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+    type?: GroupRecord["type"],
   ) =>
     [
       ...groupRecordKeys.root(options),
@@ -80,6 +82,7 @@ export const groupRecordKeys = {
       ...(scope === "mine"
         ? [groupRecordListRoles.filter((role) => roles.includes(role)).join(",")]
         : []),
+      ...(type ? [type] : []),
     ] as const,
   detail: (options: KeyOwner, id: string, review = false) =>
     [...groupRecordKeys.root(options), "detail", id, ...(review ? ["review"] : [])] as const,
@@ -91,15 +94,16 @@ export function groupRecordsPageQuery(
   scope: GroupRecordScope = "mine",
   query = "",
   roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+  type?: GroupRecord["type"],
 ) {
   const selected = groupRecordListRoles.filter((role) => roles.includes(role));
   return infiniteQueryOptions({
-    queryKey: groupRecordKeys.list(options, scope, query, selected),
+    queryKey: groupRecordKeys.list(options, scope, query, selected, type),
     queryFn: ({ pageParam, signal }) =>
       communityRequest<CommunityPageResponse<GroupRecordResponse>>(
         options,
         communityPagePath(
-          `groups?scope=${scope}${scope === "mine" ? `&roles=${selected.join(",")}` : ""}`,
+          `groups?scope=${scope}${scope === "mine" ? `&roles=${selected.join(",")}` : ""}${type ? `&type=${encodeURIComponent(type)}` : ""}`,
           query,
           pageParam,
         ),
@@ -142,8 +146,9 @@ export function useGroupRecords(
   scope: GroupRecordScope = "mine",
   query = "",
   roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+  type?: GroupRecord["type"],
 ) {
-  const paging = useInfiniteQuery(groupRecordsPageQuery(options, scope, query, roles));
+  const paging = useInfiniteQuery(groupRecordsPageQuery(options, scope, query, roles, type));
   const creations = useOptimisticCreations<CreateGroupVariables, GroupRecordResponse>(
     groupRecordKeys.mutation(options, "", "create"),
   );
@@ -152,7 +157,11 @@ export function useGroupRecords(
     actor && scope === "mine" && roles.includes("admin")
       ? creations
           .map((intent) => groupCreationRecord(intent, actor))
-          .filter((row) => row.name.toLowerCase().includes(query.trim().toLowerCase()))
+          .filter(
+            (row) =>
+              (!type || row.type === type) &&
+              row.name.toLowerCase().includes(query.trim().toLowerCase()),
+          )
       : [];
   const items: ClientGroupRecord[] = mergeCreationIntents(
     paging.data?.pages.flatMap((page) => page.items) ?? [],
@@ -623,6 +632,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
               query.isActive() &&
               typeof query.options.queryFn === "function" &&
               (typeof key[6] !== "string" || key[6].split(",").includes("admin")) &&
+              (key[7] === undefined || key[7] === canonical.type) &&
               (typeof key[5] !== "string" ||
                 canonical.name.toLowerCase().includes(key[5].trim().toLowerCase()))
             );

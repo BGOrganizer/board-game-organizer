@@ -3,10 +3,12 @@ import type {
   GroupPersonResponse,
   GroupRecordResponse,
 } from "@board-game-organizer/schemas";
+import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
   groupMembershipFeedback,
   groupRecordKeys,
+  groupRecordsPageQuery,
   useEventRecordActions,
   useGroupPeople,
   useGroupRecord,
@@ -78,6 +80,91 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("unified group Query ownership", () => {
+  it.each(["PRIVATE", "PUBLIC"] as const)(
+    "isolates typed member pages and optimistic creation/receipts (%s)",
+    async (type) => {
+      const { client, options, wrapper } = setup();
+      const post = deferred();
+      const revision = {
+        name: "Typed group",
+        logoAssetId: optionId,
+        location: plannedEvent.locations[0],
+      };
+      const saved: GroupRecordResponse = {
+        ...group,
+        type,
+        name: revision.name,
+        clientRequestId: otherId,
+        ...(type === "PUBLIC"
+          ? {
+              approved: undefined,
+              proposal: revision,
+              reviewStatus: "PENDING",
+              reservedNames: ["typed group"],
+            }
+          : { approved: revision }),
+      };
+      let committed = false;
+      const fetcher = vi.fn(async (input: string, init?: RequestInit) => {
+        if (init?.method === "POST") return post.promise;
+        const requested = new URL(input).searchParams.get("type");
+        return Response.json({
+          items: committed && (!requested || requested === type) ? [saved] : [],
+          nextCursor: null,
+        });
+      });
+      vi.stubGlobal("fetch", fetcher);
+      const hook = renderHook(
+        () => ({
+          private: useGroupRecords(options, "mine", "", groupRecordMemberRoles, "PRIVATE"),
+          public: useGroupRecords(options, "mine", "", groupRecordMemberRoles, "PUBLIC"),
+          actions: useGroupRecordActions(options),
+        }),
+        { wrapper },
+      );
+      await waitFor(() =>
+        expect(hook.result.current.private.isSuccess && hook.result.current.public.isSuccess).toBe(
+          true,
+        ),
+      );
+      expect(
+        fetcher.mock.calls.map(([url]) => new URL(url).searchParams.get("type")).sort(),
+      ).toEqual(["PRIVATE", "PUBLIC"]);
+      for (const [url] of fetcher.mock.calls)
+        expect(new URL(url).searchParams.get("roles")).toBe("admin,accepted");
+      expect(groupRecordsPageQuery(options).queryKey).not.toEqual(
+        groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, type).queryKey,
+      );
+      act(() =>
+        hook.result.current.actions.create.mutate({
+          ...revision,
+          type,
+          invitedUserIds: [],
+          clientRequestId: otherId,
+        }),
+      );
+      await waitFor(() =>
+        expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true),
+      );
+      const target = type === "PRIVATE" ? "private" : "public",
+        other = type === "PRIVATE" ? "public" : "private";
+      expect(hook.result.current[target].items).toHaveLength(1);
+      expect(hook.result.current[target].items[0]).toMatchObject({
+        type,
+        name: "Typed group",
+        optimistic: { phase: "saving" },
+      });
+      expect(hook.result.current[other].items).toEqual([]);
+      committed = true;
+      await act(async () => post.resolve(Response.json(saved, { status: 201 })));
+      await waitFor(() => expect(hook.result.current.actions.create.isSuccess).toBe(true));
+      expect(hook.result.current[target].items).toHaveLength(1);
+      expect(hook.result.current[target].items[0].id).toBe(saved.id);
+      expect(hook.result.current[other].items).toEqual([]);
+      hook.unmount();
+      client.clear();
+    },
+  );
   it("keeps pending-member refreshes alive after the acknowledged Group version arrives", async () => {
     const { client, options, wrapper } = setup();
     client.setQueryData(groupRecordKeys.detail(options, id), group);

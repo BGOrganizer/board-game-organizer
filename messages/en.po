@@ -4374,6 +4374,12 @@ msgstr "Scores required"
 #: apps/web/src/components/contacts/Contacts.tsx
 #: apps/web/src/components/games/SearchGamePage.tsx
 #: apps/web/src/components/groups/Groups.tsx
+msgid "Private groups"
+msgstr "Private groups"
+
+msgid "Public groups"
+msgstr "Public groups"
+
 msgid "Search"
 msgstr "Search"
 

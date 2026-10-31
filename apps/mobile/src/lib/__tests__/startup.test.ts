@@ -1,3 +1,4 @@
+import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
   eventRecordsQuery,
@@ -27,7 +28,7 @@ function seed(client: QueryClient) {
   for (const key of [
     recordTablesQuery(o, null).queryKey,
     eventRecordsQuery(o).queryKey,
-    groupRecordsPageQuery(o).queryKey,
+    groupRecordsPageQuery(o, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,
   ])
     client.setQueryData(key, { pages: [{ items: [], nextCursor: null }], pageParams: [""] });
   for (const type of startupRelationshipTypes)
@@ -72,13 +73,21 @@ it("waits only for the four priority first pages, not social, filtered or retire
   });
   expect(settled(client, "/tables")).toBe(false);
   expect(settled(client, "/")).toBe(false);
+  client.setQueryData(groupRecordsPageQuery(o).queryKey, { pages: [], pageParams: [] });
+  client.setQueryData(
+    groupRecordsPageQuery(o, "mine", "", groupRecordMemberRoles, "PUBLIC").queryKey,
+    { pages: [], pageParams: [] },
+  );
+  expect(settled(client, "/groups")).toBe(false);
   seed(client);
   expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(true);
   for (const path of ["/tables", "/groups", "/events", "/contacts"])
     expect(settled(client, path)).toBe(true);
   client.removeQueries({ queryKey: ["contacts"] });
   expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(true);
-  client.removeQueries({ queryKey: groupRecordsPageQuery(o).queryKey });
+  client.removeQueries({
+    queryKey: groupRecordsPageQuery(o, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,
+  });
   expect(isStartupEssentialsSettled(client, apiUrl, userId)).toBe(false);
   client.clear();
 });

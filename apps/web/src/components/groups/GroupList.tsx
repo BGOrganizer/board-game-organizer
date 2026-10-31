@@ -1,5 +1,5 @@
 "use client";
-import { groupRecordListRoles } from "@board-game-organizer/schemas";
+import { type GroupRecord, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useGroupRecordActions,
@@ -8,7 +8,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, Crown, Mail, Plus, UsersRound } from "lucide-react";
+import { Check, Crown, Plus, UsersRound } from "lucide-react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { ListPage } from "@/components/common/ui/ListPage";
@@ -16,11 +16,17 @@ import { ListSearch } from "@/components/common/ui/ListSearch";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { GroupCard } from "./GroupCard";
-export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
+export function GroupList({
+  scope = "mine",
+  type,
+}: {
+  scope?: "mine" | "public";
+  type?: GroupRecord["type"];
+}) {
   const { t } = useLingui(),
     options = useCommunityApi();
-  const filters = useListSearch(groupRecordListRoles),
-    list = useGroupRecords(options, scope, filters.search, filters.selected),
+  const filters = useListSearch(groupRecordMemberRoles),
+    list = useGroupRecords(options, scope, filters.search, filters.selected, type),
     actions = useGroupRecordActions(options);
   const sentinel = useInfiniteScroll({
     hasNextPage: Boolean(list.hasNextPage),
@@ -42,7 +48,6 @@ export function GroupList({ scope = "mine" }: { scope?: "mine" | "public" }) {
           scope === "mine"
             ? [
                 { key: "admin", label: t`Admin`, icon: Crown },
-                { key: "invited", label: t`Invited`, icon: Mail },
                 { key: "accepted", label: t`Accepted`, icon: Check },
               ]
             : []
