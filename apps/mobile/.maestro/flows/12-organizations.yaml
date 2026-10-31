@@ -1,0 +1,86 @@
+appId: com.bgo.mobile
+tags: [ci, organizations]
+---
+# Camera denial is real OS state; account and address book remain intact.
+- launchApp:
+    clearState: false
+    permissions:
+      camera: deny
+      contacts: allow
+      notifications: allow
+# Wait for the authenticated runtime before opening a setup route after launch.
+- extendedWaitUntil:
+    visible:
+      id: "profile-button"
+    timeout: 120000
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible:
+      id: "community-tab-organizations"
+    timeout: 30000
+- tapOn:
+    id: "community-tab-organizations"
+- assertVisible:
+    id: "list-filter-requested"
+- tapOn:
+    id: "list-filter-admin"
+- tapOn:
+    id: "list-filter-invited"
+- tapOn:
+    id: "list-filter-accepted"
+- tapOn:
+    id: "list-filter-requested"
+- extendedWaitUntil:
+    visible: "No organizations found"
+    timeout: 30000
+- tapOn:
+    id: "list-filter-admin"
+- tapOn:
+    id: "list-filter-invited"
+- tapOn:
+    id: "list-filter-accepted"
+- tapOn:
+    id: "list-filter-requested"
+- assertNotVisible: "Clear search"
+- tapOn: "Search organizations: Search help"
+- extendedWaitUntil:
+    visible: "Search help"
+    timeout: 30000
+- assertVisible: "Search help"
+- assertVisible: "Type at least 4 characters to search"
+- back
+- assertNotVisible: "Search help"
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-organization"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No organizations found"
+    timeout: 30000
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"
+- runFlow: ../helpers/organization-create-edit.yaml
+- back
+- extendedWaitUntil:
+    visible:
+      id: "new-organization-fab"
+    timeout: 30000
+- tapOn:
+    id: "community-tab-search"
+- extendedWaitUntil:
+    visible: "Search groups and organizations"
+    timeout: 30000
+- assertVisible:
+    id: "list-filter-groups"
+- assertVisible:
+    id: "list-filter-organizations"
+- assertNotVisible: "Clear search"
+- tapOn:
+    id: "list-search-input"
+- inputText: "maestro-no-match-community"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "No results found"
+    timeout: 30000
+- tapOn: "Clear search"
+- assertNotVisible: "Clear search"

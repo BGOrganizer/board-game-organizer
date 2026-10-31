@@ -1,0 +1,87 @@
+appId: com.bgo.mobile
+---
+- tapOn: "New organization"
+- assertVisible: "New organization"
+- tapOn: "Organization name"
+- inputText: "Maestro community club"
+- assertVisible: "Maestro community club"
+- hideKeyboard
+- tapOn: "Upload organization logo"
+- tapOn: "Camera"
+- extendedWaitUntil:
+    visible: "Camera permission is required|.*[Aa]llow.*pictures.*"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: ".*:id/permission_deny.*button"
+    commands:
+      - tapOn:
+          id: ".*:id/permission_deny.*button"
+- assertVisible: "Camera permission is required"
+- tapOn: "Upload organization logo"
+- tapOn: "Photo library"
+- extendedWaitUntil:
+    visible: "Photo taken.*"
+    timeout: 30000
+- tapOn:
+    text: "Photo taken.*"
+    index: 0
+# OS single-select returns directly; OS confirmation variants require Done.
+# Both branches must reach the uploaded app artwork, never an optional success.
+- extendedWaitUntil:
+    visible: "Organization logo|^Done$"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "^Done$"
+    commands:
+      - tapOn: "^Done$"
+- extendedWaitUntil:
+    visible: "Organization logo"
+    timeout: 30000
+- tapOn: "Choose a verified address"
+- runFlow:
+    file: select-address.yaml
+    env:
+      LOCATION_NAME: "Community club"
+      ADDRESS_QUERY: "Via Roma Milano"
+- assertVisible:
+    id: "organization-submit-bar"
+- tapOn: "Submit for review"
+- extendedWaitUntil:
+    visible:
+      id: "edit-organization-fab"
+    timeout: 30000
+- assertVisible: "Maestro community club"
+- assertVisible: "Awaiting review"
+- assertVisible: "Confirmed members: 1"
+- assertVisible: "Published events: 0"
+- tapOn:
+    id: "organization-tab-members"
+- assertVisible: "Invite friends"
+- assertNotVisible: "Invitations require an approved organization."
+- tapOn: "Invite friends: Field help"
+- assertVisible: "Invitations require an approved organization."
+- back
+- assertNotVisible: "Invitations require an approved organization."
+- tapOn:
+    id: "organization-tab-details"
+- tapOn: "Edit organization"
+- extendedWaitUntil:
+    visible: "Organization name"
+    timeout: 30000
+- tapOn: "Organization name"
+- eraseText: 100
+- inputText: "Maestro community club updated"
+- assertVisible: "Maestro community club updated"
+- hideKeyboard
+- assertVisible:
+    id: "organization-submit-bar"
+- tapOn: "Submit for review"
+- extendedWaitUntil:
+    visible:
+      id: "edit-organization-fab"
+    timeout: 30000
+- assertVisible: "Maestro community club updated"
+- assertVisible: "Awaiting review"

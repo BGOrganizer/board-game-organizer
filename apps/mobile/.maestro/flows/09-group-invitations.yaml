@@ -1,0 +1,128 @@
+appId: com.bgo.mobile
+tags: [ci, groups, invitations]
+---
+# Establish friendship here; never assume a previous social test left it active.
+- runFlow: ../helpers/friendship-create.yaml
+- openLink: bgo:///groups
+- tapOn:
+    id: "create-group-fab"
+- tapOn: "Group name"
+- inputText: "Shared Tabletop Club"
+- assertVisible: "Shared Tabletop Club"
+- hideKeyboard
+- tapOn: "Select a friend"
+- extendedWaitUntil:
+    visible: "Add: E2E Target"
+    timeout: 30000
+- tapOn: "Add: E2E Target"
+- tapOn: "Remove invite"
+- assertVisible: "Select a friend"
+- tapOn: "Select a friend"
+- tapOn: "Add: E2E Target"
+- tapOn:
+    id: "save-group-fab"
+- extendedWaitUntil:
+    visible: "Open group: Shared Tabletop Club"
+    timeout: 30000
+- assertVisible: "Invited"
+- tapOn: "Open group: Shared Tabletop Club"
+- extendedWaitUntil:
+    visible: "Remove from group: E2E Target"
+    timeout: 30000
+- assertVisible: "Members"
+- assertVisible: "Invitations"
+- assertVisible: "Pending"
+- tapOn: "Remove from group: E2E Target"
+- assertVisible: '^Remove from group\?$'
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "Pending"
+- tapOn: "Remove from group: E2E Target"
+- assertVisible: '^Remove from group\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    visible: "No invitations"
+    timeout: 30000
+- tapOn: "Edit group"
+- tapOn: "Select a friend"
+- extendedWaitUntil:
+    visible: "Add: E2E Target"
+    timeout: 30000
+- tapOn: "Add: E2E Target"
+- tapOn:
+    id: "save-group-fab"
+- extendedWaitUntil:
+    visible: "Delete group"
+    timeout: 30000
+- runFlow:
+    file: "../helpers/switch-actor.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- tapOn:
+    id: "notifications-button"
+# The first bell press requests native permission when it is still askable.
+# Complete actual consent; the bell opens the durable inbox after the prompt.
+- runFlow:
+    when:
+      visible:
+        id: "com.android.permissioncontroller:id/permission_allow_button"
+    commands:
+      - tapOn:
+          id: "com.android.permissioncontroller:id/permission_allow_button"
+      - extendedWaitUntil:
+          notVisible:
+            id: "com.android.permissioncontroller:id/permission_message"
+          timeout: 30000
+- assertNotVisible:
+    id: "com.android.permissioncontroller:id/permission_message"
+- extendedWaitUntil:
+    visible: "New group invitation"
+    timeout: 30000
+- tapOn: "New group invitation"
+- extendedWaitUntil:
+    visible: "Shared Tabletop Club"
+    timeout: 30000
+- assertVisible: "Members"
+- assertVisible: "E2E Test"
+- assertNotVisible: "Leaderboards"
+- assertNotVisible: "Invitations"
+- tapOn: "Accept"
+- extendedWaitUntil:
+    visible: "Leaderboards"
+    timeout: 30000
+- assertVisible: "Members"
+- tapOn: "Leaderboards"
+- assertVisible: "No matches played in this group yet"
+- tapOn: "Settings"
+- assertNotVisible: "Invitations"
+- extendedWaitUntil:
+    visible: "^· 2 members$"
+    timeout: 30000
+- assertVisible: "Group admin"
+- assertVisible: "E2E Test"
+- assertVisible: "E2E Target"
+- tapOn: "Leave group"
+- assertVisible: '^Leave group\?$'
+- tapOn:
+    id: "confirmation-cancel"
+- assertNotVisible:
+    id: "confirmation-dialog"
+- assertVisible: "E2E Target"
+- tapOn: "Leave group"
+- assertVisible: '^Leave group\?$'
+- tapOn:
+    id: "confirmation-action-0"
+- extendedWaitUntil:
+    notVisible:
+      id: "confirmation-dialog"
+    timeout: 30000
+- openLink: bgo:///groups
+- extendedWaitUntil:
+    visible: "No groups yet"
+    timeout: 30000
+- assertNotVisible: "Shared Tabletop Club"
+- assertNotVisible: "Could not load group details"

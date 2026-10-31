@@ -1,0 +1,41 @@
+appId: com.bgo.mobile
+tags: [isolated-fixture, moderation]
+---
+# Real BGO moderator and isolated pending proposal, separate fixture per decision.
+- assertTrue: ${REVIEW_LINK.startsWith("bgo://") && REVIEW_LINK.includes("/moderation/")}
+- assertTrue: ${["Approve", "Reject"].includes(DECISION)}
+- assertTrue: ${REASON.trim().length > 0}
+# Enter through the list so successful moderation must pop its detail, not duplicate the list.
+- openLink: "bgo:///groups?section=organizations"
+- extendedWaitUntil:
+    visible:
+      id: "community-tab-organizations"
+    timeout: 30000
+- openLink: "bgo:///moderation"
+- extendedWaitUntil:
+    visible: "Organization moderation"
+    timeout: 30000
+- openLink: ${REVIEW_LINK}
+- extendedWaitUntil:
+    visible: "Manage organization"
+    timeout: 30000
+- tapOn: "Manage organization: Manage organization"
+- assertVisible: "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+- back
+- assertNotVisible: "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+- assertVisible: "Reject reason"
+- assertVisible: "Approve organization"
+- assertVisible: "Reject organization"
+- tapOn: "Rejection reason"
+- inputText: ${REASON}
+- assertVisible: ${REASON}
+- hideKeyboard
+- tapOn: "${DECISION} organization"
+- extendedWaitUntil:
+    visible: "Organization moderation"
+    timeout: 30000
+- assertVisible: "Organization moderation"
+- back
+- assertVisible:
+    id: "community-tab-organizations"
+- assertNotVisible: "Organization moderation"

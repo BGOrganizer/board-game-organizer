@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { gameDetails } from "@/app/lib/bgg";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { gameDetails } from "@/app/lib/games/bgg";
 
 const thingSchema = z.object({
   id: z.coerce.number().int().positive(),

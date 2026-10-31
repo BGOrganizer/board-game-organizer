@@ -13,71 +13,1221 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Access to contacts"
-#~ msgstr "Accesso ai contatti"
+#. js-lingui-explicit-id
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "match.confirm.summary"
+msgstr "Confermare la partita il {date} con {game}?"
 
-#: apps/web/src/components/UserMenu.tsx
+#. js-lingui-explicit-id
+#~ msgid "organization.action.request"
+#~ msgstr "Richiedi adesione"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.accept"
+#~ msgstr "Accetta invito"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.decline"
+#~ msgstr "Rifiuta invito"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.approve"
+#~ msgstr "Approva richiesta"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.reject"
+#~ msgstr "Rifiuta richiesta"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.remove"
+#~ msgstr "Rimuovi membro"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.ban"
+#~ msgstr "Escludi membro"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.revoke"
+#~ msgstr "Revoca esclusione"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.cancel.request"
+#~ msgstr "Annulla richiesta"
+
+#. js-lingui-explicit-id
+#~ msgid "organization.action.cancel.leave"
+#~ msgstr "Lascia organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.create_organization.success"
+msgstr "Organizzazione inviata per la revisione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.create_organization.error"
+msgstr "Impossibile creare l'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.update_organization.success"
+msgstr "Modifiche all'organizzazione inviate per la revisione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.update_organization.error"
+msgstr "Impossibile aggiornare l'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_organization.success"
+msgstr "Organizzazione approvata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_organization.error"
+msgstr "Impossibile approvare l'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_organization.success"
+msgstr "Organizzazione rifiutata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_organization.error"
+msgstr "Impossibile rifiutare l'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.request_organization_join.success"
+msgstr "Richiesta di adesione all'organizzazione inviata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.request_organization_join.error"
+msgstr "Impossibile richiedere l'adesione all'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.invite_organization_member.success"
+msgstr "Invito all'organizzazione inviato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.invite_organization_member.error"
+msgstr "Impossibile invitare il membro nell'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_organization_invitation.success"
+msgstr "Invito all'organizzazione accettato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_organization_invitation.error"
+msgstr "Impossibile accettare l'invito all'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.decline_organization_invitation.success"
+msgstr "Invito all'organizzazione rifiutato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.decline_organization_invitation.error"
+msgstr "Impossibile rifiutare l'invito all'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_organization_join.success"
+msgstr "Richiesta di adesione all'organizzazione approvata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_organization_join.error"
+msgstr "Impossibile approvare la richiesta di adesione all'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_organization_join.success"
+msgstr "Richiesta di adesione all'organizzazione rifiutata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_organization_join.error"
+msgstr "Impossibile rifiutare la richiesta di adesione all'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.leave_organization.success"
+msgstr "Adesione all'organizzazione annullata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.leave_organization.error"
+msgstr "Impossibile annullare l'adesione all'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.remove_organization_member.success"
+msgstr "Membro rimosso dall'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.remove_organization_member.error"
+msgstr "Impossibile rimuovere il membro dall'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.ban_organization_member.success"
+msgstr "Membro escluso dall'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.ban_organization_member.error"
+msgstr "Impossibile escludere il membro dall'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.revoke_organization_exclusion.success"
+msgstr "Esclusione dall'organizzazione revocata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.revoke_organization_exclusion.error"
+msgstr "Impossibile revocare l'esclusione dall'organizzazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.upload_organization_logo.success"
+msgstr "Caricamento del logo avviato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.upload_organization_logo.error"
+msgstr "Impossibile caricare il logo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.create_event.success"
+msgstr "Evento salvato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.create_event.error"
+msgstr "Impossibile creare l'evento"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.update_event.success"
+msgstr "Evento aggiornato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.update_event.error"
+msgstr "Impossibile aggiornare l'evento"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.cancel_event.success"
+msgstr "Evento annullato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.cancel_event.error"
+msgstr "Impossibile annullare l'evento"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.request_event_booking.success"
+msgstr "Richiesta di prenotazione inviata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.request_event_booking.error"
+msgstr "Impossibile richiedere un posto"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.invite_event_player.success"
+msgstr "Invito al tavolo inviato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.invite_event_player.error"
+msgstr "Impossibile invitare il giocatore"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_event_invitation.success"
+msgstr "Invito al tavolo accettato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.accept_event_invitation.error"
+msgstr "Impossibile accettare l'invito al tavolo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.decline_event_invitation.success"
+msgstr "Invito al tavolo rifiutato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.decline_event_invitation.error"
+msgstr "Impossibile rifiutare l'invito al tavolo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_event_booking.success"
+msgstr "Richiesta di prenotazione approvata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_event_booking.error"
+msgstr "Impossibile approvare la prenotazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_event_booking.success"
+msgstr "Richiesta di prenotazione rifiutata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_event_booking.error"
+msgstr "Impossibile rifiutare la prenotazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.cancel_event_booking.success"
+msgstr "Prenotazione annullata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.cancel_event_booking.error"
+msgstr "Impossibile annullare la prenotazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.remove_event_player.success"
+msgstr "Giocatore rimosso dal tavolo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.remove_event_player.error"
+msgstr "Impossibile rimuovere il giocatore"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_group_join.error"
+msgstr "Impossibile approvare l'iscrizione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_group_join.success"
+msgstr "Richiesta di iscrizione al gruppo approvata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_group.error"
+msgstr "Impossibile approvare il gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.approve_group.success"
+msgstr "Gruppo approvato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.ban_group_member.error"
+msgstr "Impossibile applicare l'esclusione dal gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.ban_group_member.success"
+msgstr "Esclusione dal gruppo applicata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.confirm_event.error"
+msgstr "Impossibile confermare l'evento"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.confirm_event.success"
+msgstr "Evento confermato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.finalize_event.error"
+msgstr "Impossibile registrare i risultati dell'evento"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.finalize_event.success"
+msgstr "Risultati dell'evento registrati"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.invite_group_member.error"
+msgstr "Impossibile invitare il membro nel gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.invite_group_member.success"
+msgstr "Invito al gruppo inviato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.join_table.error"
+msgstr "Impossibile iscriversi al tavolo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.join_table.success"
+msgstr "Iscrizione al tavolo inviata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.leave_table.error"
+msgstr "Impossibile lasciare il tavolo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.leave_table.success"
+msgstr "Hai lasciato il tavolo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_group_join.error"
+msgstr "Impossibile rifiutare l'iscrizione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_group_join.success"
+msgstr "Richiesta di iscrizione al gruppo rifiutata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_group.error"
+msgstr "Impossibile rifiutare il gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.reject_group.success"
+msgstr "Gruppo rifiutato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.remove_group_member.error"
+msgstr "Impossibile rimuovere il membro dal gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.remove_group_member.success"
+msgstr "Membro rimosso dal gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.replan_event.error"
+msgstr "Impossibile riportare l'evento in pianificazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.replan_event.success"
+msgstr "Evento riportato in pianificazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.request_group_join.error"
+msgstr "Impossibile richiedere l'iscrizione al gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.request_group_join.success"
+msgstr "Richiesta di iscrizione al gruppo inviata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.revoke_group_ban.error"
+msgstr "Impossibile revocare l'esclusione dal gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.revoke_group_ban.success"
+msgstr "Esclusione dal gruppo revocata"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.set_event_vote.error"
+msgstr "Impossibile aggiornare il voto"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.set_event_vote.success"
+msgstr "Voto aggiornato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.submit_group_review.error"
+msgstr "Impossibile inviare il gruppo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.submit_group_review.success"
+msgstr "Gruppo inviato per approvazione"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.upload_group_logo.error"
+msgstr "Impossibile caricare il logo"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.upload_group_logo.success"
+msgstr "Caricamento del logo avviato"
+
+#. js-lingui-explicit-id
+msgid "Event details"
+msgstr "Dettagli evento"
+
+#. js-lingui-explicit-id
+msgid "Configure event"
+msgstr "Configura evento"
+
+#. js-lingui-explicit-id
+msgid "Group review"
+msgstr "Revisione gruppo"
+
+#. js-lingui-explicit-id
+msgid "Choose a valid time zone."
+msgstr "Scegli un fuso orario valido."
+
+#. js-lingui-explicit-id
+msgid "Done"
+msgstr "Fine"
+
+#. js-lingui-explicit-id
+msgid "Choose"
+msgstr "Scegli"
+
+#. js-lingui-explicit-id
+msgid "Cancel tie-break"
+msgstr "Annulla spareggio"
+
+#. js-lingui-explicit-id
+msgid "Choose date and time"
+msgstr "Scegli data e ora"
+
+#. js-lingui-explicit-id
+msgid "Hour"
+msgstr "Ora"
+
+#. js-lingui-explicit-id
+msgid "Minute"
+msgstr "Minuto"
+
+#. js-lingui-explicit-id
+#: apps/mobile/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventCard.tsx
+msgid "event.proposedDatesCount"
+msgstr "{count} date proposte"
+
+#. js-lingui-explicit-id
+#: apps/mobile/src/components/events/EventDraftTableCard.tsx
+#: apps/mobile/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "event.table.moreGames"
+msgstr "{remaining, plural, one {+# gioco} other {+# giochi}}"
+
+#: apps/mobile/src/components/locations/LocationPicker.tsx
+msgid "© OpenStreetMap contributors"
+msgstr "© Collaboratori OpenStreetMap"
+
+msgid "A demonstrator is no longer a confirmed member. Edit the affected table and remove or replace them."
+msgstr "Un dimostratore non è più un membro confermato. Modifica il tavolo interessato e rimuovilo o sostituiscilo."
+
+msgid "A selected game is unavailable. Edit the affected table and choose another game."
+msgstr "Un gioco selezionato non è disponibile. Modifica il tavolo interessato e scegli un altro gioco."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/groups/GroupInvitationCard.tsx
+msgid "Accept"
+msgstr "Accetta"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Accept friend request"
+msgstr "Accetta richiesta di amicizia"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Accept friend request?"
+msgstr "Accettare la richiesta di amicizia?"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Accept group invitation"
+msgstr "Accetta l'invito al gruppo"
+
+#: apps/web/src/components/common/ui/InvitationActions.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Accept invitation"
+msgstr "Accetta invito"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Accept or decline this friend request."
+msgstr "Accetta o rifiuta questa richiesta di amicizia."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Accept or reject this membership request. Banning prevents rejoining this organization until revoked; global social blocking is separate."
+msgstr "Accetta o rifiuta questa richiesta d'ingresso. Il ban impedisce di rientrare in questa organizzazione finché non viene revocato; il blocco sociale globale è separato."
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Accept or reject this organization invitation."
+msgstr "Accetta o rifiuta questo invito all'organizzazione."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Accept or reject this table invitation."
+msgstr "Accetta o rifiuta questo invito al tavolo."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Accept or reject this table participation request."
+msgstr "Accetta o rifiuta questa richiesta di partecipazione al tavolo."
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Accept organization invitation"
+msgstr "Accetta l'invito all'organizzazione"
+
+#: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Accepted"
+msgstr "Accettato"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Accepted player"
+msgstr "Giocatore accettato"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Accepted players"
+msgstr "Giocatori accettati"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Accepted players, including the waiting list."
+msgstr "Giocatori accettati, inclusa la lista d'attesa."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Accepting invitation"
+msgstr "Accettazione dell'invito in corso"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Access to contacts"
+msgstr "Accesso ai contatti"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Action failed"
+#~ msgstr "Azione non riuscita"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Actions"
 msgstr "Azioni"
 
-#: apps/web/src/components/SearchUserPage.tsx
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Active table registrations are removed. Historical results remain unchanged."
+msgstr "Le iscrizioni attive ai tavoli vengono rimosse. I risultati storici restano invariati."
+
+#: apps/web/src/components/contacts/SearchUserPage.tsx
 msgid "Add"
-msgstr ""
+msgstr "Aggiungi"
 
-#: apps/web/src/components/MatchWizard.tsx
-msgid "Add another date"
-msgstr ""
+#: apps/web/src/components/matches/MatchWizard.tsx
+#~ msgid "Add another date"
+#~ msgstr "Aggiungi un'altra data"
 
-#: apps/web/src/components/MatchWizard.tsx
-msgid "Add another game"
-msgstr ""
+#: apps/web/src/components/matches/MatchWizard.tsx
+#~ msgid "Add another game"
+#~ msgstr "Aggiungi un altro gioco"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Add contacts"
-#~ msgstr "Aggiungi contatti"
-
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Allow address book access to find your friends here."
-#~ msgstr "Consenti l'accesso alla rubrica per trovare i tuoi amici qui."
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Add at least one table."
+msgstr "Aggiungi almeno un tavolo."
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Allow Board Game Organizer to access your contacts to find your friends?"
-#~ msgstr "Consenti a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
+msgid "Add contacts"
+msgstr "Aggiungi contatti"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Add date"
+msgstr "Aggiungi data"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Add friend"
+msgstr "Aggiungi amico"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Add game"
+msgstr "Aggiungi gioco"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Add location"
+msgstr "Aggiungi luogo"
+
+#: apps/web/src/components/locations/LocationFavoriteButton.tsx
+msgid "Add location to favorites"
+msgstr "Aggiungi location ai preferiti"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Add table"
+msgstr "Aggiungi tavolo"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Add tables with a game, player limits and times inside the event. Publishing requires at least one table."
+msgstr "Aggiungi tavoli con un gioco, limiti di giocatori e orari compresi nell'evento. Per pubblicare serve almeno un tavolo."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Add up to 20 tables with a game, player limits and times strictly inside the event. Publishing requires at least one table."
+msgstr "Aggiungi fino a 20 tavoli con un gioco, limiti di giocatori e orari strettamente compresi nell'evento. Per pubblicare serve almeno un tavolo."
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Add your mobile number to continue."
+msgstr "Inserisci il tuo numero di cellulare per continuare."
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Address results"
+msgstr "Risultati indirizzi"
+
+#: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Admin"
+msgstr "Amministratore"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Admin groups"
+msgstr "Gruppi admin"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/Matches.tsx
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Administrator"
+msgstr "Amministratore"
+
+#: apps/web/src/components/events/EventTableEdit.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Affected bookings and invitations will be cancelled. Players must request or accept a place again."
+msgstr "Le prenotazioni e gli inviti interessati saranno annullati. I giocatori dovranno richiedere o accettare nuovamente un posto."
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "After this deadline, participation and table changes are closed. Times use the event's time zone."
+msgstr "Dopo questa scadenza non è più possibile modificare partecipazioni e tavoli. Gli orari seguono il fuso orario dell'evento."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Agreement"
+msgstr "Accordo"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Agreement available. Confirmation remains manual."
+msgstr "Accordo disponibile. La conferma rimane manuale."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "All event tables are counted, except cancelled tables, including tables not yet loaded in the list."
+msgstr "Sono contati tutti i tavoli dell'evento non annullati, compresi quelli non ancora caricati nella lista."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "All unfinished tables and reservations will be cancelled."
+msgstr "Tutti i tavoli non conclusi e le prenotazioni saranno annullati."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Allow address book access to find your friends here."
+msgstr "Consenti l'accesso alla rubrica per trovare qui i tuoi amici."
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+msgid "Allow Board Game Organizer to access your contacts to find your friends?"
+msgstr "Consentire a Board Game Organizer di accedere ai tuoi contatti per trovare i tuoi amici?"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "An approved group and its administrator are required."
+msgstr "Sono necessari un gruppo approvato e il suo amministratore."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "An event action is in progress."
+msgstr "È in corso un’operazione sull’evento."
+
+msgid "An event can have at most 20 tables."
+msgstr "Un evento può avere al massimo 20 tavoli."
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "An event must keep at least one table. Delete the event instead."
+msgstr "Un evento deve mantenere almeno un tavolo. Elimina invece l’evento."
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
+msgstr "Chiunque abbia il link al match può chiedere di partecipare durante la pianificazione, se ci sono posti liberi. L'admin approva le richieste."
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/components/groups/GroupReview.tsx
+msgid "Approve"
+msgstr "Approva"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Approve join request"
+msgstr "Approva richiesta di partecipazione"
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Approve organization"
+msgstr "Approva organizzazione"
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "Approve request"
+msgstr "Approva richiesta"
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Approve the proposed organization information, or reject it with a reason so the creator can correct it. Previously approved information remains available."
+msgstr "Approva le informazioni proposte per l'organizzazione oppure rifiutale indicando un motivo, così il creatore può correggerle. Le informazioni già approvate restano disponibili."
+
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "Approved"
+msgstr "Approvata"
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Approved information remains visible while changes are reviewed."
+msgstr "Le informazioni approvate restano visibili durante la revisione delle modifiche."
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Approved members"
+msgstr "Membri confermati"
+
+#: apps/web/src/components/events/EventCard.tsx
+msgid "Approved organization"
+msgstr "Organizzazione approvata"
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Are you sure?"
+msgstr "Confermi?"
+
+#: apps/web/src/components/groups/Groups.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "At least 5 characters"
-msgstr ""
+msgstr "Almeno 5 caratteri"
 
-#: apps/web/src/components/SearchGamePage.tsx
-#: apps/web/src/components/SearchUserPage.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "At least two players are required. The minimum cannot exceed the maximum."
+msgstr "Sono richiesti almeno due giocatori. Il minimo non può superare il massimo."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "At least two players are required. The minimum must be lower than the maximum."
+msgstr "Servono almeno due giocatori. Il minimo deve essere inferiore al massimo."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Availability"
+msgstr "Disponibilità"
+
+#: apps/web/src/components/games/GameCatalogMetadata.tsx
+msgid "Average"
+msgstr "Media"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Awaiting admin approval"
+msgstr "In attesa dell’approvazione dell’admin"
+
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "Awaiting review"
+msgstr "In attesa di revisione"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventInvitationPicker.tsx
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+#: apps/web/src/components/locations/SearchLocationPage.tsx
 msgid "Back"
-msgstr ""
+msgstr "Indietro"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Back matches"
+msgstr "Torna alle partite"
+
+#: apps/web/src/components/events/EventTable.tsx
+msgid "Back to event"
+msgstr "Torna all'evento"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/MatchResultsEditor.tsx
+msgid "Back to match"
+msgstr "Torna alla partita"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Back to matches"
+msgstr "Torna alle partite"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Back to planning"
+msgstr "Torna alla pianificazione"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Back to planning?"
+msgstr "Tornare alla pianificazione?"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Back to table"
+msgstr "Torna al tavolo"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Back to tables"
+msgstr "Torna ai tavoli"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Ban"
+msgstr "Banna"
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Ban from group"
+msgstr "Banna dal gruppo"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Ban from organization"
+msgstr "Banna dall'organizzazione"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#~ msgid "Bayesian average"
+#~ msgstr "Media bayesiana"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain."
+msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Remove allows new requests and invitations; Remove and exclude blocks rejoining this organization until revoked. Global social blocking is separate."
+msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati. Elimina consente nuove richieste e nuovi inviti; Elimina-Blocca impedisce il rientro nell’organizzazione fino alla revoca. Il blocco social globale è separato."
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#~ msgid "Before booking deadlines, reservations and demonstrator assignments are cancelled. Frozen participation and results remain. Removed members cannot rejoin until their exclusion is revoked."
+#~ msgstr "Prima delle scadenze vengono annullate le prenotazioni e gli incarichi dei dimostratori. Le partecipazioni già congelate e i risultati restano invariati. I membri rimossi non possono rientrare finché non viene revocata l'esclusione."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BGG user not found"
+msgstr "Utente BGG non trovato"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "BGG username"
+msgstr "Nome utente BGG"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Block"
 msgstr "Blocca"
 
 #. placeholder {0}: user.name
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/contacts/UserMenu.tsx
 #~ msgid "Block {0}?"
 #~ msgstr "Bloccare {0}?"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Block contact"
 msgstr "Blocca contatto"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Block user globally"
+msgstr "Blocca utente globale"
+
+#: apps/web/src/components/contacts/Contacts.tsx
 msgid "Blocked"
 msgstr "Bloccati"
 
-#: apps/web/src/components/MatchWizard.tsx
-msgid "Board games"
-msgstr ""
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Board game"
+msgstr "Gioco da tavolo"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Board games"
+msgstr "Giochi da tavolo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek account linked"
+msgstr "Account BoardGameGeek collegato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek connection requested"
+msgstr "Collegamento a BoardGameGeek richiesto"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek disconnected"
+msgstr "BoardGameGeek scollegato"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "BoardGameGeek has no duration for this game. Enter a positive whole number of minutes."
+msgstr "BoardGameGeek non indica la durata di questo gioco. Inserisci un numero intero positivo di minuti."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "BoardGameGeek sync started"
+#~ msgstr "Sincronizzazione BoardGameGeek avviata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek synchronization requested"
+msgstr "Sincronizzazione con BoardGameGeek richiesta"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "BoardGameGeek synchronization started"
+msgstr "Sincronizzazione BoardGameGeek avviata"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Booking cutoff"
+msgstr "Termine iscrizioni"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Booking Cutoff Date and Time"
+msgstr "Data e ora di chiusura delle prenotazioni"
+
+#: apps/web/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Booking deadline"
+msgstr "Scadenza delle prenotazioni"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Booking deadline (hours before start)"
+msgstr "Scadenza prenotazioni (ore prima dell'inizio)"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Booking deadline help"
+msgstr "Aiuto scadenza prenotazioni"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Bookings are closed"
+msgstr "Le iscrizioni sono chiuse"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Bookings are closed. Results can still be recorded."
+msgstr "Le prenotazioni sono chiuse. È ancora possibile registrare i risultati."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Bookings for this table are not open. Free places cannot currently be reserved."
+msgstr "Le prenotazioni per questo tavolo non sono aperte. Al momento non è possibile prenotare i posti liberi."
+
+msgid "Camera"
+msgstr "Fotocamera"
+
+msgid "Camera permission is required"
+msgstr "È necessario il permesso per la fotocamera"
+
+#: apps/web/src/components/common/ui/ContactConfirmDialog.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/events/TableScoreEditor.tsx
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Cancel"
 msgstr "Annulla"
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "Cancel booking"
+msgstr "Annulla prenotazione"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Cancel event"
+msgstr "Annulla evento"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Cancel friend request"
+msgstr "Annulla richiesta di amicizia"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Cancel friend request?"
+msgstr "Annullare la richiesta di amicizia?"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Cancel membership"
+msgstr "Annulla appartenenza"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Cancel organization invitation"
+msgstr "Annulla invito all'organizzazione"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/groups/GroupJoinRequest.tsx
+msgid "Cancel request"
+msgstr "Annulla richiesta"
+
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Cancelled"
+msgstr "Annullato"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+#~ msgid "Cannot confirm match"
+#~ msgstr "Impossibile confermare la partita"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Center map on my location"
+msgstr "Centra la mappa sulla mia posizione"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "Changes applied"
+#~ msgstr "Modifiche applicate"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Changes refreshed"
+msgstr "Modifiche aggiornate"
+
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "Changes rejected"
+msgstr "Modifiche rifiutate"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Changes were saved, but could not be refreshed. Refresh to see the latest data."
+msgstr "Le modifiche sono state salvate, ma non è stato possibile aggiornare i dati. Aggiorna per visualizzare i dati più recenti."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Check event name, dates, booking deadline, verified address and tables"
+msgstr "Controlla nome, date, scadenza prenotazioni, indirizzo verificato e tavoli dell'evento"
+
+msgid "Check event name, dates, time zone, verified address and tables"
+msgstr "Controlla nome dell'evento, date, fuso orario, indirizzo verificato e tavoli"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Check required fields, dates, player limits, games and durations."
+msgstr "Controlla i campi obbligatori, le date, i limiti dei giocatori, i giochi e le durate."
+
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/groups/GroupCard.tsx
+msgid "Check saved changes"
+msgstr "Controlla le modifiche salvate"
+
+msgid "Check table times: every table must be inside the event. Publishing requires at least one table."
+msgstr "Controlla gli orari dei tavoli: devono essere compresi nell'evento. Per pubblicare serve almeno un tavolo."
+
+msgid "Check this field."
+msgstr "Controlla questo campo."
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/groups/GroupReview.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Checking saved changes"
+msgstr "Verifica delle modifiche salvate in corso"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Choice saved"
+msgstr "Scelta salvata"
+
+#. Native runtime message
+msgid "Choose a calendar day."
+msgstr "Scegli un giorno sul calendario."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose a game"
+msgstr "Scegli un gioco"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a later end time on the same day as the start."
+msgstr "Scegli un orario di fine successivo, nello stesso giorno dell'inizio."
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a later time on the same day as the event start. All public tables must finish by this time."
+msgstr "Scegli un orario successivo nello stesso giorno di inizio dell'evento. Tutti i tavoli pubblici devono terminare entro questo orario."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose a local start within the event. The entire table duration must fit before the event ends."
+msgstr "Scegli un orario locale di inizio durante l’evento. Il tavolo deve terminare prima della fine dell’evento."
+
+#. Native runtime message
+msgid "Choose a local time."
+msgstr "Scegli un orario locale."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose a name, a start and a later end (also on another day), and a verified address."
+msgstr "Scegli un nome, un inizio e una fine successiva (anche in un altro giorno) e un indirizzo verificato."
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Choose a name, from 5 to 120 characters."
+msgstr "Scegli un nome da 5 a 120 caratteri."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose a name, start and end on the same day, and a verified address. Times use the event's local time zone."
+msgstr "Scegli un nome, inizio e fine nello stesso giorno e un indirizzo verificato. Gli orari usano il fuso orario locale dell'evento."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Choose a place action"
+msgstr "Scegli un'azione per il posto"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a recognizable event name between 5 and 120 characters."
+msgstr "Scegli un nome riconoscibile per l’evento, tra 5 e 120 caratteri."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a registration deadline on a day before the event."
+msgstr "Scegli un termine iscrizioni in un giorno precedente all'evento."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose a table start and duration within the event."
+msgstr "Scegli inizio e durata del tavolo entro l’intervallo dell’evento."
+
+msgid "Choose a time within the allowed range."
+msgstr "Scegli un orario compreso nell'intervallo consentito."
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Choose a unique name, from 5 to 120 characters."
+msgstr "Scegli un nome univoco, da 5 a 120 caratteri."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a valid booking cutoff before the event starts."
+msgstr "Scegli una scadenza valida per le iscrizioni prima dell’inizio dell’evento."
+
+msgid "Choose a valid date and time; this local time may not exist."
+msgstr "Scegli una data e un orario validi; questo orario locale potrebbe non esistere."
+
+msgid "Choose a valid event start in the future."
+msgstr "Scegli una data e un orario di inizio validi e futuri."
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+msgid "Choose a valid future date and time."
+msgstr "Scegli una data e un'ora future valide."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose a valid local start time."
+msgstr "Scegli un orario locale di inizio valido."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Choose a verified address"
+msgstr "Scegli un indirizzo verificato"
+
+msgid "Choose a verified address."
+msgstr "Scegli un indirizzo verificato."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose a verified event address from search or your favorites."
+msgstr "Scegli un indirizzo verificato per l'evento dalla ricerca o dai preferiti."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose an event end after its start."
+msgstr "Scegli una fine dell’evento successiva all’inizio."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose an event name with 5–120 characters."
+msgstr "Scegli un nome dell'evento di 5–120 caratteri."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose an organization"
+msgstr "Scegli un'organizzazione"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose at least one game."
+msgstr "Scegli almeno un gioco."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose at least one game. Use the empty game slot to add another option. Players vote on these games."
+msgstr "Scegli almeno un gioco. Usa lo spazio vuoto per aggiungere un’altra opzione. I giocatori votano questi giochi."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose at least one valid date and time."
+msgstr "Scegli almeno una data e un orario validi."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose at least one verified location."
+msgstr "Scegli almeno un luogo verificato."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Choose availability"
+msgstr "Scegli le disponibilità"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Choose date"
+msgstr "Scegli la data"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Choose demonstrator"
+msgstr "Scegli dimostratore"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose exactly one event day."
+msgstr "Scegli un solo giorno per l’evento."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose exactly one valid date and time."
+msgstr "Scegli esattamente una data e un orario validi."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose exactly one verified location."
+msgstr "Scegli un solo luogo con indirizzo verificato."
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Choose game"
+msgstr "Scegli il gioco"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Choose games for this table without changing your event preferences."
+msgstr "Scegli i giochi per questo tavolo senza modificare le tue preferenze per l’evento."
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Choose location"
+msgstr "Scegli luogo"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose one date and time. Remove the selected option before choosing another."
+msgstr "Scegli una data e un orario. Rimuovi l'opzione selezionata prima di sceglierne un'altra."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Choose one of your groups, or create a standalone event without a group."
+msgstr "Scegli uno dei tuoi gruppi oppure crea un evento indipendente senza gruppo."
+
+#: apps/mobile/src/app/match/[matchId].tsx
+#~ msgid "Choose preference"
+#~ msgstr "Scegli la preferenza"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose the event address"
+msgstr "Scegli l'indirizzo dell'evento"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose the event day. Start and end must be on this same local day."
+msgstr "Scegli il giorno dell'evento. Inizio e fine devono essere nello stesso giorno locale."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Choose the event start date and time."
+msgstr "Scegli la data e l'ora di inizio dell'evento."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Choose the start and end times on the event day. End must be after start."
+msgstr "Scegli gli orari di inizio e fine nel giorno dell'evento. La fine deve essere successiva all'inizio."
+
+#~ msgid "Choose time"
+#~ msgstr "Scegli ora"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Choose your availability before joining this table."
+msgstr "Scegli le disponibilità prima di partecipare a questo tavolo."
+
+#: apps/web/src/components/events/EventVoteButtons.tsx
+msgid "Choose your vote"
+msgstr "Scegli il tuo voto"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Claim"
@@ -91,26 +1241,195 @@ msgstr "Annulla"
 #~ msgid "Claiming this invite connects you with the inviter."
 #~ msgstr "Accettando questo invito ti connetterai con chi ti ha invitato."
 
-#: apps/web/src/components/SearchGamePage.tsx
-#: apps/web/src/components/SearchUserPage.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
 msgid "Clear"
-msgstr ""
+msgstr "Pulisci"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Clear board game selection"
+msgstr "Deseleziona gioco"
+
+#: apps/web/src/components/common/ui/SearchInput.tsx
 msgid "Clear search"
 msgstr "Pulisci ricerca"
 
-#: apps/web/src/components/Header.tsx
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Close"
+msgstr "Chiudi"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Closed"
+msgstr "Chiuso"
+
+#: apps/web/src/components/games/SearchGamePage.tsx
+msgid "Collection"
+msgstr "Collezione"
+
+#: apps/web/src/app/(tabs)/organizations/page.tsx
+#~ msgid "Coming soon"
+#~ msgstr "Prossimamente"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Common start time"
+msgstr "Ora di inizio comune"
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/community/CommunitySection.tsx
+msgid "Community"
+msgstr "Community"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Complete your profile"
+msgstr "Completa il tuo profilo"
+
+#: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
+#~ msgid "Configure match"
+#~ msgstr "Configura partita"
+
+#: apps/web/src/components/events/EventTableEditor.tsx
+msgid "Configure table"
+msgstr "Configura tavolo"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Confirm"
+msgstr "Conferma"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#~ msgid "Confirm after enough players accept and everyone chooses a shared date and game."
+#~ msgstr "Conferma quando ci sono abbastanza giocatori e tutti hanno scelto una data e un gioco condivisi."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Confirm event"
+msgstr "Conferma evento"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Confirm location"
+msgstr "Conferma luogo"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Confirm match"
+msgstr "Conferma partita"
+
+#: apps/mobile/src/app/match/[matchId].tsx
+#~ msgid "Confirm match with"
+#~ msgstr "Confermare la partita con"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Confirm match?"
+msgstr "Confermare la partita?"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Confirm tie-break"
+msgstr "Conferma spareggio"
+
+#: apps/web/src/components/events/EventStatusBadge.tsx
+msgid "Confirmed"
+msgstr "Confermata"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Confirmed date"
+msgstr "Data confermata"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Confirmed game"
+msgstr "Gioco confermato"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Confirmed location"
+msgstr "Luogo confermato"
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Confirmed members"
+msgstr "membri confermati"
+
+#: apps/web/src/components/events/EventCard.tsx
+msgid "Confirmed participants"
+msgstr "Partecipanti confermati"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Confirmed participants, counted once across active tables."
+msgstr "Partecipanti confermati, contati una sola volta sui tavoli attivi."
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Confirmed player"
+msgstr "Giocatore confermato"
+
+#: apps/web/src/components/events/EventTableCardBody.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "confirmed players"
+msgstr "giocatori confermati"
+
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Confirmed players."
+msgstr "Giocatori confermati."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Connections"
+msgstr "Connessioni"
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/contacts/Contacts.tsx
 msgid "Contacts"
 msgstr "Contatti"
 
-#: apps/web/src/components/InviteCard.tsx
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "Contacts on BGO"
+#~ msgstr "Contatti su BGO"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Contacts synchronized"
+msgstr "Contatti sincronizzati"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Continue"
+msgstr "Continua"
+
+#: apps/web/src/components/invites/InviteCard.tsx
 msgid "Copied!"
 msgstr "Copiato!"
 
-#: apps/web/src/components/InviteCard.tsx
+#: apps/web/src/components/invites/InviteCard.tsx
 msgid "Copy"
 msgstr "Copia"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept friend request"
+msgstr "Impossibile accettare la richiesta di amicizia"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept group invitation"
+msgstr "Impossibile accettare l'invito al gruppo"
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Could not accept invitation"
+msgstr "Impossibile accettare l'invito"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not accept match invitation"
+msgstr "Impossibile accettare l'invito alla partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not add location to favorites"
+msgstr "Impossibile aggiungere la location ai preferiti"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not approve join request"
+msgstr "Impossibile approvare la richiesta di partecipazione"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not block user"
+msgstr "Impossibile bloccare l'utente"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not cancel friend request"
+msgstr "Impossibile annullare la richiesta di amicizia"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Could not change event state. Refresh and try again."
+msgstr "Impossibile cambiare lo stato dell'evento. Aggiorna e riprova."
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Could not claim this invite."
@@ -120,100 +1439,1379 @@ msgstr "Copia"
 #~ msgid "Could not claim."
 #~ msgstr "Impossibile accettare."
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Could not complete the action. Try again."
-#~ msgstr "Impossibile completare l'azione. Riprova."
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Could not complete the action. Try again."
+msgstr "Impossibile completare l'azione. Riprova."
 
-#: apps/web/src/components/InviteCard.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not confirm match"
+msgstr "Impossibile confermare la partita"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Could not connect to BoardGameGeek. Try again."
+msgstr "Impossibile collegarsi a BoardGameGeek. Riprova."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create group"
+msgstr "Impossibile creare il gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create invite link"
+msgstr "Impossibile creare il link di invito"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not create match"
+msgstr "Impossibile creare la partita"
+
+#: apps/web/src/components/invites/InviteCard.tsx
 msgid "Could not create the invite. Try again."
 msgstr "Impossibile creare l'invito. Riprova."
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Could not create the match"
-msgstr ""
+msgstr "Impossibile creare la partita"
 
-#: apps/web/src/components/SearchUserPage.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not decline group invitation"
+msgstr "Impossibile rifiutare l'invito al gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not decline match invitation"
+msgstr "Impossibile rifiutare l'invito alla partita"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete group"
+msgstr "Impossibile eliminare il gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete match"
+msgstr "Impossibile eliminare la partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not delete notification"
+msgstr "Impossibile eliminare la notifica"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Could not determine the location time zone. Choose a verified address."
+msgstr "Impossibile determinare il fuso orario del luogo. Scegli un indirizzo verificato."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not disconnect BoardGameGeek"
+msgstr "Impossibile scollegare BoardGameGeek"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Could not edit event"
+msgstr "Impossibile modificare l'evento"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+msgid "Could not enable push notifications"
+msgstr "Impossibile attivare le notifiche push"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not follow user"
+msgstr "Impossibile seguire l'utente"
+
+#: apps/web/src/components/events/EventInvitationPicker.tsx
+msgid "Could not invite player. Refresh and try again."
+msgstr "Impossibile invitare il giocatore. Aggiorna e riprova."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Could not join table"
+msgstr "Impossibile unirsi al tavolo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not leave group"
+msgstr "Impossibile uscire dal gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not leave match"
+msgstr "Impossibile uscire dalla partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not link BoardGameGeek account"
+msgstr "Impossibile collegare l'account BoardGameGeek"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Could not load BoardGameGeek connection. Retry"
+msgstr "Impossibile caricare il collegamento a BoardGameGeek. Riprova"
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "Could not load bookings. Retry"
+msgstr "Impossibile caricare le prenotazioni. Riprova"
+
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Could not load complete table details"
+msgstr "Impossibile caricare tutti i dettagli del tavolo"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Could not load contacts"
+msgstr "Impossibile caricare i contatti"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Could not load event"
+msgstr "Impossibile caricare l'evento"
+
+#~ msgid "Could not load event. Retry"
+#~ msgstr "Impossibile caricare l'evento. Riprova"
+
+#: apps/web/src/components/events/Events.tsx
+msgid "Could not load events"
+msgstr "Impossibile caricare gli eventi"
+
+#: apps/web/src/components/events/Events.tsx
+msgid "Could not load events. Retry"
+msgstr "Impossibile caricare gli eventi. Riprova"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Could not load favorite locations"
+msgstr "Impossibile caricare le location preferite"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Could not load friend requests"
+msgstr "Impossibile caricare le richieste di amicizia"
+
+#: apps/web/src/components/contacts/SearchUserPage.tsx
 msgid "Could not load friends"
-msgstr ""
+msgstr "Impossibile caricare gli amici"
 
-#: apps/web/src/components/SearchGamePage.tsx
+#: apps/web/src/components/organizations/OrganizationFriendPicker.tsx
+msgid "Could not load friends. Retry"
+msgstr "Impossibile caricare gli amici. Riprova"
+
+#: apps/web/src/components/games/SearchGamePage.tsx
 msgid "Could not load game details"
-msgstr ""
+msgstr "Impossibile caricare i dettagli del gioco"
 
-#: apps/web/src/components/Matches.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/groups/GroupPeoplePicker.tsx
+msgid "Could not load group"
+msgstr "Impossibile caricare il gruppo"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Could not load group details"
+msgstr "Impossibile caricare i dettagli del gruppo"
+
+#: apps/web/src/components/groups/GroupMemberPicker.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Could not load group members"
+msgstr "Impossibile caricare i membri del gruppo"
+
+#: apps/web/src/components/groups/GroupReview.tsx
+msgid "Could not load group review"
+msgstr "Impossibile caricare la revisione del gruppo"
+
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Could not load groups"
+msgstr "Impossibile caricare i gruppi"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Could not load groups. Retry"
+msgstr "Impossibile caricare i gruppi. Riprova"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Could not load leaderboards. Retry"
+msgstr "Impossibile caricare le classifiche. Riprova"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Could not load map"
+msgstr "Impossibile caricare la mappa"
+
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Could not load match details"
+msgstr "Impossibile caricare i dettagli della partita"
+
+#: apps/web/src/components/matches/Matches.tsx
 msgid "Could not load matches"
-msgstr ""
+msgstr "Impossibile caricare le partite"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Could not load matches. Retry"
+msgstr "Impossibile caricare le partite. Riprova"
+
+#: apps/web/src/components/groups/GroupModeration.tsx
+msgid "Could not load moderation queue"
+msgstr "Impossibile caricare le richieste di moderazione"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Could not load more members. Retry"
+msgstr "Impossibile caricare altri membri. Riprova"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Could not load notifications"
+msgstr "Impossibile caricare le notifiche"
+
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Could not load notifications. Retry"
+msgstr "Impossibile caricare le notifiche. Riprova"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Could not load organization"
+msgstr "Impossibile caricare l'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationMemberPicker.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Could not load organization members"
+msgstr "Impossibile caricare i membri dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Could not load organization members. Retry"
+msgstr "Impossibile caricare i membri dell'organizzazione. Riprova"
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Could not load organization review"
+msgstr "Impossibile caricare la revisione dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+msgid "Could not load organization reviews"
+msgstr "Impossibile caricare le revisioni delle organizzazioni"
+
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+msgid "Could not load organization reviews. Retry"
+msgstr "Impossibile caricare le revisioni delle organizzazioni. Riprova"
+
+#~ msgid "Could not load organization. Retry"
+#~ msgstr "Impossibile caricare l'organizzazione. Riprova"
+
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Could not load organizations"
+msgstr "Impossibile caricare le organizzazioni"
+
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Could not load organizations. Retry"
+msgstr "Impossibile caricare le organizzazioni. Riprova"
+
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Could not load players"
+msgstr "Impossibile caricare i giocatori"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+#~ msgid "Could not load recent locations"
+#~ msgstr "Impossibile caricare i luoghi recenti"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Could not load social actions"
+msgstr "Impossibile caricare le azioni social"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Could not load social actions. Retry"
+msgstr "Impossibile caricare le azioni social. Riprova"
+
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Could not load table"
+msgstr "Impossibile caricare il tavolo"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Could not load table players."
+msgstr "Impossibile caricare i giocatori del tavolo."
+
+#~ msgid "Could not load table. Retry"
+#~ msgstr "Impossibile caricare il tavolo. Riprova"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/Tables.tsx
+msgid "Could not load tables"
+msgstr "Impossibile caricare i tavoli"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Could not load tables. Retry"
+msgstr "Impossibile caricare i tavoli. Riprova"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "Could not load users"
+msgstr "Impossibile caricare gli utenti"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "Could not load users. Retry"
+msgstr "Impossibile caricare gli utenti. Riprova"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not mark notification as read"
+msgstr "Impossibile segnare la notifica come letta"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not mark notifications as read"
+msgstr "Impossibile segnare le notifiche come lette"
+
+msgid "Could not open settings"
+msgstr "Impossibile aprire le impostazioni"
+
+msgid "Could not read photo permissions"
+msgstr "Impossibile leggere i permessi delle foto"
+
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Could not recover draft"
+msgstr "Impossibile recuperare la bozza"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not register match"
+msgstr "Impossibile registrare la partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not reject friend request"
+msgstr "Impossibile rifiutare la richiesta di amicizia"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove friend"
+msgstr "Impossibile rimuovere l'amico"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove location from favorites"
+msgstr "Impossibile rimuovere la location dai preferiti"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove person from group"
+msgstr "Impossibile rimuovere la persona dal gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not remove player from match"
+msgstr "Impossibile rimuovere il giocatore dalla partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not reopen match"
+msgstr "Impossibile riaprire la partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not request to join match"
+msgstr "Impossibile richiedere la partecipazione al match"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not save choice"
+msgstr "Impossibile salvare la scelta"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Could not save event. Check timing, conflicts and permissions, then try again."
+msgstr "Impossibile salvare l'evento. Controlla orari, conflitti e permessi, quindi riprova."
+
+#: apps/web/src/components/events/EventTableEdit.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Could not save event. Check your connection and event permissions, then try again."
+msgstr "Impossibile salvare l'evento. Controlla la connessione e i permessi sull'evento, poi riprova."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Could not save event. Publication requires an approved organization and configured deadline service."
+msgstr "Impossibile salvare l'evento. La pubblicazione richiede un'organizzazione approvata e il servizio delle scadenze configurato."
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Could not save group"
+msgstr "Impossibile salvare il gruppo"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Could not save mobile number"
+msgstr "Impossibile salvare il numero di cellulare"
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Could not save organization"
+msgstr "Impossibile salvare l'organizzazione"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Could not search addresses"
+msgstr "Impossibile cercare gli indirizzi"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not send friend request"
+msgstr "Impossibile inviare la richiesta di amicizia"
+
+#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
+#~ msgid "Could not sync contacts. Try again."
+#~ msgstr "Impossibile sincronizzare i contatti. Riprova."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "Could not synchronize BoardGameGeek"
+#~ msgstr "Impossibile sincronizzare BoardGameGeek"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not synchronize BoardGameGeek collection"
+msgstr "Impossibile sincronizzare la collezione BoardGameGeek"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not synchronize contacts"
+msgstr "Impossibile sincronizzare i contatti"
+
+msgid "Could not synchronize contacts. Retry"
+msgstr "Impossibile sincronizzare i contatti. Riprova"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not unblock user"
+msgstr "Impossibile sbloccare l'utente"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not unfollow user"
+msgstr "Impossibile smettere di seguire l'utente"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not update group"
+msgstr "Impossibile aggiornare il gruppo"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Could not update group member. Try again or refresh the list."
+msgstr "Impossibile aggiornare il membro del gruppo. Riprova o aggiorna la lista."
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Could not update group membership"
+msgstr "Impossibile aggiornare l'appartenenza al gruppo"
+
+#: apps/web/src/components/groups/GroupReview.tsx
+msgid "Could not update group review"
+msgstr "Impossibile aggiornare la revisione del gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not update match"
+msgstr "Impossibile aggiornare la partita"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Could not update table registration"
+msgstr "Impossibile aggiornare l'iscrizione al tavolo"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Could not update the invitation"
+msgstr "Impossibile aggiornare l'invito"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Could not update the match"
+msgstr "Impossibile aggiornare la partita"
+
+#: apps/web/src/components/groups/GroupLogoPicker.tsx
+msgid "Could not upload logo"
+msgstr "Impossibile caricare il logo"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Could not verify event finalization. Refresh the event before retrying."
+msgstr "Impossibile verificare la finalizzazione dell'evento. Aggiorna l'evento prima di riprovare."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Could not verify whether this action was saved. Check the current state before retrying."
+msgstr "Non è stato possibile verificare se l'operazione è stata salvata. Controlla lo stato attuale prima di riprovare."
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Counter (Zustand)"
 #~ msgstr "Counter (Zustand)"
 
-#: apps/web/src/components/Matches.tsx
-msgid "Create a match"
-msgstr ""
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Country calling code"
+msgstr "Prefisso internazionale"
 
-#: apps/web/src/components/InviteCard.tsx
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Create a match"
+msgstr "Crea una partita"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Create an organization before creating an event"
+msgstr "Crea un'organizzazione prima di creare un evento"
+
+#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Create event"
+msgstr "Crea evento"
+
+#: apps/web/src/components/groups/GroupList.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Create group"
+msgstr "Crea gruppo"
+
+#: apps/web/src/components/invites/InviteCard.tsx
 msgid "Create invite"
 msgstr "Crea invito"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Create match"
+msgstr "Crea partita"
+
+#: apps/web/src/components/invites/InviteCard.tsx
+msgid "Creating invite"
+msgstr "Creazione dell'invito"
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Currently approved information"
+msgstr "Informazioni attualmente approvate"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "date"
+msgstr "data"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Date and time"
+msgstr "Data e orario"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Date and time help"
+msgstr "Guida alla data e agli orari"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Date selection"
+msgstr "Selezione date"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "dates"
+msgstr "date"
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Dates"
+msgstr "Date"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#~ msgid "Dates and start times are displayed in the event's time zone."
+#~ msgstr "Date e orari di inizio sono visualizzati nel fuso orario dell’evento."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Dates and times"
+msgstr "Date e orari"
+
+#: apps/web/src/components/events/EventCard.tsx
+msgid "Dates to agree"
+msgstr "Date da concordare"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+#: apps/web/src/components/groups/GroupInvitationCard.tsx
+msgid "Decline"
+msgstr "Rifiuta"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Decline friend request"
+msgstr "Rifiuta richiesta di amicizia"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Decline friend request?"
+msgstr "Rifiutare la richiesta di amicizia?"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Decline group invitation"
+msgstr "Rifiuta l'invito al gruppo"
+
+#: apps/web/src/components/common/ui/InvitationActions.tsx
+msgid "Decline invitation"
+msgstr "Rifiuta invito"
+
+#: apps/web/src/components/groups/Groups.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Declined"
+msgstr "Rifiutato"
+
+#. Native runtime message
+msgid "Decrease"
+msgstr "Diminuisci"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Decrease {label}"
+msgstr "Diminuisci {label}"
+
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Decrease max players"
-msgstr ""
+msgstr "Diminuisci il numero massimo di giocatori"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Decrease min players"
-msgstr ""
+msgstr "Diminuisci il numero minimo di giocatori"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Default booking deadline is 24 hours before the event starts"
+msgstr "La scadenza predefinita delle prenotazioni è 24 ore prima dell'inizio dell'evento"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete event"
+msgstr "Elimina evento"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete event?"
+msgstr "Eliminare l’evento?"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Delete group"
+msgstr "Elimina gruppo"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Delete group and events"
+msgstr "Elimina gruppo ed eventi"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Delete group?"
+msgstr "Eliminare il gruppo?"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Delete match"
+msgstr "Elimina partita"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Delete match?"
+msgstr "Eliminare la partita?"
+
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Delete all notifications"
+msgstr "Elimina tutte le notifiche"
+
+msgid "Delete all notifications?"
+msgstr "Eliminare tutte le notifiche?"
+
+msgid "All notifications will be permanently deleted."
+msgstr "Tutte le notifiche saranno eliminate definitivamente."
+
+msgid "All notifications deleted"
+msgstr "Tutte le notifiche eliminate"
+
+msgid "Could not delete all notifications"
+msgstr "Impossibile eliminare tutte le notifiche"
+
+msgid "Delete notification"
+msgstr "Elimina notifica"
+
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Delete notification?"
+msgstr "Eliminare la notifica?"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete table"
+msgstr "Elimina tavolo"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete table?"
+msgstr "Eliminare il tavolo?"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete this table and cancel its active registrations?"
+msgstr "Eliminare questo tavolo e annullare le sue iscrizioni attive?"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Demonstrator"
+msgstr "Dimostratore"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Demonstrator help"
+msgstr "Aiuto dimostratore"
+
+#: apps/web/src/components/events/EventDetailsCard.tsx
+msgid "Details"
+msgstr "Dettagli"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Device Contacts"
+msgstr "Contatti del dispositivo"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Did not participate"
+msgstr "Non ha partecipato"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Disconnect"
+msgstr "Scollega"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Disconnect BoardGameGeek"
+msgstr "Scollega BoardGameGeek"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Disconnect BoardGameGeek?"
+msgstr "Scollegare BoardGameGeek?"
+
+#: apps/web/src/components/common/providers/LinguiClientProvider.tsx
+msgid "Dismiss notification"
+msgstr "Chiudi notifica"
+
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Draft"
+msgstr "Bozza"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Duration"
+msgstr "Durata"
+
+msgid "e.g. 18:30"
+msgstr "es. 18:30"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "e.g. Board game evening"
+msgstr "es. Serata di giochi da tavolo"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "e.g. Friday night games"
-msgstr ""
+msgstr "es. Partite del venerdì sera"
 
-#: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Each event has one calendar day. Remove the selected day before choosing another."
+msgstr "Ogni evento si svolge in un solo giorno. Rimuovi il giorno selezionato prima di sceglierne un altro."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Each event has one verified address. Its time zone is automatic. Remove the location before choosing another."
+msgstr "Ogni evento ha un solo indirizzo verificato. Il fuso orario è automatico. Rimuovi il luogo prima di sceglierne un altro."
+
+#: apps/web/src/components/groups/Groups.tsx
+#~ msgid "Edit"
+#~ msgstr "Modifica"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Edit event"
+msgstr "Modifica evento"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Edit group"
+msgstr "Modifica gruppo"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Edit match"
+msgstr "Modifica partita"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Edit organization"
+msgstr "Modifica organizzazione"
+
+#: apps/web/src/components/events/EventResultTableCard.tsx
+msgid "Edit scores"
+msgstr "Modifica punteggi"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableEditAction.tsx
+msgid "Edit table"
+msgstr "Modifica tavolo"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Edit tie-break"
+msgstr "Modifica spareggio"
+
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+#~ msgid "ELO ranking"
+#~ msgstr "Ranking ELO"
+
+#: apps/web/src/components/ratings/ScoreIdentity.tsx
+msgid "Email unavailable"
+msgstr "Email non disponibile"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Empty place"
+msgstr "Posto libero"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+msgid "Enable push notifications"
+msgstr "Attiva notifiche push"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Enable ratings"
+msgstr "Abilita ranking"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "End Date and Time"
+msgstr "Data e ora di fine"
+
+#: apps/web/src/components/common/ui/DateTimeInfo.tsx
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "End time"
+msgstr "Ora di fine"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Ends at"
+msgstr "Termina alle"
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Enter a name, logo and verified address"
+msgstr "Inserisci nome, logo e indirizzo verificato"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Enter a score"
+msgstr "Inserisci un punteggio"
+
+#: apps/web/src/components/matches/MatchResultsEditor.tsx
+msgid "Enter a score for each participant or mark them as not participating. At least one must participate."
+msgstr "Inserisci un punteggio per ogni giocatore o indica che non ha partecipato. Almeno un giocatore deve aver partecipato."
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Enter a score for every frozen player or mark them as not participating. An all-ND table changes no ratings or statistics."
+msgstr "Inserisci il punteggio di ogni giocatore confermato o segna chi non ha partecipato. Un tavolo con soli ND non modifica ranking o statistiche."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Enter a table name between 1 and 120 characters."
+msgstr "Inserisci un nome per il tavolo tra 1 e 120 caratteri."
+
+msgid "Enter a table name with 1–120 characters."
+msgstr "Inserisci un nome del tavolo di 1–120 caratteri."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Enter a valid game duration in minutes."
+msgstr "Inserisci una durata valida del gioco in minuti."
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Enter a valid score"
+msgstr "Inserisci un punteggio valido"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Enter an event name between 5 and 120 characters."
+msgstr "Inserisci un nome per l’evento tra 5 e 120 caratteri."
+
+msgid "Enter an event name with 5–120 characters."
+msgstr "Inserisci un nome dell'evento di 5–120 caratteri."
+
+#: apps/web/src/components/common/ui/ListSearch.tsx
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Enter at least 4 characters to search"
+msgstr "Inserisci almeno 4 caratteri per cercare"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Enter event dates first"
+msgstr "Inserisci prima le date dell'evento"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Enter every frozen player once for every included table. Finalization is atomic and irreversible. All-ND tables do not change ratings or statistics."
+msgstr "Inserisci ogni giocatore confermato una sola volta per ciascun tavolo incluso. La finalizzazione è atomica e irreversibile. I tavoli con soli ND non modificano ranking o statistiche."
+
+msgid "Enter positive booking hours; the deadline must still be in the future."
+msgstr "Inserisci un numero positivo di ore; la scadenza delle prenotazioni deve essere ancora futura."
+
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Error while loading the profile:"
 msgstr "Errore durante il caricamento del profilo:"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event"
+msgstr "Evento"
+
+#: apps/web/src/components/events/EventTableEdit.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event cannot be edited"
+msgstr "L'evento non può essere modificato"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event date"
+msgstr "Data evento"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event date and time help"
+msgstr "Aiuto data e orario dell'evento"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Event day"
+msgstr "Giorno evento"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event detail"
+msgstr "Dettaglio evento"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Event details are still loading."
+msgstr "Caricamento dei dettagli dell’evento in corso."
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Event end"
+msgstr "Fine evento"
+
+msgid "Event end must be after event start on the same day."
+msgstr "La fine dell'evento deve essere successiva all'inizio nello stesso giorno."
+
+msgid "Event end must be after event start; it may be on a later day."
+msgstr "La fine dell'evento deve essere successiva all'inizio; può essere in un giorno successivo."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event information"
+msgstr "Informazioni sull'evento"
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Event location"
+msgstr "Luogo evento"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event location help"
+msgstr "Aiuto luogo dell'evento"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Event name"
+msgstr "Nome dell'evento"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event name help"
+msgstr "Aiuto nome dell'evento"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event participant count help"
+msgstr "Aiuto numero partecipanti"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Event sections"
+msgstr "Sezioni dell’evento"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Event start"
+msgstr "Inizio evento"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Event table"
+msgstr "Tavolo di un evento"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event table count help"
+msgstr "Aiuto numero tavoli"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Event tables, excluding cancelled tables."
+msgstr "Tavoli dell'evento, esclusi quelli annullati."
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/groups/GroupCard.tsx
+#: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Events"
+msgstr "Eventi"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Exclude a user"
+msgstr "Escludi un utente"
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Exclude from group"
+msgstr "Escludi dal gruppo"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventTableInfo.tsx
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Excluded from confirmation"
+msgstr "Escluso dalla conferma"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Excluded from group"
+msgstr "Escluso dal gruppo"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Excluded member"
+msgstr "Membro escluso"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#~ msgid "Excluded members"
+#~ msgstr "Membri esclusi"
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+msgid "Excluded until"
+msgstr "Escluso fino al"
+
+#. placeholder {0}: new Date(person.ban.until).toLocaleString(i18n.locale)
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Excluded until {0}"
+msgstr "Escluso fino al {0}"
+
+#. Native runtime message
+msgid "Exclusion ends"
+msgstr "Termine esclusione"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "expires"
 #~ msgstr "scade"
 
-#: apps/web/src/components/Contacts.tsx
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Favorite locations"
+msgstr "Location preferite"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventTableInfo.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+#: apps/web/src/components/groups/GroupLogoPicker.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Field help"
+msgstr "Guida al campo"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Finalize event"
+msgstr "Finalizza evento"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Finalize event?"
+msgstr "Finalizzare evento?"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Finished"
+msgstr "Terminato"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Follow"
 msgstr "Segui"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Followers"
 msgstr "Follower"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Following"
-msgstr "Seguiti"
+msgstr "Following"
 
-#: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Former group member"
+msgstr "Uscito dal gruppo"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Free place"
+msgstr "Posto libero"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Free places allow joining or invitations. When capacity is reserved, an extra place lets new players join the queue. Places are not assigned physical seats."
+msgstr "I posti liberi permettono di unirsi o invitare. Quando tutti i posti sono riservati, un posto aggiuntivo permette ai nuovi giocatori di mettersi in coda. I posti non corrispondono a sedute fisiche assegnate."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Friday game night"
+msgstr "Serata giochi del venerdì"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend removed"
+msgstr "Amico rimosso"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request accepted"
+msgstr "Richiesta di amicizia accettata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request cancelled"
+msgstr "Richiesta di amicizia annullata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request rejected"
+msgstr "Richiesta di amicizia rifiutata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Friend request sent"
+msgstr "Richiesta di amicizia inviata"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "Friend requests"
+#~ msgstr "Richieste di amicizia"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Friends"
 msgstr "Amici"
 
-#: apps/web/src/components/Matches.tsx
-msgid "games"
-msgstr ""
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Friendship accepted."
+msgstr "Amicizia confermata."
 
-#: apps/web/src/components/InviteCard.tsx
+#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/Tables.tsx
+msgid "Future"
+msgstr "Futuri"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "game"
+msgstr "gioco"
+
+#: apps/web/src/components/ratings/GameRating.tsx
+msgid "Game rating"
+msgstr "Rating del gioco"
+
+#: apps/web/src/components/games/SearchGamePage.tsx
+msgid "Game results pages"
+msgstr "Pagine dei risultati dei giochi"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Game selection"
+msgstr "Selezione giochi"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Game unavailable"
+msgstr "Gioco non disponibile"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "games"
+msgstr "giochi"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Games"
+msgstr "Giochi"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Games played"
+msgstr "Partite giocate"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Games won"
+msgstr "Partite vinte"
+
+#: apps/web/src/components/invites/InviteCard.tsx
 msgid "Generate a link to connect with someone."
 msgstr "Genera un link per connetterti con qualcuno."
 
-#: apps/web/src/components/Header.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+msgid "Give this table a recognizable name (1–120 characters)."
+msgstr "Assegna al tavolo un nome riconoscibile (1–120 caratteri)."
+
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Global ranking"
+msgstr "Ranking globale"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+msgid "Global rating"
+msgstr "Ranking globale"
+
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Global rating change"
+msgstr "Variazione ranking globale"
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "Global ratings disabled"
+msgstr "Classifiche globali disabilitate"
+
+#: apps/web/src/components/events/EventTableCardBody.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Global ratings enabled"
+msgstr "Classifiche globali abilitate"
+
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Group"
+msgstr "Gruppo"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Group (optional)"
+msgstr "Gruppo (facoltativo)"
+
+#: apps/web/src/components/groups/GroupArtwork.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Group admin"
+msgstr "Amministratore del gruppo"
+
+#: apps/web/src/components/groups/GroupPeoplePicker.tsx
+msgid "Group admin required"
+msgstr "È necessario essere l'amministratore del gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group created"
+msgstr "Gruppo creato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group deleted"
+msgstr "Gruppo eliminato"
+
+msgid "Group details"
+msgstr "Dettaglio Gruppo"
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+msgid "Group exclusion is separate from global blocking. Membership and active registrations are removed; expiry or revocation never restores them. Historical results remain unchanged."
+msgstr "L'esclusione dal gruppo è distinta dal blocco globale. L'appartenenza e le iscrizioni attive vengono rimosse; la scadenza o la revoca non le ripristina. I risultati storici restano invariati."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation accepted"
+msgstr "Invito al gruppo accettato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group invitation declined"
+msgstr "Invito al gruppo rifiutato"
+
+#: apps/web/src/components/community/CommunityDiscovery.tsx
+msgid "Group join requests will be available later"
+msgstr "Le richieste di adesione ai gruppi saranno disponibili in seguito"
+
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Group leaderboard"
+msgstr "Classifica del gruppo"
+
+#: apps/web/src/components/groups/GroupLogoPicker.tsx
+msgid "Group logo"
+msgstr "Logo del gruppo"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Group matches are private. Only group members can request to join, with admin approval."
+msgstr "I match di gruppo sono privati. Solo i membri del gruppo possono chiedere di partecipare, con approvazione dell'admin."
+
+#: apps/web/src/components/common/layout/Header.tsx
+msgid "Group moderation"
+msgstr "Moderazione gruppi"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Group name"
+msgstr "Nome del gruppo"
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Group name help"
+msgstr "Aiuto sul nome del gruppo"
+
+#. Native runtime message
+msgid "Group not found"
+msgstr "Gruppo non trovato"
+
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Group ranking"
+msgstr "Ranking del gruppo"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+msgid "Group rating"
+msgstr "Ranking del gruppo"
+
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Group rating change"
+msgstr "Variazione ranking del gruppo"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Group sections"
+msgstr "Sezioni del gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Group updated"
+msgstr "Gruppo aggiornato"
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Group venue"
+msgstr "Sede del gruppo"
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Group venue help"
+msgstr "Aiuto sulla sede del gruppo"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Group will be archived. Existing confirmed match results and ratings remain."
+msgstr "Il gruppo verrà archiviato. I risultati e le valutazioni delle partite confermate resteranno disponibili."
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/groups/Groups.tsx
 msgid "Groups"
 msgstr "Gruppi"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/community/CommunitySection.tsx
+#~ msgid "Groups and organizations"
+#~ msgstr "Gruppi ed organizzazioni"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Groups navigation"
+msgstr "Navigazione gruppi"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Highest score wins"
+msgstr "Vince il punteggio più alto"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "hours"
+msgstr "ore"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Hours before the event starts. Default: 24 hours. Bookings and changes close at this exact deadline."
+msgstr "Ore prima dell'inizio dell'evento. Valore predefinito: 24 ore. Prenotazioni e modifiche si chiudono esattamente a questa scadenza."
+
+#: apps/web/src/components/contacts/ContactLegend.tsx
+msgid "Icon legend"
+msgstr "Legenda delle icone"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "If I have to"
+msgstr "Se proprio devo"
+
+#: apps/web/src/components/events/EventVoteButtons.tsx
+#: apps/web/src/components/events/EventVoteCounts.tsx
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "If needed"
+msgstr "Se necessario"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "In progress"
+msgstr "In corso"
+
+#. Native runtime message
+msgid "Increase"
+msgstr "Aumenta"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Increase {label}"
+msgstr "Aumenta {label}"
+
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Increase max players"
-msgstr ""
+msgstr "Aumenta il numero massimo di giocatori"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Increase min players"
-msgstr ""
+msgstr "Aumenta il numero minimo di giocatori"
 
-#: apps/web/src/components/InviteCard.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Invalid date or time"
+msgstr "Data o ora non valida"
+
+msgid "Invalid event time zone. Reload the event and try again."
+msgstr "Fuso orario dell'evento non valido. Ricarica l'evento e riprova."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Invitation pending"
+msgstr "Invito in attesa"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/groups/GroupArtwork.tsx
+#: apps/web/src/components/groups/GroupCard.tsx
+#: apps/web/src/components/groups/GroupInvitationCard.tsx
+msgid "Invitation received"
+msgstr "Invito ricevuto"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Invitation unavailable"
+msgstr "Invito non disponibile"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Invitations"
+msgstr "Inviti"
+
+#: apps/web/src/components/events/EventInvitationPicker.tsx
+msgid "Invitations are unavailable. Refresh the event."
+msgstr "Inviti non disponibili. Aggiorna l'evento."
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/components/groups/GroupPeoplePicker.tsx
+msgid "Invitations require an approved group."
+msgstr "Per invitare è necessario un gruppo approvato."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Invitations require an approved organization."
+msgstr "Gli inviti richiedono un’organizzazione approvata."
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Invitations unavailable"
+msgstr "Inviti non disponibili"
+
+#: apps/web/src/components/invites/InviteCard.tsx
 msgid "Invite a friend"
 msgstr "Invita un amico"
 
@@ -230,204 +2828,1771 @@ msgstr "Invita un amico"
 #~ msgid "Invite claimed — you now follow the inviter."
 #~ msgstr "Invito accettato — ora segui chi ti ha invitato."
 
-#: apps/web/src/components/MatchWizard.tsx
-#: apps/web/src/components/SearchUserPage.tsx
-msgid "Invite friends"
-msgstr ""
+#. Mobile runtime-only strings; keep after Lingui extraction.
+#~ msgid "Invite device contacts"
+#~ msgstr "Invita contatti della rubrica"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Invite friends"
+msgstr "Invita amici"
+
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+msgid "Invite group members"
+msgstr "Invita membri del gruppo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Invite link created"
+msgstr "Link di invito creato"
+
+#: apps/web/src/components/events/EventTableInvitationPicker.tsx
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Invite organization members"
+msgstr "Invita membri dell'organizzazione"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Invite players"
+msgstr "Invita giocatori"
+
+#: apps/web/src/components/common/ui/ListSearchFilters.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Invited"
+msgstr "Invitati"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#~ msgid "Invited players"
+#~ msgstr "Giocatori invitati"
+
+#: apps/web/src/components/contacts/Contacts.tsx
 #~ msgid "Invites"
 #~ msgstr "Inviti"
 
-#: apps/web/src/components/Profile.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Join request approved"
+msgstr "Richiesta di partecipazione approvata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Join request sent"
+msgstr "Richiesta di partecipazione inviata"
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Join table"
+msgstr "Iscriviti al tavolo"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Join this table without changing your event preferences."
+msgstr "Partecipa a questo tavolo senza modificare le tue preferenze per l’evento."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Join this table yourself or invite another player."
+msgstr "Unisciti a questo tavolo oppure invita un altro giocatore."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Join waiting list"
+msgstr "Mettiti in coda"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Joined groups"
+msgstr "Gruppi accettati"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Joining table"
+msgstr "Iscrizione al tavolo in corso"
+
+#: apps/web/src/components/groups/GroupLogoPicker.tsx
+msgid "JPEG, PNG or WebP, up to 5 MB."
+msgstr "JPEG, PNG o WebP, fino a 5 MB."
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "JPEG, PNG or WebP, up to 5 MB. A logo can be replaced, not removed."
+msgstr "JPEG, PNG o WebP, fino a 5 MB. Il logo può essere sostituito, non rimosso."
+
+#: apps/web/src/components/events/EventVoteButtons.tsx
+msgid "Keep at least one Yes or If needed among the available options."
+msgstr "Mantieni almeno un Sì o Se necessario tra le opzioni disponibili."
+
+#: apps/web/src/components/events/EventVoteButtons.tsx
+msgid "Keep at least one Yes or If needed for dates and locations."
+msgstr "Mantieni almeno un Sì o Se necessario sia per le date sia per i luoghi."
+
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Language:"
 msgstr "Lingua:"
 
-#: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/groups/Groups.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Leaderboards"
+msgstr "Classifiche"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Leave group"
+msgstr "Esci dal gruppo"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Leave group?"
+msgstr "Uscire dal gruppo?"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Leave match"
+msgstr "Esci dalla partita"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Leave match?"
+msgstr "Uscire dalla partita?"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Leave organization"
+msgstr "Lascia organizzazione"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Leave place"
+msgstr "Lascia posto"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Leave table"
+msgstr "Abbandona tavolo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Left group"
+msgstr "Hai lasciato il gruppo"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Live standings"
+msgstr "Classifica provvisoria"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/Tables.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+#: apps/web/src/components/groups/GroupMemberPicker.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/components/groups/GroupModeration.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Load more"
+msgstr "Carica altro"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Load more favorite locations"
+msgstr "Carica altre location preferite"
+
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Load more games"
+msgstr "Carica altri giochi"
+
+#: apps/web/src/components/events/EventGroupSelect.tsx
+msgid "Load more groups"
+msgstr "Carica altri gruppi"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Load more players"
+msgstr "Carica altri giocatori"
+
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Load more tables"
+msgstr "Carica altri tavoli"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Loading notifications"
+msgstr "Caricamento notifiche"
+
+#: apps/web/src/app/mobile-number/page.tsx
+#: apps/web/src/components/auth/MobileNumberGate.tsx
+msgid "Loading profile"
+msgstr "Caricamento profilo"
+
+#: apps/web/src/components/profile/Profile.tsx
 #~ msgid "Loading..."
 #~ msgstr "Caricamento..."
 
-#: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Loading…"
+msgstr "Caricamento…"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "location"
+msgstr "location"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Location"
+msgstr "Luogo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Location added to favorites"
+msgstr "Location aggiunta ai preferiti"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Location map"
+msgstr "Mappa del luogo"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Location name"
+msgstr "Nome del luogo"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Location permission denied"
+msgstr "Accesso alla posizione negato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Location removed from favorites"
+msgstr "Location rimossa dai preferiti"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Location selection"
+msgstr "Scelta del luogo"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Location unavailable"
+msgstr "Posizione non disponibile"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "locations"
+msgstr "location"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Locations"
+msgstr "Luoghi"
+
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Logout"
 msgstr "Esci"
 
-#: apps/web/src/components/MatchWizard.tsx
-msgid "Match name"
-msgstr ""
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Lowest score wins"
+msgstr "Vince il punteggio più basso"
 
-#: apps/web/src/components/Header.tsx
-#: apps/web/src/components/Matches.tsx
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Manage organization"
+msgstr "Gestisci organizzazione"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Manual duration in minutes"
+msgstr "Durata manuale in minuti"
+
+msgid "Map by MapTiler"
+msgstr "Mappa di MapTiler"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Map unavailable"
+msgstr "Mappa non disponibile"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Mark all as read"
+msgstr "Segna tutte come lette"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match back in planning"
+msgstr "Partita di nuovo in pianificazione"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match confirmed"
+msgstr "Partita confermata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match created"
+msgstr "Partita creata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match deleted"
+msgstr "Partita eliminata"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Match details"
+msgstr "Dettagli partita"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match invitation accepted"
+msgstr "Invito alla partita accettato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match invitation declined"
+msgstr "Invito alla partita rifiutato"
+
+#: apps/web/src/components/matches/MatchLeaderboard.tsx
+msgid "Match leaderboard"
+msgstr "Classifica della partita"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Match name"
+msgstr "Nome della partita"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Match readiness unavailable"
+msgstr "Stato della partita non disponibile"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match registered"
+msgstr "Partita registrata"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Match updated"
+msgstr "Partita aggiornata"
+
+#: apps/web/src/components/common/layout/Header.tsx
 msgid "Matches"
 msgstr "Partite"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Matches played"
+msgstr "Partite giocate"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Max"
-msgstr ""
+msgstr "Massimo"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Max must be at least min"
-msgstr ""
+msgstr "Il massimo deve essere almeno uguale al minimo"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventTableInfo.tsx
+msgid "Maximum players"
+msgstr "Giocatori massimi"
+
+msgid "Maximum players must be an integer at least equal to the minimum."
+msgstr "Il massimo deve essere un numero intero almeno pari al minimo."
+
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Maximum seats here; free places in Seats."
+msgstr "Capienza massima qui; posti liberi nella scheda Posti."
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "member"
+msgstr "membro"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Member list"
+msgstr "Lista membri"
+
+#: apps/web/src/components/groups/GroupCard.tsx
+msgid "members"
+msgstr "membri"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Members"
+msgstr "Membri"
+
+#: apps/web/src/components/groups/Groups.tsx
+#~ msgid "Members are visible after accepting the invitation"
+#~ msgstr "I membri saranno visibili dopo aver accettato l'invito"
+
+#: apps/web/src/components/groups/GroupInvitationCard.tsx
+#: apps/web/src/components/groups/GroupJoinRequest.tsx
+msgid "Membership pending. Events, rankings and group social actions are unavailable until acceptance."
+msgstr "Appartenenza in attesa. Eventi, classifiche e azioni sociali del gruppo non sono disponibili fino all'accettazione."
+
+#: apps/web/src/components/groups/GroupArtwork.tsx
+#: apps/web/src/components/groups/GroupCard.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Membership requested"
+msgstr "Adesione richiesta"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Min"
-msgstr ""
+msgstr "Minimo"
 
-#: apps/web/src/components/InviteCard.tsx
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventTableInfo.tsx
+msgid "Minimum players"
+msgstr "Giocatori minimi"
+
+msgid "Minimum players must be an integer of at least 2."
+msgstr "Il minimo deve essere un numero intero di almeno 2 giocatori."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "minutes"
+msgstr "minuti"
+
+#. Native runtime message
+msgid "Missing selection destination"
+msgstr "Destinazione della selezione mancante"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Mobile number"
+msgstr "Numero di cellulare"
+
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Moderator access required"
+msgstr "Accesso riservato ai moderatori"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "More group actions"
+msgstr "Altre azioni gruppo"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "More match actions"
+msgstr "Altre azioni partita"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Move down"
+msgstr "Sposta giù"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Move up"
+msgstr "Sposta su"
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Name"
+msgstr "Nome"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Name this table so players can recognize it. Use between 1 and 120 characters."
+msgstr "Assegna al tavolo un nome riconoscibile per i giocatori, tra 1 e 120 caratteri."
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Name, logo and group type. Group type cannot be changed."
+msgstr "Nome, logo e tipo del gruppo. Il tipo del gruppo non può essere modificato."
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/events/EventTableResults.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "ND"
+msgstr "ND"
+
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "New event"
+msgstr "Nuovo evento"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "New group"
+msgstr "Nuovo gruppo"
+
+#: apps/web/src/components/invites/InviteCard.tsx
 msgid "New invite"
 msgstr "Nuovo invito"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "New match"
-msgstr ""
+msgstr "Nuova partita"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "New organization"
+msgstr "Nuova organizzazione"
+
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+msgid "Next"
+msgstr "Avanti"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Next step"
-msgstr ""
+msgstr "Passaggio successivo"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "No"
-#~ msgstr "No"
+#: apps/web/src/components/events/EventVoteButtons.tsx
+#: apps/web/src/components/events/EventVoteCounts.tsx
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "No"
+msgstr "No"
 
-#: apps/web/src/components/Contacts.tsx
-msgid "No blocked users"
-msgstr "Nessun utente bloccato"
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "No addresses found"
+msgstr "Nessun indirizzo trovato"
+
+msgid "No available times in this range"
+msgstr "Nessun orario disponibile in questa fascia"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "No blocked users"
+#~ msgstr "Nessun utente bloccato"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "No compatible accepted players for this table."
+msgstr "Nessun giocatore accettato compatibile per questo tavolo."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "No complete agreement yet."
+msgstr "Non è ancora stato raggiunto un accordo completo."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "No complete agreement yet. Check participation and votes for the date, location and game."
+msgstr "Non c’è ancora un accordo completo. Controlla le partecipazioni e i voti per data, luogo e gioco."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "No connections yet"
+msgstr "Nessuna connessione"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No contacts found in your address book."
 #~ msgstr "Nessun contatto trovato nella tua rubrica."
 
-#: apps/web/src/components/Contacts.tsx
-msgid "No followers yet"
-msgstr "Nessun follower"
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "No contacts on BGO yet"
+#~ msgstr "Nessun contatto su BGO"
 
-#: apps/web/src/components/Contacts.tsx
-msgid "No friends from your contacts are on Board Game Organizer yet."
-msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "No contacts to invite"
+msgstr "Nessun contatto da invitare"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "No countries found"
+msgstr "Nessun paese trovato"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+msgid "No demonstrator"
+msgstr "Nessun dimostratore"
+
+#: apps/web/src/components/events/Events.tsx
+msgid "No events found"
+msgstr "Nessun evento trovato"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "No favorite locations"
+msgstr "Nessuna location preferita"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "No followers yet"
+#~ msgstr "Nessun follower"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "No friend requests"
+msgstr "Nessuna richiesta di amicizia"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "No friends found"
+msgstr "Nessun amico trovato"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "No friends from your contacts are on Board Game Organizer yet."
+#~ msgstr "Nessuno dei tuoi contatti è ancora su Board Game Organizer."
+
+#: apps/web/src/components/groups/Groups.tsx
+#~ msgid "No friends to invite yet"
+#~ msgstr "Non ci sono ancora amici da invitare"
+
+#: apps/web/src/components/contacts/Contacts.tsx
 #~ msgid "No friends yet"
 #~ msgstr "Nessun amico"
 
-#: apps/web/src/components/SearchGamePage.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
 msgid "No games found"
-msgstr ""
+msgstr "Nessun gioco trovato"
+
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "No group"
+msgstr "Nessun gruppo"
+
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "No groups found"
+msgstr "Nessun gruppo trovato"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "No groups match your filters"
+msgstr "Nessun gruppo corrisponde ai filtri"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "No groups yet"
+msgstr "Nessun gruppo per ora"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "No invitations"
+msgstr "Nessun invito"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#~ msgid "No invited players"
+#~ msgstr "Nessun giocatore invitato"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "No invites yet — create one to share."
 #~ msgstr "Nessun invito ancora — creane uno da condividere."
 
-#: apps/web/src/components/Matches.tsx
-msgid "No matches yet — create your first one!"
-msgstr ""
+#: apps/web/src/components/matches/Matches.tsx
+msgid "No matches match your filters"
+msgstr "Nessuna partita corrisponde ai filtri"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "No matches played in this group yet"
+msgstr "Nessun match ancora giocato nel gruppo"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "No matches yet — create your first one!"
+msgstr "Nessuna partita — crea la prima!"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/groups/GroupMemberPicker.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "No members found"
+msgstr "Nessun membro trovato"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "No notifications yet"
+msgstr "Nessuna notifica"
+
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+msgid "No organizations awaiting review"
+msgstr "Nessuna organizzazione in attesa di revisione"
+
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "No organizations found"
+msgstr "Nessuna organizzazione trovata"
+
+#: apps/web/src/components/groups/GroupModeration.tsx
+msgid "No pending reviews"
+msgstr "Nessuna revisione in attesa"
+
+msgid "No players"
+msgstr "Nessun giocatore"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+msgid "No players found"
+msgstr "Nessun giocatore trovato"
+
+#: apps/web/src/components/matches/MatchLeaderboard.tsx
+msgid "No rankings available"
+msgstr "Nessuna classifica disponibile"
+
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "No rated tables played in this group yet"
+msgstr "Nessun tavolo con ranking giocato in questo gruppo"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "No received friend requests"
+#~ msgstr "Nessuna richiesta di amicizia ricevuta"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+#~ msgid "No recent locations"
+#~ msgstr "Nessun luogo recente"
+
+#: apps/web/src/components/community/CommunityDiscovery.tsx
+msgid "No results found"
+msgstr "Nessun risultato trovato"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "No selected games"
+msgstr "Nessun gioco selezionato"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "No sent friend requests"
+#~ msgstr "Nessuna richiesta di amicizia inviata"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "No shared date"
+msgstr "Nessuna data condivisa"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "No shared game"
+msgstr "Nessun gioco condiviso"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "No shared location"
+msgstr "Nessun luogo condiviso"
+
+#: apps/web/src/components/contacts/Contacts.tsx
 #~ msgid "No suggestions right now"
 #~ msgstr "Nessun suggerimento"
 
 #: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
 #~ msgid "No suggestions yet — sync your address book to find friends."
-#~ msgstr "Nessun suggerimento — sincronizza la rubrica per trovare amici."
+#~ msgstr "Ancora nessun suggerimento — sincronizza la rubrica per trovare amici."
 
-#: apps/web/src/components/Contacts.tsx
-#: apps/web/src/components/SearchUserPage.tsx
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/Tables.tsx
+msgid "No tables found"
+msgstr "Nessun tavolo trovato"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "No tables yet. Add a table to organize games and players."
+msgstr "Nessun tavolo aggiunto. Aggiungi un tavolo per organizzare giochi e giocatori."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
 msgid "No users found"
 msgstr "Nessun utente trovato"
+
+#: apps/web/src/components/matches/VoteCounts.tsx
+#: apps/web/src/components/matches/VoteLegend.tsx
+msgid "Not chosen"
+msgstr "Non scelto"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Not enough accepted players"
+msgstr "Giocatori che hanno accettato insufficienti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "Not following anyone yet"
+#~ msgstr "Non segui ancora nessuno"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Not known"
+msgstr "Non conosciuta"
+
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+#: apps/web/src/components/ratings/GameRating.tsx
+msgid "Not rated"
+msgstr "Senza rating"
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Not saved"
+msgstr "Non salvato"
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Not saved. Edit draft"
+msgstr "Non salvato. Modifica la bozza"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Nothing is saved until final confirmation. The organizer has no automatic playing seat."
+msgstr "Nulla viene salvato prima della conferma finale. L'organizzatore non ha un posto automatico come giocatore."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Notification deleted"
+msgstr "Notifica eliminata"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Notifications"
+msgstr "Notifiche"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Number of participants"
+msgstr "Numero partecipanti"
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Number of tables"
+msgstr "Numero tavoli"
+
+#: apps/web/src/components/contacts/ContactLegend.tsx
+msgid "Offline"
+msgstr "Offline"
+
+#: apps/web/src/components/contacts/ContactLegend.tsx
+msgid "Online"
+msgstr "Online"
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "Only accepted players vote. Pending players keep a reserved place until accepted. Join at least one table to participate in the event."
+msgstr "Votano solo i giocatori accettati. Chi è in attesa conserva un posto riservato fino all'accettazione. Per partecipare all'evento, entra in almeno un tavolo."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded."
+msgstr "Vengono confermati solo i tavoli con un accordo e i giocatori accettati. Gli altri tavoli e inviti vengono conservati, ma esclusi."
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Only an authorized organizer can finalize a confirmed event."
+msgstr "Solo un organizzatore autorizzato può finalizzare un evento confermato."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Only confirmed organization members can view players and reserve places."
+msgstr "Solo i membri confermati dell’organizzazione possono vedere i giocatori e riservare posti."
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Only the admin can invite players to a private match."
+msgstr "Solo l'admin può invitare giocatori a un match privato."
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Only the organizer and recipient can see pending invitation identities."
+msgstr "Solo l'organizzatore e il destinatario possono vedere le identità degli inviti in attesa."
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Open"
+msgstr "Aperto"
+
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Open event"
+msgstr "Apri evento"
+
+#~ msgid "Open event table"
+#~ msgstr "Apri il tavolo dell’evento"
+
+#: apps/web/src/components/groups/GroupCard.tsx
+msgid "Open group"
+msgstr "Apri gruppo"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Open match"
+msgstr "Apri partita"
+
+#. Mobile runtime-only message; Lingui extraction does not inspect useT().
+msgid "Open notification settings"
+msgstr "Apri impostazioni notifiche"
+
+#: apps/web/src/components/community/CommunityDiscovery.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Open organization"
+msgstr "Apri organizzazione"
+
+msgid "Open settings"
+msgstr "Apri impostazioni"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Open table"
+msgstr "Apri tavolo"
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "Open table match"
+msgstr "Apri partita del tavolo"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+#~ msgid "Operation failed"
+#~ msgstr "Operazione non riuscita"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Optional email (auto-connect on claim)"
 #~ msgstr "Email opzionale (connessione automatica alla accettazione)"
 
-#: apps/web/src/components/Header.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+msgid "Optional: choose a confirmed organization member. They can record this table's results but do not automatically reserve a player seat."
+msgstr "Facoltativo: scegli un membro confermato dell'organizzazione. Può registrare i risultati del tavolo, ma non occupa automaticamente un posto come giocatore."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Optionally assign an accepted group member to demonstrate this public table. Their other tables must not overlap."
+msgstr "Puoi assegnare un membro effettivo del gruppo come dimostratore di questo tavolo pubblico. I suoi altri tavoli non devono sovrapporsi."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Organization admin"
+msgstr "Amministratore dell'organizzazione"
+
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/organizations/OrganizationFriendPicker.tsx
+msgid "Organization admin required"
+msgstr "È richiesto l'amministratore dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Organization details"
+msgstr "Dettagli organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#~ msgid "Organization events"
+#~ msgstr "Eventi dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Organization events are available after approval."
+msgstr "Gli eventi dell’organizzazione sono disponibili dopo l’approvazione."
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Organization logo"
+msgstr "Logo dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationMemberPicker.tsx
+msgid "Organization members"
+msgstr "Membri dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Organization members are visible only to confirmed members."
+msgstr "I membri dell'organizzazione sono visibili solo ai membri confermati."
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#~ msgid "Organization membership"
+#~ msgstr "Adesioni all'organizzazione"
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+msgid "Organization moderation"
+msgstr "Moderazione organizzazioni"
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Organization name"
+msgstr "Nome dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Organization name help"
+msgstr "Aiuto nome dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+msgid "Organization sections"
+msgstr "Sezioni dell’organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Organization venue"
+msgstr "Sede dell'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "Organization venue help"
+msgstr "Aiuto sede dell'organizzazione"
+
+#: apps/web/src/components/community/CommunityDiscovery.tsx
+#: apps/web/src/components/community/CommunitySection.tsx
 msgid "Organizations"
 msgstr "Organizzazioni"
 
-#: apps/web/src/components/LoginFallback.tsx
+#: apps/web/src/components/auth/LoginFallback.tsx
 msgid "Organize your board game collection, track your matches and connect with other players."
 msgstr "Organizza la tua collezione di giochi da tavolo, tieni traccia delle partite e connettiti con altri giocatori."
 
-#: apps/web/src/components/Profile.tsx
-msgid "Owned"
-msgstr "Posseduti"
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Overview"
+msgstr "Riepilogo"
+
+#: apps/web/src/components/profile/Profile.tsx
+#~ msgid "Owned"
+#~ msgstr "Posseduti"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Participants"
+msgstr "Partecipanti"
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Participants with a confirmed place at one or more active tables are counted once. Pending requests are excluded."
+msgstr "I partecipanti con un posto confermato in almeno un tavolo attivo vengono contati una sola volta. Le richieste in attesa sono escluse."
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Participation requested"
+msgstr "Partecipazione richiesta"
+
+#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/Tables.tsx
+msgid "Past"
+msgstr "Passati"
 
 #: apps/web/src/components/InvitesTab.tsx
 #~ msgid "Paste an invite link or token to claim it"
 #~ msgstr "Incolla un link o un token di invito per accettarlo"
 
-#: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Pending"
+msgstr "In attesa"
+
+#: apps/web/src/components/events/EventTableSummaryCard.tsx
+msgid "Pending invitations"
+msgstr "Inviti in attesa"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Pending invitations reserve a place but do not vote or count toward agreement. Accepted waiting players may vote."
+msgstr "Gli inviti in attesa riservano un posto, ma non possono votare né contribuire all'accordo. I giocatori accettati in lista d'attesa possono votare."
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Pending invitations still reserve places."
+msgstr "Gli inviti in attesa continuano a riservare posti."
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Pending players"
+msgstr "Giocatori in attesa di accettazione"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Pending players, including reserved waiting-list places."
+msgstr "Giocatori in sospeso, inclusi i posti riservati in lista d'attesa."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "People who follow you."
+msgstr "Persone che ti seguono."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "People you follow."
+msgstr "Persone che segui."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "People you have blocked."
+msgstr "Persone che hai bloccato."
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Permanent exclusion"
+msgstr "Esclusione permanente"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Permanently delete this event, all its tables, registrations and votes?"
+msgstr "Eliminare definitivamente questo evento, tutti i suoi tavoli, le iscrizioni e i voti?"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Permanently delete this group and all its events, tables, registrations, votes, results and group rankings? Personal GLOBAL ratings remain unchanged. This cannot be undone."
+msgstr "Eliminare definitivamente questo gruppo e tutti i suoi eventi, tavoli, iscrizioni, voti, risultati e classifiche di gruppo? I rating GLOBAL personali rimangono invariati. L’operazione è irreversibile."
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Person removed from group"
+msgstr "Persona rimossa dal gruppo"
+
+msgid "Photo library"
+msgstr "Libreria fotografica"
+
+#~ msgid "Photo permission is required"
+#~ msgstr "È necessario autorizzare l'accesso alle foto"
+
+#: apps/mobile/src/app/(tabs)/matches.tsx (mobile-only, runtime useT)
+#~ msgid "Pick date and time"
+#~ msgstr "Scegli data e ora"
+
+msgid "Pick event day"
+msgstr "Scegli il giorno dell'evento"
+
+msgid "Pick time"
+msgstr "Scegli l'orario"
+
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Plan:"
 msgstr "Piano:"
 
-#: apps/web/src/components/Profile.tsx
-msgid "Played"
-msgstr "Giocate"
+#: apps/web/src/components/events/EventStatusBadge.tsx
+msgid "Planning"
+msgstr "In pianificazione"
 
-#: apps/web/src/components/Matches.tsx
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/profile/Profile.tsx
+#~ msgid "Played"
+#~ msgstr "Giocate"
+
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Player"
+msgstr "Giocatore"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "Player removed from match"
+msgstr "Giocatore rimosso dalla partita"
+
+#: apps/web/src/components/matches/MatchResultsEditor.tsx
+#~ msgid "Player scores"
+#~ msgstr "Punteggi giocatori"
+
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventResultTableCard.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
 msgid "Players"
-msgstr ""
+msgstr "Giocatori"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Players remain in this match until they leave or are removed."
+msgstr "I giocatori restano in questa partita finché non escono o vengono rimossi."
+
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Position"
+msgstr "Posizione"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+#~ msgid "Possible dates"
+#~ msgstr "Date possibili"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Powered by BoardGameGeek"
+msgstr "Con il supporto di BoardGameGeek"
+
+#: apps/web/src/components/games/SearchGamePage.tsx
+msgid "Previous"
+msgstr "Indietro"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Previous step"
-msgstr ""
+msgstr "Passaggio precedente"
 
-#: apps/web/src/components/Header.tsx
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/groups/GroupCard.tsx
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Private"
+msgstr "Privato"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Private group"
+msgstr "Gruppo privato"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed."
+msgstr "I gruppi privati sono solo su invito. Logo e sede verificata sono facoltativi. Il tipo del gruppo non può essere modificato."
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Private match"
+msgstr "Match privato"
+
+#: apps/web/src/components/common/layout/Header.tsx
 msgid "Profile"
 msgstr "Profilo"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose dates and times for members to vote on. Times are local to the chosen location."
+msgstr "Proponi date e orari da sottoporre al voto dei membri. Gli orari sono locali al luogo scelto."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Propose verified addresses for members to vote on. Each location determines its local time zone."
+msgstr "Proponi indirizzi verificati da sottoporre al voto dei membri. Ogni luogo determina il proprio fuso orario."
+
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+msgid "Proposed changes"
+msgstr "Modifiche proposte"
+
+#: apps/web/src/components/ratings/GameRating.tsx
+msgid "Provisional game rating"
+msgstr "Rating del gioco provvisorio"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Provisional rating"
+msgstr "Ranking provvisorio"
+
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/groups/GroupCard.tsx
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "Public"
+msgstr "Pubblico"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Public events have a fixed day and venue. Cutoff and duration constraints apply to players and demonstrators."
+msgstr "Gli eventi pubblici hanno giorno e luogo fissi. Il termine delle iscrizioni e i vincoli di durata si applicano a giocatori e dimostratori."
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Public group"
+msgstr "Gruppo pubblico"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Public group search and join requests will be available later. Only the admin can invite friends now."
+msgstr "La ricerca dei gruppi pubblici e le richieste di accesso arriveranno più avanti. Per ora solo l'amministratore può invitare amici."
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Public groups require a logo, verified venue and approval. Group type cannot be changed."
+msgstr "I gruppi pubblici richiedono logo, sede verificata e approvazione. Il tipo del gruppo non può essere modificato."
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Public match"
+msgstr "Match pubblico"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Publish event"
+msgstr "Pubblica evento"
+
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Published"
+msgstr "Pubblicato"
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Published events"
+msgstr "Eventi pubblicati"
+
+#: apps/web/src/components/games/GameCatalogMetadata.tsx
+msgid "Rank"
+msgstr "Posizione"
+
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Ranking"
+msgstr "Ranking"
+
+#: apps/web/src/components/groups/GroupDetail.tsx
+msgid "Rankings"
+msgstr "Classifiche"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+msgid "Rated"
+msgstr "Ranking attivo"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Rated tables update player ratings after final results. At least two players must have a score."
+msgstr "I tavoli con ranking attivo aggiornano le valutazioni dopo i risultati finali. Almeno due giocatori devono avere un punteggio."
+
+#: apps/web/src/components/events/EventTableRatingBadge.tsx
+msgid "Rating"
+msgstr "Rating"
+
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Rating before"
+msgstr "Ranking prima"
+
+#: apps/web/src/components/events/EventTableResults.tsx
+#~ msgid "Rating change"
+#~ msgstr "Variazione ranking"
+
+#: apps/web/src/components/ratings/GameRating.tsx
+msgid "Rating decreased"
+msgstr "Rating diminuito"
+
+#: apps/web/src/components/events/EventTableRatingBadge.tsx
+msgid "Rating disabled"
+msgstr "Classifica disattivata"
+
+#: apps/web/src/components/events/EventTableRatingBadge.tsx
+msgid "Rating enabled"
+msgstr "Classifica attiva"
+
+#: apps/web/src/components/ratings/GameRating.tsx
+msgid "Rating increased"
+msgstr "Rating aumentato"
+
+#: apps/web/src/components/ratings/GameRating.tsx
+msgid "Rating unchanged"
+msgstr "Rating invariato"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Received"
+msgstr "Ricevute"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+#~ msgid "Recent locations"
+#~ msgstr "Luoghi recenti"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Record results for every table to finalize the event. Finalization is irreversible. All-ND tables do not change ratings or statistics."
+msgstr "Compila i risultati di ogni tavolo per finalizzare l'evento. La finalizzazione è irreversibile. I tavoli con tutti ND non modificano ranking e statistiche."
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Register event results"
+msgstr "Registra risultati dell'evento"
+
+#: apps/web/src/components/matches/MatchResultsEditor.tsx
+msgid "Register match"
+msgstr "Registra partita"
+
+#: apps/web/src/components/matches/MatchResultsEditor.tsx
+msgid "Register match?"
+msgstr "Registrare la partita?"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Register results"
+msgstr "Registra risultati"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Register Table Result"
+msgstr "Registra risultato del tavolo"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Register Tables Results"
+msgstr "Registra risultati dei tavoli"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Registration closes at this local date and time, before the event starts. A new event needs a future cutoff."
+msgstr "Le iscrizioni chiudono in questa data e ora locale, prima dell’inizio dell’evento. Per un nuovo evento la scadenza deve essere futura."
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Registration closes on a day before the event starts. A new event needs a future deadline."
+msgstr "Le iscrizioni terminano in un giorno precedente all'inizio dell'evento. Un nuovo evento richiede un termine futuro."
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Registration Deadline Date and Time"
+msgstr "Date e ora Termine iscrizioni"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/components/groups/GroupReview.tsx
+msgid "Reject"
+msgstr "Rifiuta"
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Reject organization"
+msgstr "Rifiuta organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Reject organization invitation"
+msgstr "Rifiuta l'invito all'organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Reject reason"
+msgstr "Motivo del rifiuto"
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "Reject request"
+msgstr "Rifiuta richiesta"
+
+#: apps/web/src/components/groups/GroupReview.tsx
+msgid "Rejection reason"
+msgstr "Motivo del rifiuto"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove"
+msgstr "Elimina"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove and exclude"
+msgstr "Elimina-Blocca"
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "Remove date"
+msgstr "Rimuovi data"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Remove demonstrator"
+msgstr "Rimuovi dimostratore"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Remove friend"
+msgstr "Rimuovi dagli amici"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Remove friend?"
+msgstr "Rimuovere l'amico?"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Remove from group"
+msgstr "Rimuovi dal gruppo"
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "Remove from group?"
+msgstr "Rimuovere dal gruppo?"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Remove from organization"
+msgstr "Elimina"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
 msgid "Remove game"
-msgstr ""
+msgstr "Rimuovi gioco"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
 msgid "Remove invite"
-msgstr ""
+msgstr "Rimuovi invito"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Remove location"
+msgstr "Rimuovi luogo"
+
+#: apps/web/src/components/locations/LocationFavoriteButton.tsx
+msgid "Remove location from favorites"
+msgstr "Rimuovi location dai preferiti"
+
+#: apps/web/src/components/groups/GroupLogoPicker.tsx
+msgid "Remove logo"
+msgstr "Rimuovi logo"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Remove member"
+msgstr "Rimuovi membro"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Remove player"
+msgstr "Rimuovi giocatore"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Remove player?"
+msgstr "Rimuovere il giocatore?"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Remove players who are not members of the selected group"
+msgstr "Rimuovi i giocatori che non sono membri del gruppo selezionato"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Remove slot"
-msgstr ""
+msgstr "Rimuovi data"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Remove table"
+msgstr "Rimuovi tavolo"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Remove tie-break"
+msgstr "Rimuovi spareggio"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Reopen planning"
+msgstr "Riapri pianificazione"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Reopen planning? Pending invitees will regain access and accepted players will be notified."
+msgstr "Riaprire la pianificazione? Gli invitati in attesa riavranno accesso e i giocatori che hanno accettato riceveranno una notifica."
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "Request a place"
+msgstr "Richiedi un posto"
+
+#: apps/web/src/components/groups/GroupJoinRequest.tsx
+msgid "Request membership"
+msgstr "Richiedi l'appartenenza"
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Request to join"
+msgstr "Richiedi partecipazione"
+
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Requested"
+msgstr "Richieste"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Requests"
+msgstr "Richieste"
+
+#: apps/web/src/components/organizations/OrganizationDetail.tsx
+#~ msgid "Requests and invitations"
+#~ msgstr "Richieste e inviti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Requests awaiting their reply."
+msgstr "Richieste in attesa della loro risposta."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Requests awaiting your reply."
+msgstr "Richieste in attesa della tua risposta."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Reserve a place"
+msgstr "Riserva posto"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Reserved place"
+msgstr "Posto riservato"
+
+#: apps/web/src/components/events/EventTableCardBody.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "reserved places"
+msgstr "posti riservati"
+
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Reserved places, including pending requests."
+msgstr "Posti riservati, comprese le richieste in attesa."
 
 #: apps/web/src/components/Counter.tsx
 #~ msgid "Reset"
 #~ msgstr "Azzera"
 
-#: apps/web/src/components/Profile.tsx
+#: apps/web/src/components/events/EventTableEdit.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Reset reservations"
+msgstr "Annulla prenotazioni"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Resolve tie"
+msgstr "Risolvi parità"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Respond to friend request"
+msgstr "Rispondi alla richiesta di amicizia"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Respond to membership request"
+msgstr "Rispondi alla richiesta d'ingresso"
+
+#: apps/web/src/components/organizations/OrganizationInvitationResponse.tsx
+msgid "Respond to organization invitation"
+msgstr "Rispondi all'invito all'organizzazione"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Respond to participation request"
+msgstr "Rispondi alla richiesta di partecipazione"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Respond to table invitation"
+msgstr "Rispondi all’invito al tavolo"
+
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/events/EventTableResults.tsx
+msgid "Results"
+msgstr "Risultati"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Results and ratings for all included tables become immutable together."
+msgstr "Risultati e ranking di tutti i tavoli inclusi diventano immutabili insieme."
+
+#: apps/web/src/components/matches/MatchResultsEditor.tsx
+msgid "Results and standings will become final and cannot be edited."
+msgstr "Risultati e classifica saranno definitivi e non potranno più essere modificati."
+
+#~ msgid "Results can only be registered by the match administrator before termination."
+#~ msgstr "Solo l'amministratore può registrare i risultati prima che la partita sia terminata."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+#: apps/web/src/components/profile/Profile.tsx
 msgid "Retry"
 msgstr "Riprova"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Review"
+msgstr "Riepilogo"
+
+#: apps/web/src/components/groups/GroupReview.tsx
+msgid "Review completed"
+msgstr "Revisione completata"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Review event"
+msgstr "Riepilogo dell'evento"
+
+#: apps/web/src/components/organizations/OrganizationModeration.tsx
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "Review organization"
+msgstr "Esamina organizzazione"
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "Revoke exclusion"
+msgstr "Revoca esclusione"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Revoke group exclusion"
+msgstr "Revoca l'esclusione dal gruppo"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Revoking an exclusion does not restore membership or registrations. A new invitation or request is required."
+msgstr "La revoca dell'esclusione non ripristina l'appartenenza o le iscrizioni. È necessario un nuovo invito o una nuova richiesta."
+
+#: apps/web/src/components/groups/Groups.tsx
+#~ msgid "Save"
+#~ msgstr "Salva"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Save changes"
+msgstr "Salva modifiche"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Save draft"
+msgstr "Salva bozza"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Save event"
+msgstr "Salva evento"
+
+#: apps/web/src/components/events/EventTableEditor.tsx
+msgid "Save table"
+msgstr "Salva tavolo"
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Saving"
+msgstr "Salvataggio in corso"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Saving…"
+msgstr "Salvataggio…"
+
+#: apps/web/src/components/events/EventTableResults.tsx
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Score"
+msgstr "Punteggio"
+
+#: apps/web/src/components/events/EventResultTableCard.tsx
+msgid "Scores ready"
+msgstr "Punteggi pronti"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Scores required"
+msgstr "Punteggi richiesti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#: apps/web/src/components/groups/Groups.tsx
 msgid "Search"
-msgstr "Cerca"
+msgstr "Ricerca"
 
-#: apps/web/src/components/SearchGamePage.tsx
-msgid "Search board games (at least 4 characters)"
-msgstr ""
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Search address"
+msgstr "Cerca indirizzo"
 
-#: apps/web/src/components/SearchGamePage.tsx
-#: apps/web/src/components/SearchUserPage.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+msgid "Search board games"
+msgstr "Cerca giochi da tavolo"
+
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#~ msgid "Search board games (at least 4 characters)"
+#~ msgstr "Cerca giochi da tavolo (almeno 4 caratteri)"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Search countries"
+msgstr "Cerca paesi"
+
+#: apps/web/src/app/mobile-number/page.tsx
+msgid "Search countries by name or code"
+msgstr "Cerca paesi per nome o prefisso"
+
+#: apps/web/src/components/events/Events.tsx
+msgid "Search events"
+msgstr "Cerca eventi"
+
+#: apps/web/src/components/contacts/SearchUserPage.tsx
 msgid "Search failed"
-msgstr ""
+msgstr "Ricerca non riuscita"
 
-#: apps/web/src/components/Contacts.tsx
-#: apps/web/src/components/SearchUserPage.tsx
-msgid "Search users (at least 4 characters)"
-msgstr "Cerca utenti (almeno 4 caratteri)"
+#: apps/web/src/components/games/SearchGamePage.tsx
+msgid "Search failed. Retry"
+msgstr "Ricerca non riuscita. Riprova"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "Search friends"
+msgstr "Cerca amici"
+
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+#: apps/web/src/components/groups/GroupModeration.tsx
+msgid "Search groups"
+msgstr "Cerca gruppi"
+
+#: apps/web/src/components/groups/Groups.tsx
+#~ msgid "Search groups (at least 4 characters)"
+#~ msgstr "Cerca gruppi (almeno 4 caratteri)"
+
+#: apps/web/src/components/community/CommunityDiscovery.tsx
+msgid "Search groups and organizations"
+msgstr "Cerca gruppi ed organizzazioni"
+
+#: apps/web/src/components/common/ui/SearchHelpLabel.tsx
+msgid "Search help"
+msgstr "Aiuto ricerca"
+
+#: apps/web/src/components/matches/Matches.tsx
+msgid "Search matches"
+msgstr "Cerca partite"
+
+#: apps/web/src/components/matches/Matches.tsx
+#~ msgid "Search matches (at least 4 characters)"
+#~ msgstr "Cerca partite (almeno 4 caratteri)"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/groups/GroupMemberPicker.tsx
+msgid "Search members"
+msgstr "Cerca membri"
+
+#: apps/web/src/components/organizations/OrganizationMemberPicker.tsx
+msgid "Search organization members"
+msgstr "Cerca membri dell'organizzazione"
+
+#: apps/web/src/components/organizations/Organizations.tsx
+msgid "Search organizations"
+msgstr "Cerca organizzazioni"
+
+#: apps/web/src/components/groups/GroupList.tsx
+msgid "Search public groups"
+msgstr "Cerca gruppi pubblici"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Search results"
+msgstr "Risultati di ricerca"
+
+#: apps/web/src/components/events/Tables.tsx
+msgid "Search tables"
+msgstr "Cerca tavoli"
+
+msgid "Search time"
+msgstr "Cerca orario"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+msgid "Search users"
+msgstr "Cerca utenti"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+#~ msgid "Search users (at least 4 characters)"
+#~ msgstr "Cerca utenti (almeno 4 caratteri)"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
 msgid "Search users by name or email"
 msgstr "Cerca utenti per nome o email"
 
-#: apps/web/src/components/SearchGamePage.tsx
+#: apps/web/src/components/events/EventTableSummaryCard.tsx
+msgid "Seated accepted players / minimum required"
+msgstr "Giocatori accettati con posto / minimo richiesto"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason."
+msgstr "I giocatori con un posto concordano su data e luogo, ma non sul gioco. Modifica i voti o i giochi; i giocatori in lista d'attesa non possono sostituirli per questo motivo."
+
+#: apps/web/src/components/events/EventTable.tsx
+msgid "Seats"
+msgstr "Posti"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Seats list"
+msgstr "Lista posti"
+
+#: apps/web/src/components/games/SearchGamePage.tsx
 msgid "Select"
-msgstr ""
+msgstr "Seleziona"
 
-#: apps/web/src/components/MatchWizard.tsx
-#: apps/web/src/components/SearchGamePage.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
 msgid "Select a board game"
-msgstr ""
+msgstr "Seleziona un gioco da tavolo"
 
-#: apps/web/src/components/MatchWizard.tsx
+msgid "Select a board game."
+msgstr "Seleziona un gioco da tavolo."
+
+msgid "Select a confirmed organization member or remove the demonstrator."
+msgstr "Seleziona un membro confermato dell'organizzazione o rimuovi il dimostratore."
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Select a favorite location"
+msgstr "Seleziona una location preferita"
+
+#: apps/web/src/components/groups/Groups.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
 msgid "Select a friend"
-msgstr ""
+msgstr "Seleziona un amico"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+#~ msgid "Select a recent location"
+#~ msgstr "Seleziona un luogo recente"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Select group member"
+msgstr "Seleziona un membro del gruppo"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+msgid "Select location"
+msgstr "Seleziona Location"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/groups/GroupMemberPicker.tsx
+msgid "Select user"
+msgstr "Seleziona utente"
+
+#: apps/web/src/components/events/EventTableEditor.tsx
+msgid "Selected demonstrator"
+msgstr "Dimostratore selezionato"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+msgid "Selected game"
+msgstr "Gioco selezionato"
+
+#: apps/web/src/components/matches/MatchWizard.tsx
+msgid "Selected group is unavailable"
+msgstr "Il gruppo selezionato non è disponibile"
+
+#~ msgid "Send"
+#~ msgstr "Invia"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Send friend request"
+msgstr "Invia richiesta di amicizia"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Send friend request?"
+msgstr "Inviare la richiesta di amicizia?"
+
+msgid "Send invite"
+msgstr "Invia invito"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Send request"
+msgstr "Invia richiesta"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Sending invitation"
+msgstr "Invio dell'invito in corso"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+msgid "Sent"
+msgstr "Inviate"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Set the table capacity above the minimum number of players."
+msgstr "Imposta una capienza superiore al numero minimo di giocatori."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Set the table capacity at or above the minimum number of players."
+msgstr "Imposta la capienza del tavolo uguale o superiore al numero minimo di giocatori."
+
+#: apps/web/src/components/events/EventTableInfo.tsx
+msgid "Settings"
+msgstr "Impostazioni"
 
 #~ msgid "Share"
 #~ msgstr "Condividi"
@@ -435,18 +4600,18 @@ msgstr ""
 #~ msgid "Share link"
 #~ msgstr "Condividi link"
 
-#: apps/mobile/src/app/_layout.tsx
-#~ msgid "Sign in"
-#~ msgstr "Accedi"
+#: apps/mobile/src/app/_layout.tsx (mobile-only, runtime useT)
+msgid "Sign in"
+msgstr "Accedi"
 
-#: apps/web/src/components/Header.tsx
-#: apps/web/src/components/LoginFallback.tsx
+#: apps/web/src/components/auth/LoginFallback.tsx
+#: apps/web/src/components/common/layout/Header.tsx
 msgid "Sign In"
 msgstr "Accedi"
 
-#: apps/mobile/src/components/LoginFallback.tsx
-#~ msgid "Sign in / Register"
-#~ msgstr "Accedi / Registrati"
+#: apps/mobile/src/components/auth/LoginFallback.tsx (mobile-only, runtime useT)
+msgid "Sign in / Register"
+msgstr "Accedi / Registrati"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
 #~ msgid "Sign in to claim"
@@ -456,68 +4621,671 @@ msgstr "Accedi"
 #~ msgid "Sign in to claim this invite and connect with the inviter."
 #~ msgstr "Accedi per accettare questo invito e connetterti con chi ti ha invitato."
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/contacts/Contacts.tsx
 msgid "Sign in to see your contacts"
 msgstr "Accedi per vedere i tuoi contatti"
 
-#: apps/web/src/components/Header.tsx
-#: apps/web/src/components/LoginFallback.tsx
+#: apps/web/src/components/auth/LoginFallback.tsx
+#: apps/web/src/components/common/layout/Header.tsx
 msgid "Sign Up"
 msgstr "Registrati"
 
-#: apps/mobile/src/components/Profile.tsx
+#: apps/mobile/src/components/auth/LoginFallback.tsx (mobile-only, runtime useT)
 #~ msgid "Sign-in unavailable"
 #~ msgstr "Accesso non disponibile"
 
-#: apps/web/src/components/Contacts.tsx
-msgid "Suggestions"
-msgstr "Suggerimenti"
+#: apps/web/src/components/matches/MatchDetail.tsx
+#~ msgid "Standings"
+#~ msgstr "Classifica"
 
-#: apps/web/src/components/Contacts.tsx
-msgid "Sync your address book from the mobile app to see friend suggestions here."
-msgstr "Sincronizza la rubrica dall'app mobile per vedere suggerimenti di amici qui."
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Start Date and Time"
+msgstr "Data e ora di inizio"
 
-#: apps/web/src/components/Header.tsx
+#: apps/web/src/components/common/ui/DateTimeInfo.tsx
+msgid "Start time"
+msgstr "Ora di inizio"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Start/end time"
+msgstr "Orario di inizio/fine"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventTableEditor.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Starts at"
+msgstr "Inizia alle"
+
+#: apps/web/src/components/common/ui/WizardSteps.tsx
+msgid "Steps"
+msgstr "Passaggi"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Strategy table"
+msgstr "Tavolo di strategia"
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "Submit for review"
+msgstr "Invia per approvazione"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "Suggestions"
+#~ msgstr "Suggerimenti"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Sync"
+msgstr "Sincronizza"
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Sync with BoardGameGeek"
+msgstr "Sincronizza con BoardGameGeek"
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "Sync your address book from the mobile app to see friend suggestions here."
+#~ msgstr "Sincronizza la rubrica dall'app mobile per vedere suggerimenti di amici qui."
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Synced collection games will be removed from your profile. Existing matches remain unchanged."
+msgstr "I giochi sincronizzati della collezione verranno rimossi dal profilo. Le partite esistenti non cambieranno."
+
+#: apps/web/src/components/profile/Profile.tsx
+msgid "Syncing BoardGameGeek collection"
+msgstr "Sincronizzazione della collezione BoardGameGeek in corso"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Table"
+msgstr "Tavolo"
+
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Table details"
+msgstr "Dettagli del tavolo"
+
+msgid "Table end must be after table start and before event end."
+msgstr "La fine del tavolo deve essere successiva al suo inizio e precedente alla fine dell'evento."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table game help"
+msgstr "Guida al gioco del tavolo"
+
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+msgid "Table leaderboard"
+msgstr "Ranking del tavolo"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/matches/MatchListLegend.tsx
+msgid "Table list"
+msgstr "Lista Tavoli"
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Table location help"
+msgstr "Guida al luogo del tavolo"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Table name"
+msgstr "Nome del tavolo"
+
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Table name help"
+msgstr "Aiuto nome del tavolo"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Table seats"
+msgstr "Posti tavolo"
+
+#: apps/web/src/components/events/EventTable.tsx
+msgid "Table sections"
+msgstr "Sezioni del tavolo"
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "Table start"
+msgstr "Inizio tavolo"
+
+msgid "Table start must be after event start and before event end."
+msgstr "L'inizio del tavolo deve essere successivo all'inizio dell'evento e precedente alla sua fine."
+
+#: apps/web/src/components/common/layout/Header.tsx
+#: apps/web/src/components/events/EventCard.tsx
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Tables"
+msgstr "Tavoli"
+
+#: apps/web/src/components/events/EventResults.tsx
+msgid "Tables list"
+msgstr "Lista tavoli"
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+msgid "Temporary exclusion"
+msgstr "Esclusione temporanea"
+
+#: apps/web/src/components/events/EventStatusBadge.tsx
+msgid "Terminated"
+msgstr "Terminata"
+
+#: apps/web/src/components/matches/MatchListLegend.tsx
+msgid "The calendar identifies a table belonging to an event."
+msgstr "Il calendario identifica un tavolo di un evento."
+
+#: apps/web/src/components/matches/MatchListLegend.tsx
+msgid "The crown identifies the match administrator."
+msgstr "La corona identifica l’amministratore del match."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "The date is fixed to the event day. Choose a time after the event starts; the whole table must finish before it ends."
+msgstr "La data è fissata al giorno dell'evento. Scegli un orario successivo all'inizio; il tavolo deve terminare entro la fine dell'evento."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "The date is fixed to the event day. Choose a time at or after the event starts; the whole table must finish by the event end."
+msgstr "Il giorno è quello dell'evento. Scegli un orario uguale o successivo all'inizio dell'evento; l'intero tavolo deve concludersi entro la fine dell'evento."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "The demonstrator explains the game and can record this table's results. This role does not automatically reserve a player seat."
+msgstr "Il dimostratore spiega il gioco e può registrare i risultati del tavolo. Questo ruolo non riserva automaticamente un posto come giocatore."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "The end must follow the event start. All public tables must finish within this interval."
+msgstr "La fine deve essere successiva all’inizio dell’evento. Tutti i tavoli pubblici devono terminare entro questo intervallo."
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "The event date and start/end times are shown in the event's time zone."
+msgstr "La data e gli orari di inizio e fine sono mostrati nel fuso orario dell'evento."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "The event day and this table's start and end times are fixed. There is no voting."
+msgstr "Il giorno dell’evento e gli orari di inizio e fine del tavolo sono fissi. Non si vota."
+
+#: apps/web/src/components/events/EventDetail.tsx
+#~ msgid "The event name identifies this event and all its tables."
+#~ msgstr "Il nome identifica questo evento e tutti i suoi tavoli."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+msgid "The event starts at this local time. Its time zone is determined automatically from the selected location."
+msgstr "L’evento inizia a questa ora locale. Il fuso orario viene determinato automaticamente dal luogo selezionato."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "The friend request will be declined."
+msgstr "La richiesta di amicizia verrà rifiutata."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "The friendship and your follow will be removed."
+msgstr "L'amicizia e il tuo follow verranno rimossi."
+
+#: apps/web/src/components/events/EventDetail.tsx
+#~ msgid "The group associated with this event. Standalone events have no group."
+#~ msgstr "Il gruppo associato a questo evento. Gli eventi indipendenti non hanno un gruppo."
+
+#: apps/web/src/components/groups/GroupDetailsCard.tsx
+msgid "The group's verified venue and full address."
+msgstr "La sede verificata del gruppo e l'indirizzo completo."
+
+#: apps/web/src/components/events/EventTableInfo.tsx
+msgid "The minimum is required for agreement. The maximum limits reserved places; additional players remain in the waiting queue."
+msgstr "Il minimo è necessario per raggiungere un accordo. Il massimo limita i posti riservati; i giocatori aggiuntivi restano in coda d'attesa."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "The minimum must be at least two and cannot exceed the maximum."
+msgstr "Il minimo deve essere almeno due e non può superare il massimo."
+
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+msgid "The minimum must be at least two and lower than the maximum."
+msgstr "Il minimo deve essere almeno due e inferiore al massimo."
+
+#: apps/web/src/components/organizations/OrganizationMembers.tsx
+msgid "The organization invitation will be cancelled. You can invite this user again."
+msgstr "L'invito all'organizzazione verrà annullato. Potrai invitare nuovamente questo utente."
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "The organization's name and logo identify it. The badge shows approval or review status. Counts include confirmed members and published events."
+msgstr "Il nome e il logo identificano l'organizzazione. Il badge indica lo stato di approvazione o revisione. I contatori mostrano i membri confermati e gli eventi pubblicati."
+
+#: apps/web/src/components/organizations/OrganizationDetailsCard.tsx
+msgid "The organization's verified venue and full address."
+msgstr "La sede e l'indirizzo completo verificati dell'organizzazione."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "The sent friend request will be removed."
+msgstr "La richiesta di amicizia inviata verrà rimossa."
+
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "The verified venue and address where the event takes place."
+msgstr "Il luogo e l'indirizzo verificati in cui si svolge l'evento."
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "These are draft scores. Nothing is saved until you finalize the whole event."
+msgstr "Questi punteggi sono provvisori. Nulla viene salvato finché non finalizzi l'intero evento."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "They can accept or decline your request."
+msgstr "Potrà accettare o rifiutare la tua richiesta."
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "This affects group membership only. Historical results remain unchanged."
+msgstr "Questa azione riguarda solo l'appartenenza al gruppo. I risultati storici restano invariati."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "This contact will no longer be blocked."
+msgstr "Questo contatto non sarà più bloccato."
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "This deletes the match and all invitations. This action cannot be undone."
+msgstr "Questa operazione elimina la partita e tutti gli inviti. Non può essere annullata."
+
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "This event belongs to this group. The group cannot be changed."
+msgstr "L’evento appartiene a questo gruppo. Il gruppo non può essere modificato."
+
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "This event changed. Go back and reopen the editor before saving."
+msgstr "L'evento è cambiato. Torna indietro e riapri la modifica prima di salvare."
+
+#: apps/web/src/components/groups/GroupWizard.tsx
+msgid "This group changed. Go back and reopen the editor before saving."
+msgstr "Questo gruppo è cambiato. Torna indietro e riapri l'editor prima di salvare."
+
+#: apps/web/src/components/events/EventTableInfo.tsx
+#~ msgid "This name identifies the table within its event."
+#~ msgstr "Questo nome identifica il tavolo all'interno del suo evento."
+
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "This notification will be permanently deleted."
+msgstr "Questa notifica verrà eliminata definitivamente."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "This place is already reserved and cannot be selected. It may belong to a pending request or a player whose details are not currently shown."
+msgstr "Questo posto è già riservato e non può essere selezionato. Può corrispondere a una richiesta in attesa o a un giocatore i cui dettagli non sono attualmente visibili."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "This place is free, but booking is currently unavailable to you."
+msgstr "Questo posto è libero, ma al momento non puoi prenotarlo."
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+#~ msgid "This player belongs to a confirmed public event whose cutoff has passed. Exclusion is not allowed."
+#~ msgstr ""
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "This player's reserved place will become available again."
+msgstr "Il posto riservato di questo giocatore tornerà disponibile."
+
+#: apps/web/src/components/organizations/OrganizationReview.tsx
+msgid "This proposal has already been reviewed."
+msgstr "Questa proposta è già stata esaminata."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "This removes the active table registration."
+msgstr "Questa azione rimuove l'iscrizione attiva al tavolo."
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "This removes the invitation and the player from this match. Blocking or removing a friend alone does not remove them."
+msgstr "Questo rimuove l'invito e il giocatore dalla partita. Bloccare o rimuovere un amico non lo rimuove dalla partita."
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "This removes the invitation or member from the group. You can invite them again."
+msgstr "Questo rimuove l'invito o il membro dal gruppo. Puoi invitarlo di nuovo."
+
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "This reservation will be removed. The player can request a place again before the deadline."
+msgstr "La prenotazione sarà rimossa. Il giocatore potrà richiedere nuovamente un posto prima della scadenza."
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "This table and its active registrations will be removed only when you save the event."
+msgstr "Il tavolo e le sue iscrizioni attive verranno rimossi solo quando salvi l'evento."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "This table uses the event's verified venue and address. There is no location voting."
+msgstr "Il tavolo usa il luogo e l’indirizzo verificati dell’evento. Non si vota sul luogo."
+
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "This table's game is fixed. The cover, BoardGameGeek rating and rank describe the selected game, not player ratings."
+msgstr "Il gioco del tavolo è fisso. Copertina, voto e posizione BoardGameGeek descrivono il gioco scelto, non il rating dei giocatori."
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "This user is already registered, invited, or assigned as a demonstrator at another table with overlapping times."
+msgstr "Questo utente è già iscritto, invitato o assegnato come dimostratore a un altro tavolo con orari sovrapposti."
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "This user is involved in a frozen public event and cannot be excluded."
+msgstr "Questo utente partecipa a un evento pubblico bloccato dopo il termine delle iscrizioni e non può essere escluso."
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Tie-break applied"
+msgstr "Spareggio applicato"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Tied score"
+msgstr "Punteggio pari"
+
+#. Native runtime message
+msgid "Time"
+msgstr "Ora"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Time zone"
+msgstr "Fuso orario"
+
+#: apps/web/src/components/groups/GroupBanDialog.tsx
+msgid "Time zone: {zone}"
+msgstr "Fuso orario: {zone}"
+
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Times are local to the location chosen for the event."
+msgstr "Gli orari sono locali al luogo scelto per l'evento."
+
+#: apps/web/src/components/common/layout/Header.tsx
 msgid "Toggle menu"
 msgstr "Attiva/disattiva menu"
 
-#: apps/web/src/components/Contacts.tsx
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+#: apps/web/src/components/events/EventDetail.tsx
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/events/EventResults.tsx
+#: apps/web/src/components/events/Events.tsx
+#: apps/web/src/components/events/EventScheduleFields.tsx
+#: apps/web/src/components/events/EventTable.tsx
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+#: apps/web/src/components/events/EventWizard.tsx
+#: apps/web/src/components/events/Tables.tsx
+#: apps/web/src/components/groups/GroupDetail.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+#: apps/web/src/components/groups/GroupMemberPicker.tsx
+#: apps/web/src/components/groups/GroupMembers.tsx
+#: apps/web/src/components/groups/GroupModeration.tsx
+#: apps/web/src/components/groups/GroupPeoplePicker.tsx
+#: apps/web/src/components/groups/GroupReview.tsx
+#: apps/web/src/components/groups/GroupWizard.tsx
+#: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Try again"
+msgstr "Riprova"
+
+#: apps/web/src/components/common/ui/ListSearch.tsx
+#: apps/web/src/components/contacts/Contacts.tsx
+#: apps/web/src/components/contacts/SearchUserPage.tsx
+#: apps/web/src/components/events/EventGroupSelect.tsx
+#: apps/web/src/components/games/SearchGamePage.tsx
+#: apps/web/src/components/groups/GroupLeaderboard.tsx
 msgid "Type at least 4 characters to search"
 msgstr "Digita almeno 4 caratteri per cercare"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Unable to load data. Try again."
+msgstr "Impossibile caricare i dati. Riprova."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Unblock"
 msgstr "Sblocca"
 
-#: apps/web/src/components/Contacts.tsx
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "Unblock contact?"
+msgstr "Sbloccare il contatto?"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "Unfollow"
 msgstr "Non seguire più"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+#: apps/web/src/components/events/EventDraftTableEditor.tsx
+#: apps/web/src/components/events/EventJoinSheet.tsx
+#: apps/web/src/components/events/EventResultTableCard.tsx
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventTableLeaderboard.tsx
+#: apps/web/src/components/events/EventTableOverview.tsx
+msgid "Unknown"
+msgstr "Non indicato"
+
+#: apps/web/src/components/events/EventWizard.tsx
+msgid "Unloaded tables are retained. Only explicit removals delete tables."
+msgstr "I tavoli non caricati vengono conservati. Saranno eliminati soltanto quelli rimossi esplicitamente."
+
+#: apps/web/src/components/games/GameCatalogMetadata.tsx
+msgid "Unranked"
+msgstr "Non classificato"
+
+#: apps/web/src/components/events/EventDraftTableCard.tsx
+msgid "Unrated"
+msgstr "Ranking disattivo"
+
+#: apps/web/src/components/groups/GroupLogoPicker.tsx
+msgid "Upload"
+msgstr "Carica"
+
+#: apps/web/src/components/groups/GroupLogoPicker.tsx
+msgid "Upload group logo"
+msgstr "Carica il logo del gruppo"
+
+#: apps/web/src/components/organizations/OrganizationWizard.tsx
+msgid "Upload organization logo"
+msgstr "Carica logo dell’organizzazione"
+
+#: apps/web/src/components/locations/SearchLocationPage.tsx
+#~ msgid "Use my location"
+#~ msgstr "Usa la mia posizione"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Use table scores"
+msgstr "Usa punteggi del tavolo"
+
+#: apps/web/src/components/events/TableScoreEditor.tsx
+msgid "Use table scores?"
+msgstr "Usare i punteggi del tavolo?"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User blocked"
+msgstr "Utente bloccato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User followed"
+msgstr "Utente seguito"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User unblocked"
+msgstr "Utente sbloccato"
+
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "User unfollowed"
+msgstr "Utente non più seguito"
+
+#: apps/web/src/components/groups/GroupMembers.tsx
+msgid "Username unavailable"
+msgstr "Nome utente non disponibile"
+
+#: apps/mobile/src/components/events/EventTableHeading.tsx
+#: apps/web/src/components/events/EventTableHeading.tsx
+msgid "Users icon: confirmed players. Armchair icon: maximum seats in the summary and free places in Players. Lock icon: reserved places, including pending requests."
+msgstr "Icona utenti: giocatori confermati. Icona poltrona: posti massimi nel riepilogo e posti liberi nella scheda Giocatori. Icona lucchetto: posti riservati, comprese le richieste in attesa."
+
+#: apps/mobile/src/components/events/EventOverview.tsx
+#: apps/web/src/components/events/EventOverview.tsx
+msgid "Users icon: distinct participants with a confirmed place at an active table. Each participant is counted once. Grid icon: event tables, excluding cancelled tables."
+msgstr "Icona utenti: partecipanti con un posto confermato in un tavolo attivo, contati una sola volta. Icona griglia: tavoli dell'evento, esclusi quelli annullati."
+
+#: apps/web/src/components/events/EventWizardSummary.tsx
+msgid "Verified addresses proposed for this event."
+msgstr "Indirizzi verificati proposti per questo evento."
+
+#: apps/web/src/components/common/ui/ClientRecordBadge.tsx
+msgid "Verifying"
+msgstr "Verifica in corso"
+
+#: apps/web/src/components/notifications/NotificationBell.tsx
+msgid "View all notifications"
+msgstr "Vedi tutte le notifiche"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "View profile"
 msgstr "Visualizza profilo"
 
-#: apps/web/src/components/LoginFallback.tsx
+#: apps/web/src/components/events/EventTableDetail.tsx
+msgid "View results"
+msgstr "Visualizza risultati"
+
+#: apps/web/src/components/matches/VoteLegend.tsx
+msgid "Vote count legend"
+msgstr "Legenda dei voti"
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every date and location. Accept at least one of each to join. You can change these votes from the event."
+msgstr "Vota ogni data e luogo. Accetta almeno una data e un luogo per partecipare. Puoi modificare questi voti nei dettagli dell’evento."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every date, location and game. Accept at least one of each to accept the invitation."
+msgstr "Esprimi un voto per ogni data, luogo e gioco. Accetta almeno un'opzione per categoria per accettare l'invito."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every date, location and game. Accept at least one of each to join."
+msgstr "Vota ogni data, luogo e gioco. Per partecipare indica almeno un Sì o Se necessario per ciascuna categoria."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every game for this table. Accept at least one to accept the invitation."
+msgstr "Esprimi un voto per ogni gioco di questo tavolo. Accettane almeno uno per accettare l'invito."
+
+#: apps/web/src/components/events/EventJoinSheet.tsx
+msgid "Vote on every game for this table. Accept at least one to join. Event preferences stay unchanged."
+msgstr "Vota ogni gioco di questo tavolo. Per partecipare indica almeno un Sì o Se necessario. Le preferenze dell’evento restano invariate."
+
+#: apps/web/src/components/events/EventVoteCounts.tsx
+msgid "Votes"
+msgstr "Voti"
+
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended."
+msgstr "Voti, inviti e priorità della lista d'attesa vengono conservati. Il termine delle iscrizioni non viene prorogato."
+
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "Voting legend"
+msgstr "Legenda voti"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Wait for the current action to finish before reserving a place."
+msgstr "Attendi il completamento dell'operazione in corso prima di prenotare un posto."
+
+#: apps/web/src/components/events/EventTableSummaryCard.tsx
+msgid "Waiting"
+msgstr "In attesa"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "Waiting list"
+msgstr "Lista di attesa"
+
+msgid "When all places are reserved, new players join the waiting list. Priority is preserved, and a place may become available when another player leaves. Pending invitations do not count toward agreement."
+msgstr "Quando tutti i posti sono riservati, i nuovi giocatori entrano nella lista di attesa. La priorità viene mantenuta e un posto può liberarsi quando un altro giocatore lascia il tavolo. Gli inviti in sospeso non contano per l'accordo."
+
+#: apps/web/src/components/auth/LoginFallback.tsx
 msgid "Welcome to Board Game Organizer"
 msgstr "Benvenuto in Board Game Organizer"
 
-#: apps/web/src/components/MatchWizard.tsx
+#: apps/web/src/components/matches/MatchWizard.tsx
 msgid "When could you play?"
-msgstr ""
+msgstr "Quando potresti giocare?"
 
-#: apps/mobile/src/app/(tabs)/contacts.tsx (mobile-only, runtime useT)
-#~ msgid "Yes"
-#~ msgstr "Sì"
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Why can't I reserve this place?"
+msgstr "Perché non posso prenotare questo posto?"
 
-#: apps/web/src/components/Contacts.tsx
-msgid "You are not following anyone yet"
-msgstr "Non segui ancora nessuno"
+#: apps/web/src/components/events/EventDetail.tsx
+msgid "Why confirmation is unavailable"
+msgstr "Perché la conferma non è disponibile"
+
+#: apps/web/src/components/contacts/PeoplePicker.tsx
+msgid "Why invitation is unavailable"
+msgstr "Perché l'invito non è disponibile"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Why is this place reserved?"
+msgstr "Perché questo posto è riservato?"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Winner"
+msgstr "Vincitore"
+
+#: apps/web/src/components/events/EventTableCard.tsx
+msgid "Winners"
+msgstr "Vincitori"
+
+#: apps/web/src/components/events/EventVoteButtons.tsx
+#: apps/web/src/components/events/EventVoteCounts.tsx
+#: apps/web/src/components/events/EventVoteLegend.tsx
+msgid "Yes"
+msgstr "Sì"
+
+#: apps/web/src/components/events/EventTableSeats.tsx
+msgid "You"
+msgstr "Tu"
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "You already have a reservation or pending request for this table."
+msgstr "Hai già una prenotazione o una richiesta in attesa per questo tavolo."
+
+#: apps/web/src/components/contacts/Contacts.tsx
+#~ msgid "You are not following anyone yet"
+#~ msgstr "Non segui ancora nessuno"
 
 #: apps/web/src/components/ClaimInvitePage.tsx
 #~ msgid "You have been invited"
 #~ msgstr "Sei stato invitato"
 
-#: apps/web/src/components/UserMenu.tsx
+#: apps/web/src/lib/useMutationFeedback.ts
+msgid "You left the match"
+msgstr "Hai lasciato la partita"
+
+#: apps/web/src/components/contacts/UserMenu.tsx
+msgid "You will become friends and follow each other."
+msgstr "Diventerete amici e vi seguirete a vicenda."
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "You will leave this match. The administrator can invite you again."
+msgstr "Uscirai da questa partita. L'amministratore potrà invitarti di nuovo."
+
+#: apps/web/src/components/groups/Groups.tsx
+msgid "You will need a new invitation to rejoin."
+msgstr "Per rientrare servirà un nuovo invito."
+
+#: apps/web/src/components/contacts/UserMenu.tsx
 msgid "You will no longer see each other or find each other. Follow and friendships will be removed."
 msgstr "Non vi vedrete più né potrete trovarvi. Follow e amicizie verranno rimossi."
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Your invitation is waiting for a response."
+msgstr "Il tuo invito è in attesa di una risposta."
+
+#: apps/web/src/components/matches/MatchDetail.tsx
+msgid "Your join request is waiting for admin approval."
+msgstr "La tua richiesta di partecipazione è in attesa dell'approvazione dell'admin."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Your place will be reserved while an administrator reviews your request. You will be notified when it is accepted or rejected."
+msgstr "Il posto resterà riservato mentre un amministratore valuta la richiesta. Riceverai una notifica quando sarà accettata o rifiutata."
+
+#: apps/web/src/components/events/EventTablePlayers.tsx
+msgid "Your reserved place will become available again."
+msgstr "Il tuo posto riservato tornerà disponibile."
+
+#~ msgid "YYYY-MM-DDTHH:mm"
+#~ msgstr "AAAA-MM-GGTHH:mm"
+
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_event.success"
+msgstr "Evento eliminato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_event.error"
+msgstr "Impossibile eliminare l’evento"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_table.success"
+msgstr "Tavolo eliminato"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_table.error"
+msgstr "Impossibile eliminare il tavolo"

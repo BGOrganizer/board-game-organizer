@@ -1,0 +1,423 @@
+# Unified Groups, Events and Tables
+
+This is the approved contract implemented on `feat/social-api-refactor` (existing PR #22).
+It describes the current source, not a deployed or E2E-accepted release. Verification and remaining
+runtime limitations are recorded in [implementation progress](implementation-progress.md).
+The [old contract](organizations-events.md) is retained as a historical deployment reference only.
+
+## Delivery and database scope
+
+- Web and native navigation: Tables / Groups / Events / Contacts. Contacts retain their own social
+  workflows. Profile and BGO moderation remain separate destinations.
+- No database cancellation, reset, collection deletion, account recreation or provider mutation is
+  authorized. Existing legacy documents remain intact. Unified Group/Event readers and locks reject
+  legacy shapes; source-level list filters exclude them.
+- Legacy Match/Organization/invitation/booking/asset writers return authenticated `410
+  LEGACY_DOMAIN_RETIRED` (unauthenticated callers still receive `401`). Old client URLs redirect to
+  unified sections without reinterpreting old resource IDs.
+- Legacy Inngest automatic writers are unregistered. All event confirmation is manual, with exact
+  server cutoff enforcement. No old read path may create table-backed Match rows.
+- Older immutable deployments are not revoked by these source changes. Do not describe this as a
+  deployed isolation/migration operation. Environment separation still follows
+  [operational gates](organizations-events-operations.md#infisical-and-deployment-isolation).
+- E2E suites/jobs are retained unchanged by explicit operator instruction. Unit, source-contract,
+  build and isolated-Mongo results are not Playwright/Maestro or production acceptance.
+
+## Groups
+
+- One immutable creator/administrator; no transfer, additional administrators, archiving or type
+  conversion. PRIVATE/PUBLIC is fixed at creation.
+- Only that creator may permanently delete the Group, after an explicit destructive confirmation
+  acknowledging deletion of its Events. The versioned DELETE runs one transaction under the same
+  Group lock used by membership and Event writers. All unified Events, including CONFIRMED and
+  TERMINATED Events, Tables, removed Tables, registrations, votes, results, Group memberships,
+  exclusions, claimed logos, Group rating snapshots and related inbox history are removed atomically.
+  There is no archived Group or retained Event/results history. Personal GLOBAL skill snapshots
+  remain unchanged: deleting Group-owned records does not reset personal skill or rerate other
+  Groups. Rating-event history for the deleted Tables is removed in both scopes. Unrelated Groups,
+  standalone Events, Contacts, users, favorites, catalog and legacy documents remain untouched.
+  Failure or a stale Group version rolls back the entire cascade; a large cascade exceeding
+  MongoDB transaction limits fails visibly, never as a partially completed deletion.
+- PRIVATE requires a name; logo and verified venue are optional. It is never discoverable.
+  PUBLIC requires name, owned logo and verified venue, with freshly authorized BGO moderation
+  before public operation. Clerk Organizations have no BGO domain authority.
+- Venue/favorite verification prefers an exact normalized address/coordinate provider match. If that
+  point drifts, exactly one provider result with the same full normalized address may supply canonical
+  address, coordinates and derived timezone; client coordinates/timezone never become authoritative.
+  Missing or ambiguous address matches remain rejected, without a distance/nearby-match tolerance.
+  Favorites retain an opaque selection key while storing canonical location fields, so both the
+  original selection and verified point support owner-scoped status/removal. Existing rows stay readable.
+- Invitations are friend-only and require individual acceptance. Public membership requests require
+  administrator approval. Pending invitees/requesters can read permitted group information and
+  accepted members, but not group events, rankings or group-scoped social actions. Approved PUBLIC
+  Groups also expose the accepted roster before a membership request, without social state/actions;
+  private, unapproved and actively excluded access remains protected. Request and pending-request
+  explanation/cancellation appear centered after Overview information, with cancellation beneath
+  its explanation. Administrator request-response dialogs use explicit Approve/Reject icons.
+  Global Contacts remain independent. Invitation pickers source-page eligible friends only, excluding accepted or
+  pending memberships, global blocks and active Group bans before pagination/search. Received
+  invitations use a centered Accept/Decline card after Group information; accepted non-admin
+  members leave through the danger header action with explicit confirmation, never above tabs.
+- Ban/exclusion may target a nonmember, permanently or until a server-validated future instant.
+  Revocation/expiry never restores membership, invitations or bookings. It is not global blocking.
+- Exclusion cancels affected active registrations and reopens affected confirmed events. Refuse the
+  entire ban if the target has frozen participation/demonstrator duties in a CONFIRMED PUBLIC event
+  after its cutoff. TERMINATED history and results remain immutable under membership operations;
+  explicit whole-Group deletion above is the only Group-level deletion exception.
+- Group game search and member rankings are paginated at source; the ranking selector and rows use
+  the same horizontal page insets as other Group destinations on both clients. Only enabled physical tables with
+  at least two scoring finishers contribute games, wins, withdrawals and rating statistics.
+
+## Events and Tables
+
+- An event may be standalone or belong to a group. Only the group creator/admin creates grouped
+  events. Standalone invitations are friend-only; grouped participants must be accepted members.
+  Successful grouped creation returns to that Group's Events tab; standalone creation returns to
+  main Events and edits retain their Event detail destination. Creation selects an optional Group
+  inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
+  No group; no separate Group search screen. Launching from a Group presets and locks that selection;
+  existing Event Group identity remains immutable.
+- Main Tables source-pages the viewer's accepted seated/waiting registrations and pending invitations
+  in planning, confirmed and terminated Events, retaining confirmed organizer/demonstrator duties.
+  Declined/left registrations do not qualify. Existing Group visibility checks remain authoritative.
+- PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
+  The organizer plays only through explicit table registration, never an automatic seat.
+- Standalone and PUBLIC Group Events have exactly one date/time and one verified location.
+  PRIVATE Group Events may propose up to 20 distinct date/time options and 20 verified locations;
+  accepted players vote independently on those option IDs. Different times on the same day are
+  distinct proposals. Web and native editors use a combined date/time field and retain an empty
+  add row beneath private proposals until the limit; standalone add rows disappear after
+  selection. PUBLIC start is one editable, non-removable combined field, initially tomorrow for a
+  new draft; its verified Location starts empty, never copied automatically from the Group. End Date
+  and Time and the combined Booking Cutoff field precede Location, which is last. Nothing is written
+  before final review.
+- Native location picking preserves map → name → favorites → address-search order. Address focus
+  enters search-only mode: map/GPS, name, favorites and confirmation hide from view, touch and
+  accessibility; their state is retained. The same non-collapsable map container keeps its 240-point
+  height and full width: hidden mode changes opacity/flow placement, never map bounds, style, zoom
+  or component identity. Search moves to the top of the same virtualized header after controls leave
+  flow; post-layout scrolling uses no timer or guessed offset. One-tap result selection dismisses
+  the keyboard and restores the full picker. Blur alone does not move a row before its selection;
+  keyboard dismissal also leaves search-only mode. Licensed MapTiler/OSM credits remain visible
+  independently while the map is hidden. Existing camera/activity guards, iOS navigation-header
+  keyboard avoidance, Android resize behavior, four-character/300-ms search, verified addresses,
+  canonical favorites and native Back remain unchanged.
+- Date options may store their own `startTime`; historical options without it inherit the Event's
+  common clock. Times are local to the venue selected by agreement. The API derives IANA zones from
+  verified coordinates and rejects clocks invalid at any proposed venue, never guessing a zone from
+  the device. Confirmation freezes the chosen clock in the chosen venue's zone. Clock edits require
+  fresh option IDs; unchanged explicit private clocks retain their votes when venue-zone metadata
+  changes. Old implicit clocks retain their existing conservative identity checks. Historical
+  records and immutable snapshots are not rewritten.
+- Each Table has candidate games, a minimum of at least two players not exceeding its maximum,
+  and optional ratings. No independent Match is generated. Creation/review Table cards show a
+  dice icon, only the first game and `+n` additional games (no suffix for a single game). The shared
+  Rating badge is primary/accent when enabled and secondary/neutral when disabled, retaining its
+  state icon and accessible label on both clients.
+- Event list/detail and parent links share stable-ID animated DiceBear Constellation artwork.
+  Event detail starts with a Details label and voting-legend help above its artwork card:
+  name and status first. When opened from the main Events list (or an unmarked direct link), a separate
+  Group section immediately below Details links the approved Group artwork/name; it is not nested in
+  the Event identity card. Opening from that same Group omits this redundant parent item. Table detail
+  starts with Settings and player-limit help above its Planets card: name, shared Rating badge, and
+  minimum/maximum counts with their existing icons. Immediately below, Event labels a linked item
+  with the parent Event's name and matching stable artwork when opened from Main Tables or an unmarked
+  direct link; entry from that same Event omits it. Explicit scalar parent-ID URL hints carry only
+  presentation context, never authority or shared global navigation state. Group context survives
+  Event edits; ordinary back navigation retains its existing stack behavior. Voting help states accepted-only voting, reserved
+  pending places until acceptance, and participation through at least one Table.
+- Main Tables and parent Event lists use one platform-owned Table card. Animated DiceBear Planets
+  artwork uses the persisted Table ID on the left, consistently with saved/edit/review cards. Its
+  bottom-right badge shows the viewer's accepted state (success check), pending invitation (warning
+  mail), pending request (warning clock), or waiting list (warning ordered-list icon), never body text.
+  Right-side rows show bold name/Dices with Rating at far right; Event/calendar and Group/people
+  separated by a dot only in Main Tables; then five distinct icon/counts for minimum, maximum,
+  accepted registrations, waiting places and pending registrations. Accepted/pending totals include
+  queued registrations; existing seat/queue counters retain their meanings. Missing cached metadata
+  uses partial skeletons, never guessed counts. Count help is far left outside the navigation link;
+  invitation responses stay outside it on the right. Group/Table responses share platform controls,
+  dimensions and Check/X icons; requests never expose self-approval. Following rows show first game
+  with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
+  and all joint winner names with trophy only when terminated. Group incoming/outgoing artwork
+  keeps its existing warning mail/clock badges and creator crown.
+- From the main Events list, creation preloads only the source-filtered first page of creator Groups
+  into the same scoped Query cache as the picker. The selector also loads before opening in an
+  unlocked wizard, uses compact artwork and a bounded scroll viewport, and paginates/searches at source.
+  Opening the native selector dismisses/blurs the active input before displaying options. Locked
+  contextual selection starts no other-Group request; errors and explicit no-Group selection remain.
+- Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
+  are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
+  deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
+- The creator/admin may delete a PLANNING Event or remove one of its Tables through the far-right
+  app-header trash action on both clients, after explicit destructive confirmation. Both DELETE
+  bodies contain the current **Event** version. The same Group/Event transaction locks, creator
+  authorization and public cutoff checks as planning edits apply; CONFIRMED/TERMINATED records
+  cannot be deleted directly. A Table removal retains at least one Table, marks the selected Table
+  removed, cancels its active registrations and advances the Event version atomically. Deleting
+  the Event removes its Tables, registrations, votes and linked inbox history; unrelated records
+  and the existing explicit whole-Group cascade remain unchanged. This is product-record deletion,
+  not database/collection reset. Confirmation is version-pinned; a newer version requires reopening.
+  User confirmation closes/navigates immediately, projects only owned cached rows, and rolls back
+  selectively on definite failure. Unknown outcomes cannot be blindly reposted.
+- Game pickers exclude games already selected for the current Table. Source-paged picker rows already
+  carry catalog metadata (including known durations for collection results), so selection updates
+  the local draft and returns immediately without a separate game-detail request. Missing duration
+  retains the existing explicit manual fallback; final server validation remains mandatory.
+- Accepting a Table invitation opens the existing availability sheet on both clients, without
+  changing participation. PRIVATE Group invitations require a YES/IF_NEEDED/NO response for every
+  current date, location and Table game, including when another Table is already accepted, with at
+  least one YES/IF_NEEDED per category. PUBLIC Group invitation sheets show only Table games;
+  standalone Events keep their fixed schedule read-only and require explicit game preferences.
+  Final confirmation PATCHes the existing registration with its version and `participation`
+  (current Event version, game votes and PRIVATE availability). Consent and choices commit in one
+  transaction; invalid/stale choices or a storage failure leave the invitation pending. Cancellation
+  writes nothing, failure preserves the draft, and decline remains a direct versioned action.
+- Each invitation has its own accept/decline response. Creation/request time, then server sequence
+  and stable ID determine priority, not acceptance time. Pending invitations reserve seat/queue
+  priority but **cannot vote, count toward minimums, agreement or the frozen roster**. Voting never
+  accepts an invitation. Accepted waiting players may vote. The organizer-only Table invitation
+  candidate endpoint excludes every PENDING/ACCEPTED registration on that same Table, seated or queued,
+  before search/cursor/limit paging. Declined/cancelled registrations and participation at other Tables
+  do not exclude a candidate. Both clients filter current owned invitation intent on the first render,
+  including newly opened search pages; positive receipts remove acknowledged invitees from cached
+  candidate pages before intent retires. Reopening never paints an already-invited person while
+  waiting for an eligibility refetch. Definite failures restore eligibility selectively. Admin removal
+  immediately makes the already-known recipient available as local release intent outside source pages,
+  including cold searches. Reinvitation selected during removal waits for its exact successful
+  cancellation receipt and never dispatches after rejection or an unverified receipt. Candidate pages
+  carry their Event epoch: only complete matching post-receipt exclusions retire release hints across
+  searches; stale/partial pages do not. Eligibility remains advisory and server-validated. PUBLIC other-Table overlaps remain visible with
+  `invitationBlockReason: TABLE_TIME_CONFLICT`; clear candidates return null. Both clients disable
+  invitation/selection while a separate accessible question-mark popover explains pending/accepted
+  participation or demonstrator duties. No other Table identity is disclosed. This snapshot is
+  advisory: the POST revalidates atomically and may still reject a concurrent change. Existing
+  approved Group membership, exclusions and standalone reciprocal friendship/block rules remain
+  authoritative. Group candidate responses expose no email/presence.
+- Accepted members can enroll directly; no extra booking-approval workflow. Every voluntary join
+  opens a platform HeroUI bottom sheet with Dates/Locations/Games tabs. PUBLIC Group Events always
+  open Games initially. Other Events open Dates when the player has no other ACCEPTED Table in that
+  Event; otherwise Games opens initially. Metadata
+  must be known before choosing this default, which never overrides a later manual tab selection.
+  Pending/declined/cancelled registrations do not qualify as prior participation. Stored PRIVATE Event
+  preferences are prefilled and remain editable for any Table join; fixed non-private schedules remain
+  read-only in their visible tabs. Every current votable option needs YES/IF_NEEDED/NO, with at least
+  one YES/IF_NEEDED per dimension. Final confirmation pins the Event version and saves registration,
+  this Table's game ballots and complete PRIVATE Event preferences in one transaction. Missing/stale/
+  incomplete/foreign choices fail before writes. Invitation consent stays separate; pending invitations
+  never receive manufactured votes. Opening, editing and canceling the sheet write nothing. Owned
+  participation/preference caches reconcile from acknowledgment without replacing newer Event votes.
+  The caller's cached, API/actor-scoped profile supplies their name during local intent and raw-receipt
+  handoff while authorized roster metadata loads; missing self identity uses localized You, never a
+  Clerk ID. This cache subscription starts no additional profile request and grants no participation
+  or position. Other actors' cached profiles cannot supply self identity.
+- Both clients show grouped games and places in Table details. Places start at the maximum capacity;
+  occupied capacity retains an additional queue entry. Once primary places are exhausted, a separate
+  Waiting list section follows Seats list with its own explanation popover. Anonymous/unloaded primary
+  reservations precede queued people too, including across render pages. Local saving intent is never
+  assigned a seat or queue priority. Large rosters/placeholder ranges are source-paged and rendered
+  progressively; native uses one SectionList, never nested same-direction lists. Empty places enroll the viewer; organizers first choose self-enrollment
+  (when eligible) or the existing invitation picker. Avatar badges distinguish accepted, pending and
+  waiting players. Pending identities remain organizer/recipient-only; other reservations are anonymous.
+- Detail preference controls offer only YES/IF_NEEDED/NO for dates, locations and games. UNKNOWN remains
+  an internal readable missing/historical state, never a selectable choice, displayed total or legend
+  item; an uncast ballot shows a neutral choice prompt, not a fabricated YES/NO. Event date/location
+  voting requires accepted participation; game voting requires acceptance at that Table, including
+  its sole fixed PUBLIC game. Fixed game identity is not changed by willingness voting. Each edit
+  retains at least one YES/IF_NEEDED among current options of its own dimension/Table. Positive states
+  can interchange; NO is disabled when it would remove the final positive choice. The API enforces
+  the same condition under the Event transaction lock, including concurrent game rejections. Removed
+  options and another Table's game votes never qualify. Aggregate totals include accepted players only
+  (once per Event for dates/locations), displaying only the three explicit meanings. Pending ballots
+  never contribute or imply consent; missing detail totals remain partial skeletons.
+- Public events additionally require an end and exact booking cutoff. Their tables have
+  fixed starts and BGG-derived duration; missing metadata requires explicit administrator duration.
+  Table editors fix the date to the Event day and expose only a start-time field, including Event
+  start and the latest start that fits the full duration by Event end. API rejects invalid intervals
+  before writes. Native end/deadline/Table clocks use the installed system time picker; Android
+  bounds are revalidated after selection because its native clock cannot disable individual times.
+  Demonstrators use the existing grouped player identity pattern. Public detail and wizard summary
+  use matching grouped Start Date and Time, End Date and Time and Registration Deadline Date and
+  Time information items (Italian: `Date e ora Termine iscrizioni`).
+  Planning uses the longest candidate duration; confirmation snapshots the selected game duration.
+  New/edited public ends must be strictly later on the start's local calendar day, enforced in UI
+  bounds and by API venue-zone validation. Registration deadline must be on a local calendar day
+  before the event, regardless of clock time; event-day deadlines are rejected even before its start.
+  A new deadline must still be in the future. Older overnight/multiday records remain
+  readable and are not migrated; an explicit planning edit must satisfy current rules. Player and
+  demonstrator duties cannot overlap; half-open boundaries permit adjacent tables. Other modes do
+  not restrict overlaps.
+- Accepted legacy/invitation participation retains implicit availability for fixed PUBLIC choices
+  only where no explicit ballot exists; fixed game identity never overrides an explicit NO/UNKNOWN.
+  New voluntary joins and invitation acceptances store explicit game preferences, not manufactured
+  votes. After
+  cutoff no user, including the administrator, may
+  invite, register, vote, respond or leave. Confirmation/reopening remain manual operations.
+- Confirmation freezes selected date/location/games and accepted eligible rosters. At least one
+  table must agree; others remain present but excluded. Reopening preserves votes, invitations,
+  priorities, participation and excluded tables except explicit removals/exclusions; it never
+  silently extends the cutoff. TERMINATED events cannot reopen.
+
+## Location time zones
+
+The API uses the offline [geo-tz](https://github.com/evansiroky/node-geo-tz) geographic lookup on
+server-verified coordinates; it does not infer offsets from longitude or the device clock.
+Its boundaries originate from [timezone-boundary-builder](https://github.com/evansiroky/timezone-boundary-builder)
+and OpenStreetMap contributors; see the upstream data licensing and
+[OpenStreetMap attribution](https://www.openstreetmap.org/copyright). Existing MapTiler/OSM map
+attribution remains visible. No additional geolocation provider or credentials are required.
+Ambiguous/unavailable results fail visibly instead of inventing a zone. Event time zones are
+mandatory derived metadata; private Groups without a venue retain local-clock timed-ban entry.
+Old immutable instants are never reinterpreted, and legacy planning clocks change only through an
+explicit edit. The time-zone change never migrates or deletes historical documents.
+
+## Exact agreement
+
+A/B/C is evaluated per table, against one common event date/time and location:
+
+1. **A:** seated accepted players have full agreement; do not consult waiters.
+2. **B:** seated players reach the date/location minimum but disagree on game; wait for votes or
+   administrator edits. Do not replace them merely to obtain another game.
+3. **C:** seated players lack date/location agreement; consider accepted waiters in priority order,
+   stopping at the earliest prefix enabling full agreement. Preserve higher-priority eligible
+   players, capacity and pending reservations; displaced users remain waiting.
+
+The same eligible people must support all dimensions with YES/IF_NEEDED. UNKNOWN is not positive.
+YES preference wins before distinct-person count (one person across multiple tables counts once),
+then original option order. Only considered players' votes count. Bounded exact search fails closed
+with `AGREEMENT_COMPLEXITY_LIMIT`, never with an approximate fabricated agreement. Confirmation
+rechecks authoritative inputs transactionally. Administrator notifications use semantic deduplication;
+there are no repeated identical notifications or player reminders to change votes.
+
+## Results, lists and transport
+
+- Confirm/reopen-planning dialog actions have semantic icons. In confirmed Events the organizer's
+  icon-only result-registration action lives in the app header; reopen planning is a bottom-right,
+  secondary icon-only FAB. Existing capabilities, busy/version guards and exact cutoffs remain.
+- Confirmed Table detail has Overview and Ranking top tabs. Terminated detail additionally has
+  Results, with immutable standings/ND and GLOBAL/GROUP deltas only when ratings were enabled.
+  Current ranking is always available for the selected frozen game and every frozen player, including
+  unrated players and rating-disabled Tables. Grouped Tables use GROUP scope; standalone uses GLOBAL.
+  The source-paged authenticated Table leaderboard reads current snapshots and genuine physical-Table
+  statistics, never legacy Match statistics, pending players or an automatic organizer seat. Player
+  cards show avatar/full name/username on both tabs. Results have two matching statistic rows:
+  position, GROUP-before rating, Global ranking and Group ranking; then exact score/ND, Global
+  rating change and Group rating change. Both scope changes use signed semantic-color icons and immutable
+  after snapshots, not current rating or an Elo calculation. Missing/disabled scopes stay unavailable;
+  standalone GLOBAL values never masquerade as GROUP values. Ranking starts
+  with Selected game and its normal game row, then Ranking and current player cards. Its game
+  cannot be overridden by a query parameter. Navigation revalidates cache-first; a changed-game response
+  never populates the wrong cache key and retry refreshes only the owned Table metadata.
+- Result registration keeps per-Table unsaved drafts within one Event workflow. The list header is
+  Register Tables Results; each Table editor uses Register Table Result. Cards reuse stable artwork,
+  identity and frozen player counts; completed drafts show a success check at artwork bottom-right.
+  Tables list help explains all-table completion, irreversible finalization and all-ND non-contribution.
+  Finalization and its confirmation share a terminal-state icon. Back belongs only to the app header
+  (and native hardware Back), not a duplicate editor/body button. Selected-editor Back returns to the
+  list without discarding other Table drafts; web list Back uses ordinary route history. No server Event drafts
+  or independent per-Table result writes are introduced. Score inputs have a localized placeholder
+  on both clients. Native score-input focus first registers the keyboard target, then explicitly
+  calls the sheet's public `snapToPosition("80%")` method. A provided 80% snap point and `extend`
+  keep keyboard events on that detent instead of `fillParent` forcing full height. `restore` handles
+  keyboard dismissal, and the top safe-area inset bounds expansion. Android keeps its existing resize mode. Local drafts and automatic content sizing stay
+  intact, without a second keyboard-avoidance layer or manual keyboard listeners.
+- Finalization is one atomic operation over every included table's complete frozen roster. Exact
+  signed decimal scores, ND, lower-wins and explicit tie-break ordering retain their existing
+  semantics. Results/profiles and immutable GLOBAL/GROUP deltas are available on table detail.
+- Each enabled physical table with at least two finishers updates GLOBAL and, when grouped, GROUP
+  from that outcome's pre-rating snapshots. An all-ND/fewer-than-two-finishers table changes no
+  ratings, games played, wins or withdrawals. Group initialization, provisional state and OpenSkill
+  uncertainty remain as specified in the rating engine; no historical backfill occurs.
+- Personal tables expose explicit invitations and relevant table participation. CONFIRMED/TERMINATED
+  Tables without a frozen confirmation snapshot are excluded at source before cursors/limits and
+  suppressed from old personal-list caches. Their records remain in the parent Event's paged list
+  and detail; reopening planning restores ordinary planning visibility. Past/Future uses the chosen
+  local day; unchosen dates appear in both.
+- Search/role/period filters run before pagination. Lists, rosters, seats, game selection and group
+  ranking selection do not download all records. Native uses virtualized lists and safe-area-aware
+  controls. Cached usable fields remain visible while missing detail fields load.
+- DTOs: [Groups](../packages/schemas/src/groups/dto/groupRecords.ts) and
+  [Events/Tables](../packages/schemas/src/events/dto/eventRecords.ts). New controllers use
+  [record-http](../apps/api/src/app/lib/community/record-http.ts) and
+  [record-services](../apps/api/src/app/lib/community/record-services.ts): fresh authorization,
+  shared Mongo sessions, retry-safe JSON, strict cursors/query fields and notification dispatch only
+  after commit. Authenticated responses are private/no-store.
+- TanStack Query owns remote data with API/user/resource-scoped keys, fresh tokens per request,
+  cancellation and selective rollback that preserves newer versions/profile fields. Zustand owns
+  only transient unsaved selections. Platform UI/navigation/auth/permissions remain app-owned.
+  Shared startup orchestration prioritizes Tables/Groups/Events/Profile with three workers; mobile
+  splash waits only for these four or its original five-second budget. Other first-page reads warm
+  sequentially after release: favorites, BGG account/linked collection, bell/inbox, social lists and
+  suggestions, then up to two linked Events' details/Tables and two listed Groups' permitted
+  members/Events. Screen query factories own the keys; inbox readiness includes its active locale
+  and 20-item page, never the three-item bell or another actor/locale. Web uses the same plan without
+  a splash; routing does not cancel a started queue, and a slow priority read cannot starve background
+  work beyond five seconds. Logout/session changes clear private cache and stop queued reads.
+  Search terms, further pages, privileged/retired endpoints, geocoding and provider syncs are not
+  speculative warmup work; no full-catalog/database download or extra polling is introduced.
+- EN/IT source and compiled Lingui catalogs are committed together; native runtime IDs are preserved
+  explicitly without adding a mobile Babel configuration.
+
+## Optimistic writes and reconciliation
+
+- One user operation owns its complete optimistic package across existing API/actor-scoped caches.
+  A rejected operation removes only its projections; independent pending or acknowledged operations,
+  newer entity/registration/membership versions and unrelated profile fields survive. Query remains
+  the server-data owner; the transient operation journal is neither a persisted cache nor Zustand data.
+- Contacts lock the target user, favorites their selected/canonical identity, and Groups/Events their
+  incompatible versioned writes. Explicit queues project intent immediately and serialize dependent
+  dispatch; unrelated Groups, people and notification rows stay usable. Inbox mark-all conflicts with
+  row writes; independent row operations reconcile the shared unread counter selectively. Both clients
+  confirm single-notification deletion and expose confirmed whole-inbox deletion at the far right of
+  the application header. Whole-inbox deletion clears all owned cached pages, cursors and bell counts
+  immediately, including other cached locales; the API deletes only the authenticated recipient's
+  notifications, including unloaded pages, never other recipients' actor history or push subscriptions.
+  Rejection restores owned projections; uncertain responses require readback, not an automatic retry.
+  Destructive consent does not transfer between accounts or sessions. BGG writes share the account
+  lock. Navigation and local form choices do not wait for HTTP.
+- After local validation, explicit actions stage intent/feedback and close their existing dialog or
+  return from their editor immediately. Known recipients and enrollment intent may appear in existing
+  rows, but do not create canonical invitations, consent, accepted membership, positions or permissions.
+  Guaranteed seating, verified provider identity, Event confirmation and immutable results still require
+  server acknowledgement. Issued invite credentials and OS permission grants cannot be predicted.
+  Registration receipts expose the committed parent Event epoch without storing that transport field
+  on registrations; complete capabilities/agreement still require authorized metadata reads.
+- Ordinary invalidation/refetch runs in the background and cannot turn a committed write into a failed
+  write. Projections and partial acknowledgements preserve the cache's original age and invalidation;
+  cancelling a GET must not restore an obsolete fresh flag. Pre-acknowledgement reads are cancelled
+  once at the receipt, not again when later metadata recovery finishes: post-receipt roster/list
+  refreshes must survive. Table detail seeds use authoritative list snapshots and retain their
+  invalidation instead of absorbing an optimistic overlay or reviving stale invitations.
+  Where a receipt omits a required version or permission, only that resource remains locked during
+  authoritative detail recovery; the acknowledged form can close. A failed recovery retains committed
+  participation instead of restoring the pre-write state.
+- The existing notification poll reconciles newly received changes into related active Contacts,
+  Group and Event/Table queries inside the owning API/user scope; inactive queries are only marked
+  stale. An empty inbox establishes a baseline too. Every new kind in the bounded first page counts;
+  if its previous watermark fell beyond that page, refresh active affected domains conservatively
+  without scanning older pages. Read/delete changes and older rows do not masquerade as remote writes.
+  No independent polling is added to domain lists.
+- Transport errors, timeouts and 5xx responses are not proof of rejection. Materialized owned caches
+  are read back without retrying the write; failed verification keeps the affected resource locked
+  until a subsequent authorized read. A cancelled SDK fetch resolving with optimistic cache data is
+  not a server receipt. A write 403/404 alone does not prove lost read access; fresh read denials
+  revoke private cached access and dependent writers. Logout/session changes abort operations and
+  clear private data before another actor can reuse them.
+- Readback is not a durable idempotency protocol and cannot rule out a remote commit still in progress.
+  Event/Group creation accepts an optional creation-only UUID `clientRequestId` for correlation, never
+  resource identity or an automatic retry key. Permissionless local drafts stay in MutationCache,
+  outside canonical API pages; authorized receipts/reads deduplicate by resource ID/correlation.
+  Definite rejection retains input for explicit recovery; uncertain creations never automatically retry.
+  A strictly newer authorized canonical epoch fences an old version-guarded edit/review/finalization:
+  it does not claim that write succeeded or failed. A reopened editor then uses canonical data instead
+  of replaying uncertain structural Table writes. Already-open drafts remain pinned; changed frozen
+  Table result drafts require explicit review at one current Event version before atomic submission.
+- Parent dependencies cancel grouped creations without acquiring Group-wide locks. Creation verifies
+  current creator access before dispatch. Deletion acknowledgement or a fresh parent read denial
+  retires dependent pending intent and aborts queued dispatch; a write denial alone cannot revoke it.
+  Known invitation receipts outside loaded roster pages remain visible until authorized paging hands
+  them off; later target mutations and current complete pending reads supersede stale receipts.
+- Server atomicity is separate from client rollback. Unified domain writes keep their existing
+  transactions. Contact-snapshot replacement, including an empty snapshot, now holds the mirrored
+  actor lock and replaces all links in one transaction; inbox mark-all-read is transactional too.
+  BGG retains its existing valid staged workflow and atomic snapshot publication, not a transaction
+  held open across external provider requests. No live migration, reset or backfill is performed.

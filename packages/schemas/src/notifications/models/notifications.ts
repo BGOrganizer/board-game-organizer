@@ -1,0 +1,87 @@
+import type { ObjectId } from "mongodb";
+
+export const COMMUNITY_NOTIFICATION_KINDS = [
+  "group_membership_requested",
+  "group_membership_updated",
+  "group_review_requested",
+  "group_reviewed",
+  "group_banned",
+  "group_ban_revoked",
+  "table_invitation",
+  "event_agreement_ready",
+  "event_agreement_blocked",
+  "event_confirmed",
+  "event_replanning",
+  "event_terminated",
+  "organization_invitation",
+  "organization_join_requested",
+  "organization_membership_changed",
+  "organization_review_requested",
+  "organization_reviewed",
+  "event_published",
+  "event_updated",
+  "event_cancelled",
+  "event_booking_requested",
+  "event_booking_confirmed",
+  "event_booking_removed",
+  "event_table_cancelled",
+  "event_table_created",
+  "event_demonstrator",
+] as const;
+export type CommunityNotificationKind = (typeof COMMUNITY_NOTIFICATION_KINDS)[number];
+export const NOTIFICATION_KINDS = [
+  ...COMMUNITY_NOTIFICATION_KINDS,
+  "friend_request",
+  "friend_request_accepted",
+  "group_invitation",
+  "group_invitation_accepted",
+  "match_invitation",
+  "match_invitation_accepted",
+  "match_invitation_declined",
+  "match_updated",
+  "match_created",
+  "match_replanning",
+  "match_terminated",
+] as const;
+
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+export type PushPlatform = "web" | "android" | "ios";
+export type PushProvider = "fcm" | "apns";
+
+/** Persisted notification inbox item. Push delivery is best-effort transport. */
+export interface Notification {
+  _id: ObjectId;
+  recipientUserId: string;
+  actorUserId: string;
+  kind: NotificationKind;
+  title: string;
+  description: string;
+  /** Immutable formatting inputs for per-device delivery; absent on historical records. */
+  copy?: { actorName: string; resourceName?: string };
+  href: string;
+  readAt?: Date;
+  createdAt: Date;
+}
+
+/** One browser or native installation registered for remote push. */
+export interface PushSubscription {
+  _id: ObjectId;
+  userId: string;
+  token: string;
+  platform: PushPlatform;
+  provider: PushProvider;
+  locale: "en" | "it";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export const NOTIFICATION_INDEXES = [
+  { key: { recipientUserId: 1, createdAt: -1 } },
+  { key: { recipientUserId: 1, readAt: 1 } },
+  { key: { actorUserId: 1 } },
+] as const;
+
+export const PUSH_SUBSCRIPTION_INDEXES = [
+  { key: { token: 1 }, unique: true },
+  { key: { userId: 1, updatedAt: -1 } },
+] as const;

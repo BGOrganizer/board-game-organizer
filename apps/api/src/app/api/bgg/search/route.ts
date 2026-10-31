@@ -1,15 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
-import { searchGames } from "@/app/lib/bgg";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb } from "@/app/lib/db";
+import { searchGames } from "@/app/lib/games/bgg";
 
 const searchSchema = z.object({
   query: z.string().trim().min(4),
 });
 
 /**
- * GET /api/bgg/search?query=… — board game search (id + name) from the
+ * GET /api/bgg/search?query=… — board game search with cached covers from the
  * local `boardGames` collection (imported from the BGG bg_ranks dump).
  *
  * NOTE: this must live in its own route file (api/bgg/search) — Next.js App

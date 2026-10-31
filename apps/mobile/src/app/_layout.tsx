@@ -7,14 +7,30 @@ import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { HeroUINativeProvider } from "heroui-native";
-import { useEffect } from "react";
+import {
+  Bell,
+  Dices,
+  Gamepad2,
+  LogIn,
+  type LucideIcon,
+  Phone,
+  Trophy,
+  UserRound,
+  UsersRound,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { Uniwind } from "uniwind";
 import "../../global.css";
 
-import { RuntimeError } from "@/components/RuntimeError";
+import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { Startup } from "@/components/common/startup/Startup";
+import { RuntimeError } from "@/components/common/ui/RuntimeError";
+import { PushNotificationRouter } from "@/components/notifications/PushNotificationRouter";
 import { defaultI18n, useT } from "@/lib/i18n";
+import { configureNotificationHandler } from "@/lib/notifications/push-notifications";
+import { startupStartedAt } from "@/lib/splash";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
@@ -44,6 +60,7 @@ Sentry.init({
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
 });
+configureNotificationHandler();
 
 if (!publishableKey) {
   console.error("[Clerk] Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
@@ -88,18 +105,74 @@ function ThemeSync() {
   return null;
 }
 
+function titleOptions(title: string, icon: LucideIcon) {
+  return {
+    title,
+    headerTitle: ({ children }: { children: string }) => (
+      <HeaderTitle title={children} icon={icon} />
+    ),
+  };
+}
+
 function RootNavigator() {
   const t = useT();
+  const [initialNotificationHref, setInitialNotificationHref] = useState<
+    string | null | undefined
+  >();
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <QueryProvider>
         <ThemeSync />
+        <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
         <StatusBar style="auto" />
         <Stack>
-          <Stack.Screen name="index" options={{ title: "Board Game Organizer" }} />
-          <Stack.Screen name="sign-in" options={{ title: t("Sign in"), presentation: "modal" }} />
+          <Stack.Screen name="index" options={titleOptions("Board Game Organizer", Dices)} />
+          <Stack.Screen
+            name="sign-in"
+            options={{ ...titleOptions(t("Sign in"), LogIn), presentation: "modal" }}
+          />
+          <Stack.Screen
+            name="mobile-number"
+            options={titleOptions(t("Complete your profile"), Phone)}
+          />
+          <Stack.Screen name="notifications" options={titleOptions(t("Notifications"), Bell)} />
+          <Stack.Screen name="profile" options={titleOptions(t("Profile"), UserRound)} />
+          <Stack.Screen name="group/wizard" options={titleOptions(t("New group"), UsersRound)} />
+          <Stack.Screen
+            name="group/[groupId]"
+            options={titleOptions(t("Group details"), UsersRound)}
+          />
+          <Stack.Screen name="event/[eventId]" options={titleOptions(t("Event details"), Dices)} />
+          <Stack.Screen name="event/wizard" options={titleOptions(t("Configure event"), Dices)} />
+          <Stack.Screen
+            name="event/results"
+            options={titleOptions(t("Register event results"), Trophy)}
+          />
+          <Stack.Screen name="event/table" options={titleOptions(t("Table details"), Dices)} />
+          <Stack.Screen
+            name="event/invite"
+            options={titleOptions(t("Invite players"), UsersRound)}
+          />
+          <Stack.Screen
+            name="group/search-user"
+            options={titleOptions(t("Invite friends"), UsersRound)}
+          />
+          <Stack.Screen
+            name="group/invite"
+            options={titleOptions(t("Invite friends"), UsersRound)}
+          />
+          <Stack.Screen name="group/ban" options={titleOptions(t("Exclude a user"), UsersRound)} />
+          <Stack.Screen
+            name="moderation/index"
+            options={titleOptions(t("Group moderation"), UsersRound)}
+          />
+          <Stack.Screen
+            name="moderation/[groupId]"
+            options={titleOptions(t("Group review"), UsersRound)}
+          />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         </Stack>
+        <Startup startedAt={startupStartedAt} initialNotificationHref={initialNotificationHref} />
       </QueryProvider>
     </ClerkProvider>
   );
@@ -109,11 +182,11 @@ export default function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={sentryFallback}>
       <GestureHandlerRootView className="flex-1">
-        <HeroUINativeProvider>
-          <I18nProvider i18n={defaultI18n}>
+        <I18nProvider i18n={defaultI18n}>
+          <HeroUINativeProvider>
             <RootNavigator />
-          </I18nProvider>
-        </HeroUINativeProvider>
+          </HeroUINativeProvider>
+        </I18nProvider>
       </GestureHandlerRootView>
     </Sentry.ErrorBoundary>
   );

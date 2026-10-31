@@ -34,6 +34,49 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["lcov", "html", "text"],
+      allowExternal: true,
+      include: [
+        ...[
+          "common/hooks/useListSearch.ts",
+          "organizations/hooks/useOrganizationPeople.ts",
+          "organizations/hooks/useOrganizationSocialActions.ts",
+          "community/hooks/usePeopleSocialActions.ts",
+          "groups/hooks/useGroupSocialActions.ts",
+          "events/hooks/useEvents.ts",
+          "events/hooks/useEventWindow.ts",
+          "events/hooks/useEventTableContext.ts",
+          "events/hooks/useEventTableParticipation.ts",
+          "events/hooks/useEventTableMatch.ts",
+          "events/hooks/useTableLeaderboard.ts",
+          "events/hooks/useEventJoinForm.ts",
+          "profile/hooks/usePreferredLanguageSync.ts",
+          "groups/hooks/usePublicGroups.ts",
+        ].map((file) =>
+          fileURLToPath(new URL(`../../packages/shared/src/${file}`, import.meta.url)).replaceAll(
+            "\\",
+            "/",
+          ),
+        ),
+        fileURLToPath(
+          new URL(
+            "../../packages/shared/src/organizations/hooks/useOrganizations.ts",
+            import.meta.url,
+          ),
+        ).replaceAll("\\", "/"),
+        fileURLToPath(new URL("./src/**/*.{ts,tsx}", import.meta.url)).replaceAll("\\", "/"),
+        fileURLToPath(
+          new URL(
+            "../../packages/shared/src/locations/hooks/useFavoriteLocations.ts",
+            import.meta.url,
+          ),
+        ).replaceAll("\\", "/"),
+        fileURLToPath(
+          new URL(
+            "../../packages/shared/src/locations/hooks/useCurrentLocationAddress.ts",
+            import.meta.url,
+          ),
+        ).replaceAll("\\", "/"),
+      ],
       // Entry points / tooling files are not unit-tested (configs, E2E setup).
       exclude: [
         "e2e/**",
@@ -47,10 +90,247 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/shared/src/profile/hooks/usePreferredLanguageSync.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventResultTableCard,EventTableResults,EventTableLeaderboard,EventPlayerCard,EventJoinSheet}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "../../packages/shared/src/events/hooks/{useTableLeaderboard,useEventJoinForm}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/{PendingArtworkBadge,InvitationActions}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventTableCard,EventTableInvitationActions}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventDetailsCard,EventStatusBadge,EventTableInfo,EventVoteLegend}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/components/events/{EventDraftTableCard,EventTableRatingBadge}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/groups/{GroupInvitationCard,GroupJoinRequest}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/{community/hooks/usePeopleSocialActions,groups/hooks/useGroupSocialActions}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/components/common/ui/{AnimatedDicebearArtwork,DateTimeInfo}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/{games/GameListRow,locations/LocationListRow,matches/MatchPlayerLimits}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/lib/events/eventWizardBackHref.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventTableHeading,EventTablePlayers,EventTableOverview,EventTableEditAction,EventTableEdit,EventTable}.tsx":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/components/organizations/OrganizationMemberPicker.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/events/hooks/{useEventTableContext,useEventTableParticipation,useEventTableMatch}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "src/components/common/ui/ContactConfirmDialog.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/WizardSteps.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/{ListCard,EmptyList}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/{EventTableCardBody,EventTableCard,EventTableInvitationActions,EventTableRatingBadge,EventTableInfo,EventTableSeats,EventVoteButtons,EventVoteCounts,EventDetail}.tsx":
+          {
+            lines: 100,
+            functions: 100,
+            branches: 100,
+            statements: 100,
+          },
+        "src/components/common/layout/HeaderActions.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/FloatingActions.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/matches/MatchListLegend.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/EventCard.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/organizations/OrganizationDetailsCard.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/EventWizardSummary.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/EventDraftTableCard.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/events/EventDateTimeField.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/organizations/OrganizationInvitationResponse.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/organizations/hooks/{useOrganizationPeople,useOrganizationSocialActions}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
+        "../../packages/shared/src/common/hooks/useListSearch.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/{SearchInput,FilterChips,HelpPopover,SearchHelpLabel}.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/common/ui/ListSearch.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/events/hooks/useEventWindow.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/events/hooks/useEvents.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/groups/hooks/usePublicGroups.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/organizations/hooks/useOrganizations.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/locations/hooks/useCurrentLocationAddress.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "../../packages/shared/src/locations/hooks/useFavoriteLocations.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/contacts/ContactLegend.tsx": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/components/locations/LocationFavoriteButton.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         lines: 50,
         functions: 50,
         branches: 50,
         statements: 50,
+        "src/app/mobile-number/page.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/auth/MobileNumberGate.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/lib/notifications/webPush.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/components/contacts/UserMenu.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
       },
     },
   },

@@ -1,0 +1,207 @@
+import { eventLocalDateTime } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import { Button } from "heroui-native/button";
+import { Dialog } from "heroui-native/dialog";
+import { useThemeColor } from "heroui-native/hooks";
+import { Typography } from "heroui-native/text";
+import { CalendarClock, CalendarDays, Clock3 } from "lucide-react-native";
+import { useState } from "react";
+import { Platform, View } from "react-native";
+import { GroupedList } from "@/components/common/ui/GroupedList";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
+import { useT } from "@/lib/i18n";
+
+export function EventDateTimeField({
+  label,
+  value,
+  mode,
+  day,
+  timeZone,
+  testID,
+  min,
+  max,
+  error,
+  help,
+  isDisabled = false,
+  rowOnly = false,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  mode: "date" | "time" | "datetime";
+  day?: string;
+  timeZone: string;
+  testID?: string;
+  min?: string;
+  max?: string;
+  error?: string;
+  help?: string;
+  isDisabled?: boolean;
+  rowOnly?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const t = useT();
+  const { i18n } = useLingui();
+  const muted = useThemeColor("muted");
+  const [draft, setDraft] = useState<Date | null>(null);
+  const [pickerError, setPickerError] = useState("");
+  let today: string;
+  let invalidZone = false;
+  try {
+    today = eventLocalDateTime(new Date().toISOString(), timeZone).slice(0, 10);
+  } catch {
+    today = new Date().toISOString().slice(0, 10);
+    invalidZone = true;
+  }
+  const wall =
+    mode === "time" && /^\d{2}:\d{2}$/.test(value)
+      ? `${day || today}T${value}`
+      : value || `${day || today}T00:00`;
+  const bounded = min && wall < min ? min : max && wall > max ? max : wall;
+  const initial = new Date(`${bounded}Z`);
+  const commit = (date: Date) => {
+    const next =
+      mode === "time"
+        ? `${day || wall.slice(0, 10)}T${date.toISOString().slice(11, 16)}`
+        : date.toISOString().slice(0, 16);
+    // Android's native time picker ignores min/max. Never clamp or accept an invalid choice.
+    if ((min && next < min) || (max && next > max)) {
+      setPickerError(t("Choose a time within the allowed range."));
+      return;
+    }
+    setPickerError("");
+    onChange(next);
+  };
+  const pick = () => {
+    setPickerError("");
+    if (Platform.OS !== "android") {
+      // iOS embeds its native picker in a host; only Android offers an imperative dialog API.
+      setDraft(initial);
+      return;
+    }
+    DateTimePickerAndroid.open({
+      value: initial,
+      mode: mode === "datetime" ? "date" : mode,
+      timeZoneName: "UTC",
+      is24Hour: true,
+      minimumDate: min ? new Date(`${min}Z`) : undefined,
+      maximumDate: max ? new Date(`${max}Z`) : undefined,
+      onChange: (event, date) => {
+        if (event.type !== "set" || !date) return;
+        if (mode !== "datetime") {
+          commit(date);
+          return;
+        }
+        // Android has no datetime mode: one field opens date then time; cancel commits nothing.
+        const selected = new Date(
+          `${date.toISOString().slice(0, 10)}T${initial.toISOString().slice(11, 16)}Z`,
+        );
+        DateTimePickerAndroid.open({
+          value: selected,
+          mode: "time",
+          timeZoneName: "UTC",
+          is24Hour: true,
+          onChange: (timeEvent, time) => {
+            if (timeEvent.type === "set" && time)
+              commit(
+                new Date(
+                  `${selected.toISOString().slice(0, 10)}T${time.toISOString().slice(11, 16)}Z`,
+                ),
+              );
+          },
+        });
+      },
+    });
+  };
+  const Icon = mode === "datetime" ? CalendarClock : mode === "date" ? CalendarDays : Clock3;
+  const row = (
+    <GroupedRow>
+      <Icon size={20} color={muted} />
+      <Button
+        variant="ghost"
+        accessibilityLabel={label}
+        testID={testID}
+        isDisabled={Boolean(isDisabled || invalidZone || (min && max && min > max))}
+        onPress={pick}
+        style={{ flex: 1, minHeight: 44, justifyContent: "flex-start", paddingHorizontal: 0 }}
+      >
+        <Button.Label>
+          {value
+            ? new Intl.DateTimeFormat(i18n.locale, {
+                ...(mode !== "time" ? { dateStyle: "medium" as const } : {}),
+                ...(mode !== "date" ? { timeStyle: "short" as const } : {}),
+                timeZone: "UTC",
+              }).format(new Date(`${wall}Z`))
+            : mode === "datetime"
+              ? t("Choose date and time")
+              : mode === "date"
+                ? t("Pick event day")
+                : t("Pick time")}
+        </Button.Label>
+      </Button>
+    </GroupedRow>
+  );
+  return (
+    <View style={{ gap: 6 }}>
+      {!rowOnly ? (
+        <SearchHelpLabel
+          label={label}
+          help={help ?? (mode === "date" ? t("Choose a calendar day.") : t("Choose a local time."))}
+          helpTitle={t("Field help")}
+        />
+      ) : null}
+      {rowOnly ? row : <GroupedList>{row}</GroupedList>}
+      {invalidZone ? (
+        <Typography accessibilityRole="alert" className="text-danger">
+          {t("Could not determine the location time zone. Choose a verified address.")}
+        </Typography>
+      ) : null}
+      {error || pickerError ? (
+        <Typography accessibilityRole="alert" className="text-sm text-danger">
+          {error || pickerError}
+        </Typography>
+      ) : null}
+      {draft ? (
+        <Dialog
+          isOpen
+          onOpenChange={(open) => {
+            if (!open) setDraft(null);
+          }}
+        >
+          <Dialog.Portal>
+            <Dialog.Overlay />
+            <Dialog.Content>
+              <Dialog.Title>{label}</Dialog.Title>
+              <DateTimePicker
+                value={draft}
+                mode={mode}
+                display="spinner"
+                timeZoneName="UTC"
+                minimumDate={min ? new Date(`${min}Z`) : undefined}
+                maximumDate={max ? new Date(`${max}Z`) : undefined}
+                onChange={(_, selected) => {
+                  if (selected) setDraft(selected);
+                }}
+              />
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+                <Button variant="ghost" onPress={() => setDraft(null)}>
+                  {t("Cancel")}
+                </Button>
+                <Button
+                  onPress={() => {
+                    commit(draft);
+                    setDraft(null);
+                  }}
+                >
+                  {t("Done")}
+                </Button>
+              </View>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog>
+      ) : null}
+    </View>
+  );
+}

@@ -1,0 +1,21 @@
+appId: com.bgo.mobile
+tags: [ci, auth]
+---
+- assertVisible: "Welcome to Board Game Organizer"
+- runFlow:
+    file: "../helpers/sign-in.yaml"
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- extendedWaitUntil:
+    visible: "Matches"
+    timeout: 120000
+- assertNotVisible: "Mobile number"
+- openLink: bgo:///profile
+- extendedWaitUntil:
+    visible: ${output.authEmailPattern}
+    timeout: 120000
+- assertVisible: ${output.authEmailPattern}
+- openLink: bgo:///matches
+- assertVisible:
+    id: "profile-button"
