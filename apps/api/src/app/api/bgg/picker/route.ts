@@ -80,9 +80,14 @@ export async function GET(request: Request) {
     collectionOffset += visible.length;
     const catalog = visible.length
       ? await db
-          .collection<{ id: number; average?: number; rank?: number; bayesAverage?: number }>(
-            COLLECTIONS.BOARD_GAMES,
-          )
+          .collection<{
+            id: number;
+            average?: number;
+            rank?: number;
+            bayesAverage?: number;
+            minPlayMinutes?: number | null;
+            maxPlayMinutes?: number | null;
+          }>(COLLECTIONS.BOARD_GAMES)
           .find({ id: { $in: visible.map((row) => row.gameId) } })
           .toArray()
       : [];
@@ -96,6 +101,8 @@ export async function GET(request: Request) {
         average: stats.get(row.gameId)?.average ?? null,
         rank: stats.get(row.gameId)?.rank ?? null,
         bayesAverage: stats.get(row.gameId)?.bayesAverage ?? null,
+        minPlayMinutes: stats.get(row.gameId)?.minPlayMinutes ?? null,
+        maxPlayMinutes: stats.get(row.gameId)?.maxPlayMinutes ?? null,
         source: "collection" as const,
       })),
     );

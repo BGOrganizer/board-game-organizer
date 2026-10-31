@@ -34,6 +34,7 @@ import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -125,6 +126,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
             >
               <Check className="size-4" aria-hidden />
             </Button>
+            <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
           </div>
         </HeaderActions>
       ) : null}

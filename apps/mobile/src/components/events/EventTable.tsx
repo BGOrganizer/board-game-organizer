@@ -12,6 +12,7 @@ import { View } from "react-native";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventDeleteAction } from "./EventDeleteAction";
 import { EventTableLeaderboard } from "./EventTableLeaderboard";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTableResults } from "./EventTableResults";
@@ -23,12 +24,32 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
   const [tab, setTab] = useState("overview");
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
+  const header = (
+    <Stack.Screen
+      options={{
+        title: table?.name ?? t("Table details"),
+        headerRight: () =>
+          table && event.data ? (
+            <EventDeleteAction
+              event={event.data}
+              table={table}
+              disabled={q.isPlaceholderData || event.isPlaceholderData}
+            />
+          ) : null,
+      }}
+    />
+  );
   if (!table || table.eventStatus === "PLANNING")
-    return <EventTableOverview eventId={eventId} tableId={tableId} />;
+    return (
+      <>
+        {header}
+        <EventTableOverview eventId={eventId} tableId={tableId} />
+      </>
+    );
   const selected = tab === "results" && table.eventStatus !== "TERMINATED" ? "overview" : tab;
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: table.name }} />
+      {header}
       <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
         <View style={{ alignItems: "center", paddingTop: 12 }}>
           <TabBar style={{ alignSelf: "center", width: "auto" }}>

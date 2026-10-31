@@ -1,10 +1,5 @@
 import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/schemas";
-import {
-  resolveApiUrl,
-  useBggAccount,
-  useBggPicker,
-  withProtectionBypass,
-} from "@board-game-organizer/shared";
+import { resolveApiUrl, useBggAccount, useBggPicker } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import Constants from "expo-constants";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
@@ -13,7 +8,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
@@ -31,7 +26,9 @@ function apiUrl(): string {
 export default function GamePicker({
   onSelect,
   onClose,
+  excludeIds,
 }: {
+  excludeIds?: readonly number[];
   onSelect?: (game: BggThingResponse) => void;
   onClose?: () => void;
 } = {}) {
@@ -44,19 +41,19 @@ export default function GamePicker({
   const excludedIds = useMemo(
     () =>
       new Set(
-        (exclude ?? "")
-          .split(",")
-          .filter(Boolean)
-          .map((id) => Number(id)),
+        excludeIds ??
+          (exclude ?? "")
+            .split(",")
+            .filter(Boolean)
+            .map((id) => Number(id)),
       ),
-    [exclude],
+    [excludeIds, exclude],
   );
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [search, setSearch] = useState(true);
   const [collection, setCollection] = useState(true);
-  const [picking, setPicking] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const selected = useRef(false);
   const account = useBggAccount({
     apiUrl: apiUrl(),
     getToken,
@@ -82,37 +79,20 @@ export default function GamePicker({
   );
   const active = (search && debounced.length >= 4) || (collection && hasCollection);
 
-  const select = async (item: BggPickerItem) => {
-    setPicking(item.id);
-    setError(null);
-    try {
-      const token = await getToken();
-      if (!token) throw new Error("No session token");
-      const response = await fetch(
-        withProtectionBypass(`${apiUrl()}/api/bgg/thing?id=${item.id}`),
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const details = (await response.json()) as BggThingResponse;
-      if (onSelect) {
-        onSelect(details);
-        return;
-      }
+  const select = (item: BggPickerItem) => {
+    if (selected.current || excludedIds.has(item.id)) return;
+    selected.current = true;
+    if (onSelect) onSelect(item);
+    else {
       setPendingGame(slotId, {
-        id: details.id,
-        name: details.name,
-        imageUrl: details.imageUrl,
-        year: details.year,
-        average: details.average,
-        rank: details.rank,
+        id: item.id,
+        name: item.name,
+        imageUrl: item.imageUrl,
+        year: item.year,
+        average: item.average,
+        rank: item.rank,
       });
       router.back();
-    } catch {
-      setError(t("Could not load game details"));
-    } finally {
-      setPicking(null);
     }
   };
 
@@ -176,7 +156,6 @@ export default function GamePicker({
               else setCollection((value) => !value);
             }}
           />
-          {error ? <Typography className="text-danger">{error}</Typography> : null}
           {picker.isError || account.account.isError ? (
             <Button
               variant="outline"
@@ -234,7 +213,6 @@ export default function GamePicker({
                 size="sm"
                 style={{ minWidth: 44, minHeight: 44 }}
                 accessibilityLabel={`${t("Select")}: ${item.name}`}
-                isDisabled={picking === item.id}
                 onPress={() => void select(item)}
               >
                 <Plus size={16} color="#fff" />

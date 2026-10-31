@@ -669,6 +669,10 @@ msgstr "An event action is in progress."
 msgid "An event can have at most 20 tables."
 msgstr "An event can have at most 20 tables."
 
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "An event must keep at least one table. Delete the event instead."
+msgstr "An event must keep at least one table. Delete the event instead."
+
 #: apps/web/src/components/matches/MatchWizard.tsx
 msgid "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
 msgstr "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
@@ -2024,6 +2028,14 @@ msgstr "Decrease min players"
 msgid "Default booking deadline is 24 hours before the event starts"
 msgstr "Default booking deadline is 24 hours before the event starts"
 
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete event"
+msgstr "Delete event"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete event?"
+msgstr "Delete event?"
+
 #: apps/web/src/components/groups/GroupDetail.tsx
 msgid "Delete group"
 msgstr "Delete group"
@@ -2051,6 +2063,18 @@ msgstr "Delete notification"
 #: apps/web/src/components/notifications/NotificationsPage.tsx
 msgid "Delete notification?"
 msgstr "Delete notification?"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete table"
+msgstr "Delete table"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete table?"
+msgstr "Delete table?"
+
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Delete this table and cancel its active registrations?"
+msgstr "Delete this table and cancel its active registrations?"
 
 #: apps/web/src/components/events/EventDraftTableEditor.tsx
 #: apps/web/src/components/events/EventTableCard.tsx
@@ -3767,6 +3791,10 @@ msgstr "People you have blocked."
 msgid "Permanent exclusion"
 msgstr "Permanent exclusion"
 
+#: apps/web/src/components/events/EventDeleteAction.tsx
+msgid "Permanently delete this event, all its tables, registrations and votes?"
+msgstr "Permanently delete this event, all its tables, registrations and votes?"
+
 #: apps/web/src/components/groups/GroupDetail.tsx
 msgid "Permanently delete this group and all its events, tables, registrations, votes, results and group rankings? Personal GLOBAL ratings remain unchanged. This cannot be undone."
 msgstr "Permanently delete this group and all its events, tables, registrations, votes, results and group rankings? Personal GLOBAL ratings remain unchanged. This cannot be undone."
@@ -5226,3 +5254,20 @@ msgstr "Your reserved place will become available again."
 
 #~ msgid "YYYY-MM-DDTHH:mm"
 #~ msgstr "YYYY-MM-DDTHH:mm"
+
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_event.success"
+msgstr "Event deleted"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_event.error"
+msgstr "Could not delete event"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_table.success"
+msgstr "Table deleted"
+
+#. js-lingui-explicit-id
+msgid "organization.feedback.delete_table.error"
+msgstr "Could not delete table"

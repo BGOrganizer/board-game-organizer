@@ -4,6 +4,48 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { expect, it } from "vitest";
 
+it("retains verification for one Table when another Table sharing its mutation key succeeds", async () => {
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } }),
+    mutationKey = ["events", "api", "owner", "mutation", "event", "remove-table"];
+  await client
+    .getMutationCache()
+    .build(client, {
+      mutationKey,
+      mutationFn: async (_input: { tableId: string; version: number }) => {
+        throw new CommunityApiError(503, "UNKNOWN");
+      },
+    })
+    .execute({ tableId: "first", version: 1 })
+    .catch(() => undefined);
+  await client
+    .getMutationCache()
+    .build(client, {
+      mutationKey,
+      mutationFn: async (_input: { tableId: string; version: number }) => null,
+    })
+    .execute({ tableId: "second", version: 1 });
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const hook = renderHook(
+    ({ tableId }) =>
+      useClientMutationDraft<{ tableId: string; version: number }>(
+        mutationKey,
+        1,
+        (input) => input?.tableId === tableId,
+      ),
+    { wrapper, initialProps: { tableId: "first" } },
+  );
+  expect(hook.result.current).toMatchObject({
+    phase: "verifying",
+    variables: { tableId: "first" },
+  });
+  hook.rerender({ tableId: "second" });
+  expect(hook.result.current).toBeUndefined();
+  hook.unmount();
+  client.clear();
+});
+
 it("reads only the current exact actor/API/resource key, including the first render after a filter change", async () => {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const key = (api: string, owner: string) => ["groups", api, owner, "mutation", "group", "update"];

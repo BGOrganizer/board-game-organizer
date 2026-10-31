@@ -1,11 +1,11 @@
 "use client";
 
-import type { BggPickerItem, BggThingResponse } from "@board-game-organizer/schemas";
-import { useBggAccount, useBggPicker, withProtectionBypass } from "@board-game-organizer/shared";
+import type { BggPickerItem } from "@board-game-organizer/schemas";
+import { useBggAccount, useBggPicker } from "@board-game-organizer/shared";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Gamepad2, LibraryBig, Plus, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FilterChips } from "@/components/common/ui/FilterChips";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -50,11 +50,10 @@ export function SearchGamePage({
   const [search, setSearch] = useState(true);
   const [collection, setCollection] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
-  const [picking, setPicking] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const selected = useRef(false);
   const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
   const freshToken = useCallback(
-    async () => (getToken ? ((await getToken()) ?? token) : token),
+    async () => (getToken ? await getToken() : token),
     [getToken, token],
   );
   const account = useBggAccount({ apiUrl, getToken: freshToken, userId, protectionBypass });
@@ -76,33 +75,11 @@ export function SearchGamePage({
   // biome-ignore lint/correctness/useExhaustiveDependencies: page index resets when filters change.
   useEffect(() => setPageIndex(0), [debounced, search, collection, hasCollection]);
 
-  const select = async (item: BggPickerItem) => {
-    setPicking(item.id);
-    setError(null);
-    try {
-      const current = await freshToken();
-      if (!current) throw new Error("No session token");
-      const res = await fetch(
-        withProtectionBypass(`${apiUrl}/api/bgg/thing?id=${item.id}`, protectionBypass),
-        { headers: { Authorization: `Bearer ${current}` } },
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const details = (await res.json()) as BggThingResponse;
-      onSelect({
-        id: details.id,
-        name: details.name,
-        imageUrl: details.imageUrl,
-        year: details.year,
-        average: details.average,
-        rank: details.rank,
-        minPlayMinutes: details.minPlayMinutes,
-        maxPlayMinutes: details.maxPlayMinutes,
-      });
-    } catch {
-      setError(t`Could not load game details`);
-    } finally {
-      setPicking(null);
-    }
+  const select = (item: BggPickerItem) => {
+    if (selected.current || excludeSet.has(item.id)) return;
+    selected.current = true;
+    // Use supplied catalog metadata; missing durations keep the existing manual fallback.
+    onSelect(item);
   };
 
   const page = picker.data?.pages[pageIndex];
@@ -144,11 +121,6 @@ export function SearchGamePage({
           }}
         />
       </div>
-      {error ? (
-        <p className="mt-2 text-sm text-danger" role="alert">
-          {error}
-        </p>
-      ) : null}
       {picker.isError || account.account.isError ? (
         <Button
           className="mt-3"
@@ -179,7 +151,13 @@ export function SearchGamePage({
             <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
               {item.imageUrl ? (
                 // biome-ignore lint/performance/noImgElement: BGG cover URLs discovered at runtime.
-                <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <Gamepad2 className="h-5 w-5 text-default-400" />
               )}
@@ -196,7 +174,6 @@ export function SearchGamePage({
               size="sm"
               variant="primary"
               aria-label={`${t`Select`}: ${item.name}`}
-              isDisabled={picking === item.id}
               onPress={() => void select(item)}
             >
               <Plus className="h-4 w-4" />

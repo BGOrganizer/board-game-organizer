@@ -7,7 +7,9 @@ import {
 import { Button, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventDeleteAction } from "./EventDeleteAction";
 import { EventTableLeaderboard } from "./EventTableLeaderboard";
 import { EventTableOverview } from "./EventTableOverview";
 import { EventTableResults } from "./EventTableResults";
@@ -19,11 +21,27 @@ export function EventTable({ eventId, tableId }: { eventId: string; tableId: str
   const [tab, setTab] = useState("overview");
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
+  const header =
+    table && event.data ? (
+      <HeaderActions>
+        <EventDeleteAction
+          event={event.data}
+          table={table}
+          disabled={q.isPlaceholderData || event.isPlaceholderData}
+        />
+      </HeaderActions>
+    ) : null;
   if (!table || table.eventStatus === "PLANNING")
-    return <EventTableOverview eventId={eventId} tableId={tableId} />;
+    return (
+      <>
+        {header}
+        <EventTableOverview eventId={eventId} tableId={tableId} />
+      </>
+    );
   const selected = tab === "results" && table.eventStatus !== "TERMINATED" ? "overview" : tab;
   return (
     <div className="mx-auto w-full max-w-4xl pb-24">
+      {header}
       <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
         <Tabs.ListContainer className="mx-auto mb-4 w-fit max-w-full">
           <Tabs.List aria-label={t`Table sections`}>

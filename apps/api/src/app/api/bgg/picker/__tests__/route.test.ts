@@ -56,7 +56,7 @@ vi.mock("@/app/lib/db", () => ({
       find: (filter: { gameId?: { $in: number[] }; name?: RegExp }) =>
         find(
           name === "boardGames"
-            ? [{ id: 1, name: "Azul", average: 7.5 }]
+            ? [{ id: 1, name: "Azul", average: 7.5, minPlayMinutes: 30, maxPlayMinutes: 45 }]
             : mocks
                 .collectionRows()
                 .filter(
@@ -83,6 +83,16 @@ it("requires auth and rejects malformed cursors", async () => {
   expect((await GET(request("query=Azul"))).status).toBe(401);
   expect((await GET(request("query=Azul&cursor=invalid"))).status).toBe(409);
   expect((await GET(request("query=Azul&limit=500"))).status).toBe(400);
+});
+
+it("includes already-known catalog durations in collection rows and preserves explicit missing-metadata fallback", async () => {
+  mocks.collectionRows.mockReturnValue([owned, { ...owned, gameId: 3, name: "Unknown duration" }]);
+  const response = await GET(request("search=0&limit=5"));
+  expect((await response.json()).items).toMatchObject([
+    { id: 1, minPlayMinutes: 30, maxPlayMinutes: 45 },
+    { id: 3, minPlayMinutes: null, maxPlayMinutes: null },
+  ]);
+  expect(mocks.search).not.toHaveBeenCalled();
 });
 
 it("returns collection first, then excludes matching BGG IDs from all search pages", async () => {

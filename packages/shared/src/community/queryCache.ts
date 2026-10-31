@@ -12,6 +12,17 @@ export function mapCommunityCache<T>(data: unknown, change: (row: T) => T): unkn
     pages: pages.pages.map((page) => ({ ...page, items: page.items.map(change) })),
   };
 }
+/** Filter owned source pages without changing server cursors or unrelated page metadata. */
+export function filterCommunityPages<T>(data: unknown, keep: (row: T) => boolean): unknown {
+  if (!data || typeof data !== "object" || !("pages" in data) || !Array.isArray(data.pages))
+    return data;
+  const value = data as InfiniteData<CommunityPageResponse<T>>;
+  return {
+    ...value,
+    pages: value.pages.map((page) => ({ ...page, items: page.items.filter(keep) })),
+  };
+}
+
 /** Freeze only the rows known at mutation start; newer authoritative versions always win. */
 export function versionedCommunityChange<T extends object>(
   change: (row: T, key: QueryKey) => T,

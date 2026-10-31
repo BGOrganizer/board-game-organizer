@@ -4,10 +4,14 @@ import { clientMutationPhase, clientMutationSuperseded } from "../clientMutation
 import { useScopedMutations } from "./useScopedMutations";
 
 /** Request drafts only. Latest success suppresses older failures; unknown outcomes are not retries. */
-export function useClientMutationDraft<T>(mutationKey: MutationKey, canonicalVersion?: number) {
-  const latest = useScopedMutations({ mutationKey, exact: true }).sort(
-    (a, b) => b.mutationId - a.mutationId,
-  )[0];
+export function useClientMutationDraft<T>(
+  mutationKey: MutationKey,
+  canonicalVersion?: number,
+  include?: (variables: T | undefined) => boolean,
+) {
+  const latest = useScopedMutations({ mutationKey, exact: true })
+    .filter((mutation) => !include || include(mutation.state.variables as T | undefined))
+    .sort((a, b) => b.mutationId - a.mutationId)[0];
   if (!latest || (latest.state.status !== "pending" && latest.state.status !== "error"))
     return undefined;
   const phase = clientMutationPhase(

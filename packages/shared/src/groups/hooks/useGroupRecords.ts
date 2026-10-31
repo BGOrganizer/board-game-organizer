@@ -45,7 +45,11 @@ import {
   communityPagePath,
   communityRequest,
 } from "../../community/communityApi";
-import { mapCommunityCache, versionedCommunityChange } from "../../community/queryCache";
+import {
+  filterCommunityPages,
+  mapCommunityCache,
+  versionedCommunityChange,
+} from "../../community/queryCache";
 import type { ContactUser } from "../../contacts/hooks/useContacts";
 import { revokeCachedGroupAccess } from "../groupAccessCache";
 import { belongsToDeletedGroup, removeDeletedGroupData } from "../groupDeletionCache";
@@ -447,6 +451,18 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
           value.groupId === context.id
         ) {
           const membership = value as GroupMembership;
+          if (["PENDING", "ACCEPTED"].includes(membership.status))
+            for (const [key] of client.getQueriesData({
+              queryKey: groupRecordKeys.root(context.owner),
+              predicate: (q) =>
+                q.queryKey[3] === "invitees" && q.queryKey[4] === membership.groupId,
+            }))
+              updateOptimisticBase(client, key, (data) =>
+                filterCommunityPages<{ id: string }>(
+                  data,
+                  (person) => person.id !== membership.userId,
+                ),
+              );
           for (const [key] of client.getQueriesData({
             queryKey: groupRecordKeys.root(context.owner),
           })) {

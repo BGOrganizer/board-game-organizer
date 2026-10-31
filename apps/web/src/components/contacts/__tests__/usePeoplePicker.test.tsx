@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -127,6 +128,115 @@ it("optimistically excludes Table invitees, rolls failure back and preserves oth
     expect(hook.result.current.picker.items.map((row) => row.id)).toEqual(["friend"]),
   );
 });
+it.each(["table", "group"] as const)(
+  "never paints an invited person on cold/reopened %s searches, including the ACK-to-refetch gap",
+  async (kind) => {
+    const { options, client, wrapper } = setup();
+    const target = { eventId: "event", tableId: "table" };
+    const key = (query = "") =>
+      kind === "table"
+        ? tableInviteesPageQuery(options, "event", "table", query).queryKey
+        : groupInviteesPageQuery(options, "group", query).queryKey;
+    const data = {
+      pages: [
+        {
+          items: [{ id: "friend", name: "Friend", username: null, email: null, avatarUrl: null }],
+          nextCursor: null,
+        },
+      ],
+      pageParams: [""],
+    };
+    client.setQueryData(key(), data);
+    let finish: ((response: Response) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "POST")
+          return new Promise<Response>((resolve) => {
+            finish = resolve;
+          });
+        if (url.includes("/invitations") || url.includes("/invitees"))
+          return new Promise<Response>(() => {});
+        if (url.includes("/members")) return Response.json({ items: [], nextCursor: null });
+        return Response.json(
+          kind === "table"
+            ? { ...plannedEvent, id: "event", version: 2 }
+            : { ...groupRecord, id: "group" },
+        );
+      }),
+    );
+    const action = renderHook(
+      () => ({
+        table: useEventRecordActions(options, "event"),
+        group: useGroupRecordActions(options),
+      }),
+      { wrapper },
+    );
+    let pending!: Promise<unknown>;
+    act(() => {
+      pending =
+        kind === "table"
+          ? action.result.current.table.invite.mutateAsync({ tableId: "table", userId: "friend" })
+          : action.result.current.group.invite.mutateAsync({ id: "group", userId: "friend" });
+    });
+    await waitFor(() => expect(finish).toBeDefined());
+    // New search did not exist when onMutate captured its owned rows.
+    client.setQueryData(key("Friend"), data);
+    const picker = renderHook(
+      () =>
+        usePeoplePicker(
+          options,
+          "Friend",
+          kind === "group",
+          kind === "group" ? "group" : undefined,
+          kind === "table" ? target : undefined,
+        ),
+      { wrapper },
+    );
+    expect(picker.result.current.items).toEqual([]);
+    picker.unmount();
+    await act(async () => {
+      finish!(
+        Response.json({
+          id: "registration",
+          groupId: "group",
+          eventId: "event",
+          tableId: "table",
+          userId: "friend",
+          kind: "INVITATION",
+          status: "PENDING",
+          version: 1,
+          gameVotes: {},
+          createdAt: plannedEvent.createdAt,
+          updatedAt: plannedEvent.updatedAt,
+          ...(kind === "table" ? { eventVersion: 2 } : {}),
+        }),
+      );
+      await pending;
+    });
+    const paints: string[][] = [];
+    const reopened = renderHook(
+      () => {
+        const value = usePeoplePicker(
+          options,
+          "Friend",
+          kind === "group",
+          kind === "group" ? "group" : undefined,
+          kind === "table" ? target : undefined,
+        );
+        paints.push(value.items.map((person) => person.id));
+        return value;
+      },
+      { wrapper },
+    );
+    expect(reopened.result.current.items).toEqual([]);
+    expect(paints.every((ids) => !ids.includes("friend"))).toBe(true);
+    reopened.unmount();
+    action.unmount();
+    client.clear();
+  },
+);
+
 it("source-pages Group invitees and their search without requesting unrestricted friendship/search lists", async () => {
   const { options, wrapper } = setup();
   const fetch = vi.fn(

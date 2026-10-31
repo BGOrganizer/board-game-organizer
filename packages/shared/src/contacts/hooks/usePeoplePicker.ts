@@ -1,8 +1,9 @@
 "use client";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { useScopedMutations } from "../../common/hooks/useScopedMutations";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
-import { tableInviteesPageQuery } from "../../events/hooks/useEventRecords";
-import { groupInviteesPageQuery } from "../../groups/hooks/useGroupRecords";
+import { eventRecordKeys, tableInviteesPageQuery } from "../../events/hooks/useEventRecords";
+import { groupInviteesPageQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
 import { type ContactUser, useRelationshipList } from "./useContacts";
 /** Paged identity selection; local search text remains in each platform's UI. */
 export function usePeoplePicker(
@@ -12,6 +13,30 @@ export function usePeoplePicker(
   invitationGroupId?: string,
   invitationTable?: { eventId: string; tableId: string },
 ) {
+  const pendingInvites = useScopedMutations({
+    mutationKey: invitationTable
+      ? eventRecordKeys.mutation(options, invitationTable.eventId, "invite")
+      : [...groupRecordKeys.root(options), "mutation"],
+    status: "pending",
+  });
+  const excluded = new Set(
+    pendingInvites.flatMap((mutation) => {
+      if (mutation.options.mutationKey?.at(-1) !== "invite") return [];
+      const input = mutation.state.variables as
+        | { id?: string; tableId?: string; userId?: string }
+        | undefined;
+      const context = mutation.state.context as
+        | { operation?: { signal?: AbortSignal } }
+        | undefined;
+      return input?.userId &&
+        !context?.operation?.signal?.aborted &&
+        (invitationTable
+          ? input.tableId === invitationTable.tableId
+          : input.id === invitationGroupId)
+        ? [input.userId]
+        : [];
+    }),
+  );
   const searching = query.trim().length >= 4,
     normalized = searching ? query.trim() : "";
   const friends = useRelationshipList(
@@ -84,11 +109,11 @@ export function usePeoplePicker(
     items: invitationTable
       ? (tableInvitees.data?.pages
           .flatMap((page) => page.items)
-          .filter((row) => !row.optimisticInvited) ?? [])
+          .filter((row) => !row.optimisticInvited && !excluded.has(row.id)) ?? [])
       : invitationGroupId
         ? (invitees.data?.pages
             .flatMap((page) => page.items)
-            .filter((row) => !row.optimisticInvited) ?? [])
+            .filter((row) => !row.optimisticInvited && !excluded.has(row.id)) ?? [])
         : searching
           ? (search.data?.pages.flatMap((page) => page.users) ?? [])
           : friendsOnly

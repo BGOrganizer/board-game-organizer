@@ -138,6 +138,21 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 - Editors keep unsaved values locally. Creation/edits happen only on final confirmation. Table edits
   are partial upserts; explicit `removedTableIds` remove tables. Unloaded pages are never implicitly
   deleted. Versions are pinned; stale drafts require reopening rather than overwriting newer data.
+- The creator/admin may delete a PLANNING Event or remove one of its Tables through the far-right
+  app-header trash action on both clients, after explicit destructive confirmation. Both DELETE
+  bodies contain the current **Event** version. The same Group/Event transaction locks, creator
+  authorization and public cutoff checks as planning edits apply; CONFIRMED/TERMINATED records
+  cannot be deleted directly. A Table removal retains at least one Table, marks the selected Table
+  removed, cancels its active registrations and advances the Event version atomically. Deleting
+  the Event removes its Tables, registrations, votes and linked inbox history; unrelated records
+  and the existing explicit whole-Group cascade remain unchanged. This is product-record deletion,
+  not database/collection reset. Confirmation is version-pinned; a newer version requires reopening.
+  User confirmation closes/navigates immediately, projects only owned cached rows, and rolls back
+  selectively on definite failure. Unknown outcomes cannot be blindly reposted.
+- Game pickers exclude games already selected for the current Table. Source-paged picker rows already
+  carry catalog metadata (including known durations for collection results), so selection updates
+  the local draft and returns immediately without a separate game-detail request. Missing duration
+  retains the existing explicit manual fallback; final server validation remains mandatory.
 - Accepting a Table invitation opens the existing availability sheet on both clients, without
   changing participation. PRIVATE Group invitations require a YES/IF_NEEDED/NO response for every
   current date, location and Table game, including when another Table is already accepted, with at
@@ -153,7 +168,10 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   accepts an invitation. Accepted waiting players may vote. The organizer-only Table invitation
   candidate endpoint excludes every PENDING/ACCEPTED registration on that same Table, seated or queued,
   before search/cursor/limit paging. Declined/cancelled registrations and participation at other Tables
-  do not exclude a candidate. PUBLIC other-Table overlaps remain visible with
+  do not exclude a candidate. Both clients filter current owned invitation intent on the first render,
+  including newly opened search pages; positive receipts remove acknowledged invitees from cached
+  candidate pages before intent retires. Reopening never paints an already-invited person while
+  waiting for an eligibility refetch. Definite failures restore eligibility selectively. PUBLIC other-Table overlaps remain visible with
   `invitationBlockReason: TABLE_TIME_CONFLICT`; clear candidates return null. Both clients disable
   invitation/selection while a separate accessible question-mark popover explains pending/accepted
   participation or demonstrator duties. No other Table identity is disclosed. This snapshot is

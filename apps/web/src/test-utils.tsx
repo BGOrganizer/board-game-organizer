@@ -1,7 +1,20 @@
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { render } from "@testing-library/react";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { ReactElement } from "react";
+
+const router = {
+  bfcacheId: "unit-test",
+  back() {},
+  forward() {},
+  refresh() {},
+  hmrRefresh() {},
+  push() {},
+  replace() {},
+  prefetch() {},
+};
+
 import { messages } from "../../../messages/en.js";
 
 /**
@@ -12,10 +25,14 @@ import { messages } from "../../../messages/en.js";
  */
 export function renderWithI18n(ui: ReactElement) {
   const i18n = setupI18n({ locale: "en", messages: { en: messages } });
-  const view = render(<I18nProvider i18n={i18n}>{ui}</I18nProvider>);
+  const wrap = (value: ReactElement) => (
+    <AppRouterContext.Provider value={router}>
+      <I18nProvider i18n={i18n}>{value}</I18nProvider>
+    </AppRouterContext.Provider>
+  );
+  const view = render(wrap(ui));
   return {
     ...view,
-    rerender: (next: ReactElement) =>
-      view.rerender(<I18nProvider i18n={i18n}>{next}</I18nProvider>),
+    rerender: (next: ReactElement) => view.rerender(wrap(next)),
   };
 }

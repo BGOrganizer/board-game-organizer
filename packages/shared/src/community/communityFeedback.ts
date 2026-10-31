@@ -24,6 +24,8 @@ export const COMMUNITY_FEEDBACK_MESSAGES = {
     success: "Event returned to planning",
     error: "Could not return event to planning",
   },
+  delete_event: { success: "Event deleted", error: "Could not delete event" },
+  delete_table: { success: "Table deleted", error: "Could not delete table" },
   finalize_event: {
     success: "Event results registered",
     error: "Could not register event results",

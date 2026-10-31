@@ -122,6 +122,15 @@ export const editPlannedEventSchema = createPlannedEventSchema
   })
   .strict();
 export type EditPlannedEventInput = z.infer<typeof editPlannedEventSchema>;
+export const deletePlannedRecordSchema = z
+  .object({ version: z.number().int().positive() })
+  .strict();
+export type DeletePlannedRecordInput = z.infer<typeof deletePlannedRecordSchema>;
+export interface DeletedPlannedEventResponse {
+  id: string;
+  groupId: string | null;
+}
+
 export const changeEventStateSchema = z
   .object({ version: z.number().int().positive(), action: z.enum(["confirm", "replan"]) })
   .strict();

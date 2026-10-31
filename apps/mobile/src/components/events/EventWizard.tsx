@@ -208,6 +208,9 @@ function Editor({
       <View style={{ flex: 1 }}>
         {pickerHeader}
         <GamePicker
+          excludeIds={draft.tables
+            .find((row) => row.key === pick.key)
+            ?.games.map((game) => game.id)}
           onSelect={(game) => {
             form.addGame(pick.key, game);
             setPick(null);

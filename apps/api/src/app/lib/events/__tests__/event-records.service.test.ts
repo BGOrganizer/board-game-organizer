@@ -73,6 +73,11 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     create: vi.fn(async (row: EventRecord) => {
       events.set(row.id, clone(row));
     }),
+    remove: vi.fn(async (eventId: string) => {
+      events.delete(eventId);
+      for (const map of [tables, registrations, votes])
+        for (const [key, row] of map) if (row.eventId === eventId) map.delete(key);
+    }),
     save: vi.fn(async (row: EventRecord) => {
       events.set(row.id, clone(row));
     }),
@@ -281,6 +286,85 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     confirm,
   };
 }
+it.each([null, "PRIVATE", "PUBLIC"] as const)(
+  "deletes planning Event/Table atomically through creator/version guards (%s)",
+  async (type) => {
+    const s = setup(type),
+      input = body();
+    input.groupId = type ? other : null;
+    input.tables.push({ ...input.tables[0], id: other, name: "Second table" });
+    if (type === "PUBLIC") {
+      input.endsAt = "2027-01-03T18:00:00Z";
+      input.bookingClosesAt = "2027-01-02T08:00:00Z";
+    }
+    const event = await s.service.create(owner, input);
+    const invitation = await s.service.register(owner, event.id, id, guest);
+    await s.accept(invitation);
+    const version = s.events.get(event.id)!.version;
+    await expect(s.service.remove(guest, event.id, { version })).rejects.toMatchObject({
+      code: "EVENT_ADMIN_REQUIRED",
+    });
+    await expect(s.service.removeTable(guest, event.id, id, { version })).rejects.toMatchObject({
+      code: "EVENT_ADMIN_REQUIRED",
+    });
+    for (const action of [
+      () => s.service.remove(owner, event.id, { version: version + 1 }),
+      () => s.service.removeTable(owner, event.id, id, { version: version + 1 }),
+    ])
+      await expect(action()).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+    await expect(
+      s.service.removeTable(owner, event.id, "missing", { version }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    const result = await s.service.removeTable(owner, event.id, id, { version });
+    expect(result.tableCount).toBe(1);
+    expect(result.version).toBe(version + 1);
+    expect(s.tables.get(id)?.removedAt).toBeTruthy();
+    expect(
+      [...s.registrations.values()]
+        .filter((row) => row.tableId === id)
+        .every((row) => row.status === "CANCELLED"),
+    ).toBe(true);
+    expect(s.tables.get(other)?.removedAt).toBeUndefined();
+    await expect(
+      s.service.removeTable(owner, event.id, other, { version: result.version }),
+    ).rejects.toMatchObject({ code: "EVENT_TABLE_LIMIT" });
+    expect(await s.service.remove(owner, event.id, { version: result.version })).toEqual({
+      id: event.id,
+      groupId: input.groupId,
+    });
+    expect(s.events.has(event.id)).toBe(false);
+    expect(s.tables.size).toBe(0);
+    expect(s.registrations.size).toBe(0);
+    expect(s.ratings.applyTableResult).not.toHaveBeenCalled();
+  },
+);
+it.each(["CONFIRMED", "TERMINATED"] as const)(
+  "never deletes immutable/non-planning %s Event or Table",
+  async (status) => {
+    const s = setup(),
+      event = await s.create();
+    s.events.set(event.id, { ...s.events.get(event.id)!, status });
+    await expect(
+      s.service.remove(owner, event.id, { version: event.version }),
+    ).rejects.toMatchObject({ code: "EVENT_NOT_PLANNING" });
+    await expect(
+      s.service.removeTable(owner, event.id, id, { version: event.version }),
+    ).rejects.toMatchObject({ code: "EVENT_NOT_PLANNING" });
+    expect(s.repo.remove).not.toHaveBeenCalled();
+    expect(s.repo.removeTable).not.toHaveBeenCalled();
+  },
+);
+it("preserves exact public cutoffs for both deletion paths", async () => {
+  const s = setup("PUBLIC"),
+    event = await s.create();
+  vi.setSystemTime(new Date(event.bookingClosesAt!));
+  await expect(s.service.remove(owner, event.id, { version: event.version })).rejects.toMatchObject(
+    { code: "EVENT_BOOKING_CLOSED" },
+  );
+  await expect(
+    s.service.removeTable(owner, event.id, id, { version: event.version }),
+  ).rejects.toMatchObject({ code: "EVENT_BOOKING_CLOSED" });
+});
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2027-01-01T00:00:00Z"));

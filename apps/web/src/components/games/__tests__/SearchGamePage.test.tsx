@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 import { SearchGamePage } from "@/components/games/SearchGamePage";
@@ -30,20 +30,11 @@ it("hides selected games and uses an icon-only selection action", async () => {
             rank: 42,
             imageUrl: "https://cf.geekdo-images.com/a/thumb.jpg",
             source: "search",
+            minPlayMinutes: 60,
+            maxPlayMinutes: 90,
           },
           { id: 2, name: "Already selected", year: null, imageUrl: null },
         ],
-      }),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        id: 1,
-        name: "Cascadia",
-        imageUrl: null,
-        year: 2021,
-        average: 7.83,
-        rank: 42,
       }),
     });
   vi.stubGlobal("fetch", fetchMock);
@@ -89,14 +80,18 @@ it("hides selected games and uses an icon-only selection action", async () => {
   );
   fireEvent.click(select);
 
-  await waitFor(() =>
-    expect(onSelect).toHaveBeenCalledWith({
-      id: 1,
-      name: "Cascadia",
-      imageUrl: null,
-      year: 2021,
-      average: 7.83,
-      rank: 42,
-    }),
-  );
+  expect(onSelect).toHaveBeenCalledWith({
+    id: 1,
+    name: "Cascadia",
+    imageUrl: "https://cf.geekdo-images.com/a/thumb.jpg",
+    year: 2021,
+    average: 7.83,
+    rank: 42,
+    source: "search",
+    minPlayMinutes: 60,
+    maxPlayMinutes: 90,
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  fireEvent.click(select);
+  expect(onSelect).toHaveBeenCalledTimes(1);
 });

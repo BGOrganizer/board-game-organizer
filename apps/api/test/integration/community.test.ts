@@ -1730,6 +1730,106 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       }),
     );
   }
+  it("transactionally deletes planning Event/Table data, rolls both back on failure and preserves unrelated histories", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id),
+      siblingId = randomUUID();
+    input.tables.push({ ...input.tables[0], id: siblingId, name: "Retained second table" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    const otherInput = plannedInput();
+    otherInput.tables[0].id = randomUUID();
+    const unrelated = await transaction((s) => s.plannedEventService.create(OWNER, otherInput));
+    const invitation = await transaction((s) =>
+      s.plannedEventService.register(OWNER, event.id, tableId, GUEST),
+    );
+    await transaction(async (s) =>
+      s.plannedEventService.registrationAction(GUEST, invitation.id, {
+        action: "accept",
+        version: invitation.version,
+        participation: await participation(event.id, tableId),
+      }),
+    );
+    await transaction(async (s) =>
+      s.plannedEventService.join(
+        OWNER,
+        event.id,
+        siblingId,
+        await participation(event.id, siblingId),
+      ),
+    );
+    const current = await services().eventRecords.find(event.id),
+      version = current!.version;
+    await expect(
+      transaction((s) => s.plannedEventService.remove(GUEST, event.id, { version })),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    await expect(
+      transaction((s) => s.plannedEventService.removeTable(GUEST, event.id, tableId, { version })),
+    ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.removeTable(OWNER, event.id, tableId, { version: version - 1 }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_CHANGED" });
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.removeTable(OWNER, event.id, tableId, { version });
+        throw new Error("Rollback table deletion");
+      }),
+    ).rejects.toThrow("Rollback table deletion");
+    expect((await services().eventRecords.table(tableId))?.removedAt).toBeUndefined();
+    expect((await services().eventRecords.registration(invitation.id))?.status).toBe("ACCEPTED");
+    expect((await services().eventRecords.find(event.id))?.version).toBe(version);
+    const saved = await transaction((s) =>
+      s.plannedEventService.removeTable(OWNER, event.id, tableId, { version }),
+    );
+    expect(saved).toMatchObject({ version: version + 1, tableCount: 1, participantCount: 1 });
+    expect((await services().eventRecords.registration(invitation.id))?.status).toBe("CANCELLED");
+    expect(await services().eventRecords.table(siblingId)).not.toBeNull();
+    await expect(
+      services().plannedEventService.tableDetail(OWNER, event.id, tableId),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    await expect(
+      transaction((s) =>
+        s.plannedEventService.removeTable(OWNER, event.id, siblingId, { version: saved.version }),
+      ),
+    ).rejects.toMatchObject({ code: "EVENT_TABLE_LIMIT" });
+    await expect(
+      transaction(async (s) => {
+        await s.plannedEventService.remove(OWNER, event.id, { version: saved.version });
+        throw new Error("Rollback event deletion");
+      }),
+    ).rejects.toThrow("Rollback event deletion");
+    expect(await services().eventRecords.find(event.id)).not.toBeNull();
+    expect(await services().eventRecords.table(siblingId)).not.toBeNull();
+    expect(
+      await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).countDocuments({ eventId: event.id }),
+    ).toBe(2);
+    const prefixId = randomUUID();
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne({ id: prefixId, userId: OWNER, href: `/events/${event.id}-unrelated` });
+    expect(
+      await transaction((s) =>
+        s.plannedEventService.remove(OWNER, event.id, { version: saved.version }),
+      ),
+    ).toEqual({ id: event.id, groupId: group.id });
+    expect(await services().eventRecords.find(event.id)).toBeNull();
+    for (const collection of [
+      COLLECTIONS.EVENT_TABLES,
+      COLLECTIONS.TABLE_REGISTRATIONS,
+      COLLECTIONS.EVENT_VOTES,
+    ])
+      expect(await db.collection(collection).countDocuments({ eventId: event.id })).toBe(0);
+    expect(
+      await db
+        .collection(COLLECTIONS.NOTIFICATIONS)
+        .countDocuments({ href: { $regex: `^/events/${event.id}(?:[/?#]|$)` } }),
+    ).toBe(0);
+    expect(await db.collection(COLLECTIONS.NOTIFICATIONS).findOne({ id: prefixId })).not.toBeNull();
+    expect(await services().eventRecords.find(unrelated.id)).not.toBeNull();
+    expect(await services().eventRecords.table(otherInput.tables[0].id!)).not.toBeNull();
+    expect((await services().unifiedGroupService.detail(OWNER, group.id)).eventCount).toBe(0);
+  });
   it("commits creation correlation without using it as resource identity, preserves it through edits and rolls back failed Event creation", async () => {
     const groupRequest = randomUUID();
     const group = await transaction((s) =>

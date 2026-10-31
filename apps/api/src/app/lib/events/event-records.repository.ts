@@ -57,6 +57,25 @@ export class EventRecordsRepository {
     );
     return event;
   }
+  /** Caller holds the Event (and Group when present) lock in this transaction. */
+  async remove(id: string) {
+    for (const collection of [
+      COLLECTIONS.TABLE_REGISTRATIONS,
+      COLLECTIONS.EVENT_VOTES,
+      COLLECTIONS.EVENT_TABLES,
+    ])
+      await this.db.collection(collection).deleteMany({ eventId: id }, this.opts);
+    await this.db
+      .collection(COLLECTIONS.RATING_EVENTS)
+      .deleteMany({ eventId: id, tableId: { $exists: true } }, this.opts);
+    await this.db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .deleteMany({ href: { $regex: `^/events/${id}(?:[/?#]|$)` } }, this.opts);
+    await this.events.deleteOne(
+      { id, status: { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] } },
+      this.opts,
+    );
+  }
   storedTable(id: string) {
     return this.tables.findOne({ id }, { ...this.opts, projection: { _id: 0 } });
   }

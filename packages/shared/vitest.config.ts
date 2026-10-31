@@ -17,6 +17,7 @@ export default defineConfig({
         "src/events/eventOptimisticVote.ts",
         "src/events/eventConsentVersion.ts",
         "src/events/eventOptimisticCreation.ts",
+        "src/events/eventDeletionCache.ts",
         "src/events/eventRegistrationCache.ts",
         "src/events/eventTablePending.ts",
         "src/groups/groupPolicy.ts",
@@ -53,6 +54,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/events/eventDeletionCache.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/{common/optimisticOperation,common/clientMutation,notifications/notificationOptimistic,contacts/hooks/contactOptimistic}.ts":
           {
             lines: 100,

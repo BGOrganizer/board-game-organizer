@@ -35,6 +35,7 @@ import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
+import { EventDeleteAction } from "./EventDeleteAction";
 import { EventDetailsCard } from "./EventDetailsCard";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
@@ -107,6 +108,7 @@ export function EventDetail({ eventId }: { eventId: string }) {
               >
                 <Check size={16} color={accentForeground} />
               </Button>
+              <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </View>
           ) : event?.adminUserId === o.userId &&
             event?.status === "CONFIRMED" &&

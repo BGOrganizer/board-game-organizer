@@ -7,6 +7,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
+import { EventRecordsRepository } from "../events/event-records.repository";
 
 export interface GroupRecordPage {
   limit: number;
@@ -198,21 +199,8 @@ export class GroupRecordsRepository {
       )
       .toArray();
     // ponytail: one atomic transaction; use a separately designed deletion job if group size exceeds MongoDB transaction limits.
-    for (const { id: eventId } of events) {
-      for (const collection of [
-        COLLECTIONS.TABLE_REGISTRATIONS,
-        COLLECTIONS.EVENT_VOTES,
-        COLLECTIONS.EVENT_TABLES,
-      ])
-        await this.db.collection(collection).deleteMany({ eventId }, this.opts);
-      await this.db
-        .collection(COLLECTIONS.RATING_EVENTS)
-        .deleteMany({ eventId, tableId: { $exists: true } }, this.opts);
-      await this.db
-        .collection(COLLECTIONS.NOTIFICATIONS)
-        .deleteMany({ href: { $regex: `^/events/${eventId}(?:[/?#]|$)` } }, this.opts);
-      await this.events.deleteOne({ id: eventId }, this.opts);
-    }
+    const records = new EventRecordsRepository(this.db, this.opts.session);
+    for (const { id: eventId } of events) await records.remove(eventId as string);
     await this.memberships.deleteMany({ groupId }, this.opts);
     await this.bans.deleteMany({ groupId }, this.opts);
     await this.db.collection(COLLECTIONS.GROUP_ASSETS).deleteMany({ groupId }, this.opts);

@@ -4,6 +4,8 @@ import type {
   ChangeEventStateInput,
   ChangeEventVoteInput,
   DecideTableRegistrationInput,
+  DeletedPlannedEventResponse,
+  DeletePlannedRecordInput,
   FinalizeEventInput,
   JoinTableInput,
   PlannedEventResponse,
@@ -39,13 +41,18 @@ import {
   communityAccessDenied,
   communityRequest,
 } from "../../community/communityApi";
-import { mapCommunityCache, versionedCommunityChange } from "../../community/queryCache";
+import {
+  filterCommunityPages,
+  mapCommunityCache,
+  versionedCommunityChange,
+} from "../../community/queryCache";
 import { groupRecordDetailQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
 import {
   captureEventConsent,
   type EventConsentSnapshot,
   rebaseEventConsent,
 } from "../eventConsentVersion";
+import { projectEventRemoval } from "../eventDeletionCache";
 import {
   type CreateEventVariables,
   type EditEventVariables,
@@ -144,6 +151,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     _input: unknown,
     context: Awaited<ReturnType<typeof begin>> | undefined,
   ) {
+    if (context?.operation.signal.aborted) return;
     const owner = context?.owner ?? o;
     // These refreshes are not part of the write and must never turn a committed write into failure.
     void client.invalidateQueries(
@@ -309,6 +317,17 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     try {
       context.operation.acknowledge();
       notifyManager.batch(() => {
+        if (["PENDING", "ACCEPTED"].includes(value.status))
+          for (const [key] of client.getQueriesData({
+            queryKey: eventRecordKeys.root(context.owner),
+            predicate: (q) =>
+              q.queryKey[3] === "invitees" &&
+              q.queryKey[4] === value.eventId &&
+              q.queryKey[5] === value.tableId,
+          }))
+            updateOptimisticBase(client, key, (data) =>
+              filterCommunityPages<{ id: string }>(data, (person) => person.id !== value.userId),
+            );
         if (value.userId === context.owner.userId) {
           for (const [key] of client.getQueriesData({
             queryKey: eventRecordKeys.root(context.owner),
@@ -607,6 +626,99 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,
   });
+  const remove = useMutation({
+    mutationKey: [...mutationKey, "remove"],
+    scope,
+    networkMode: "always",
+    mutationFn: async (input: DeletePlannedRecordInput, context) => {
+      const value = await write<DeletedPlannedEventResponse>(
+        `events/${id}`,
+        "DELETE",
+        input,
+        context,
+      );
+      if (value.id !== id) throw new Error("MUTATION_READ_UNVERIFIED");
+      return value;
+    },
+    onMutate: (input) =>
+      begin("delete_event", undefined, ["write"], (data, key) =>
+        projectEventRemoval(data, key, id, input.version),
+      ),
+    onSuccess: (deleted, _input, context) => {
+      if (!context?.operation.active || deleted.id !== context.eventId) return;
+      context.operation.acknowledge();
+      context.operation.commit();
+      const ownerRoot = eventRecordKeys.root(context.owner);
+      cancelOptimisticResource(client, [...ownerRoot, deleted.id]);
+      const ownedDetails = {
+        queryKey: ownerRoot,
+        predicate: (query: { queryKey: QueryKey }) =>
+          query.queryKey[4] === deleted.id && query.queryKey[3] !== "list",
+      };
+      void client.cancelQueries(ownedDetails);
+      client.removeQueries(ownedDetails);
+      void client.invalidateQueries({
+        queryKey: ["notifications", context.owner.apiUrl, context.owner.userId],
+      });
+    },
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
+  const removeTable = useMutation({
+    mutationKey: [...mutationKey, "remove-table"],
+    scope,
+    networkMode: "always",
+    mutationFn: async (input: DeletePlannedRecordInput & { tableId: string }, context) => {
+      const value = await write<PlannedEventResponse>(
+        `events/${id}/tables/${encodeURIComponent(input.tableId)}`,
+        "DELETE",
+        { version: input.version },
+        context,
+        input,
+      );
+      if (value.id !== id || value.version !== input.version + 1)
+        throw new Error("MUTATION_READ_UNVERIFIED");
+      return value;
+    },
+    onMutate: (input) =>
+      begin("delete_table", undefined, ["write"], (data, key) =>
+        projectEventRemoval(data, key, id, input.version, input.tableId),
+      ),
+    onSuccess: (saved, input, context) => {
+      if (!context?.operation.active || saved.id !== context.eventId) return;
+      const ownerRoot = eventRecordKeys.root(context.owner);
+      for (const [key] of client.getQueriesData({
+        queryKey: ownerRoot,
+        predicate: (query) => query.queryKey[3] === "tables",
+      }))
+        updateOptimisticBase(client, key, (data) =>
+          filterCommunityPages<PlannedTableResponse>(
+            data,
+            (row) => row.eventId !== saved.id || row.id !== input.tableId,
+          ),
+        );
+      eventReceiptSuccess(saved, input, context);
+      for (const mutation of client
+        .getMutationCache()
+        .findAll({ mutationKey: eventRecordKeys.mutation(context.owner, saved.id) })) {
+        const variables = mutation.state.variables as { tableId?: string } | undefined;
+        const active = mutation.state.context as Awaited<ReturnType<typeof begin>> | undefined;
+        if (variables?.tableId === input.tableId && active?.operation.active)
+          cancelOptimisticResource(client, active.operation.resource);
+      }
+      const ownedDetails = {
+        queryKey: ownerRoot,
+        predicate: (query: { queryKey: QueryKey }) =>
+          ["table", "seats", "invitees", "leaderboard"].includes(String(query.queryKey[3])) &&
+          query.queryKey[4] === saved.id &&
+          query.queryKey[5] === input.tableId,
+      };
+      void client.cancelQueries(ownedDetails);
+      client.removeQueries(ownedDetails);
+    },
+    onError: (error, _input, context) => failure(error, context),
+    onSettled: settle,
+  });
   const vote = useMutation({
     mutationKey: [...mutationKey, "vote"],
     scope,
@@ -835,6 +947,8 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
   return {
     create: creation,
     update,
+    remove,
+    removeTable,
     vote,
     register,
     invite,

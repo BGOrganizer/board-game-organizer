@@ -562,7 +562,7 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });
-it("opens unified event/table routes and uses one voting legend with no legacy draft/delete actions", async () => {
+it("opens unified event/table routes, one voting legend and guarded Event deletion without legacy drafts", async () => {
   mount();
   expect(await screen.findByRole("heading", { name: event.name })).not.toBeNull();
   expect(screen.getAllByRole("button", { name: "Voting legend" })).toHaveLength(1);
@@ -570,7 +570,7 @@ it("opens unified event/table routes and uses one voting legend with no legacy d
     `/events/${eventId}/edit`,
   );
   expect(await screen.findByRole("link", { name: "Open table: First table" })).not.toBeNull();
-  expect(screen.queryByRole("button", { name: "Delete event" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Delete event" })).toBeTruthy();
   expect(
     (screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement).disabled,
   ).toBe(true);

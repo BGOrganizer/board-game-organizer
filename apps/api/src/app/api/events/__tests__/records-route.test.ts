@@ -73,6 +73,8 @@ const events = {
   create: vi.fn(),
   detail: vi.fn(),
   update: vi.fn(),
+  remove: vi.fn(),
+  removeTable: vi.fn(),
   tables: vi.fn(),
   tableDetail: vi.fn(),
   register: vi.fn(),
@@ -95,6 +97,23 @@ beforeEach(() => {
   for (const method of Object.values(events)) method.mockReset().mockResolvedValue({ id });
 });
 afterEach(() => vi.restoreAllMocks());
+it.each(["event", "table"] as const)(
+  "validates versioned %s deletion, rejects malformed/extra input and requires authentication",
+  async (kind) => {
+    const handler = kind === "event" ? detail.DELETE : table.DELETE;
+    expect((await handler(request("DELETE", { version: 3 }), context)).status).toBe(200);
+    expect(kind === "event" ? events.remove : events.removeTable).toHaveBeenCalledWith(
+      ...(kind === "event"
+        ? ["actor", id, { version: 3 }]
+        : ["actor", id, tableId, { version: 3 }]),
+    );
+    for (const value of [undefined, {}, { version: 0 }, { version: 1, adminUserId: "actor" }])
+      expect((await handler(request("DELETE", value), context)).status).toBe(400);
+    mocks.auth.mockResolvedValue({ userId: null });
+    expect((await handler(request("DELETE", { version: 3 }), context)).status).toBe(401);
+  },
+);
+
 it("passes strict unified event create/edit contracts without legacy drafts or partial table deletion", async () => {
   expect((await root.POST(request("POST", input))).status).toBe(201);
   expect(events.create).toHaveBeenCalledWith("actor", input);
@@ -107,7 +126,7 @@ it("passes strict unified event create/edit contracts without legacy drafts or p
       .status,
   ).toBe(400);
   expect((await root.POST(request("POST", { ...input, status: "DRAFT" }))).status).toBe(400);
-  expect("DELETE" in detail).toBe(false);
+  expect("DELETE" in detail).toBe(true);
   expect("POST" in tables).toBe(false);
   expect("PATCH" in table).toBe(false);
 });

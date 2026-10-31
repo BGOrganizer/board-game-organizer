@@ -5,6 +5,8 @@ import type {
   CommunityNotificationKind,
   CreatePlannedEventInput,
   DecideTableRegistrationInput,
+  DeletedPlannedEventResponse,
+  DeletePlannedRecordInput,
   EditPlannedEventInput,
   EventRecord,
   FinalizeEventInput,
@@ -477,6 +479,44 @@ export class EventRecordsService {
     await this.events.create(event);
     for (const table of tables) await this.events.saveTable(table);
     return this.response(event, group, userId, [], true);
+  }
+  async remove(
+    userId: string,
+    id: string,
+    input: DeletePlannedRecordInput,
+  ): Promise<DeletedPlannedEventResponse> {
+    const { event, group } = await this.context(userId, id, true, true);
+    this.open(event, group);
+    if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
+    await this.events.remove(id);
+    return { id, groupId: event.groupId };
+  }
+  async removeTable(userId: string, id: string, tableId: string, input: DeletePlannedRecordInput) {
+    const { event, group } = await this.context(userId, id, true, true);
+    this.open(event, group);
+    if (event.version !== input.version) throw new CommunityError(409, "EVENT_CHANGED");
+    const tables = await this.events.allTables(id);
+    if (!tables.some((table) => table.id === tableId))
+      throw new CommunityError(404, "TABLE_NOT_FOUND");
+    if (tables.length <= 1) throw new CommunityError(400, "EVENT_TABLE_LIMIT");
+    const registrations = await this.events.allRegistrations(id);
+    const next = { ...event, version: event.version + 1, updatedAt: new Date().toISOString() };
+    await this.events.removeTable(tableId, next.updatedAt);
+    await this.events.save(next);
+    await this.notify(
+      "event_updated",
+      next,
+      userId,
+      registrations.map((row) => row.userId),
+    );
+    await this.saveSituation(next, group, userId);
+    return this.response(
+      next,
+      group,
+      userId,
+      await this.events.userRegistrations(id, userId),
+      true,
+    );
   }
   async update(userId: string, id: string, input: EditPlannedEventInput) {
     const { event, group } = await this.context(userId, id, true, true);

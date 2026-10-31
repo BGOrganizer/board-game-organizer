@@ -1,5 +1,34 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Picker handoff and confirmed admin deletion
+
+- Group/Table invitation pickers hide owned pending intent on their first render, including cold
+  searches. Positive receipts remove acknowledged invitees from cached candidate pages before
+  pending intent retires; definite failures restore only their own eligibility. Actor/API and target
+  isolation remain intact. Game pickers exclude current-Table selections and return directly with
+  supplied metadata; collection results now include already-known catalog durations. Missing duration
+  still requires explicit manual input. No extra provider lookup or dependency was added.
+- Both clients place creator-only Event/Table trash actions at the far-right app header. Confirmation
+  pins the Event version; changed authority/version closes the dialog instead of rebasing consent.
+  Planning/cutoff and last-Table safeguards remain enforced by the transactional API. Confirming
+  closes/navigates immediately, hides only affected cached rows and rolls back selectively, retaining
+  a later unrelated Event's pending deletion. Unknown outcomes display verification, never automatic
+  reposting; another Table's success cannot erase their verification state. Late same-actor/session
+  receipts cannot invalidate replacement caches. Whole-Group deletion reuses the same record cascade.
+- Local Node 26/pnpm 11.25 evidence: 2,043 unit tests (web 593, mobile 243, shared 358, API 735,
+  schemas 114), unchanged coverage gates and 100% for the new deterministic deletion helper;
+  typecheck 4/4, scoped Biome, API/web production builds and Android export (5,588 modules).
+  EN/IT source/compiled catalogs are synchronized. Seven protected local hashes and generated Next
+  references remain unchanged. New replica-set deletion/rollback coverage is committed, but local
+  integration startup is blocked by the stopped Docker Desktop daemon: three suite failures and
+  88 skipped tests, not integration success. Hosted CI evidence is recorded separately at delivery.
+  Physical-device/authenticated Playwright/Maestro acceptance remains unperformed; existing E2E
+  suites/jobs and provider/database configuration are unchanged.
+- Guides used: `bgo-component-architecture`, `vercel-composition-patterns`,
+  `vercel-react-best-practices`, `vercel-react-native-skills`, `tanstack-query-development`,
+  `expo-overview`, `expo-router`, `expo-data-fetching`, `heroui-react`, `heroui-native`, `uniwind`,
+  `lingui-best-practices`, `web-design-guidelines`, `context-mode`, `ponytail`.
+
 ## Immediate client intent, existing layouts
 
 - Explicit valid social, Group/Event/Table, ballot, invitation, registration, favorite, inbox and BGG
