@@ -1,9 +1,10 @@
 "use client";
 
-import type {
-  NotificationDto,
-  NotificationListResponse,
-  PushPlatform,
+import {
+  type NotificationDto,
+  type NotificationListResponse,
+  notificationIdSchema,
+  type PushPlatform,
 } from "@board-game-organizer/schemas";
 import {
   type InfiniteData,
@@ -228,11 +229,13 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   };
   const settled = (
     _data: unknown,
-    _error: Error | null,
+    error: Error | null,
     _variables: unknown,
-    _operation: unknown,
+    operation: Awaited<ReturnType<typeof begin>> | undefined,
     context: MutationFunctionContext,
   ) => {
+    if (!operation || operation.signal.aborted || error?.message === "MUTATION_OWNER_CHANGED")
+      return;
     const ownerRoot = context.mutationKey?.slice(0, 3) ?? root;
     void queryClient.invalidateQueries({
       queryKey: ownerRoot,
@@ -276,25 +279,61 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     mutationFn: (variables: void, context) => write("PATCH", undefined, variables, context),
     ...optimisticRead(),
   });
-  const deleteNotification = useMutation({
-    mutationKey: [...root, "delete"],
-    mutationFn: (notificationId: string, context) =>
-      write("DELETE", notificationId, notificationId, context),
-    onMutate: async (notificationId) => {
-      const operation = await begin("delete", notificationId);
-      options.feedback?.onOptimisticUpdate?.("delete_notification");
-      return operation;
-    },
-    onSuccess: (_data, _id, operation) => {
+  const beginDeletion = async (id?: string) => {
+    const operation = await begin("delete", id);
+    if (operation.active)
+      options.feedback?.onOptimisticUpdate?.(
+        id ? "delete_notification" : "delete_all_notifications",
+      );
+    return operation;
+  };
+  const deletion = {
+    retry: false,
+    onSuccess: (
+      _data: unknown,
+      _id: unknown,
+      operation: Awaited<ReturnType<typeof begin>> | undefined,
+    ) => {
       if (!operation?.active) return;
       operation.commit();
     },
-    onError: async (error, _id, operation) => {
-      if (operation && !operation.active) return;
-      options.feedback?.onError?.(error, optimisticFailureAction(error, "delete_notification"));
+    onError: async (
+      error: Error,
+      _id: unknown,
+      operation: Awaited<ReturnType<typeof begin>> | undefined,
+      context: MutationFunctionContext,
+    ) => {
+      if (error.message === "MUTATION_OWNER_CHANGED" || (operation && !operation.active)) return;
+      options.feedback?.onError?.(
+        error,
+        optimisticFailureAction(
+          error,
+          context.mutationKey?.[3] === "delete-all"
+            ? "delete_all_notifications"
+            : "delete_notification",
+        ),
+      );
       await operation?.reject(error);
     },
     onSettled: settled,
+  };
+  const deleteNotification = useMutation({
+    ...deletion,
+    mutationKey: [...root, "delete"],
+    mutationFn: (notificationId: string, context) =>
+      write("DELETE", notificationId, notificationId, context),
+    onMutate: (notificationId) => {
+      // Missing or malformed row IDs must never fall through to whole-inbox deletion.
+      const parsed = notificationIdSchema.safeParse(notificationId);
+      if (!parsed.success) throw new CommunityApiError(400, "Invalid notification");
+      return beginDeletion(parsed.data);
+    },
+  });
+  const deleteAllNotifications = useMutation({
+    ...deletion,
+    mutationKey: [...root, "delete-all"],
+    mutationFn: (variables: void, context) => write("DELETE", undefined, variables, context),
+    onMutate: () => beginDeletion(),
   });
   const registerPush = useMutation({
     mutationKey: root,
@@ -314,6 +353,7 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     markRead,
     markAllRead,
     deleteNotification,
+    deleteAllNotifications,
     registerPush,
     removePush,
     busy: resourceBusy(),

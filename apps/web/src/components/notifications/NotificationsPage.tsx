@@ -7,20 +7,27 @@ import { useLingui } from "@lingui/react/macro";
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 export function NotificationsPage() {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { getToken, isLoaded, isSignedIn, userId, sessionId } = useAuth();
   const { i18n, t } = useLingui();
   const feedback = useMutationFeedback();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const apiUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL);
+  const owner = JSON.stringify([apiUrl, userId, sessionId]);
+  const [deletion, setDeletion] = useState<{ owner: string; id?: string } | null>(null);
+  const deleting = isLoaded && isSignedIn && deletion?.owner === owner ? deletion : null;
+  useEffect(() => {
+    if (deletion && deletion.owner !== owner) setDeletion(null);
+  }, [deletion, owner]);
   const endRef = useRef<HTMLDivElement>(null);
   const notifications = useNotifications(
     {
-      apiUrl: resolveApiUrl(process.env.NEXT_PUBLIC_API_URL),
+      apiUrl,
       getToken,
       userId,
       enabled: isLoaded && Boolean(isSignedIn),
@@ -38,6 +45,7 @@ export function NotificationsPage() {
     if (
       !node ||
       !hasNextPage ||
+      notifications.busy ||
       isFetchingNextPage ||
       isFetchNextPageError ||
       typeof IntersectionObserver === "undefined"
@@ -51,10 +59,31 @@ export function NotificationsPage() {
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage, notifications.busy]);
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+      <HeaderActions>
+        <Button
+          isIconOnly
+          variant="danger-soft"
+          className="min-h-11 min-w-11"
+          aria-label={t`Delete all notifications`}
+          isDisabled={
+            !isLoaded ||
+            !isSignedIn ||
+            notifications.busy ||
+            !(
+              notifications.notifications.length ||
+              notifications.hasMore ||
+              notifications.unreadCount
+            )
+          }
+          onPress={() => setDeletion({ owner })}
+        >
+          <Trash2 className="size-5" aria-hidden="true" />
+        </Button>
+      </HeaderActions>
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t`Notifications`}</h1>
         {notifications.unreadCount > 0 && (
@@ -145,7 +174,7 @@ export function NotificationsPage() {
               aria-label={t`Delete notification`}
               className="absolute end-3 bottom-3"
               isDisabled={notifications.isBusy(notification.id)}
-              onPress={() => setDeletingId(notification.id)}
+              onPress={() => setDeletion({ owner, id: notification.id })}
             >
               <Trash2 className="size-4" aria-hidden="true" />
             </Button>
@@ -159,7 +188,11 @@ export function NotificationsPage() {
           {notifications.list.isFetchingNextPage ? (
             <Skeleton className="h-16 w-full rounded-xl" />
           ) : (
-            <Button variant="outline" onPress={() => void fetchNextPage()}>
+            <Button
+              variant="outline"
+              isDisabled={notifications.busy}
+              onPress={() => void fetchNextPage()}
+            >
               {notifications.list.isFetchNextPageError
                 ? t`Could not load notifications. Retry`
                 : t`Load more`}
@@ -168,22 +201,27 @@ export function NotificationsPage() {
         </>
       )}
 
-      {deletingId && (
+      {deleting && (
         <ContactConfirmDialog
-          title={t`Delete notification?`}
-          description={t`This notification will be permanently deleted.`}
-          busy={notifications.isBusy(deletingId)}
+          title={deleting.id ? t`Delete notification?` : t`Delete all notifications?`}
+          description={
+            deleting.id
+              ? t`This notification will be permanently deleted.`
+              : t`All notifications will be permanently deleted.`
+          }
+          busy={deleting.id ? notifications.isBusy(deleting.id) : notifications.busy}
           actions={[
             {
-              label: t`Delete notification`,
+              label: deleting.id ? t`Delete notification` : t`Delete all notifications`,
               variant: "danger",
               onPress: () => {
-                notifications.deleteNotification.mutate(deletingId);
-                setDeletingId(null);
+                if (deleting.id) notifications.deleteNotification.mutate(deleting.id);
+                else notifications.deleteAllNotifications.mutate();
+                setDeletion(null);
               },
             },
           ]}
-          onCancel={() => setDeletingId(null)}
+          onCancel={() => setDeletion(null)}
         />
       )}
     </section>

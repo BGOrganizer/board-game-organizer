@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationsPage } from "@/components/notifications/NotificationsPage";
 import { renderWithI18n } from "@/test-utils";
 
@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   markRead: vi.fn(),
   markAllRead: vi.fn(),
   deleteNotification: vi.fn(),
+  deleteAllNotifications: vi.fn(),
+  auth: { userId: "user_1", sessionId: "session_1" },
   refetch: vi.fn(),
   fetchNextPage: vi.fn(),
   state: {} as Record<string, unknown>,
@@ -17,7 +19,7 @@ vi.mock("@clerk/nextjs", () => ({
     getToken: vi.fn(async () => "token"),
     isLoaded: true,
     isSignedIn: true,
-    userId: "user_1",
+    ...mocks.auth,
   }),
 }));
 vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
@@ -53,6 +55,7 @@ function setState(overrides: Record<string, unknown> = {}) {
     markRead: { mutate: mocks.markRead },
     markAllRead: { mutate: mocks.markAllRead },
     deleteNotification: { mutate: mocks.deleteNotification, isPending: false },
+    deleteAllNotifications: { mutate: mocks.deleteAllNotifications, isPending: false },
     ...overrides,
   };
 }
@@ -60,8 +63,13 @@ function setState(overrides: Record<string, unknown> = {}) {
 describe("NotificationsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.auth = { userId: "user_1", sessionId: "session_1" };
+    const header = document.createElement("header");
+    header.id = "page-header-actions";
+    document.body.append(header);
     setState();
   });
+  afterEach(() => document.getElementById("page-header-actions")?.remove());
 
   it("renders inbox and marks notifications read", () => {
     renderWithI18n(<NotificationsPage />);
@@ -84,6 +92,57 @@ describe("NotificationsPage", () => {
     expect(mocks.deleteNotification).toHaveBeenCalledWith(item.id);
     expect(screen.queryByRole("dialog", { name: "Delete notification?" })).toBeNull();
   });
+
+  it("requires confirmation for the app-header action; cancellation never writes", () => {
+    renderWithI18n(<NotificationsPage />);
+    const header = document.getElementById("page-header-actions") as HTMLElement;
+    const button = within(header).getByRole("button", { name: "Delete all notifications" });
+    expect(button.querySelector("svg")?.getAttribute("class")).toContain("lucide-trash");
+    fireEvent.click(button);
+    const dialog = screen.getByRole("dialog", { name: "Delete all notifications?" });
+    expect(within(dialog).getByText("All notifications will be permanently deleted.")).toBeTruthy();
+    expect(mocks.deleteAllNotifications).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mocks.deleteAllNotifications).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Delete all notifications" }),
+    );
+    expect(mocks.deleteAllNotifications).toHaveBeenCalledOnce();
+    expect(mocks.deleteNotification).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it.each([
+    { notifications: [], unreadCount: 0, hasMore: false, busy: false, disabled: true },
+    { notifications: [], unreadCount: 0, hasMore: true, busy: false, disabled: false },
+    { notifications: [item], unreadCount: 0, hasMore: false, busy: false, disabled: false },
+    { notifications: [item], unreadCount: 1, hasMore: false, busy: true, disabled: true },
+  ])("gates bulk deletion on owned inbox availability and conflicting writes (%j)", (state) => {
+    setState(state);
+    renderWithI18n(<NotificationsPage />);
+    expect(
+      (screen.getByRole("button", { name: "Delete all notifications" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(state.disabled);
+  });
+
+  it.each(["userId", "sessionId"] as const)(
+    "does not transfer destructive consent across a changed %s",
+    (field) => {
+      const view = renderWithI18n(<NotificationsPage />);
+      fireEvent.click(screen.getByRole("button", { name: "Delete all notifications" }));
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      mocks.auth[field] = "replacement";
+      view.rerender(<NotificationsPage />);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(mocks.deleteAllNotifications).not.toHaveBeenCalled();
+      mocks.auth[field] = field === "userId" ? "user_1" : "session_1";
+      view.rerender(<NotificationsPage />);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
 
   it("keeps inbox navigation available while conflicting notification writes stay disabled", () => {
     setState({

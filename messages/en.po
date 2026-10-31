@@ -2057,6 +2057,21 @@ msgid "Delete match?"
 msgstr "Delete match?"
 
 #: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Delete all notifications"
+msgstr "Delete all notifications"
+
+msgid "Delete all notifications?"
+msgstr "Delete all notifications?"
+
+msgid "All notifications will be permanently deleted."
+msgstr "All notifications will be permanently deleted."
+
+msgid "All notifications deleted"
+msgstr "All notifications deleted"
+
+msgid "Could not delete all notifications"
+msgstr "Could not delete all notifications"
+
 msgid "Delete notification"
 msgstr "Delete notification"
 

@@ -2057,6 +2057,21 @@ msgid "Delete match?"
 msgstr "Eliminare la partita?"
 
 #: apps/web/src/components/notifications/NotificationsPage.tsx
+msgid "Delete all notifications"
+msgstr "Elimina tutte le notifiche"
+
+msgid "Delete all notifications?"
+msgstr "Eliminare tutte le notifiche?"
+
+msgid "All notifications will be permanently deleted."
+msgstr "Tutte le notifiche saranno eliminate definitivamente."
+
+msgid "All notifications deleted"
+msgstr "Tutte le notifiche eliminate"
+
+msgid "Could not delete all notifications"
+msgstr "Impossibile eliminare tutte le notifiche"
+
 msgid "Delete notification"
 msgstr "Elimina notifica"
 

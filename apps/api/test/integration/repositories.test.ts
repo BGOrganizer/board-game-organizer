@@ -1356,6 +1356,72 @@ describe("match repositories on MongoDB replica set", () => {
     expect(await subscriptions.listByUser(ACTOR)).toEqual([]);
   });
 
+  it("bulk-deletes the entire recipient inbox, retaining other inboxes, subscriptions and later arrivals", async () => {
+    const notifications = new NotificationsRepository(db);
+    await notifications.notifyMany([
+      ...Array.from({ length: 27 }, () => ({
+        kind: "friend_request" as const,
+        recipientUserId: TARGET,
+        actorUserId: ACTOR,
+      })),
+      { kind: "friend_request", recipientUserId: ACTOR, actorUserId: TARGET },
+    ]);
+    const first = await notifications.list(TARGET, 20);
+    expect(first.notifications).toHaveLength(20);
+    expect(first.nextCursor).not.toBeNull();
+    await notifications.markRead(TARGET, first.notifications[0].id);
+    const subscriptions = new PushSubscriptionsRepository(db);
+    await subscriptions.upsert(TARGET, "token-1234567890123456", "android", "en");
+    const session = client.startSession();
+    try {
+      await session.withTransaction(async () => {
+        expect(
+          (await new NotificationsRepository(db, session).deleteAll(TARGET)).deletedCount,
+        ).toBe(27);
+      });
+    } finally {
+      await session.endSession();
+    }
+    expect(await notifications.list(TARGET, 20)).toEqual({
+      notifications: [],
+      unreadCount: 0,
+      nextCursor: null,
+    });
+    expect((await notifications.list(ACTOR, 20)).notifications).toHaveLength(1);
+    expect(await subscriptions.listByUser(TARGET)).toHaveLength(1);
+    expect((await notifications.deleteAll(TARGET)).deletedCount).toBe(0);
+    await notifications.notify({
+      kind: "friend_request",
+      recipientUserId: TARGET,
+      actorUserId: ACTOR,
+    });
+    expect((await notifications.list(TARGET, 20)).notifications).toHaveLength(1);
+  });
+
+  it("rolls back bulk inbox deletion with its MongoDB transaction", async () => {
+    const notifications = new NotificationsRepository(db);
+    await notifications.notify({
+      kind: "friend_request",
+      recipientUserId: TARGET,
+      actorUserId: ACTOR,
+    });
+    const session = client.startSession();
+    try {
+      await expect(
+        session.withTransaction(async () => {
+          expect(
+            (await new NotificationsRepository(db, session).deleteAll(TARGET)).deletedCount,
+          ).toBe(1);
+          throw new Error("rollback deletion");
+        }),
+      ).rejects.toThrow("rollback deletion");
+    } finally {
+      await session.endSession();
+    }
+    expect((await notifications.list(TARGET, 20)).notifications).toHaveLength(1);
+    expect((await notifications.list(TARGET, 20)).unreadCount).toBe(1);
+  });
+
   it("rolls back notification creation with its source event", async () => {
     const session = client.startSession();
     await expect(

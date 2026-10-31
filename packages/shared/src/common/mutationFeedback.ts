@@ -42,7 +42,8 @@ export type MutationFeedbackAction =
   | "decline_group_invitation"
   | "read_notification"
   | "read_all_notifications"
-  | "delete_notification";
+  | "delete_notification"
+  | "delete_all_notifications";
 
 export interface MutationFeedback {
   onOptimisticUpdate?: (action: MutationFeedbackAction) => void;

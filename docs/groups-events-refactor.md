@@ -366,8 +366,14 @@ there are no repeated identical notifications or player reminders to change vote
 - Contacts lock the target user, favorites their selected/canonical identity, and Groups/Events their
   incompatible versioned writes. Explicit queues project intent immediately and serialize dependent
   dispatch; unrelated Groups, people and notification rows stay usable. Inbox mark-all conflicts with
-  row writes; independent row operations reconcile the shared unread counter selectively. BGG writes
-  share the account lock. Navigation and local form choices do not wait for HTTP.
+  row writes; independent row operations reconcile the shared unread counter selectively. Both clients
+  confirm single-notification deletion and expose confirmed whole-inbox deletion at the far right of
+  the application header. Whole-inbox deletion clears all owned cached pages, cursors and bell counts
+  immediately, including other cached locales; the API deletes only the authenticated recipient's
+  notifications, including unloaded pages, never other recipients' actor history or push subscriptions.
+  Rejection restores owned projections; uncertain responses require readback, not an automatic retry.
+  Destructive consent does not transfer between accounts or sessions. BGG writes share the account
+  lock. Navigation and local form choices do not wait for HTTP.
 - After local validation, explicit actions stage intent/feedback and close their existing dialog or
   return from their editor immediately. Known recipients and enrollment intent may appear in existing
   rows, but do not create canonical invitations, consent, accepted membership, positions or permissions.

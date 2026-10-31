@@ -2,12 +2,13 @@ import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, Stack, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck, Trash2 } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -17,15 +18,24 @@ import { notificationHref } from "@/lib/notifications/push-notifications";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 export default function NotificationsScreen() {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+  const { getToken, isLoaded, isSignedIn, userId, sessionId } = useAuth({
+    treatPendingAsSignedOut: false,
+  });
   const router = useRouter();
   const t = useT();
   const { i18n } = useLingui();
   const feedback = useMutationFeedback();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const danger = useThemeColor("danger");
+  const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
+  const owner = JSON.stringify([apiUrl, userId, sessionId]);
+  const [deletion, setDeletion] = useState<{ owner: string; id?: string } | null>(null);
+  const deleting = isLoaded && isSignedIn && deletion?.owner === owner ? deletion : null;
+  useEffect(() => {
+    if (deletion && deletion.owner !== owner) setDeletion(null);
+  }, [deletion, owner]);
   const notifications = useNotifications(
     {
-      apiUrl: resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined),
+      apiUrl,
       getToken,
       userId,
       enabled: isLoaded && Boolean(isSignedIn),
@@ -39,6 +49,33 @@ export default function NotificationsScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="danger-soft"
+              accessibilityLabel={t("Delete all notifications")}
+              testID="delete-all-notifications"
+              style={{ width: 44, height: 44 }}
+              isDisabled={
+                !isLoaded ||
+                !isSignedIn ||
+                notifications.busy ||
+                !(
+                  notifications.notifications.length ||
+                  notifications.hasMore ||
+                  notifications.unreadCount
+                )
+              }
+              onPress={() => setDeletion({ owner })}
+            >
+              <Trash2 size={20} color={danger} accessible={false} />
+            </Button>
+          ),
+        }}
+      />
       <FlatList
         className="flex-1 bg-background"
         contentInsetAdjustmentBehavior="automatic"
@@ -48,6 +85,7 @@ export default function NotificationsScreen() {
         onEndReached={() => {
           if (
             notifications.hasMore &&
+            !notifications.busy &&
             !notifications.list.isFetchingNextPage &&
             !notifications.list.isFetchNextPageError
           )
@@ -112,7 +150,11 @@ export default function NotificationsScreen() {
             notifications.list.isFetchingNextPage ? (
               <Skeleton style={{ width: "100%", height: 64, borderRadius: 12 }} />
             ) : (
-              <Button variant="outline" onPress={() => void notifications.list.fetchNextPage()}>
+              <Button
+                variant="outline"
+                isDisabled={notifications.busy}
+                onPress={() => void notifications.list.fetchNextPage()}
+              >
                 {notifications.list.isFetchNextPageError
                   ? t("Could not load notifications. Retry")
                   : t("Load more")}
@@ -160,26 +202,31 @@ export default function NotificationsScreen() {
               hitSlop={8}
               isDisabled={notifications.isBusy(item.id)}
               style={{ position: "absolute", right: 8, bottom: 8, width: 40, height: 40 }}
-              onPress={() => setDeletingId(item.id)}
+              onPress={() => setDeletion({ owner, id: item.id })}
             >
-              <Trash2 size={16} color="#f31260" />
+              <Trash2 size={16} color={danger} accessible={false} />
             </Button>
           </View>
         )}
       />
-      {deletingId ? (
+      {deleting ? (
         <ConfirmDialog
-          title={t("Delete notification?")}
-          description={t("This notification will be permanently deleted.")}
-          busy={notifications.isBusy(deletingId)}
-          onCancel={() => setDeletingId(null)}
+          title={deleting.id ? t("Delete notification?") : t("Delete all notifications?")}
+          description={
+            deleting.id
+              ? t("This notification will be permanently deleted.")
+              : t("All notifications will be permanently deleted.")
+          }
+          busy={deleting.id ? notifications.isBusy(deleting.id) : notifications.busy}
+          onCancel={() => setDeletion(null)}
           actions={[
             {
-              label: t("Delete notification"),
+              label: deleting.id ? t("Delete notification") : t("Delete all notifications"),
               variant: "danger",
               onPress: () => {
-                notifications.deleteNotification.mutate(deletingId);
-                setDeletingId(null);
+                if (deleting.id) notifications.deleteNotification.mutate(deleting.id);
+                else notifications.deleteAllNotifications.mutate();
+                setDeletion(null);
               },
             },
           ]}

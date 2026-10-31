@@ -188,6 +188,12 @@ export class NotificationsRepository {
       .deleteOne({ _id: new ObjectId(notificationId), recipientUserId }, this.opts);
   }
 
+  deleteAll(recipientUserId: string) {
+    return this.db
+      .collection<Notification>(COLLECTIONS.NOTIFICATIONS)
+      .deleteMany({ recipientUserId }, this.opts);
+  }
+
   async deleteForUser(userId: string) {
     await this.db
       .collection<Notification>(COLLECTIONS.NOTIFICATIONS)

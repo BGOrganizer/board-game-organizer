@@ -1,5 +1,31 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Optimistic notification deletion
+
+- Single deletion remains immediate after confirmation. Both clients add a destructive trash action
+  at the far right of the application header for confirmed whole-inbox deletion. Confirmation closes
+  before HTTP settles; all owned cached pages, pagination cursors, locale variants and bell counts
+  clear together. Empty inboxes and conflicting writes disable the action without blocking unrelated
+  single-row operations. Confirmation cannot transfer between accounts or sessions.
+- Authenticated DELETE `/api/notifications` removes the recipient's complete inbox in a MongoDB
+  transaction, including unloaded pages; other recipients' actor history and push subscriptions remain.
+  Malformed single-row IDs cannot fall through to the bulk endpoint. Failed writes restore owned
+  projections; unknown responses use authorized readback without retrying DELETE. Late old-session
+  responses cannot restore or invalidate same-actor replacement caches; post-deletion arrivals survive.
+- Local Node 26/pnpm 11.25 evidence: 2,150 unit tests with coverage (web 654, mobile 262, API 742,
+  schemas 114, shared 378), notification projection at 100%; 90 real replica-set integration tests;
+  typecheck 4/4; Biome across 859 tracked/new source files; API/web production builds and Android
+  export (5,591 modules). Final Android export passed a same-command retry after a Windows CLI exit
+  `3221225477`; the failed run is retained as evidence, not counted as success. EN/IT add only five
+  messages per catalog; prior translations are unchanged. Generated references and seven protected
+  hashes remain unchanged. No dependencies, migrations, provider configuration or E2E policy changes.
+  Native callback/source checks and export are not physical-device or authenticated Playwright/Maestro
+  acceptance; existing intentional suites/jobs remain unchanged.
+- Guides used: `bgo-component-architecture`, `vercel-react-best-practices`,
+  `vercel-react-native-skills`, `tanstack-query-development`, `expo-overview`, `expo-router`,
+  `expo-data-fetching`, `heroui-react`, `heroui-native`, `uniwind`, `lingui-best-practices`,
+  `web-design-guidelines`, `context-mode`, `ponytail`.
+
 ## Compact creation picker and contextual parent navigation
 
 - Main Events preloads only the creator-filtered first Group page into the same API/actor-scoped

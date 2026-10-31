@@ -141,6 +141,21 @@ describe("notificationCopy", () => {
     ]);
   });
 
+  it.each([undefined, { id: "transaction" }])(
+    "bulk-deletes only the recipient inbox, preserving actor history and push subscriptions (%j)",
+    async (session) => {
+      const deleteMany = vi.fn(async () => ({ deletedCount: 27 }));
+      const db = { collection: vi.fn(() => ({ deleteMany })) };
+      const repository = new NotificationsRepository(db as never, session as never);
+      await expect(repository.deleteAll("recipient")).resolves.toEqual({ deletedCount: 27 });
+      expect(db.collection).toHaveBeenCalledExactlyOnceWith("notifications");
+      expect(deleteMany).toHaveBeenCalledExactlyOnceWith(
+        { recipientUserId: "recipient" },
+        session ? { session } : {},
+      );
+    },
+  );
+
   it("skips empty or unresolved event batches and bulk-inserts resolved events", async () => {
     const insertMany = vi.fn(async () => ({
       insertedIds: { 0: new ObjectId("0123456789abcdef01234567") },

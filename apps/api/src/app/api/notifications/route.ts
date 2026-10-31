@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+async function updateAll(request: Request, action: "read" | "delete") {
   const { userId } = await auth();
   if (!userId) return corsJson({ error: "Unauthorized" }, { status: 401 }, request);
   const params = new URL(request.url).searchParams;
@@ -46,10 +46,19 @@ export async function PATCH(request: Request) {
 
   try {
     await withTransaction(async (session, db) => {
-      await new NotificationsRepository(db, session).markAllRead(userId);
+      const repository = new NotificationsRepository(db, session);
+      if (action === "delete") await repository.deleteAll(userId);
+      else await repository.markAllRead(userId);
     });
-    return corsJson({ success: true }, {}, request);
+    return corsJson(
+      { success: true },
+      { headers: { "Cache-Control": "private, no-store" } },
+      request,
+    );
   } catch {
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);
   }
 }
+
+export const PATCH = (request: Request) => updateAll(request, "read");
+export const DELETE = (request: Request) => updateAll(request, "delete");

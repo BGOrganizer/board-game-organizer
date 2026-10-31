@@ -411,6 +411,7 @@ describe("useNotifications", () => {
   });
 
   it("optimistically deletes across inbox caches and restores failed deletes", async () => {
+    const deletionId = "0123456789abcdef01234567";
     let failDelete = () => {};
     vi.mocked(fetch).mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === "DELETE") {
@@ -419,7 +420,7 @@ describe("useNotifications", () => {
         });
       }
       return new Response(
-        JSON.stringify({ notifications: [item("first")], unreadCount: 1, nextCursor: null }),
+        JSON.stringify({ notifications: [item(deletionId)], unreadCount: 1, nextCursor: null }),
         { status: 200 },
       );
     });
@@ -434,14 +435,14 @@ describe("useNotifications", () => {
     await waitFor(() => expect(bell.result.current.notifications).toHaveLength(1));
     await waitFor(() => expect(inbox.result.current.notifications).toHaveLength(1));
 
-    act(() => inbox.result.current.deleteNotification.mutate("first"));
+    act(() => inbox.result.current.deleteNotification.mutate(deletionId));
     await waitFor(() => expect(inbox.result.current.notifications).toHaveLength(0));
     expect(bell.result.current.notifications).toHaveLength(0);
     expect(bell.result.current.unreadCount).toBe(0);
     expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("delete_notification");
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
-        "https://api.example.com/api/notifications/first?x-vercel-protection-bypass=bypass",
+        `https://api.example.com/api/notifications/${deletionId}?x-vercel-protection-bypass=bypass`,
         {
           method: "DELETE",
           headers: { Authorization: "Bearer fresh-token" },

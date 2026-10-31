@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   markRead: vi.fn(),
   deleteOne: vi.fn(),
+  deleteAll: vi.fn(),
   markAllRead: vi.fn(),
   upsert: vi.fn(),
   remove: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/app/lib/notifications/notifications.repository", () => ({
     list: mocks.list,
     markRead: mocks.markRead,
     deleteOne: mocks.deleteOne,
+    deleteAll: mocks.deleteAll,
     markAllRead: mocks.markAllRead,
   })),
 }));
@@ -33,7 +35,11 @@ import {
   DELETE as deleteNotification,
   PATCH as markRead,
 } from "@/app/api/notifications/[notificationId]/route";
-import { GET as listNotifications, PATCH as markAllRead } from "@/app/api/notifications/route";
+import {
+  DELETE as deleteAllNotifications,
+  GET as listNotifications,
+  PATCH as markAllRead,
+} from "@/app/api/notifications/route";
 import { POST as registerPush, DELETE as removePush } from "@/app/api/push-subscriptions/route";
 
 const ID = "0123456789abcdef01234567";
@@ -57,6 +63,7 @@ describe("notification API", () => {
     mocks.list.mockResolvedValue({ notifications: [], unreadCount: 0, nextCursor: null });
     mocks.markRead.mockResolvedValue({ modifiedCount: 1 });
     mocks.deleteOne.mockResolvedValue({ deletedCount: 1 });
+    mocks.deleteAll.mockResolvedValue({ deletedCount: 25 });
     mocks.markAllRead.mockResolvedValue({ modifiedCount: 1 });
     mocks.upsert.mockResolvedValue({ upsertedCount: 1 });
     mocks.remove.mockResolvedValue({ deletedCount: 1 });
@@ -79,6 +86,10 @@ describe("notification API", () => {
     expect(
       (await deleteNotification(new Request("http://x", { method: "DELETE" }), context())).status,
     ).toBe(401);
+    expect(
+      (await deleteAllNotifications(new Request("http://x", { method: "DELETE" }))).status,
+    ).toBe(401);
+    expect(mocks.deleteAll).not.toHaveBeenCalled();
   });
 
   it("validates list query and duplicate parameters", async () => {
@@ -147,6 +158,40 @@ describe("notification API", () => {
     mocks.markAllRead.mockRejectedValue(new Error("db"));
     expect(
       (await markAllRead(new Request("http://x/api/notifications", { method: "PATCH" }))).status,
+    ).toBe(500);
+  });
+
+  it("deletes the entire authenticated inbox, including an already empty inbox", async () => {
+    const response = await deleteAllNotifications(
+      jsonRequest("http://x/api/notifications?x-vercel-protection-bypass=a", "DELETE", {
+        recipientUserId: "foreign",
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.json()).toEqual({ success: true });
+    expect(mocks.deleteAll).toHaveBeenCalledExactlyOnceWith("user_1");
+    mocks.deleteAll.mockResolvedValueOnce({ deletedCount: 0 });
+    expect(
+      (await deleteAllNotifications(new Request("http://x", { method: "DELETE" }))).status,
+    ).toBe(200);
+  });
+
+  it.each(["other=1", "limit=20", "x-vercel-protection-bypass=a&x-vercel-protection-bypass=b"])(
+    "rejects invalid bulk-delete query %s without writing",
+    async (query) => {
+      expect(
+        (await deleteAllNotifications(new Request(`http://x?${query}`, { method: "DELETE" })))
+          .status,
+      ).toBe(400);
+      expect(mocks.deleteAll).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps bulk-delete storage failures observable", async () => {
+    mocks.deleteAll.mockRejectedValueOnce(new Error("db"));
+    expect(
+      (await deleteAllNotifications(new Request("http://x", { method: "DELETE" }))).status,
     ).toBe(500);
   });
 

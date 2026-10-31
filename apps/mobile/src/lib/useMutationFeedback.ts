@@ -133,6 +133,10 @@ export function useMutationFeedback(): MutationFeedback {
         success: t("Notification deleted"),
         error: t("Could not delete notification"),
       },
+      delete_all_notifications: {
+        success: t("All notifications deleted"),
+        error: t("Could not delete all notifications"),
+      },
     };
 
     const show = (message: string, variant: "success" | "danger") =>

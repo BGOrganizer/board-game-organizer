@@ -54,6 +54,24 @@ describe("notification operation projection", () => {
         .pages[0].unreadCount,
     ).toBe(4);
   });
+  it("clears every loaded page, count and cursor without changing the source snapshot", () => {
+    const source = {
+      pages: [
+        { notifications: [{ id: "one", readAt: null }], unreadCount: 7, nextCursor: "one" },
+        { notifications: [{ id: "two", readAt: at }], unreadCount: 7, nextCursor: "two" },
+      ],
+      pageParams: ["", "one"],
+    };
+    const result = apply("delete", undefined, false, source);
+    expect(result.pages).toEqual([
+      { notifications: [], unreadCount: 0, nextCursor: null },
+      { notifications: [], unreadCount: 0, nextCursor: null },
+    ]);
+    expect(result.pageParams).toBe(source.pageParams);
+    expect(source.pages[0].notifications).toHaveLength(1);
+    expect(source.pages[0].nextCursor).toBe("one");
+    expect(optimisticNotificationData(undefined, "delete", undefined, at, false)).toBeUndefined();
+  });
   it("marks all loaded rows while preserving existing read timestamps", () => {
     const result = apply("read", undefined);
     expect(result.pages.map((row) => row.unreadCount)).toEqual([0, 0]);
