@@ -641,7 +641,8 @@ it("lets a new member join directly, never reads another user's pending stream, 
   );
   fireEvent.click(screen.getByRole("button", { name: "Join table" }));
   expect(screen.queryByRole("dialog", { name: "Choose availability" })).toBeNull();
-  await screen.findByText("guest");
+  await screen.findByText("You");
+  expect(screen.queryByText("guest")).toBeNull();
 });
 it("reports organizer rejection after immediate close and recovers preferences on explicit reopening", async () => {
   rows = [];
@@ -689,7 +690,8 @@ it("keeps seat read failures visible, retries and renders empty places rather th
   await screen.findByText("Could not load players");
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await screen.findByText("owner");
+  await screen.findByText("You");
+  expect(screen.queryByText("owner")).toBeNull();
 });
 it("shows confirmed email/timing and exclusion without voting or open-place actions", async () => {
   table = {
@@ -869,7 +871,8 @@ it("keeps cached players during a failed next page and permits explicit retry", 
   mount();
   fireEvent.click(await screen.findByRole("button", { name: "Load more" }));
   await screen.findByText("Could not load players");
-  expect(screen.getByText("owner")).not.toBeNull();
+  expect(screen.getByText("You")).not.toBeNull();
+  expect(screen.queryByText("owner")).toBeNull();
   broken = false;
   const retries = screen.getAllByRole("button", { name: "Try again" });
   fireEvent.click(retries[retries.length - 1]);

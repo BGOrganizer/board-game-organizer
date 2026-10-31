@@ -56,6 +56,57 @@ function seat(
     avatarUrl: "https://example.test/avatar",
   };
 }
+it("uses only the current actor's cached profile across receipt-to-roster handoff, preserving canonical identities", () => {
+  const raw = { ...seat("owner"), name: null, avatarUrl: null },
+    other = { ...seat("guest"), name: null, avatarUrl: null };
+  const profile = { id: "owner", name: "Mario Rossi", avatarUrl: "https://images.test/mario" };
+  const rows = eventTableRoster(
+    { ...table, myRegistration: raw },
+    [other],
+    [],
+    "owner",
+    20,
+    profile,
+  ).rows;
+  expect(rows.find((row) => row.kind === "player" && row.user.userId === "owner")).toMatchObject({
+    user: { name: "Mario Rossi", avatarUrl: profile.avatarUrl },
+  });
+  expect(rows.find((row) => row.kind === "player" && row.user.userId === "guest")).toMatchObject({
+    user: { name: null, avatarUrl: null },
+  });
+  expect(
+    eventTableRoster({ ...table, myRegistration: raw }, [], [], "owner", 20, {
+      ...profile,
+      id: "foreign",
+    }).rows[0],
+  ).toMatchObject({ user: { name: null, avatarUrl: null } });
+  expect(
+    eventTableRoster(
+      { ...table, myRegistration: { ...raw, name: "Canonical name", avatarUrl: "canonical" } },
+      [],
+      [],
+      "owner",
+      20,
+      profile,
+    ).rows[0],
+  ).toMatchObject({ user: { name: "Canonical name", avatarUrl: "canonical" } });
+  expect(
+    eventTableRoster(
+      { ...table, myRegistration: { ...raw, name: "owner" } },
+      [],
+      [],
+      "owner",
+      20,
+      profile,
+    ).rows[0],
+  ).toMatchObject({ user: { name: "Mario Rossi" } });
+  expect(
+    eventTableRoster({ ...table, myRegistration: raw }, [], [], "owner", 20, {
+      ...profile,
+      name: "",
+    }).rows[0],
+  ).toMatchObject({ user: { name: null } });
+});
 it("starts with maximum anonymous places and always leaves a queued entry point even for existing participants", () => {
   expect(eventTableRoster(table, [], [], "owner", 20).rows.map((r) => r.kind)).toEqual([
     "empty",

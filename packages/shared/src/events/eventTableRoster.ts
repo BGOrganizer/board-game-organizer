@@ -1,4 +1,5 @@
 import type { PlannedTableResponse, TableSeatResponse } from "@board-game-organizer/schemas";
+import type { UserProfile } from "../common/types";
 export type EventTablePlace =
   | { key: string; kind: "player"; user: TableSeatResponse }
   | { key: string; kind: "reserved" | "empty"; queue: boolean };
@@ -9,6 +10,7 @@ export function eventTableRoster(
   pending: readonly TableSeatResponse[],
   userId: string,
   limit: number,
+  selfProfile?: Pick<UserProfile, "id" | "name" | "avatarUrl">,
 ) {
   const known = new Map<string, TableSeatResponse>();
   for (const row of [...accepted, ...pending]) {
@@ -55,9 +57,19 @@ export function eventTableRoster(
   const empty = table.eventStatus === "PLANNING" ? Math.max(1, free) : 0;
   const total = people.length + hidden + empty;
   const size = Math.max(0, Math.min(limit, total));
-  const rows: EventTablePlace[] = people
-    .slice(0, size)
-    .map((user) => ({ key: user.id, kind: "player", user }));
+  const profile = selfProfile?.id === userId ? selfProfile : undefined;
+  const rows: EventTablePlace[] = people.slice(0, size).map((user) => ({
+    key: user.id,
+    kind: "player",
+    user:
+      profile && user.userId === userId
+        ? {
+            ...user,
+            name: (user.name && user.name !== userId ? user.name : profile.name) || null,
+            avatarUrl: user.avatarUrl ?? profile.avatarUrl,
+          }
+        : user,
+  }));
   for (let i = rows.length; i < size; i++) {
     const reserved = i < people.length + hidden;
     rows.push({

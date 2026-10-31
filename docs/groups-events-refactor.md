@@ -191,6 +191,10 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   incomplete/foreign choices fail before writes. Invitation consent stays separate; pending invitations
   never receive manufactured votes. Opening, editing and canceling the sheet write nothing. Owned
   participation/preference caches reconcile from acknowledgment without replacing newer Event votes.
+  The caller's cached, API/actor-scoped profile supplies their name during local intent and raw-receipt
+  handoff while authorized roster metadata loads; missing self identity uses localized You, never a
+  Clerk ID. This cache subscription starts no additional profile request and grants no participation
+  or position. Other actors' cached profiles cannot supply self identity.
 - Both clients show grouped games and places in Table details. Places start at the maximum capacity;
   occupied capacity retains an additional queue entry. Large rosters/placeholder ranges are source-paged
   and rendered progressively. Empty places enroll the viewer; organizers first choose self-enrollment

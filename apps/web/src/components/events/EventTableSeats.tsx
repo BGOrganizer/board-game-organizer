@@ -133,7 +133,7 @@ export function EventTableSeats({
           }
           const row = item.user,
             own = row.userId === o.userId,
-            name = row.name ?? row.userId;
+            name = own && (!row.name || row.name === o.userId) ? t`You` : (row.name ?? row.userId);
           const pending = row.status === "PENDING",
             waiting = row.position === "WAITING";
           const Icon = pending ? Mail : waiting ? Clock3 : UserRoundCheck;

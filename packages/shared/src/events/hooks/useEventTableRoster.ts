@@ -3,6 +3,7 @@ import type { PlannedTableResponse } from "@board-game-organizer/schemas";
 import { useState } from "react";
 import { useScopedMutations } from "../../common/hooks/useScopedMutations";
 import type { CommunityApiOptions } from "../../community/communityApi";
+import { useProfileQuery } from "../../profile/hooks/useProfile";
 import {
   type PendingTableInvitation,
   pendingInvitationPlaces,
@@ -13,6 +14,8 @@ import { useEventParticipationIntent } from "./useEventParticipationIntent";
 import { eventRecordKeys, useTableSeats } from "./useEventRecords";
 export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableResponse) {
   const [limit, setLimit] = useState(20);
+  // Subscribe to the canonical owned profile; roster presentation never starts another request.
+  const selfProfile = useProfileQuery({ ...o, userId: o.userId, enabled: false }).data;
   const accepted = useTableSeats(o, table.eventId, table.id);
   const pending = useTableSeats(
     {
@@ -32,6 +35,7 @@ export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableR
     ownerPending ? pending.items : [],
     o.userId ?? "",
     limit,
+    selfProfile,
   );
   const invitations = useScopedMutations({
     mutationKey: eventRecordKeys.mutation(o, table.eventId, "invite"),
@@ -61,6 +65,7 @@ export function useEventTableRoster(o: CommunityApiOptions, table: PlannedTableR
     participation,
     o.userId,
     canonicalAccepted,
+    selfProfile,
   );
   const rows = combined.slice(0, limit);
   const total = view.total + Math.max(0, combined.length - view.rows.length);

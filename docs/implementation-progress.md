@@ -1,5 +1,29 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Stable self identity and contact rediscovery
+
+- Started only after the preceding signed commit `272cc40` passed Branch CI `41198613019`
+  and PR CI `41198617110`, including APKs, cleanup and publication. Existing intentional E2E skips
+  remain unchanged; those green jobs are not physical-device/authenticated E2E acceptance.
+- Own enrollment intent and the receipt-to-roster gap reuse the canonical API/actor-scoped cached
+  profile without starting another profile request or inventing participation/positions. Known roster
+  identity wins; foreign profiles are ignored. Missing self metadata uses the existing localized
+  You label, never the Clerk ID. Late profile hydration updates the same visible row on both clients.
+- Relationship settlement refreshes only owned active search/suggestion queries, even when the action
+  came from a different hook or a retained tab. Ordinary loaded relationship lists remain optimistic
+  and stale until navigation. A former connection appears in device suggestions only after a real
+  authorized eligibility read; failures remain observable and never invent address-book membership.
+- Local evidence: 2,051 unit tests (web 599, mobile 243, shared 360, API 735, schemas 114), existing
+  coverage gates including 100% roster/intent logic; typecheck 4/4, scoped Biome, API/web production
+  builds and Android export (5,588 modules). Held-HTTP tests cover raw enrollment receipts, known/cold/
+  foreign profiles, late identity hydration, cross-instance discovery refresh and read failures.
+  No new strings/dependencies/API writes/provider changes. Seven protected hashes and generated Next
+  references remain unchanged. Local Docker remains stopped; no new local integration acceptance is
+  claimed. Rendered native acceptance remains pending.
+- Guides used: `tanstack-query-development`, `vercel-react-best-practices`,
+  `vercel-react-native-skills`, `expo-overview`, `expo-data-fetching`, `heroui-react`,
+  `heroui-native`, `lingui-best-practices`, `context-mode`, `ponytail`.
+
 ## Picker handoff and confirmed admin deletion
 
 - Group/Table invitation pickers hide owned pending intent on their first render, including cold

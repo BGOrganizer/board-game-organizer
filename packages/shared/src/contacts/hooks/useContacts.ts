@@ -504,7 +504,13 @@ export function useContacts(
       feedback?.onError?.(error, optimisticFailureAction(error, action));
       await operation?.reject(error);
     },
-    onSettled: () => {
+    onSettled: (
+      _data: unknown,
+      _error: Error | null,
+      _variables: ContactMutationVariables,
+      operation: Awaited<ReturnType<typeof beginOptimisticOperation>> | undefined,
+    ) => {
+      if (operation?.signal.aborted) return;
       void queryClient.invalidateQueries({ queryKey: ["contacts"], refetchType: "none" });
       // A cancelled first page has no data to update optimistically. Resume it,
       // without refetching loaded lists or another API/user's private cache.
@@ -521,11 +527,16 @@ export function useContacts(
         queryKey: ["groups", apiUrl, currentUserId],
         predicate: ({ queryKey }) => queryKey[3] === "people" || queryKey[3] === "invitees",
       });
-      if (searchQuery.length >= 4)
-        void queryClient.invalidateQueries({
-          queryKey: ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token],
-          exact: true,
-        });
+      // Search/suggestions may be observed by another hook instance or a retained tab.
+      // Refetch eligibility from the source; a former connection is not automatically a device contact.
+      void queryClient.invalidateQueries({
+        queryKey: ["contacts"],
+        refetchType: "active",
+        predicate: ({ queryKey }) =>
+          queryKey[2] === apiUrl &&
+          queryKey[3] === (currentUserId ?? token) &&
+          (queryKey[1] === "suggestions" || String(queryKey[1]).startsWith("search:")),
+      });
     },
   });
 

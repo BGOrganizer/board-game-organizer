@@ -185,7 +185,12 @@ describe("useContacts friend request", () => {
 
     await waitFor(() => {
       expect(getCount("/api/users/search")).toBe(2);
-      expect(listUrls.every((url) => getCount(url) === 1)).toBe(true);
+      expect(getCount("/api/users/suggestions")).toBe(2);
+      expect(
+        listUrls
+          .filter((url) => url !== "/api/users/suggestions")
+          .every((url) => getCount(url) === 1),
+      ).toBe(true);
     });
   });
 

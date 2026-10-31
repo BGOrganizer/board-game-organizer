@@ -163,6 +163,27 @@ describe("sending invitation places, not server seats", () => {
       ).toMatchObject({ name: username ?? "", avatarUrl: null });
     }
   });
+  it("uses a matching canonical cached self profile before any registration exists, never another actor's profile", () => {
+    const intent = { key: "joining:1", action: "join" as const, phase: "saving" as const },
+      profile = { id: "owner", name: "Mario Rossi", avatarUrl: "https://images.test/mario" };
+    expect(pendingParticipationPlaces([free], intent, "owner", false, profile)[0]).toMatchObject({
+      kind: "pending",
+      name: "Mario Rossi",
+      avatarUrl: profile.avatarUrl,
+    });
+    expect(
+      pendingParticipationPlaces([free], intent, "owner", false, { ...profile, id: "foreign" })[0],
+    ).toMatchObject({ name: "", avatarUrl: null });
+    const own: EventTablePlace = {
+      key: "own",
+      kind: "player",
+      user: { ...player.user, userId: "owner", name: null, avatarUrl: null },
+    };
+    expect(pendingParticipationPlaces([own], intent, "owner", false, profile)[0]).toMatchObject({
+      name: "Mario Rossi",
+      avatarUrl: profile.avatarUrl,
+    });
+  });
   it("hands off only to authoritative accepted roster data and drops definite rejected/superseded or foreign-owner intents", () => {
     const rows = [player, reserved, free],
       intent = { key: "joining:1", action: "join" as const, phase: "saving" as const };

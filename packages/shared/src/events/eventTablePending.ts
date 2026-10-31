@@ -1,4 +1,5 @@
 import type { TableInviteeResponse } from "@board-game-organizer/schemas";
+import type { UserProfile } from "../common/types";
 import type { EventTablePlace } from "./eventTableRoster";
 
 export type PendingTableInvitation = {
@@ -58,11 +59,13 @@ export function pendingParticipationPlaces(
     | undefined,
   userId: string | null | undefined,
   acknowledged: boolean,
+  selfProfile?: Pick<UserProfile, "id" | "name" | "avatarUrl">,
 ): Array<EventTablePlace | PendingTablePlace> {
   if (!intent || !userId || !intent.phase || intent.phase === "failed" || acknowledged)
     return [...rows];
   const own = rows.find((row) => row.kind === "player" && row.user.userId === userId);
   const profile = own?.kind === "player" ? own.user : undefined;
+  const self = selfProfile?.id === userId ? selfProfile : undefined;
   return [
     {
       key: intent.key,
@@ -70,8 +73,8 @@ export function pendingParticipationPlaces(
       userId,
       action: intent.action,
       phase: intent.phase,
-      name: profile?.name || profile?.username || "",
-      avatarUrl: profile?.avatarUrl ?? null,
+      name: profile?.name || self?.name || profile?.username || "",
+      avatarUrl: profile?.avatarUrl ?? self?.avatarUrl ?? null,
     },
     ...rows.filter((row) => row.kind !== "player" || row.user.userId !== userId),
   ];
