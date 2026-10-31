@@ -253,7 +253,9 @@ it.each([true, false])(
       await invitation;
     });
     expect(s.writes.map((write) => write.method)).toEqual(ok ? ["PATCH", "POST"] : ["PATCH"]);
-    expect(s.actions.result.current.invite.status).toBe(ok ? "success" : "error");
+    await waitFor(() =>
+      expect(s.actions.result.current.invite.status).toBe(ok ? "success" : "error"),
+    );
     expect(picker.result.current.items).toEqual([]);
     if (ok) expect(s.writes[1].body).toEqual({ userId: "guest" });
   },
