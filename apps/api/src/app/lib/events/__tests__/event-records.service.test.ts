@@ -604,6 +604,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
           },
         ],
         nextCursor: guest,
+        eventVersion: event.version,
       });
       expect(f.repo.invitationCandidates).toHaveBeenCalledWith(
         type ? expect.objectContaining({ id: other }) : null,
@@ -630,6 +631,7 @@ describe("unified event core — real consent, no synthetic Match writes", () =>
         avatarUrl: "https://example.test/avatar.png",
       });
       expect(second.nextCursor).toBeNull();
+      expect(second.eventVersion).toBe(event.version);
       await expect(
         f.service.invitationCandidates(guest, event.id, id, { limit: 20 }),
       ).rejects.toMatchObject({ code: "EVENT_ADMIN_REQUIRED" });

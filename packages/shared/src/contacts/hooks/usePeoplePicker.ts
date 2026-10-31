@@ -1,7 +1,14 @@
 "use client";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import type { TableInviteesPageResponse } from "@board-game-organizer/schemas";
+import { type InfiniteData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { clientMutationPhase } from "../../common/clientMutation";
 import { useScopedMutations } from "../../common/hooks/useScopedMutations";
-import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
+import {
+  type CommunityApiOptions,
+  communityAccessDenied,
+  communityRequest,
+} from "../../community/communityApi";
+import { type TableInviteeIntent, tableInviteeItems } from "../../events/eventTableInvitees";
 import { eventRecordKeys, tableInviteesPageQuery } from "../../events/hooks/useEventRecords";
 import { groupInviteesPageQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
 import { type ContactUser, useRelationshipList } from "./useContacts";
@@ -13,15 +20,16 @@ export function usePeoplePicker(
   invitationGroupId?: string,
   invitationTable?: { eventId: string; tableId: string },
 ) {
-  const pendingInvites = useScopedMutations({
+  const client = useQueryClient();
+  const mutations = useScopedMutations({
     mutationKey: invitationTable
-      ? eventRecordKeys.mutation(options, invitationTable.eventId, "invite")
+      ? eventRecordKeys.mutation(options, invitationTable.eventId)
       : [...groupRecordKeys.root(options), "mutation"],
-    status: "pending",
   });
   const excluded = new Set(
-    pendingInvites.flatMap((mutation) => {
-      if (mutation.options.mutationKey?.at(-1) !== "invite") return [];
+    mutations.flatMap((mutation) => {
+      if (mutation.state.status !== "pending" || mutation.options.mutationKey?.at(-1) !== "invite")
+        return [];
       const input = mutation.state.variables as
         | { id?: string; tableId?: string; userId?: string }
         | undefined;
@@ -105,11 +113,66 @@ export function usePeoplePicker(
         ? search
         : friends;
   const needsSearch = !invitationTable && !invitationGroupId && !friendsOnly && !searching;
+  const intents = mutations.flatMap<TableInviteeIntent>((mutation) => {
+    if (!invitationTable) return [];
+    const input = mutation.state.variables as
+      | {
+          tableId?: string;
+          userId?: string;
+          person?: TableInviteeIntent["person"];
+          input?: { action?: string };
+        }
+      | undefined;
+    if (input?.tableId !== invitationTable.tableId) return [];
+    const action = mutation.options.mutationKey?.at(-1);
+    const kind =
+      action === "invite"
+        ? "invite"
+        : action === "respond" && input.input?.action === "remove"
+          ? "remove"
+          : null;
+    const userId = kind === "invite" ? input.userId : input.person?.userId;
+    if (!kind || !userId || userId === options.userId) return [];
+    const context = mutation.state.context as
+      | { operation?: { signal?: AbortSignal; uncertain?: boolean }; acknowledgedVersion?: number }
+      | undefined;
+    return [
+      {
+        mutationId: mutation.mutationId,
+        kind,
+        userId,
+        person: input.person,
+        status: mutation.state.status,
+        failed:
+          mutation.state.status === "error" &&
+          clientMutationPhase("error", mutation.state.error) === "failed",
+        aborted: Boolean(context?.operation?.signal?.aborted),
+        uncertain: Boolean(context?.operation?.uncertain),
+        acknowledgedVersion: context?.acknowledgedVersion,
+      },
+    ];
+  });
+  const tableItems =
+    invitationTable && options.enabled !== false && !communityAccessDenied(tableInvitees.error)
+      ? tableInviteeItems(
+          tableInvitees.data?.pages.flatMap((page) => page.items) ?? [],
+          intents,
+          client
+            .getQueriesData<InfiniteData<TableInviteesPageResponse>>({
+              queryKey: [
+                ...eventRecordKeys.root(options),
+                "invitees",
+                invitationTable.eventId,
+                invitationTable.tableId,
+              ],
+            })
+            .map(([key, data]) => ({ query: String(key[6]), pages: data?.pages ?? [] })),
+          normalized,
+        )
+      : [];
   return {
     items: invitationTable
-      ? (tableInvitees.data?.pages
-          .flatMap((page) => page.items)
-          .filter((row) => !row.optimisticInvited && !excluded.has(row.id)) ?? [])
+      ? tableItems
       : invitationGroupId
         ? (invitees.data?.pages
             .flatMap((page) => page.items)
@@ -120,7 +183,7 @@ export function usePeoplePicker(
             ? (friends.data ?? []).flatMap((row) => (row.profile ? [row.profile] : []))
             : [],
     needsSearch,
-    isPending: !needsSearch && source.isPending,
+    isPending: !needsSearch && source.isPending && !tableItems.length,
     isError: !needsSearch && source.isError,
     error: needsSearch ? null : source.error,
     hasNextPage: !needsSearch && Boolean(source.hasNextPage),

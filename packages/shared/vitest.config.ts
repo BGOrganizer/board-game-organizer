@@ -20,6 +20,7 @@ export default defineConfig({
         "src/events/eventDeletionCache.ts",
         "src/events/eventRegistrationCache.ts",
         "src/events/eventTablePending.ts",
+        "src/events/eventTableInvitees.ts",
         "src/groups/groupPolicy.ts",
         "src/groups/groupBanForm.ts",
         "src/groups/groupDeletionCache.ts",
@@ -54,6 +55,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/events/eventTableInvitees.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/eventDeletionCache.ts": {
           lines: 100,
           functions: 100,

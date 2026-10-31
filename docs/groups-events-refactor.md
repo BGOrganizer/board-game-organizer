@@ -171,7 +171,12 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   do not exclude a candidate. Both clients filter current owned invitation intent on the first render,
   including newly opened search pages; positive receipts remove acknowledged invitees from cached
   candidate pages before intent retires. Reopening never paints an already-invited person while
-  waiting for an eligibility refetch. Definite failures restore eligibility selectively. PUBLIC other-Table overlaps remain visible with
+  waiting for an eligibility refetch. Definite failures restore eligibility selectively. Admin removal
+  immediately makes the already-known recipient available as local release intent outside source pages,
+  including cold searches. Reinvitation selected during removal waits for its exact successful
+  cancellation receipt and never dispatches after rejection or an unverified receipt. Candidate pages
+  carry their Event epoch: only complete matching post-receipt exclusions retire release hints across
+  searches; stale/partial pages do not. Eligibility remains advisory and server-validated. PUBLIC other-Table overlaps remain visible with
   `invitationBlockReason: TABLE_TIME_CONFLICT`; clear candidates return null. Both clients disable
   invitation/selection while a separate accessible question-mark popover explains pending/accepted
   participation or demonstrator duties. No other Table identity is disclosed. This snapshot is

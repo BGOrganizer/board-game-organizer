@@ -1,5 +1,31 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Immediate Table reinvitation after admin removal
+
+- Both confirmation callbacks retain only the already-visible recipient identity in owned MutationCache
+  variables, never in request bodies or canonical candidate pages. Shared pickers immediately expose
+  this presentation-only release intent, including cold searches. Newer invitation intent suppresses
+  it; definite removal failure rolls it back. Actor/API/Table/session boundaries remain intact.
+- Reinvitation selected before removal finishes stays immediate in the UI but waits in the existing
+  Event FIFO. Dispatch requires the exact successful cancellation receipt (registration/version,
+  Event/Table/person and status); rejection, unknown outcomes and unverified receipts cannot send a
+  dependent POST. No automatic write retry, consent, seat, priority or capability is invented.
+- Authorized candidate pages include the Event epoch. Complete matching post-receipt exclusions retire
+  old release hints across searches; pre-ACK/partial pages do not. Canonical identity/conflict reasons,
+  source paging, Group email privacy and atomic POST eligibility checks remain authoritative.
+- Local Node 26/pnpm 11.25 evidence: 2,082 unit tests (web 614, mobile 245, shared 374, API 735,
+  schemas 114); unchanged coverage gates and 100% for the new deterministic selector; typecheck 4/4,
+  tracked-source Biome checks, API/web production builds and Android export (5,589 modules). Docker is available for
+  this checkpoint: all 88 real replica-set integration tests pass, including removal/reinvitation and
+  candidate/receipt epochs. Held-HTTP tests and executed native callbacks are not rendered native or
+  authenticated Playwright/Maestro acceptance; existing E2E suites/jobs remain unchanged. Seven protected
+  hashes and generated Next references are restored byte-for-byte. No dependencies, migrations,
+  provider configuration or localization changes. Full local `pnpm lint` encounters the pre-existing
+  untracked `apps/mobile/services/google-services.json` formatting issue; that private file is untouched.
+  Tracked app/shared/schema sources plus all new owned files pass Biome.
+- Guides used: `bgo-component-architecture`, `tanstack-query-development`,
+  `vercel-react-best-practices`, `expo-overview`, `expo-data-fetching`, `context-mode`, `ponytail`.
+
 ## Stable self identity and contact rediscovery
 
 - Started only after the preceding signed commit `272cc40` passed Branch CI `41198613019`

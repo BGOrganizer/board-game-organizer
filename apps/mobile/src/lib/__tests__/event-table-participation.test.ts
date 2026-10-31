@@ -2,10 +2,76 @@ import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 
 const source = (file: string) =>
   readFileSync(new URL(`../../components/events/${file}.tsx`, import.meta.url), "utf8");
+// Execute native callbacks only; this is not RN rendering/touch acceptance.
+it.each([false, true])(
+  "preserves known recipient metadata through native removal confirmation (own=%s)",
+  (own) => {
+    const file = ts.createSourceFile(
+      "overview.tsx",
+      source("EventTableOverview"),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    let onRemove = "",
+      run = "";
+    function visit(node: ts.Node) {
+      if (ts.isVariableDeclaration(node) && node.name.getText(file) === "run")
+        run = node.initializer?.getText(file) ?? "";
+      if (
+        ts.isJsxAttribute(node) &&
+        node.name.getText(file) === "onRemove" &&
+        node.initializer &&
+        ts.isJsxExpression(node.initializer)
+      )
+        onRemove = node.initializer.expression?.getText(file) ?? "";
+      ts.forEachChild(node, visit);
+    }
+    visit(file);
+    const setConfirm = vi.fn(),
+      mutate = vi.fn();
+    const evaluate = (expression: string, context: Record<string, unknown>) =>
+      runInNewContext(
+        ts.transpileModule(`(${expression})`, {
+          compilerOptions: { target: ts.ScriptTarget.ES2022 },
+        }).outputText,
+        context,
+      );
+    const person = {
+      userId: own ? "owner" : "guest",
+      name: "Known player",
+      username: "player",
+      avatarUrl: null,
+    };
+    evaluate(onRemove, { setConfirm })({ id: "registration", version: 4, ...person }, own);
+    const confirm = setConfirm.mock.calls[0][0];
+    expect(confirm.person).toEqual(person);
+    evaluate(run, {
+      confirm,
+      closed: false,
+      tableId: "table",
+      setConfirm,
+      table: {
+        eventStatus: "PLANNING",
+        canInvite: true,
+        canLeave: true,
+        myRegistration: { id: "registration" },
+      },
+      a: { blocking: false, isResponding: () => false, respond: { mutate } },
+    })();
+    expect(mutate).toHaveBeenCalledWith({
+      tableId: "table",
+      registrationId: "registration",
+      person,
+      input: { action: own ? "cancel" : "remove", version: 4 },
+    });
+    expect(setConfirm).toHaveBeenLastCalledWith(null);
+  },
+);
 it.each(["EventDetail", "EventTableOverview", "EventTableCard", "EventInvitationPicker"])(
   "uses exact boundary timer in %s instead of waiting for a list refetch",
   (name) => expect(source(name)).toContain("useEventCutoff"),

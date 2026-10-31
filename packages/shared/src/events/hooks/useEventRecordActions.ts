@@ -15,6 +15,7 @@ import type {
   TableRegistrationReceipt,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
+import { tableRegistrationReceiptSchema } from "@board-game-organizer/schemas";
 import {
   hashKey,
   type MutationFunctionContext,
@@ -136,6 +137,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       receipt: undefined as PlannedEventResponse | undefined,
       acknowledgedVersion: undefined as number | undefined,
       consent: undefined as EventConsentSnapshot | undefined,
+      afterRemovalId: undefined as number | undefined,
     };
   }
   async function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
@@ -772,32 +774,68 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     mutationKey: [...mutationKey, "invite"],
     scope,
     networkMode: "always",
-    mutationFn: (
+    mutationFn: async (
       variables: {
         tableId: string;
         userId: string;
         person?: Pick<TableInviteeResponse, "name" | "username" | "avatarUrl">;
       },
       context,
-    ) =>
-      write<TableRegistrationReceipt>(
+    ) => {
+      const { signal, local } = await participationRequest(context, variables);
+      if (local.afterRemovalId !== undefined) {
+        const removal = client
+          .getMutationCache()
+          .getAll()
+          .find((mutation) => mutation.mutationId === local.afterRemovalId);
+        const removed = removal?.state.variables as
+          | Parameters<typeof respond.mutate>[0]
+          | undefined;
+        const receipt = tableRegistrationReceiptSchema.safeParse(removal?.state.data);
+        if (
+          removal?.state.status !== "success" ||
+          !receipt.success ||
+          receipt.data.id !== removed?.registrationId ||
+          receipt.data.version !== (removed?.input.version ?? 0) + 1 ||
+          receipt.data.eventId !== id ||
+          receipt.data.tableId !== variables.tableId ||
+          receipt.data.userId !== variables.userId ||
+          receipt.data.status !== "CANCELLED"
+        )
+          throw new CommunityApiError(409, "EVENT_CHANGED");
+      }
+      return communityRequest<TableRegistrationReceipt>(
+        o,
         `events/${id}/tables/${variables.tableId}/invitations`,
         "POST",
-        {
-          userId: variables.userId,
-        },
-        context,
-        variables,
-      ),
-    onMutate: ({ tableId, userId }) =>
-      begin(
+        { userId: variables.userId },
+        signal,
+      );
+    },
+    onMutate: async ({ tableId, userId }) => {
+      const removal = client
+        .getMutationCache()
+        .findAll({ mutationKey: [...mutationKey, "respond"], status: "pending" })
+        .reverse()
+        .find((mutation) => {
+          const value = mutation.state.variables as Parameters<typeof respond.mutate>[0];
+          return (
+            value.tableId === tableId &&
+            value.input.action === "remove" &&
+            value.person?.userId === userId
+          );
+        });
+      const context = await begin(
         "invite_event_player",
         (row, key) =>
           key[3] === "invitees" && key[5] === tableId && row.id === userId
             ? { ...row, optimisticInvited: true }
             : row,
         ["invite", tableId, userId],
-      ),
+      );
+      context.afterRemovalId = removal?.mutationId;
+      return context;
+    },
     onSuccess: (value, input, context) =>
       registrationSuccess(value, undefined, context, {
         tableId: input.tableId,
@@ -815,6 +853,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       variables: {
         registrationId: string;
         tableId?: string;
+        person?: Pick<TableSeatResponse, "userId" | "name" | "username" | "avatarUrl">;
         input: DecideTableRegistrationInput;
       },
       context,

@@ -808,6 +808,7 @@ export class EventRecordsService {
         }),
       ),
       nextCursor: rows.length > page.limit ? rows[page.limit - 1].clerkId : null,
+      eventVersion: event.version,
     };
   }
   async tableDetail(userId: string, eventId: string, tableId: string) {

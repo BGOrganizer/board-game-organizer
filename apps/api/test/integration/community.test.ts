@@ -2065,6 +2065,44 @@ describe("unified groups/events on the real MongoDB replica set", () => {
           })
         ).items.map((row) => row.id),
       ).not.toContain("f_declined");
+      const beforeRemoval = await services().plannedEventService.invitationCandidates(
+        OWNER,
+        event.id,
+        tableId,
+        { limit: 20, query: "b_accepted" },
+      );
+      expect(beforeRemoval.items).toEqual([]);
+      const active = (await services().eventRecords.allRegistrations(event.id)).find(
+        (row) => row.userId === "b_accepted" && row.tableId === tableId,
+      );
+      if (!active) throw new Error("Missing accepted registration");
+      const removed = await transaction((s) =>
+        s.plannedEventService.registrationAction(OWNER, active.id, {
+          action: "remove",
+          version: active.version,
+        }),
+      );
+      const released = await services().plannedEventService.invitationCandidates(
+        OWNER,
+        event.id,
+        tableId,
+        { limit: 20, query: "b_accepted" },
+      );
+      expect(released.items.map((row) => row.id)).toEqual(["b_accepted"]);
+      expect(released.nextCursor).toBeNull();
+      expect(released.eventVersion).toBe(removed.eventVersion);
+      expect(beforeRemoval.eventVersion).toBeLessThan(removed.eventVersion);
+      const invitedAgain = await invite("b_accepted");
+      expect(invitedAgain.status).toBe("PENDING");
+      expect(invitedAgain.gameVotes).toEqual({});
+      const reservedAgain = await services().plannedEventService.invitationCandidates(
+        OWNER,
+        event.id,
+        tableId,
+        { limit: 20, query: "b_accepted" },
+      );
+      expect(reservedAgain.items).toEqual([]);
+      expect(reservedAgain.eventVersion).toBe(invitedAgain.eventVersion);
     },
   );
   it("atomically accepts a pending PRIVATE invitation with all choices and rolls back an intervening storage failure", async () => {

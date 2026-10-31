@@ -1,4 +1,5 @@
 "use client";
+import type { TableSeatResponse } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
@@ -32,6 +33,7 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
     registrationId: string;
     version: number;
     action: "cancel" | "remove";
+    person: Pick<TableSeatResponse, "userId" | "name" | "username" | "avatarUrl">;
   } | null>(null);
   const table =
     communityAccessDenied(q.error) || communityAccessDenied(event.error) ? undefined : q.data;
@@ -64,6 +66,7 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
     a.respond.mutate({
       tableId,
       registrationId: command.registrationId,
+      person: command.person,
       input: { action: command.action, version: command.version },
     });
     setConfirm(null);
@@ -186,6 +189,12 @@ export function EventTableOverview({ eventId, tableId }: { eventId: string; tabl
             registrationId: row.id,
             version: row.version,
             action: own ? "cancel" : "remove",
+            person: {
+              userId: row.userId,
+              name: row.name,
+              username: row.username,
+              avatarUrl: row.avatarUrl,
+            },
           })
         }
       />

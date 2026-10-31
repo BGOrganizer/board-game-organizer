@@ -4,7 +4,7 @@ import type {
   CommunityPageResponse,
   PlannedEventResponse,
   PlannedTableResponse,
-  TableInviteeResponse,
+  TableInviteesPageResponse,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import {
@@ -247,9 +247,7 @@ export function tableInviteesPageQuery(
   return infiniteQueryOptions({
     queryKey: [...eventRecordKeys.root(o), "invitees", eventId, tableId, query],
     queryFn: ({ pageParam, signal }) =>
-      communityRequest<
-        CommunityPageResponse<TableInviteeResponse & { optimisticInvited?: boolean }>
-      >(
+      communityRequest<TableInviteesPageResponse>(
         o,
         path(
           `events/${encodeURIComponent(eventId)}/tables/${encodeURIComponent(tableId)}/invitations`,

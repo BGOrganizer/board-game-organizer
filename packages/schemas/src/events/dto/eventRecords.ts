@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { clientRequestIdSchema, targetUserIdSchema } from "../../common/dto/common";
+import type { CommunityPageResponse } from "../../community/dto/communityResponses";
 import type { BggSearchItem } from "../../games/dto/boardGames";
 import { verifiedLocationSchema } from "../../locations/models/locations";
 import type { MatchGameRating } from "../../matches/dto/matches";
@@ -270,6 +271,10 @@ export type TableInviteeResponse = {
   username: string | null;
   email: string | null;
   avatarUrl: string | null;
+};
+export type TableInviteesPageResponse = CommunityPageResponse<TableInviteeResponse> & {
+  /** Missing only on cached responses predating candidate snapshot epochs. */
+  eventVersion?: number;
 };
 export type TableLeaderboardResponse = {
   gameId: number;
