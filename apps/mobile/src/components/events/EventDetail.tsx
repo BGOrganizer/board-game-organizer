@@ -1,7 +1,9 @@
+import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
   eventDateWall,
+  eventItemTargets,
   eventLocalToIso,
   useEventCutoff,
   useEventRecord,
@@ -21,8 +23,8 @@ import {
   Pencil,
   RotateCcw,
 } from "lucide-react-native";
-import { useState } from "react";
-import { FlatList, View } from "react-native";
+import { useRef, useState } from "react";
+import { FlatList, type ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
@@ -31,9 +33,11 @@ import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -53,6 +57,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     [confirm, setConfirm] = useState<"confirm" | "replan" | null>(null),
     [error, setError] = useState(false),
     event = communityAccessDenied(q.error) ? undefined : q.data;
+  const scroll = useRef<ScrollView>(null);
   const closed = useEventCutoff(event?.bookingClosesAt, event?.groupType === "PUBLIC");
   const [accentForeground, muted, foreground] = useThemeColor([
     "accent-foreground",
@@ -170,17 +175,21 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const header = (
     <View style={{ gap: 12 }}>
       <View style={{ gap: 8 }}>
-        <EventDetailsCard event={event} />
+        <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
+          <EventDetailsCard event={event} />
+        </NotificationItem>
       </View>
       {event.groupId && fromGroup !== event.groupId ? (
         <EventGroupLink groupId={event.groupId} name={event.groupName} />
       ) : null}
       <View style={{ gap: 8 }}>
-        <SearchHelpLabel
-          label={event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Date and time")}
-          helpTitle={t("Field help")}
-          help={t("Times are local to the location chosen for the event.")}
-        />
+        <NotificationItem itemId={notificationItemId(event.id, "dates")} readOnly>
+          <SearchHelpLabel
+            label={event.groupType === "PUBLIC" ? t("Start Date and Time") : t("Date and time")}
+            helpTitle={t("Field help")}
+            help={t("Times are local to the location chosen for the event.")}
+          />
+        </NotificationItem>
         <GroupedList>
           {event.dates
             .filter(
@@ -190,38 +199,44 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 row.id === event.confirmed.dateId,
             )
             .map((row) => (
-              <GroupedRow key={row.id}>
-                <View style={{ flex: 1, gap: 8 }}>
-                  <DateTimeInfo
-                    startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                    timeZone={event.timeZone}
-                  />
-                  {event.groupType !== "PUBLIC" ? (
-                    <EventVoteCounts
+              <NotificationItem
+                key={row.id}
+                itemId={notificationItemId(event.id, "date", row.id)}
+                readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+              >
+                <GroupedRow>
+                  <View style={{ flex: 1, gap: 8 }}>
+                    <DateTimeInfo
+                      startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                      timeZone={event.timeZone}
+                    />
+                    {event.groupType !== "PUBLIC" ? (
+                      <EventVoteCounts
+                        label={eventDateWall(event, row).replace("T", " ")}
+                        counts={event.voteCounts?.dates[row.id]}
+                      />
+                    ) : null}
+                  </View>
+                  {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                    <EventVoteButtons
                       label={eventDateWall(event, row).replace("T", " ")}
-                      counts={event.voteCounts?.dates[row.id]}
+                      value={event.myVotes?.dateVotes[row.id]}
+                      disabledVotes={
+                        eventAvailabilityVoteIsAllowed(
+                          event.dates,
+                          event.myVotes?.dateVotes ?? {},
+                          row.id,
+                          "NO",
+                        )
+                          ? []
+                          : ["NO"]
+                      }
+                      busy={a.blocking || q.isPlaceholderData}
+                      onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
                     />
                   ) : null}
-                </View>
-                {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
-                  <EventVoteButtons
-                    label={eventDateWall(event, row).replace("T", " ")}
-                    value={event.myVotes?.dateVotes[row.id]}
-                    disabledVotes={
-                      eventAvailabilityVoteIsAllowed(
-                        event.dates,
-                        event.myVotes?.dateVotes ?? {},
-                        row.id,
-                        "NO",
-                      )
-                        ? []
-                        : ["NO"]
-                    }
-                    busy={a.blocking || q.isPlaceholderData}
-                    onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
-                  />
-                ) : null}
-              </GroupedRow>
+                </GroupedRow>
+              </NotificationItem>
             ))}
         </GroupedList>
       </View>
@@ -265,7 +280,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           </GroupedList>
         </View>
       ) : null}
-      <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
+      <NotificationItem itemId={notificationItemId(event.id, "locations")} readOnly>
+        <Typography className="font-semibold text-foreground">{t("Locations")}</Typography>
+      </NotificationItem>
       <GroupedList>
         {event.locations
           .filter(
@@ -275,38 +292,47 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               row.id === event.confirmed.locationId,
           )
           .map((row) => (
-            <LocationListRow
+            <NotificationItem
               key={row.id}
-              name={row.name}
-              address={row.address}
-              actions={
-                event.groupType !== "PUBLIC" && event.canVote && !closed ? (
-                  <EventVoteButtons
-                    label={row.name}
-                    value={event.myVotes?.locationVotes[row.id]}
-                    disabledVotes={
-                      eventAvailabilityVoteIsAllowed(
-                        event.locations,
-                        event.myVotes?.locationVotes ?? {},
-                        row.id,
-                        "NO",
-                      )
-                        ? []
-                        : ["NO"]
-                    }
-                    busy={a.blocking || q.isPlaceholderData}
-                    onChange={(vote) => a.vote.mutate({ kind: "location", optionId: row.id, vote })}
-                  />
-                ) : undefined
-              }
+              itemId={notificationItemId(event.id, "location", row.id)}
+              readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
             >
-              {event.groupType !== "PUBLIC" ? (
-                <EventVoteCounts label={row.name} counts={event.voteCounts?.locations[row.id]} />
-              ) : null}
-            </LocationListRow>
+              <LocationListRow
+                name={row.name}
+                address={row.address}
+                actions={
+                  event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                    <EventVoteButtons
+                      label={row.name}
+                      value={event.myVotes?.locationVotes[row.id]}
+                      disabledVotes={
+                        eventAvailabilityVoteIsAllowed(
+                          event.locations,
+                          event.myVotes?.locationVotes ?? {},
+                          row.id,
+                          "NO",
+                        )
+                          ? []
+                          : ["NO"]
+                      }
+                      busy={a.blocking || q.isPlaceholderData}
+                      onChange={(vote) =>
+                        a.vote.mutate({ kind: "location", optionId: row.id, vote })
+                      }
+                    />
+                  ) : undefined
+                }
+              >
+                {event.groupType !== "PUBLIC" ? (
+                  <EventVoteCounts label={row.name} counts={event.voteCounts?.locations[row.id]} />
+                ) : null}
+              </LocationListRow>
+            </NotificationItem>
           ))}
       </GroupedList>
-      <Typography className="font-semibold text-foreground">{t("Tables")}</Typography>
+      <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
+        <Typography className="font-semibold text-foreground">{t("Tables")}</Typography>
+      </NotificationItem>
     </View>
   );
   return (
@@ -314,6 +340,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       options={o}
       targets={[
         { kind: "event", id: event.id },
+        ...eventItemTargets(event),
         ...(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => ({
           kind: "table" as const,
           id: row.id,
@@ -321,115 +348,122 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       ]}
       readOnOpen={{ kind: "event", id: event.id }}
     >
-      <View style={{ flex: 1 }}>
-        {screenHeader}
-        <FlatList
-          data={communityAccessDenied(tables.error) ? [] : tables.items}
-          keyExtractor={(row) => row.id}
-          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 112 }}
-          ListHeaderComponent={header}
-          ListEmptyComponent={
-            !tables.isPending && !tables.isError ? (
-              <EmptyList icon={<Dices size={28} color={muted} />}>{t("No tables found")}</EmptyList>
-            ) : null
-          }
-          renderItem={({ item }) => <EventTableCard table={item} context="event" />}
-          onEndReached={() => {
-            if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
-              void tables.fetchNextPage();
-          }}
-          ListFooterComponent={
-            <View style={{ gap: 12 }}>
-              {tables.isPending || tables.isFetchingNextPage ? (
-                <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-              ) : null}
-              {tables.isError ? (
-                <>
-                  <Typography accessibilityRole="alert" className="text-danger">
-                    {t("Could not load tables")}
-                  </Typography>
-                  <Button onPress={() => void tables.refetch()}>
-                    <Button.Label>{t("Try again")}</Button.Label>
-                  </Button>
-                </>
-              ) : null}
-              {tables.hasNextPage ? (
-                <Button
-                  isDisabled={tables.isFetchingNextPage}
-                  onPress={() => void tables.fetchNextPage()}
-                >
-                  <Button.Label>{t("Load more")}</Button.Label>
-                </Button>
-              ) : null}
-            </View>
-          }
-        />
-        {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canReplan ? (
-          <FloatingActions
-            label={t("Reopen planning")}
-            variant="secondary"
-            isDisabled={a.busy || q.isPlaceholderData}
-            onPress={() => {
-              setError(false);
-              setConfirm("replan");
+      <ScrollTargetContext.Provider value={scroll}>
+        <View style={{ flex: 1 }}>
+          {screenHeader}
+          <FlatList
+            ref={(node) => {
+              scroll.current = node?.getNativeScrollRef() as ScrollView | null;
             }}
-          >
-            <RotateCcw size={20} color={foreground} accessible={false} />
-          </FloatingActions>
-        ) : null}
-        {event.status === "PLANNING" && event.canEdit && !closed ? (
-          <FloatingActions
-            label="Edit event"
-            isDisabled={a.busy || q.isPlaceholderData}
-            onPress={() =>
-              router.push({
-                pathname: "/event/wizard",
-                params: {
-                  eventId: event.id,
-                  ...(fromGroup === event.groupId ? { fromGroup } : {}),
+            data={communityAccessDenied(tables.error) ? [] : tables.items}
+            keyExtractor={(row) => row.id}
+            contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 112 }}
+            ListHeaderComponent={header}
+            ListEmptyComponent={
+              !tables.isPending && !tables.isError ? (
+                <EmptyList icon={<Dices size={28} color={muted} />}>
+                  {t("No tables found")}
+                </EmptyList>
+              ) : null
+            }
+            renderItem={({ item }) => <EventTableCard table={item} context="event" />}
+            onEndReached={() => {
+              if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
+                void tables.fetchNextPage();
+            }}
+            ListFooterComponent={
+              <View style={{ gap: 12 }}>
+                {tables.isPending || tables.isFetchingNextPage ? (
+                  <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
+                ) : null}
+                {tables.isError ? (
+                  <>
+                    <Typography accessibilityRole="alert" className="text-danger">
+                      {t("Could not load tables")}
+                    </Typography>
+                    <Button onPress={() => void tables.refetch()}>
+                      <Button.Label>{t("Try again")}</Button.Label>
+                    </Button>
+                  </>
+                ) : null}
+                {tables.hasNextPage ? (
+                  <Button
+                    isDisabled={tables.isFetchingNextPage}
+                    onPress={() => void tables.fetchNextPage()}
+                  >
+                    <Button.Label>{t("Load more")}</Button.Label>
+                  </Button>
+                ) : null}
+              </View>
+            }
+          />
+          {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canReplan ? (
+            <FloatingActions
+              label={t("Reopen planning")}
+              variant="secondary"
+              isDisabled={a.busy || q.isPlaceholderData}
+              onPress={() => {
+                setError(false);
+                setConfirm("replan");
+              }}
+            >
+              <RotateCcw size={20} color={foreground} accessible={false} />
+            </FloatingActions>
+          ) : null}
+          {event.status === "PLANNING" && event.canEdit && !closed ? (
+            <FloatingActions
+              label="Edit event"
+              isDisabled={a.busy || q.isPlaceholderData}
+              onPress={() =>
+                router.push({
+                  pathname: "/event/wizard",
+                  params: {
+                    eventId: event.id,
+                    ...(fromGroup === event.groupId ? { fromGroup } : {}),
+                  },
+                })
+              }
+            >
+              <Pencil size={20} color={accentForeground} />
+            </FloatingActions>
+          ) : null}
+          {confirm ? (
+            <ConfirmDialog
+              title={confirm === "confirm" ? t("Confirm event") : t("Reopen planning")}
+              description={
+                confirm === "confirm"
+                  ? t(
+                      "Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.",
+                    )
+                  : t(
+                      "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.",
+                    )
+              }
+              busy={a.busy}
+              onCancel={() => setConfirm(null)}
+              actions={[
+                {
+                  label: t("Confirm"),
+                  variant: "primary",
+                  icon:
+                    confirm === "confirm" ? (
+                      <CalendarCheck size={16} color={accentForeground} accessible={false} />
+                    ) : (
+                      <RotateCcw size={16} color={accentForeground} accessible={false} />
+                    ),
+                  onPress: () => void transition(),
                 },
-              })
-            }
-          >
-            <Pencil size={20} color={accentForeground} />
-          </FloatingActions>
-        ) : null}
-        {confirm ? (
-          <ConfirmDialog
-            title={confirm === "confirm" ? t("Confirm event") : t("Reopen planning")}
-            description={
-              confirm === "confirm"
-                ? t(
-                    "Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.",
-                  )
-                : t(
-                    "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.",
-                  )
-            }
-            busy={a.busy}
-            onCancel={() => setConfirm(null)}
-            actions={[
-              {
-                label: t("Confirm"),
-                variant: "primary",
-                icon:
-                  confirm === "confirm" ? (
-                    <CalendarCheck size={16} color={accentForeground} accessible={false} />
-                  ) : (
-                    <RotateCcw size={16} color={accentForeground} accessible={false} />
-                  ),
-                onPress: () => void transition(),
-              },
-            ]}
-          >
-            {error ? (
-              <Typography accessibilityRole="alert" className="text-danger">
-                {t("Could not change event state. Refresh and try again.")}
-              </Typography>
-            ) : null}
-          </ConfirmDialog>
-        ) : null}
-      </View>
+              ]}
+            >
+              {error ? (
+                <Typography accessibilityRole="alert" className="text-danger">
+                  {t("Could not change event state. Refresh and try again.")}
+                </Typography>
+              ) : null}
+            </ConfirmDialog>
+          ) : null}
+        </View>
+      </ScrollTargetContext.Provider>
     </NotificationAttentionScope>
   );
 }

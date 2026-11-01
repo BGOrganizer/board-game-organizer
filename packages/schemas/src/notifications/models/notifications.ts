@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { NotificationItem } from "../notificationItems";
 
 export const COMMUNITY_NOTIFICATION_KINDS = [
   "group_membership_requested",
@@ -61,6 +62,8 @@ export interface Notification {
   copy?: { actorName: string; resourceName?: string };
   href: string;
   readAt?: Date;
+  /** Recipient-owned partial acknowledgements; notification is read only when all items are read. */
+  attentionItems?: NotificationItem[];
   createdAt: Date;
 }
 

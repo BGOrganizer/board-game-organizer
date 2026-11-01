@@ -1,8 +1,15 @@
-import type { ChangeEventVoteInput, PlannedEventResponse } from "@board-game-organizer/schemas";
+import {
+  type ChangeEventVoteInput,
+  type NotificationAttentionSnapshot,
+  notificationItemId,
+  type PlannedEventResponse,
+} from "@board-game-organizer/schemas";
 import {
   clearSessionQueryCache,
+  emptyAttentionSummary,
   eventRecordKeys,
   eventRecordsQuery,
+  notificationAttentionQuery,
   useEventRecordActions,
   useEventTableRoster,
   useRecordTable,
@@ -47,6 +54,81 @@ afterEach(async () => {
   });
   vi.unstubAllGlobals();
 });
+it.each([true, false])(
+  "coordinates item, ancestors and bell with the real vote mutation, saved=%s",
+  async (saved) => {
+    const { client, options, wrapper } = setup();
+    const target = { kind: "item", id: notificationItemId(eventId, "date", optionId) } as const;
+    const parent = { kind: "event", id: eventId } as const;
+    const summary = { ...emptyAttentionSummary(), events: 1, tables: 1 };
+    const snapshot: NotificationAttentionSnapshot = {
+      asOf: "2027-01-01T00:00:00.000Z",
+      unreadCount: 1,
+      summary,
+      targets: [
+        {
+          target,
+          count: 1,
+          direct: 1,
+          events: 0,
+          sections: summary.sections,
+          readEffect: {
+            unread: 1,
+            summary,
+            targets: [
+              { target, count: 1, direct: 1, events: 0 },
+              { target: parent, count: 1, direct: 0, events: 0 },
+            ],
+          },
+        },
+        { target: parent, count: 1, direct: 0, events: 0, sections: summary.sections },
+      ],
+    };
+    const key = notificationAttentionQuery(options, [target, parent]).queryKey;
+    client.setQueryData(key, snapshot);
+    let release!: (value: Response) => void;
+    const fetcher = vi.fn(
+      async () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const hook = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
+    act(() => hook.result.current.vote.mutate({ kind: "date", optionId, vote: "YES" }));
+    await waitFor(() => expect(release).toBeTypeOf("function"));
+    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.unreadCount).toBe(0);
+    expect(
+      client.getQueryData<NotificationAttentionSnapshot>(key)?.targets.map((row) => row.count),
+    ).toEqual([0, 0]);
+    const init = (fetcher.mock.calls as unknown as [string, RequestInit][])[0][1];
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      attentionThrough: snapshot.asOf,
+      kind: "date",
+      optionId,
+      vote: "YES",
+    });
+    await act(async () =>
+      release(
+        saved
+          ? Response.json({
+              ...plannedEvent,
+              version: plannedEvent.version + 1,
+              myVotes: { dateVotes: { [optionId]: "YES" }, locationVotes: {} },
+            })
+          : Response.json({ error: "Denied" }, { status: 409 }),
+      ),
+    );
+    await waitFor(() => expect(hook.result.current.vote.isPending).toBe(false));
+    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.unreadCount).toBe(
+      saved ? 0 : 1,
+    );
+    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.targets[0].count).toBe(
+      saved ? 0 : 1,
+    );
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  },
+);
 it.each([
   ["invite", true],
   ["invite", false],

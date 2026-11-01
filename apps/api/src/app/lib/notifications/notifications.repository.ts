@@ -2,6 +2,7 @@ import type {
   CommunityNotificationKind,
   Notification,
   NotificationDto,
+  NotificationItem,
   NotificationListResponse,
   User,
 } from "@board-game-organizer/schemas";
@@ -16,6 +17,7 @@ export type NotificationEvent =
       actorUserId: string;
       resourceName: string;
       resourceHref: string;
+      attentionItems?: NotificationItem[];
     }
   | {
       kind: "friend_request" | "friend_request_accepted" | "follow";
@@ -28,6 +30,7 @@ export type NotificationEvent =
       actorUserId: string;
       groupName: string;
       groupId: string;
+      attentionItems?: NotificationItem[];
     }
   | {
       kind:
@@ -54,6 +57,16 @@ function toDto(notification: Notification, locale?: "en" | "it"): NotificationDt
     href: notification.href,
     readAt: notification.readAt?.toISOString() ?? null,
     createdAt: notification.createdAt.toISOString(),
+    ...(notification.attentionItems
+      ? {
+          attentionItems: notification.attentionItems.map((item) => ({
+            id: item.id,
+            revision: item.revision,
+            ...(item.sectionId ? { sectionId: item.sectionId } : {}),
+            readAt: (notification.readAt ?? item.readAt)?.toISOString() ?? null,
+          })),
+        }
+      : {}),
   };
 }
 
@@ -110,6 +123,14 @@ export class NotificationsRepository {
               : "groupId" in event
                 ? { href: `/groups/${event.groupId}` }
                 : {}),
+          ...("attentionItems" in event && event.attentionItems?.length
+            ? {
+                attentionItems: event.attentionItems.map((item) => ({
+                  ...item,
+                  changedAt: createdAt,
+                })),
+              }
+            : {}),
           createdAt,
         } as Notification,
       ];
@@ -160,6 +181,147 @@ export class NotificationsRepository {
       unreadCount,
       nextCursor: hasMore ? (notifications.at(-1)?._id.toHexString() ?? null) : null,
     };
+  }
+
+  async retargetItems(replacements: readonly { from: string; to: NotificationItem }[]) {
+    if (!replacements.length) return;
+    await this.db.collection<Notification>(COLLECTIONS.NOTIFICATIONS).updateMany(
+      {
+        readAt: { $exists: false },
+        "attentionItems.id": { $in: replacements.map((row) => row.from) },
+      },
+      [
+        {
+          $set: {
+            attentionItems: {
+              $map: {
+                input: "$attentionItems",
+                as: "item",
+                in: {
+                  $let: {
+                    vars: {
+                      replacement: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: { $literal: replacements },
+                              as: "value",
+                              cond: { $eq: ["$$value.from", "$$item.id"] },
+                            },
+                          },
+                          0,
+                        ],
+                      },
+                    },
+                    in: {
+                      $cond: [
+                        { $ne: [{ $ifNull: ["$$replacement", null] }, null] },
+                        {
+                          $mergeObjects: ["$$item", "$$replacement.to", { changedAt: new Date() }],
+                        },
+                        "$$item",
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      ],
+      this.opts,
+    );
+  }
+
+  /** Called in the same transaction as a successful vote/decision; never acknowledges later arrivals. */
+  acknowledgeItems(recipientUserId: string, itemIds: readonly string[], through: string) {
+    const invitations = itemIds.flatMap((id) => {
+      const [resource, scope, field] = JSON.parse(id) as [string, string, string];
+      if (field !== "invitation") return [];
+      return [
+        {
+          kind:
+            resource === "group" ? ("group_invitation" as const) : ("table_invitation" as const),
+          href:
+            resource === "group"
+              ? `/groups/${scope}`
+              : { $regex: `^/events/[0-9a-f-]{36}/tables/${scope}$`, $options: "i" },
+          attentionItems: { $exists: false as const },
+        },
+      ];
+    });
+    return this.db.collection<Notification>(COLLECTIONS.NOTIFICATIONS).updateMany(
+      {
+        recipientUserId,
+        readAt: { $exists: false },
+        createdAt: { $lte: new Date(Math.min(Date.parse(through), Date.now())) },
+        $or: [
+          {
+            attentionItems: {
+              $elemMatch: {
+                $or: [{ id: { $in: [...itemIds] } }, { sectionId: { $in: [...itemIds] } }],
+                readAt: { $exists: false },
+              },
+            },
+          },
+          ...invitations,
+        ],
+      },
+      [
+        {
+          $set: {
+            attentionItems: {
+              $map: {
+                input: { $ifNull: ["$attentionItems", []] },
+                as: "item",
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        {
+                          $or: [
+                            { $in: ["$$item.id", [...itemIds]] },
+                            { $in: [{ $ifNull: ["$$item.sectionId", null] }, [...itemIds]] },
+                          ],
+                        },
+                        {
+                          $lte: [
+                            { $ifNull: ["$$item.changedAt", "$createdAt"] },
+                            new Date(Math.min(Date.parse(through), Date.now())),
+                          ],
+                        },
+                      ],
+                    },
+                    { $mergeObjects: ["$$item", { readAt: "$$NOW" }] },
+                    "$$item",
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
+          $set: {
+            readAt: {
+              $cond: [
+                {
+                  $allElementsTrue: {
+                    $map: {
+                      input: "$attentionItems",
+                      as: "item",
+                      in: { $ne: [{ $ifNull: ["$$item.readAt", null] }, null] },
+                    },
+                  },
+                },
+                "$$NOW",
+                "$$REMOVE",
+              ],
+            },
+          },
+        },
+      ],
+      this.opts,
+    );
   }
 
   markRead(recipientUserId: string, notificationId: string) {

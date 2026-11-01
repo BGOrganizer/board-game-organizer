@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { NOTIFICATION_KINDS } from "../models/notifications";
+import type { NotificationItemDto } from "../notificationItems";
 import type {
   NotificationAttentionReference,
   NotificationAttentionSummary,
@@ -38,6 +39,7 @@ export interface NotificationDto {
   createdAt: string;
   /** null means the source explicitly excluded this notification from navigation counts. */
   attention?: NotificationAttentionReference | null;
+  attentionItems?: NotificationItemDto[];
 }
 
 export interface NotificationListResponse {

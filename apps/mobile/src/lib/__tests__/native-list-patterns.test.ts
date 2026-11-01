@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
+import ts from "typescript";
 import { expect, it } from "vitest";
 
 const source = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
@@ -27,7 +28,24 @@ it.each([
   const s = source(`components/events/${name}.tsx`);
   expect(s).toContain("<FlatList");
   expect(s).toMatch(/useSafeAreaInsets|useFloatingActionLayout/);
-  expect(s).not.toContain("<ScrollView");
+  const file = ts.createSourceFile(
+    "workflow.tsx",
+    s,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const scrollViews: string[] = [];
+  function visit(node: ts.Node) {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      node.tagName.getText(file) === "ScrollView"
+    )
+      scrollViews.push(node.getText(file));
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  expect(scrollViews).toEqual([]);
 });
 it.each([
   "components/events/EventCard.tsx",

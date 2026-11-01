@@ -49,7 +49,6 @@ export function GroupCard({
       disabled={Boolean(local && local.phase !== "failed")}
       notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
       onPress={() => {
-        if (!local) attention?.read(attentionTarget);
         return local
           ? router.push({ pathname: "/group/wizard", params: { draftId: local.draftId } })
           : router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } });

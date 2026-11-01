@@ -1,4 +1,4 @@
-import type { TableSeatResponse } from "@board-game-organizer/schemas";
+import { notificationItemId, type TableSeatResponse } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
@@ -6,6 +6,7 @@ import {
   useEventCutoff,
   useEventRecord,
   useEventRecordActions,
+  useNotificationAttentionContext,
   useRecordTable,
 } from "@board-game-organizer/shared";
 import { Stack, useRouter } from "expo-router";
@@ -20,6 +21,7 @@ import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { GameListRow } from "@/components/games/GameListRow";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableInfo } from "./EventTableInfo";
@@ -40,7 +42,8 @@ export function EventTableOverview({
     router = useRouter(),
     q = useRecordTable(o, eventId, tableId),
     event = useEventRecord(o, eventId),
-    a = useEventRecordActions(o, eventId);
+    a = useEventRecordActions(o, eventId),
+    attention = useNotificationAttentionContext();
   const [confirm, setConfirm] = useState<{
     registrationId: string;
     version: number;
@@ -102,7 +105,12 @@ export function EventTableOverview({
     table.myRegistration?.status === "ACCEPTED";
   const header = (
     <View style={{ gap: 16 }}>
-      <EventTableInfo table={table} />
+      <NotificationItem
+        itemId={notificationItemId(table.id, "overview", undefined, "table")}
+        readOnly
+      >
+        <EventTableInfo table={table} />
+      </NotificationItem>
       {context === "personal" ? (
         <View style={{ gap: 8 }}>
           <Typography accessibilityRole="header" className="font-semibold text-foreground">
@@ -110,6 +118,7 @@ export function EventTableOverview({
           </Typography>
           <LinkedListCard
             label={`${t("Open event")}: ${table.eventName}`}
+            notificationCount={attention?.get({ kind: "event", id: table.eventId })?.count}
             onPress={() =>
               router.push({ pathname: "/event/[eventId]", params: { eventId: table.eventId } })
             }
@@ -166,9 +175,11 @@ export function EventTableOverview({
           {t("Demonstrator")}: {table.demonstratorName ?? t("Unknown")}
         </Typography>
       ) : null}
-      <Typography accessibilityRole="header" className="font-semibold text-foreground">
-        {t("Board games")}
-      </Typography>
+      <NotificationItem itemId={notificationItemId(table.id, "games")} readOnly>
+        <Typography accessibilityRole="header" className="font-semibold text-foreground">
+          {t("Board games")}
+        </Typography>
+      </NotificationItem>
       <GroupedList>
         {table.gamesDetail
           .filter(
@@ -178,42 +189,47 @@ export function EventTableOverview({
               table.confirmed.gameId === game.id,
           )
           .map((game) => (
-            <GameListRow
+            <NotificationItem
               key={game.id}
-              name={game.name}
-              imageUrl={game.imageUrl}
-              year={game.year}
-              average={game.average}
-              rank={game.rank}
-              metadata={
-                <EventVoteCounts
-                  label={game.name}
-                  counts={table.gameVoteCounts?.[String(game.id)]}
-                />
-              }
-              actions={
-                canVote ? (
-                  <EventVoteButtons
+              itemId={notificationItemId(table.id, "game", game.id)}
+              readOnly={!canVote}
+            >
+              <GameListRow
+                name={game.name}
+                imageUrl={game.imageUrl}
+                year={game.year}
+                average={game.average}
+                rank={game.rank}
+                metadata={
+                  <EventVoteCounts
                     label={game.name}
-                    value={gameVotes[String(game.id)]}
-                    disabledVotes={
-                      eventAvailabilityVoteIsAllowed(
-                        table.games.map((row) => ({ id: String(row.gameId) })),
-                        gameVotes,
-                        String(game.id),
-                        "NO",
-                      )
-                        ? []
-                        : ["NO"]
-                    }
-                    busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
-                    onChange={(vote) =>
-                      a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
-                    }
+                    counts={table.gameVoteCounts?.[String(game.id)]}
                   />
-                ) : undefined
-              }
-            />
+                }
+                actions={
+                  canVote ? (
+                    <EventVoteButtons
+                      label={game.name}
+                      value={gameVotes[String(game.id)]}
+                      disabledVotes={
+                        eventAvailabilityVoteIsAllowed(
+                          table.games.map((row) => ({ id: String(row.gameId) })),
+                          gameVotes,
+                          String(game.id),
+                          "NO",
+                        )
+                          ? []
+                          : ["NO"]
+                      }
+                      busy={a.blocking || q.isPlaceholderData || event.isPlaceholderData}
+                      onChange={(vote) =>
+                        a.vote.mutate({ kind: "game", tableId, gameId: game.id, vote })
+                      }
+                    />
+                  ) : undefined
+                }
+              />
+            </NotificationItem>
           ))}
       </GroupedList>
     </View>

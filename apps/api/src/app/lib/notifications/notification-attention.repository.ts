@@ -11,6 +11,8 @@ import { type ClientSession, type Db, type Document, ObjectId } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
+import { itemFacet, remainingItemTableIds } from "./notification-item-pipeline";
+import { NotificationsRepository } from "./notifications.repository";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const social = ["friend_request", "friend_request_accepted", "follow"];
@@ -122,7 +124,20 @@ export class NotificationAttentionRepository {
                 ],
               },
             },
-            { $project: { _id: 0, groupId: 1 } },
+            {
+              $lookup: {
+                from: COLLECTIONS.EVENT_TABLES,
+                localField: "id",
+                foreignField: "eventId",
+                pipeline: [
+                  { $match: { removedAt: { $exists: false } } },
+                  { $limit: 20 },
+                  { $project: { _id: 0, id: 1 } },
+                ],
+                as: "attentionTables",
+              },
+            },
+            { $project: { _id: 0, groupId: 1, tableIds: "$attentionTables.id" } },
           ],
           as: "_event",
         },
@@ -204,6 +219,68 @@ export class NotificationAttentionRepository {
       },
       {
         $set: {
+          _items: {
+            $filter: {
+              input: {
+                $ifNull: [
+                  "$attentionItems",
+                  {
+                    $cond: [
+                      { $in: ["$kind", ["group_invitation", "table_invitation"]] },
+                      [
+                        {
+                          id: {
+                            $concat: ['["', "$_kind", '","', "$_idTarget", '","invitation",null]'],
+                          },
+                          tableIds: { $cond: [{ $eq: ["$_kind", "table"] }, ["$_idTarget"], []] },
+                        },
+                      ],
+                      [],
+                    ],
+                  },
+                ],
+              },
+              as: "item",
+              cond: {
+                $and: [
+                  { $eq: [{ $ifNull: ["$$item.readAt", null] }, null] },
+                  { $lte: [{ $ifNull: ["$$item.changedAt", "$createdAt"] }, new Date(now)] },
+                ],
+              },
+            },
+          },
+        },
+      },
+      {
+        $set: {
+          _tableIds: {
+            $cond: [
+              { $eq: ["$_kind", null] },
+              [],
+              {
+                $setIntersection: [
+                  {
+                    $cond: [
+                      { $gt: [{ $size: "$_items" }, 0] },
+                      remainingItemTableIds,
+                      {
+                        $cond: [
+                          { $eq: ["$_kind", "table"] },
+                          ["$_idTarget"],
+                          { $ifNull: [{ $arrayElemAt: ["$_event.tableIds", 0] }, []] },
+                        ],
+                      },
+                    ],
+                  },
+                  { $ifNull: [{ $arrayElemAt: ["$_event.tableIds", 0] }, []] },
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $set: {
           _eventId: { $cond: [{ $in: ["$_kind", ["event", "table"]] }, "$_eventId", null] },
           _groupId: {
             $cond: [{ $in: ["$_kind", ["group", "event", "table"]] }, "$_groupId", null],
@@ -213,6 +290,12 @@ export class NotificationAttentionRepository {
     ];
   }
   private matches(target: NotificationAttentionTarget): Document {
+    if (target.kind === "item")
+      return {
+        $or: [{ "_items.id": target.id }, { "_items.sectionId": target.id }],
+        _kind: { $ne: null },
+      };
+    if (target.kind === "table") return { _tableIds: target.id };
     if (target.kind === "contacts") return { _section: target.id };
     if (target.kind === "event") return { _eventId: target.id };
     if (target.kind === "group") return { _groupId: target.id };
@@ -234,7 +317,7 @@ export class NotificationAttentionRepository {
           $group: {
             _id: null,
             inbox: { $sum: 1 },
-            tables: sum({ $and: [{ $eq: ["$_kind", "table"] }, { $ne: ["$_eventId", null] }] }),
+            tables: sum({ $gt: [{ $size: "$_tableIds" }, 0] }),
             events: sum({ $ne: ["$_eventId", null] }),
             groups: sum({ $ne: ["$_groupId", null] }),
             contacts: sum({ $eq: ["$_kind", "contact"] }),
@@ -259,12 +342,19 @@ export class NotificationAttentionRepository {
                 eventId: "$_eventId",
                 groupId: "$_groupId",
                 section: "$_section",
+                tableIds: "$_tableIds",
               },
             },
           ]
         : [{ $match: { _id: { $in: [] } } }],
     };
     targets.forEach((target, i) => {
+      if (target.kind === "item") {
+        const item = itemFacet(target.id);
+        facet[`t${i}`] = item.total;
+        facet[`e${i}`] = item.effects;
+        return;
+      }
       facet[`t${i}`] = [
         { $match: this.matches(target) },
         {
@@ -274,13 +364,21 @@ export class NotificationAttentionRepository {
             direct: sum(
               target.kind === "contacts"
                 ? { $eq: ["$_section", target.id] }
-                : { $and: [{ $eq: ["$_kind", target.kind] }, { $eq: ["$_idTarget", target.id] }] },
+                : {
+                    $and: [
+                      { $eq: ["$_kind", target.kind] },
+                      { $eq: ["$_idTarget", target.id] },
+                      { $eq: [{ $size: "$_items" }, 0] },
+                      { $eq: [{ $type: "$attentionItems" }, "missing"] },
+                    ],
+                  },
             ),
             events: sum({ $ne: ["$_eventId", null] }),
             requests: sum({ $eq: ["$_section", "requests"] }),
             connections: sum({ $eq: ["$_section", "connections"] }),
             eventId: { $first: "$_eventId" },
             groupId: { $first: "$_groupId" },
+            tableIds: { $addToSet: "$_tableIds" },
           },
         },
       ];
@@ -316,7 +414,35 @@ export class NotificationAttentionRepository {
           }
         : emptyAttentionSummary(),
       targets: targets.map((target, i): NotificationAttentionCount => {
-        const row = result?.[`t${i}`]?.[0];
+        const entry = result?.[`t${i}`]?.[0];
+        if (target.kind === "item") {
+          const row = entry;
+          return {
+            target,
+            count: row?.count ?? 0,
+            direct: row?.count ?? 0,
+            events: 0,
+            sections: { connections: 0, requests: 0, search: 0 },
+            ...(row?.eventId ? { eventId: row.eventId } : {}),
+            ...(row?.groupId ? { groupId: row.groupId } : {}),
+            readEffect: {
+              unread: row?.unread ?? 0,
+              summary: {
+                ...emptyAttentionSummary(),
+                tables: row?.tables ?? 0,
+                events: row?.eventId ? row.unread : 0,
+                groups: row?.groupId ? row.unread : 0,
+              },
+              targets: (result?.[`e${i}`] ?? []).map((value: Document) => ({
+                target: value._id,
+                count: value.count,
+                direct: value._id.kind === "item" ? value.count : 0,
+                events: value._id.kind === "group" && row?.eventId ? value.count : 0,
+              })),
+            },
+          };
+        }
+        const row = entry;
         return {
           target,
           count: row?.count ?? 0,
@@ -325,6 +451,9 @@ export class NotificationAttentionRepository {
           sections: { connections: row?.connections ?? 0, requests: row?.requests ?? 0, search: 0 },
           ...(row?.eventId ? { eventId: row.eventId } : {}),
           ...(row?.groupId ? { groupId: row.groupId } : {}),
+          ...(target.kind === "event" && row?.tableIds
+            ? { tableIds: [...new Set<string>(row.tableIds.flat())] }
+            : {}),
         };
       }),
     };
@@ -335,6 +464,7 @@ export class NotificationAttentionRepository {
         ...(row.eventId ? { eventId: row.eventId } : {}),
         ...(row.groupId ? { groupId: row.groupId } : {}),
         ...(row.section ? { section: row.section } : {}),
+        ...(row.tableIds?.length ? { tableIds: row.tableIds } : {}),
       });
     return { snapshot, references };
   }
@@ -370,10 +500,31 @@ export class NotificationAttentionRepository {
         kind: eventKinds,
         href: { $regex: `^/events/${uuid}/tables/${target.id}$`, $options: "i" },
       });
-    else throw new Error("Invalid read target");
-    const result = await this.db
-      .collection(COLLECTIONS.NOTIFICATIONS)
-      .updateMany(filter, { $set: { readAt: new Date() } }, this.opts);
+    else if (target.kind !== "item") throw new Error("Invalid read target");
+    // Resource entry reads must not consume structured item attention or pending invitations.
+    const result =
+      target.kind === "item"
+        ? await new NotificationsRepository(this.db, this.session).acknowledgeItems(
+            userId,
+            [target.id],
+            input.through,
+          )
+        : await this.db.collection(COLLECTIONS.NOTIFICATIONS).updateMany(
+            {
+              ...filter,
+              attentionItems: { $exists: false },
+              ...(target.kind === "contacts"
+                ? {}
+                : {
+                    $and: [
+                      { kind: filter.kind },
+                      { kind: { $nin: ["table_invitation", "group_invitation"] } },
+                    ],
+                  }),
+            },
+            { $set: { readAt: new Date() } },
+            this.opts,
+          );
     return {
       updated: result.modifiedCount,
       snapshot: (

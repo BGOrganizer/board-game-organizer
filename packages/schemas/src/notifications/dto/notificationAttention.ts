@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { targetUserIdSchema } from "../../common/dto/common";
+import { notificationItemIdSchema } from "../notificationItems";
 
 export const contactNotificationSections = ["connections", "requests", "search"] as const;
 export type ContactNotificationSection = (typeof contactNotificationSections)[number];
 export const notificationAttentionTargetSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("item"), id: notificationItemIdSchema }).strict(),
   z.object({ kind: z.literal("table"), id: z.uuid() }).strict(),
   z.object({ kind: z.literal("event"), id: z.uuid() }).strict(),
   z.object({ kind: z.literal("group"), id: z.uuid() }).strict(),
@@ -63,6 +65,8 @@ export const notificationAttentionReferenceSchema = z
     eventId: z.uuid().optional(),
     groupId: z.uuid().optional(),
     section: z.enum(contactNotificationSections).optional(),
+    tableIds: z.array(z.uuid()).max(20).optional(),
+    itemIds: z.array(notificationItemIdSchema).max(1000).optional(),
   })
   .strict();
 export type NotificationAttentionReference = z.infer<typeof notificationAttentionReferenceSchema>;
@@ -72,6 +76,25 @@ export const notificationAttentionCountSchema = notificationAttentionReferenceSc
     direct: count,
     events: count,
     sections: z.object({ connections: count, requests: count, search: count }).strict(),
+    readEffect: z
+      .object({
+        unread: count,
+        summary: notificationAttentionSummarySchema,
+        targets: z
+          .array(
+            z
+              .object({
+                target: notificationAttentionTargetSchema,
+                count,
+                direct: count,
+                events: count,
+              })
+              .strict(),
+          )
+          .max(128),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type NotificationAttentionCount = z.infer<typeof notificationAttentionCountSchema>;

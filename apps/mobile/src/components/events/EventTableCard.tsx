@@ -88,7 +88,6 @@ export function EventTableCard({
       label={`${t("Open table")}: ${table.name}`}
       notificationCount={attention?.get(attentionTarget)?.count}
       onPress={() => {
-        attention?.read(attentionTarget);
         router.push({
           pathname: "/event/table",
           params: {

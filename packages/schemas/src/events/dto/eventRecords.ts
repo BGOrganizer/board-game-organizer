@@ -168,10 +168,20 @@ export const joinTableSchema = z
 export type JoinTableInput = z.infer<typeof joinTableSchema>;
 export const changeEventVoteSchema = z.discriminatedUnion("kind", [
   z
-    .object({ kind: z.literal("date"), optionId: z.uuid(), vote: eventAvailabilityVoteSchema })
+    .object({
+      kind: z.literal("date"),
+      optionId: z.uuid(),
+      vote: eventAvailabilityVoteSchema,
+      attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
+    })
     .strict(),
   z
-    .object({ kind: z.literal("location"), optionId: z.uuid(), vote: eventAvailabilityVoteSchema })
+    .object({
+      kind: z.literal("location"),
+      optionId: z.uuid(),
+      vote: eventAvailabilityVoteSchema,
+      attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
+    })
     .strict(),
   z
     .object({
@@ -179,6 +189,7 @@ export const changeEventVoteSchema = z.discriminatedUnion("kind", [
       tableId: z.uuid(),
       gameId: z.number().int().positive(),
       vote: eventAvailabilityVoteSchema,
+      attentionThrough: z.iso.datetime({ precision: 3 }).optional(),
     })
     .strict(),
 ]);

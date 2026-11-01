@@ -200,7 +200,11 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     ),
   };
   const relationships = { isFriend: vi.fn(async () => true), isBlocked: vi.fn(async () => false) };
-  const notifications = { notifyMany: vi.fn(async () => []) },
+  const notifications = {
+      notifyMany: vi.fn(async () => []),
+      retargetItems: vi.fn(async () => undefined),
+      acknowledgeItems: vi.fn(async () => ({ modifiedCount: 1 })),
+    },
     ratings = {
       applyTableResult: vi.fn(async () => undefined),
       forTable: vi.fn(async () => []),
@@ -286,6 +290,33 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     confirm,
   };
 }
+it("acknowledges exactly the successfully voted item at the displayed source cutoff, never a rejected vote", async () => {
+  const f = setup(),
+    event = await f.create();
+  await f.service.join(owner, event.id, id, { version: event.version, gameVotes: { "1": "YES" } });
+  const through = "2026-01-01T00:00:00.000Z";
+  await f.service.vote(owner, event.id, {
+    kind: "date",
+    optionId: id,
+    vote: "YES",
+    attentionThrough: through,
+  });
+  expect(f.notifications.acknowledgeItems).toHaveBeenCalledExactlyOnceWith(
+    owner,
+    [JSON.stringify(["event", event.id, "date", id])],
+    through,
+  );
+  await expect(
+    f.service.vote(owner, event.id, {
+      kind: "game",
+      tableId: id,
+      gameId: 1,
+      vote: "NO",
+      attentionThrough: through,
+    }),
+  ).rejects.toMatchObject({ code: "GAME_POSITIVE_AVAILABILITY_REQUIRED" });
+  expect(f.notifications.acknowledgeItems).toHaveBeenCalledTimes(1);
+});
 it.each([null, "PRIVATE", "PUBLIC"] as const)(
   "deletes planning Event/Table atomically through creator/version guards (%s)",
   async (type) => {

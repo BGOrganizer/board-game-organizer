@@ -1,5 +1,19 @@
+import { type NotificationDto, notificationItemIdSchema } from "@board-game-organizer/schemas";
+import { notificationDestination } from "@board-game-organizer/shared";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+
+export function notificationItemHref(
+  notification: Pick<NotificationDto, "href" | "kind" | "attention" | "attentionItems">,
+): ReturnType<typeof notificationHref> {
+  const { href, itemId } = notificationDestination(notification);
+  const route = notificationHref({ href, kind: notification.kind });
+  return (
+    itemId
+      ? `${route}${route.includes("?") ? "&" : "?"}attention=${encodeURIComponent(itemId)}`
+      : route
+  ) as ReturnType<typeof notificationHref>;
+}
 
 export type MobilePushPermissionResult =
   | { status: "granted" }
@@ -71,7 +85,22 @@ export function notificationHref(
   | "/moderation"
   | `/moderation/${string}` {
   if (!data || typeof data !== "object") return "/notifications";
-  const { href, kind } = data as { href?: unknown; kind?: unknown };
+  const { href, kind, attentionItemId } = data as {
+    href?: unknown;
+    kind?: unknown;
+    attentionItemId?: unknown;
+  };
+  if (typeof href === "string" && notificationItemIdSchema.safeParse(attentionItemId).success) {
+    const [, scope] = JSON.parse(attentionItemId as string) as [string, string];
+    // Route hints never replace server authorization; accept only a hint for the linked resource.
+    if (href.endsWith(`/${scope}`)) {
+      const route = notificationHref({ href, kind });
+      if (route !== "/notifications")
+        return `${route}${route.includes("?") ? "&" : "?"}attention=${encodeURIComponent(attentionItemId as string)}` as ReturnType<
+          typeof notificationHref
+        >;
+    }
+  }
   if (typeof href === "string") {
     const detail =
       /^\/(matches|groups)\/([a-f\d]{24}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i.exec(href);

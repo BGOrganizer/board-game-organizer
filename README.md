@@ -23,8 +23,10 @@ invited Groups of that type, while Search retains public discovery.
 - Exact public-event cutoffs, verified locations/favorites, BGG/manual durations, overlap checks,
   atomic whole-event results and GLOBAL/GROUP OpenSkill ratings. Pending invitees never vote.
 - MongoDB-backed BoardGameGeek catalog search, account linking and collection synchronization.
-- Durable notification inbox, hierarchical Table/Event/Group and Contact attention badges, optional
-  push delivery, light/dark theme, and EN/IT. Reading clears attention, never invitation consent.
+- Durable notification inbox with a counted bell and small numberless attention dots on tabs,
+  cards and specific invitations/date/location/game items. Successful votes acknowledge only their
+  displayed change; container entry preserves item attention. Optional push, light/dark and EN/IT.
+  Reading never grants invitation consent.
 
 The [unified domain contract](docs/groups-events-refactor.md) describes this branch. Legacy
 Match/Organization writers return authenticated `410`; old UI links redirect without treating old

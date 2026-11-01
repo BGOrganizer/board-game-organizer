@@ -1,6 +1,11 @@
 "use client";
 
-import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
+import {
+  notificationWebHref,
+  resolveApiUrl,
+  shouldReadOnNotificationOpen,
+  useNotifications,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Button, Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -136,9 +141,12 @@ export function NotificationsPage() {
             }`}
           >
             <Link
-              href={notification.href}
+              href={notificationWebHref(notification)}
               onClick={() => {
-                if (!notifications.isBusy(notification.id))
+                if (
+                  shouldReadOnNotificationOpen(notification) &&
+                  !notifications.isBusy(notification.id)
+                )
                   notifications.markRead.mutate(notification.id);
               }}
               className="block rounded-xl p-4 pe-12"
@@ -167,6 +175,19 @@ export function NotificationsPage() {
                 </span>
               </span>
             </Link>
+            {!notification.readAt ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="secondary"
+                className="absolute end-3 top-3"
+                aria-label={t`Mark as read`}
+                isDisabled={notifications.isBusy(notification.id)}
+                onPress={() => notifications.markRead.mutate(notification.id)}
+              >
+                <CheckCheck className="size-4" aria-hidden />
+              </Button>
+            ) : null}
             <Button
               isIconOnly
               size="sm"

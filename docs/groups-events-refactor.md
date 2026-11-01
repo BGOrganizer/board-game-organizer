@@ -279,17 +279,33 @@ explicit edit. The time-zone change never migrates or deletes historical documen
 
 ## Notification attention
 
-- Bell counts each unread notification once. Main tabs and saved list cards use complete recipient-
-  scoped source aggregates, not loaded inbox pages. Red bell-sized badges show `99+` above 99 and
-  render nothing at zero. Card badges straddle the top-right border, separate from entity status.
-- Table attention propagates to its Event and, when authorized, Group. Event attention propagates
-  to its Group. Each notification contributes once within each badge; Group's Events tab includes
-  Event/Table descendants. Counts respect current resource access and exclude retired/removed
-  resources without deleting unread inbox history.
-- Opening Group details reads direct Group notifications only; Event details read direct Event
-  notifications only; Table details read that Table's notifications. Opening a container or its
-  Events tab never consumes descendants. Reads use the source snapshot cutoff so later arrivals
-  remain unread. Reading never accepts invitations, registers players or confirms Events.
+- Bell alone retains its numerical unread count and `99+`. Navigation, cards and individual items
+  use an accessible 8px red dot, absent at zero/unknown. Card dots straddle the top-right border,
+  outside clipping frames and apart from entity status. All counts come from complete recipient-
+  scoped aggregates, not loaded inbox pages.
+- Table attention propagates to its Event and authorized Group. Shared Event notices also identify
+  affected, currently accessible Tables, including cards in the personal Tables list. Group's
+  Events tab includes descendants. Each notice contributes once within each aggregate, even when
+  several points or Tables are involved. Retired/removed resources stay inbox history without
+  disclosing inaccessible ancestry.
+- New Event edits persist structured, recipient-owned references to the actual changed dates,
+  locations, table games/settings, or removed-option sections. Item identities include resource
+  kind, resource UUID, field and option: equal Group/Event/Table UUIDs cannot collide. Old generic
+  notices remain generic; do not infer precise changes from translated descriptions.
+- A card or notification link navigates without reading resource/item attention prematurely.
+  A successfully displayed detail consumes only direct, generic informational notices. Group/Table
+  invitations and structured points survive container entry. Inbox/push links locate the first
+  unread point; removed options lead to their existing section. Confirmed/read-only sections expose
+  explicit acknowledgement, so no impossible vote is required.
+- A successful YES/IF_NEEDED/NO vote acknowledges only the displayed item through its captured
+  source cutoff, in the same Mongo transaction as the vote. Successful invitation decisions
+  acknowledge that resource's invitation without inventing consent. Read failures/denied votes
+  restore their own optimistic effects; later notices and retargeted revisions survive old reads.
+- One notice affecting multiple points stays unread until all its points are acknowledged. Partial
+  acknowledgement removes only the matching dot; unrelated points, ancestor dots and the bell's
+  single unread notice remain. Explicit Mark as read/Mark all as read and confirmed deletion may
+  clear notifications without voting, accepting invitations or changing domain state. Pending
+  invitation and missing-vote states remain independently visible.
 - Contacts retains Connections / Requests / Search. Entering main Contacts reads nothing in bulk;
   explicit inner selection reads only that subsection. Follows and accepted friendship notices
   belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their

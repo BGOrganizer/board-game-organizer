@@ -18,9 +18,22 @@ export function emptyAttentionSummary(): NotificationAttentionSummary {
   };
 }
 export function attentionReference(
-  notification: Pick<NotificationDto, "kind" | "href" | "attention">,
+  notification: Pick<NotificationDto, "kind" | "href" | "attention" | "attentionItems">,
 ): NotificationAttentionReference | undefined {
-  if (notification.attention !== undefined) return notification.attention ?? undefined;
+  if (notification.attention !== undefined) {
+    if (!notification.attention) return undefined;
+    if (!notification.attentionItems?.length) return notification.attention;
+    return {
+      ...notification.attention,
+      itemIds: [
+        ...new Set(
+          notification.attentionItems
+            .filter((item) => !item.readAt)
+            .flatMap((item) => [item.id, ...(item.sectionId ? [item.sectionId] : [])]),
+        ),
+      ],
+    };
+  }
   const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   const table = new RegExp(`^/events/(${uuid})/tables/(${uuid})$`, "i").exec(notification.href);
   if (table && /^(event_|table_)/.test(notification.kind))
@@ -40,8 +53,14 @@ export function attentionMatches(
 ): boolean {
   if (!reference) return false;
   if (target.kind === "contacts") return reference.section === target.id;
+  if (target.kind === "item")
+    return (
+      attentionKey(reference.target) === attentionKey(target) ||
+      Boolean(reference.itemIds?.includes(target.id))
+    );
   if (attentionKey(reference.target) === attentionKey(target)) return true;
   if (direct) return false;
+  if (target.kind === "table" && reference.tableIds?.includes(target.id)) return true;
   return (
     (target.kind === "event" && reference.eventId === target.id) ||
     (target.kind === "group" && reference.groupId === target.id)
@@ -53,7 +72,8 @@ export function subtractAttention(
   count: number,
 ): NotificationAttentionSummary {
   const next = { ...summary, sections: { ...summary.sections } };
-  if (reference.target.kind === "table") next.tables = Math.max(0, next.tables - count);
+  if (reference.target.kind === "table" || reference.tableIds?.length)
+    next.tables = Math.max(0, next.tables - count);
   if (reference.target.kind === "event" || reference.eventId)
     next.events = Math.max(0, next.events - count);
   if (reference.target.kind === "group" || reference.groupId)
@@ -107,7 +127,9 @@ export function projectAttentionSnapshot(
         ...row,
         count: Math.max(0, row.count - count),
         direct:
-          own || row.target.kind === "contacts" ? Math.max(0, row.direct - count) : row.direct,
+          own || row.target.kind === "contacts" || row.target.kind === "item"
+            ? Math.max(0, row.direct - count)
+            : row.direct,
         events:
           row.target.kind === "group" && reference.target.kind !== "group"
             ? Math.max(0, row.events - count)
@@ -123,6 +145,7 @@ export function readReference(row: NotificationAttentionCount): NotificationAtte
   const kind = row.target.kind;
   return {
     target: row.target,
+    ...(row.tableIds ? { tableIds: row.tableIds } : {}),
     eventId: kind === "table" ? row.eventId : kind === "event" ? row.target.id : undefined,
     groupId:
       kind === "table" || kind === "event"

@@ -46,9 +46,6 @@ export function GroupCard({
     <LinkedListCard
       href={target}
       notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
-      onOpen={() => {
-        if (!local) attention?.read(attentionTarget);
-      }}
       disabled={Boolean(local && local.phase !== "failed")}
       label={`${status || t`Open group`}: ${group.name}`}
       actions={

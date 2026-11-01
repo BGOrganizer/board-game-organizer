@@ -93,7 +93,9 @@ it("pending members can read permitted information and accepted members, never e
   const accept = screen.getByRole("button", { name: "Accept" }),
     decline = screen.getByRole("button", { name: "Decline" });
   expect(accept.closest(".max-w-md")?.className).toContain("mx-auto");
-  expect(screen.getByRole("tabpanel").lastElementChild).toBe(accept.closest(".max-w-md"));
+  expect(screen.getByRole("tabpanel").lastElementChild?.contains(accept.closest(".max-w-md"))).toBe(
+    true,
+  );
   expect(accept.querySelector("svg.lucide-check")).not.toBeNull();
   expect(decline.querySelector("svg.lucide-x")).not.toBeNull();
   expect(

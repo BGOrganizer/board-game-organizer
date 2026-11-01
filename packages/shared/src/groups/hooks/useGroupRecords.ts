@@ -52,6 +52,7 @@ import {
   versionedCommunityChange,
 } from "../../community/queryCache";
 import type { ContactUser } from "../../contacts/hooks/useContacts";
+import { notificationFilters } from "../../notifications/notificationAttentionCache";
 import { revokeCachedGroupAccess } from "../groupAccessCache";
 import { belongsToDeletedGroup, removeDeletedGroupData } from "../groupDeletionCache";
 import {
@@ -401,6 +402,7 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
     context: Awaited<ReturnType<typeof begin>> | undefined,
   ) {
     const owner = context?.owner ?? options;
+    void client.invalidateQueries({ ...notificationFilters(owner), refetchType: "active" });
     void client.invalidateQueries(
       {
         queryKey: groupRecordKeys.root(owner),

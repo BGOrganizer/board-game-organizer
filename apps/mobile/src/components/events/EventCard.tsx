@@ -60,7 +60,6 @@ export function EventCard({
         ) : undefined
       }
       onPress={() => {
-        if (!local) attention?.read(attentionTarget);
         return local
           ? router.push({ pathname: "/event/wizard", params: { draftId: local.draftId } })
           : router.push({

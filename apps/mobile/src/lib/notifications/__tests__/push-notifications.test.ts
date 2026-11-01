@@ -1,3 +1,4 @@
+import { notificationItemId } from "@board-game-organizer/schemas";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -25,6 +26,7 @@ vi.mock("expo-notifications", () => ({
 import {
   configureNotificationHandler,
   notificationHref,
+  notificationItemHref,
   registerMobilePush,
   requestMobilePushPermission,
 } from "../push-notifications";
@@ -77,6 +79,47 @@ describe("mobile push notifications", () => {
       expect(notificationHref({ href, kind: "group_review_requested" })).toBe("/notifications");
   });
 
+  it("preserves precise inbox and push item hints only on allowed matching native resources", () => {
+    const id = "11111111-1111-4111-8111-111111111111",
+      tableId = "22222222-2222-4222-8222-222222222222";
+    const point = notificationItemId(tableId, "game", 1),
+      date = notificationItemId(id, "dates"),
+      group = notificationItemId(id, "invitation");
+    expect(
+      notificationItemHref({
+        href: `/events/${id}`,
+        kind: "event_updated",
+        attentionItems: [{ id: point, revision: 1, readAt: null }],
+      }),
+    ).toBe(`/event/table?eventId=${id}&tableId=${tableId}&attention=${encodeURIComponent(point)}`);
+    expect(
+      notificationItemHref({
+        href: `/groups/${id}`,
+        kind: "group_invitation",
+        attentionItems: [{ id: group, revision: 1, readAt: null }],
+      }),
+    ).toBe(`/group/${id}?attention=${encodeURIComponent(group)}`);
+    expect(notificationItemHref({ href: "/contacts", kind: "follow" })).toBe("/contacts");
+    expect(
+      notificationHref({ href: `/events/${id}`, kind: "event_updated", attentionItemId: date }),
+    ).toBe(`/event/${id}?attention=${encodeURIComponent(date)}`);
+    expect(
+      notificationHref({
+        href: `/events/${id}/tables/${tableId}`,
+        kind: "event_updated",
+        attentionItemId: point,
+      }),
+    ).toBe(`/event/table?eventId=${id}&tableId=${tableId}&attention=${encodeURIComponent(point)}`);
+    expect(notificationHref({ href: `/events/${id}`, attentionItemId: point })).toBe(
+      `/event/${id}`,
+    );
+    expect(notificationHref({ href: `/events/${id}`, attentionItemId: "bad" })).toBe(
+      `/event/${id}`,
+    );
+    expect(notificationHref({ href: `/unsafe/${id}`, attentionItemId: date })).toBe(
+      "/notifications",
+    );
+  });
   it("configures foreground notification behavior", async () => {
     configureNotificationHandler();
     const handler = mocks.setNotificationHandler.mock.calls[0]?.[0];

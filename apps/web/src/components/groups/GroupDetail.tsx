@@ -1,4 +1,5 @@
 "use client";
+import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   ownGroupActions,
@@ -18,6 +19,7 @@ import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
@@ -78,7 +80,10 @@ export function GroupDetail({
   return (
     <NotificationAttentionScope
       options={o}
-      targets={[{ kind: "group", id: group.id }]}
+      targets={[
+        { kind: "group", id: group.id },
+        { kind: "item", id: notificationItemId(group.id, "invitation") },
+      ]}
       readOnOpen={{ kind: "group", id: group.id }}
     >
       <div className="space-y-5 pb-24">
@@ -149,14 +154,16 @@ export function GroupDetail({
               />
             ) : null}
             {group.role === "invited" ? (
-              <GroupInvitationCard
-                busy={ownBusy}
-                onAccept={() => void run("accept")}
-                onDecline={() => {
-                  setError(false);
-                  setConfirm("decline");
-                }}
-              />
+              <NotificationItem itemId={notificationItemId(group.id, "invitation")}>
+                <GroupInvitationCard
+                  busy={ownBusy}
+                  onAccept={() => void run("accept")}
+                  onDecline={() => {
+                    setError(false);
+                    setConfirm("decline");
+                  }}
+                />
+              </NotificationItem>
             ) : null}
           </Tabs.Panel>
           {group.canViewMembers ? (

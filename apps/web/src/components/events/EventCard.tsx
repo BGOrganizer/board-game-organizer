@@ -42,9 +42,6 @@ export function EventCard({
     <LinkedListCard
       href={href}
       notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
-      onOpen={() => {
-        if (!local) attention?.read(attentionTarget);
-      }}
       disabled={Boolean(local && local.phase !== "failed")}
       label={`${status || t`Open event`}: ${event.name}`}
       actions={

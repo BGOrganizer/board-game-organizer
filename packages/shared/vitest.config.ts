@@ -13,6 +13,9 @@ export default defineConfig({
         "src/notifications/notificationOptimistic.ts",
         "src/notifications/notificationAttention.ts",
         "src/notifications/notificationAttentionCache.ts",
+        "src/notifications/notificationItemChanges.ts",
+        "src/notifications/notificationItemRead.ts",
+        "src/notifications/notificationDestination.ts",
         "src/events/eventAgreement.ts",
         "src/events/eventJoinAvailability.ts",
         "src/events/eventRecordPolicy.ts",
@@ -58,6 +61,8 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/notifications/{notificationItemChanges,notificationItemRead,notificationDestination}.ts":
+          { lines: 100, functions: 100, branches: 100, statements: 100 },
         "src/notifications/{notificationAttention,notificationAttentionCache}.ts": {
           lines: 100,
           functions: 100,

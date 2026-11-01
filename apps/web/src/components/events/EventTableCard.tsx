@@ -82,7 +82,6 @@ export function EventTableCard({
       href={`/events/${table.eventId}/tables/${table.id}${context === "event" ? `?fromEvent=${encodeURIComponent(table.eventId)}` : ""}`}
       label={`${t`Open table`}: ${table.name}`}
       notificationCount={attention?.get(attentionTarget)?.count}
-      onOpen={() => attention?.read(attentionTarget)}
       leadingActions={
         <HelpPopover label={`${t`Players`}: ${t`Field help`}`} title={t`Players`}>
           <IconLegend items={counts.map(({ icon, description }) => ({ icon, description }))} />

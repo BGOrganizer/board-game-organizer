@@ -3,6 +3,7 @@ import type {
   NotificationAttentionSnapshot,
   NotificationAttentionTarget,
 } from "@board-game-organizer/schemas";
+import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   groupRecordKeys,
   NotificationAttentionProvider,
@@ -17,6 +18,7 @@ import { EventTableCard } from "@/components/events/EventTableCard";
 import { GroupCard } from "@/components/groups/GroupCard";
 import { GroupDetail } from "@/components/groups/GroupDetail";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 
@@ -66,19 +68,21 @@ afterEach(() => {
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
 });
-it("renders no zero/unknown badge, caps visible count at99+ and exposes full accessible count", () => {
+it("omits zero/unknown, uses dots by default and preserves the bell's counted 99+ variant", () => {
   const view = renderWithI18n(
     <>
       <NotificationCountBadge count={0} />
       <NotificationCountBadge />
-      <NotificationCountBadge count={130} />
+      <NotificationCountBadge count={130} counted />
+      <NotificationCountBadge count={4} />
     </>,
   );
-  expect(view.container.querySelectorAll("[data-slot=badge]")).toHaveLength(1);
+  expect(view.container.querySelectorAll("[data-slot=badge]")).toHaveLength(2);
+  expect(screen.getByRole("img", { name: "Needs attention" }).textContent).toBe("");
   expect(screen.getByRole("img", { name: "Notifications: 130" }).textContent).toBe("99+");
   expect(screen.queryByText("0")).toBeNull();
 });
-it("places equal red counts outside each card's clipping frame at top-right, apart from entity status", async () => {
+it("places 8px red dots outside every card's clipping frame, including personal Tables", async () => {
   const client = setup();
   vi.stubGlobal(
     "fetch",
@@ -99,11 +103,22 @@ it("places equal red counts outside each card's clipping frame at top-right, apa
     [`Open table: ${plannedTable.name}`, 2],
   ] as const) {
     const link = screen.getByRole("link", { name }),
-      badge = await screen.findByRole("img", { name: `Notifications: ${count}` });
+      badge = within(link.parentElement?.parentElement as HTMLElement).getByRole("img", {
+        name: "Needs attention",
+      });
+    expect(badge.textContent).toBe("");
+    expect(
+      client
+        .getQueryData<NotificationAttentionSnapshot>(
+          notificationAttentionQuery(options, targets).queryKey,
+        )
+        ?.targets.some((row) => row.count === count),
+    ).toBe(true);
     expect(badge.parentElement).toBe(link.parentElement?.parentElement);
     expect(link.parentElement?.contains(badge)).toBe(false);
-    expect(badge.style.top).toBe("-8px");
-    expect(badge.style.right).toBe("-8px");
+    expect(badge.style.top).toBe("-4px");
+    expect(badge.style.right).toBe("-4px");
+    expect(badge.style.width).toBe("8px");
     expect(badge.className).toContain("badge--danger");
     expect(badge.className).toContain("badge--sm");
     expect(badge.style.pointerEvents).toBe("none");
@@ -126,8 +141,17 @@ it("marks direct Group attention on actual detail entry, retaining Events tab an
       ) as NotificationAttentionTarget[];
       return Response.json({
         ...source,
-        targets: source.targets.filter((row) =>
-          requested.some((value) => value.kind === row.target.kind && value.id === row.target.id),
+        targets: requested.map(
+          (target) =>
+            source.targets.find(
+              (row) => row.target.kind === target.kind && row.target.id === target.id,
+            ) ?? {
+              target,
+              count: 0,
+              direct: 0,
+              events: 0,
+              sections: { connections: 0, requests: 0, search: 0 },
+            },
         ),
       });
     }
@@ -144,7 +168,7 @@ it("marks direct Group attention on actual detail entry, retaining Events tab an
   await waitFor(() => expect(release).toBeTypeOf("function"));
   expect(
     within(screen.getByRole("tab", { name: /Events/ })).getByRole("img", {
-      name: "Notifications: 3",
+      name: "Needs attention",
     }),
   ).toBeTruthy();
   source = counts();
@@ -157,7 +181,7 @@ it("marks direct Group attention on actual detail entry, retaining Events tab an
   await screen.findByRole("link", { name: `Open event: ${plannedEvent.name}` });
   expect(
     within(screen.getByRole("tab", { name: /Events/ })).getByRole("img", {
-      name: "Notifications: 3",
+      name: "Needs attention",
     }),
   ).toBeTruthy();
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
@@ -167,7 +191,7 @@ it("marks direct Group attention on actual detail entry, retaining Events tab an
   ).toEqual(group);
   expect(client.getQueryData(groupRecordKeys.detail(options, groupRecord.id))).toEqual(groupRecord);
 });
-it("opens each canonical card through its direct read only, without accepting an invitation", async () => {
+it("opens canonical cards without acknowledging their items or accepting an invitation", async () => {
   const client = setup();
   const held: Array<(value: Response) => void> = [];
   const fetcher = vi.fn(async (_url: string, init?: RequestInit) =>
@@ -191,17 +215,93 @@ it("opens each canonical card through its direct read only, without accepting an
     `Open group: ${groupRecord.name}`,
   ])
     fireEvent.click(screen.getByRole("link", { name }));
-  await waitFor(() => expect(held).toHaveLength(3));
+  expect(held).toHaveLength(0);
   expect(
     fetcher.mock.calls
       .filter(([, init]) => init?.method === "PATCH")
       .map(([, init]) => JSON.parse(String(init?.body)).target.kind)
       .sort(),
-  ).toEqual(["event", "group", "table"]);
+  ).toEqual([]);
   expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   await act(async () => {
     for (const release of held) release(Response.json({ error: "Denied" }, { status: 409 }));
   });
+});
+it("acknowledges only an explicit readonly item, retaining the other point and the bell until completion", async () => {
+  const client = setup();
+  const date = {
+    kind: "item",
+    id: notificationItemId(plannedEvent.id, "date", groupRecord.id),
+  } as const;
+  const location = {
+    kind: "item",
+    id: notificationItemId(plannedEvent.id, "location", groupRecord.id),
+  } as const;
+  let source: NotificationAttentionSnapshot = {
+    ...counts(),
+    unreadCount: 1,
+    targets: [date, location].map((target) => ({
+      target,
+      count: 1,
+      direct: 1,
+      events: 0,
+      sections: { connections: 0, requests: 0, search: 0 },
+      readEffect: {
+        unread: 0,
+        summary: {
+          tables: 0,
+          events: 0,
+          groups: 0,
+          contacts: 0,
+          sections: { connections: 0, requests: 0, search: 0 },
+        },
+        targets: [{ target, count: 1, direct: 1, events: 0 }],
+      },
+    })),
+  };
+  client.setQueryData(notificationAttentionQuery(options, [date, location]).queryKey, source);
+  let release!: (response: Response) => void;
+  const fetcher = vi.fn(async (_url: string, init?: RequestInit) =>
+    init?.method === "PATCH"
+      ? new Promise<Response>((resolve) => {
+          release = resolve;
+        })
+      : Response.json(source),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      <NotificationAttentionScope options={options} targets={[date, location]}>
+        <NotificationItem itemId={date.id} readOnly>
+          <p>Changed date</p>
+        </NotificationItem>
+        <NotificationItem itemId={location.id}>
+          <p>Changed location</p>
+        </NotificationItem>
+      </NotificationAttentionScope>
+    </QueryClientProvider>,
+  );
+  expect(screen.getAllByRole("img", { name: "Needs attention" })).toHaveLength(2);
+  expect(screen.getAllByRole("button", { name: "Mark as read" })).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Mark as read" }));
+  await waitFor(() => expect(release).toBeTypeOf("function"));
+  expect(screen.getAllByRole("img", { name: "Needs attention" })).toHaveLength(1);
+  expect(
+    client.getQueryData<NotificationAttentionSnapshot>(
+      notificationAttentionQuery(options, [date, location]).queryKey,
+    )?.unreadCount,
+  ).toBe(1);
+  expect(
+    JSON.parse(String(fetcher.mock.calls.find(([, init]) => init?.method === "PATCH")?.[1]?.body)),
+  ).toEqual({ target: date, through: source.asOf });
+  source = {
+    ...source,
+    targets: source.targets.map((row) =>
+      row.target.id === date.id ? { ...row, count: 0, direct: 0 } : row,
+    ),
+  };
+  await act(async () => release(Response.json({ updated: 1, snapshot: source })));
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
 });
 it("does not mark notification attention when reopening a local failed creation", () => {
   renderWithI18n(
@@ -235,7 +335,7 @@ it("never inherits attention from a nested scope belonging to another actor", as
       </NotificationAttentionProvider>
     </QueryClientProvider>,
   );
-  await screen.findByRole("img", { name: "Notifications: 4" });
+  await screen.findByRole("img", { name: "Needs attention" });
   const foreign = screen.getByRole("link", { name: "Open group: Foreign row" });
   expect(foreign.parentElement?.parentElement?.querySelector("[data-slot=badge]")).toBeNull();
 });

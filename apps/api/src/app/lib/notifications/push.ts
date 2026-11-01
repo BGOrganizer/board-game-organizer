@@ -1,10 +1,24 @@
 import { createSign, randomUUID, sign } from "node:crypto";
 import { connect } from "node:http2";
 import type { Notification, PushSubscription } from "@board-game-organizer/schemas";
+import { notificationDestination } from "@board-game-organizer/shared";
 import type { ObjectId } from "mongodb";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 import { PushSubscriptionsRepository } from "@/app/lib/notifications/push-subscriptions.repository";
 import { localizedNotificationText } from "./notification-copy";
+
+function notificationPushTarget(notification: Notification) {
+  const target = notificationDestination({
+    href: notification.href,
+    kind: notification.kind,
+    attentionItems: notification.attentionItems?.map((item) => ({
+      id: item.id,
+      revision: item.revision,
+      readAt: item.readAt?.toISOString() ?? null,
+    })),
+  });
+  return { href: target.href, ...(target.itemId ? { attentionItemId: target.itemId } : {}) };
+}
 
 let googleAccessToken: { value: string; expiresAt: number } | undefined;
 let apnsToken: { value: string; expiresAt: number } | undefined;
@@ -69,7 +83,7 @@ async function sendFcm(
   const data = {
     notificationId: notification._id.toHexString(),
     kind: notification.kind,
-    href: notification.href,
+    ...notificationPushTarget(notification),
     title: notification.title,
     description: notification.description,
   };
@@ -193,7 +207,7 @@ async function sendApns(
         },
         notificationId: notification._id.toHexString(),
         kind: notification.kind,
-        href: notification.href,
+        ...notificationPushTarget(notification),
       }),
     );
   });

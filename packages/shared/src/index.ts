@@ -60,6 +60,8 @@ export * from "./notifications/hooks/useNotificationAttention";
 export * from "./notifications/hooks/useNotifications";
 export * from "./notifications/NotificationAttentionProvider";
 export * from "./notifications/notificationAttention";
+export * from "./notifications/notificationDestination";
+export * from "./notifications/notificationItemChanges";
 export * from "./organizations/organizationActions";
 export * from "./organizations/organizationLogoUpload";
 export * from "./profile/hooks/usePreferredLanguageSync";

@@ -31,6 +31,7 @@ export * from "./matches/models/matches";
 export * from "./notifications/dto/notificationAttention";
 export * from "./notifications/dto/notifications";
 export * from "./notifications/models/notifications";
+export * from "./notifications/notificationItems";
 export * from "./organizations/dto/organizationList";
 export * from "./organizations/dto/organizations";
 export * from "./organizations/models/organizations";

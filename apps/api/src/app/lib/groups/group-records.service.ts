@@ -12,6 +12,7 @@ import {
   type GroupRecord,
   type GroupRecordResponse,
   groupRecordSchema,
+  notificationItemId,
 } from "@board-game-organizer/schemas";
 import {
   canReadGroup,
@@ -357,6 +358,13 @@ export class GroupRecordsService {
           groupId: group.id,
           actorUserId: actor,
           recipientUserId: target,
+          attentionItems: [
+            {
+              id: notificationItemId(group.id, "invitation"),
+              revision: row.version,
+              groupId: group.id,
+            },
+          ],
         },
       ]);
     else await this.notify("group_membership_requested", group, actor, [group.adminUserId]);
@@ -408,6 +416,12 @@ export class GroupRecordsService {
       updatedAt: new Date().toISOString(),
     };
     await this.groups.saveMembership(next);
+    if (own && (input.action === "accept" || input.action === "decline"))
+      await this.notifications.acknowledgeItems(
+        userId,
+        [notificationItemId(group.id, "invitation")],
+        new Date().toISOString(),
+      );
     if (status === "LEFT") await this.departure(id, target, "LEFT");
     await this.notify("group_membership_updated", group, userId, [
       own ? group.adminUserId : target,

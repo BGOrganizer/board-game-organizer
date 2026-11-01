@@ -151,22 +151,27 @@ it("keeps main Contact entry unread, then clears only explicit inner section and
   await screen.findByText("Target User");
   const requests = screen.getByRole("tab", { name: /Requests/ }),
     connections = screen.getByRole("tab", { name: /Connections/ });
-  expect(within(requests).getByRole("img", { name: "Notifications: 2" })).toBeTruthy();
-  expect(within(connections).getByRole("img", { name: "Notifications: 2" })).toBeTruthy();
+  expect(within(requests).getByRole("img", { name: "Needs attention" })).toBeTruthy();
+  expect(within(connections).getByRole("img", { name: "Needs attention" })).toBeTruthy();
   expect(
-    within(screen.getByLabelText("Main Contacts")).getByRole("img", { name: "Notifications: 4" }),
+    within(screen.getByLabelText("Main Contacts")).getByRole("img", { name: "Needs attention" }),
   ).toBeTruthy();
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
   fireEvent.click(requests);
   await waitFor(() => expect(release).toBeTypeOf("function"));
-  expect(within(requests).queryByRole("img", { name: /Notifications:/ })).toBeNull();
-  expect(within(connections).getByRole("img", { name: "Notifications: 2" })).toBeTruthy();
+  expect(within(requests).queryByRole("img", { name: "Needs attention" })).toBeNull();
+  expect(within(connections).getByRole("img", { name: "Needs attention" })).toBeTruthy();
   expect(
-    within(screen.getByLabelText("Main Contacts")).getByRole("img", { name: "Notifications: 2" }),
+    within(screen.getByLabelText("Main Contacts")).getByRole("img", { name: "Needs attention" }),
   ).toBeTruthy();
   expect(
-    screen.getByText("Target User").closest("li")?.querySelector('[aria-label="Notifications: 2"]'),
+    screen.getByText("Target User").closest("li")?.querySelector('[aria-label="Needs attention"]'),
   ).not.toBeNull();
+  expect(
+    client.getQueryData<NotificationAttentionSnapshot>(
+      notificationAttentionQuery(options, targets).queryKey,
+    )?.summary.contacts,
+  ).toBe(2);
   expect(mutations.mutate).not.toHaveBeenCalled();
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
   expect(
@@ -174,7 +179,7 @@ it("keeps main Contact entry unread, then clears only explicit inner section and
   ).toEqual({ target: { kind: "contacts", id: "requests" }, through: source().asOf });
   await act(async () => release(Response.json({ error: "Denied" }, { status: 409 })));
   await waitFor(() =>
-    expect(within(requests).getByRole("img", { name: "Notifications: 2" })).toBeTruthy(),
+    expect(within(requests).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
   );
   expect(mutations.mutate).not.toHaveBeenCalled();
 });

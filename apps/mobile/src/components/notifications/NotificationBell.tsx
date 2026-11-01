@@ -1,4 +1,9 @@
-import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
+import type { NotificationDto } from "@board-game-organizer/schemas";
+import {
+  resolveApiUrl,
+  shouldReadOnNotificationOpen,
+  useNotifications,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,7 +23,7 @@ import { NotificationCountBadge } from "@/components/common/ui/NotificationCount
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { useT } from "@/lib/i18n";
 import {
-  notificationHref,
+  notificationItemHref,
   registerMobilePush,
   requestMobilePushPermission,
 } from "@/lib/notifications/push-notifications";
@@ -145,10 +150,10 @@ export function NotificationBell() {
     }
   }, [isSignedIn, registerPush, queryClient, registrationKey]);
 
-  const openNotification = (id: string, href: string, kind: string) => {
-    notifications.markRead.mutate(id);
+  const openNotification = (notification: NotificationDto) => {
+    if (shouldReadOnNotificationOpen(notification)) notifications.markRead.mutate(notification.id);
     setIsOpen(false);
-    router.push(notificationHref({ href, kind }));
+    router.push(notificationItemHref(notification));
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -184,7 +189,7 @@ export function NotificationBell() {
           </Button>
         </Popover.Trigger>
         <View pointerEvents="none" style={{ position: "absolute", right: 1, top: 1 }}>
-          <NotificationCountBadge count={notifications.unreadCount} />
+          <NotificationCountBadge count={notifications.unreadCount} counted />
         </View>
       </View>
       <Popover.Portal>
@@ -249,9 +254,7 @@ export function NotificationBell() {
                 key={notification.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${notification.title}. ${notification.description}`}
-                onPress={() =>
-                  openNotification(notification.id, notification.href, notification.kind)
-                }
+                onPress={() => openNotification(notification)}
                 className="rounded-lg p-2 active:bg-muted/20"
                 style={{ flexDirection: "row", gap: 8, width: "100%" }}
               >

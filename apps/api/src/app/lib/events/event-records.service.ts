@@ -12,6 +12,7 @@ import type {
   FinalizeEventInput,
   GroupRecord,
   JoinTableInput,
+  NotificationItem,
   PlannedEventResponse,
   PlannedTableInput,
   PlannedTableResponse,
@@ -21,7 +22,7 @@ import type {
   TableRegistration,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
-import { MAX_EVENT_OPTIONS } from "@board-game-organizer/schemas";
+import { MAX_EVENT_OPTIONS, notificationItemId } from "@board-game-organizer/schemas";
 import {
   banHasProtectedParticipation,
   calculateEventAgreement,
@@ -31,6 +32,7 @@ import {
   eventJoinAvailabilityIsComplete,
   eventLocalDateTime,
   eventLocalToIso,
+  eventNotificationItems,
   eventOptionVotesAreComplete,
   eventRecordCapabilities,
   eventVoteCounts,
@@ -42,6 +44,7 @@ import {
   projectReservedPlaces,
   publicBookingIsClosed,
   rankMatchResults,
+  removedNotificationItems,
 } from "@board-game-organizer/shared";
 import { CommunityError } from "../community.error";
 import type { RelationshipRepository } from "../contacts/relationship.repository";
@@ -104,6 +107,7 @@ export class EventRecordsService {
     actor: string,
     recipients: string[],
     tableId?: string,
+    attentionItems?: NotificationItem[],
   ) {
     await this.notifications.notifyMany(
       [...new Set(recipients)].map((recipientUserId) => ({
@@ -112,6 +116,21 @@ export class EventRecordsService {
         recipientUserId,
         resourceName: event.name,
         resourceHref: tableId ? `/events/${event.id}/tables/${tableId}` : `/events/${event.id}`,
+        ...(attentionItems?.length
+          ? { attentionItems }
+          : kind === "table_invitation" && tableId
+            ? {
+                attentionItems: [
+                  {
+                    id: notificationItemId(tableId, "invitation", undefined, "table"),
+                    revision: event.version,
+                    eventId: event.id,
+                    ...(event.groupId ? { groupId: event.groupId } : {}),
+                    tableIds: [tableId],
+                  },
+                ],
+              }
+            : {}),
       })),
     );
   }
@@ -503,11 +522,26 @@ export class EventRecordsService {
     const next = { ...event, version: event.version + 1, updatedAt: new Date().toISOString() };
     await this.events.removeTable(tableId, next.updatedAt);
     await this.events.save(next);
+    await this.notifications.retargetItems(
+      removedNotificationItems(
+        event,
+        next,
+        tables,
+        tables.filter((row) => row.id !== tableId),
+      ),
+    );
     await this.notify(
       "event_updated",
       next,
       userId,
       registrations.map((row) => row.userId),
+      undefined,
+      eventNotificationItems(
+        event,
+        next,
+        tables,
+        tables.filter((table) => table.id !== tableId),
+      ),
     );
     await this.saveSituation(next, group, userId);
     return this.response(
@@ -616,11 +650,16 @@ export class EventRecordsService {
       next.locations.map((row) => row.id),
     );
     await this.events.save(next);
+    await this.notifications.retargetItems(
+      removedNotificationItems(event, next, currentTables, merged),
+    );
     await this.notify(
       "event_updated",
       next,
       userId,
       registrations.map((row) => row.userId),
+      undefined,
+      eventNotificationItems(event, next, currentTables, merged),
     );
     await this.saveSituation(next, group, userId);
     return this.response(
@@ -1070,6 +1109,12 @@ export class EventRecordsService {
       ...(input.action === "accept" ? { gameVotes: input.participation.gameVotes } : {}),
     };
     await this.events.saveRegistration(next);
+    if (own && (input.action === "accept" || input.action === "decline"))
+      await this.notifications.acknowledgeItems(
+        userId,
+        [notificationItemId(row.tableId, "invitation", undefined, "table")],
+        new Date().toISOString(),
+      );
     if (input.action === "accept" && input.participation.availability)
       await this.events.saveVoter({
         eventId: event.id,
@@ -1146,6 +1191,18 @@ export class EventRecordsService {
     event.version++;
     event.updatedAt = at;
     await this.events.save(event);
+    if (input.attentionThrough)
+      await this.notifications.acknowledgeItems(
+        userId,
+        [
+          notificationItemId(
+            input.kind === "game" ? input.tableId : id,
+            input.kind,
+            input.kind === "game" ? input.gameId : input.optionId,
+          ),
+        ],
+        input.attentionThrough,
+      );
     await this.saveSituation(event, group, userId);
     return this.response(
       event,

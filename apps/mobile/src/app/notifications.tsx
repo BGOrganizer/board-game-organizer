@@ -1,4 +1,8 @@
-import { resolveApiUrl, useNotifications } from "@board-game-organizer/shared";
+import {
+  resolveApiUrl,
+  shouldReadOnNotificationOpen,
+  useNotifications,
+} from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
@@ -14,7 +18,7 @@ import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { useT } from "@/lib/i18n";
-import { notificationHref } from "@/lib/notifications/push-notifications";
+import { notificationItemHref } from "@/lib/notifications/push-notifications";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 export default function NotificationsScreen() {
@@ -25,7 +29,8 @@ export default function NotificationsScreen() {
   const t = useT();
   const { i18n } = useLingui();
   const feedback = useMutationFeedback();
-  const danger = useThemeColor("danger");
+  const danger = useThemeColor("danger"),
+    foreground = useThemeColor("foreground");
   const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
   const owner = JSON.stringify([apiUrl, userId, sessionId]);
   const [deletion, setDeletion] = useState<{ owner: string; id?: string } | null>(null);
@@ -172,8 +177,9 @@ export default function NotificationsScreen() {
               className="rounded-xl p-4 active:bg-muted/20"
               style={{ flexDirection: "row", gap: 10, width: "100%", paddingRight: 56 }}
               onPress={() => {
-                if (!notifications.isBusy(item.id)) notifications.markRead.mutate(item.id);
-                router.push(notificationHref({ href: item.href, kind: item.kind }));
+                if (shouldReadOnNotificationOpen(item) && !notifications.isBusy(item.id))
+                  notifications.markRead.mutate(item.id);
+                router.push(notificationItemHref(item));
               }}
             >
               <NotificationKindIcon kind={item.kind} />
@@ -193,6 +199,19 @@ export default function NotificationsScreen() {
                 </Typography>
               </View>
             </Pressable>
+            {!item.readAt ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="secondary"
+                accessibilityLabel={t("Mark as read")}
+                isDisabled={notifications.isBusy(item.id)}
+                style={{ position: "absolute", right: 8, top: 8, width: 44, height: 44 }}
+                onPress={() => notifications.markRead.mutate(item.id)}
+              >
+                <CheckCheck size={16} color={foreground} />
+              </Button>
+            ) : null}
             <Button
               isIconOnly
               size="sm"

@@ -1,8 +1,10 @@
 "use client";
+import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   eventAvailabilityVoteIsAllowed,
   eventDateWall,
+  eventItemTargets,
   eventLocalToIso,
   useEventCutoff,
   useEventRecord,
@@ -33,6 +35,7 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -93,6 +96,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       options={o}
       targets={[
         { kind: "event", id: event.id },
+        ...eventItemTargets(event),
         ...(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => ({
           kind: "table" as const,
           id: row.id,
@@ -161,7 +165,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             </Link>
           </HeaderActions>
         ) : null}
-        <EventDetailsCard event={event} />
+        <NotificationItem itemId={notificationItemId(event.id, "overview")} readOnly>
+          <EventDetailsCard event={event} />
+        </NotificationItem>
         {event.groupId && fromGroup !== event.groupId ? (
           <EventGroupLink groupId={event.groupId} name={event.groupName} />
         ) : null}
@@ -169,11 +175,13 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           aria-label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
           className="space-y-3"
         >
-          <SearchHelpLabel
-            label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
-            helpTitle={t`Field help`}
-            help={t`Times are local to the location chosen for the event.`}
-          />
+          <NotificationItem itemId={notificationItemId(event.id, "dates")} readOnly>
+            <SearchHelpLabel
+              label={event.groupType === "PUBLIC" ? t`Start Date and Time` : t`Date and time`}
+              helpTitle={t`Field help`}
+              help={t`Times are local to the location chosen for the event.`}
+            />
+          </NotificationItem>
           <GroupedList>
             {event.dates
               .filter(
@@ -184,6 +192,10 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               )
               .map((row) => (
                 <GroupedRow key={row.id} className="flex-wrap">
+                  <NotificationItem
+                    itemId={notificationItemId(event.id, "date", row.id)}
+                    readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+                  />
                   <div className="min-w-0 flex-1 space-y-1">
                     <DateTimeInfo
                       startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
@@ -255,7 +267,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           </section>
         ) : null}
         <section aria-label={t`Locations`} className="space-y-3">
-          <h2 className="font-semibold">{t`Locations`}</h2>
+          <NotificationItem itemId={notificationItemId(event.id, "locations")} readOnly>
+            <h2 className="font-semibold">{t`Locations`}</h2>
+          </NotificationItem>
           <GroupedList>
             {event.locations
               .filter(
@@ -270,26 +284,32 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   name={row.name}
                   address={row.address}
                   actions={
-                    event.groupType !== "PUBLIC" && event.canVote && !closed ? (
-                      <EventVoteButtons
-                        label={row.name}
-                        value={event.myVotes?.locationVotes[row.id]}
-                        disabledVotes={
-                          eventAvailabilityVoteIsAllowed(
-                            event.locations,
-                            event.myVotes?.locationVotes ?? {},
-                            row.id,
-                            "NO",
-                          )
-                            ? []
-                            : ["NO"]
-                        }
-                        busy={a.blocking || q.isPlaceholderData}
-                        onChange={(vote) =>
-                          a.vote.mutate({ kind: "location", optionId: row.id, vote })
-                        }
+                    <>
+                      <NotificationItem
+                        itemId={notificationItemId(event.id, "location", row.id)}
+                        readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
                       />
-                    ) : undefined
+                      {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                        <EventVoteButtons
+                          label={row.name}
+                          value={event.myVotes?.locationVotes[row.id]}
+                          disabledVotes={
+                            eventAvailabilityVoteIsAllowed(
+                              event.locations,
+                              event.myVotes?.locationVotes ?? {},
+                              row.id,
+                              "NO",
+                            )
+                              ? []
+                              : ["NO"]
+                          }
+                          busy={a.blocking || q.isPlaceholderData}
+                          onChange={(vote) =>
+                            a.vote.mutate({ kind: "location", optionId: row.id, vote })
+                          }
+                        />
+                      ) : undefined}
+                    </>
                   }
                 >
                   {event.groupType !== "PUBLIC" ? (
@@ -303,7 +323,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           </GroupedList>
         </section>
         <section aria-label={t`Tables`} className="space-y-3">
-          <h2 className="font-semibold">{t`Tables`}</h2>
+          <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
+            <h2 className="font-semibold">{t`Tables`}</h2>
+          </NotificationItem>
           {(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => (
             <EventTableCard key={row.id} table={row} context="event" />
           ))}

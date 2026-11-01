@@ -1,5 +1,6 @@
 import {
   communityAccessDenied,
+  tableItemTargets,
   useEventRecord,
   useRecordTable,
 } from "@board-game-organizer/shared";
@@ -52,7 +53,15 @@ export function EventTable({
     return (
       <NotificationAttentionScope
         options={o}
-        targets={table ? [{ kind: "table", id: tableId }] : []}
+        targets={
+          table
+            ? [
+                { kind: "table", id: tableId },
+                { kind: "event", id: eventId },
+                ...tableItemTargets(table),
+              ]
+            : []
+        }
         readOnOpen={table ? { kind: "table", id: tableId } : undefined}
       >
         {header}
@@ -63,7 +72,11 @@ export function EventTable({
   return (
     <NotificationAttentionScope
       options={o}
-      targets={[{ kind: "table", id: tableId }]}
+      targets={[
+        { kind: "table", id: tableId },
+        { kind: "event", id: eventId },
+        ...tableItemTargets(table),
+      ]}
       readOnOpen={{ kind: "table", id: tableId }}
     >
       <View style={{ flex: 1 }}>

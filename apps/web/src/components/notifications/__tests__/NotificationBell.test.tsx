@@ -33,7 +33,8 @@ vi.mock("@/lib/notifications/webPush", () => ({
   isWebPushConfigured: () => true,
   getWebPushToken: mocks.getWebPushToken,
 }));
-vi.mock("@board-game-organizer/shared", () => ({
+vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   resolveApiUrl: (value?: string) => value || "http://localhost:4000",
   usePreferredLanguageSync: mocks.syncLanguage,
   useNotifications: (...args: unknown[]) => {

@@ -15,7 +15,7 @@ import type {
   TableRegistrationReceipt,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
-import { tableRegistrationReceiptSchema } from "@board-game-organizer/schemas";
+import { notificationItemId, tableRegistrationReceiptSchema } from "@board-game-organizer/schemas";
 import {
   hashKey,
   type MutationFunctionContext,
@@ -48,6 +48,11 @@ import {
   versionedCommunityChange,
 } from "../../community/queryCache";
 import { groupRecordDetailQuery, groupRecordKeys } from "../../groups/hooks/useGroupRecords";
+import {
+  cachedAttention,
+  notificationFilters,
+} from "../../notifications/notificationAttentionCache";
+import { projectNotificationItemRead } from "../../notifications/notificationItemRead";
 import {
   captureEventConsent,
   type EventConsentSnapshot,
@@ -138,11 +143,15 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       acknowledgedVersion: undefined as number | undefined,
       consent: undefined as EventConsentSnapshot | undefined,
       afterRemovalId: undefined as number | undefined,
+      attentionOperation: undefined as
+        | Awaited<ReturnType<typeof beginOptimisticOperation>>
+        | undefined,
     };
   }
   async function failure(error: Error, context: Awaited<ReturnType<typeof begin>> | undefined) {
     if (context?.operation.active)
       context.owner.feedback?.onError?.(error, optimisticFailureAction(error, context.action));
+    await context?.attentionOperation?.reject(error);
     await context?.operation.reject(error);
     // An unknown outcome holds background FIFO, not the screen or the next intent.
     if (context?.operation.active) await context.operation.wait();
@@ -167,10 +176,12 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
       queryKey: ["groups", owner.apiUrl, owner.userId],
       refetchType: "active",
     });
+    void client.invalidateQueries({ ...notificationFilters(owner), refetchType: "active" });
   }
   function complete(context: Awaited<ReturnType<typeof begin>> | undefined) {
     if (!context?.operation.active) return;
     context.operation.commit((_data, key) => optimisticBaseData(client, key));
+    context.attentionOperation?.commit();
     if (!context.announced) context.owner.feedback?.onSuccess?.(context.action);
   }
   function eventSuccess(
@@ -727,10 +738,36 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
     networkMode: "always",
     mutationFn: (input: ChangeEventVoteInput, context) =>
       write<PlannedEventResponse>(`events/${id}/votes`, "PATCH", input, context),
-    onMutate: (input) =>
-      begin("set_event_vote", undefined, ["vote"], (data) =>
+    onMutate: async (input) => {
+      const target = {
+        kind: "item",
+        id: notificationItemId(
+          input.kind === "game" ? input.tableId : id,
+          input.kind,
+          input.kind === "game" ? input.gameId : input.optionId,
+        ),
+      } as const;
+      const attention = cachedAttention(client, o, target);
+      if (attention?.row.count) input.attentionThrough = attention.snapshot.asOf;
+      const context = await begin("set_event_vote", undefined, ["vote"], (data) =>
         optimisticEventVote(data, id, o.userId, input),
-      ),
+      );
+      if (attention?.row.count)
+        context.attentionOperation = await beginOptimisticOperation(
+          client,
+          ["notifications", o.apiUrl, o.userId, "target", target.id],
+          notificationFilters(o),
+          (data, key) =>
+            projectNotificationItemRead(
+              data,
+              key,
+              attention.row,
+              attention.snapshot.asOf,
+              new Date().toISOString(),
+            ),
+        );
+      return context;
+    },
     onSuccess: eventReceiptSuccess,
     onError: (e, _v, c) => failure(e, c),
     onSettled: settle,

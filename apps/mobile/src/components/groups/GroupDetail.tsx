@@ -1,3 +1,4 @@
+import { notificationItemId } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   ownGroupActions,
@@ -21,6 +22,7 @@ import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
@@ -120,7 +122,10 @@ export function GroupDetail({
   return (
     <NotificationAttentionScope
       options={o}
-      targets={[{ kind: "group", id: group.id }]}
+      targets={[
+        { kind: "group", id: group.id },
+        { kind: "item", id: notificationItemId(group.id, "invitation") },
+      ]}
       readOnOpen={{ kind: "group", id: group.id }}
     >
       <View style={{ flex: 1 }}>
@@ -193,14 +198,16 @@ export function GroupDetail({
                   />
                 ) : null}
                 {group.role === "invited" ? (
-                  <GroupInvitationCard
-                    busy={ownBusy}
-                    onAccept={() => void run("accept")}
-                    onDecline={() => {
-                      setError(false);
-                      setConfirm("decline");
-                    }}
-                  />
+                  <NotificationItem itemId={notificationItemId(group.id, "invitation")}>
+                    <GroupInvitationCard
+                      busy={ownBusy}
+                      onAccept={() => void run("accept")}
+                      onDecline={() => {
+                        setError(false);
+                        setConfirm("decline");
+                      }}
+                    />
+                  </NotificationItem>
                 ) : null}
               </ScreenScrollView>
             )}

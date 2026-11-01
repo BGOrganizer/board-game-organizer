@@ -38,6 +38,7 @@ import {
   notificationFilters,
   projectAttentionRead,
 } from "../notificationAttentionCache";
+import { projectNotificationItemRead } from "../notificationItemRead";
 
 export function notificationAttentionQuery(
   options: CommunityApiOptions,
@@ -137,8 +138,10 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
       return parsed.data;
     },
     onMutate: async (variables) => {
-      variables.snapshot =
-        cachedAttention(client, variables.owner, variables.target)?.snapshot ?? variables.snapshot;
+      if (variables.target.kind !== "item")
+        variables.snapshot =
+          cachedAttention(client, variables.owner, variables.target)?.snapshot ??
+          variables.snapshot;
       const row = variables.snapshot.targets.find(
         (value) => attentionKey(value.target) === attentionKey(variables.target),
       );
@@ -175,7 +178,16 @@ export function useReadNotificationAttention(options: CommunityApiOptions) {
         ],
         notificationFilters(variables.owner),
         (data, key) =>
-          projectAttentionRead(data, key, reference, row.direct, variables.snapshot.asOf, readAt),
+          variables.target.kind === "item"
+            ? projectNotificationItemRead(data, key, row, variables.snapshot.asOf, readAt)
+            : projectAttentionRead(
+                data,
+                key,
+                reference,
+                row.direct,
+                variables.snapshot.asOf,
+                readAt,
+              ),
         aliases,
       );
       return { operation, owner: variables.owner };

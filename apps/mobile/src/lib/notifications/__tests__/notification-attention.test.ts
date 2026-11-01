@@ -26,11 +26,12 @@ const script = ts.transpileModule(declaration.getText(badgeFile), {
     jsx: ts.JsxEmit.React,
   },
 }).outputText;
-function badge(count: number | undefined, corner = false) {
+function badge(count: number | undefined, corner = false, counted = false) {
   const exports: {
     NotificationCountBadge?: (props: {
       count?: number;
       corner: boolean;
+      counted: boolean;
     }) => { props: Record<string, any> } | null;
   } = {};
   runInNewContext(script, {
@@ -45,7 +46,7 @@ function badge(count: number | undefined, corner = false) {
       }),
     },
   });
-  return exports.NotificationCountBadge?.({ count, corner });
+  return exports.NotificationCountBadge?.({ count, corner, counted });
 }
 it.each([undefined, 0])("omits native badge entirely for %s", (count) =>
   expect(badge(count)).toBeNull(),
@@ -53,19 +54,25 @@ it.each([undefined, 0])("omits native badge entirely for %s", (count) =>
 it.each([1, 99, 130])(
   "retains full accessible count and bell-sized theme-aware native styling for %s",
   (count) => {
-    const element = badge(count);
+    const element = badge(count, false, true);
     expect(element?.props.accessibilityLabel).toBe(`Notifications: ${count}`);
     expect(element?.props.children.props.children).toBe(count > 99 ? "99+" : String(count));
     expect(element?.props.className).toBe("bg-danger");
     expect(element?.props.children.props.className).toBe("text-danger-foreground");
     expect(element?.props.style).toMatchObject({ position: "relative", minWidth: 16, height: 16 });
-    expect(badge(count, true)?.props.style).toMatchObject({
+    expect(badge(count, true, true)?.props.style).toMatchObject({
       position: "absolute",
       top: -8,
       right: -8,
     });
   },
 );
+it("uses a small numberless dot outside cards while leaving the bell's counter intact", () => {
+  const element = badge(130, true);
+  expect(element?.props.accessibilityLabel).toBe("Needs attention");
+  expect(element?.props.children).toBeNull();
+  expect(element?.props.style).toMatchObject({ minWidth: 8, height: 8, top: -4, right: -4 });
+});
 it.each(["connections", "requests", "search"])(
   "native inner selection reads only %s and retains route state",
   (section) => {

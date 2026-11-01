@@ -5295,3 +5295,13 @@ msgstr "Table deleted"
 #. js-lingui-explicit-id
 msgid "organization.feedback.delete_table.error"
 msgstr "Could not delete table"
+
+#: apps/web/src/components/common/ui/NotificationCountBadge.tsx
+#: apps/mobile/src/components/common/ui/NotificationCountBadge.tsx
+msgid "Needs attention"
+msgstr "Needs attention"
+
+#: apps/web/src/components/notifications/NotificationItem.tsx
+#: apps/mobile/src/components/notifications/NotificationItem.tsx
+msgid "Mark as read"
+msgstr "Mark as read"

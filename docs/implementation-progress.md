@@ -1,5 +1,33 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Precise item attention; counted bell, numberless dots
+
+- Bell count and 99+ remain unchanged. Tabs, saved cards and internal items now use 8px red dots.
+  Personal Table cards receive shared Event attention from the source aggregate, fixing Event-only
+  notices that previously lit the Tables tab without reaching their cards. Card dots remain outside
+  clipping frames at the top-right border, separate from entity status.
+- Structured changes identify date, location, game/settings and removed-option sections using
+  resource-namespaced canonical identities. Coincident Group/Table UUIDs cannot acknowledge each
+  other's invitations. Existing generic notices are not given invented precise changes; legacy
+  invitations retain deliberate item attention without requiring a migration or database reset.
+- Container/card/inbox navigation does not consume pending invitations or structured item changes.
+  Successful votes acknowledge the captured source cutoff atomically with the domain write;
+  successful invitation decisions clear only that invitation. Partial reads retain remaining item,
+  ancestor and bell attention. Explicit readonly/section/inbox acknowledgement remains possible
+  without voting or granting consent. Retargeted/newer changes survive old cutoffs. Deep links
+  identify and position the affected item on web/native; push transports carry an optional validated
+  item hint without changing provider configuration or privacy instrumentation.
+- Local checks: 2,231 covered unit tests (shared 393, schemas 123, API 760, web 680, mobile 275),
+  deterministic notification helpers/schema and existing mobile push thresholds at 100%; all 101
+  real replica-set integration tests pass, including partial completion, future revisions,
+  recipient isolation, UUID namespace collisions and rollback. Typecheck, scoped Biome, API/web
+  production builds and Android export (5,605 modules) pass. Generated references restored exactly;
+  seven protected hashes unchanged. EN/IT catalogs add exactly two messages, removing/changing no
+  previous translations. No dependency, provider, CI or E2E policy changes.
+- Existing authenticated Playwright/Maestro suites/jobs remain unchanged under the branch contract.
+  These results do not establish authenticated E2E, actual device rendering/scrolling, external push
+  delivery or production acceptance; those runtime gates remain outstanding.
+
 ## Hierarchical attention and restored pending Group invitations
 
 - Current Group lists include admin, accepted and pending invited roles, source-filtered by immutable

@@ -1,7 +1,10 @@
 "use client";
 
+import type { NotificationDto } from "@board-game-organizer/schemas";
 import {
+  notificationWebHref,
   resolveApiUrl,
+  shouldReadOnNotificationOpen,
   useNotifications,
   usePreferredLanguageSync,
 } from "@board-game-organizer/shared";
@@ -111,9 +114,9 @@ export function NotificationBell() {
     }
   };
 
-  const openNotification = (id: string, href: string) => {
-    notifications.markRead.mutate(id);
-    router.push(href);
+  const openNotification = (notification: NotificationDto) => {
+    if (shouldReadOnNotificationOpen(notification)) notifications.markRead.mutate(notification.id);
+    router.push(notificationWebHref(notification));
   };
   const disabledKeys = [
     "heading",
@@ -135,7 +138,7 @@ export function NotificationBell() {
       >
         <Badge.Anchor>
           <Bell className="h-5 w-5" />
-          <NotificationCountBadge count={notifications.unreadCount} corner />
+          <NotificationCountBadge count={notifications.unreadCount} corner counted />
         </Badge.Anchor>
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end" className="w-80 bg-surface sm:w-96">
@@ -169,7 +172,7 @@ export function NotificationBell() {
               key={notification.id}
               id={notification.id}
               textValue={`${notification.title} ${notification.description}`}
-              onAction={() => openNotification(notification.id, notification.href)}
+              onAction={() => openNotification(notification)}
             >
               <span className="flex min-w-0 flex-col gap-0.5 py-1">
                 <span className="flex items-center gap-2">

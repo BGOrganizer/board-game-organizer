@@ -1,5 +1,9 @@
 "use client";
-import type { PlannedTableResponse, TableSeatResponse } from "@board-game-organizer/schemas";
+import {
+  notificationItemId,
+  type PlannedTableResponse,
+  type TableSeatResponse,
+} from "@board-game-organizer/schemas";
 import {
   useEventCutoff,
   useEventRecordActions,
@@ -16,6 +20,7 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { IconLegend } from "@/components/common/ui/IconLegend";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventJoinSheet } from "./EventJoinSheet";
@@ -161,6 +166,14 @@ export function EventTableSeats({
                     key={item.key}
                     className="[contain-intrinsic-size:auto_4rem] [content-visibility:auto]"
                   >
+                    <NotificationItem
+                      itemId={
+                        own && pending
+                          ? notificationItemId(table.id, "invitation", undefined, "table")
+                          : undefined
+                      }
+                      readOnly={!table.canRespond || closed}
+                    />
                     <UserIdentity
                       name={name}
                       avatarUrl={row.avatarUrl}

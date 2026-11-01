@@ -5295,3 +5295,13 @@ msgstr "Tavolo eliminato"
 #. js-lingui-explicit-id
 msgid "organization.feedback.delete_table.error"
 msgstr "Impossibile eliminare il tavolo"
+
+#: apps/web/src/components/common/ui/NotificationCountBadge.tsx
+#: apps/mobile/src/components/common/ui/NotificationCountBadge.tsx
+msgid "Needs attention"
+msgstr "Da verificare"
+
+#: apps/web/src/components/notifications/NotificationItem.tsx
+#: apps/mobile/src/components/notifications/NotificationItem.tsx
+msgid "Mark as read"
+msgstr "Segna come letta"
