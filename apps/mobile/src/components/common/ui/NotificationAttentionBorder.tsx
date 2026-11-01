@@ -26,7 +26,7 @@ const frame = {
 } as const;
 /** An absolute childless layer never changes card/row measurements or touch targets. */
 export function NotificationAttentionBorder({ active, pulse }: { active: boolean; pulse?: Pulse }) {
-  const accent = useThemeColor("accent"),
+  const accent = useThemeColor("accent-soft-foreground"),
     t = useT();
   if (!active) return null;
   return (
@@ -43,7 +43,7 @@ export function NotificationAttentionBorder({ active, pulse }: { active: boolean
   );
 }
 function PulseLayer({ owner, itemId, signal }: Pulse) {
-  const accent = useThemeColor("accent"),
+  const accent = useThemeColor("accent-soft-foreground"),
     focused = useIsFocused();
   const claim = useAppStore((state) => state.claimAttentionPulse);
   const [foreground, setForeground] = useState(AppState.currentState === "active");

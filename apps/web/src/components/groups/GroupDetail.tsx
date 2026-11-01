@@ -109,7 +109,7 @@ export function GroupDetail({
             </Button>
           </HeaderActions>
         ) : null}
-        <Link href="/groups" className="inline-flex items-center gap-2 text-accent">
+        <Link href="/groups" className="inline-flex items-center gap-2 text-link">
           <ArrowLeft className="size-4" />
           {t`Back`}
         </Link>

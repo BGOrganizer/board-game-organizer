@@ -87,7 +87,7 @@ export function EventCard({
           )}
           {planning && event.dates.length > 1 ? (
             <span
-              className="text-accent"
+              className="text-accent-soft-foreground"
               role="img"
               aria-label={i18n._({
                 id: "event.proposedDatesCount",

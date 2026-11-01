@@ -13,7 +13,7 @@ export function NavigationTheme({ children }: { children: ReactNode }) {
     "foreground",
     "surface",
     "separator",
-    "accent",
+    "accent-soft-foreground",
     "danger",
   ]);
   const dark = theme === "dark";

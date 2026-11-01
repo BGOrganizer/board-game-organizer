@@ -26,6 +26,21 @@ it.each(["light", "dark", "custom-brand"])(
   },
 );
 
+it("keeps white accent labels/icons and one shared light/dark accent calibration in the theme entries", () => {
+  const root = fileURLToPath(new URL("../../../../../", import.meta.url));
+  const tokens = (file: string, name: string) =>
+    [
+      ...readFileSync(`${root}${file}`, "utf8").matchAll(new RegExp(`--${name}:\\s*([^;]+);`, "g")),
+    ].map((match) => match[1].trim());
+  const webAccent = tokens("apps/web/src/app/globals.css", "accent");
+  const nativeAccent = tokens("apps/mobile/global.css", "accent");
+  expect(webAccent).toHaveLength(2);
+  expect(nativeAccent).toEqual(webAccent);
+  expect(new Set(webAccent).size).toBe(1);
+  for (const file of ["apps/mobile/global.css", "apps/web/src/app/globals.css"])
+    expect(tokens(file, "accent-foreground")).toEqual(["var(--snow)", "var(--snow)"]);
+});
+
 it("keeps both clients' runtime UI free of literal palettes and obsolete HeroUI v2 color classes", () => {
   const root = fileURLToPath(new URL("../../../../../", import.meta.url));
   const violations: string[] = [];

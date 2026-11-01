@@ -107,7 +107,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
       <div className="mx-auto max-w-4xl space-y-3 pb-24">
         <Link
           href={fromGroup === event.groupId ? `/groups/${event.groupId}` : "/events"}
-          className="inline-flex items-center gap-2 text-accent"
+          className="inline-flex items-center gap-2 text-link"
         >
           <ArrowLeft className="size-4" aria-hidden />
           {t`Back`}

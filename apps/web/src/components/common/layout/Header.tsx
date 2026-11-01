@@ -40,7 +40,9 @@ function NavLink({ href, label, icon: Icon, exact = false, onClick, section }: N
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
-        isActive ? "bg-surface text-accent font-medium" : "text-foreground hover:bg-surface",
+        isActive
+          ? "bg-surface text-accent-soft-foreground font-medium"
+          : "text-foreground hover:bg-surface",
       )}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />

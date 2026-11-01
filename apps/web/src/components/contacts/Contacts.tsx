@@ -476,7 +476,7 @@ export function Contacts() {
               {contacts.suggestions.isFetchNextPageError ? (
                 <button
                   type="button"
-                  className="text-sm text-accent"
+                  className="text-sm text-link"
                   onClick={() => void contacts.suggestions.fetchNextPage()}
                 >{t`Retry`}</button>
               ) : null}
@@ -538,7 +538,7 @@ export function Contacts() {
             {requestPages.some((page) => page.isFetchNextPageError) ? (
               <button
                 type="button"
-                className="text-sm text-accent"
+                className="text-sm text-link"
                 onClick={() => {
                   for (const page of requestPages) {
                     if (page.isFetchNextPageError) void page.fetchNextPage();
@@ -590,7 +590,7 @@ export function Contacts() {
             {connectionPages.some((page) => page.isFetchNextPageError) ? (
               <button
                 type="button"
-                className="text-sm text-accent"
+                className="text-sm text-link"
                 onClick={() => {
                   for (const page of connectionPages) {
                     if (page.isFetchNextPageError) void page.fetchNextPage();

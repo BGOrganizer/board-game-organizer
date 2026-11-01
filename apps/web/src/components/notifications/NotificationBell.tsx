@@ -214,7 +214,7 @@ export function NotificationBell() {
             </Dropdown.Item>
           )}
           <Dropdown.Item id="view-all" onAction={() => router.push("/notifications")}>
-            <span className="font-medium text-accent">{t`View all notifications`}</span>
+            <span className="font-medium text-link">{t`View all notifications`}</span>
           </Dropdown.Item>
         </Dropdown.Menu>
       </Dropdown.Popover>

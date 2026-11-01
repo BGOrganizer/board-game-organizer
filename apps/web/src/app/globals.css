@@ -1,18 +1,20 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
-/* HeroUI contrast primitives keep compact action labels readable without a second palette. */
+/* Accent keeps HeroUI's snow foreground; calibrate its tone here for readable compact labels. */
 @layer theme {
   :root,
   .light,
   [data-theme="light"] {
-    --accent-foreground: var(--eclipse);
+    --accent: oklch(0.51 0.195 253.83);
+    --accent-foreground: var(--snow);
     --danger-foreground: var(--eclipse);
   }
 
   .dark,
   [data-theme="dark"] {
-    --accent-foreground: var(--eclipse);
+    --accent: oklch(0.51 0.195 253.83);
+    --accent-foreground: var(--snow);
     --danger-foreground: var(--black);
   }
 }
@@ -41,11 +43,11 @@
 
 .notification-attention-border {
   z-index: 2;
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--accent) 80%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--accent-soft-foreground) 80%, transparent);
 }
 
 .notification-attention-pulse {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent-soft-foreground);
   opacity: 0;
   animation: notification-attention-pulse 1.6s cubic-bezier(0.77, 0, 0.175, 1) 3;
 }

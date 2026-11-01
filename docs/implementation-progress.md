@@ -9,19 +9,24 @@
   replace literal palettes and obsolete v2 classes. Icons, hints, empty/loading states, ratings,
   invitations, profile actions, toast icons and crash fallback resolve the active theme. Fixed BGG/
   MapTiler brand artwork uses an existing scoped HeroUI light surface, not a literal white plate.
-- Theme definitions remain in existing global CSS, with no second palette. Existing HeroUI contrast
-  primitives provide readable compact action foregrounds: eclipse for accent/light danger, black
-  for dark danger. Real browser checks caught the original 3.59:1 accent and 4.35:1 dark-danger
-  contrast; foreground-token changes fix them globally without per-button RGB overrides.
+- Theme definitions remain in existing global CSS, with no second palette. Accent labels/icons
+  retain HeroUI's snow foreground in both modes. The central accent preserves HeroUI's hue/chroma
+  with calibrated lightness for white-label contrast, including the SDK's hover/pressed states.
+  Navigation text, standalone accent text and attention borders use accent-soft-foreground; links
+  use link, rather than reusing the darker filled-control background as a text/border tint. Neutral
+  and danger contrast pairs remain independent and unchanged (eclipse for light danger, black for
+  dark danger). No per-control RGB overrides or disabled interaction feedback.
 - Web initializes theme before hydration and tracks system/explicit preference changes; Clerk web
   appearance consumes HeroUI variables. Native/web maps use light/dark styles without rebuilding
   the map or losing verified selection/drafts; markers use accent. Native SDK/system artwork and
   pre-JS platform launch configuration retain their provider/platform ownership.
-- Validation: 2,250 covered units (shared 393, schemas 124, API 760, web 691, mobile 282), typecheck
+- Validation: 2,251 covered units (shared 393, schemas 124, API 760, web 691, mobile 283), typecheck
   4/4 and owned-file Biome pass. Navigation-token mapping and web theme lifecycle have 100% per-file
-  gates. Real isolated Chromium checks at 390/1280 widths pass in light/dark: text/icon contrast,
-  help/dialogs, retained draft/filter state and live HeroUI accent replacement. API/web builds and
-  Android export pass; generated references restored exactly and seven protected inputs unchanged.
+  gates. Real isolated Chromium checks at 390/1280 widths pass in light/dark: white accent labels
+  and icons in idle/hover/focus/pressed states (minimum 4.61:1), readable standalone text/links and
+  attention borders (minimum 3.80:1), help/dialogs, retained draft/filter state and live HeroUI accent
+  replacement. API/web builds and Android export pass; generated references restored exactly and
+  seven protected inputs unchanged.
 - These isolated browser/source checks and Android export are not authenticated Playwright/Maestro
   or physical-device rendering/navigation acceptance. Existing acceptance suites/jobs remain
   unchanged. No dependency, server data, permissions, privacy, provider configuration or locale

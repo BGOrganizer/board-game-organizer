@@ -99,7 +99,7 @@ export function EventCard({
           )}
           {planning && event.dates.length > 1 ? (
             <Typography
-              className="text-sm text-accent"
+              className="text-sm text-accent-soft-foreground"
               accessibilityLabel={i18n._({
                 id: "event.proposedDatesCount",
                 message: "{count} proposed dates",

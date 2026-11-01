@@ -4,17 +4,19 @@
 @source "./src";
 @source "../../node_modules/heroui-native/lib";
 
-/* Use HeroUI's own contrast primitives for compact action labels in both modes. */
+/* Match web's accent calibration; labels/icons keep HeroUI's snow foreground in both modes. */
 @layer theme {
   :root {
     @variant light {
-      --accent-foreground: var(--eclipse);
+      --accent: oklch(0.51 0.195 253.83);
+      --accent-foreground: var(--snow);
       --danger-foreground: var(--eclipse);
     }
   }
   :root {
     @variant dark {
-      --accent-foreground: var(--eclipse);
+      --accent: oklch(0.51 0.195 253.83);
+      --accent-foreground: var(--snow);
       --danger-foreground: var(--black);
     }
   }
