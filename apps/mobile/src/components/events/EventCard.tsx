@@ -1,5 +1,9 @@
 import type { ClientEventRecord } from "@board-game-organizer/shared";
-import { eventDateWall, eventRecordPreviewDate } from "@board-game-organizer/shared";
+import {
+  eventDateWall,
+  eventRecordPreviewDate,
+  useNotificationAttentionContext,
+} from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -31,6 +35,8 @@ export function EventCard({
   const [fg, muted] = useThemeColor(["foreground", "muted"]);
   const date = eventRecordPreviewDate(event),
     number = new Intl.NumberFormat(i18n.locale);
+  const attention = useNotificationAttentionContext(),
+    attentionTarget = { kind: "event", id: event.id } as const;
   const planning = event.status === "PLANNING";
   const local = event.optimistic,
     status = useClientRecordStatus(local?.phase);
@@ -38,6 +44,7 @@ export function EventCard({
     <LinkedListCard
       label={`${status || t("Open event")}: ${event.name}`}
       disabled={Boolean(local && local.phase !== "failed")}
+      notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
       actions={
         local?.phase === "verifying" && onVerify ? (
           <Button
@@ -52,8 +59,9 @@ export function EventCard({
           </Button>
         ) : undefined
       }
-      onPress={() =>
-        local
+      onPress={() => {
+        if (!local) attention?.read(attentionTarget);
+        return local
           ? router.push({ pathname: "/event/wizard", params: { draftId: local.draftId } })
           : router.push({
               pathname: "/event/[eventId]",
@@ -61,8 +69,8 @@ export function EventCard({
                 eventId: event.id,
                 ...(context === "group" && event.groupId ? { fromGroup: event.groupId } : {}),
               },
-            })
-      }
+            });
+      }}
     >
       <AnimatedDicebearArtwork seed={event.id} variant="constellation" />
       <ListCardBody

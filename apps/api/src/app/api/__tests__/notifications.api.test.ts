@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   list: vi.fn(),
+  attentionSnapshot: vi.fn(),
+  attentionRead: vi.fn(),
   markRead: vi.fn(),
   deleteOne: vi.fn(),
   deleteAll: vi.fn(),
@@ -27,6 +29,12 @@ vi.mock("@/app/lib/notifications/notifications.repository", () => ({
     markAllRead: mocks.markAllRead,
   })),
 }));
+vi.mock("@/app/lib/notifications/notification-attention.repository", () => ({
+  NotificationAttentionRepository: vi.fn(() => ({
+    snapshot: mocks.attentionSnapshot,
+    read: mocks.attentionRead,
+  })),
+}));
 vi.mock("@/app/lib/notifications/push-subscriptions.repository", () => ({
   PushSubscriptionsRepository: vi.fn(() => ({ upsert: mocks.upsert, remove: mocks.remove })),
 }));
@@ -36,12 +44,28 @@ import {
   PATCH as markRead,
 } from "@/app/api/notifications/[notificationId]/route";
 import {
+  GET as attentionCounts,
+  PATCH as readAttention,
+} from "@/app/api/notifications/attention/route";
+import {
   DELETE as deleteAllNotifications,
   GET as listNotifications,
   PATCH as markAllRead,
 } from "@/app/api/notifications/route";
 import { POST as registerPush, DELETE as removePush } from "@/app/api/push-subscriptions/route";
 
+const attentionZero = {
+  asOf: "2027-01-01T00:00:00.000Z",
+  unreadCount: 0,
+  summary: {
+    tables: 0,
+    events: 0,
+    groups: 0,
+    contacts: 0,
+    sections: { connections: 0, requests: 0, search: 0 },
+  },
+  targets: [],
+};
 const ID = "0123456789abcdef01234567";
 const context = (notificationId = ID) => ({ params: Promise.resolve({ notificationId }) });
 const jsonRequest = (
@@ -61,6 +85,8 @@ describe("notification API", () => {
     vi.clearAllMocks();
     mocks.auth.mockResolvedValue({ userId: "user_1" });
     mocks.list.mockResolvedValue({ notifications: [], unreadCount: 0, nextCursor: null });
+    mocks.attentionSnapshot.mockResolvedValue({ snapshot: attentionZero, references: new Map() });
+    mocks.attentionRead.mockResolvedValue({ updated: 0, snapshot: attentionZero });
     mocks.markRead.mockResolvedValue({ modifiedCount: 1 });
     mocks.deleteOne.mockResolvedValue({ deletedCount: 1 });
     mocks.deleteAll.mockResolvedValue({ deletedCount: 25 });
@@ -92,6 +118,97 @@ describe("notification API", () => {
     expect(mocks.deleteAll).not.toHaveBeenCalled();
   });
 
+  it("scopes attention reads/counts to authenticated recipient and retains private response headers", async () => {
+    const target = { kind: "group", id: "11111111-1111-4111-8111-111111111111" };
+    const response = await attentionCounts(
+      new Request(
+        `http://x/api/notifications/attention?targets=${encodeURIComponent(JSON.stringify([target]))}`,
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.attentionSnapshot).toHaveBeenCalledWith("user_1", [target]);
+    const read = await readAttention(
+      jsonRequest("http://x/api/notifications/attention", "PATCH", {
+        target,
+        through: attentionZero.asOf,
+      }),
+    );
+    expect(read.status).toBe(200);
+    expect(read.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.attentionRead).toHaveBeenCalledWith("user_1", {
+      target,
+      through: attentionZero.asOf,
+    });
+    mocks.auth.mockResolvedValue({ userId: null });
+    expect(
+      (await attentionCounts(new Request("http://x/api/notifications/attention"))).status,
+    ).toBe(401);
+    expect(
+      (
+        await readAttention(
+          jsonRequest("http://x/api/notifications/attention", "PATCH", {
+            target,
+            through: attentionZero.asOf,
+          }),
+        )
+      ).status,
+    ).toBe(401);
+  });
+  it("fails closed on malformed/duplicate/unbounded attention targets and scoped read input", async () => {
+    const target = { kind: "group", id: "11111111-1111-4111-8111-111111111111" };
+    for (const query of [
+      "targets=no",
+      "targets=[]&targets=[]",
+      "foreign=1",
+      `targets=${encodeURIComponent(JSON.stringify([target, target]))}`,
+      `targets=${encodeURIComponent(JSON.stringify([{ kind: "group", id: "bad" }]))}`,
+    ])
+      expect(
+        (await attentionCounts(new Request(`http://x/api/notifications/attention?${query}`)))
+          .status,
+      ).toBe(400);
+    for (const body of [
+      { target: { kind: "contact", id: "person" }, through: attentionZero.asOf },
+      { target },
+      { target, through: "bad" },
+      { target, through: attentionZero.asOf, recipientUserId: "other" },
+      "{",
+    ])
+      expect(
+        (await readAttention(jsonRequest("http://x/api/notifications/attention", "PATCH", body)))
+          .status,
+      ).toBe(400);
+    expect(
+      (
+        await readAttention(
+          jsonRequest("http://x/api/notifications/attention?foreign=1", "PATCH", {
+            target,
+            through: attentionZero.asOf,
+          }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(mocks.attentionRead).not.toHaveBeenCalled();
+    expect(mocks.attentionSnapshot).not.toHaveBeenCalled();
+  });
+  it("reports attention storage failures as errors, not empty successful counts", async () => {
+    mocks.attentionSnapshot.mockRejectedValue(new Error("Offline"));
+    expect(
+      (await attentionCounts(new Request("http://x/api/notifications/attention"))).status,
+    ).toBe(500);
+    mocks.attentionRead.mockRejectedValue(new Error("Offline"));
+    expect(
+      (
+        await readAttention(
+          jsonRequest("http://x/api/notifications/attention", "PATCH", {
+            target: { kind: "contacts", id: "requests" },
+            through: attentionZero.asOf,
+          }),
+        )
+      ).status,
+    ).toBe(500);
+  });
   it("validates list query and duplicate parameters", async () => {
     expect(
       (await listNotifications(new Request("http://x/api/notifications?limit=0"))).status,
@@ -114,6 +231,33 @@ describe("notification API", () => {
     expect(mocks.list).toHaveBeenCalledWith("user_1", 20, ID, undefined);
   });
 
+  it("attaches only authorized unread references while retaining loaded read and legacy rows", async () => {
+    const target = { kind: "group", id: "11111111-1111-4111-8111-111111111111" };
+    mocks.list.mockResolvedValue({
+      notifications: [
+        { id: ID, readAt: null },
+        { id: "fedcba987654321001234567", readAt: "2027-01-01T00:00:00.000Z" },
+        { id: "1234567890abcdef12345678", readAt: null },
+      ],
+      unreadCount: 40,
+      nextCursor: null,
+    });
+    mocks.attentionSnapshot.mockResolvedValue({
+      snapshot: { ...attentionZero, unreadCount: 2 },
+      references: new Map([[ID, { target }]]),
+    });
+    const response = await listNotifications(new Request("http://x/api/notifications"));
+    const body = await response.json();
+    expect(body.unreadCount).toBe(2);
+    expect(body.notifications[0].attention).toEqual({ target });
+    expect(body.notifications[1].attention).toBeNull();
+    expect(body.notifications[2].attention).toBeNull();
+    expect(mocks.attentionSnapshot).toHaveBeenCalledWith(
+      "user_1",
+      [],
+      [ID, "1234567890abcdef12345678"],
+    );
+  });
   it("uses explicit supported inbox locale and rejects duplicate/foreign locale input", async () => {
     const response = await listNotifications(new Request("http://x/api/notifications?locale=it"));
     expect(response.status).toBe(200);

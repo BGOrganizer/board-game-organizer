@@ -33,6 +33,7 @@ import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { LocationListRow } from "@/components/locations/LocationListRow";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -309,111 +310,126 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     </View>
   );
   return (
-    <View style={{ flex: 1 }}>
-      {screenHeader}
-      <FlatList
-        data={tables.items}
-        keyExtractor={(row) => row.id}
-        contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 112 }}
-        ListHeaderComponent={header}
-        ListEmptyComponent={
-          !tables.isPending && !tables.isError ? (
-            <EmptyList icon={<Dices size={28} color={muted} />}>{t("No tables found")}</EmptyList>
-          ) : null
-        }
-        renderItem={({ item }) => <EventTableCard table={item} context="event" />}
-        onEndReached={() => {
-          if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
-            void tables.fetchNextPage();
-        }}
-        ListFooterComponent={
-          <View style={{ gap: 12 }}>
-            {tables.isPending || tables.isFetchingNextPage ? (
-              <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-            ) : null}
-            {tables.isError ? (
-              <>
-                <Typography accessibilityRole="alert" className="text-danger">
-                  {t("Could not load tables")}
-                </Typography>
-                <Button onPress={() => void tables.refetch()}>
-                  <Button.Label>{t("Try again")}</Button.Label>
-                </Button>
-              </>
-            ) : null}
-            {tables.hasNextPage ? (
-              <Button
-                isDisabled={tables.isFetchingNextPage}
-                onPress={() => void tables.fetchNextPage()}
-              >
-                <Button.Label>{t("Load more")}</Button.Label>
-              </Button>
-            ) : null}
-          </View>
-        }
-      />
-      {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canReplan ? (
-        <FloatingActions
-          label={t("Reopen planning")}
-          variant="secondary"
-          isDisabled={a.busy || q.isPlaceholderData}
-          onPress={() => {
-            setError(false);
-            setConfirm("replan");
+    <NotificationAttentionScope
+      options={o}
+      targets={[
+        { kind: "event", id: event.id },
+        ...(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => ({
+          kind: "table" as const,
+          id: row.id,
+        })),
+      ]}
+      readOnOpen={{ kind: "event", id: event.id }}
+    >
+      <View style={{ flex: 1 }}>
+        {screenHeader}
+        <FlatList
+          data={communityAccessDenied(tables.error) ? [] : tables.items}
+          keyExtractor={(row) => row.id}
+          contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: insets.bottom + 112 }}
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            !tables.isPending && !tables.isError ? (
+              <EmptyList icon={<Dices size={28} color={muted} />}>{t("No tables found")}</EmptyList>
+            ) : null
+          }
+          renderItem={({ item }) => <EventTableCard table={item} context="event" />}
+          onEndReached={() => {
+            if (tables.hasNextPage && !tables.isFetchingNextPage && !tables.isFetchNextPageError)
+              void tables.fetchNextPage();
           }}
-        >
-          <RotateCcw size={20} color={foreground} accessible={false} />
-        </FloatingActions>
-      ) : null}
-      {event.status === "PLANNING" && event.canEdit && !closed ? (
-        <FloatingActions
-          label="Edit event"
-          isDisabled={a.busy || q.isPlaceholderData}
-          onPress={() =>
-            router.push({
-              pathname: "/event/wizard",
-              params: { eventId: event.id, ...(fromGroup === event.groupId ? { fromGroup } : {}) },
-            })
+          ListFooterComponent={
+            <View style={{ gap: 12 }}>
+              {tables.isPending || tables.isFetchingNextPage ? (
+                <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
+              ) : null}
+              {tables.isError ? (
+                <>
+                  <Typography accessibilityRole="alert" className="text-danger">
+                    {t("Could not load tables")}
+                  </Typography>
+                  <Button onPress={() => void tables.refetch()}>
+                    <Button.Label>{t("Try again")}</Button.Label>
+                  </Button>
+                </>
+              ) : null}
+              {tables.hasNextPage ? (
+                <Button
+                  isDisabled={tables.isFetchingNextPage}
+                  onPress={() => void tables.fetchNextPage()}
+                >
+                  <Button.Label>{t("Load more")}</Button.Label>
+                </Button>
+              ) : null}
+            </View>
           }
-        >
-          <Pencil size={20} color={accentForeground} />
-        </FloatingActions>
-      ) : null}
-      {confirm ? (
-        <ConfirmDialog
-          title={confirm === "confirm" ? t("Confirm event") : t("Reopen planning")}
-          description={
-            confirm === "confirm"
-              ? t(
-                  "Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.",
-                )
-              : t(
-                  "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.",
-                )
-          }
-          busy={a.busy}
-          onCancel={() => setConfirm(null)}
-          actions={[
-            {
-              label: t("Confirm"),
-              variant: "primary",
-              icon:
-                confirm === "confirm" ? (
-                  <CalendarCheck size={16} color={accentForeground} accessible={false} />
-                ) : (
-                  <RotateCcw size={16} color={accentForeground} accessible={false} />
-                ),
-              onPress: () => void transition(),
-            },
-          ]}
-        >
-          {error ? (
-            <Typography accessibilityRole="alert" className="text-danger">
-              {t("Could not change event state. Refresh and try again.")}
-            </Typography>
-          ) : null}
-        </ConfirmDialog>
-      ) : null}
-    </View>
+        />
+        {event.adminUserId === o.userId && event.status === "CONFIRMED" && event.canReplan ? (
+          <FloatingActions
+            label={t("Reopen planning")}
+            variant="secondary"
+            isDisabled={a.busy || q.isPlaceholderData}
+            onPress={() => {
+              setError(false);
+              setConfirm("replan");
+            }}
+          >
+            <RotateCcw size={20} color={foreground} accessible={false} />
+          </FloatingActions>
+        ) : null}
+        {event.status === "PLANNING" && event.canEdit && !closed ? (
+          <FloatingActions
+            label="Edit event"
+            isDisabled={a.busy || q.isPlaceholderData}
+            onPress={() =>
+              router.push({
+                pathname: "/event/wizard",
+                params: {
+                  eventId: event.id,
+                  ...(fromGroup === event.groupId ? { fromGroup } : {}),
+                },
+              })
+            }
+          >
+            <Pencil size={20} color={accentForeground} />
+          </FloatingActions>
+        ) : null}
+        {confirm ? (
+          <ConfirmDialog
+            title={confirm === "confirm" ? t("Confirm event") : t("Reopen planning")}
+            description={
+              confirm === "confirm"
+                ? t(
+                    "Only agreed tables and accepted players are frozen. Other tables and invitations are retained but excluded.",
+                  )
+                : t(
+                    "Votes, invitations and waiting priorities are retained. The booking cutoff is not extended.",
+                  )
+            }
+            busy={a.busy}
+            onCancel={() => setConfirm(null)}
+            actions={[
+              {
+                label: t("Confirm"),
+                variant: "primary",
+                icon:
+                  confirm === "confirm" ? (
+                    <CalendarCheck size={16} color={accentForeground} accessible={false} />
+                  ) : (
+                    <RotateCcw size={16} color={accentForeground} accessible={false} />
+                  ),
+                onPress: () => void transition(),
+              },
+            ]}
+          >
+            {error ? (
+              <Typography accessibilityRole="alert" className="text-danger">
+                {t("Could not change event state. Refresh and try again.")}
+              </Typography>
+            ) : null}
+          </ConfirmDialog>
+        ) : null}
+      </View>
+    </NotificationAttentionScope>
   );
 }

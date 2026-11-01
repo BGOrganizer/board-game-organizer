@@ -95,7 +95,7 @@ it("starts only the four priority reads with at most three concurrent requests",
     fetch.mock.calls.find(([url]) => new URL(url).pathname === "/api/groups")?.[0] ?? "",
   );
   expect(groupRead.searchParams.get("type")).toBe("PRIVATE");
-  expect(groupRead.searchParams.get("roles")).toBe("admin,accepted");
+  expect(groupRead.searchParams.get("roles")).toBe("admin,invited,accepted");
   expect(
     client.getQueryData(
       groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,

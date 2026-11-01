@@ -1,5 +1,5 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { useEventCutoff } from "@board-game-organizer/shared";
+import { useNotificationAttentionContext } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
@@ -25,7 +25,6 @@ import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 import { useT } from "@/lib/i18n";
-import { EventTableInvitationActions } from "./EventTableInvitationActions";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 export function EventTableCard({
   table,
@@ -50,9 +49,8 @@ export function EventTableCard({
         table.eventStatus === "PLANNING" || !table.confirmed || game.id === table.confirmed.gameId,
     ),
     remaining = Math.max(0, games.length - 1);
-  const closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
-  const canRespond =
-    table.eventStatus === "PLANNING" && table.canRespond && !closed && pending && invited;
+  const attention = useNotificationAttentionContext(),
+    attentionTarget = { kind: "table", id: table.id } as const;
   const counts = [
     {
       icon: UserRoundMinus,
@@ -88,7 +86,9 @@ export function EventTableCard({
   return (
     <LinkedListCard
       label={`${t("Open table")}: ${table.name}`}
-      onPress={() =>
+      notificationCount={attention?.get(attentionTarget)?.count}
+      onPress={() => {
+        attention?.read(attentionTarget);
         router.push({
           pathname: "/event/table",
           params: {
@@ -96,17 +96,12 @@ export function EventTableCard({
             tableId: table.id,
             ...(context === "event" ? { fromEvent: table.eventId } : {}),
           },
-        })
-      }
+        });
+      }}
       leadingActions={
         <HelpPopover label={`${t("Players")}: ${t("Field help")}`} title={t("Players")}>
           <IconLegend items={counts.map(({ icon, description }) => ({ icon, description }))} />
         </HelpPopover>
-      }
-      actions={
-        canRespond && registration ? (
-          <EventTableInvitationActions eventId={table.eventId} registration={registration} />
-        ) : undefined
       }
     >
       <View style={{ width: 64, height: 64, flexShrink: 0 }}>

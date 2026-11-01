@@ -15,6 +15,7 @@ import { Platform, View } from "react-native";
 
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
 import { useT } from "@/lib/i18n";
 
 export default function TabLayout() {
@@ -83,7 +84,12 @@ export default function TabLayout() {
         options={{
           title: t("Tables"),
           headerTitle: () => <HeaderTitle title={t("Tables")} icon={Dices} />,
-          tabBarIcon: ({ color }) => <Dices size={26} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <Dices size={26} color={color} />
+              <NotificationNavigationBadge section="tables" />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
@@ -91,7 +97,12 @@ export default function TabLayout() {
         options={{
           title: t("Events"),
           headerTitle: () => <HeaderTitle title={t("Events")} icon={CalendarDays} />,
-          tabBarIcon: ({ color }) => <CalendarDays size={26} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <CalendarDays size={26} color={color} />
+              <NotificationNavigationBadge section="events" />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
@@ -99,7 +110,12 @@ export default function TabLayout() {
         options={{
           title: t("Groups"),
           headerTitle: () => <HeaderTitle title={t("Groups")} icon={UsersRound} />,
-          tabBarIcon: ({ color }) => <UsersRound size={26} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <UsersRound size={26} color={color} />
+              <NotificationNavigationBadge section="groups" />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen name="organizations" options={{ href: null }} />
@@ -109,7 +125,12 @@ export default function TabLayout() {
         options={{
           title: t("Contacts"),
           headerTitle: () => <HeaderTitle title={t("Contacts")} icon={ContactRound} />,
-          tabBarIcon: ({ color }) => <ContactRound size={26} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <View style={{ position: "relative" }}>
+              <ContactRound size={26} color={color} />
+              <NotificationNavigationBadge section="contacts" />
+            </View>
+          ),
         }}
       />
     </Tabs>

@@ -57,7 +57,13 @@ export class RelationshipService {
 
   async follow(userId: string, targetUserId: string) {
     await this.requireVisibleTarget(userId, targetUserId, "follow");
-    await this.repo.follow(userId, targetUserId);
+    const result = await this.repo.follow(userId, targetUserId);
+    if (result?.upsertedCount)
+      await this.notifications?.notify({
+        kind: "follow",
+        recipientUserId: targetUserId,
+        actorUserId: userId,
+      });
   }
 
   async unfollow(userId: string, targetUserId: string) {

@@ -23,6 +23,18 @@ describe("notification language", () => {
       }
     },
   );
+  it("localizes new followers without changing their Contacts destination", () => {
+    expect(notificationCopy("follow", "en", "Actor")).toEqual({
+      title: "New follower",
+      description: "Actor started following you.",
+      href: "/contacts",
+    });
+    expect(notificationCopy("follow", "it", "Actor")).toEqual({
+      title: "Nuovo follower",
+      description: "Actor ha iniziato a seguirti.",
+      href: "/contacts",
+    });
+  });
   it("handles absent resources and rejects unsupported kinds", () => {
     expect(notificationCopy("table_invitation", "it", "Actor").description).toBe("Actor: ");
     expect(() => notificationCopy("unsupported" as never, "en", "Actor")).toThrow(

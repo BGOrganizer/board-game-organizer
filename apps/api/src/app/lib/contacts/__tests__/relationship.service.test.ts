@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NotificationsRepository } from "../../notifications/notifications.repository";
 import type { RelationshipRepository } from "../relationship.repository";
 import { RelationshipError, RelationshipService } from "../relationship.service";
 
@@ -60,6 +61,38 @@ describe("RelationshipService", () => {
     expect(repo.follow).toHaveBeenCalledWith(USER, TARGET);
   });
 
+  it("notifies only an inserted follow, preserves visibility checks and propagates delivery storage failures", async () => {
+    const notify = vi.fn(async () => null);
+    const notifications = { notify } as unknown as NotificationsRepository;
+    const repo = createRepo({
+      follow: vi
+        .fn()
+        .mockResolvedValueOnce({ upsertedCount: 1 })
+        .mockResolvedValueOnce({ upsertedCount: 0 }),
+    });
+    const service = new RelationshipService(repo, notifications);
+    await service.follow(USER, TARGET);
+    await service.follow(USER, TARGET);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith({
+      kind: "follow",
+      actorUserId: USER,
+      recipientUserId: TARGET,
+    });
+    const inserted = createRepo({ follow: vi.fn(async () => ({ upsertedCount: 1 })) });
+    await new RelationshipService(inserted).follow(USER, TARGET);
+    notify.mockRejectedValueOnce(new Error("Storage failed"));
+    await expect(
+      new RelationshipService(inserted, notifications).follow(USER, TARGET),
+    ).rejects.toThrow("Storage failed");
+    await expect(
+      new RelationshipService(
+        createRepo({ isBlocked: vi.fn(async () => true) }),
+        notifications,
+      ).follow(USER, TARGET),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(notify).toHaveBeenCalledTimes(2);
+  });
   it("rejects self, missing, and blocked follow targets", async () => {
     await expectRelationshipError(
       new RelationshipService(createRepo()).follow(USER, USER),

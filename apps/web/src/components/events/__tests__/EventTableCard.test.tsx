@@ -78,7 +78,7 @@ it("keeps first game plus localized additional count and badges current viewer's
   q.rerender(<EventTableCard table={{ ...plannedTable, gamesDetail: [] }} />);
   expect(screen.getByText("Unknown")).not.toBeNull();
 });
-it("separates explicit invitation acceptance/decline from reservations and navigation", () => {
+it("keeps external cards navigation-only and preserves explicit versioned consent in detail controls", () => {
   const registration = { ...seat("owner"), status: "PENDING" as const },
     q = renderWithI18n(
       <EventTableCard
@@ -90,6 +90,20 @@ it("separates explicit invitation acceptance/decline from reservations and navig
         }}
       />,
     );
+  expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Decline invitation" })).toBeNull();
+  expect(m.respond.mutate).not.toHaveBeenCalled();
+  expect(screen.queryByText("Reserved place")).toBeNull();
+  expect(screen.queryByText("Invitation received")).toBeNull();
+  const badge = screen.getByRole("img", { name: "Invitation received" });
+  expect(badge.className).toContain("text-warning");
+  expect(badge.className).toContain("bottom-0");
+  expect(badge.className).toContain("right-0");
+  expect(badge.parentElement?.querySelector("img")).not.toBeNull();
+  expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
+  q.rerender(
+    <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
   expect(m.respond.mutate).not.toHaveBeenCalled();
   expect(screen.getByRole("dialog")).not.toBeNull();
@@ -99,24 +113,16 @@ it("separates explicit invitation acceptance/decline from reservations and navig
     registrationId: registration.id,
     input: { action: "decline", version: 1 },
   });
-  expect(screen.queryByText("Reserved place")).toBeNull();
-  expect(screen.queryByText("Invitation received")).toBeNull();
-  const badge = screen.getByRole("img", { name: "Invitation received" });
-  expect(badge.className).toContain("text-warning");
-  expect(badge.className).toContain("bottom-0");
-  expect(badge.className).toContain("right-0");
-  expect(badge.parentElement?.querySelector("img")).not.toBeNull();
-  expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
   m.busy = true;
   q.rerender(
-    <EventTableCard table={{ ...plannedTable, canRespond: true, myRegistration: registration }} />,
+    <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
   );
   expect(
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
   ).toBe(false);
   m.isResponding.mockReturnValue(true);
   q.rerender(
-    <EventTableCard table={{ ...plannedTable, canRespond: true, myRegistration: registration }} />,
+    <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
   );
   expect(
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
@@ -124,7 +130,7 @@ it("separates explicit invitation acceptance/decline from reservations and navig
   m.isResponding.mockReturnValue(false);
   m.blocking = true;
   q.rerender(
-    <EventTableCard table={{ ...plannedTable, canRespond: true, myRegistration: registration }} />,
+    <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
   );
   expect(
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
@@ -273,7 +279,7 @@ it("rejects direct response controls for a pending self request", () => {
   );
   expect(screen.queryByRole("button")).toBeNull();
 });
-it("uses exactly the Group invitation button variants, dimensions and Check/X icons", () => {
+it("offers navigation but no consent controls on Group or Table invitation cards", () => {
   renderWithI18n(
     <>
       <GroupCard
@@ -291,8 +297,6 @@ it("uses exactly the Group invitation button variants, dimensions and Check/X ic
             updatedAt: groupRecord.updatedAt,
           },
         }}
-        pending={false}
-        onRespond={vi.fn()}
       />
       <EventTableCard
         table={{
@@ -303,19 +307,10 @@ it("uses exactly the Group invitation button variants, dimensions and Check/X ic
       />
     </>,
   );
-  for (const [label, icon, variant] of [
-    ["Accept invitation", "check", "primary"],
-    ["Decline invitation", "x", "danger-soft"],
-  ]) {
-    const tableButton = screen.getByRole("button", { name: label });
-    const groupButton = screen.getByRole("button", { name: `${label}: ${groupRecord.name}` });
-    expect(tableButton.className).toBe(groupButton.className);
-    expect(tableButton.className).toContain(`button--${variant}`);
-    expect(tableButton.querySelector(`svg.lucide-${icon}`)?.getAttribute("class")).toBe(
-      groupButton.querySelector(`svg.lucide-${icon}`)?.getAttribute("class"),
-    );
-    expect(tableButton.closest("a")).toBeNull();
-  }
+  expect(screen.getByRole("link", { name: `Open group: ${groupRecord.name}` })).not.toBeNull();
+  expect(screen.getByRole("link", { name: `Open table: ${plannedTable.name}` })).not.toBeNull();
+  expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
 });
 it("hides stale public invitation controls after the exact cutoff", () => {
   renderWithI18n(

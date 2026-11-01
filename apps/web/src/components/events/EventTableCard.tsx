@@ -1,6 +1,6 @@
 "use client";
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { useEventCutoff } from "@board-game-organizer/shared";
+import { useNotificationAttentionContext } from "@board-game-organizer/shared";
 import { Skeleton } from "@heroui/react";
 import { Plural, useLingui } from "@lingui/react/macro";
 import {
@@ -21,7 +21,6 @@ import { IconLegend } from "@/components/common/ui/IconLegend";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
-import { EventTableInvitationActions } from "./EventTableInvitationActions";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 /** One Table item in both feeds; only the parent-context row varies. */
 export function EventTableCard({
@@ -44,9 +43,8 @@ export function EventTableCard({
         table.eventStatus === "PLANNING" || !table.confirmed || game.id === table.confirmed.gameId,
     ),
     remaining = Math.max(0, games.length - 1);
-  const closed = useEventCutoff(table.bookingClosesAt, table.groupType === "PUBLIC");
-  const canRespond =
-    table.eventStatus === "PLANNING" && table.canRespond && !closed && pending && invited;
+  const attention = useNotificationAttentionContext(),
+    attentionTarget = { kind: "table", id: table.id } as const;
   const counts = [
     {
       icon: UserRoundMinus,
@@ -83,15 +81,12 @@ export function EventTableCard({
     <LinkedListCard
       href={`/events/${table.eventId}/tables/${table.id}${context === "event" ? `?fromEvent=${encodeURIComponent(table.eventId)}` : ""}`}
       label={`${t`Open table`}: ${table.name}`}
+      notificationCount={attention?.get(attentionTarget)?.count}
+      onOpen={() => attention?.read(attentionTarget)}
       leadingActions={
         <HelpPopover label={`${t`Players`}: ${t`Field help`}`} title={t`Players`}>
           <IconLegend items={counts.map(({ icon, description }) => ({ icon, description }))} />
         </HelpPopover>
-      }
-      actions={
-        canRespond && registration ? (
-          <EventTableInvitationActions eventId={table.eventId} registration={registration} />
-        ) : undefined
       }
     >
       <span className="relative size-16 shrink-0">

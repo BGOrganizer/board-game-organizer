@@ -87,6 +87,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
   document.getElementById("page-header-actions")?.remove();
 });
+it("does not retain forbidden cached Table cards or submit their IDs for attention counts", async () => {
+  const original = fetcher.getMockImplementation();
+  if (!original) throw new Error("Missing adapter");
+  let denied = false;
+  fetcher.mockImplementation((url: string, init?: RequestInit) =>
+    denied && url.includes("/tables?")
+      ? Promise.resolve(Response.json({ error: "Forbidden" }, { status: 403 }))
+      : original(url, init),
+  );
+  const client = mount();
+  await screen.findByRole("link", { name: `Open table: ${plannedTable.name}` });
+  denied = true;
+  await act(async () => {
+    await client.refetchQueries({
+      queryKey: eventRecordKeys.tables({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+    });
+  });
+  expect(screen.queryByRole("link", { name: `Open table: ${plannedTable.name}` })).toBeNull();
+  expect(screen.getByText("Could not load tables")).toBeTruthy();
+  client.clear();
+});
 it.each([true, false])(
   "closes manual confirmation and announces intent before HTTP without inventing frozen state: committed=%s",
   async (committed) => {

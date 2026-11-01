@@ -11,6 +11,8 @@ export default defineConfig({
         "src/common/optimisticOperation.ts",
         "src/common/clientMutation.ts",
         "src/notifications/notificationOptimistic.ts",
+        "src/notifications/notificationAttention.ts",
+        "src/notifications/notificationAttentionCache.ts",
         "src/events/eventAgreement.ts",
         "src/events/eventJoinAvailability.ts",
         "src/events/eventRecordPolicy.ts",
@@ -56,6 +58,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/notifications/{notificationAttention,notificationAttentionCache}.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/eventTableSections.ts": {
           lines: 100,
           functions: 100,

@@ -598,8 +598,9 @@ interactive state or browser APIs. Auth middleware leaves `/`, sign-in, and sign
 protects application routes.
 
 Navigation exposes Tables, Events, Groups and Contacts, with Profile separate. Groups has Private,
-Public and Search top tabs: the first two source-page only creator/admin or accepted memberships of
-that immutable type; pending invitations/requests do not qualify. Search retains approved public
+Public and Search top tabs: the first two source-page creator/admin, accepted memberships and
+pending invitations of that immutable type; requests do not qualify. Invitations confer no member
+capabilities before explicit acceptance. Search retains approved public
 Group discovery. BGO moderation remains a contextual Group destination. Group lists share
 platform-specific page/search/filter patterns.
 The main Events list contains participation, administration and demonstrations; standalone creation

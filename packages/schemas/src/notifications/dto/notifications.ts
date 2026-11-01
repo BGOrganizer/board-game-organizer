@@ -1,5 +1,9 @@
 import { z } from "zod";
 import type { NOTIFICATION_KINDS } from "../models/notifications";
+import type {
+  NotificationAttentionReference,
+  NotificationAttentionSummary,
+} from "./notificationAttention";
 
 export const notificationIdSchema = z.string().regex(/^[a-f\d]{24}$/i);
 
@@ -32,12 +36,15 @@ export interface NotificationDto {
   href: string;
   readAt: string | null;
   createdAt: string;
+  /** null means the source explicitly excluded this notification from navigation counts. */
+  attention?: NotificationAttentionReference | null;
 }
 
 export interface NotificationListResponse {
   notifications: NotificationDto[];
   unreadCount: number;
   nextCursor: string | null;
+  attention?: NotificationAttentionSummary;
 }
 
 export type PushSubscriptionInput = z.infer<typeof pushSubscriptionSchema>;

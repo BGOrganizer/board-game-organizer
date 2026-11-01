@@ -18,6 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
 
 type NavLinkProps = {
   href: string;
@@ -25,9 +26,10 @@ type NavLinkProps = {
   icon: LucideIcon;
   exact?: boolean;
   onClick?: () => void;
+  section?: "tables" | "events" | "groups" | "contacts";
 };
 
-function NavLink({ href, label, icon: Icon, exact = false, onClick }: NavLinkProps) {
+function NavLink({ href, label, icon: Icon, exact = false, onClick, section }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
 
@@ -43,6 +45,7 @@ function NavLink({ href, label, icon: Icon, exact = false, onClick }: NavLinkPro
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
       {label}
+      {section ? <NotificationNavigationBadge section={section} /> : null}
     </Link>
   );
 }
@@ -53,10 +56,10 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navLinks = [
-    { href: "/tables", label: t`Tables`, icon: Dices },
-    { href: "/events", label: t`Events`, icon: CalendarDays },
-    { href: "/groups", label: t`Groups`, icon: UsersRound },
-    { href: "/contacts", label: t`Contacts`, icon: ContactRound },
+    { href: "/tables", label: t`Tables`, icon: Dices, section: "tables" as const },
+    { href: "/events", label: t`Events`, icon: CalendarDays, section: "events" as const },
+    { href: "/groups", label: t`Groups`, icon: UsersRound, section: "groups" as const },
+    { href: "/contacts", label: t`Contacts`, icon: ContactRound, section: "contacts" as const },
   ];
 
   return (
@@ -115,7 +118,12 @@ export function Header() {
           <ul className="hidden items-center gap-2 xl:gap-4 lg:flex">
             {navLinks.map((link) => (
               <li key={link.href}>
-                <NavLink href={link.href} label={link.label} icon={link.icon} />
+                <NavLink
+                  href={link.href}
+                  label={link.label}
+                  icon={link.icon}
+                  section={link.section}
+                />
               </li>
             ))}
           </ul>
@@ -168,6 +176,7 @@ export function Header() {
                     href={link.href}
                     label={link.label}
                     icon={link.icon}
+                    section={link.section}
                     onClick={() => setIsMenuOpen(false)}
                   />
                 </li>

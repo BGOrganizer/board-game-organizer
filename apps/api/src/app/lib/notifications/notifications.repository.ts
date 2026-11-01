@@ -18,7 +18,7 @@ export type NotificationEvent =
       resourceHref: string;
     }
   | {
-      kind: "friend_request" | "friend_request_accepted";
+      kind: "friend_request" | "friend_request_accepted" | "follow";
       recipientUserId: string;
       actorUserId: string;
     }

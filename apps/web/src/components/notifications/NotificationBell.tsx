@@ -12,6 +12,7 @@ import { Bell, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { getWebPushToken, isWebPushConfigured } from "@/lib/notifications/webPush";
 
@@ -114,7 +115,6 @@ export function NotificationBell() {
     notifications.markRead.mutate(id);
     router.push(href);
   };
-  const countLabel = notifications.unreadCount > 99 ? "99+" : String(notifications.unreadCount);
   const disabledKeys = [
     "heading",
     ...(notifications.list.isPending ? ["loading"] : []),
@@ -135,11 +135,7 @@ export function NotificationBell() {
       >
         <Badge.Anchor>
           <Bell className="h-5 w-5" />
-          {notifications.unreadCount > 0 && (
-            <Badge color="danger" size="sm">
-              {countLabel}
-            </Badge>
-          )}
+          <NotificationCountBadge count={notifications.unreadCount} corner />
         </Badge.Anchor>
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end" className="w-80 bg-surface sm:w-96">

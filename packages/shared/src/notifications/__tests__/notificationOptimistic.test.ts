@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { emptyAttentionSummary } from "../notificationAttention";
 import { optimisticNotificationData } from "../notificationOptimistic";
 
 const at = "2030-01-01T00:00:00.000Z";
@@ -71,6 +72,48 @@ describe("notification operation projection", () => {
     expect(source.pages[0].notifications).toHaveLength(1);
     expect(source.pages[0].nextCursor).toBe("one");
     expect(optimisticNotificationData(undefined, "delete", undefined, at, false)).toBeUndefined();
+  });
+  it("coordinates hierarchy summaries on single read/delete and bulk actions without changing unknown or already-read slices", () => {
+    const summary = { ...emptyAttentionSummary(), tables: 4, events: 4, groups: 4 };
+    const source = { ...data, pages: data.pages.map((page) => ({ ...page, attention: summary })) };
+    const reference = {
+      target: { kind: "table" as const, id: "11111111-1111-4111-8111-111111111111" },
+      eventId: "22222222-2222-4222-8222-222222222222",
+      groupId: "33333333-3333-4333-8333-333333333333",
+    };
+    for (const action of ["read", "delete"] as const) {
+      const changed = optimisticNotificationData(
+        source,
+        action,
+        "one",
+        at,
+        true,
+        true,
+        reference,
+      ) as typeof source;
+      expect(changed.pages[0].attention).toEqual({ ...summary, tables: 3, events: 3, groups: 3 });
+      expect(
+        (
+          optimisticNotificationData(
+            source,
+            action,
+            "two",
+            at,
+            true,
+            true,
+            reference,
+          ) as typeof source
+        ).pages[0].attention,
+      ).toBe(summary);
+      expect(
+        (optimisticNotificationData(source, action, "one", at, true, true) as typeof source)
+          .pages[0].attention,
+      ).toBe(summary);
+      expect(
+        (optimisticNotificationData(source, action, undefined, at, false) as typeof source).pages[0]
+          .attention,
+      ).toEqual(emptyAttentionSummary());
+    }
   });
   it("marks all loaded rows while preserving existing read timestamps", () => {
     const result = apply("read", undefined);

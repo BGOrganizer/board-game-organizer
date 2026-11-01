@@ -40,6 +40,12 @@ vi.mock("@clerk/nextjs", () => ({
     return (when === "signed-in") === signedIn ? children : fallback;
   },
   useUser: () => useUserMock(),
+  useAuth: () => ({
+    userId: "user_1",
+    getToken: async () => "fresh",
+    isLoaded: true,
+    isSignedIn: true,
+  }),
   SignInButton: ({ children }: { children: React.ReactNode }) => (
     <button type="button">{children}</button>
   ),

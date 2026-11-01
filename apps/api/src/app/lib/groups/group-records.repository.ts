@@ -312,6 +312,68 @@ export class GroupRecordsRepository {
       )
       .toArray();
   }
+  /** Mongo equivalent of canReadGroup; used for bounded notification-resource joins. */
+  readableStages(userId: string, now: string, moderator = false): Record<string, unknown>[] {
+    return [
+      { $match: { type: { $in: ["PRIVATE", "PUBLIC"] } } },
+      {
+        $lookup: {
+          from: COLLECTIONS.GROUP_MEMBERSHIPS,
+          localField: "id",
+          foreignField: "groupId",
+          pipeline: [
+            {
+              $match: {
+                userId,
+                $or: [{ status: "ACCEPTED" }, { kind: "INVITATION", status: "PENDING" }],
+              },
+            },
+            { $limit: 1 },
+          ],
+          as: "readMembership",
+        },
+      },
+      {
+        $lookup: {
+          from: COLLECTIONS.GROUP_BANS,
+          localField: "id",
+          foreignField: "groupId",
+          pipeline: [
+            {
+              $match: {
+                userId,
+                revokedAt: { $exists: false },
+                $or: [{ until: null }, { until: { $gt: now } }],
+              },
+            },
+            { $limit: 1 },
+          ],
+          as: "readBan",
+        },
+      },
+      {
+        $match: {
+          $or: [
+            ...(moderator ? [{ type: "PUBLIC" }] : []),
+            {
+              $and: [
+                { "readBan.0": { $exists: false } },
+                {
+                  $or: [
+                    { adminUserId: userId },
+                    {
+                      approved: { $exists: true },
+                      $or: [{ type: "PUBLIC" }, { "readMembership.0": { $exists: true } }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+  }
   async list(
     userId: string,
     scope: "mine" | "public" | "moderation",

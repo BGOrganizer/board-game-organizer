@@ -1,9 +1,13 @@
 import { fireEvent, screen, within } from "@testing-library/react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Contacts } from "@/components/contacts/Contacts";
 import { renderWithI18n } from "@/test-utils";
 
+// Graph/menu units isolate the attention workflow; its real Query behavior has separate tests.
+vi.mock("@/components/notifications/NotificationAttentionScope", () => ({
+  NotificationAttentionScope: ({ children }: { children: ReactNode }) => children,
+}));
 const mocks = vi.hoisted(() => ({
   friendRequest: vi.fn(),
   unfriend: vi.fn(),
@@ -50,6 +54,7 @@ vi.mock("@clerk/nextjs", () => ({
 vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@board-game-organizer/shared")>()),
   reportPresence: vi.fn().mockResolvedValue({ success: true }),
+  useReadNotificationAttention: () => ({ read: vi.fn(), error: null }),
   resolveApiUrl: (url?: string | null) => url || "http://localhost:4000",
   useContacts: () => ({
     following: {

@@ -40,6 +40,12 @@ vi.mock("@clerk/nextjs", () => ({
     <button type="button">{children}</button>
   ),
   UserButton: () => null,
+  useAuth: () => ({
+    userId: "user_1",
+    getToken: async () => "fresh",
+    isLoaded: true,
+    isSignedIn: true,
+  }),
 }));
 
 vi.mock("@/components/common/providers/SessionQueryProvider", () => ({

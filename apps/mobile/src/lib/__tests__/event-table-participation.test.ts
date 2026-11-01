@@ -72,7 +72,7 @@ it.each([false, true])(
     expect(setConfirm).toHaveBeenLastCalledWith(null);
   },
 );
-it.each(["EventDetail", "EventTableOverview", "EventTableCard", "EventInvitationPicker"])(
+it.each(["EventDetail", "EventTableOverview", "EventInvitationPicker"])(
   "uses exact boundary timer in %s instead of waiting for a list refetch",
   (name) => expect(source(name)).toContain("useEventCutoff"),
 );

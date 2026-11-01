@@ -2,11 +2,15 @@ import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { groupRecordsPageQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { Groups } from "../Groups";
 
+vi.mock("@/components/notifications/NotificationAttentionScope", () => ({
+  NotificationAttentionScope: ({ children }: { children: ReactNode }) => children,
+}));
 const options = {
   apiUrl: "https://api.test",
   userId: "owner",
@@ -63,9 +67,11 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
   expect(screen.getByRole("tab", { name: "Private groups", selected: true })).toBeTruthy();
   await screen.findByRole("link", { name: "Open group: Friday group" });
   expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
-  expect(screen.queryByText("Invited")).toBeNull();
+  expect(screen.getByText("Invited")).toBeTruthy();
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("type")).toBe("PRIVATE");
-  expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("roles")).toBe("admin,accepted");
+  expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("roles")).toBe(
+    "admin,invited,accepted",
+  );
   fireEvent.click(screen.getByRole("tab", { name: "Public groups" }));
   await screen.findByRole("link", { name: "Open group: Public owned group" });
   expect(screen.queryByRole("link", { name: "Open group: Friday group" })).toBeNull();
@@ -119,7 +125,7 @@ it("keeps public membership paging source-filtered by type and roles, without cr
     const params = new URL(input).searchParams;
     expect(params.get("scope")).toBe("mine");
     expect(params.get("type")).toBe("PUBLIC");
-    expect(params.get("roles")).toBe("admin,accepted");
+    expect(params.get("roles")).toBe("admin,invited,accepted");
   }
   expect(new URL(fetcher.mock.calls[1][0]).searchParams.get("cursor")).toBe(cursor);
 });

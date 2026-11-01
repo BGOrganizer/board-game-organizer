@@ -1,5 +1,6 @@
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { ReactElement } from "react";
@@ -25,9 +26,14 @@ import { messages } from "../../../messages/en.js";
  */
 export function renderWithI18n(ui: ReactElement) {
   const i18n = setupI18n({ locale: "en", messages: { en: messages } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   const wrap = (value: ReactElement) => (
     <AppRouterContext.Provider value={router}>
-      <I18nProvider i18n={i18n}>{value}</I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider i18n={i18n}>{value}</I18nProvider>
+      </QueryClientProvider>
     </AppRouterContext.Provider>
   );
   const view = render(wrap(ui));

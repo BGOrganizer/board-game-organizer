@@ -11,6 +11,12 @@ export function notificationCopy(
   if (community) return community;
   if (locale === "it") {
     switch (kind) {
+      case "follow":
+        return {
+          title: "Nuovo follower",
+          description: `${actorName} ha iniziato a seguirti.`,
+          href: "/contacts",
+        };
       case "friend_request":
         return {
           title: "Nuova richiesta di amicizia",
@@ -81,6 +87,12 @@ export function notificationCopy(
   }
 
   switch (kind) {
+    case "follow":
+      return {
+        title: "New follower",
+        description: `${actorName} started following you.`,
+        href: "/contacts",
+      };
     case "friend_request":
       return {
         title: "New friend request",

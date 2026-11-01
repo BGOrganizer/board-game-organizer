@@ -18,7 +18,7 @@ import {
 } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventJoinSheet } from "../EventJoinSheet";
-import { EventTableCard } from "../EventTableCard";
+import { EventTableInvitationActions } from "../EventTableInvitationActions";
 
 const token = vi.hoisted(() => vi.fn(async () => "fresh-guest-token"));
 const options = { apiUrl: "https://api.test", userId: "guest", getToken: token };
@@ -105,9 +105,13 @@ afterEach(() => {
   for (const c of clients.splice(0)) c.clear();
   vi.unstubAllGlobals();
 });
-function LiveCard() {
+function LiveDetailActions() {
   const query = useRecordTable(options, eventId, tableId);
-  return query.data ? <EventTableCard table={query.data} /> : null;
+  return query.data?.myRegistration ? (
+    <section aria-label="Table details">
+      <EventTableInvitationActions eventId={eventId} registration={query.data.myRegistration} />
+    </section>
+  ) : null;
 }
 function createClient() {
   const c = new QueryClient({
@@ -120,7 +124,7 @@ async function mount() {
   const client = createClient();
   renderWithI18n(
     <QueryClientProvider client={client}>
-      <LiveCard />
+      <LiveDetailActions />
     </QueryClientProvider>,
   );
   fireEvent.click(await screen.findByRole("button", { name: "Accept invitation" }));

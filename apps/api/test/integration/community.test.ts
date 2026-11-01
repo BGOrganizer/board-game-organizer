@@ -2710,7 +2710,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(repeat.every((result) => result.status === "rejected")).toBe(true);
     expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(4);
   });
-  it("source-pages private and public owned memberships before the limit, excluding pending/requested/left/banned and legacy Groups", async () => {
+  it("source-pages private/public admin, member and pending invitation roles, excluding requests/left/banned and legacy Groups", async () => {
     const rows: Array<{
       id: string;
       type: "PRIVATE" | "PUBLIC";
@@ -2777,7 +2777,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
             until: null,
             createdAt,
           });
-        rows.push({ id, type, createdAt, eligible: role === "admin" || role === "member" });
+        rows.push({ id, type, createdAt, eligible: ["admin", "member", "invited"].includes(role) });
       }
     }
     const proposalId = randomUUID(),
@@ -2824,8 +2824,16 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         });
         expect(page.items).toHaveLength(Math.min(2, expected.length - actual.length));
         expect(
-          page.items.every((row) => row.type === type && ["admin", "accepted"].includes(row.role)),
+          page.items.every(
+            (row) => row.type === type && ["admin", "accepted", "invited"].includes(row.role),
+          ),
         ).toBe(true);
+        for (const row of page.items.filter((item) => item.role === "invited")) {
+          expect(row.myMembership?.status).toBe("PENDING");
+          expect(row.canViewEvents).toBe(false);
+          expect(row.canViewRankings).toBe(false);
+          expect(row.canSocialInteract).toBe(false);
+        }
         actual.push(...page.items.map((row) => row.id));
         cursor = page.nextCursor ?? undefined;
       } while (cursor);

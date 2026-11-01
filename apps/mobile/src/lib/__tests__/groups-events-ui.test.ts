@@ -12,7 +12,7 @@ it("owns three top Group tabs, limits owned lists to member roles, and confines 
   expect(tabs.indexOf('value="private"')).toBeLessThan(tabs.indexOf('value="public"'));
   expect(tabs.indexOf('value="public"')).toBeLessThan(tabs.indexOf('value="search"'));
   expect(source("groups", "GroupList")).toContain("useListSearch(groupRecordMemberRoles)");
-  expect(source("groups", "GroupList")).not.toContain('key: "invited"');
+  expect(source("groups", "GroupList")).toContain('key: "invited"');
   expect(tabs).toContain('value="search"');
   expect(tabs).toContain('section === "search" ? "public" : "mine"');
   expect(source("groups", "GroupList")).not.toContain('t("Search public groups")');
@@ -114,7 +114,8 @@ it("shares one Table card across personal/Event lists with only the parent metad
     expect(card).toContain(`table.${field}`);
   expect(card).toContain('id: "event.table.moreGames"');
   expect(card).toContain("<EventTableRatingBadge");
-  expect(card).toContain("<EventTableInvitationActions");
+  expect(card).not.toContain("<EventTableInvitationActions");
+  expect(source("events", "EventTableSeats")).toContain("<EventTableInvitationActions");
   expect(card).toContain("table.demonstratorUserId");
   expect(card).not.toContain('t("Reserved place")');
 });

@@ -1,5 +1,9 @@
-import type { NotificationListResponse } from "@board-game-organizer/schemas";
+import type {
+  NotificationAttentionReference,
+  NotificationListResponse,
+} from "@board-game-organizer/schemas";
 import type { InfiniteData } from "@tanstack/react-query";
+import { emptyAttentionSummary, subtractAttention } from "./notificationAttention";
 
 /** Project owned inboxes and bell counters without creating missing cache data. */
 export function optimisticNotificationData(
@@ -9,6 +13,7 @@ export function optimisticNotificationData(
   readAt: string,
   knownUnread: boolean,
   wasLoaded = false,
+  reference?: NotificationAttentionReference,
 ): unknown {
   if (!data) return data;
   const current = data as InfiniteData<NotificationListResponse>;
@@ -19,6 +24,15 @@ export function optimisticNotificationData(
     pages: current.pages.map((page) => ({
       ...page,
       unreadCount: id ? Math.max(0, page.unreadCount - Number(unread)) : 0,
+      ...(page.attention
+        ? {
+            attention: !id
+              ? emptyAttentionSummary()
+              : reference && unread
+                ? subtractAttention(page.attention, reference, 1)
+                : page.attention,
+          }
+        : {}),
       nextCursor: action === "delete" && !id ? null : page.nextCursor,
       notifications:
         action === "delete"

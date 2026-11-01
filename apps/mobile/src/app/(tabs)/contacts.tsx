@@ -6,6 +6,8 @@ import {
   type SyncedContactIdentifiers,
   useContacts,
   useInvites,
+  useNotificationAttentionContext,
+  useReadNotificationAttention,
 } from "@board-game-organizer/shared";
 import * as Sentry from "@sentry/react-native";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,6 +39,7 @@ import { AppState, FlatList, Linking, Pressable, Share, View } from "react-nativ
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
@@ -47,6 +50,7 @@ import {
 import { UserList as ContactList } from "@/components/common/ui/UserList";
 import { UserListRow } from "@/components/common/ui/UserListRow";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { type ContactTab, contactSearchRows, contactTab } from "@/lib/contacts/contacts";
 import {
   pendingRegisteredContacts,
@@ -107,6 +111,15 @@ export default function ContactsScreen() {
   const t = useT();
   const foreground = useThemeColor("foreground");
   const mutationFeedback = useMutationFeedback();
+  const attentionOptions = {
+    apiUrl: apiUrl(),
+    getToken,
+    userId,
+    enabled: isLoaded && Boolean(isSignedIn),
+    feedback: mutationFeedback,
+  };
+  const attentionRead = useReadNotificationAttention(attentionOptions);
+  const readSection = (id: ContactTab) => attentionRead.read({ kind: "contacts", id });
   const router = useRouter();
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string | string[] }>();
   const tab = contactTab(tabParam);
@@ -573,6 +586,7 @@ export default function ContactsScreen() {
   ) => (
     <UserListRow
       key={user.id}
+      cornerBadge={<ContactAttentionBadge userId={user.id} />}
       name={user.name}
       avatarUrl={user.avatarUrl}
       secondary={user.email}
@@ -603,314 +617,367 @@ export default function ContactsScreen() {
   );
 
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      <Tabs
-        style={{ flex: 1 }}
-        value={tab}
-        onValueChange={(value) => router.setParams({ tab: value as ContactTab })}
-        variant="primary"
-      >
-        <TabBar>
-          <Tabs.Trigger value="connections" style={{ flex: 1 }}>
-            <Tabs.Label>{t("Connections")}</Tabs.Label>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="requests" style={{ flex: 1 }}>
-            <Tabs.Label>{t("Requests")}</Tabs.Label>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="search" style={{ flex: 1 }}>
-            <Tabs.Label>{t("Search")}</Tabs.Label>
-          </Tabs.Trigger>
-        </TabBar>
+    <NotificationAttentionScope
+      options={attentionOptions}
+      targets={[
+        { kind: "contacts", id: "connections" },
+        { kind: "contacts", id: "requests" },
+        { kind: "contacts", id: "search" },
+        ...[
+          ...connections.flatMap((section) => section.users),
+          ...searchResults,
+          ...pendingRows.flatMap((row) => (row.profile ? [row.profile] : [])),
+          ...sentRows.flatMap((row) => (row.profile ? [row.profile] : [])),
+        ].map((user) => ({ kind: "contact" as const, id: user.id })),
+      ]}
+    >
+      <View style={{ flex: 1, padding: 20 }}>
+        <Tabs
+          style={{ flex: 1 }}
+          value={tab}
+          onValueChange={(value) => {
+            const next = contactTab(value);
+            readSection(next);
+            router.setParams({ tab: next });
+          }}
+          variant="primary"
+        >
+          <TabBar style={{ overflow: "visible", marginTop: 8, marginRight: 8 }}>
+            <Tabs.Trigger value="connections" style={{ flex: 1, overflow: "visible" }}>
+              <Tabs.Label>{t("Connections")}</Tabs.Label>
+              <ContactSectionBadge section="connections" />
+            </Tabs.Trigger>
+            <Tabs.Trigger value="requests" style={{ flex: 1, overflow: "visible" }}>
+              <Tabs.Label>{t("Requests")}</Tabs.Label>
+              <ContactSectionBadge section="requests" />
+            </Tabs.Trigger>
+            <Tabs.Trigger value="search" style={{ flex: 1, overflow: "visible" }}>
+              <Tabs.Label>{t("Search")}</Tabs.Label>
+              <ContactSectionBadge section="search" />
+            </Tabs.Trigger>
+          </TabBar>
 
-        <Tabs.Content value="search" style={{ flex: 1 }}>
-          <FlatList
-            style={{ flex: 1 }}
-            contentContainerStyle={{ gap: 8, paddingBottom: 24 }}
-            keyboardShouldPersistTaps="handled"
-            data={searchRows}
-            keyExtractor={(row) => row.id}
-            onEndReached={() => {
-              if (contacts.suggestions.hasNextPage) {
-                if (
-                  !contacts.suggestions.isFetchingNextPage &&
-                  !contacts.suggestions.isFetchNextPageError
-                )
-                  void contacts.suggestions.fetchNextPage();
-              } else void loadDevicePage();
-            }}
-            onEndReachedThreshold={0.5}
-            initialNumToRender={12}
-            maxToRenderPerBatch={12}
-            windowSize={7}
-            ListFooterComponent={
-              <>
-                {loadingDevicePage || syncingContacts || contacts.suggestions.isFetchingNextPage ? (
-                  <ContactListSkeleton count={2} />
-                ) : null}
-                {contacts.suggestions.isFetchNextPageError ? (
-                  <Button variant="ghost" onPress={() => void contacts.suggestions.fetchNextPage()}>
-                    <Typography>{t("Retry")}</Typography>
-                  </Button>
-                ) : null}
-              </>
-            }
-            ListHeaderComponent={
-              <View style={{ marginBottom: 12, gap: 8 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <SearchHelpLabel
-                      label={t("Search users by name or email")}
-                      help={t("Type at least 4 characters to search")}
-                    />
-                    <SearchInput
-                      testID="contact-search-input"
-                      value={query}
-                      onChange={(value) => {
-                        setQuery(value);
-                        if (!value) contacts.runSearch("");
-                      }}
-                      label={t("Search users by name or email")}
-                      placeholder={t("Search users")}
-                    />
-                  </View>
-                  {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+          <Tabs.Content value="search" style={{ flex: 1 }}>
+            <FlatList
+              style={{ flex: 1 }}
+              contentContainerStyle={{ gap: 8, paddingTop: 8, paddingRight: 8, paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
+              data={searchRows}
+              keyExtractor={(row) => row.id}
+              onEndReached={() => {
+                if (contacts.suggestions.hasNextPage) {
+                  if (
+                    !contacts.suggestions.isFetchingNextPage &&
+                    !contacts.suggestions.isFetchNextPageError
+                  )
+                    void contacts.suggestions.fetchNextPage();
+                } else void loadDevicePage();
+              }}
+              onEndReachedThreshold={0.5}
+              initialNumToRender={12}
+              maxToRenderPerBatch={12}
+              windowSize={7}
+              ListFooterComponent={
+                <>
+                  {loadingDevicePage ||
+                  syncingContacts ||
+                  contacts.suggestions.isFetchingNextPage ? (
+                    <ContactListSkeleton count={2} />
+                  ) : null}
+                  {contacts.suggestions.isFetchNextPageError ? (
                     <Button
-                      isIconOnly
-                      variant="outline"
-                      accessibilityLabel={t("Add contacts")}
-                      onPress={confirmAndRequestContacts}
-                      isDisabled={requestingContacts || syncingContacts}
-                      testID="enable-contacts-btn"
+                      variant="ghost"
+                      onPress={() => void contacts.suggestions.fetchNextPage()}
                     >
-                      <BookUser size={18} color="#111" />
+                      <Typography>{t("Retry")}</Typography>
                     </Button>
                   ) : null}
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Search size={18} color={foreground} />
-                  <Typography accessibilityRole="header" className="font-semibold text-foreground">
-                    {t("Search results")}
-                  </Typography>
-                </View>
-                {query.trim().length < 4 && (
-                  <EmptyList icon={<Search size={28} color="#737373" />}>
-                    {t("Type at least 4 characters to search")}
-                  </EmptyList>
-                )}
-                {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-                {query.trim().length >= 4 &&
-                  !contacts.search.isLoading &&
-                  !contacts.search.isError &&
-                  searchResults.length === 0 && (
-                    <EmptyList icon={<SearchX size={28} color="#737373" />}>
-                      {t("No users found")}
-                    </EmptyList>
-                  )}
-                {contacts.search.isError ? (
-                  <Typography className="text-danger">{t("Could not load contacts")}</Typography>
-                ) : null}
-              </View>
-            }
-            renderItem={({ item }) => {
-              if (item.kind === "user" || item.kind === "bgo") {
-                return <GroupedList>{contactRow(item.user)}</GroupedList>;
+                </>
               }
-              if (item.kind === "device-header") {
-                return (
-                  <View style={{ gap: 8 }}>
+              ListHeaderComponent={
+                <View style={{ marginBottom: 12, gap: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <SearchHelpLabel
+                        label={t("Search users by name or email")}
+                        help={t("Type at least 4 characters to search")}
+                      />
+                      <SearchInput
+                        testID="contact-search-input"
+                        value={query}
+                        onChange={(value) => {
+                          setQuery(value);
+                          if (!value) contacts.runSearch("");
+                        }}
+                        label={t("Search users by name or email")}
+                        placeholder={t("Search users")}
+                      />
+                    </View>
+                    {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                      <Button
+                        isIconOnly
+                        variant="outline"
+                        accessibilityLabel={t("Add contacts")}
+                        onPress={confirmAndRequestContacts}
+                        isDisabled={requestingContacts || syncingContacts}
+                        testID="enable-contacts-btn"
+                      >
+                        <BookUser size={18} color="#111" />
+                      </Button>
+                    ) : null}
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Search size={18} color={foreground} />
                     <Typography
                       accessibilityRole="header"
                       className="font-semibold text-foreground"
                     >
-                      {t("Device Contacts")}
+                      {t("Search results")}
                     </Typography>
-                    {contacts.suggestions.isLoading || contactsPermission === "checking" ? (
-                      <ContactListSkeleton count={2} />
-                    ) : null}
-                    {contacts.suggestions.isError ? (
-                      <Typography accessibilityRole="alert" className="text-danger">
-                        {t("Could not load contacts")}
-                      </Typography>
-                    ) : null}
-                    {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
-                      <Typography className="text-muted">
-                        {t("Allow address book access to find your friends here.")}
-                      </Typography>
-                    ) : null}
-                    {contactsPermission === "granted" &&
-                    (contacts.syncContacts.isError || contactsReadError) ? (
-                      <Button variant="outline" onPress={() => void syncContactsData()}>
-                        <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
-                      </Button>
-                    ) : null}
-                    {contactsPermission === "granted" &&
-                    !syncingContacts &&
-                    !contacts.syncContacts.isError &&
-                    !contactsReadError &&
-                    !loadingDevicePage &&
-                    !hasMoreDeviceContacts &&
-                    !contacts.suggestions.isLoading &&
-                    !contacts.suggestions.isError &&
-                    bgoContacts.length === 0 &&
-                    unregistered.length === 0 ? (
-                      <EmptyList icon={<BookUser size={28} color="#737373" />}>
-                        {t("No contacts to invite")}
-                      </EmptyList>
-                    ) : null}
-                    {invite.isError ? (
-                      <Typography className="text-danger">
-                        {t("Could not create the invite. Try again.")}
-                      </Typography>
-                    ) : null}
                   </View>
-                );
+                  {query.trim().length < 4 && (
+                    <EmptyList icon={<Search size={28} color="#737373" />}>
+                      {t("Type at least 4 characters to search")}
+                    </EmptyList>
+                  )}
+                  {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+                  {query.trim().length >= 4 &&
+                    !contacts.search.isLoading &&
+                    !contacts.search.isError &&
+                    searchResults.length === 0 && (
+                      <EmptyList icon={<SearchX size={28} color="#737373" />}>
+                        {t("No users found")}
+                      </EmptyList>
+                    )}
+                  {contacts.search.isError ? (
+                    <Typography className="text-danger">{t("Could not load contacts")}</Typography>
+                  ) : null}
+                </View>
               }
-              const contact = item.contact;
-              return (
-                <GroupedList>
-                  <UserListRow
-                    name={contact.name}
-                    actions={
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="outline"
-                        style={{ minWidth: 44, minHeight: 44 }}
-                        isDisabled={invite.isPending}
-                        accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
-                        onPress={() =>
-                          invite.mutate(undefined, {
-                            onSuccess: (created) => {
-                              void Share.share({ message: created.link }).catch(() => {});
-                            },
-                          })
-                        }
+              renderItem={({ item }) => {
+                if (item.kind === "user" || item.kind === "bgo") {
+                  return (
+                    <GroupedList style={{ overflow: "visible" }}>
+                      {contactRow(item.user)}
+                    </GroupedList>
+                  );
+                }
+                if (item.kind === "device-header") {
+                  return (
+                    <View style={{ gap: 8 }}>
+                      <Typography
+                        accessibilityRole="header"
+                        className="font-semibold text-foreground"
                       >
-                        <UserPlus size={18} color={foreground} />
-                      </Button>
-                    }
-                  />
-                </GroupedList>
-              );
-            }}
-          />
-        </Tabs.Content>
+                        {t("Device Contacts")}
+                      </Typography>
+                      {contacts.suggestions.isLoading || contactsPermission === "checking" ? (
+                        <ContactListSkeleton count={2} />
+                      ) : null}
+                      {contacts.suggestions.isError ? (
+                        <Typography accessibilityRole="alert" className="text-danger">
+                          {t("Could not load contacts")}
+                        </Typography>
+                      ) : null}
+                      {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                        <Typography className="text-muted">
+                          {t("Allow address book access to find your friends here.")}
+                        </Typography>
+                      ) : null}
+                      {contactsPermission === "granted" &&
+                      (contacts.syncContacts.isError || contactsReadError) ? (
+                        <Button variant="outline" onPress={() => void syncContactsData()}>
+                          <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+                        </Button>
+                      ) : null}
+                      {contactsPermission === "granted" &&
+                      !syncingContacts &&
+                      !contacts.syncContacts.isError &&
+                      !contactsReadError &&
+                      !loadingDevicePage &&
+                      !hasMoreDeviceContacts &&
+                      !contacts.suggestions.isLoading &&
+                      !contacts.suggestions.isError &&
+                      bgoContacts.length === 0 &&
+                      unregistered.length === 0 ? (
+                        <EmptyList icon={<BookUser size={28} color="#737373" />}>
+                          {t("No contacts to invite")}
+                        </EmptyList>
+                      ) : null}
+                      {invite.isError ? (
+                        <Typography className="text-danger">
+                          {t("Could not create the invite. Try again.")}
+                        </Typography>
+                      ) : null}
+                    </View>
+                  );
+                }
+                const contact = item.contact;
+                return (
+                  <GroupedList>
+                    <UserListRow
+                      name={contact.name}
+                      actions={
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="outline"
+                          style={{ minWidth: 44, minHeight: 44 }}
+                          isDisabled={invite.isPending}
+                          accessibilityLabel={`${t("Send invite")}: ${contact.name}`}
+                          onPress={() =>
+                            invite.mutate(undefined, {
+                              onSuccess: (created) => {
+                                void Share.share({ message: created.link }).catch(() => {});
+                              },
+                            })
+                          }
+                        >
+                          <UserPlus size={18} color={foreground} />
+                        </Button>
+                      }
+                    />
+                  </GroupedList>
+                );
+              }}
+            />
+          </Tabs.Content>
 
-        <Tabs.Content value="requests" style={{ flex: 1 }}>
-          <ContactLegend
-            title={t("Requests")}
-            icon={Mail}
-            entries={[
-              {
-                icon: Mail,
-                label: t("Received"),
-                color: "accent",
-                description: t("Requests awaiting your reply."),
-              },
-              {
-                icon: Send,
-                label: t("Sent"),
-                color: "warning",
-                description: t("Requests awaiting their reply."),
-              },
-            ]}
-          />
-          <ContactList
-            data={requestRows}
-            pages={requestPages}
-            keyExtractor={({ row, type }) =>
-              `${type}-${row.profile?.id ?? `${row.fromUserId}-${row.toUserId}`}`
-            }
-            renderRow={({ row, type }) =>
-              row.profile
-                ? contactRow(row.profile, type === "received" ? "incoming" : "outgoing", {
-                    icon: type === "received" ? Mail : Send,
-                    label: type === "received" ? t("Received") : t("Sent"),
-                    color: type === "received" ? "accent" : "warning",
-                  })
-                : null
-            }
-            empty={t("No friend requests")}
-            emptyIcon={<Mail size={28} color="#737373" />}
-            error={t("Could not load friend requests")}
-            skeleton={<ContactListSkeleton count={2} />}
-          />
-        </Tabs.Content>
+          <Tabs.Content value="requests" style={{ flex: 1 }}>
+            <ContactLegend
+              title={t("Requests")}
+              icon={Mail}
+              entries={[
+                {
+                  icon: Mail,
+                  label: t("Received"),
+                  color: "accent",
+                  description: t("Requests awaiting your reply."),
+                },
+                {
+                  icon: Send,
+                  label: t("Sent"),
+                  color: "warning",
+                  description: t("Requests awaiting their reply."),
+                },
+              ]}
+            />
+            <ContactList
+              rowStyle={{ overflow: "visible" }}
+              contentContainerStyle={{ paddingTop: 8, paddingRight: 8 }}
+              data={requestRows}
+              pages={requestPages}
+              keyExtractor={({ row, type }) =>
+                `${type}-${row.profile?.id ?? `${row.fromUserId}-${row.toUserId}`}`
+              }
+              renderRow={({ row, type }) =>
+                row.profile
+                  ? contactRow(row.profile, type === "received" ? "incoming" : "outgoing", {
+                      icon: type === "received" ? Mail : Send,
+                      label: type === "received" ? t("Received") : t("Sent"),
+                      color: type === "received" ? "accent" : "warning",
+                    })
+                  : null
+              }
+              empty={t("No friend requests")}
+              emptyIcon={<Mail size={28} color="#737373" />}
+              error={t("Could not load friend requests")}
+              skeleton={<ContactListSkeleton count={2} />}
+            />
+          </Tabs.Content>
 
-        <Tabs.Content value="connections" style={{ flex: 1 }}>
-          <ContactLegend
-            title={t("Connections")}
-            icon={UsersRound}
-            entries={(["friends", "following", "followers", "blocked"] as const).map((type) => ({
-              icon: connectionIcons[type],
-              label: connectionLabels[type],
-              color: connectionColors[type],
-              description: connectionDescriptions[type],
-            }))}
-          />
-          <ContactList
-            data={connectionRows}
-            pages={connectionQueries}
-            keyExtractor={({ user }) => user.id}
-            renderRow={({ user, type }) =>
-              contactRow(user, undefined, {
+          <Tabs.Content value="connections" style={{ flex: 1 }}>
+            <ContactLegend
+              title={t("Connections")}
+              icon={UsersRound}
+              entries={(["friends", "following", "followers", "blocked"] as const).map((type) => ({
                 icon: connectionIcons[type],
                 label: connectionLabels[type],
                 color: connectionColors[type],
-              })
-            }
-            empty={t("No connections yet")}
-            emptyIcon={<UsersRound size={28} color="#737373" />}
-            error={t("Could not load contacts")}
-            skeleton={<ContactListSkeleton count={2} />}
-            footer={
-              <>
-                {syncingContacts || contactsPermission === "checking" ? (
-                  <ContactListSkeleton count={2} />
-                ) : null}
-                {contactsPermission === "granted" &&
-                (contactsReadError || contacts.syncContacts.isError) ? (
-                  <Button variant="outline" onPress={() => void syncContactsData()}>
-                    <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
-                  </Button>
-                ) : null}
-              </>
-            }
-          />
-        </Tabs.Content>
-      </Tabs>
+                description: connectionDescriptions[type],
+              }))}
+            />
+            <ContactList
+              rowStyle={{ overflow: "visible" }}
+              contentContainerStyle={{ paddingTop: 8, paddingRight: 8 }}
+              data={connectionRows}
+              pages={connectionQueries}
+              keyExtractor={({ user }) => user.id}
+              renderRow={({ user, type }) =>
+                contactRow(user, undefined, {
+                  icon: connectionIcons[type],
+                  label: connectionLabels[type],
+                  color: connectionColors[type],
+                })
+              }
+              empty={t("No connections yet")}
+              emptyIcon={<UsersRound size={28} color="#737373" />}
+              error={t("Could not load contacts")}
+              skeleton={<ContactListSkeleton count={2} />}
+              footer={
+                <>
+                  {syncingContacts || contactsPermission === "checking" ? (
+                    <ContactListSkeleton count={2} />
+                  ) : null}
+                  {contactsPermission === "granted" &&
+                  (contactsReadError || contacts.syncContacts.isError) ? (
+                    <Button variant="outline" onPress={() => void syncContactsData()}>
+                      <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+                    </Button>
+                  ) : null}
+                </>
+              }
+            />
+          </Tabs.Content>
+        </Tabs>
 
-      {contactsConsentOpen ? (
-        <ConfirmDialog
-          title={t("Access to contacts")}
-          description={t(
-            "Allow Board Game Organizer to access your contacts to find your friends?",
-          )}
-          busy={requestingContacts || syncingContacts}
-          onCancel={() => setContactsConsentOpen(false)}
-          actions={[
-            {
-              label: t("Yes"),
-              variant: "primary",
-              onPress: () => {
-                setContactsConsentOpen(false);
-                setRequestingContacts(true);
-                void requestContactsAccess().finally(() => setRequestingContacts(false));
+        {contactsConsentOpen ? (
+          <ConfirmDialog
+            title={t("Access to contacts")}
+            description={t(
+              "Allow Board Game Organizer to access your contacts to find your friends?",
+            )}
+            busy={requestingContacts || syncingContacts}
+            onCancel={() => setContactsConsentOpen(false)}
+            actions={[
+              {
+                label: t("Yes"),
+                variant: "primary",
+                onPress: () => {
+                  setContactsConsentOpen(false);
+                  setRequestingContacts(true);
+                  void requestContactsAccess().finally(() => setRequestingContacts(false));
+                },
               },
-            },
-          ]}
+            ]}
+          />
+        ) : null}
+        <UserActionsSheet
+          visible={menuUser !== null}
+          user={menuUser}
+          busy={menuUser !== null && contacts.isBusy(menuUser.id)}
+          canSendFriendRequest={menuUser !== null && canSendFriendRequest(menuUser)}
+          friendRequest={menuFriendRequest}
+          initialConfirmAction={initialConfirmAction}
+          onClose={closeUserActions}
+          onAction={(key) => (menuUser ? handleUserAction(menuUser)(key) : Promise.resolve())}
         />
-      ) : null}
-      <UserActionsSheet
-        visible={menuUser !== null}
-        user={menuUser}
-        busy={menuUser !== null && contacts.isBusy(menuUser.id)}
-        canSendFriendRequest={menuUser !== null && canSendFriendRequest(menuUser)}
-        friendRequest={menuFriendRequest}
-        initialConfirmAction={initialConfirmAction}
-        onClose={closeUserActions}
-        onAction={(key) => (menuUser ? handleUserAction(menuUser)(key) : Promise.resolve())}
-      />
-    </View>
+      </View>
+    </NotificationAttentionScope>
+  );
+}
+function ContactAttentionBadge({ userId }: { userId: string }) {
+  const attention = useNotificationAttentionContext();
+  return (
+    <NotificationCountBadge count={attention?.get({ kind: "contact", id: userId })?.count} corner />
+  );
+}
+function ContactSectionBadge({ section }: { section: ContactTab }) {
+  const attention = useNotificationAttentionContext();
+  return (
+    <NotificationCountBadge
+      count={attention?.get({ kind: "contacts", id: section })?.count}
+      corner
+    />
   );
 }

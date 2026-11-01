@@ -62,9 +62,13 @@ it("keeps personal Table metadata/counts compact and puts pending type badges on
   expect(badge).toContain("bottom: 0");
   expect(badge).toContain('kind === "invitation" ? Mail : Clock3');
 });
-it("shares native invitation dimensions, semantic variants and icons between Group and Table cards", () => {
+it("keeps shared invitation dimensions and semantic controls in details, never list cards", () => {
   expect(source("events/EventTableInvitationActions")).toContain("<InvitationActions");
-  expect(source("groups/GroupCard")).toContain("<InvitationActions");
+  expect(source("groups/GroupCard")).not.toContain("<InvitationActions");
+  expect(source("events/EventTableCard")).not.toContain("<EventTableInvitationActions");
+  expect(source("groups/GroupInvitationCard")).toContain("onPress={onAccept}");
+  expect(source("groups/GroupInvitationCard")).toContain("onPress={onDecline}");
+  expect(source("events/EventTableSeats")).toContain("<EventTableInvitationActions");
   const actions = source("common/ui/InvitationActions");
   expect(actions).toContain('variant="primary"');
   expect(actions).toContain('variant="danger-soft"');

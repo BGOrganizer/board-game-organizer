@@ -10,6 +10,7 @@ import { Button, Input, Label, Skeleton, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 export function GroupReview({ groupId }: { groupId: string }) {
@@ -54,30 +55,36 @@ export function GroupReview({ groupId }: { groupId: string }) {
       </div>
     );
   return (
-    <div className="space-y-4">
-      <GroupDetailsCard group={group} />
-      {group.reviewStatus === "PENDING" ? (
-        <>
-          <TextField value={reason} onChange={setReason} maxLength={1000}>
-            <Label>{t`Rejection reason`}</Label>
-            <Input />
-          </TextField>
-          <div className="flex gap-3">
-            <Button isDisabled={busy} onPress={() => void decide("approve")}>
-              {" "}
-              {t`Approve`}
-            </Button>
-            <Button
-              variant="danger"
-              isDisabled={busy || !reason.trim()}
-              onPress={() => void decide("reject")}
-            >{t`Reject`}</Button>
-          </div>
-        </>
-      ) : (
-        <p>{t`Review completed`}</p>
-      )}
-      {draft?.phase === "verifying" ? <p role="status">{t`Checking saved changes`}</p> : null}
-    </div>
+    <NotificationAttentionScope
+      options={o}
+      targets={[{ kind: "group", id: group.id }]}
+      readOnOpen={{ kind: "group", id: group.id }}
+    >
+      <div className="space-y-4">
+        <GroupDetailsCard group={group} />
+        {group.reviewStatus === "PENDING" ? (
+          <>
+            <TextField value={reason} onChange={setReason} maxLength={1000}>
+              <Label>{t`Rejection reason`}</Label>
+              <Input />
+            </TextField>
+            <div className="flex gap-3">
+              <Button isDisabled={busy} onPress={() => void decide("approve")}>
+                {" "}
+                {t`Approve`}
+              </Button>
+              <Button
+                variant="danger"
+                isDisabled={busy || !reason.trim()}
+                onPress={() => void decide("reject")}
+              >{t`Reject`}</Button>
+            </div>
+          </>
+        ) : (
+          <p>{t`Review completed`}</p>
+        )}
+        {draft?.phase === "verifying" ? <p role="status">{t`Checking saved changes`}</p> : null}
+      </div>
+    </NotificationAttentionScope>
   );
 }

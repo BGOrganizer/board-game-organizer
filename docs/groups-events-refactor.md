@@ -28,9 +28,9 @@ The [old contract](organizations-events.md) is retained as a historical deployme
 - One immutable creator/administrator; no transfer, additional administrators, archiving or type
   conversion. PRIVATE/PUBLIC is fixed at creation.
 - Main Groups has Private / Public / Search top tabs (Italian: Privati / Pubblici / Ricerca).
-  Private/Public source-filter only the viewer's administered or accepted memberships by immutable
-  type before pagination; pending invitations, requests, departed members and active exclusions do
-  not qualify. Approved public discovery remains separate in Search with its four-character minimum.
+  Private/Public source-filter the viewer's administered Groups, accepted memberships and pending
+  invitations by immutable type before pagination; requests, departed members and active exclusions
+  do not qualify. Pending invitations grant no member-only capabilities. Approved public discovery remains separate in Search with its four-character minimum.
   Existing notification/detail invitation consent stays available. Query keys and provisional creation
   rows retain the same type split. Startup warms the exact default Private member page without adding
   a splash-gating dataset or changing the five-second total limit.
@@ -141,9 +141,9 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   separated by a dot only in Main Tables; then five distinct icon/counts for minimum, maximum,
   accepted registrations, waiting places and pending registrations. Accepted/pending totals include
   queued registrations; existing seat/queue counters retain their meanings. Missing cached metadata
-  uses partial skeletons, never guessed counts. Count help is far left outside the navigation link;
-  invitation responses stay outside it on the right. Group/Table responses share platform controls,
-  dimensions and Check/X icons; requests never expose self-approval. Following rows show first game
+  uses partial skeletons, never guessed counts. Count help is far left outside the navigation link.
+  External Group/Table cards navigate only: invitation acceptance/decline lives in their details;
+  requests never expose self-approval. Following rows show first game
   with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
   and all joint winner names with trophy only when terminated. Group incoming/outgoing artwork
   keeps its existing warning mail/clock badges and creator crown.
@@ -276,6 +276,29 @@ Ambiguous/unavailable results fail visibly instead of inventing a zone. Event ti
 mandatory derived metadata; private Groups without a venue retain local-clock timed-ban entry.
 Old immutable instants are never reinterpreted, and legacy planning clocks change only through an
 explicit edit. The time-zone change never migrates or deletes historical documents.
+
+## Notification attention
+
+- Bell counts each unread notification once. Main tabs and saved list cards use complete recipient-
+  scoped source aggregates, not loaded inbox pages. Red bell-sized badges show `99+` above 99 and
+  render nothing at zero. Card badges straddle the top-right border, separate from entity status.
+- Table attention propagates to its Event and, when authorized, Group. Event attention propagates
+  to its Group. Each notification contributes once within each badge; Group's Events tab includes
+  Event/Table descendants. Counts respect current resource access and exclude retired/removed
+  resources without deleting unread inbox history.
+- Opening Group details reads direct Group notifications only; Event details read direct Event
+  notifications only; Table details read that Table's notifications. Opening a container or its
+  Events tab never consumes descendants. Reads use the source snapshot cutoff so later arrivals
+  remain unread. Reading never accepts invitations, registers players or confirms Events.
+- Contacts retains Connections / Requests / Search. Entering main Contacts reads nothing in bulk;
+  explicit inner selection reads only that subsection. Follows and accepted friendship notices
+  belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their
+  actor's unread social notices. Repeated existing follows emit no duplicate notice.
+- Counter batches contain at most 50 unique resource targets. Cache-only navigation observers reuse
+  the bell watcher: no per-card timers or inbox scans. Owned optimistic reads/deletions coordinate
+  cards, ancestor tabs and bell, preserve disjoint writes and roll back selectively. Unknown write
+  outcomes require source verification, never automatic write retries; session changes cancel old
+  work. Read failures remain observable without user-action toasts.
 
 ## Exact agreement
 

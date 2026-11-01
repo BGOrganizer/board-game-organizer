@@ -43,14 +43,15 @@ it.each([
     expect(runInNewContext(prop("key"), { section })).toBe(section);
   },
 );
-it("does not put pending invitations or requests in either owned membership tab", () => {
-  expect(groupRecordMemberRoles).toEqual(["admin", "accepted"]);
+it("includes pending invitations in typed owned tabs, without treating requests as membership", () => {
+  expect(groupRecordMemberRoles).toEqual(["admin", "invited", "accepted"]);
   const list = readFileSync(
     new URL("../../components/groups/GroupList.tsx", import.meta.url),
     "utf8",
   );
   expect(list).toContain("useListSearch(groupRecordMemberRoles)");
   expect(list).toContain("useGroupRecords(options, scope, filters.search, filters.selected, type)");
-  expect(list).not.toContain('key: "invited"');
+  expect(list).toContain('key: "invited"');
+  expect(list).not.toContain('key: "requested"');
   expect(list).toContain("<FlatList");
 });

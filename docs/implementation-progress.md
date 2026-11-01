@@ -1,5 +1,27 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Hierarchical attention and restored pending Group invitations
+
+- Current Group lists include admin, accepted and pending invited roles, source-filtered by immutable
+  PRIVATE/PUBLIC type; pending requests still confer no membership. This supersedes the earlier
+  admin/accepted-only list eligibility checkpoint below without changing its historical evidence.
+- Web/native bell-sized badges propagate Table → Event → Group, with Group Events-tab and explicit
+  Contact subsection counts. Card badges straddle the top-right edge, outside clipped card frames.
+  Zero is absent; large counts use 99+. Source aggregation covers all authorized unread rows,
+  not inbox pages; navigation observers add no polling timer. Direct-resource reads retain child
+  attention and newer arrivals, never grant consent or start Events. External cards no longer
+  accept/decline invitations; existing detail workflows retain versions, cutoffs and explicit choices.
+- Local Node 26/pnpm 11.25 evidence: 2,214 covered unit tests (web 677, mobile 273, API 759,
+  schemas 118, shared 387), with unchanged gates and 100% deterministic attention/schema projections;
+  98 real replica-set integration tests, including full unread aggregation, restored pending Group
+  invitations without member capabilities, standalone access, cutoff arrivals, follow deduplication
+  and transaction rollback; typecheck 4/4, scoped Biome, API/web production builds and Android export
+  (5,599 modules). Generated references and seven protected hashes remain unchanged. Existing EN/IT
+  client labels are reused; new follower server copy is bilingual. No dependencies, migrations,
+  provider configuration or E2E policies changed. Existing authenticated Playwright/Maestro suites
+  and jobs remain unchanged; unit/source checks, isolated Mongo tests and exports are not
+  device/E2E or production acceptance.
+
 ## Separate private/public memberships and main navigation order
 
 - Web and native Groups expose Private / Public / Search top tabs (Privati / Pubblici / Ricerca).

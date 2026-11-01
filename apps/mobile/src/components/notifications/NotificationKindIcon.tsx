@@ -39,6 +39,7 @@ const icons: Record<NotificationKind, LucideIcon> = {
   event_table_cancelled: CalendarX,
   event_demonstrator: UsersRound,
   friend_request: UserRoundPlus,
+  follow: UserRoundPlus,
   friend_request_accepted: UserRoundCheck,
   group_invitation: UsersRound,
   group_invitation_accepted: UsersRound,

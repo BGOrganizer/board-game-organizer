@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type NotificationAttentionSnapshot,
   type NotificationDto,
   type NotificationListResponse,
   notificationIdSchema,
@@ -23,6 +24,8 @@ import {
   optimisticMutationSignal,
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
+import { attentionReference, projectAttentionSnapshot } from "../notificationAttention";
+import { attentionRoot, notificationFilters } from "../notificationAttentionCache";
 import { optimisticNotificationData } from "../notificationOptimistic";
 
 export interface NotificationsApiOptions {
@@ -115,6 +118,12 @@ export function notificationsPageQuery(options: NotificationsApiOptions, limit =
   };
 }
 
+/** Cache-only observer. The existing bell/inbox watcher owns all notification polling. */
+export function useNotificationSummary(options: NotificationsApiOptions) {
+  return useInfiniteQuery({ ...notificationsPageQuery(options, 3), enabled: false }).data?.pages[0]
+    ?.attention;
+}
+
 export function useNotifications(options: NotificationsApiOptions, limit = 5) {
   const queryClient = useQueryClient();
   const root = ["notifications", options.apiUrl, options.userId] as const;
@@ -174,6 +183,17 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
       });
   }, [list.data, options.enabled, options.userId, options.apiUrl, queryClient]);
 
+  useEffect(() => {
+    if (list.dataUpdatedAt)
+      void queryClient.invalidateQueries(
+        {
+          queryKey: attentionRoot({ apiUrl: options.apiUrl, userId: options.userId }),
+          refetchType: resourceBusy() ? "none" : "active",
+        },
+        { cancelRefetch: false },
+      );
+  }, [list.dataUpdatedAt, options.apiUrl, options.userId, queryClient, resourceBusy]);
+
   const notificationResource = (id?: string) => (id ? [...root, "item", id] : root);
   const write = async (
     method: "PATCH" | "DELETE",
@@ -192,10 +212,17 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     let capturing = true;
     const loaded = new Map<string, boolean>();
     const readAt = new Date().toISOString();
+    const source = id
+      ? queryClient
+          .getQueriesData<InfiniteData<NotificationListResponse>>({ queryKey: root })
+          .flatMap(([, data]) => data?.pages.flatMap((page) => page.notifications) ?? [])
+          .find((row) => row.id === id)
+      : undefined;
+    const reference = source ? attentionReference(source) : undefined;
     const operation = await beginOptimisticOperation(
       queryClient,
       notificationResource(id),
-      { queryKey: root },
+      notificationFilters(options),
       (data, key) => {
         knownUnread ??= queryClient
           .getQueriesData<InfiniteData<NotificationListResponse>>({ queryKey: root })
@@ -203,6 +230,13 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
             cached?.pages.some((page) =>
               page.notifications.some((row) => row.id === id && !row.readAt),
             ),
+          );
+        if (key[0] === "notification-attention")
+          return projectAttentionSnapshot(
+            data as NotificationAttentionSnapshot | undefined,
+            reference,
+            Number(knownUnread),
+            !id,
           );
         const identity = JSON.stringify(key);
         if (capturing && !loaded.has(identity))
@@ -221,6 +255,7 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
           readAt,
           knownUnread,
           loaded.get(identity) ?? false,
+          reference,
         );
       },
     );
@@ -238,7 +273,10 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
       return;
     const ownerRoot = context.mutationKey?.slice(0, 3) ?? root;
     void queryClient.invalidateQueries({
-      queryKey: ownerRoot,
+      ...notificationFilters({
+        apiUrl: String(ownerRoot[1]),
+        userId: ownerRoot[2] as string | null | undefined,
+      }),
       refetchType: resourceBusy(ownerRoot) ? "none" : "active",
     });
   };
@@ -349,6 +387,7 @@ export function useNotifications(options: NotificationsApiOptions, limit = 5) {
     list,
     notifications: list.data?.pages.flatMap((page) => page.notifications) ?? [],
     unreadCount: list.data?.pages[0]?.unreadCount ?? 0,
+    attention: list.data?.pages[0]?.attention,
     hasMore: list.hasNextPage,
     markRead,
     markAllRead,

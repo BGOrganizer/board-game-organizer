@@ -14,6 +14,7 @@ import { Bell, CheckCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
+import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
 import { useT } from "@/lib/i18n";
 import {
@@ -158,7 +159,6 @@ export function NotificationBell() {
     setPushError(false);
     return requestPermissionFromBell().catch(() => setPushError(true));
   };
-  const countLabel = notifications.unreadCount > 99 ? "99+" : String(notifications.unreadCount);
 
   return (
     <Popover isOpen={isOpen} onOpenChange={handleOpenChange}>
@@ -183,26 +183,9 @@ export function NotificationBell() {
             <Bell size={20} color="#737373" />
           </Button>
         </Popover.Trigger>
-        {notifications.unreadCount > 0 && (
-          <View
-            pointerEvents="none"
-            className="absolute items-center bg-danger"
-            style={{
-              minWidth: 16,
-              height: 16,
-              borderRadius: 8,
-              justifyContent: "center",
-              paddingHorizontal: countLabel.length > 1 ? 3 : 0,
-              right: 1,
-              top: 1,
-              zIndex: 1,
-            }}
-          >
-            <Typography style={{ color: "white", fontSize: 9, fontWeight: "700", lineHeight: 11 }}>
-              {countLabel}
-            </Typography>
-          </View>
-        )}
+        <View pointerEvents="none" style={{ position: "absolute", right: 1, top: 1 }}>
+          <NotificationCountBadge count={notifications.unreadCount} />
+        </View>
       </View>
       <Popover.Portal>
         <Popover.Overlay />

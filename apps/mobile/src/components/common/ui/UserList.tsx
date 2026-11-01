@@ -21,6 +21,7 @@ export function UserList<T>({
   footer,
   testID,
   contentContainerStyle,
+  rowStyle,
 }: {
   data: T[];
   pages: UserPage[];
@@ -34,6 +35,7 @@ export function UserList<T>({
   footer?: ReactNode;
   testID?: string;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  rowStyle?: ViewStyle;
 }) {
   const t = useT();
   const next = nextUserPage(pages);
@@ -45,7 +47,7 @@ export function UserList<T>({
       style={{ flex: 1 }}
       contentContainerStyle={[{ gap: 8, paddingBottom: 24 }, contentContainerStyle]}
       keyboardShouldPersistTaps="handled"
-      renderItem={({ item }) => <GroupedList>{renderRow(item)}</GroupedList>}
+      renderItem={({ item }) => <GroupedList style={rowStyle}>{renderRow(item)}</GroupedList>}
       onEndReached={() => {
         if (next) void next.fetchNextPage();
       }}

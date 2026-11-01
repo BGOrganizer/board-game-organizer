@@ -83,6 +83,7 @@ it.each(["personal", "event"] as const)(
     runInNewContext(expression("EventTableCard", "LinkedListCard", "onPress"), {
       context,
       table: { eventId: "event", id: "table" },
+      attention: undefined,
       router: { push },
     })();
     expect(push).toHaveBeenCalledWith({
@@ -103,6 +104,7 @@ it.each(["personal", "group"] as const)(
       context,
       local: undefined,
       event: { id: "event", groupId: "group" },
+      attention: undefined,
       router: { push },
     })();
     expect(push).toHaveBeenCalledWith({

@@ -5,8 +5,8 @@
 
 Web and native mobile clients for board-game contacts, collections, groups, events and tables,
 backed by a shared TypeScript API. Main navigation is Tables / Events / Groups / Contacts.
-Groups has Private / Public / Search tabs; Private/Public show only administered or joined Groups
-of that type, while Search retains public discovery.
+Groups has Private / Public / Search tabs; Private/Public show administered, joined and pending
+invited Groups of that type, while Search retains public discovery.
 
 ## Current functionality
 
@@ -23,7 +23,8 @@ of that type, while Search retains public discovery.
 - Exact public-event cutoffs, verified locations/favorites, BGG/manual durations, overlap checks,
   atomic whole-event results and GLOBAL/GROUP OpenSkill ratings. Pending invitees never vote.
 - MongoDB-backed BoardGameGeek catalog search, account linking and collection synchronization.
-- Durable notification inbox, unread state, optional push delivery, light/dark theme, and EN/IT.
+- Durable notification inbox, hierarchical Table/Event/Group and Contact attention badges, optional
+  push delivery, light/dark theme, and EN/IT. Reading clears attention, never invitation consent.
 
 The [unified domain contract](docs/groups-events-refactor.md) describes this branch. Legacy
 Match/Organization writers return authenticated `410`; old UI links redirect without treating old

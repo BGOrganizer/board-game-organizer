@@ -54,6 +54,27 @@ beforeEach(() => {
     gameVoteCounts: { "1": { YES: 0, NO: 0, IF_NEEDED: 0, UNKNOWN: 1 } },
   };
   fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes("/notifications/attention"))
+      return Response.json({
+        asOf: new Date().toISOString(),
+        unreadCount: 0,
+        summary: {
+          tables: 0,
+          events: 0,
+          groups: 0,
+          contacts: 0,
+          sections: { connections: 0, requests: 0, search: 0 },
+        },
+        targets: (JSON.parse(new URL(url).searchParams.get("targets") ?? "[]") as unknown[]).map(
+          (target) => ({
+            target,
+            count: 0,
+            direct: 0,
+            events: 0,
+            sections: { connections: 0, requests: 0, search: 0 },
+          }),
+        ),
+      });
     if (init?.method === "POST") {
       if (fail) return new Response('{"code":"EVENT_BOOKING_CLOSED"}', { status: 409 });
       const row = {

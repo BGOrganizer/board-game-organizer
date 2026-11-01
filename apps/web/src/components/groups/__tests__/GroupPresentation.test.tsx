@@ -1,6 +1,6 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
-import { fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { GroupCard } from "../GroupCard";
 import { GroupDetailsCard } from "../GroupDetailsCard";
@@ -30,7 +30,7 @@ const base = {
 } as GroupRecordResponse;
 describe("unified group presentation", () => {
   it("keeps private groups unmoderated, optional venues absent, and creator identity accessible", () => {
-    renderWithI18n(<GroupCard group={base} pending={false} onRespond={vi.fn()} />);
+    renderWithI18n(<GroupCard group={base} />);
     expect(screen.getByRole("link", { name: "Open group: Game Club" }).getAttribute("href")).toBe(
       `/groups/${id}`,
     );
@@ -38,8 +38,7 @@ describe("unified group presentation", () => {
     expect(screen.getByText("Private")).not.toBeNull();
     expect(screen.queryByText("Approved")).toBeNull();
   });
-  it("shows explicit consent actions on invited cards; never labels pending users as accepted", () => {
-    const respond = vi.fn();
+  it("routes invited cards to details without consent controls or accepted-member capabilities", () => {
     const invited: GroupRecordResponse = {
       ...base,
       role: "invited",
@@ -56,10 +55,12 @@ describe("unified group presentation", () => {
         updatedAt: base.updatedAt,
       },
     };
-    renderWithI18n(<GroupCard group={invited} pending={false} onRespond={respond} />);
-    fireEvent.click(screen.getByRole("button", { name: "Accept invitation: Game Club" }));
-    fireEvent.click(screen.getByRole("button", { name: "Decline invitation: Game Club" }));
-    expect(respond.mock.calls).toEqual([["accept"], ["decline"]]);
+    renderWithI18n(<GroupCard group={invited} />);
+    expect(screen.getByRole("link", { name: "Open group: Game Club" }).getAttribute("href")).toBe(
+      `/groups/${id}`,
+    );
+    expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
     expect(screen.getByText("Invitation received")).not.toBeNull();
     const badge = screen.getByRole("img", { name: "Invitation received" });
     expect(badge.className).toContain("text-warning");
@@ -99,9 +100,7 @@ describe("unified group presentation", () => {
     expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
   });
   it("marks an outgoing pending Group request with a warning clock and no invitation response actions", () => {
-    renderWithI18n(
-      <GroupCard group={{ ...base, role: "requested" }} pending={false} onRespond={vi.fn()} />,
-    );
+    renderWithI18n(<GroupCard group={{ ...base, role: "requested" }} />);
     const badge = screen.getByRole("img", { name: "Membership requested" });
     expect(badge.className).toContain("text-warning");
     expect(badge.className).toContain("bottom-0");

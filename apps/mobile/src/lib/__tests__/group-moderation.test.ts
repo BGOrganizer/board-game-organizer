@@ -62,6 +62,7 @@ it("renders moderation items through the existing Group card and opens their rev
     router,
     local: undefined,
     group: item,
+    attention: undefined,
     href: row.props.href,
   });
   press();
@@ -70,6 +71,7 @@ it("renders moderation items through the existing Group card and opens their rev
     router,
     local: undefined,
     group: item,
+    attention: undefined,
     href: undefined,
   });
   ordinary();

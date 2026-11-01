@@ -1,5 +1,8 @@
 import type { ClientGroupRecord } from "@board-game-organizer/shared";
-import { formatLocationAddress } from "@board-game-organizer/shared";
+import {
+  formatLocationAddress,
+  useNotificationAttentionContext,
+} from "@board-game-organizer/shared";
 import { type Href, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -14,7 +17,6 @@ import {
 } from "lucide-react-native";
 import { View } from "react-native";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
-import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { useT } from "@/lib/i18n";
@@ -22,15 +24,11 @@ import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupCard({
   group,
-  pending = false,
-  onRespond,
   href,
   onVerify,
   checking = false,
 }: {
   group: ClientGroupRecord;
-  pending?: boolean;
-  onRespond?: (action: "accept" | "decline") => void;
   href?: Href;
   onVerify?: () => void;
   checking?: boolean;
@@ -38,6 +36,8 @@ export function GroupCard({
   const t = useT(),
     router = useRouter(),
     muted = useThemeColor("muted");
+  const attention = useNotificationAttentionContext(),
+    attentionTarget = { kind: "group", id: group.id } as const;
   const invited =
     group.myMembership?.kind === "INVITATION" && group.myMembership.status === "PENDING";
   const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
@@ -47,11 +47,13 @@ export function GroupCard({
     <LinkedListCard
       label={`${status || t("Open group")}: ${group.name}`}
       disabled={Boolean(local && local.phase !== "failed")}
-      onPress={() =>
-        local
+      notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
+      onPress={() => {
+        if (!local) attention?.read(attentionTarget);
+        return local
           ? router.push({ pathname: "/group/wizard", params: { draftId: local.draftId } })
-          : router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } })
-      }
+          : router.push(href ?? { pathname: "/group/[groupId]", params: { groupId: group.id } });
+      }}
       actions={
         local?.phase === "verifying" && onVerify ? (
           <Button
@@ -64,14 +66,6 @@ export function GroupCard({
           >
             <RefreshCw size={18} color={muted} />
           </Button>
-        ) : invited && onRespond ? (
-          <InvitationActions
-            placement="card"
-            name={group.name}
-            pending={pending}
-            onAccept={() => onRespond("accept")}
-            onDecline={() => onRespond("decline")}
-          />
         ) : undefined
       }
     >
@@ -102,8 +96,7 @@ export function GroupCard({
             alignItems: "center",
             flexWrap: "wrap",
             gap: 8,
-            paddingRight:
-              invited && onRespond ? 88 : local?.phase === "verifying" && onVerify ? 40 : 0,
+            paddingRight: local?.phase === "verifying" && onVerify ? 40 : 0,
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

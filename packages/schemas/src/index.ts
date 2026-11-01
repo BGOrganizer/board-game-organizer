@@ -28,6 +28,7 @@ export * from "./locations/dto/locationFavorites";
 export * from "./locations/models/locations";
 export * from "./matches/dto/matches";
 export * from "./matches/models/matches";
+export * from "./notifications/dto/notificationAttention";
 export * from "./notifications/dto/notifications";
 export * from "./notifications/models/notifications";
 export * from "./organizations/dto/organizationList";

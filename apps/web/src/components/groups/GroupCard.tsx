@@ -1,6 +1,9 @@
 "use client";
 import type { ClientGroupRecord } from "@board-game-organizer/shared";
-import { formatLocationAddress } from "@board-game-organizer/shared";
+import {
+  formatLocationAddress,
+  useNotificationAttentionContext,
+} from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -12,26 +15,23 @@ import {
   UsersRound,
 } from "lucide-react";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
-import { InvitationActions } from "@/components/common/ui/InvitationActions";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupCard({
   group,
-  pending = false,
-  onRespond,
   href = `/groups/${group.id}`,
   onVerify,
   checking = false,
 }: {
   group: ClientGroupRecord;
-  pending?: boolean;
-  onRespond?: (action: "accept" | "decline") => void;
   href?: string;
   onVerify?: () => void;
   checking?: boolean;
 }) {
-  const { t } = useLingui();
+  const { t } = useLingui(),
+    attention = useNotificationAttentionContext();
+  const attentionTarget = { kind: "group", id: group.id } as const;
   const invited =
     group.myMembership?.kind === "INVITATION" && group.myMembership.status === "PENDING";
   const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
@@ -45,6 +45,10 @@ export function GroupCard({
   return (
     <LinkedListCard
       href={target}
+      notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
+      onOpen={() => {
+        if (!local) attention?.read(attentionTarget);
+      }}
       disabled={Boolean(local && local.phase !== "failed")}
       label={`${status || t`Open group`}: ${group.name}`}
       actions={
@@ -59,13 +63,6 @@ export function GroupCard({
           >
             <RefreshCw className="size-4" aria-hidden />
           </Button>
-        ) : invited && onRespond ? (
-          <InvitationActions
-            name={group.name}
-            pending={pending}
-            onAccept={() => onRespond("accept")}
-            onDecline={() => onRespond("decline")}
-          />
         ) : undefined
       }
     >

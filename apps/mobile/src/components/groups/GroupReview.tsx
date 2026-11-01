@@ -13,6 +13,7 @@ import { Typography } from "heroui-native/text";
 import { useState } from "react";
 import { View } from "react-native";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
@@ -66,39 +67,45 @@ export function GroupReview({ groupId }: { groupId: string }) {
       </View>
     );
   return (
-    <ScreenScrollView>
-      <GroupDetailsCard group={group} />
-      {group.reviewStatus === "PENDING" ? (
-        <>
-          <Typography className="text-foreground">{t("Rejection reason")}</Typography>
-          <Input
-            accessibilityLabel={t("Rejection reason")}
-            value={reason}
-            onChangeText={setReason}
-            maxLength={1000}
-            editable
-          />
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button isDisabled={busy} onPress={() => void decide("approve")}>
-              <Button.Label>{t("Approve")}</Button.Label>
-            </Button>
-            <Button
-              variant="danger"
-              isDisabled={busy || !reason.trim()}
-              onPress={() => void decide("reject")}
-            >
-              <Button.Label>{t("Reject")}</Button.Label>
-            </Button>
-          </View>
-        </>
-      ) : (
-        <Typography className="text-foreground">{t("Review completed")}</Typography>
-      )}
-      {draft?.phase === "verifying" ? (
-        <Typography accessibilityLiveRegion="polite" className="text-foreground">
-          {t("Checking saved changes")}
-        </Typography>
-      ) : null}
-    </ScreenScrollView>
+    <NotificationAttentionScope
+      options={o}
+      targets={[{ kind: "group", id: group.id }]}
+      readOnOpen={{ kind: "group", id: group.id }}
+    >
+      <ScreenScrollView>
+        <GroupDetailsCard group={group} />
+        {group.reviewStatus === "PENDING" ? (
+          <>
+            <Typography className="text-foreground">{t("Rejection reason")}</Typography>
+            <Input
+              accessibilityLabel={t("Rejection reason")}
+              value={reason}
+              onChangeText={setReason}
+              maxLength={1000}
+              editable
+            />
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <Button isDisabled={busy} onPress={() => void decide("approve")}>
+                <Button.Label>{t("Approve")}</Button.Label>
+              </Button>
+              <Button
+                variant="danger"
+                isDisabled={busy || !reason.trim()}
+                onPress={() => void decide("reject")}
+              >
+                <Button.Label>{t("Reject")}</Button.Label>
+              </Button>
+            </View>
+          </>
+        ) : (
+          <Typography className="text-foreground">{t("Review completed")}</Typography>
+        )}
+        {draft?.phase === "verifying" ? (
+          <Typography accessibilityLiveRegion="polite" className="text-foreground">
+            {t("Checking saved changes")}
+          </Typography>
+        ) : null}
+      </ScreenScrollView>
+    </NotificationAttentionScope>
   );
 }

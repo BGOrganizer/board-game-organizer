@@ -2,6 +2,7 @@ import { notificationListQuerySchema } from "@board-game-organizer/schemas";
 import { auth } from "@clerk/nextjs/server";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { getDb, withTransaction } from "@/app/lib/db";
+import { NotificationAttentionRepository } from "@/app/lib/notifications/notification-attention.repository";
 import { NotificationsRepository } from "@/app/lib/notifications/notifications.repository";
 
 export const OPTIONS = corsOptions;
@@ -21,13 +22,31 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await new NotificationsRepository(await getDb()).list(
+    const db = await getDb();
+    const result = await new NotificationsRepository(db).list(
       userId,
       parsed.data.limit,
       parsed.data.cursor,
       parsed.data.locale,
     );
-    return corsJson(result, { headers: { "Cache-Control": "private, no-store" } }, request);
+    const attention = await new NotificationAttentionRepository(db).snapshot(
+      userId,
+      [],
+      result.notifications.filter((row) => !row.readAt).map((row) => row.id),
+    );
+    return corsJson(
+      {
+        ...result,
+        unreadCount: attention.snapshot.unreadCount,
+        attention: attention.snapshot.summary,
+        notifications: result.notifications.map((row) => ({
+          ...row,
+          attention: attention.references.get(row.id) ?? null,
+        })),
+      },
+      { headers: { "Cache-Control": "private, no-store" } },
+      request,
+    );
   } catch {
     return corsJson({ error: "Internal server error" }, { status: 500 }, request);
   }

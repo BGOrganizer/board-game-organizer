@@ -397,7 +397,8 @@ export class EventRecordsRepository {
       .toArray();
     return { tableCount: tables.length, participantCount: rows[0]?.count ?? 0 };
   }
-  private visibleGroups(userId: string, now: string) {
+  /** Shared source visibility for Event readers, including notification hierarchy joins. */
+  visibleGroups(userId: string, now: string) {
     return [
       {
         $lookup: {

@@ -4,6 +4,7 @@ import {
   ownGroupActions,
   useGroupRecord,
   useGroupRecordActions,
+  useNotificationAttentionContext,
 } from "@board-game-organizer/shared";
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -14,7 +15,9 @@ import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
+import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { Events } from "@/components/events/Events";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
@@ -73,139 +76,156 @@ export function GroupDetail({
     (action) => action === "request" || (action === "cancel" && group.role !== "accepted"),
   );
   return (
-    <div className="space-y-5 pb-24">
-      {group.canEdit || (group.role === "accepted" && group.myMembership?.status === "ACCEPTED") ? (
-        <HeaderActions>
-          <Button
-            isIconOnly
-            variant="danger"
-            className="min-h-11 min-w-11"
-            aria-label={group.canEdit ? t`Delete group` : t`Leave group`}
-            isDisabled={group.canEdit ? a.busy : ownBusy}
-            onPress={() => {
-              setError(false);
-              setConfirm(group.canEdit ? "delete" : "cancel");
-            }}
+    <NotificationAttentionScope
+      options={o}
+      targets={[{ kind: "group", id: group.id }]}
+      readOnOpen={{ kind: "group", id: group.id }}
+    >
+      <div className="space-y-5 pb-24">
+        {group.canEdit ||
+        (group.role === "accepted" && group.myMembership?.status === "ACCEPTED") ? (
+          <HeaderActions>
+            <Button
+              isIconOnly
+              variant="danger"
+              className="min-h-11 min-w-11"
+              aria-label={group.canEdit ? t`Delete group` : t`Leave group`}
+              isDisabled={group.canEdit ? a.busy : ownBusy}
+              onPress={() => {
+                setError(false);
+                setConfirm(group.canEdit ? "delete" : "cancel");
+              }}
+            >
+              {group.canEdit ? (
+                <Trash2 className="size-5" aria-hidden="true" />
+              ) : (
+                <LogOut className="size-5" aria-hidden="true" />
+              )}
+            </Button>
+          </HeaderActions>
+        ) : null}
+        <Link href="/groups" className="inline-flex items-center gap-2 text-accent">
+          <ArrowLeft className="size-4" />
+          {t`Back`}
+        </Link>
+        {error ? (
+          <p role="alert" className="text-danger">
+            {failure}
+          </p>
+        ) : null}
+        <Tabs
+          selectedKey={
+            (tab === "events" && !group.canViewEvents) ||
+            (tab === "members" && !group.canViewMembers)
+              ? "info"
+              : tab
+          }
+          onSelectionChange={(key) => setTab(String(key))}
+        >
+          <Tabs.ListContainer className="mt-4 w-fit max-w-full self-center">
+            <Tabs.List aria-label={t`Group sections`}>
+              <Tabs.Tab id="info">{t`Overview`}</Tabs.Tab>
+              {group.canViewMembers ? <Tabs.Tab id="members">{t`Members`}</Tabs.Tab> : null}
+              {group.canViewEvents ? (
+                <Tabs.Tab id="events" className="gap-2">
+                  {t`Events`}
+                  <GroupEventsBadge groupId={group.id} />
+                </Tabs.Tab>
+              ) : null}
+              {group.canViewRankings ? <Tabs.Tab id="rankings">{t`Rankings`}</Tabs.Tab> : null}
+            </Tabs.List>
+          </Tabs.ListContainer>
+          <Tabs.Panel id="info">
+            <GroupDetailsCard group={group} />
+            {bodyActions.length ? (
+              <GroupJoinRequest
+                pending={group.role === "requested"}
+                busy={ownBusy}
+                onRequest={() => void run("request")}
+                onCancel={() => {
+                  setError(false);
+                  setConfirm("cancel");
+                }}
+              />
+            ) : null}
+            {group.role === "invited" ? (
+              <GroupInvitationCard
+                busy={ownBusy}
+                onAccept={() => void run("accept")}
+                onDecline={() => {
+                  setError(false);
+                  setConfirm("decline");
+                }}
+              />
+            ) : null}
+          </Tabs.Panel>
+          {group.canViewMembers ? (
+            <Tabs.Panel id="members">
+              <GroupMembers group={group} />
+            </Tabs.Panel>
+          ) : null}
+          {group.canViewEvents ? (
+            <Tabs.Panel id="events">
+              <Events groupId={group.id} canCreate={group.role === "admin" && group.canInvite} />
+            </Tabs.Panel>
+          ) : null}
+          {group.canViewRankings ? (
+            <Tabs.Panel id="rankings" className="px-4 sm:px-5">
+              <GroupLeaderboard groupId={group.id} />
+            </Tabs.Panel>
+          ) : null}
+        </Tabs>
+        {group.canEdit && tab === "info" ? (
+          <FloatingActions
+            href={`/groups/${group.id}/edit`}
+            label={t`Edit group`}
+            isDisabled={a.busy}
           >
-            {group.canEdit ? (
-              <Trash2 className="size-5" aria-hidden="true" />
-            ) : (
-              <LogOut className="size-5" aria-hidden="true" />
-            )}
-          </Button>
-        </HeaderActions>
-      ) : null}
-      <Link href="/groups" className="inline-flex items-center gap-2 text-accent">
-        <ArrowLeft className="size-4" />
-        {t`Back`}
-      </Link>
-      {error ? (
-        <p role="alert" className="text-danger">
-          {failure}
-        </p>
-      ) : null}
-      <Tabs
-        selectedKey={
-          (tab === "events" && !group.canViewEvents) || (tab === "members" && !group.canViewMembers)
-            ? "info"
-            : tab
-        }
-        onSelectionChange={(key) => setTab(String(key))}
-      >
-        <Tabs.ListContainer className="mt-4 w-fit max-w-full self-center">
-          <Tabs.List aria-label={t`Group sections`}>
-            <Tabs.Tab id="info">{t`Overview`}</Tabs.Tab>
-            {group.canViewMembers ? <Tabs.Tab id="members">{t`Members`}</Tabs.Tab> : null}
-            {group.canViewEvents ? <Tabs.Tab id="events">{t`Events`}</Tabs.Tab> : null}
-            {group.canViewRankings ? <Tabs.Tab id="rankings">{t`Rankings`}</Tabs.Tab> : null}
-          </Tabs.List>
-        </Tabs.ListContainer>
-        <Tabs.Panel id="info">
-          <GroupDetailsCard group={group} />
-          {bodyActions.length ? (
-            <GroupJoinRequest
-              pending={group.role === "requested"}
-              busy={ownBusy}
-              onRequest={() => void run("request")}
-              onCancel={() => {
-                setError(false);
-                setConfirm("cancel");
-              }}
-            />
-          ) : null}
-          {group.role === "invited" ? (
-            <GroupInvitationCard
-              busy={ownBusy}
-              onAccept={() => void run("accept")}
-              onDecline={() => {
-                setError(false);
-                setConfirm("decline");
-              }}
-            />
-          ) : null}
-        </Tabs.Panel>
-        {group.canViewMembers ? (
-          <Tabs.Panel id="members">
-            <GroupMembers group={group} />
-          </Tabs.Panel>
+            <Pencil className="size-6" aria-hidden />
+          </FloatingActions>
         ) : null}
-        {group.canViewEvents ? (
-          <Tabs.Panel id="events">
-            <Events groupId={group.id} canCreate={group.role === "admin" && group.canInvite} />
-          </Tabs.Panel>
+        {confirm && (confirm !== "delete" || group.canEdit) ? (
+          <ContactConfirmDialog
+            title={
+              confirm === "delete"
+                ? t`Delete group`
+                : group.role === "accepted"
+                  ? t`Leave group`
+                  : t`Cancel membership`
+            }
+            description={
+              confirm === "delete"
+                ? t`Permanently delete this group and all its events, tables, registrations, votes, results and group rankings? Personal GLOBAL ratings remain unchanged. This cannot be undone.`
+                : t`Active table registrations are removed. Historical results remain unchanged.`
+            }
+            busy={confirm === "delete" ? a.busy : ownBusy}
+            onCancel={() => {
+              setConfirm(null);
+              setError(false);
+            }}
+            actions={[
+              {
+                label: confirm === "delete" ? t`Delete group and events` : t`Confirm`,
+                variant: "danger",
+                onPress: () => void run(confirm),
+                ...(confirm === "delete"
+                  ? { icon: <Trash2 className="size-4" aria-hidden="true" /> }
+                  : {}),
+              },
+            ]}
+          >
+            {error ? (
+              <p role="alert" className="text-danger">
+                {failure}
+              </p>
+            ) : null}
+          </ContactConfirmDialog>
         ) : null}
-        {group.canViewRankings ? (
-          <Tabs.Panel id="rankings" className="px-4 sm:px-5">
-            <GroupLeaderboard groupId={group.id} />
-          </Tabs.Panel>
-        ) : null}
-      </Tabs>
-      {group.canEdit && tab === "info" ? (
-        <FloatingActions
-          href={`/groups/${group.id}/edit`}
-          label={t`Edit group`}
-          isDisabled={a.busy}
-        >
-          <Pencil className="size-6" aria-hidden />
-        </FloatingActions>
-      ) : null}
-      {confirm && (confirm !== "delete" || group.canEdit) ? (
-        <ContactConfirmDialog
-          title={
-            confirm === "delete"
-              ? t`Delete group`
-              : group.role === "accepted"
-                ? t`Leave group`
-                : t`Cancel membership`
-          }
-          description={
-            confirm === "delete"
-              ? t`Permanently delete this group and all its events, tables, registrations, votes, results and group rankings? Personal GLOBAL ratings remain unchanged. This cannot be undone.`
-              : t`Active table registrations are removed. Historical results remain unchanged.`
-          }
-          busy={confirm === "delete" ? a.busy : ownBusy}
-          onCancel={() => {
-            setConfirm(null);
-            setError(false);
-          }}
-          actions={[
-            {
-              label: confirm === "delete" ? t`Delete group and events` : t`Confirm`,
-              variant: "danger",
-              onPress: () => void run(confirm),
-              ...(confirm === "delete"
-                ? { icon: <Trash2 className="size-4" aria-hidden="true" /> }
-                : {}),
-            },
-          ]}
-        >
-          {error ? (
-            <p role="alert" className="text-danger">
-              {failure}
-            </p>
-          ) : null}
-        </ContactConfirmDialog>
-      ) : null}
-    </div>
+      </div>
+    </NotificationAttentionScope>
   );
+}
+function GroupEventsBadge({ groupId }: { groupId: string }) {
+  const attention = useNotificationAttentionContext();
+  return <NotificationCountBadge count={attention?.get({ kind: "group", id: groupId })?.events} />;
 }

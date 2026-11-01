@@ -10,6 +10,7 @@ import { Typography } from "heroui-native/text";
 import { useState } from "react";
 import { View } from "react-native";
 import { TabBar } from "@/components/common/ui/TabBar";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -49,51 +50,61 @@ export function EventTable({
   );
   if (!table || table.eventStatus === "PLANNING")
     return (
-      <>
+      <NotificationAttentionScope
+        options={o}
+        targets={table ? [{ kind: "table", id: tableId }] : []}
+        readOnOpen={table ? { kind: "table", id: tableId } : undefined}
+      >
         {header}
         <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
-      </>
+      </NotificationAttentionScope>
     );
   const selected = tab === "results" && table.eventStatus !== "TERMINATED" ? "overview" : tab;
   return (
-    <View style={{ flex: 1 }}>
-      {header}
-      <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
-        <View style={{ alignItems: "center", paddingTop: 12 }}>
-          <TabBar style={{ alignSelf: "center", width: "auto" }}>
-            <Tabs.Trigger value="overview">
-              <Tabs.Label>{t("Overview")}</Tabs.Label>
-            </Tabs.Trigger>
-            {table.eventStatus === "TERMINATED" ? (
-              <Tabs.Trigger value="results">
-                <Tabs.Label>{t("Results")}</Tabs.Label>
+    <NotificationAttentionScope
+      options={o}
+      targets={[{ kind: "table", id: tableId }]}
+      readOnOpen={{ kind: "table", id: tableId }}
+    >
+      <View style={{ flex: 1 }}>
+        {header}
+        <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
+          <View style={{ alignItems: "center", paddingTop: 12 }}>
+            <TabBar style={{ alignSelf: "center", width: "auto" }}>
+              <Tabs.Trigger value="overview">
+                <Tabs.Label>{t("Overview")}</Tabs.Label>
               </Tabs.Trigger>
-            ) : null}
-            <Tabs.Trigger value="ranking">
-              <Tabs.Label>{t("Ranking")}</Tabs.Label>
-            </Tabs.Trigger>
-          </TabBar>
-        </View>
-        <View style={{ flex: 1 }}>
-          {selected === "ranking" ? (
-            <EventTableLeaderboard table={table} />
-          ) : selected === "results" ? (
-            <EventTableResults table={table} />
-          ) : (
-            <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
-          )}
-        </View>
-      </Tabs>
-      {q.isError && selected !== "overview" ? (
-        <View>
-          <Typography accessibilityRole="alert" className="text-danger">
-            {t("Could not load complete table details")}
-          </Typography>
-          <Button onPress={() => void q.refetch()}>
-            <Button.Label>{t("Try again")}</Button.Label>
-          </Button>
-        </View>
-      ) : null}
-    </View>
+              {table.eventStatus === "TERMINATED" ? (
+                <Tabs.Trigger value="results">
+                  <Tabs.Label>{t("Results")}</Tabs.Label>
+                </Tabs.Trigger>
+              ) : null}
+              <Tabs.Trigger value="ranking">
+                <Tabs.Label>{t("Ranking")}</Tabs.Label>
+              </Tabs.Trigger>
+            </TabBar>
+          </View>
+          <View style={{ flex: 1 }}>
+            {selected === "ranking" ? (
+              <EventTableLeaderboard table={table} />
+            ) : selected === "results" ? (
+              <EventTableResults table={table} />
+            ) : (
+              <EventTableOverview eventId={eventId} tableId={tableId} context={context} />
+            )}
+          </View>
+        </Tabs>
+        {q.isError && selected !== "overview" ? (
+          <View>
+            <Typography accessibilityRole="alert" className="text-danger">
+              {t("Could not load complete table details")}
+            </Typography>
+            <Button onPress={() => void q.refetch()}>
+              <Button.Label>{t("Try again")}</Button.Label>
+            </Button>
+          </View>
+        ) : null}
+      </View>
+    </NotificationAttentionScope>
   );
 }

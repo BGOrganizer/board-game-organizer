@@ -33,6 +33,7 @@ export const NOTIFICATION_KINDS = [
   ...COMMUNITY_NOTIFICATION_KINDS,
   "friend_request",
   "friend_request_accepted",
+  "follow",
   "group_invitation",
   "group_invitation_accepted",
   "match_invitation",

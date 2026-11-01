@@ -6,6 +6,8 @@ import {
   reportPresence,
   resolveApiUrl,
   useContacts,
+  useNotificationAttentionContext,
+  useReadNotificationAttention,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
 import { Avatar, Card, Chip, Skeleton, Tabs } from "@heroui/react";
@@ -26,10 +28,12 @@ import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
+import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -44,6 +48,7 @@ function protectionBypass(): string | undefined {
 }
 
 function ContactCard({
+  userId,
   name,
   email,
   avatarUrl,
@@ -51,6 +56,7 @@ function ContactCard({
   menu,
   badge,
 }: {
+  userId: string;
   name: string;
   email: string | null;
   avatarUrl: string | null;
@@ -58,9 +64,10 @@ function ContactCard({
   menu?: React.ReactNode;
   badge?: { icon: LucideIcon; label: string; color: string };
 }) {
-  const BadgeIcon = badge?.icon;
+  const BadgeIcon = badge?.icon,
+    attention = useNotificationAttentionContext();
   return (
-    <GroupedRow className="flex-col sm:flex-row sm:items-center">
+    <GroupedRow className="relative flex-col sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative shrink-0">
           <Avatar size="md" color="accent">
@@ -91,6 +98,10 @@ function ContactCard({
       {menu ? (
         <div className="flex shrink-0 items-center justify-end self-end sm:self-auto">{menu}</div>
       ) : null}
+      <NotificationCountBadge
+        count={attention?.get({ kind: "contact", id: userId })?.count}
+        corner
+      />
     </GroupedRow>
   );
 }
@@ -121,6 +132,17 @@ export function Contacts() {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { t } = useLingui();
   const mutationFeedback = useMutationFeedback();
+  const attentionOptions = {
+    apiUrl: apiUrl(),
+    getToken,
+    userId,
+    enabled: isLoaded && Boolean(isSignedIn),
+    protectionBypass: protectionBypass(),
+    feedback: mutationFeedback,
+  };
+  const attentionRead = useReadNotificationAttention(attentionOptions);
+  const readSection = (id: "connections" | "requests" | "search") =>
+    attentionRead.read({ kind: "contacts", id });
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -312,6 +334,7 @@ export function Contacts() {
   ) => (
     <ContactCard
       key={`${friendRequest ?? "contact"}-${user.id}`}
+      userId={user.id}
       name={user.name}
       email={user.email}
       avatarUrl={user.avatarUrl}
@@ -337,214 +360,262 @@ export function Contacts() {
   );
 
   return (
-    <div className="min-w-0 space-y-4">
-      {actionFailed ? (
-        <p role="alert" className="text-sm text-danger">
-          {t`Could not complete the action. Try again.`}
-        </p>
-      ) : null}
+    <NotificationAttentionScope
+      options={attentionOptions}
+      targets={[
+        { kind: "contacts", id: "connections" },
+        { kind: "contacts", id: "requests" },
+        { kind: "contacts", id: "search" },
+        ...[
+          ...connections.flatMap((section) => section.users),
+          ...searchResults,
+          ...pendingRows.flatMap((row) => (row.profile ? [row.profile] : [])),
+          ...sentRows.flatMap((row) => (row.profile ? [row.profile] : [])),
+        ].map((user) => ({ kind: "contact" as const, id: user.id })),
+      ]}
+    >
+      <div className="min-w-0 space-y-4">
+        {actionFailed ? (
+          <p role="alert" className="text-sm text-danger">
+            {t`Could not complete the action. Try again.`}
+          </p>
+        ) : null}
 
-      <Tabs aria-label={t`Contacts`} defaultSelectedKey="connections">
-        <Tabs.ListContainer>
-          <Tabs.List>
-            <Tabs.Tab id="connections">
-              {t`Connections`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab id="requests">
-              {t`Requests`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
-            <Tabs.Tab id="search">
-              {t`Search`}
-              <Tabs.Indicator />
-            </Tabs.Tab>
-          </Tabs.List>
-        </Tabs.ListContainer>
+        <Tabs
+          aria-label={t`Contacts`}
+          defaultSelectedKey="connections"
+          onSelectionChange={(key) => {
+            if (key === "connections" || key === "requests" || key === "search") readSection(key);
+          }}
+        >
+          <Tabs.ListContainer style={{ overflow: "visible", paddingTop: 8, paddingRight: 8 }}>
+            <Tabs.List style={{ overflow: "visible" }}>
+              <Tabs.Tab
+                id="connections"
+                className="relative"
+                onPress={() => readSection("connections")}
+              >
+                {t`Connections`}
+                <ContactSectionBadge section="connections" />
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab id="requests" className="relative" onPress={() => readSection("requests")}>
+                {t`Requests`}
+                <ContactSectionBadge section="requests" />
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab id="search" className="relative" onPress={() => readSection("search")}>
+                {t`Search`}
+                <ContactSectionBadge section="search" />
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs.ListContainer>
 
-        <Tabs.Panel id="search" className="space-y-3 pt-4">
-          <SearchInput
-            value={query}
-            onChange={(value) => {
-              setQuery(value);
-              if (!value) contacts.runSearch("");
-            }}
-            placeholder={t`Search users`}
-            label={
-              <SearchHelpLabel
-                label={t`Search users by name or email`}
-                help={t`Type at least 4 characters to search`}
-              />
-            }
-          />
+          <Tabs.Panel id="search" className="space-y-3 pt-4">
+            <SearchInput
+              value={query}
+              onChange={(value) => {
+                setQuery(value);
+                if (!value) contacts.runSearch("");
+              }}
+              placeholder={t`Search users`}
+              label={
+                <SearchHelpLabel
+                  label={t`Search users by name or email`}
+                  help={t`Type at least 4 characters to search`}
+                />
+              }
+            />
 
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Search className="size-4" aria-hidden="true" />
-            {t`Search results`}
-          </h2>
-          {query.trim().length < 4 && (
-            <EmptyList icon={<Search className="size-7" />}>
-              {t`Type at least 4 characters to search`}
-            </EmptyList>
-          )}
-          {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-          {query.trim().length >= 4 &&
-            !contacts.search.isLoading &&
-            !contacts.search.isError &&
-            searchResults.length === 0 && (
-              <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
-            )}
-          {contacts.search.isError ? (
-            <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-          ) : null}
-          <GroupedList>{searchResults.map((user) => contactCard(user))}</GroupedList>
-          <section className="space-y-2" aria-labelledby="device-contacts-title">
-            <h2
-              id="device-contacts-title"
-              className="flex items-center gap-2 text-sm font-semibold"
-            >
-              <BookUser className="size-4" aria-hidden="true" />
-              {t`Device Contacts`}
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <Search className="size-4" aria-hidden="true" />
+              {t`Search results`}
             </h2>
-            {contacts.suggestions.isLoading ? <ContactListSkeleton count={2} /> : null}
-            {contacts.suggestions.isError ? (
+            {query.trim().length < 4 && (
+              <EmptyList icon={<Search className="size-7" />}>
+                {t`Type at least 4 characters to search`}
+              </EmptyList>
+            )}
+            {contacts.search.isLoading && <ContactListSkeleton count={2} />}
+            {query.trim().length >= 4 &&
+              !contacts.search.isLoading &&
+              !contacts.search.isError &&
+              searchResults.length === 0 && (
+                <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
+              )}
+            {contacts.search.isError ? (
               <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
             ) : null}
-            {!contacts.suggestions.isLoading &&
-            !contacts.suggestions.isError &&
-            bgoContacts.length === 0 ? (
-              <EmptyList icon={<BookUser className="size-7" />}>
-                {t`No contacts to invite`}
-              </EmptyList>
+            <GroupedList style={{ overflow: "visible" }}>
+              {searchResults.map((user) => contactCard(user))}
+            </GroupedList>
+            <section className="space-y-2" aria-labelledby="device-contacts-title">
+              <h2
+                id="device-contacts-title"
+                className="flex items-center gap-2 text-sm font-semibold"
+              >
+                <BookUser className="size-4" aria-hidden="true" />
+                {t`Device Contacts`}
+              </h2>
+              {contacts.suggestions.isLoading ? <ContactListSkeleton count={2} /> : null}
+              {contacts.suggestions.isError ? (
+                <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+              ) : null}
+              {!contacts.suggestions.isLoading &&
+              !contacts.suggestions.isError &&
+              bgoContacts.length === 0 ? (
+                <EmptyList icon={<BookUser className="size-7" />}>
+                  {t`No contacts to invite`}
+                </EmptyList>
+              ) : null}
+              <GroupedList style={{ overflow: "visible" }}>
+                {bgoContacts.map((user) => contactCard(user))}
+              </GroupedList>
+              <div ref={endRefs.suggestions} aria-hidden="true" />
+              {contacts.suggestions.isFetchNextPageError ? (
+                <button
+                  type="button"
+                  className="text-sm text-primary"
+                  onClick={() => void contacts.suggestions.fetchNextPage()}
+                >{t`Retry`}</button>
+              ) : null}
+            </section>
+          </Tabs.Panel>
+
+          <Tabs.Panel id="requests" className="space-y-3 pt-4">
+            <ContactLegend
+              title={t`Requests`}
+              icon={Mail}
+              entries={[
+                {
+                  icon: Mail,
+                  label: t`Received`,
+                  color: "text-primary",
+                  description: t`Requests awaiting your reply.`,
+                },
+                {
+                  icon: Send,
+                  label: t`Sent`,
+                  color: "text-warning",
+                  description: t`Requests awaiting their reply.`,
+                },
+              ]}
+            />
+            {requestPages.some((page) => page.isLoading) ? <ContactListSkeleton count={2} /> : null}
+            {requestPages.some((page) => page.isError) ? (
+              <p
+                role="alert"
+                className="text-sm text-danger"
+              >{t`Could not load friend requests`}</p>
             ) : null}
-            <GroupedList>{bgoContacts.map((user) => contactCard(user))}</GroupedList>
-            <div ref={endRefs.suggestions} aria-hidden="true" />
-            {contacts.suggestions.isFetchNextPageError ? (
+            {!requestPages.some((page) => page.isLoading || page.isError) &&
+            pendingRows.length === 0 &&
+            sentRows.length === 0 ? (
+              <EmptyList icon={<Mail className="size-7" />}>{t`No friend requests`}</EmptyList>
+            ) : null}
+            <GroupedList style={{ overflow: "visible" }}>
+              {pendingRows.map((row) =>
+                row.profile
+                  ? contactCard(row.profile, "incoming", {
+                      icon: Mail,
+                      label: t`Received`,
+                      color: "text-primary",
+                    })
+                  : null,
+              )}
+              {sentRows.map((row) =>
+                row.profile
+                  ? contactCard(row.profile, "outgoing", {
+                      icon: Send,
+                      label: t`Sent`,
+                      color: "text-warning",
+                    })
+                  : null,
+              )}
+            </GroupedList>
+            <div ref={endRefs.requests} aria-hidden="true" />
+            {requestPages.some((page) => page.isFetchNextPageError) ? (
               <button
                 type="button"
                 className="text-sm text-primary"
-                onClick={() => void contacts.suggestions.fetchNextPage()}
+                onClick={() => {
+                  for (const page of requestPages) {
+                    if (page.isFetchNextPageError) void page.fetchNextPage();
+                  }
+                }}
               >{t`Retry`}</button>
             ) : null}
-          </section>
-        </Tabs.Panel>
+          </Tabs.Panel>
 
-        <Tabs.Panel id="requests" className="space-y-3 pt-4">
-          <ContactLegend
-            title={t`Requests`}
-            icon={Mail}
-            entries={[
-              {
-                icon: Mail,
-                label: t`Received`,
-                color: "text-primary",
-                description: t`Requests awaiting your reply.`,
-              },
-              {
-                icon: Send,
-                label: t`Sent`,
-                color: "text-warning",
-                description: t`Requests awaiting their reply.`,
-              },
-            ]}
-          />
-          {requestPages.some((page) => page.isLoading) ? <ContactListSkeleton count={2} /> : null}
-          {requestPages.some((page) => page.isError) ? (
-            <p role="alert" className="text-sm text-danger">{t`Could not load friend requests`}</p>
-          ) : null}
-          {!requestPages.some((page) => page.isLoading || page.isError) &&
-          pendingRows.length === 0 &&
-          sentRows.length === 0 ? (
-            <EmptyList icon={<Mail className="size-7" />}>{t`No friend requests`}</EmptyList>
-          ) : null}
-          <GroupedList>
-            {pendingRows.map((row) =>
-              row.profile
-                ? contactCard(row.profile, "incoming", {
-                    icon: Mail,
-                    label: t`Received`,
-                    color: "text-primary",
-                  })
-                : null,
-            )}
-            {sentRows.map((row) =>
-              row.profile
-                ? contactCard(row.profile, "outgoing", {
-                    icon: Send,
-                    label: t`Sent`,
-                    color: "text-warning",
-                  })
-                : null,
-            )}
-          </GroupedList>
-          <div ref={endRefs.requests} aria-hidden="true" />
-          {requestPages.some((page) => page.isFetchNextPageError) ? (
-            <button
-              type="button"
-              className="text-sm text-primary"
-              onClick={() => {
-                for (const page of requestPages) {
-                  if (page.isFetchNextPageError) void page.fetchNextPage();
-                }
-              }}
-            >{t`Retry`}</button>
-          ) : null}
-        </Tabs.Panel>
+          <Tabs.Panel id="connections" className="space-y-3 pt-4">
+            <ContactLegend
+              title={t`Connections`}
+              icon={UsersRound}
+              entries={(["friends", "following", "followers", "blocked"] as const).map((type) => ({
+                icon: connectionIcons[type],
+                label: connectionLabels[type],
+                color: connectionColors[type],
+                description: connectionDescriptions[type],
+              }))}
+            />
+            {connectionPages.some((page) => page.isLoading) ? (
+              <ContactListSkeleton count={2} />
+            ) : null}
+            {connectionPages.some((page) => page.isError) ? (
+              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+            ) : null}
+            {!connectionPages.some((page) => page.isLoading || page.isError) &&
+            connections.every(
+              (section) => section.key === "device" || section.users.length === 0,
+            ) ? (
+              <EmptyList
+                icon={<UsersRound className="size-7" />}
+              >{t`No connections yet`}</EmptyList>
+            ) : null}
+            <GroupedList style={{ overflow: "visible" }}>
+              {connections
+                .filter((section) => section.key !== "device")
+                .flatMap((section) =>
+                  section.users.map((user) =>
+                    contactCard(user, undefined, {
+                      icon: connectionIcons[section.key],
+                      label: connectionLabels[section.key],
+                      color: connectionColors[section.key],
+                    }),
+                  ),
+                )}
+            </GroupedList>
+            <div ref={endRefs.connections} aria-hidden="true" />
+            {connectionPages.some((page) => page.isFetchNextPageError) ? (
+              <button
+                type="button"
+                className="text-sm text-primary"
+                onClick={() => {
+                  for (const page of connectionPages) {
+                    if (page.isFetchNextPageError) void page.fetchNextPage();
+                  }
+                }}
+              >{t`Retry`}</button>
+            ) : null}
+          </Tabs.Panel>
+        </Tabs>
 
-        <Tabs.Panel id="connections" className="space-y-3 pt-4">
-          <ContactLegend
-            title={t`Connections`}
-            icon={UsersRound}
-            entries={(["friends", "following", "followers", "blocked"] as const).map((type) => ({
-              icon: connectionIcons[type],
-              label: connectionLabels[type],
-              color: connectionColors[type],
-              description: connectionDescriptions[type],
-            }))}
-          />
-          {connectionPages.some((page) => page.isLoading) ? (
-            <ContactListSkeleton count={2} />
-          ) : null}
-          {connectionPages.some((page) => page.isError) ? (
-            <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-          ) : null}
-          {!connectionPages.some((page) => page.isLoading || page.isError) &&
-          connections.every((section) => section.key === "device" || section.users.length === 0) ? (
-            <EmptyList icon={<UsersRound className="size-7" />}>{t`No connections yet`}</EmptyList>
-          ) : null}
-          <GroupedList>
-            {connections
-              .filter((section) => section.key !== "device")
-              .flatMap((section) =>
-                section.users.map((user) =>
-                  contactCard(user, undefined, {
-                    icon: connectionIcons[section.key],
-                    label: connectionLabels[section.key],
-                    color: connectionColors[section.key],
-                  }),
-                ),
-              )}
-          </GroupedList>
-          <div ref={endRefs.connections} aria-hidden="true" />
-          {connectionPages.some((page) => page.isFetchNextPageError) ? (
-            <button
-              type="button"
-              className="text-sm text-primary"
-              onClick={() => {
-                for (const page of connectionPages) {
-                  if (page.isFetchNextPageError) void page.fetchNextPage();
-                }
-              }}
-            >{t`Retry`}</button>
-          ) : null}
-        </Tabs.Panel>
-      </Tabs>
-
-      {!isSignedIn && (
-        <Chip color="warning" variant="soft">
-          {t`Sign in to see your contacts`}
-        </Chip>
-      )}
-    </div>
+        {!isSignedIn && (
+          <Chip color="warning" variant="soft">
+            {t`Sign in to see your contacts`}
+          </Chip>
+        )}
+      </div>
+    </NotificationAttentionScope>
+  );
+}
+function ContactSectionBadge({ section }: { section: "connections" | "requests" | "search" }) {
+  const attention = useNotificationAttentionContext();
+  return (
+    <NotificationCountBadge
+      count={attention?.get({ kind: "contacts", id: section })?.count}
+      corner
+    />
   );
 }

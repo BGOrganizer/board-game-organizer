@@ -10,6 +10,7 @@ export function UserListRow({
   secondary,
   online,
   badge,
+  cornerBadge,
   children,
   actions,
   onPress,
@@ -21,6 +22,7 @@ export function UserListRow({
   secondary?: string | null;
   online?: boolean;
   badge?: UserBadge;
+  cornerBadge?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
   onPress?: () => void;
@@ -64,6 +66,7 @@ export function UserListRow({
           {actions}
         </View>
       ) : null}
+      {cornerBadge}
     </GroupedRow>
   );
 }

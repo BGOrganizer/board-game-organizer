@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventTableCard } from "../EventTableCard";
+import { EventTableInvitationActions } from "../EventTableInvitationActions";
 
 const m = vi.hoisted(() => ({
   busy: false,
@@ -197,10 +198,15 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
     expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   },
 );
-it("keeps versioned invitation consent in Event context, with pending/busy guards identical to personal context", () => {
+it("keeps external Event-context cards navigation-only and retains versioned, guarded detail consent", () => {
   const registration = { ...seat("owner", 3), status: "PENDING" as const },
     table = { ...plannedTable, canRespond: true, myRegistration: registration };
   const q = renderWithI18n(<EventTableCard context="event" table={table} />);
+  expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Decline invitation" })).toBeNull();
+  q.rerender(
+    <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Accept invitation" }));
   expect(m.respond.mutate).not.toHaveBeenCalled();
   expect(screen.getByRole("dialog")).not.toBeNull();
@@ -210,17 +216,17 @@ it("keeps versioned invitation consent in Event context, with pending/busy guard
     registrationId: registration.id,
     input: { action: "decline", version: 3 },
   });
-  expect(
-    screen.getByRole("button", { name: "Accept invitation" }).parentElement?.parentElement
-      ?.className,
-  ).toContain("right-2");
   m.busy = true;
-  q.rerender(<EventTableCard context="event" table={table} />);
+  q.rerender(
+    <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
+  );
   expect(
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
   ).toBe(false);
   m.isResponding.mockReturnValue(true);
-  q.rerender(<EventTableCard context="event" table={table} />);
+  q.rerender(
+    <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
+  );
   expect(
     (screen.getByRole("button", { name: "Accept invitation" }) as HTMLButtonElement).disabled,
   ).toBe(true);
