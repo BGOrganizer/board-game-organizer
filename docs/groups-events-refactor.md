@@ -279,10 +279,17 @@ explicit edit. The time-zone change never migrates or deletes historical documen
 
 ## Notification attention
 
-- Bell alone retains its numerical unread count and `99+`. Navigation, cards and individual items
-  use an accessible 8px red dot, absent at zero/unknown. Card dots straddle the top-right border,
-  outside clipping frames and apart from entity status. All counts come from complete recipient-
-  scoped aggregates, not loaded inbox pages.
+- Bell alone retains its numerical unread count and `99+`; navigation retains accessible 8px
+  numberless dots. Cards/contact rows use static, theme-aware accent borders. Specific invitation,
+  date/location/game and overview items pulse three slow 1.6-second cycles (4.8 seconds total), then keep a static
+  border; section/container borders never pulse. Zero/unknown attention has no border. Absolute
+  overlays preserve layout, touches and status presentation. Reduced motion uses only static borders.
+  Session-only, user/API/item-scoped UI high-water marks prevent replay on screen remount, list
+  recycling, background/foreground or failed optimistic-read rollback. A newer matching source signal
+  replays; unrelated items and mere refetches do not. Process restart forgets presentation marks.
+  Signal identity comes from the newest matching unread item change plus notification identity,
+  never unread count or fetch time. No presentation mark is persisted or acknowledges a notification.
+  All counts come from complete recipient-scoped aggregates, not loaded inbox pages.
 - Table attention propagates to its Event and authorized Group. Shared Event notices also identify
   affected, currently accessible Tables, including cards in the personal Tables list. Group's
   Events tab includes descendants. Each notice contributes once within each aggregate, even when

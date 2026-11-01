@@ -4,11 +4,25 @@ import {
   notificationAttentionTargetSchema,
   readNotificationAttentionSchema,
 } from "../dto/notificationAttention";
-import { notificationItemId, notificationItemIdSchema } from "../notificationItems";
+import {
+  notificationItemCanPulse,
+  notificationItemId,
+  notificationItemIdSchema,
+} from "../notificationItems";
 
 const scope = "11111111-1111-4111-8111-111111111111",
   option = "22222222-2222-4222-8222-222222222222";
 describe("precise notification item identity", () => {
+  it("pulses only precise unread items, never containers or malformed identities", () => {
+    for (const field of ["date", "location"] as const)
+      expect(notificationItemCanPulse(notificationItemId(scope, field, option))).toBe(true);
+    expect(notificationItemCanPulse(notificationItemId(scope, "game", 1))).toBe(true);
+    for (const field of ["invitation", "overview"] as const)
+      expect(notificationItemCanPulse(notificationItemId(scope, field))).toBe(true);
+    for (const field of ["dates", "locations", "games", "tables"] as const)
+      expect(notificationItemCanPulse(notificationItemId(scope, field))).toBe(false);
+    expect(notificationItemCanPulse("bad")).toBe(false);
+  });
   it.each(["date", "location"] as const)("requires a canonical %s option", (field) => {
     expect(
       notificationItemIdSchema.safeParse(notificationItemId(scope, field, option)).success,

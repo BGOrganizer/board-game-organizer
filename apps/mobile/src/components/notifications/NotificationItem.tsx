@@ -1,3 +1,4 @@
+import { notificationItemCanPulse } from "@board-game-organizer/schemas";
 import { useNotificationAttentionContext } from "@board-game-organizer/shared";
 import { useLocalSearchParams } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -5,7 +6,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Check } from "lucide-react-native";
 import { type ReactNode, useContext, useRef } from "react";
 import { View } from "react-native";
-import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
+import { NotificationAttentionBorder } from "@/components/common/ui/NotificationAttentionBorder";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { useT } from "@/lib/i18n";
 
@@ -26,7 +27,8 @@ export function NotificationItem({
     positioned = useRef<string | null>(null);
   const foreground = useThemeColor("foreground");
   const target = itemId ? { kind: "item" as const, id: itemId } : undefined;
-  const count = target ? attention?.get(target)?.count : undefined;
+  const record = target ? attention?.get(target) : undefined;
+  const count = record?.count;
   if (!target) return <>{children}</>;
   return (
     <View
@@ -40,7 +42,14 @@ export function NotificationItem({
         });
       }}
     >
-      <NotificationCountBadge count={count} />
+      <NotificationAttentionBorder
+        active={Boolean(count)}
+        pulse={
+          attention && notificationItemCanPulse(target.id)
+            ? { owner: attention.owner, itemId: target.id, signal: record?.signal }
+            : undefined
+        }
+      />
       <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
       {readOnly && count ? (
         <Button

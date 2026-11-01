@@ -30,7 +30,26 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
         },
       },
     },
-    { $set: { _afterTables: { $setIntersection: [tableIds("$_afterItems"), "$_tableIds"] } } },
+    {
+      $set: {
+        _afterTables: { $setIntersection: [tableIds("$_afterItems"), "$_tableIds"] },
+        _pulseAt: {
+          $max: {
+            $map: {
+              input: {
+                $filter: {
+                  input: "$_items",
+                  as: "item",
+                  cond: { $or: [{ $eq: ["$$item.id", id] }, { $eq: ["$$item.sectionId", id] }] },
+                },
+              },
+              as: "item",
+              in: { $ifNull: ["$$item.changedAt", "$createdAt"] },
+            },
+          },
+        },
+      },
+    },
   ];
   return {
     total: [
@@ -39,6 +58,21 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
         $group: {
           _id: null,
           count: { $sum: 1 },
+          signal: {
+            $max: {
+              $concat: [
+                {
+                  $dateToString: {
+                    date: "$_pulseAt",
+                    format: "%Y-%m-%dT%H:%M:%S.%LZ",
+                    timezone: "UTC",
+                  },
+                },
+                "|",
+                { $toString: "$_id" },
+              ],
+            },
+          },
           unread: { $sum: { $cond: [complete, 1, 0] } },
           tables: {
             $sum: {

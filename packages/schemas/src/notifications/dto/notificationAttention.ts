@@ -74,6 +74,11 @@ export const notificationAttentionCountSchema = notificationAttentionReferenceSc
   .extend({
     count,
     direct: count,
+    /** Newest matching unread change identity; stable across refetches, not fetch time. */
+    signal: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\|[a-f\d]{24}$/)
+      .optional(),
     events: count,
     sections: z.object({ connections: count, requests: count, search: count }).strict(),
     readEffect: z

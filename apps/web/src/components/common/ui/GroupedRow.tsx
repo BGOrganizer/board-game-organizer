@@ -10,7 +10,7 @@ export function GroupedRow({
   style?: CSSProperties;
 }) {
   return (
-    <li style={style} className={`flex min-w-0 items-center gap-2 p-3 pl-4 ${className}`}>
+    <li style={style} className={`relative flex min-w-0 items-center gap-2 p-3 pl-4 ${className}`}>
       {children}
     </li>
   );

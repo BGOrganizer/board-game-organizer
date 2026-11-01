@@ -159,6 +159,51 @@ describe("source-paged hierarchical notification attention", () => {
       ),
     ).toBe(true);
   });
+  it("returns stable per-item unread signals, advancing only for a matching new notice or retargeted revision", async () => {
+    await seedAttentionResources();
+    const date = { kind: "item", id: notificationItemId(eventId, "date", groupId) } as const;
+    const location = {
+      kind: "item",
+      id: notificationItemId(eventId, "location", tableId),
+    } as const;
+    const base = {
+      revision: 1,
+      eventId,
+      groupId,
+      tableIds: [tableId],
+      changedAt: new Date("2020-01-01T00:00:00.000Z"),
+    };
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [
+          { ...base, id: date.id },
+          { ...base, id: location.id },
+        ],
+      }),
+    );
+    const repository = new NotificationAttentionRepository(db),
+      source = async () => (await repository.snapshot(ACTOR, [date, location])).snapshot.targets;
+    const before = await source();
+    expect(before[0].signal).toMatch(/^2020-01-01T00:00:00\.000Z\|[a-f\d]{24}$/);
+    expect((await source()).map((row) => row.signal)).toEqual(before.map((row) => row.signal));
+    await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        attentionItems: [{ ...base, id: date.id, changedAt: new Date("2021-01-01T00:00:00.000Z") }],
+      }),
+    );
+    const arrival = await source();
+    expect(arrival[0].signal! > before[0].signal!).toBe(true);
+    expect(arrival[1].signal).toBe(before[1].signal);
+    await new NotificationsRepository(db).retargetItems([
+      { from: location.id, to: { ...base, id: location.id, revision: 2 } },
+    ]);
+    const changed = await source();
+    expect(changed[1].signal! > arrival[1].signal!).toBe(true);
+    expect(changed[0].signal).toBe(arrival[0].signal);
+    await repository.read(ACTOR, { target: date, through: new Date().toISOString() });
+    expect((await source())[0].signal).toBeUndefined();
+  });
   it("isolates Group and Table invitations even when their canonical UUIDs coincide", async () => {
     await seedAttentionResources();
     await db

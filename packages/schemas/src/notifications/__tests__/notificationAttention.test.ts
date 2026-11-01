@@ -92,6 +92,20 @@ describe("notification attention boundaries", () => {
       ],
     };
     expect(notificationAttentionSnapshotSchema.parse(snapshot)).toEqual(snapshot);
+    const signal = `${through}|000000000000000000000001`;
+    expect(
+      notificationAttentionSnapshotSchema.parse({
+        ...snapshot,
+        targets: [{ ...snapshot.targets[0], signal }],
+      }).targets[0].signal,
+    ).toBe(signal);
+    for (const invalid of [through, "", `${through}|short`, "2027-01-01|000000000000000000000001"])
+      expect(
+        notificationAttentionSnapshotSchema.safeParse({
+          ...snapshot,
+          targets: [{ ...snapshot.targets[0], signal: invalid }],
+        }).success,
+      ).toBe(false);
     expect(notificationAttentionReceiptSchema.safeParse({ updated: 0, snapshot }).success).toBe(
       true,
     );

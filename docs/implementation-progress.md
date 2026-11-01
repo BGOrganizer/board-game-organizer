@@ -1,5 +1,27 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Accent attention borders and finite item pulses
+
+- Supersedes the red card/item dots below: saved cards and Contact rows use static theme-aware
+  accent borders; precise invitation/date/location/game/overview items pulse three times over
+  4.8 seconds, then remain static. Bell counts and navigation dots are unchanged. Absolute,
+  pointer-transparent overlays preserve layout, semantic list rows, focus and action hit targets.
+- Recipient-authorized item aggregates return a stable newest-matching unread signal identity.
+  Refetch timestamps/counts are not pulse triggers. Process-local, user/API/item-scoped Zustand
+  presentation marks survive navigation/list remounts/background returns, ignore older projections
+  and failed-read rollbacks, and reset with the JS process. New matching signals replay. No Query
+  entities, consent or read state are mirrored into local stores or changed by animation.
+- Web observes visibility and live reduced-motion preferences; native uses focused-screen/AppState
+  gates, refreshed accessibility preferences and cancellable UI-thread Reanimated opacity. Sections
+  remain static. Reduced motion never pulses; turning it off does not replay old attention.
+- Local validation: 2,242 covered unit tests (shared 393, schemas 124, API 760, web 687, mobile 278)
+  and 102 real replica-set integration tests pass. Deterministic item/schema and UI presentation-mark
+  logic retain per-file 100% thresholds. Typecheck and owned-file Biome pass. API/web production
+  builds and Android export pass; generated references restored exactly and seven protected inputs
+  unchanged. No dependency, catalog, provider, CI or E2E policy changes; no publication requested.
+- Authenticated Playwright/Maestro, physical-device visuals/scrolling, external push and production
+  acceptance remain outstanding. Existing acceptance suites/jobs and publication scope are unchanged.
+
 ## Precise item attention; counted bell, numberless dots
 
 - Bell count and 99+ remain unchanged. Tabs, saved cards and internal items now use 8px red dots.

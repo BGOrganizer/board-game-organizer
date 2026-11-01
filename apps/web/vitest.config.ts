@@ -36,6 +36,9 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       allowExternal: true,
       include: [
+        fileURLToPath(
+          new URL("../../packages/store/src/slices/attentionPulseSlice.ts", import.meta.url),
+        ).replaceAll("\\", "/"),
         ...[
           "common/hooks/useListSearch.ts",
           "organizations/hooks/useOrganizationPeople.ts",
@@ -90,6 +93,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "../../packages/store/src/slices/attentionPulseSlice.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/shared/src/profile/hooks/usePreferredLanguageSync.ts": {
           lines: 100,
           functions: 100,

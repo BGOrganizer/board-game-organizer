@@ -411,9 +411,11 @@ Do not invent server-authoritative results or bypass validation. Notification re
 push-subscription synchronization, logout, profile completion, and background synchronization do not
 show user-action toasts.
 
-The bell alone retains its unread count. Tabs, cards and precise items use numberless attention
-dots; opening a container consumes only generic direct information, never invitation or child
-attention. Successful votes acknowledge only the captured source revision/cutoff in the same
+The bell alone retains its unread count; navigation tabs retain numberless attention dots.
+Cards/contact rows use static accent borders; precise items pulse three times on first display of a
+new source signal, then keep a static border. Screen/background returns never replay it; process
+restart does. Reduced motion stays static. UI animation never acknowledges attention.
+Opening a container consumes only generic direct information, never invitation or child attention. Successful votes acknowledge only the captured source revision/cutoff in the same
 transaction. Follow [notification attention](docs/groups-events-refactor.md#notification-attention)
 for partial reads, historical fallbacks, removed items and explicit inbox read/delete behavior.
 

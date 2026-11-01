@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
+import { NotificationAttentionBorder } from "@/components/common/ui/NotificationAttentionBorder";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
@@ -98,9 +99,8 @@ function ContactCard({
       {menu ? (
         <div className="flex shrink-0 items-center justify-end self-end sm:self-auto">{menu}</div>
       ) : null}
-      <NotificationCountBadge
-        count={attention?.get({ kind: "contact", id: userId })?.count}
-        corner
+      <NotificationAttentionBorder
+        active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
       />
     </GroupedRow>
   );

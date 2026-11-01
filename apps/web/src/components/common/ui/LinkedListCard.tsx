@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ListCard } from "./ListCard";
-import { NotificationCountBadge } from "./NotificationCountBadge";
+import { NotificationAttentionBorder } from "./NotificationAttentionBorder";
 
 export function LinkedListCard({
   href,
@@ -51,7 +51,7 @@ export function LinkedListCard({
           </div>
         ) : null}
       </ListCard>
-      <NotificationCountBadge count={notificationCount} corner />
+      <NotificationAttentionBorder active={Boolean(notificationCount)} />
     </div>
   );
 }

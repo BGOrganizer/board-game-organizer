@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { ListCard } from "./ListCard";
-import { NotificationCountBadge } from "./NotificationCountBadge";
+import { NotificationAttentionBorder } from "./NotificationAttentionBorder";
 
 export function LinkedListCard({
   label,
@@ -68,7 +68,7 @@ export function LinkedListCard({
           </View>
         ) : null}
       </ListCard>
-      <NotificationCountBadge count={notificationCount} corner />
+      <NotificationAttentionBorder active={Boolean(notificationCount)} />
     </View>
   );
 }

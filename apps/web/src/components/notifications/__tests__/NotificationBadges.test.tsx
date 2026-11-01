@@ -12,6 +12,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { EventCard } from "@/components/events/EventCard";
 import { EventTableCard } from "@/components/events/EventTableCard";
@@ -82,7 +83,7 @@ it("omits zero/unknown, uses dots by default and preserves the bell's counted 99
   expect(screen.getByRole("img", { name: "Notifications: 130" }).textContent).toBe("99+");
   expect(screen.queryByText("0")).toBeNull();
 });
-it("places 8px red dots outside every card's clipping frame, including personal Tables", async () => {
+it("places static accent borders outside every card's clipping frame, including personal Tables", async () => {
   const client = setup();
   vi.stubGlobal(
     "fetch",
@@ -116,12 +117,9 @@ it("places 8px red dots outside every card's clipping frame, including personal 
     ).toBe(true);
     expect(badge.parentElement).toBe(link.parentElement?.parentElement);
     expect(link.parentElement?.contains(badge)).toBe(false);
-    expect(badge.style.top).toBe("-4px");
-    expect(badge.style.right).toBe("-4px");
-    expect(badge.style.width).toBe("8px");
-    expect(badge.className).toContain("badge--danger");
-    expect(badge.className).toContain("badge--sm");
-    expect(badge.style.pointerEvents).toBe("none");
+    expect(badge.className).toBe("notification-attention-border");
+    expect(badge.querySelector(".notification-attention-pulse")).toBeNull();
+    expect(badge.querySelector("[data-slot=badge]")).toBeNull();
   }
   expect(screen.queryByRole("button", { name: /Accept invitation|Decline invitation/ })).toBeNull();
 });
@@ -275,14 +273,22 @@ it("acknowledges only an explicit readonly item, retaining the other point and t
         <NotificationItem itemId={date.id} readOnly>
           <p>Changed date</p>
         </NotificationItem>
-        <NotificationItem itemId={location.id}>
-          <p>Changed location</p>
-        </NotificationItem>
+        <ul>
+          <GroupedRow>
+            <p>Changed location</p>
+            <NotificationItem itemId={location.id} />
+          </GroupedRow>
+        </ul>
       </NotificationAttentionScope>
     </QueryClientProvider>,
   );
   expect(screen.getAllByRole("img", { name: "Needs attention" })).toHaveLength(2);
   expect(screen.getAllByRole("button", { name: "Mark as read" })).toHaveLength(1);
+  const locationRow = screen.getByRole("listitem");
+  expect(within(locationRow).getByRole("img", { name: "Needs attention" }).parentElement).toBe(
+    locationRow,
+  );
+  expect(locationRow.querySelector("[data-slot=badge]")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Mark as read" }));
   await waitFor(() => expect(release).toBeTypeOf("function"));
   expect(screen.getAllByRole("img", { name: "Needs attention" })).toHaveLength(1);
@@ -337,5 +343,7 @@ it("never inherits attention from a nested scope belonging to another actor", as
   );
   await screen.findByRole("img", { name: "Needs attention" });
   const foreign = screen.getByRole("link", { name: "Open group: Foreign row" });
-  expect(foreign.parentElement?.parentElement?.querySelector("[data-slot=badge]")).toBeNull();
+  expect(
+    foreign.parentElement?.parentElement?.querySelector(".notification-attention-border"),
+  ).toBeNull();
 });

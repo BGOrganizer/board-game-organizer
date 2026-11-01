@@ -421,6 +421,7 @@ export class NotificationAttentionRepository {
             target,
             count: row?.count ?? 0,
             direct: row?.count ?? 0,
+            ...(row?.signal ? { signal: row.signal } : {}),
             events: 0,
             sections: { connections: 0, requests: 0, search: 0 },
             ...(row?.eventId ? { eventId: row.eventId } : {}),
