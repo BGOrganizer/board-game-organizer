@@ -2,6 +2,7 @@ import { getBgoRole, getMobileNumber } from "@board-game-organizer/schemas";
 import { useAuth, useUser } from "@clerk/expo";
 import { Redirect, Tabs, useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import {
   CalendarDays,
@@ -23,6 +24,7 @@ export default function TabLayout() {
   const { isLoaded: isUserLoaded, user } = useUser();
   const t = useT();
   const router = useRouter();
+  const [foreground, muted] = useThemeColor(["foreground", "muted"]);
 
   if (!isAuthLoaded || (isSignedIn && !isUserLoaded)) {
     return (
@@ -47,7 +49,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#006fee",
+        tabBarInactiveTintColor: muted,
         animation: Platform.OS === "android" ? "none" : "fade",
         headerRight: () => (
           <View style={{ marginRight: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -61,7 +63,7 @@ export default function TabLayout() {
                 style={{ minHeight: 44, minWidth: 44 }}
                 onPress={() => router.push("/moderation")}
               >
-                <ShieldCheck size={20} color="#737373" />
+                <ShieldCheck size={20} color={foreground} />
               </Button>
             ) : null}
             <Button
@@ -73,7 +75,7 @@ export default function TabLayout() {
               style={{ minHeight: 36, minWidth: 36 }}
               onPress={() => router.push("/profile")}
             >
-              <UserRound size={20} color="#737373" />
+              <UserRound size={20} color={foreground} />
             </Button>
           </View>
         ),

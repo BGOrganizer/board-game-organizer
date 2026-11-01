@@ -31,9 +31,7 @@ export function EventTableLeaderboard({ table }: { table: PlannedTableResponse }
         />
       </GroupedList>
       <h2 className="font-semibold">{t`Ranking`}</h2>
-      <p className="text-sm text-default-500">
-        {table.groupId ? t`Group rating` : t`Global rating`}
-      </p>
+      <p className="text-sm text-muted">{table.groupId ? t`Group rating` : t`Global rating`}</p>
       {q.isPending ? <Skeleton className="h-32 w-full rounded-xl" /> : null}
       {rows.map((row) => (
         <EventPlayerCard
@@ -43,19 +41,19 @@ export function EventTableLeaderboard({ table }: { table: PlannedTableResponse }
           avatarUrl={row.avatarUrl}
         >
           <div>
-            <p className="text-xs text-default-500">{t`Games played`}</p>
+            <p className="text-xs text-muted">{t`Games played`}</p>
             <p>{row.gamesPlayed}</p>
           </div>
           <div>
-            <p className="text-xs text-default-500">{t`Games won`}</p>
+            <p className="text-xs text-muted">{t`Games won`}</p>
             <p>{row.gamesWon}</p>
           </div>
           <div>
-            <p className="text-xs text-default-500">{t`ND`}</p>
+            <p className="text-xs text-muted">{t`ND`}</p>
             <p>{row.nd}</p>
           </div>
           <div>
-            <p className="text-xs text-default-500">{t`Ranking`}</p>
+            <p className="text-xs text-muted">{t`Ranking`}</p>
             <p className="inline-flex items-center gap-1">
               {number.format(row.score)}
               {row.provisional ? (

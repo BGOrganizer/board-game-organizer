@@ -292,7 +292,7 @@ describe("Contacts tabs", () => {
     const rows = screen.getAllByRole("listitem");
     expect(rows).toHaveLength(4);
     for (const [index, name, label, color] of [
-      [0, "Target User", "Friends", "text-primary"],
+      [0, "Target User", "Friends", "text-accent"],
       [1, "Following User", "Following", "text-warning"],
       [2, "Follower User", "Followers", "text-success"],
       [3, "Blocked User", "Blocked", "text-danger"],
@@ -334,7 +334,7 @@ describe("Contacts tabs", () => {
     expect(screen.getAllByRole("list")).toHaveLength(1);
     expect(screen.queryByRole("heading", { name: /Request details/i })).toBeNull();
     expect(within(received).getByRole("img", { name: "Received" }).className).toContain(
-      "text-primary",
+      "text-accent",
     );
     expect(within(sent).getByRole("img", { name: "Sent" }).className).toContain("text-warning");
     fireEvent.click(within(received).getByRole("button", { name: "Actions: Target User" }));

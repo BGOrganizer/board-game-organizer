@@ -21,7 +21,7 @@ export function HelpPopover({
     <Popover>
       <Popover.Trigger
         aria-label={label}
-        className="inline-flex size-8 items-center justify-center rounded-full text-default-500 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        className="inline-flex size-8 items-center justify-center rounded-full text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <CircleHelp className="size-4" aria-hidden="true" />
       </Popover.Trigger>

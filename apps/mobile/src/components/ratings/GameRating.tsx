@@ -1,5 +1,6 @@
 import { useLingui } from "@lingui/react";
 
+import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { ArrowDown, ArrowUp, ChartNoAxesCombined, Clock3, Equal } from "lucide-react-native";
 import { View } from "react-native";
@@ -13,6 +14,12 @@ export function GameRating({
   showDelta?: boolean;
 }) {
   const t = useT();
+  const [muted, warning, success, danger] = useThemeColor([
+    "muted",
+    "warning",
+    "success",
+    "danger",
+  ]);
   const { i18n } = useLingui();
   const format = new Intl.NumberFormat(i18n.locale, {
     minimumFractionDigits: 2,
@@ -27,10 +34,10 @@ export function GameRating({
         accessibilityLabel={rating?.provisional ? t("Provisional game rating") : t("Game rating")}
         style={{ width: 16, height: 16 }}
       >
-        <ChartNoAxesCombined size={14} color="#737373" />
+        <ChartNoAxesCombined size={14} color={muted} />
         {rating?.provisional && (
           <View style={{ position: "absolute", right: -3, bottom: -3 }}>
-            <Clock3 size={9} color="#f5a524" />
+            <Clock3 size={9} color={warning} />
           </View>
         )}
       </View>
@@ -44,11 +51,11 @@ export function GameRating({
           style={{ flexDirection: "row", alignItems: "center", gap: 2 }}
         >
           {delta > 0 ? (
-            <ArrowUp size={12} color="#17c964" />
+            <ArrowUp size={12} color={success} />
           ) : delta < 0 ? (
-            <ArrowDown size={12} color="#f31260" />
+            <ArrowDown size={12} color={danger} />
           ) : (
-            <Equal size={12} color="#f5a524" />
+            <Equal size={12} color={warning} />
           )}
           <Typography
             className={`text-xs ${delta > 0 ? "text-success" : delta < 0 ? "text-danger" : "text-warning"}`}

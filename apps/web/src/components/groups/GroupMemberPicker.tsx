@@ -43,7 +43,7 @@ export function GroupMemberPicker({
         .map((row) => (
           <div
             key={row.userId}
-            className="flex items-center justify-between gap-3 rounded-xl bg-default-100 p-3"
+            className="flex items-center justify-between gap-3 rounded-xl bg-default p-3"
           >
             <span>{row.name ?? row.userId}</span>
             <Button

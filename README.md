@@ -29,6 +29,9 @@ invited Groups of that type, while Search retains public discovery.
   Successful votes acknowledge only their displayed change; animation never does. Container entry
   preserves item attention. Optional push, light/dark and EN/IT.
   Reading never grants invitation consent.
+- HeroUI-token-only light/dark UI across native navigation, headers, controls and custom surfaces.
+  Theme changes preserve drafts and selection. Adjust semantic pairs in web/mobile global CSS;
+  components own no separate palette. Static provider artwork retains its required brand contrast.
 
 The [unified domain contract](docs/groups-events-refactor.md) describes this branch. Legacy
 Match/Organization writers return authenticated `410`; old UI links redirect without treating old

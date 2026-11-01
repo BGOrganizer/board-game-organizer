@@ -14,7 +14,7 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
   return (
     <section aria-label={t`Settings`} className="space-y-2">
       <div className="flex items-center gap-1">
-        <Settings2 className="size-5 text-default-500" aria-hidden />
+        <Settings2 className="size-5 text-muted" aria-hidden />
         <SearchHelpLabel
           label={t`Settings`}
           helpTitle={t`Field help`}
@@ -26,17 +26,17 @@ export function EventTableInfo({ table }: { table: PlannedTableResponse }) {
           <AnimatedDicebearArtwork seed={table.id} variant="planets" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-start gap-2">
-              <Dices className="mt-0.5 size-4 shrink-0 text-default-500" aria-hidden />
+              <Dices className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
               <h1 className="min-w-0 flex-1 break-words text-base font-semibold">{table.name}</h1>
               <EventTableRatingBadge enabled={table.rankingEnabled} />
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <span className="inline-flex items-center gap-1">
-                <UserRoundCheck className="size-4 text-default-500" aria-hidden />
+                <UserRoundCheck className="size-4 text-muted" aria-hidden />
                 {t`Minimum players`}: {number.format(table.minPlayers)}
               </span>
               <span className="inline-flex items-center gap-1">
-                <UsersRound className="size-4 text-default-500" aria-hidden />
+                <UsersRound className="size-4 text-muted" aria-hidden />
                 {t`Maximum players`}: {number.format(table.maxPlayers)}
               </span>
             </div>

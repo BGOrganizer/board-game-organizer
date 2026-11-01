@@ -41,7 +41,7 @@ export function EventDraftTableEditor({
   );
   const helpTitle = t`Field help`;
   return (
-    <section className="space-y-4 rounded-xl bg-default-100 p-4">
+    <section className="space-y-4 rounded-xl bg-default p-4">
       <TextField
         value={row.name}
         onChange={(name) => onChange({ name })}
@@ -129,7 +129,7 @@ export function EventDraftTableEditor({
               help={t`The date is fixed to the event day. Choose a time at or after the event starts; the whole table must finish by the event end.`}
             />
             {day ? (
-              <p className="text-sm text-default-500">
+              <p className="text-sm text-muted">
                 {new Intl.DateTimeFormat(i18n.locale, {
                   dateStyle: "medium",
                   timeZone: "UTC",
@@ -164,7 +164,7 @@ export function EventDraftTableEditor({
                     avatarUrl={row.demonstratorAvatarUrl}
                   />
                 ) : (
-                  <UserRoundPlus className="size-8 text-default-500" aria-hidden />
+                  <UserRoundPlus className="size-8 text-muted" aria-hidden />
                 )}
                 <Button
                   isIconOnly={Boolean(row.demonstratorUserId)}
@@ -237,7 +237,7 @@ export function EventDraftTableEditor({
             >
               {publicGroup ? (
                 game.maxPlayMinutes ? (
-                  <p className="text-sm text-default-500">
+                  <p className="text-sm text-muted">
                     {t`Duration`}: {game.maxPlayMinutes} {t`minutes`} · BoardGameGeek
                   </p>
                 ) : (

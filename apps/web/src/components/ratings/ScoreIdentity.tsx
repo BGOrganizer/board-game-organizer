@@ -35,7 +35,7 @@ export function ScoreIdentity({
         {showGameRating ? (
           <GameRating rating={gameRating} showDelta />
         ) : (
-          <span className="block truncate text-xs text-default-500">
+          <span className="block truncate text-xs text-muted">
             {player.email ?? t`Email unavailable`}
           </span>
         )}

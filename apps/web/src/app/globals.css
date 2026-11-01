@@ -1,6 +1,22 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
+/* HeroUI contrast primitives keep compact action labels readable without a second palette. */
+@layer theme {
+  :root,
+  .light,
+  [data-theme="light"] {
+    --accent-foreground: var(--eclipse);
+    --danger-foreground: var(--eclipse);
+  }
+
+  .dark,
+  [data-theme="dark"] {
+    --accent-foreground: var(--eclipse);
+    --danger-foreground: var(--black);
+  }
+}
+
 .dicebear-artwork {
   animation: match-waves 3s ease-in-out infinite alternate;
 }

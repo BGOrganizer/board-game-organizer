@@ -29,8 +29,7 @@ export default function NotificationsScreen() {
   const t = useT();
   const { i18n } = useLingui();
   const feedback = useMutationFeedback();
-  const danger = useThemeColor("danger"),
-    foreground = useThemeColor("foreground");
+  const [danger, foreground, muted] = useThemeColor(["danger", "foreground", "muted"]);
   const apiUrl = resolveApiUrl(Constants.expoConfig?.extra?.apiUrl as string | undefined);
   const owner = JSON.stringify([apiUrl, userId, sessionId]);
   const [deletion, setDeletion] = useState<{ owner: string; id?: string } | null>(null);
@@ -106,7 +105,7 @@ export default function NotificationsScreen() {
                 isDisabled={notifications.busy}
                 onPress={() => notifications.markAllRead.mutate()}
               >
-                <CheckCheck size={18} color="#737373" />
+                <CheckCheck size={18} color={foreground} />
                 <Button.Label>{t("Mark all as read")}</Button.Label>
               </Button>
             )}
@@ -145,7 +144,7 @@ export default function NotificationsScreen() {
               ))}
             </View>
           ) : notifications.list.isError ? null : (
-            <EmptyList icon={<Bell size={28} color="#737373" />}>
+            <EmptyList icon={<Bell size={28} color={muted} />}>
               {t("No notifications yet")}
             </EmptyList>
           )

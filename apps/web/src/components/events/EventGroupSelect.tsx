@@ -106,7 +106,7 @@ export function EventGroupSelect({
               <GroupArtwork group={row} size={40} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{row.name}</span>
-                <span className="text-xs text-default-500">
+                <span className="text-xs text-muted">
                   {row.type === "PUBLIC" ? t`Public` : t`Private`}
                 </span>
               </span>
@@ -126,7 +126,7 @@ export function EventGroupSelect({
             >{t`Try again`}</Button>
           </div>
         ) : !groups.isPending && !rows.length ? (
-          <p className="text-sm text-default-500">{t`No groups found`}</p>
+          <p className="text-sm text-muted">{t`No groups found`}</p>
         ) : null}
         {groups.hasNextPage ? (
           <Button

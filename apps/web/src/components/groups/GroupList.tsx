@@ -60,7 +60,7 @@ export function GroupList({
           }
         />
         {scope === "public" && !filters.search && !filters.query.trim() ? (
-          <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
+          <p className="text-sm text-muted">{t`Enter at least 4 characters to search`}</p>
         ) : null}
         {searchable && list.isPending ? (
           <div className="space-y-3">

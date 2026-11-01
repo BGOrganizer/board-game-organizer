@@ -36,7 +36,7 @@ export function LinkedListCard({
             else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey)
               onOpen?.();
           }}
-          className="flex w-full cursor-pointer items-start gap-3 rounded-xl p-3 text-left hover:bg-default-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+          className="flex w-full cursor-pointer items-start gap-3 rounded-xl p-3 text-left hover:bg-default focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
         >
           {children}
         </Link>

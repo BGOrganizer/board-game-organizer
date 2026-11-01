@@ -80,25 +80,36 @@ export function SearchLocationPage({
     const key = process.env.NEXT_PUBLIC_MAPTILER_API_KEY;
     if (!key || !mapNode.current) return;
     let alive = true;
+    let themeObserver: MutationObserver | undefined;
     void import("@maptiler/sdk")
       .then((maptiler) => {
         if (!alive || !mapNode.current) return;
         maptiler.config.apiKey = key;
+        const root = document.documentElement;
+        let dark = root.classList.contains("dark");
         const instance = new maptiler.Map({
           container: mapNode.current,
-          style: maptiler.MapStyle.STREETS,
+          style: dark ? maptiler.MapStyle.STREETS.DARK : maptiler.MapStyle.STREETS,
           center: initial ? [initial.longitude, initial.latitude] : [0, 20],
           zoom: initial ? 13 : 1.5,
         });
         map.current = instance;
+        themeObserver = new MutationObserver(() => {
+          const next = root.classList.contains("dark");
+          if (dark === next) return;
+          dark = next;
+          instance.setStyle(dark ? maptiler.MapStyle.STREETS.DARK : maptiler.MapStyle.STREETS);
+        });
+        themeObserver.observe(root, { attributes: true, attributeFilter: ["class"] });
         if (selectedRef.current)
-          marker.current = new maptiler.Marker()
+          marker.current = new maptiler.Marker({ color: "var(--accent)" })
             .setLngLat([selectedRef.current.longitude, selectedRef.current.latitude])
             .addTo(instance);
       })
       .catch(() => setError(t`Could not load map`));
     return () => {
       alive = false;
+      themeObserver?.disconnect();
       marker.current?.remove();
       map.current?.remove();
       map.current = null;
@@ -157,7 +168,7 @@ export function SearchLocationPage({
     void import("@maptiler/sdk").then((maptiler) => {
       if (!map.current || selectedRef.current !== result) return;
       marker.current?.remove();
-      marker.current = new maptiler.Marker()
+      marker.current = new maptiler.Marker({ color: "var(--accent)" })
         .setLngLat([result.longitude, result.latitude])
         .addTo(map.current);
     });
@@ -216,7 +227,7 @@ export function SearchLocationPage({
         ref={mapNode}
         role="img"
         aria-label={t`Location map`}
-        className="h-72 w-full rounded-lg bg-default-100"
+        className="h-72 w-full rounded-lg bg-default"
       />
       {!process.env.NEXT_PUBLIC_MAPTILER_API_KEY && <p role="alert">{t`Map unavailable`}</p>}
       <TextField fullWidth value={name} onChange={setName}>
@@ -286,7 +297,7 @@ export function SearchLocationPage({
                   <div className="min-w-0 flex-1">
                     <p className="break-words font-semibold">{location.name}</p>
                     <p
-                      className="line-clamp-2 break-words text-sm text-default-500"
+                      className="line-clamp-2 break-words text-sm text-muted"
                       title={location.address}
                     >
                       {formatLocationAddress(location.address)}

@@ -202,7 +202,7 @@ export default function MobileNumberScreen() {
           isDisabled={isSaving || !mobileNumber.trim()}
           onPress={() => void saveMobileNumber()}
         >
-          <Typography className="text-primary-foreground">
+          <Typography className="text-accent-foreground">
             {isSaving ? t("Saving…") : t("Continue")}
           </Typography>
         </Button>

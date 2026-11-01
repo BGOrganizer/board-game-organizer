@@ -96,7 +96,7 @@ export function PeoplePicker({
               </Avatar>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{person.name}</span>
-                <span className="block truncate text-xs text-default-500">
+                <span className="block truncate text-xs text-muted">
                   {person.username ?? person.email}
                 </span>
               </span>
@@ -127,7 +127,7 @@ export function PeoplePicker({
       </GroupedList>
       {list.isPending ? <Skeleton className="h-32 w-full rounded-xl" /> : null}
       {list.needsSearch ? (
-        <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
+        <p className="text-sm text-muted">{t`Enter at least 4 characters to search`}</p>
       ) : !list.isPending && !list.isError && !items.length ? (
         <EmptyList icon={<UsersRound className="size-7" />}>
           {invitationTable && !friendsOnly

@@ -30,6 +30,7 @@ export function FloatingActions({
     <Button
       isIconOnly
       variant={variant}
+      className="shadow-overlay"
       accessibilityLabel={t(label)}
       testID={testID}
       onPress={onPress}
@@ -44,11 +45,7 @@ export function FloatingActions({
         borderRadius: 28,
         alignItems: "center",
         justifyContent: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 6,
+        zIndex: 6,
       }}
     >
       {children}

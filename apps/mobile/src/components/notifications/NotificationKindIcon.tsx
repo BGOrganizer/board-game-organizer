@@ -1,4 +1,5 @@
 import type { NotificationKind } from "@board-game-organizer/schemas";
+import { useThemeColor } from "heroui-native/hooks";
 import {
   CalendarCheck,
   CalendarClock,
@@ -60,5 +61,6 @@ export function NotificationKindIcon({
   size?: number;
 }) {
   const Icon = icons[kind];
-  return <Icon size={size} color="#737373" accessible={false} />;
+  const muted = useThemeColor("muted");
+  return <Icon size={size} color={muted} accessible={false} />;
 }

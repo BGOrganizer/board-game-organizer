@@ -19,7 +19,7 @@ export function FloatingActions({
   left = false,
   variant = "primary",
 }: FloatingActionsProps) {
-  const className = `button button--${variant} button--icon-only fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 size-14 rounded-full shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${left ? "left-4 sm:left-6" : "right-4 sm:right-6"}`;
+  const className = `button button--${variant} button--icon-only fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 size-14 rounded-full shadow-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-background ${left ? "left-4 sm:left-6" : "right-4 sm:right-6"}`;
   if (onPress)
     return (
       <Button

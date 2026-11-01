@@ -148,7 +148,7 @@ export function SearchGamePage({
       <GroupedList className="mt-3">
         {items.map((item) => (
           <GroupedRow key={item.id}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default">
               {item.imageUrl ? (
                 // biome-ignore lint/performance/noImgElement: BGG cover URLs discovered at runtime.
                 <img
@@ -159,7 +159,7 @@ export function SearchGamePage({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <Gamepad2 className="h-5 w-5 text-default-400" />
+                <Gamepad2 className="h-5 w-5 text-muted" />
               )}
             </div>
             <div className="min-w-0 flex-1">

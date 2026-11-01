@@ -79,7 +79,7 @@ export function InviteCard({
         </p>
       ) : create.data ? (
         <div className="flex flex-col gap-2">
-          <code className="min-w-0 break-all rounded bg-default-100 p-2 text-sm">
+          <code className="min-w-0 break-all rounded bg-default p-2 text-sm">
             {create.data.link}
           </code>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -97,9 +97,7 @@ export function InviteCard({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-medium">{t`Invite a friend`}</p>
-            <p className="text-xs text-default-500">
-              {t`Generate a link to connect with someone.`}
-            </p>
+            <p className="text-xs text-muted">{t`Generate a link to connect with someone.`}</p>
           </div>
           <Button
             className="w-full shrink-0 sm:w-auto"

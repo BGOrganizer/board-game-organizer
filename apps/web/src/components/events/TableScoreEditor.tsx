@@ -154,7 +154,7 @@ export function TableScoreEditor({
                   scoreDraft.rawScore !== "" &&
                   normalizeMatchScore(scoreDraft.rawScore) === null
                 }
-                className="w-full rounded-lg border border-default-300 bg-background px-2 py-2 text-foreground"
+                className="w-full rounded-lg border border-border bg-background px-2 py-2 text-foreground"
               />
             </label>
             <Switch
@@ -344,7 +344,7 @@ export function TableScoreEditor({
           </GroupedList>
         )}
         {!preview.valid && (
-          <p className="text-sm text-default-500">{t`Enter a score for every frozen player or mark them as not participating. An all-ND table changes no ratings or statistics.`}</p>
+          <p className="text-sm text-muted">{t`Enter a score for every frozen player or mark them as not participating. An all-ND table changes no ratings or statistics.`}</p>
         )}
       </section>
       <Switch
@@ -359,7 +359,7 @@ export function TableScoreEditor({
           {t`Lowest score wins`}
         </Switch.Content>
       </Switch>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-default-200 bg-background p-4 text-center">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background p-4 text-center">
         <Button
           isDisabled={!preview.valid || busy || Boolean(editingTie) || Boolean(scoreEditor)}
           onPress={() => setConfirm(true)}

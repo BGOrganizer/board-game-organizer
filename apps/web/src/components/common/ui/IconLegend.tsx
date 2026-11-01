@@ -9,7 +9,7 @@ export function IconLegend({
     <ul className="space-y-2 text-sm">
       {items.map(({ icon: Icon, description }) => (
         <li key={description} className="flex items-start gap-2">
-          <Icon className="size-4 shrink-0 text-default-500" aria-hidden />
+          <Icon className="size-4 shrink-0 text-muted" aria-hidden />
           <span>{description}</span>
         </li>
       ))}

@@ -4,6 +4,7 @@ import { useLingui } from "@lingui/react";
 import Constants from "expo-constants";
 import { Avatar } from "heroui-native/avatar";
 import { Button } from "heroui-native/button";
+import { useThemeColor } from "heroui-native/hooks";
 import { Select } from "heroui-native/select";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
@@ -21,6 +22,7 @@ import { useSessionAuth } from "@/lib/useSessionAuth";
 export function GroupLeaderboard({ groupId }: { groupId: string }) {
   const { getToken, userId } = useSessionAuth();
   const t = useT();
+  const muted = useThemeColor("muted");
   const { i18n } = useLingui();
   const format = new Intl.NumberFormat(i18n.locale, {
     minimumFractionDigits: 2,
@@ -63,7 +65,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
     );
   if (!choices.length && !debouncedSearch)
     return (
-      <EmptyList icon={<Dices size={28} color="#737373" />}>
+      <EmptyList icon={<Dices size={28} color={muted} />}>
         {t("No rated tables played in this group yet")}
       </EmptyList>
     );
@@ -123,7 +125,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                 </Select.Item>
               ))}
               {!filteredChoices.length ? (
-                <EmptyList icon={<Dices size={28} color="#737373" />}>
+                <EmptyList icon={<Dices size={28} color={muted} />}>
                   {t("No games found")}
                 </EmptyList>
               ) : null}
@@ -147,7 +149,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
             style={{ position: "absolute", right: 2, bottom: 2, width: 44, height: 44 }}
             onPress={() => setGameId(null)}
           >
-            <X size={18} color="#737373" />
+            <X size={18} color={muted} />
           </Button>
         ) : null}
       </View>
@@ -199,6 +201,7 @@ function PlayerRow({
   t: ReturnType<typeof useT>;
   format: Intl.NumberFormat;
 }) {
+  const warning = useThemeColor("warning");
   return (
     <View
       className="rounded-xl bg-surface p-3"
@@ -237,7 +240,7 @@ function PlayerRow({
                 accessibilityRole="image"
                 accessibilityLabel={t("Provisional rating")}
               >
-                <Clock3 size={16} color="#f5a524" />
+                <Clock3 size={16} color={warning} />
               </View>
             ) : null}
           </View>

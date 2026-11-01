@@ -130,7 +130,7 @@ export function EventScheduleFields({
           <GroupedList>
             {draft.dates.map((date) => (
               <GroupedRow key={date.id}>
-                <CalendarClock className="size-5 shrink-0 text-default-500" aria-hidden />
+                <CalendarClock className="size-5 shrink-0 text-muted" aria-hidden />
                 <time className="min-w-0 flex-1" dateTime={eventDateWall(draft, date)}>
                   {new Intl.DateTimeFormat(i18n.locale, {
                     dateStyle: "medium",
@@ -155,7 +155,7 @@ export function EventScheduleFields({
             {(form.flexibleSchedule || !draft.dates.length) &&
             draft.dates.length < MAX_EVENT_OPTIONS ? (
               <GroupedRow>
-                <CalendarClock className="size-5 shrink-0 text-default-500" aria-hidden />
+                <CalendarClock className="size-5 shrink-0 text-muted" aria-hidden />
                 <TextField
                   className="min-w-0 flex-1"
                   aria-label={t`Date and time`}

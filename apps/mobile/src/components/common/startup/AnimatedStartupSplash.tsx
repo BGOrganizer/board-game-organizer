@@ -1,3 +1,4 @@
+import { useThemeColor } from "heroui-native/hooks";
 import { useEffect, useRef } from "react";
 import { View } from "react-native";
 import Animated, {
@@ -16,6 +17,7 @@ import { remainingSplashMs } from "@/lib/startup";
 
 export function AnimatedStartupSplash({ startedAt }: { startedAt: number }) {
   const reducedMotion = useReducedMotion();
+  const background = useThemeColor("background");
   const revealed = useRef(false);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -66,7 +68,7 @@ export function AnimatedStartupSplash({ startedAt }: { startedAt: number }) {
           left: 0,
           right: 0,
           zIndex: 100,
-          backgroundColor: "#fff",
+          backgroundColor: background,
           alignItems: "center",
           justifyContent: "center",
         },

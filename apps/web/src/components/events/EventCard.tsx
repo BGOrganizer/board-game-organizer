@@ -72,7 +72,7 @@ export function EventCard({
         }
       >
         {event.groupName ? (
-          <p className="flex items-center gap-1 text-sm text-default-500">
+          <p className="flex items-center gap-1 text-sm text-muted">
             <UsersRound className="size-4 shrink-0" aria-hidden />
             <span className="min-w-0 break-words">{event.groupName}</span>
           </p>
@@ -103,11 +103,11 @@ export function EventCard({
           className={`flex flex-wrap items-center gap-3 text-sm ${local?.phase === "verifying" && onVerify ? "pr-10" : ""}`}
         >
           <span className="inline-flex items-center gap-1">
-            <Dices className="size-4 text-default-500" aria-hidden />
+            <Dices className="size-4 text-muted" aria-hidden />
             {t`Tables`}: {number.format(event.tableCount)}
           </span>
           <span className="inline-flex items-center gap-1">
-            <UsersRound className="size-4 text-default-500" aria-hidden />
+            <UsersRound className="size-4 text-muted" aria-hidden />
             {t`Players`}: {number.format(event.participantCount)}
           </span>
         </div>

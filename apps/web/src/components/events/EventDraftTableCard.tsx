@@ -26,7 +26,7 @@ export function EventDraftTableCard({
           titleAccessory={<EventTableRatingBadge enabled={row.rankingEnabled} />}
         >
           <p className="flex items-center gap-2 text-sm">
-            <Dices className="size-4 shrink-0 text-default-500" aria-hidden />
+            <Dices className="size-4 shrink-0 text-muted" aria-hidden />
             <span className="min-w-0 truncate" title={firstGame}>
               {firstGame}
             </span>
@@ -44,14 +44,14 @@ export function EventDraftTableCard({
               </span>
             ) : null}
           </p>
-          <p className="flex items-center gap-2 text-sm text-default-500">
+          <p className="flex items-center gap-2 text-sm text-muted">
             <UsersRound className="size-4 shrink-0" aria-hidden />
             <span>
               {t`Minimum players`}: {row.minPlayers} · {t`Maximum players`}: {row.maxPlayers}
             </span>
           </p>
           {publicGroup || row.demonstratorUserId ? (
-            <p className="flex items-center gap-2 text-sm text-default-500">
+            <p className="flex items-center gap-2 text-sm text-muted">
               <Presentation className="size-4 shrink-0" aria-hidden />
               <span>
                 {row.demonstratorUserId ? (row.demonstratorName ?? t`Unknown`) : t`No demonstrator`}

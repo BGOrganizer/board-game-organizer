@@ -5,12 +5,10 @@ import { tokenCache } from "@clerk/expo/token-cache";
 import { I18nProvider } from "@lingui/react";
 import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { HeroUINativeProvider } from "heroui-native";
 import {
   Bell,
   Dices,
-  Gamepad2,
   LogIn,
   type LucideIcon,
   Phone,
@@ -25,6 +23,7 @@ import { Uniwind } from "uniwind";
 import "../../global.css";
 
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { NavigationTheme } from "@/components/common/providers/NavigationTheme";
 import { Startup } from "@/components/common/startup/Startup";
 import { RuntimeError } from "@/components/common/ui/RuntimeError";
 import { PushNotificationRouter } from "@/components/notifications/PushNotificationRouter";
@@ -124,7 +123,6 @@ function RootNavigator() {
       <QueryProvider>
         <ThemeSync />
         <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
-        <StatusBar style="auto" />
         <Stack>
           <Stack.Screen name="index" options={titleOptions("Board Game Organizer", Dices)} />
           <Stack.Screen
@@ -181,10 +179,12 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <Sentry.ErrorBoundary fallback={sentryFallback}>
-      <GestureHandlerRootView className="flex-1">
+      <GestureHandlerRootView className="flex-1 bg-background">
         <I18nProvider i18n={defaultI18n}>
           <HeroUINativeProvider>
-            <RootNavigator />
+            <NavigationTheme>
+              <RootNavigator />
+            </NavigationTheme>
           </HeroUINativeProvider>
         </I18nProvider>
       </GestureHandlerRootView>

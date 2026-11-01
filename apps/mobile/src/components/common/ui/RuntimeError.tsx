@@ -1,3 +1,4 @@
+import { useThemeColor } from "heroui-native/hooks";
 import { Text, View } from "react-native";
 
 type Props = {
@@ -9,9 +10,10 @@ type Props = {
  * Crash fallback rendered by the Sentry ErrorBoundary. It must NOT use
  * heroui-native components: the boundary replaces the whole provider tree,
  * so component-context (TextComponentProvider) is unavailable here.
- * Uses plain react-native with explicit theme-agnostic colors.
+ * Plain RN hosts and the provider-independent token hook remain safe outside that tree.
  */
 export function RuntimeError({ message, componentStack }: Props) {
+  const [background, foreground, muted] = useThemeColor(["background", "foreground", "muted"]);
   return (
     <View
       style={{
@@ -19,10 +21,11 @@ export function RuntimeError({ message, componentStack }: Props) {
         justifyContent: "center",
         alignItems: "center",
         padding: 24,
+        backgroundColor: background,
       }}
     >
-      <Text style={{ fontSize: 18, fontWeight: "bold", color: "#111" }}>Errore imprevisto</Text>
-      <Text style={{ marginTop: 8, fontSize: 14, color: "#555", textAlign: "center" }}>
+      <Text style={{ fontSize: 18, fontWeight: "bold", color: foreground }}>Errore imprevisto</Text>
+      <Text style={{ marginTop: 8, fontSize: 14, color: muted, textAlign: "center" }}>
         L&apos;errore è stato segnalato. Riavvia l&apos;app.
       </Text>
       {message ? (
@@ -30,7 +33,7 @@ export function RuntimeError({ message, componentStack }: Props) {
           style={{
             marginTop: 16,
             fontSize: 14,
-            color: "#111",
+            color: foreground,
             textAlign: "center",
             fontWeight: "600",
           }}
@@ -43,7 +46,7 @@ export function RuntimeError({ message, componentStack }: Props) {
           style={{
             marginTop: 8,
             fontSize: 10,
-            color: "#333",
+            color: muted,
             fontFamily: "monospace",
           }}
           numberOfLines={30}

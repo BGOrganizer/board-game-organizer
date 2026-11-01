@@ -74,6 +74,7 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
       {keys.map((key) => (
         <View
           key={key}
+          className="bg-surface-secondary"
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -81,7 +82,6 @@ function ContactListSkeleton({ count = 4 }: { count?: number }) {
             padding: 12,
             borderRadius: 12,
             width: "100%",
-            backgroundColor: "rgba(120,120,128,0.12)",
           }}
         >
           <Skeleton isLoading variant="pulse" style={{ width: 40, height: 40, borderRadius: 20 }} />
@@ -110,7 +110,7 @@ export default function ContactsScreen() {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const queryClient = useQueryClient();
   const t = useT();
-  const foreground = useThemeColor("foreground");
+  const [foreground, muted] = useThemeColor(["foreground", "muted"]);
   const mutationFeedback = useMutationFeedback();
   const attentionOptions = {
     apiUrl: apiUrl(),
@@ -723,7 +723,7 @@ export default function ContactsScreen() {
                         isDisabled={requestingContacts || syncingContacts}
                         testID="enable-contacts-btn"
                       >
-                        <BookUser size={18} color="#111" />
+                        <BookUser size={18} color={foreground} />
                       </Button>
                     ) : null}
                   </View>
@@ -737,7 +737,7 @@ export default function ContactsScreen() {
                     </Typography>
                   </View>
                   {query.trim().length < 4 && (
-                    <EmptyList icon={<Search size={28} color="#737373" />}>
+                    <EmptyList icon={<Search size={28} color={muted} />}>
                       {t("Type at least 4 characters to search")}
                     </EmptyList>
                   )}
@@ -746,7 +746,7 @@ export default function ContactsScreen() {
                     !contacts.search.isLoading &&
                     !contacts.search.isError &&
                     searchResults.length === 0 && (
-                      <EmptyList icon={<SearchX size={28} color="#737373" />}>
+                      <EmptyList icon={<SearchX size={28} color={muted} />}>
                         {t("No users found")}
                       </EmptyList>
                     )}
@@ -801,7 +801,7 @@ export default function ContactsScreen() {
                       !contacts.suggestions.isError &&
                       bgoContacts.length === 0 &&
                       unregistered.length === 0 ? (
-                        <EmptyList icon={<BookUser size={28} color="#737373" />}>
+                        <EmptyList icon={<BookUser size={28} color={muted} />}>
                           {t("No contacts to invite")}
                         </EmptyList>
                       ) : null}
@@ -881,7 +881,7 @@ export default function ContactsScreen() {
                   : null
               }
               empty={t("No friend requests")}
-              emptyIcon={<Mail size={28} color="#737373" />}
+              emptyIcon={<Mail size={28} color={muted} />}
               error={t("Could not load friend requests")}
               skeleton={<ContactListSkeleton count={2} />}
             />
@@ -912,7 +912,7 @@ export default function ContactsScreen() {
                 })
               }
               empty={t("No connections yet")}
-              emptyIcon={<UsersRound size={28} color="#737373" />}
+              emptyIcon={<UsersRound size={28} color={muted} />}
               error={t("Could not load contacts")}
               skeleton={<ContactListSkeleton count={2} />}
               footer={

@@ -12,7 +12,10 @@ export function FilterChips<Key extends string>({
   selected: readonly Key[];
   onToggle: (key: Key) => void;
 }) {
-  const [foreground, accentForeground] = useThemeColor(["foreground", "accent-foreground"]);
+  const [defaultForeground, accentForeground] = useThemeColor([
+    "default-foreground",
+    "accent-foreground",
+  ]);
   return options.length ? (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
       {options.map(({ key, label, icon: Icon }) => {
@@ -35,7 +38,11 @@ export function FilterChips<Key extends string>({
               accessibilityState={{ selected: active }}
               onPress={() => onToggle(key)}
             >
-              <Icon size={14} color={active ? accentForeground : foreground} accessible={false} />
+              <Icon
+                size={14}
+                color={active ? accentForeground : defaultForeground}
+                accessible={false}
+              />
               <Button.Label style={{ fontSize: 12 }}>{label}</Button.Label>
             </Button>
           </View>

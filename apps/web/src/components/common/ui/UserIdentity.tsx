@@ -27,9 +27,7 @@ export function UserIdentity({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{name}</span>
-        {secondary ? (
-          <span className="block truncate text-sm text-default-500">{secondary}</span>
-        ) : null}
+        {secondary ? <span className="block truncate text-sm text-muted">{secondary}</span> : null}
         {children}
       </span>
     </>

@@ -8,12 +8,24 @@ import "./globals.css";
 
 const clerkAppearance = {
   variables: {
-    colorPrimary: "#006fee",
-    colorDanger: "#f31260",
+    colorPrimary: "var(--accent)",
+    colorPrimaryForeground: "var(--accent-foreground)",
+    colorDanger: "var(--danger)",
+    colorSuccess: "var(--success)",
+    colorWarning: "var(--warning)",
+    colorBackground: "var(--overlay)",
+    colorForeground: "var(--overlay-foreground)",
+    colorInput: "var(--field-background)",
+    colorInputForeground: "var(--field-foreground)",
+    colorMuted: "var(--default)",
+    colorMutedForeground: "var(--muted)",
+    colorBorder: "var(--border)",
+    colorRing: "var(--focus)",
+    colorModalBackdrop: "var(--backdrop)",
     borderRadius: "0.5rem",
   },
   elements: {
-    card: "shadow-xl rounded-xl",
+    card: "shadow-overlay rounded-xl",
   },
 };
 

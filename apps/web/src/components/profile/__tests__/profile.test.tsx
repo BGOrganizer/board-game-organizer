@@ -1,6 +1,6 @@
 import type { BggAccountResponse } from "@board-game-organizer/schemas";
 import type { UserProfile } from "@board-game-organizer/shared";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Profile } from "@/components/profile/Profile";
 import { renderWithI18n } from "@/test-utils";
@@ -114,13 +114,15 @@ describe("Profile", () => {
     renderWithI18n(<Profile />);
     const linkButton = screen.getByRole("button", { name: "Sync with BoardGameGeek" });
     expect(linkButton.className).toContain("button--primary");
-    expect(linkButton.querySelector("span.text-white")).toBeTruthy();
+    expect(linkButton.querySelector("span")?.style.color).toBe("");
+    expect(linkButton.querySelector(".text-white")).toBeNull();
     expect(linkButton.getAttribute("style")).toBeNull();
     fireEvent.click(linkButton);
     expect(screen.getByPlaceholderText("BGG username")).toBeTruthy();
     const syncButton = screen.getByRole("button", { name: "Sync", hidden: true });
     expect(syncButton.className).toContain("button--primary");
-    expect(syncButton.querySelector("span.text-white")).toBeTruthy();
+    expect(syncButton.querySelector("span")?.style.color).toBe("");
+    expect(syncButton.querySelector(".text-white")).toBeNull();
     fireEvent.change(screen.getByRole("textbox", { name: "BGG username" }), {
       target: { value: "unknown" },
     });
@@ -227,8 +229,11 @@ describe("Profile", () => {
     expect(logo.compareDocumentPosition(logout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(logout.className).toContain("button--danger");
     expect(logout.className).toContain("justify-center");
-    expect(logout.querySelector("svg.text-white")).toBeTruthy();
-    expect(logout.querySelector("span.text-white")).toBeTruthy();
+    expect(logout.querySelector("svg")?.style.color).toBe("");
+    expect(logout.querySelector("span")?.style.color).toBe("");
+    expect(logout.querySelector(".text-white")).toBeNull();
+    expect(logout.style.backgroundColor).toBe("");
+    expect(logo.closest('[data-theme="light"]')?.className).toContain("bg-surface");
     expect(
       screen.getByRole("group", { name: "Friends: 4" }).querySelector(".min-w-5"),
     ).toBeTruthy();

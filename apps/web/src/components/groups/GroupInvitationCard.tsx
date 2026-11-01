@@ -18,7 +18,7 @@ export function GroupInvitationCard({
       <ListCard>
         <div className="space-y-3 p-4 text-center">
           <h2 className="font-semibold">{t`Invitation received`}</h2>
-          <p className="text-sm text-default-500">{t`Membership pending. Events, rankings and group social actions are unavailable until acceptance.`}</p>
+          <p className="text-sm text-muted">{t`Membership pending. Events, rankings and group social actions are unavailable until acceptance.`}</p>
           <div className="flex flex-wrap justify-center gap-2">
             <Button variant="primary" isDisabled={busy} onPress={onAccept}>
               <Check className="size-4" aria-hidden />

@@ -23,8 +23,8 @@ export function MobileNumberGate({ children }: Readonly<{ children: React.ReactN
         role="status"
       >
         <span className="sr-only">{t`Loading profile`}</span>
-        <div className="h-8 w-48 animate-pulse rounded-lg bg-default-200" />
-        <div className="h-24 w-full animate-pulse rounded-xl bg-default-200" />
+        <div className="h-8 w-48 animate-pulse rounded-lg bg-default" />
+        <div className="h-24 w-full animate-pulse rounded-xl bg-default" />
       </div>
     );
   }

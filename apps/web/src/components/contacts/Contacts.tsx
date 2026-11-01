@@ -76,8 +76,8 @@ function ContactCard({
             <Avatar.Fallback>{name?.charAt(0) ?? "?"}</Avatar.Fallback>
           </Avatar>
           <span
-            className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-white ${
-              online ? "bg-green-500" : "bg-gray-300"
+            className={`absolute -right-0.5 -top-0.5 block h-2.5 w-2.5 rounded-full border-2 border-surface ${
+              online ? "bg-success" : "bg-muted"
             }`}
             title={online ? "online" : "offline"}
           />
@@ -93,7 +93,7 @@ function ContactCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{name}</p>
-          {email ? <p className="truncate text-sm text-default-500">{email}</p> : null}
+          {email ? <p className="truncate text-sm text-muted">{email}</p> : null}
         </div>
       </div>
       {menu ? (
@@ -322,7 +322,7 @@ export function Contacts() {
     blocked: Ban,
   };
   const connectionColors = {
-    friends: "text-primary",
+    friends: "text-accent",
     following: "text-warning",
     followers: "text-success",
     blocked: "text-danger",
@@ -476,7 +476,7 @@ export function Contacts() {
               {contacts.suggestions.isFetchNextPageError ? (
                 <button
                   type="button"
-                  className="text-sm text-primary"
+                  className="text-sm text-accent"
                   onClick={() => void contacts.suggestions.fetchNextPage()}
                 >{t`Retry`}</button>
               ) : null}
@@ -491,7 +491,7 @@ export function Contacts() {
                 {
                   icon: Mail,
                   label: t`Received`,
-                  color: "text-primary",
+                  color: "text-accent",
                   description: t`Requests awaiting your reply.`,
                 },
                 {
@@ -520,7 +520,7 @@ export function Contacts() {
                   ? contactCard(row.profile, "incoming", {
                       icon: Mail,
                       label: t`Received`,
-                      color: "text-primary",
+                      color: "text-accent",
                     })
                   : null,
               )}
@@ -538,7 +538,7 @@ export function Contacts() {
             {requestPages.some((page) => page.isFetchNextPageError) ? (
               <button
                 type="button"
-                className="text-sm text-primary"
+                className="text-sm text-accent"
                 onClick={() => {
                   for (const page of requestPages) {
                     if (page.isFetchNextPageError) void page.fetchNextPage();
@@ -590,7 +590,7 @@ export function Contacts() {
             {connectionPages.some((page) => page.isFetchNextPageError) ? (
               <button
                 type="button"
-                className="text-sm text-primary"
+                className="text-sm text-accent"
                 onClick={() => {
                   for (const page of connectionPages) {
                     if (page.isFetchNextPageError) void page.fetchNextPage();

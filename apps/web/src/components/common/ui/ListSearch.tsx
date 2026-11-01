@@ -34,7 +34,7 @@ export function ListSearch<Filter extends string>({
       />
       <FilterChips options={options} selected={selected} onToggle={onToggle} />
       {query.trim().length > 0 && query.trim().length < 4 ? (
-        <p className="text-sm text-default-500">{t`Enter at least 4 characters to search`}</p>
+        <p className="text-sm text-muted">{t`Enter at least 4 characters to search`}</p>
       ) : null}
     </div>
   );

@@ -26,12 +26,12 @@ export function GameListRow({
 }) {
   const identity = (
     <>
-      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default-100">
+      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default">
         {imageUrl ? (
           // biome-ignore lint/performance/noImgElement: BGG cover URLs are discovered at runtime.
           <img src={imageUrl} alt="" className="size-full object-contain" />
         ) : (
-          <Gamepad2 className="size-5 text-default-400" aria-hidden />
+          <Gamepad2 className="size-5 text-muted" aria-hidden />
         )}
       </div>
       <div className="min-w-0 flex-1 text-left">

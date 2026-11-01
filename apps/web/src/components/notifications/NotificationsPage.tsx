@@ -107,7 +107,7 @@ export function NotificationsPage() {
       {notifications.list.isPending && (
         <div className="flex flex-col gap-3" role="status" aria-label={t`Loading notifications`}>
           {[0, 1, 2].map((index) => (
-            <div key={index} className="rounded-xl border border-default-200 bg-surface p-4">
+            <div key={index} className="rounded-xl border border-border bg-surface p-4">
               <Skeleton className="mb-2 h-5 w-48 rounded" />
               <Skeleton className="h-4 w-full rounded" />
             </div>
@@ -136,8 +136,8 @@ export function NotificationsPage() {
         {notifications.notifications.map((notification) => (
           <article
             key={notification.id}
-            className={`relative rounded-xl border bg-surface transition-colors hover:bg-default-100 ${
-              notification.readAt ? "border-default-200" : "border-accent/50"
+            className={`relative rounded-xl border bg-surface transition-colors hover:bg-default ${
+              notification.readAt ? "border-border" : "border-accent/50"
             }`}
           >
             <Link
@@ -154,7 +154,7 @@ export function NotificationsPage() {
               <span className="flex items-start gap-3">
                 <NotificationKindIcon
                   kind={notification.kind}
-                  className="mt-0.5 size-5 shrink-0 text-default-500"
+                  className="mt-0.5 size-5 shrink-0 text-muted"
                 />
                 <span className="min-w-0">
                   <span className="flex items-center gap-2 font-medium">
@@ -163,10 +163,8 @@ export function NotificationsPage() {
                       <span className="size-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
                     )}
                   </span>
-                  <span className="mt-1 block text-sm text-default-500">
-                    {notification.description}
-                  </span>
-                  <span className="mt-2 block text-xs text-default-400">
+                  <span className="mt-1 block text-sm text-muted">{notification.description}</span>
+                  <span className="mt-2 block text-xs text-muted">
                     {new Intl.DateTimeFormat(i18n.locale, {
                       dateStyle: "medium",
                       timeStyle: "short",

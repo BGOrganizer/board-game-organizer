@@ -3,10 +3,16 @@ import {
   type MutationFeedback,
   type MutationFeedbackAction,
 } from "@board-game-organizer/shared";
+import { useThemeColor } from "heroui-native/hooks";
 import { Toast, useToast } from "heroui-native/toast";
 import { CircleAlert, CircleCheck } from "lucide-react-native";
 import { createElement, useMemo } from "react";
 import { useT } from "@/lib/i18n";
+
+function FeedbackIcon({ variant }: { variant: "success" | "danger" }) {
+  const color = useThemeColor(variant);
+  return createElement(variant === "success" ? CircleCheck : CircleAlert, { size: 18, color });
+}
 
 export function useMutationFeedback(): MutationFeedback {
   const t = useT();
@@ -145,10 +151,7 @@ export function useMutationFeedback(): MutationFeedback {
           createElement(
             Toast,
             { ...props, variant, className: "flex-row items-center gap-3" },
-            createElement(variant === "success" ? CircleCheck : CircleAlert, {
-              size: 18,
-              color: variant === "success" ? "#17c964" : "#f31260",
-            }),
+            createElement(FeedbackIcon, { variant }),
             createElement(Toast.Title, { className: "flex-1" }, message),
             createElement(Toast.Close, {
               accessibilityLabel: t("Dismiss notification"),

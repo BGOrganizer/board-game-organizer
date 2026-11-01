@@ -34,7 +34,11 @@ export default function GamePicker({
 } = {}) {
   const { getToken, isLoaded, isSignedIn, userId } = useSessionAuth();
   const t = useT();
-  const [muted, foreground] = useThemeColor(["muted", "foreground"]);
+  const [muted, foreground, accentForeground] = useThemeColor([
+    "muted",
+    "foreground",
+    "accent-foreground",
+  ]);
   const router = useRouter();
   const { slotId, exclude } = useLocalSearchParams<{ slotId: string; exclude?: string }>();
   const setPendingGame = useAppStore((s) => s.setPendingGame);
@@ -215,7 +219,7 @@ export default function GamePicker({
                 accessibilityLabel={`${t("Select")}: ${item.name}`}
                 onPress={() => void select(item)}
               >
-                <Plus size={16} color="#fff" />
+                <Plus size={16} color={accentForeground} />
               </Button>
             }
           />

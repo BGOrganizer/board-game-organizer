@@ -31,18 +31,18 @@ export function GroupDetailsCard({
           <GroupArtwork group={group} />
           <div className="min-w-0 flex-1 space-y-2">
             <p className="break-words font-semibold">{group.name}</p>
-            <p className="flex items-center gap-1 text-sm text-default-500">
+            <p className="flex items-center gap-1 text-sm text-muted">
               <Visibility className="size-4" aria-hidden />
               {group.type === "PUBLIC" ? t`Public` : t`Private`}
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
               <span className="inline-flex items-center gap-1">
-                <UsersRound className="size-4 text-default-500" aria-hidden />
+                <UsersRound className="size-4 text-muted" aria-hidden />
                 {numbers.format(group.memberCount)} {t`Confirmed members`}
               </span>
               {group.canViewEvents && group.eventCount !== null ? (
                 <span className="inline-flex items-center gap-1">
-                  <CalendarDays className="size-4 text-default-500" aria-hidden />
+                  <CalendarDays className="size-4 text-muted" aria-hidden />
                   {numbers.format(group.eventCount)} {t`Events`}
                 </span>
               ) : null}
@@ -66,7 +66,7 @@ export function GroupDetailsCard({
         </p>
       ) : null}
       {group.approved && group.reviewStatus ? (
-        <p className="text-sm text-default-500">{t`Approved information remains visible while changes are reviewed.`}</p>
+        <p className="text-sm text-muted">{t`Approved information remains visible while changes are reviewed.`}</p>
       ) : null}
       {children ? <div className="flex flex-wrap justify-end gap-2">{children}</div> : null}
     </div>

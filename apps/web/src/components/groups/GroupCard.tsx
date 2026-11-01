@@ -69,12 +69,12 @@ export function GroupCard({
           <span className="min-w-0 flex-1 truncate font-semibold">{group.name}</span>
           {local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />}
         </span>
-        <span className="flex items-center gap-1 text-xs text-default-500">
+        <span className="flex items-center gap-1 text-xs text-muted">
           <Visibility className="size-3" aria-hidden />
           {group.type === "PUBLIC" ? t`Public` : t`Private`}
         </span>
         {group.location ? (
-          <span className="flex items-center gap-2 text-sm text-default-500">
+          <span className="flex items-center gap-2 text-sm text-muted">
             <MapPin className="size-4 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1 break-words">
               {formatLocationAddress(group.location.address)}
@@ -82,7 +82,7 @@ export function GroupCard({
           </span>
         ) : null}
         <span
-          className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-default-500 ${local?.phase === "verifying" && onVerify ? "pr-10" : ""}`}
+          className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted ${local?.phase === "verifying" && onVerify ? "pr-10" : ""}`}
         >
           <span className="flex items-center gap-1">
             <UsersRound className="size-4" aria-hidden />

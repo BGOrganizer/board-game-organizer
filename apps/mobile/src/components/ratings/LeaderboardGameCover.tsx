@@ -1,7 +1,9 @@
+import { useThemeColor } from "heroui-native/hooks";
 import { Gamepad2 } from "lucide-react-native";
 import { Image, View } from "react-native";
 
 export function LeaderboardGameCover({ imageUrl }: { imageUrl: string | null }) {
+  const muted = useThemeColor("muted");
   return imageUrl ? (
     <Image
       accessible={false}
@@ -10,7 +12,7 @@ export function LeaderboardGameCover({ imageUrl }: { imageUrl: string | null }) 
     />
   ) : (
     <View style={{ width: 20, height: 24, alignItems: "center", justifyContent: "center" }}>
-      <Gamepad2 size={16} color="#737373" />
+      <Gamepad2 size={16} color={muted} />
     </View>
   );
 }

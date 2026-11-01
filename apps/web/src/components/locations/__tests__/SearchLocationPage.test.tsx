@@ -1,6 +1,6 @@
 import { locationFavoriteKey, type MatchLocation } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n as renderI18n } from "../../../test-utils";
@@ -11,21 +11,31 @@ function renderWithI18n(ui: ReactElement) {
   return renderI18n(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-const mapMocks = vi.hoisted(() => ({ created: vi.fn(), remove: vi.fn(), flyTo: vi.fn() }));
+const mapMocks = vi.hoisted(() => ({
+  created: vi.fn(),
+  remove: vi.fn(),
+  flyTo: vi.fn(),
+  setStyle: vi.fn(),
+  marker: vi.fn(),
+}));
 vi.mock("@maptiler/sdk", () => ({
   config: { apiKey: "" },
-  MapStyle: { STREETS: "streets" },
+  MapStyle: { STREETS: { name: "streets", DARK: "streets-dark" } },
   Map: class {
-    constructor() {
-      mapMocks.created();
+    constructor(options: unknown) {
+      mapMocks.created(options);
     }
     on(_event: string, callback: () => void) {
       queueMicrotask(callback);
     }
     remove = mapMocks.remove;
     flyTo = mapMocks.flyTo;
+    setStyle = mapMocks.setStyle;
   },
   Marker: class {
+    constructor(options: unknown) {
+      mapMocks.marker(options);
+    }
     setLngLat() {
       return this;
     }
@@ -59,11 +69,53 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_MAPTILER_API_KEY = "test-key";
 });
 afterEach(() => {
+  cleanup();
+  document.documentElement.classList.remove("dark", "unrelated-theme-test");
   vi.unstubAllGlobals();
   if (originalGeolocation) Object.defineProperty(navigator, "geolocation", originalGeolocation);
   else Reflect.deleteProperty(navigator, "geolocation");
   if (originalKey === undefined) delete process.env.NEXT_PUBLIC_MAPTILER_API_KEY;
   else process.env.NEXT_PUBLIC_MAPTILER_API_KEY = originalKey;
+});
+
+it("switches map theme in place while preserving its verified selection and unsaved name, then disconnects on unmount", async () => {
+  document.documentElement.classList.add("dark");
+  const select = vi.fn();
+  const view = renderWithI18n(
+    <SearchLocationPage
+      apiUrl="https://api.example.com"
+      getToken={async () => "fresh"}
+      initial={location}
+      favorites={favorites()}
+      onSelect={select}
+      onClose={vi.fn()}
+    />,
+  );
+  await waitFor(() => expect(mapMocks.created).toHaveBeenCalledOnce());
+  expect(mapMocks.created).toHaveBeenCalledWith(expect.objectContaining({ style: "streets-dark" }));
+  expect(mapMocks.marker).toHaveBeenCalledWith({ color: "var(--accent)" });
+  const name = screen.getByRole("textbox", { name: "Location name" });
+  fireEvent.change(name, { target: { value: "Preserved draft" } });
+  act(() => document.documentElement.classList.remove("dark"));
+  await waitFor(() =>
+    expect(mapMocks.setStyle).toHaveBeenCalledWith({ name: "streets", DARK: "streets-dark" }),
+  );
+  act(() => document.documentElement.classList.add("unrelated-theme-test"));
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(mapMocks.setStyle).toHaveBeenCalledOnce();
+  expect((name as HTMLInputElement).value).toBe("Preserved draft");
+  fireEvent.click(screen.getByRole("button", { name: "Confirm location" }));
+  expect(select).toHaveBeenCalledWith({ ...location, name: "Preserved draft" });
+  expect(mapMocks.created).toHaveBeenCalledOnce();
+  view.unmount();
+  act(() => document.documentElement.classList.add("dark"));
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(mapMocks.setStyle).toHaveBeenCalledOnce();
+  expect(mapMocks.remove).toHaveBeenCalledOnce();
 });
 
 it("centers a successful empty address search but not startup, pending requests or failures", async () => {

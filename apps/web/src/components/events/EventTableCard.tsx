@@ -107,22 +107,22 @@ export function EventTableCard({
       </span>
       <ListCardBody
         title={table.name}
-        titleIcon={<Dices className="size-4 shrink-0 text-default-500" aria-hidden />}
+        titleIcon={<Dices className="size-4 shrink-0 text-muted" aria-hidden />}
         titleAccessory={<EventTableRatingBadge enabled={table.rankingEnabled} />}
       >
         <div className="space-y-2 pb-12">
           {context === "personal" ? (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                <CalendarDays className="size-4 shrink-0 text-default-500" aria-hidden />
+                <CalendarDays className="size-4 shrink-0 text-muted" aria-hidden />
                 <span className="min-w-0 break-words">{table.eventName}</span>
               </span>
               {table.groupId ? (
                 <>
-                  <span aria-hidden className="text-default-500">
+                  <span aria-hidden className="text-muted">
                     ·
                   </span>
-                  <span className="inline-flex min-w-0 max-w-full items-center gap-1 text-default-500">
+                  <span className="inline-flex min-w-0 max-w-full items-center gap-1 text-muted">
                     <UsersRound className="size-4 shrink-0" aria-hidden />
                     {table.groupName ? (
                       <span className="min-w-0 break-words">{table.groupName}</span>
@@ -137,7 +137,7 @@ export function EventTableCard({
           <div className="flex flex-nowrap items-center gap-3 overflow-x-auto text-sm tabular-nums">
             {counts.map(({ icon: Icon, label, value }) => (
               <span key={label} className="inline-flex shrink-0 items-center gap-1">
-                <Icon className="size-4 text-default-500" aria-hidden />
+                <Icon className="size-4 text-muted" aria-hidden />
                 <span className="sr-only">{label}: </span>
                 {value === undefined ? (
                   <Skeleton aria-label={t`Loading…`} className="h-4 w-5 rounded" />
@@ -148,7 +148,7 @@ export function EventTableCard({
             ))}
           </div>
           <p className="flex items-start gap-2 text-sm">
-            <Dices className="size-4 shrink-0 text-default-500" aria-hidden />
+            <Dices className="size-4 shrink-0 text-muted" aria-hidden />
             <span className="min-w-0 break-words">
               {games[0]?.name ?? t`Unknown`}
               {remaining > 0 ? (
@@ -167,7 +167,7 @@ export function EventTableCard({
           </p>
           {table.demonstratorUserId ? (
             <p className="flex items-center gap-2 text-sm">
-              <Presentation className="size-4 shrink-0 text-default-500" aria-hidden />
+              <Presentation className="size-4 shrink-0 text-muted" aria-hidden />
               <span className="sr-only">{t`Demonstrator`}: </span>
               {table.demonstratorName === undefined ? (
                 <Skeleton className="h-4 w-28 rounded" />

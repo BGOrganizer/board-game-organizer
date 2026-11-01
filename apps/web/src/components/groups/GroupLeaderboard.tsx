@@ -193,7 +193,7 @@ export function GroupLeaderboard({ groupId }: { groupId: string }) {
                             </Avatar>
                             <span className="min-w-0">
                               <span className="block truncate font-medium">{player.name}</span>
-                              <span className="block truncate text-sm text-default-500">
+                              <span className="block truncate text-sm text-muted">
                                 {player.username ? `@${player.username}` : "—"}
                               </span>
                               {player.left ? (

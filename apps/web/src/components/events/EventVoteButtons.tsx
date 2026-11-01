@@ -94,7 +94,7 @@ export function EventVoteButtons({
             ))}
           </div>
           {disabledVotes.includes("NO") ? (
-            <p className="mt-3 text-sm text-default-500">{t`Keep at least one Yes or If needed among the available options.`}</p>
+            <p className="mt-3 text-sm text-muted">{t`Keep at least one Yes or If needed among the available options.`}</p>
           ) : null}
         </ContactConfirmDialog>
       ) : null}

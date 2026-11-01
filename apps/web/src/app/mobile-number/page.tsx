@@ -73,7 +73,7 @@ export default function MobileNumberPage() {
     return (
       <main className="mx-auto w-full max-w-lg px-3 py-6 sm:px-6 sm:py-12" role="status">
         <span className="sr-only">{t`Loading profile`}</span>
-        <div className="h-64 animate-pulse rounded-xl bg-default-200" />
+        <div className="h-64 animate-pulse rounded-xl bg-default" />
       </main>
     );
   }
@@ -82,7 +82,7 @@ export default function MobileNumberPage() {
     <main className="mx-auto w-full max-w-lg px-3 py-6 sm:px-6 sm:py-12">
       <Card className="p-4 sm:p-6">
         <h1 className="text-2xl font-bold">{t`Complete your profile`}</h1>
-        <p className="mt-2 text-default-500">{t`Add your mobile number to continue.`}</p>
+        <p className="mt-2 text-muted">{t`Add your mobile number to continue.`}</p>
         <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
           <div className="flex items-end gap-2">
             <Select
@@ -137,7 +137,7 @@ export default function MobileNumberPage() {
                       <span className="flex w-full items-center gap-2">
                         <span aria-hidden="true">{item.flag}</span>
                         <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                        <span className="text-default-500">{item.callingCode}</span>
+                        <span className="text-muted">{item.callingCode}</span>
                       </span>
                       <ListBox.ItemIndicator />
                     </ListBox.Item>

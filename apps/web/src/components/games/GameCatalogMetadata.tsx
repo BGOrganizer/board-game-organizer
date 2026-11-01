@@ -18,7 +18,7 @@ export function GameCatalogMetadata({ year, average, rank }: Props) {
   });
   const position = rank === 0 ? t`Unranked` : rank?.toLocaleString(i18n.locale);
   return (
-    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-default-500">
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
       {year ? <span>{year}</span> : null}
       {rating != null && (
         <span

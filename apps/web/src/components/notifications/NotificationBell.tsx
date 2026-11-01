@@ -178,17 +178,15 @@ export function NotificationBell() {
                 <span className="flex items-center gap-2">
                   <NotificationKindIcon
                     kind={notification.kind}
-                    className="size-4 shrink-0 text-default-500"
+                    className="size-4 shrink-0 text-muted"
                   />
                   <span className="truncate text-sm font-medium">{notification.title}</span>
                   {!notification.readAt && (
                     <span className="h-2 w-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />
                   )}
                 </span>
-                <span className="line-clamp-2 text-xs text-default-500">
-                  {notification.description}
-                </span>
-                <span className="text-[11px] text-default-400">
+                <span className="line-clamp-2 text-xs text-muted">{notification.description}</span>
+                <span className="text-[11px] text-muted">
                   {new Intl.DateTimeFormat(i18n.locale, {
                     dateStyle: "short",
                     timeStyle: "short",

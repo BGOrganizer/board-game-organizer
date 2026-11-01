@@ -2,10 +2,12 @@ import { useInvites } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/expo";
 import { Button } from "heroui-native/button";
 import { Card } from "heroui-native/card";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
+import { Typography } from "heroui-native/text";
 import { UserPlus } from "lucide-react-native";
 import { useState } from "react";
-import { Share, Text, View } from "react-native";
+import { Share, View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
@@ -18,6 +20,7 @@ import { useMutationFeedback } from "@/lib/useMutationFeedback";
 export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | null }) {
   const { getToken } = useAuth();
   const t = useT();
+  const accentForeground = useThemeColor("accent-foreground");
   const mutationFeedback = useMutationFeedback();
   const [link, setLink] = useState<string | null>(null);
 
@@ -74,21 +77,26 @@ export function InviteCard({ apiUrl, token }: { apiUrl: string; token: string | 
       ) : (
         <>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 14, fontWeight: "600" }}>{t("Invite a friend")}</Text>
-            <Text style={{ fontSize: 12, color: "#8e8e93" }}>
+            <Typography
+              className="text-surface-foreground"
+              style={{ fontSize: 14, fontWeight: "600" }}
+            >
+              {t("Invite a friend")}
+            </Typography>
+            <Typography className="text-muted" style={{ fontSize: 12 }}>
               {link ? link : t("Generate a link to connect with someone.")}
-            </Text>
+            </Typography>
           </View>
           <Button variant="primary" isDisabled={create.isPending} onPress={onCreate}>
-            <UserPlus size={16} color="#fff" />
-            <Text style={{ color: "#fff" }}>{t("Create invite")}</Text>
+            <UserPlus size={16} color={accentForeground} />
+            <Button.Label>{t("Create invite")}</Button.Label>
           </Button>
         </>
       )}
       {create.isError && (
-        <Text style={{ fontSize: 12, color: "#f31260" }}>
+        <Typography className="text-danger" style={{ fontSize: 12 }}>
           {t("Could not create the invite. Try again.")}
-        </Text>
+        </Typography>
       )}
     </Card>
   );

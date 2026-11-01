@@ -96,7 +96,7 @@ it("blocks repeated submission, Escape and backdrop dismissal while busy", () =>
   fireEvent.keyDown(window, { key: "Escape" });
   fireEvent.keyDown(window, { key: "Enter" });
   // The portal backdrop is aria-hidden, never another dialog or button.
-  const backdrop = container.ownerDocument.querySelector('[aria-hidden="true"][class*="bg-black"]');
+  const backdrop = container.ownerDocument.querySelector('[aria-hidden="true"].bg-backdrop');
   if (!backdrop) throw new Error("Confirmation backdrop missing");
   fireEvent.click(backdrop);
   expect(confirm).not.toHaveBeenCalled();

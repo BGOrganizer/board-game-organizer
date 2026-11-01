@@ -4,7 +4,7 @@ export function EmptyList({ icon, children }: { icon: ReactNode; children: React
   return (
     <div
       role="status"
-      className="flex w-full min-h-36 flex-col items-center justify-center gap-2 px-4 py-10 text-center text-default-500"
+      className="flex w-full min-h-36 flex-col items-center justify-center gap-2 px-4 py-10 text-center text-muted"
     >
       <span aria-hidden="true">{icon}</span>
       <p>{children}</p>

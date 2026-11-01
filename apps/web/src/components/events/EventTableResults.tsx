@@ -16,7 +16,7 @@ function RatingDelta({
   const Icon = value < 0 ? Minus : Plus;
   return (
     <p
-      className={`inline-flex items-center gap-1 ${value > 0 ? "text-success" : value < 0 ? "text-danger" : "text-default-500"}`}
+      className={`inline-flex items-center gap-1 ${value > 0 ? "text-success" : value < 0 ? "text-danger" : "text-muted"}`}
     >
       <Icon className="size-4" aria-hidden />
       <span className="sr-only">{value < 0 ? "-" : "+"}</span>
@@ -48,34 +48,34 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
             footer={
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <p className="text-xs text-default-500">{t`Score`}</p>
+                  <p className="text-xs text-muted">{t`Score`}</p>
                   <p>{row.score ?? t`ND`}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-default-500">{t`Global rating change`}</p>
+                  <p className="text-xs text-muted">{t`Global rating change`}</p>
                   <RatingDelta value={global?.delta} format={number.format} />
                 </div>
                 <div>
-                  <p className="text-xs text-default-500">{t`Group rating change`}</p>
+                  <p className="text-xs text-muted">{t`Group rating change`}</p>
                   <RatingDelta value={group?.delta} format={number.format} />
                 </div>
               </div>
             }
           >
             <div>
-              <p className="text-xs text-default-500">{t`Position`}</p>
+              <p className="text-xs text-muted">{t`Position`}</p>
               <p>{row.rank ?? t`ND`}</p>
             </div>
             <div>
-              <p className="text-xs text-default-500">{t`Rating before`}</p>
+              <p className="text-xs text-muted">{t`Rating before`}</p>
               <p>{group ? number.format(group.score - group.delta) : "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-default-500">{t`Global ranking`}</p>
+              <p className="text-xs text-muted">{t`Global ranking`}</p>
               <p>{global ? number.format(global.score) : "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-default-500">{t`Group ranking`}</p>
+              <p className="text-xs text-muted">{t`Group ranking`}</p>
               <p>{group ? number.format(group.score) : "—"}</p>
             </div>
           </EventPlayerCard>

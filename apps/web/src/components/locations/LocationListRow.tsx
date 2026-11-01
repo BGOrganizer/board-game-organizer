@@ -29,7 +29,7 @@ export function LocationListRow({
         {name}
       </p>
       {address ? (
-        <p className="truncate text-xs text-default-500" title={address}>
+        <p className="truncate text-xs text-muted" title={address}>
           {formatLocationAddress(address)}
         </p>
       ) : null}
@@ -38,7 +38,7 @@ export function LocationListRow({
   );
   return (
     <GroupedRow className="flex-wrap">
-      {leading ?? <MapPin className="size-5 shrink-0 text-default-500" aria-hidden />}
+      {leading ?? <MapPin className="size-5 shrink-0 text-muted" aria-hidden />}
       {onPress ? (
         <Button
           variant="ghost"

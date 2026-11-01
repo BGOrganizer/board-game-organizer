@@ -87,6 +87,6 @@ it.each([null, "group"])(
         }}
       />,
     );
-    expect(document.querySelector(".text-default-500 svg.lucide-plus")).not.toBeNull();
+    expect(document.querySelector(".text-muted svg.lucide-plus")).not.toBeNull();
   },
 );

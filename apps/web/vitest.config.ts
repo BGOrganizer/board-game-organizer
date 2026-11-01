@@ -93,6 +93,12 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
+        "src/components/common/providers/ThemeScript.tsx": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "../../packages/store/src/slices/attentionPulseSlice.ts": {
           lines: 100,
           functions: 100,

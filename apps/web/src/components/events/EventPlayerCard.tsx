@@ -27,7 +27,7 @@ export function EventPlayerCard({
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="break-words font-semibold">{name}</p>
-              <p className="truncate text-sm text-default-500">{username ? `@${username}` : "—"}</p>
+              <p className="truncate text-sm text-muted">{username ? `@${username}` : "—"}</p>
             </div>
           </div>
         )}

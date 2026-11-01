@@ -107,10 +107,10 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{name(person)}</span>
                 {person.username && person.username !== name(person) ? (
-                  <span className="block truncate text-xs text-default-500">{person.username}</span>
+                  <span className="block truncate text-xs text-muted">{person.username}</span>
                 ) : null}
                 {person.optimisticInvited ? (
-                  <span className="block text-xs text-default-500">{t`Sending invitation`}</span>
+                  <span className="block text-xs text-muted">{t`Sending invitation`}</span>
                 ) : null}
                 {person.ban ? (
                   <span className="block text-xs text-danger">
@@ -199,7 +199,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
         </div>
       ) : null}
       {!list.isPending && !list.isError && !list.items.length ? (
-        <p className="text-sm text-default-500">{t`No members found`}</p>
+        <p className="text-sm text-muted">{t`No members found`}</p>
       ) : null}
       <div ref={end} />
       {list.isFetchingNextPage ? (

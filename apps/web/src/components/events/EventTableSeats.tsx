@@ -132,8 +132,8 @@ export function EventTableSeats({
                       key={item.key}
                       className="[contain-intrinsic-size:auto_4rem] [content-visibility:auto]"
                     >
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-default-100">
-                        <UserRoundPlus className="size-5 text-default-500" aria-hidden />
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-default">
+                        <UserRoundPlus className="size-5 text-muted" aria-hidden />
                       </span>
                       <Button
                         className="min-h-11 min-w-0 flex-1 justify-start px-0"

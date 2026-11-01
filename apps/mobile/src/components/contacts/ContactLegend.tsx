@@ -18,12 +18,13 @@ export function ContactLegend({
   entries: { icon: LucideIcon; label: string; color: BadgeColor; description: string }[];
 }) {
   const t = useT();
-  const [foreground, accent, warning, success, danger] = useThemeColor([
+  const [foreground, accent, warning, success, danger, muted] = useThemeColor([
     "foreground",
     "accent",
     "warning",
     "success",
     "danger",
+    "muted",
   ]);
   const colors = { accent, warning, success, danger };
   const { height } = useWindowDimensions();
@@ -56,14 +57,14 @@ export function ContactLegend({
             </View>
           ))}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#22c55e" }} />
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: success }} />
             <Typography className="text-xs text-foreground">{t("Online")}</Typography>
             <View
               style={{
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: "#d1d5db",
+                backgroundColor: muted,
                 marginLeft: 8,
               }}
             />

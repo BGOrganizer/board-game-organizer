@@ -23,6 +23,11 @@ Core rules:
 - Never commit credentials, private MCP configuration, or generated environment files. Tracked
   `.env.example` templates may contain names and placeholders only.
 - Use **Biome**, not ESLint or Prettier.
+- Every runtime UI color must come from HeroUI semantic tokens: no component-local RGB/hex,
+  Tailwind palette colors, obsolete v2 shade classes, or parallel palette. Customize existing theme
+  variables and foreground/background pairs in each app's global CSS, not individual components.
+  Provider artwork keeps its brand colors; required dark artwork uses an existing HeroUI light
+  surface scope for contrast, never a literal white backplate.
 - Use `import type` for type-only imports.
 - Honor the operator's branch, commit, and push scope; local-only work must stay local.
 - Open a pull request only when the user explicitly asks.
@@ -630,7 +635,11 @@ HeroUI v3 uses React Aria composition:
   modal previously left orphaned overlays.
 - Check installed `.d.ts` files before introducing a HeroUI component API not already used.
 
-HeroUI dark mode is class-based. `ThemeScript` sets the initial class from system preference.
+HeroUI dark mode is class-based. `ThemeScript` bootstraps before hydration, then synchronizes the
+root class and `data-theme` with the existing system/light/dark preference and live OS changes.
+Clerk web appearance, custom surfaces, hints, focus rings, backdrops and shadows consume HeroUI
+variables too. Compact action foreground overrides remain centralized in global CSS and use
+HeroUI's contrast primitives; preserve readable text/icon contrast when changing theme pairs.
 
 Use `lucide-react` icons only.
 
@@ -662,8 +671,12 @@ element needs a visible theme-aware color or heroui-native's Typography default.
 
 `global.css` must retain `@source "./src"`; otherwise app utility classes are not generated.
 
-`ThemeSync` maps Zustand `system | light | dark` to `Uniwind.setTheme`. Selected mobile chips and
-tabs must visibly reflect active state.
+`ThemeSync` maps Zustand `system | light | dark` to `Uniwind.setTheme`. `NavigationTheme` maps
+resolved HeroUI tokens into Expo Router's navigation theme and system status-bar mode; headers,
+scene backgrounds and bottom tabs must not fall back to a separate navigation palette. Inactive
+tab icons use `muted`; selected mobile chips and tabs must visibly reflect active state. Resolve
+native icon/style colors with `useThemeColor`, never captured palette constants. Keep the hoisted
+HeroUI library source in global CSS and retain `@source "./src"`.
 
 Use `lucide-react-native` icons only.
 

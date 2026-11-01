@@ -44,7 +44,7 @@ function Stat({ Icon, label, value }: { Icon: LucideIcon; label: string; value: 
           {value}
         </span>
       </span>
-      <span className="text-xs text-default-500">{label}</span>
+      <span className="text-xs text-muted">{label}</span>
     </fieldset>
   );
 }
@@ -53,7 +53,7 @@ function BggAttribution() {
   const { t } = useLingui();
   return (
     <div className="flex justify-center">
-      <div className="rounded-lg bg-white p-2">
+      <div data-theme="light" className="rounded-lg bg-surface p-2">
         <Image
           src="/bgg-powered.png"
           alt={t`Powered by BoardGameGeek`}
@@ -154,14 +154,9 @@ export function Profile() {
         <div className="mt-8">
           <BggAttribution />
         </div>
-        <Button
-          className="mt-6 justify-center"
-          variant="danger"
-          style={{ backgroundColor: "#b91c1c" }}
-          onPress={handleLogout}
-        >
-          <LogOut className="h-5 w-5 text-white" />
-          <span className="text-white">{t`Logout`}</span>
+        <Button className="mt-6 justify-center" variant="danger" onPress={handleLogout}>
+          <LogOut className="h-5 w-5" />
+          <span>{t`Logout`}</span>
         </Button>
       </Card>
     );
@@ -189,7 +184,7 @@ export function Profile() {
         </Avatar>
         <div className="min-w-0">
           <h2 className="truncate text-lg font-semibold">{profile.name}</h2>
-          <p className="break-all text-sm text-default-500">{profile.email}</p>
+          <p className="break-all text-sm text-muted">{profile.email}</p>
         </div>
       </div>
 
@@ -198,7 +193,7 @@ export function Profile() {
           <Stat key={stat.label} {...stat} />
         ))}
       </div>
-      <p className="mt-6 text-xs text-default-400">
+      <p className="mt-6 text-xs text-muted">
         {t`Plan:`} {profile.plan} &middot; {t`Language:`} {profile.preferredLanguage}
       </p>
 
@@ -212,8 +207,8 @@ export function Profile() {
             setDialogOpen(true);
           }}
         >
-          <RefreshCw className="h-5 w-5 text-white" />
-          <span className="text-white">{t`Sync with BoardGameGeek`}</span>
+          <RefreshCw className="h-5 w-5" />
+          <span>{t`Sync with BoardGameGeek`}</span>
         </Button>
       ) : null}
       {bgg.account.isError ? (
@@ -223,7 +218,7 @@ export function Profile() {
       ) : null}
       {shown ? (
         <div
-          className={`mt-4 flex items-center gap-3 rounded-lg border border-default-200 p-3${syncing ? " opacity-60" : ""}`}
+          className={`mt-4 flex items-center gap-3 rounded-lg border border-border p-3${syncing ? " opacity-60" : ""}`}
           aria-busy={Boolean(syncing)}
         >
           <Avatar size="md" color="accent">
@@ -251,14 +246,9 @@ export function Profile() {
         <BggAttribution />
       </div>
       <div className="flex justify-center pt-6">
-        <Button
-          className="w-full justify-center sm:w-auto"
-          variant="danger"
-          style={{ backgroundColor: "#b91c1c" }}
-          onPress={handleLogout}
-        >
-          <LogOut className="h-5 w-5 text-white" />
-          <span className="text-white">{t`Logout`}</span>
+        <Button className="w-full justify-center sm:w-auto" variant="danger" onPress={handleLogout}>
+          <LogOut className="h-5 w-5" />
+          <span>{t`Logout`}</span>
         </Button>
       </div>
 
@@ -266,7 +256,7 @@ export function Profile() {
         ref={dialogRef}
         aria-labelledby="bgg-sync-title"
         onClose={() => setDialogOpen(false)}
-        className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-xl border border-default-200 bg-background p-5 text-foreground shadow-2xl backdrop:bg-black/50"
+        className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-xl border border-border bg-overlay p-5 text-overlay-foreground shadow-overlay backdrop:bg-backdrop"
       >
         <form onSubmit={(event) => void synchronize(event)}>
           <h3
@@ -286,7 +276,7 @@ export function Profile() {
             autoFocus
             autoComplete="off"
             placeholder={t`BGG username`}
-            className="mt-2 w-full rounded-lg border border-default-200 bg-surface px-3 py-2 outline-none focus:border-primary"
+            className="mt-2 w-full rounded-lg border border-field-border bg-field px-3 py-2 text-field-foreground outline-none focus:border-focus"
           />
           {formError ? (
             <p role="alert" className="mt-2 text-sm text-danger">
@@ -301,8 +291,8 @@ export function Profile() {
               onPress={() => setDialogOpen(false)}
             >{t`Cancel`}</Button>
             <Button type="submit" variant="primary" isDisabled={bgg.busy || bgg.link.isPending}>
-              <Link2 className="h-4 w-4 text-white" />
-              <span className="text-white">{t`Sync`}</span>
+              <Link2 className="h-4 w-4" />
+              <span>{t`Sync`}</span>
             </Button>
           </div>
         </form>

@@ -39,8 +39,7 @@ export function NotificationBell() {
   const t = useT();
   const { i18n } = useLingui();
   const locale = i18n.locale.startsWith("it") ? "it" : "en";
-  const surface = useThemeColor("surface");
-  const muted = useThemeColor("muted");
+  const [overlay, foreground, muted] = useThemeColor(["overlay", "foreground", "muted"]);
   const registrationKey = JSON.stringify([apiUrl(), userId, locale]);
   const activeRegistration = useRef(registrationKey);
   activeRegistration.current = registrationKey;
@@ -185,7 +184,7 @@ export function NotificationBell() {
             testID="notifications-button"
             style={{ minHeight: 36, minWidth: 36 }}
           >
-            <Bell size={20} color="#737373" />
+            <Bell size={20} color={foreground} />
           </Button>
         </Popover.Trigger>
         <View pointerEvents="none" style={{ position: "absolute", right: 1, top: 1 }}>
@@ -199,8 +198,8 @@ export function NotificationBell() {
           placement="bottom"
           align="end"
           width={320}
-          className="bg-surface"
-          background={<Popover.ContentBackground className="bg-surface" />}
+          className="bg-overlay"
+          background={<Popover.ContentBackground className="bg-overlay" />}
         >
           <View style={{ width: "100%", gap: 8 }} className="p-3">
             <View
@@ -219,7 +218,7 @@ export function NotificationBell() {
                   accessibilityLabel={t("Mark all as read")}
                   onPress={() => notifications.markAllRead.mutate()}
                 >
-                  <CheckCheck size={18} color="#737373" />
+                  <CheckCheck size={18} color={foreground} />
                 </Button>
               )}
             </View>
@@ -302,7 +301,7 @@ export function NotificationBell() {
               </Button>
             )}
           </View>
-          <Popover.Arrow fill={surface} />
+          <Popover.Arrow fill={overlay} />
         </Popover.Content>
       </Popover.Portal>
     </Popover>

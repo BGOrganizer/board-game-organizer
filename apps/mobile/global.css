@@ -2,4 +2,20 @@
 @import "uniwind";
 @import "heroui-native/styles";
 @source "./src";
-@source "./node_modules/heroui-native/lib";
+@source "../../node_modules/heroui-native/lib";
+
+/* Use HeroUI's own contrast primitives for compact action labels in both modes. */
+@layer theme {
+  :root {
+    @variant light {
+      --accent-foreground: var(--eclipse);
+      --danger-foreground: var(--eclipse);
+    }
+  }
+  :root {
+    @variant dark {
+      --accent-foreground: var(--eclipse);
+      --danger-foreground: var(--black);
+    }
+  }
+}

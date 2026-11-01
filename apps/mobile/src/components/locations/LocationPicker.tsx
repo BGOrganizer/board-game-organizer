@@ -37,6 +37,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScopedTheme, useUniwind } from "uniwind";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
@@ -51,9 +52,6 @@ type Result = Pick<MatchLocation, "address" | "longitude" | "latitude" | "timeZo
   id: string;
 };
 const apiKey = Constants.expoConfig?.extra?.maptilerApiKey as string | undefined;
-const mapStyle = apiKey
-  ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${encodeURIComponent(apiKey)}`
-  : null;
 
 export default function LocationPicker({
   onSelect,
@@ -65,6 +63,10 @@ export default function LocationPicker({
   initial?: MatchLocation;
 } = {}) {
   const t = useT();
+  const { theme } = useUniwind();
+  const mapStyle = apiKey
+    ? `https://api.maptiler.com/maps/${theme === "dark" ? "streets-v4-dark" : "streets-v4"}/style.json?key=${encodeURIComponent(apiKey)}`
+    : null;
   const router = useRouter();
   // Inline pickers share the wizard route: native Back must close the picker, not discard the draft.
   usePreventRemove(Boolean(onClose), () => onClose?.());
@@ -88,10 +90,11 @@ export default function LocationPicker({
   }, []);
   const { getToken, userId } = useSessionAuth();
   const feedback = useMutationFeedback();
-  const [foreground, accentForeground, muted] = useThemeColor([
+  const [foreground, accentForeground, muted, accent] = useThemeColor([
     "foreground",
     "accent-foreground",
     "muted",
+    "accent",
   ]);
   const [locating, setLocating] = useState(false);
   const { slotId, initial: initialParam } = useLocalSearchParams<{
@@ -352,7 +355,7 @@ export default function LocationPicker({
                       <Layer
                         id="selected-location-point"
                         type="circle"
-                        paint={{ "circle-radius": 9, "circle-color": "#006fee" }}
+                        paint={{ "circle-radius": 9, "circle-color": accent }}
                       />
                     </GeoJSONSource>
                   )}
@@ -380,25 +383,27 @@ export default function LocationPicker({
                 >
                   <LocateFixed size={20} color={foreground} />
                 </Button>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={t("Map by MapTiler")}
-                  onPress={() => void Linking.openURL("https://www.maptiler.com/")}
-                  style={{
-                    position: "absolute",
-                    top: 8,
-                    left: 8,
-                    padding: 4,
-                    borderRadius: 4,
-                    backgroundColor: "#fff",
-                  }}
-                >
-                  <Image
-                    source={require("../../../assets/maptiler-logo.png")}
-                    resizeMode="contain"
-                    style={{ width: 92, height: 24 }}
-                  />
-                </Pressable>
+                <ScopedTheme theme="light">
+                  <Pressable
+                    className="bg-surface"
+                    accessibilityRole="link"
+                    accessibilityLabel={t("Map by MapTiler")}
+                    onPress={() => void Linking.openURL("https://www.maptiler.com/")}
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      left: 8,
+                      padding: 4,
+                      borderRadius: 4,
+                    }}
+                  >
+                    <Image
+                      source={require("../../../assets/maptiler-logo.png")}
+                      resizeMode="contain"
+                      style={{ width: 92, height: 24 }}
+                    />
+                  </Pressable>
+                </ScopedTheme>
               </View>
             ) : (
               <Typography style={{ display: searchMode ? "none" : "flex" }} className="text-danger">
@@ -554,25 +559,27 @@ export default function LocationPicker({
             paddingBottom: insets.bottom,
           }}
         >
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={t("Map by MapTiler")}
-            onPress={() => void Linking.openURL("https://www.maptiler.com/")}
-            style={{
-              minHeight: 44,
-              minWidth: 44,
-              justifyContent: "center",
-              padding: 4,
-              backgroundColor: "#fff",
-              borderRadius: 4,
-            }}
-          >
-            <Image
-              source={require("../../../assets/maptiler-logo.png")}
-              resizeMode="contain"
-              style={{ width: 92, height: 24 }}
-            />
-          </Pressable>
+          <ScopedTheme theme="light">
+            <Pressable
+              className="bg-surface"
+              accessibilityRole="link"
+              accessibilityLabel={t("Map by MapTiler")}
+              onPress={() => void Linking.openURL("https://www.maptiler.com/")}
+              style={{
+                minHeight: 44,
+                minWidth: 44,
+                justifyContent: "center",
+                padding: 4,
+                borderRadius: 4,
+              }}
+            >
+              <Image
+                source={require("../../../assets/maptiler-logo.png")}
+                resizeMode="contain"
+                style={{ width: 92, height: 24 }}
+              />
+            </Pressable>
+          </ScopedTheme>
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t("© OpenStreetMap contributors")}

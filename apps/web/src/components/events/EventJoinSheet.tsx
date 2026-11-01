@@ -38,7 +38,7 @@ export function EventJoinSheet({
           <Drawer.Handle />
           <Drawer.Header>
             <Drawer.Heading>{t`Choose availability`}</Drawer.Heading>
-            <p className="text-sm text-default-500">
+            <p className="text-sm text-muted">
               {form.isInvitation
                 ? form.requiresAvailability
                   ? t`Vote on every date, location and game. Accept at least one of each to accept the invitation.`

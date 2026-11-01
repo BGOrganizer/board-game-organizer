@@ -9,7 +9,7 @@ export function LoginFallback() {
   return (
     <div className="flex min-w-0 flex-col items-center gap-6 pt-8 text-center sm:pt-16">
       <h2 className="text-xl font-bold sm:text-2xl">{t`Welcome to Board Game Organizer`}</h2>
-      <p className="max-w-md text-default-500">
+      <p className="max-w-md text-muted">
         {t`Organize your board game collection, track your matches and connect with other players.`}
       </p>
       <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">

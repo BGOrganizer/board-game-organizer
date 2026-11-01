@@ -205,11 +205,11 @@ function Editor({
           </Switch.Content>
         </Switch>
       ) : (
-        <p className="text-sm text-default-500">
+        <p className="text-sm text-muted">
           {group.type === "PUBLIC" ? t`Public group` : t`Private group`}
         </p>
       )}
-      <p className="text-sm text-default-500">
+      <p className="text-sm text-muted">
         {type === "PUBLIC"
           ? t`Public groups require a logo, verified venue and approval. Group type cannot be changed.`
           : t`Private groups are invitation-only. Logo and verified venue are optional. Group type cannot be changed.`}
@@ -278,7 +278,7 @@ function Editor({
                 </Avatar>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{user.name}</span>
-                  <span className="block truncate text-xs text-default-500">{user.email}</span>
+                  <span className="block truncate text-xs text-muted">{user.email}</span>
                 </span>
                 <Button
                   isIconOnly

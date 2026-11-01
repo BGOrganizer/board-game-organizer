@@ -63,7 +63,7 @@ export function ContactConfirmDialog({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-backdrop"
         onClick={busy ? undefined : onCancel}
         aria-hidden="true"
       />
@@ -71,12 +71,12 @@ export function ContactConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="contact-confirm-title"
-        className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-background p-4 shadow-2xl sm:p-5"
+        className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-xl bg-overlay p-4 text-overlay-foreground shadow-overlay sm:p-5"
       >
-        <h2 id="contact-confirm-title" className="text-lg font-semibold text-foreground">
+        <h2 id="contact-confirm-title" className="text-lg font-semibold text-overlay-foreground">
           {title}
         </h2>
-        <p className="mt-2 text-sm text-default-500">{description}</p>
+        <p className="mt-2 text-sm text-muted">{description}</p>
         {children ? <div className="mt-4">{children}</div> : null}
         <div
           className={

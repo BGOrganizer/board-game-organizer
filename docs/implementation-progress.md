@@ -1,5 +1,32 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## HeroUI-only light/dark UI
+
+- Native navigation headers, scenes, bottom tabs and status bars now follow resolved HeroUI/Uniwind
+  tokens through a navigation-theme adapter. Fixed tab/icon colors and runtime canvas backplates
+  were removed. Selected/unselected controls retain explicit semantic foregrounds and selection.
+- Audited client UI colors: canonical HeroUI muted/default/accent/border/focus/backdrop/shadow tokens
+  replace literal palettes and obsolete v2 classes. Icons, hints, empty/loading states, ratings,
+  invitations, profile actions, toast icons and crash fallback resolve the active theme. Fixed BGG/
+  MapTiler brand artwork uses an existing scoped HeroUI light surface, not a literal white plate.
+- Theme definitions remain in existing global CSS, with no second palette. Existing HeroUI contrast
+  primitives provide readable compact action foregrounds: eclipse for accent/light danger, black
+  for dark danger. Real browser checks caught the original 3.59:1 accent and 4.35:1 dark-danger
+  contrast; foreground-token changes fix them globally without per-button RGB overrides.
+- Web initializes theme before hydration and tracks system/explicit preference changes; Clerk web
+  appearance consumes HeroUI variables. Native/web maps use light/dark styles without rebuilding
+  the map or losing verified selection/drafts; markers use accent. Native SDK/system artwork and
+  pre-JS platform launch configuration retain their provider/platform ownership.
+- Validation: 2,250 covered units (shared 393, schemas 124, API 760, web 691, mobile 282), typecheck
+  4/4 and owned-file Biome pass. Navigation-token mapping and web theme lifecycle have 100% per-file
+  gates. Real isolated Chromium checks at 390/1280 widths pass in light/dark: text/icon contrast,
+  help/dialogs, retained draft/filter state and live HeroUI accent replacement. API/web builds and
+  Android export pass; generated references restored exactly and seven protected inputs unchanged.
+- These isolated browser/source checks and Android export are not authenticated Playwright/Maestro
+  or physical-device rendering/navigation acceptance. Existing acceptance suites/jobs remain
+  unchanged. No dependency, server data, permissions, privacy, provider configuration or locale
+  catalog changes; unrelated local files remain excluded from publication.
+
 ## Accent attention borders and finite item pulses
 
 - Supersedes the red card/item dots below: saved cards and Contact rows use static theme-aware

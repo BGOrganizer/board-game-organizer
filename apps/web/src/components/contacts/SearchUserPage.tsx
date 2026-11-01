@@ -173,7 +173,7 @@ export function SearchUserPage({
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{u.name}</p>
-              <p className="truncate text-xs text-default-400">{u.email}</p>
+              <p className="truncate text-xs text-muted">{u.email}</p>
             </div>
             <Button
               isIconOnly

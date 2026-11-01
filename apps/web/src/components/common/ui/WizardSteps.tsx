@@ -9,7 +9,7 @@ export function WizardSteps({ current, count }: { current: number; count: number
         <li
           key={step}
           aria-current={current === step ? "step" : undefined}
-          className={`rounded-full px-3 py-1 ${current === step ? "bg-accent text-accent-foreground" : "bg-default-100 text-default-500"}`}
+          className={`rounded-full px-3 py-1 ${current === step ? "bg-accent text-accent-foreground" : "bg-default text-muted"}`}
         >
           {step}
         </li>

@@ -15,7 +15,7 @@ export function GameRating({
   });
   const delta = Number((rating?.delta ?? 0).toFixed(2)) || 0;
   return (
-    <span className="flex flex-wrap items-center gap-1.5 text-xs text-default-500">
+    <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
       <span
         role="img"
         aria-label={rating?.provisional ? t`Provisional game rating` : t`Game rating`}

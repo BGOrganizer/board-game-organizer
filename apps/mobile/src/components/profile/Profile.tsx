@@ -25,6 +25,7 @@ import {
 } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { Image, ScrollView, View } from "react-native";
+import { ScopedTheme } from "uniwind";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
@@ -83,16 +84,18 @@ function Stat({
 function BggAttribution() {
   const t = useT();
   return (
-    <View className="rounded-lg bg-white p-2" style={{ alignSelf: "center" }}>
-      <Image
-        source={require("../../../assets/bgg-powered.png")}
-        style={{ width: 230, height: 68 }}
-        resizeMode="contain"
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={t("Powered by BoardGameGeek")}
-      />
-    </View>
+    <ScopedTheme theme="light">
+      <View className="rounded-lg bg-surface p-2" style={{ alignSelf: "center" }}>
+        <Image
+          source={require("../../../assets/bgg-powered.png")}
+          style={{ width: 230, height: 68 }}
+          resizeMode="contain"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={t("Powered by BoardGameGeek")}
+        />
+      </View>
+    </ScopedTheme>
   );
 }
 
@@ -100,7 +103,12 @@ export function Profile() {
   const { getToken, signOut, isLoaded, isSignedIn, userId } = useAuth();
   const t = useT();
   const feedback = useMutationFeedback();
-  const accent = useThemeColor("accent");
+  const [accent, accentForeground, danger, dangerForeground] = useThemeColor([
+    "accent",
+    "accent-foreground",
+    "danger",
+    "danger-foreground",
+  ]);
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -170,13 +178,13 @@ export function Profile() {
         <View style={{ marginTop: "auto", paddingTop: 32, width: "100%", gap: 24 }}>
           <BggAttribution />
           <Button
-            style={{ width: "100%", justifyContent: "center", backgroundColor: "#b91c1c" }}
+            style={{ width: "100%", justifyContent: "center" }}
             variant="danger"
             isDisabled={isSigningOut}
             onPress={handleLogout}
           >
-            <LogOut size={18} color="#fff" />
-            <Typography className="text-white">{t("Logout")}</Typography>
+            <LogOut size={18} color={dangerForeground} />
+            <Button.Label>{t("Logout")}</Button.Label>
           </Button>
         </View>
       </Surface>
@@ -241,8 +249,8 @@ export function Profile() {
               setDialogOpen(true);
             }}
           >
-            <RefreshCw size={18} color="#fff" />
-            <Typography className="text-white">{t("Sync with BoardGameGeek")}</Typography>
+            <RefreshCw size={18} color={accentForeground} />
+            <Button.Label>{t("Sync with BoardGameGeek")}</Button.Label>
           </Button>
         ) : null}
         {bgg.account.isError ? (
@@ -283,7 +291,7 @@ export function Profile() {
                 isDisabled={bgg.busy || bgg.unlink.isPending}
                 onPress={() => setDisconnectOpen(true)}
               >
-                <Unlink2 size={18} color="#f31260" />
+                <Unlink2 size={18} color={danger} />
               </Button>
             ) : null}
           </View>
@@ -299,13 +307,13 @@ export function Profile() {
         >
           <BggAttribution />
           <Button
-            style={{ width: "100%", justifyContent: "center", backgroundColor: "#b91c1c" }}
+            style={{ width: "100%", justifyContent: "center" }}
             variant="danger"
             isDisabled={isSigningOut}
             onPress={handleLogout}
           >
-            <LogOut size={18} color="#fff" />
-            <Typography className="text-white">{t("Logout")}</Typography>
+            <LogOut size={18} color={dangerForeground} />
+            <Button.Label>{t("Logout")}</Button.Label>
           </Button>
         </View>
       </Surface>
@@ -359,8 +367,8 @@ export function Profile() {
                 isDisabled={!username.trim() || bgg.busy || bgg.link.isPending}
                 onPress={() => void synchronize()}
               >
-                <Link2 size={16} color="#fff" />
-                <Typography className="text-white">{t("Sync")}</Typography>
+                <Link2 size={16} color={accentForeground} />
+                <Button.Label>{t("Sync")}</Button.Label>
               </Button>
             </View>
           </Dialog.Content>

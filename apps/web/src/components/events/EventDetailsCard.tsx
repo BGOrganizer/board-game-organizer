@@ -13,7 +13,7 @@ export function EventDetailsCard({ event }: { event: PlannedEventResponse }) {
   return (
     <section aria-label={t`Details`} className="space-y-2">
       <div className="flex items-center gap-1">
-        <Info className="size-5 text-default-500" aria-hidden />
+        <Info className="size-5 text-muted" aria-hidden />
         <span className="font-bold">{t`Details`}</span>
         <EventVoteLegend />
       </div>
@@ -22,7 +22,7 @@ export function EventDetailsCard({ event }: { event: PlannedEventResponse }) {
           <AnimatedDicebearArtwork seed={event.id} variant="constellation" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-start gap-2">
-              <CalendarDays className="mt-0.5 size-4 shrink-0 text-default-500" aria-hidden />
+              <CalendarDays className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
               <h1 className="min-w-0 flex-1 break-words text-base font-normal">{event.name}</h1>
               <EventStatusBadge status={event.status} />
             </div>

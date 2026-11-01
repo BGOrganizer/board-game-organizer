@@ -29,15 +29,15 @@ export function ContactLegend({
               <BadgeIcon className={`mt-0.5 size-4 shrink-0 ${color}`} aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium">{label}</p>
-                <p className="text-xs text-default-500">{description}</p>
+                <p className="text-xs text-muted">{description}</p>
               </div>
             </li>
           ))}
         </ul>
         <p className="mt-3 flex items-center gap-2 text-xs">
-          <span className="size-2 rounded-full bg-green-500" aria-hidden="true" />
+          <span className="size-2 rounded-full bg-success" aria-hidden="true" />
           <span>{t`Online`}</span>
-          <span className="ml-2 size-2 rounded-full bg-gray-300" aria-hidden="true" />
+          <span className="ml-2 size-2 rounded-full bg-muted" aria-hidden="true" />
           <span>{t`Offline`}</span>
         </p>
       </HelpPopover>
