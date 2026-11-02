@@ -15,6 +15,7 @@ import { Typography } from "heroui-native/text";
 import { LogOut, Pencil, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
@@ -57,21 +58,19 @@ export function GroupDetail({
           group?.canEdit ||
           (group?.role === "accepted" && group.myMembership?.status === "ACCEPTED") ? (
             <Button
-              isIconOnly
-              size="sm"
+              {...headerButtonProps}
               variant="danger"
               isDisabled={group?.canEdit ? a.busy : ownBusy}
               accessibilityLabel={group?.canEdit ? t("Delete group") : t("Leave group")}
-              style={{ minWidth: 44, minHeight: 44 }}
               onPress={() => {
                 setError(false);
                 setConfirm(group?.canEdit ? "delete" : "cancel");
               }}
             >
               {group?.canEdit ? (
-                <Trash2 size={20} color={dangerForeground} />
+                <Trash2 size={HEADER_ICON_SIZE} color={dangerForeground} />
               ) : (
-                <LogOut size={20} color={dangerForeground} />
+                <LogOut size={HEADER_ICON_SIZE} color={dangerForeground} />
               )}
             </Button>
           ) : null,

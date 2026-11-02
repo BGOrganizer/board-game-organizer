@@ -1,6 +1,7 @@
 import type { ClientEventRecord } from "@board-game-organizer/shared";
 import {
   eventDateWall,
+  eventParticipation,
   eventRecordPreviewDate,
   useNotificationAttentionContext,
 } from "@board-game-organizer/shared";
@@ -12,6 +13,7 @@ import { Typography } from "heroui-native/text";
 import { CalendarDays, Dices, RefreshCw, UsersRound } from "lucide-react-native";
 import { View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
+import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
@@ -37,6 +39,8 @@ export function EventCard({
     number = new Intl.NumberFormat(i18n.locale);
   const attention = useNotificationAttentionContext(),
     attentionTarget = { kind: "event", id: event.id } as const;
+  const participation = eventParticipation(event.myRegistrations);
+  const indicator = participation === null && event.role === "admin" ? "admin" : participation;
   const planning = event.status === "PLANNING";
   const local = event.optimistic,
     status = useClientRecordStatus(local?.phase);
@@ -45,6 +49,7 @@ export function EventCard({
       label={`${status || t("Open event")}: ${event.name}`}
       disabled={Boolean(local && local.phase !== "failed")}
       notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
+      leadingActions={indicator === null ? undefined : <ArtworkStatusPopover kind={indicator} />}
       actions={
         local?.phase === "verifying" && onVerify ? (
           <Button

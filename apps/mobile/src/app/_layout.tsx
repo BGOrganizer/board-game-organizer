@@ -22,6 +22,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Uniwind } from "uniwind";
 import "../../global.css";
 
+import { headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { NavigationTheme } from "@/components/common/providers/NavigationTheme";
 import { Startup } from "@/components/common/startup/Startup";
@@ -123,7 +124,7 @@ function RootNavigator() {
       <QueryProvider>
         <ThemeSync />
         <PushNotificationRouter onInitialResponse={setInitialNotificationHref} />
-        <Stack>
+        <Stack screenOptions={({ navigation }) => headerBackOptions(() => navigation.goBack())}>
           <Stack.Screen name="index" options={titleOptions("Board Game Organizer", Dices)} />
           <Stack.Screen
             name="sign-in"

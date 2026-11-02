@@ -1,6 +1,6 @@
 "use client";
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { useNotificationAttentionContext } from "@board-game-organizer/shared";
+import { tableParticipation, useNotificationAttentionContext } from "@board-game-organizer/shared";
 import { Skeleton } from "@heroui/react";
 import { Plural, useLingui } from "@lingui/react/macro";
 import {
@@ -16,11 +16,9 @@ import {
   UsersRound,
 } from "lucide-react";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
-import { HelpPopover } from "@/components/common/ui/HelpPopover";
-import { IconLegend } from "@/components/common/ui/IconLegend";
+import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
-import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 /** One Table item in both feeds; only the parent-context row varies. */
 export function EventTableCard({
@@ -32,12 +30,7 @@ export function EventTableCard({
 }) {
   const { t, i18n } = useLingui(),
     number = new Intl.NumberFormat(i18n.locale);
-  const registration = table.myRegistration,
-    pending = registration?.status === "PENDING",
-    invited = registration?.kind === "INVITATION",
-    waiting = table.myPosition === "WAITING";
-  const accepted = registration?.status === "ACCEPTED" || table.myPosition === "FROZEN";
-  const StatusIcon = waiting ? ListOrdered : UserRoundCheck;
+  const indicator = tableParticipation(table.myRegistration, table.myPosition);
   const games = table.gamesDetail.filter(
       (game) =>
         table.eventStatus === "PLANNING" || !table.confirmed || game.id === table.confirmed.gameId,
@@ -50,31 +43,26 @@ export function EventTableCard({
       icon: UserRoundMinus,
       label: t`Minimum players`,
       value: table.minPlayers,
-      description: t`Minimum players`,
     },
     {
       icon: UserRoundPlus,
       label: t`Maximum players`,
       value: table.maxPlayers,
-      description: t`Maximum players`,
     },
     {
       icon: UserRoundCheck,
       label: t`Accepted players`,
       value: table.acceptedCount,
-      description: t`Accepted players, including the waiting list.`,
     },
     {
       icon: ListOrdered,
       label: t`Waiting list`,
       value: table.waitingCount,
-      description: t`Waiting list`,
     },
     {
       icon: Clock3,
       label: t`Pending players`,
       value: table.pendingRegistrationCount,
-      description: t`Pending players, including reserved waiting-list places.`,
     },
   ];
   return (
@@ -82,35 +70,15 @@ export function EventTableCard({
       href={`/events/${table.eventId}/tables/${table.id}${context === "event" ? `?fromEvent=${encodeURIComponent(table.eventId)}` : ""}`}
       label={`${t`Open table`}: ${table.name}`}
       notificationCount={attention?.get(attentionTarget)?.count}
-      leadingActions={
-        <HelpPopover label={`${t`Players`}: ${t`Field help`}`} title={t`Players`}>
-          <IconLegend items={counts.map(({ icon, description }) => ({ icon, description }))} />
-        </HelpPopover>
-      }
+      leadingActions={indicator === null ? undefined : <ArtworkStatusPopover kind={indicator} />}
     >
-      <span className="relative size-16 shrink-0">
-        <AnimatedDicebearArtwork seed={table.id} variant="planets" />
-        {pending ? (
-          <PendingArtworkBadge
-            kind={invited ? "invitation" : "request"}
-            label={invited ? t`Invitation received` : t`Participation requested`}
-          />
-        ) : waiting || accepted ? (
-          <span
-            role="img"
-            aria-label={waiting ? t`Waiting list` : t`Confirmed player`}
-            className={`absolute bottom-0 right-0 rounded-tl-lg bg-surface p-1 ${waiting ? "text-warning" : "text-success"}`}
-          >
-            <StatusIcon className="size-4" aria-hidden />
-          </span>
-        ) : null}
-      </span>
+      <AnimatedDicebearArtwork seed={table.id} variant="planets" />
       <ListCardBody
         title={table.name}
         titleIcon={<Dices className="size-4 shrink-0 text-muted" aria-hidden />}
         titleAccessory={<EventTableRatingBadge enabled={table.rankingEnabled} />}
       >
-        <div className="space-y-2 pb-12">
+        <div className="space-y-2">
           {context === "personal" ? (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <span className="inline-flex min-w-0 max-w-full items-center gap-1">

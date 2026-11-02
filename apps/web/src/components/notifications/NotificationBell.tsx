@@ -14,6 +14,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Bell, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
@@ -132,12 +133,9 @@ export function NotificationBell() {
 
   return (
     <Dropdown isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Dropdown.Trigger
-        aria-label={t`Notifications`}
-        className="button button--icon-only button--sm button--ghost"
-      >
+      <Dropdown.Trigger aria-label={t`Notifications`} className={headerControlClassName}>
         <Badge.Anchor>
-          <Bell className="h-5 w-5" />
+          <Bell className={HEADER_ICON_CLASS} aria-hidden />
           <NotificationCountBadge count={notifications.unreadCount} corner counted />
         </Badge.Anchor>
       </Dropdown.Trigger>

@@ -14,6 +14,7 @@ import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck, Trash2 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
@@ -57,12 +58,10 @@ export default function NotificationsScreen() {
         options={{
           headerRight: () => (
             <Button
-              isIconOnly
-              size="sm"
+              {...headerButtonProps}
               variant="danger-soft"
               accessibilityLabel={t("Delete all notifications")}
               testID="delete-all-notifications"
-              style={{ width: 44, height: 44 }}
               isDisabled={
                 !isLoaded ||
                 !isSignedIn ||
@@ -75,7 +74,7 @@ export default function NotificationsScreen() {
               }
               onPress={() => setDeletion({ owner })}
             >
-              <Trash2 size={20} color={danger} accessible={false} />
+              <Trash2 size={HEADER_ICON_SIZE} color={danger} accessible={false} />
             </Button>
           ),
         }}

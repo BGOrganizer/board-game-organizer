@@ -29,7 +29,13 @@ export function LinkedListCard({
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={onPress}
-          style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 12 }}
+          style={{
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: 12,
+            padding: 12,
+            minHeight: leadingActions ? 136 : undefined,
+          }}
         >
           {children}
         </Pressable>
@@ -38,11 +44,10 @@ export function LinkedListCard({
             className="bg-surface"
             style={{
               position: "absolute",
-              left: 6,
-              bottom: 6,
-              flexDirection: "row",
-              gap: 8,
-              padding: 2,
+              left: 12,
+              top: 80,
+              width: 64,
+              alignItems: "center",
               borderRadius: 8,
               zIndex: 1,
             }}

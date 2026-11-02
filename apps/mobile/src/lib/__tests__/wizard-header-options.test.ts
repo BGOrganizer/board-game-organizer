@@ -5,7 +5,40 @@ import ts from "typescript";
 import { expect, it, vi } from "vitest";
 
 const icons = { UsersRound: Symbol("group"), Dices: Symbol("event"), MapPin: Symbol("location") };
-function options(path: string, edit: boolean, wizard = false, inline = true) {
+const HeaderBackButton = Symbol("small back control");
+const backSource = ts.createSourceFile(
+  "back.tsx",
+  readFileSync(
+    new URL("../../components/common/layout/HeaderBackButton.tsx", import.meta.url),
+    "utf8",
+  ),
+  ts.ScriptTarget.Latest,
+  true,
+  ts.ScriptKind.TSX,
+);
+const backFactory = backSource.statements.find(
+  (node) => ts.isFunctionDeclaration(node) && node.name?.text === "headerBackOptions",
+);
+if (!backFactory) throw new Error("Missing real header Back options");
+const backExports: { create?: (onBack: () => void) => unknown } = {};
+runInNewContext(
+  ts.transpileModule(
+    `exports.create = ${backFactory.getText(backSource).replace(/^export /, "")}`,
+    {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.CommonJS,
+        jsx: ts.JsxEmit.ReactJSX,
+      },
+    },
+  ).outputText,
+  {
+    exports: backExports,
+    require: () => ({ jsx: (type: unknown, props: unknown) => ({ type, props }) }),
+    HeaderBackButton,
+  },
+);
+function options(path: string, edit: boolean, wizard = false, inline = true, back = vi.fn()) {
   const text = readFileSync(new URL(`../../components/${path}.tsx`, import.meta.url), "utf8");
   const file = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   let expression: ts.Expression | undefined;
@@ -21,7 +54,7 @@ function options(path: string, edit: boolean, wizard = false, inline = true) {
         ts.isJsxExpression(attribute.initializer)
       ) {
         const value = attribute.initializer.expression;
-        if (value && (!wizard || value.getText(file).includes("headerBackVisible")))
+        if (value && (!wizard || value.getText(file).includes("headerBackOptions")))
           expression = value;
       }
     }
@@ -40,7 +73,9 @@ function options(path: string, edit: boolean, wizard = false, inline = true) {
     options?: {
       title: string;
       headerTitle?: (props: { children: string }) => { props: { icon: symbol; title: string } };
-      headerLeft?: unknown;
+      headerLeft?: (props: {
+        canGoBack: boolean;
+      }) => { type: unknown; props: { onPress: () => void } } | null;
       headerBackVisible?: boolean;
     };
   } = {};
@@ -49,6 +84,8 @@ function options(path: string, edit: boolean, wizard = false, inline = true) {
     require: () => ({ jsx: (type: unknown, props: unknown) => ({ type, props }) }),
     ...icons,
     HeaderTitle: () => {},
+    headerBackOptions: backExports.create,
+    router: { back },
     t: (value: string) => value,
     group: edit ? {} : undefined,
     event: edit ? {} : undefined,
@@ -58,16 +95,22 @@ function options(path: string, edit: boolean, wizard = false, inline = true) {
   return result.options;
 }
 it.each([false, true])(
-  "keeps only the native left Back control in the location picker, inline=%s",
+  "keeps one small Back control dispatching native navigation in the location picker, inline=%s",
   (inline) => {
-    const picker = options("locations/LocationPicker", false, false, inline);
+    const back = vi.fn();
+    const picker = options("locations/LocationPicker", false, false, inline, back);
     const merged = {
       headerLeft: () => "old wizard custom back",
       headerBackVisible: false,
       ...picker,
     };
-    expect(merged.headerLeft).toBeUndefined();
-    expect(merged.headerBackVisible).toBe(true);
+    expect(merged.headerLeft).toBe(picker.headerLeft);
+    expect(merged.headerBackVisible).toBe(false);
+    expect(picker.headerLeft?.({ canGoBack: false })).toBeNull();
+    const control = picker.headerLeft?.({ canGoBack: true });
+    expect(control?.type).toBe(HeaderBackButton);
+    control?.props.onPress();
+    expect(back).toHaveBeenCalledOnce();
     expect(picker.headerTitle?.({ children: picker.title }).props.icon).toBe(icons.MapPin);
   },
 );
@@ -128,8 +171,9 @@ it.each([
         const header = after.headerTitle?.({ children: after.title });
         expect(header?.props.icon, exit).toBe(icons[icon]);
         expect(header?.props.title).toBe(edit ? editTitle : createTitle);
-        expect(after.headerLeft).toBeUndefined();
-        expect(after.headerBackVisible).toBe(true);
+        expect(after.headerLeft).toBe(wizard.headerLeft);
+        expect(after.headerBackVisible).toBe(false);
+        expect(after.headerLeft?.({ canGoBack: true })?.type).toBe(HeaderBackButton);
       }
     }
   },

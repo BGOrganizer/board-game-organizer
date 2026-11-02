@@ -135,18 +135,32 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   pending places until acceptance, and participation through at least one Table.
 - Main Tables and parent Event lists use one platform-owned Table card. Animated DiceBear Planets
   artwork uses the persisted Table ID on the left, consistently with saved/edit/review cards. Its
-  bottom-right badge shows the viewer's accepted state (success check), pending invitation (warning
-  mail), pending request (warning clock), or waiting list (warning ordered-list icon), never body text.
+  centered action below the 64px artwork shows the viewer's seated/frozen accepted state (success
+  check), pending invitation (warning mail), pending request (warning clock), or waiting list (warning
+  ordered-list icon). Its accessible popover explains that state. The trigger is a sibling of the
+  navigation link/pressable, never an interactive child of it; opening it does not navigate, accept
+  consent or acknowledge notification attention.
   Right-side rows show bold name/Dices with Rating at far right; Event/calendar and Group/people
   separated by a dot only in Main Tables; then five distinct icon/counts for minimum, maximum,
   accepted registrations, waiting places and pending registrations. Accepted/pending totals include
   queued registrations; existing seat/queue counters retain their meanings. Missing cached metadata
-  uses partial skeletons, never guessed counts. Count help is far left outside the navigation link.
+  uses partial skeletons, never guessed counts. One Table list / Lista Tavoli heading and count-legend
+  popover precede the list in both Main Tables and Event detail; count help is not repeated per card.
   External Group/Table cards navigate only: invitation acceptance/decline lives in their details;
   requests never expose self-approval. Following rows show first game
   with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
-  and all joint winner names with trophy only when terminated. Group incoming/outgoing artwork
-  keeps its existing warning mail/clock badges and creator crown.
+  and all joint winner names with trophy only when terminated. Group list invitation/request/admin
+  indicators use the same centered explanatory action; compact picker/detail overlays remain unchanged.
+  Generated Group Landscape artwork uses the Group ID, never its mutable name. Uploaded logos remain
+  untouched; unsaved Table artwork retains its existing local key until a server ID exists.
+- Event list cards have one centered participation indicator. A complete own-registration source
+  projection prioritizes any accepted seated/frozen Table, then pending request, pending invitation,
+  then waiting list. Organizer identity alone does not grant participation; an organizer with no
+  participation retains an admin indicator. Read-only own `position` metadata uses the same agreed
+  reservation projection/frozen roster as Table reads and is never persisted as a new status.
+  Missing accepted-seat evidence in older caches or raw mutation receipts shows only a partial
+  indicator skeleton until canonical reconciliation; clients do not infer an aggregate from a paged
+  subset of Tables.
 - From the main Events list, creation preloads only the source-filtered first page of creator Groups
   into the same scoped Query cache as the picker. The selector also loads before opening in an
   unlocked wizard, uses compact artwork and a bounded scroll viewport, and paginates/searches at source.

@@ -659,7 +659,9 @@ it("keeps a missing agreement disabled even if an inconsistent capability says c
   await screen.findByRole("link", { name: "Open table: First table" });
   const confirmation = screen.getByRole("button", { name: "Confirm event" }) as HTMLButtonElement;
   expect(confirmation.disabled).toBe(true);
-  expect(confirmation.className).toContain("size-9");
+  expect(confirmation.className).toContain("button--sm");
+  expect(confirmation.className).toContain("min-h-11");
+  expect(confirmation.className).toContain("min-w-11");
   expect(screen.queryByRole("region", { name: "Agreement" })).toBeNull();
   expect(screen.queryByText(/Pending invitations still reserve places/)).toBeNull();
   fireEvent.click(confirmation);

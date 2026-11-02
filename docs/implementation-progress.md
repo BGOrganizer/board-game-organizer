@@ -1,5 +1,44 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Consistent headers, stable artwork and centered participation help
+
+- Application headers use 20px Lucide glyphs, HeroUI small actions and minimum 44px native touch
+  targets. Shared platform-owned geometry covers normal, destructive, help and custom Back controls.
+  Native Back still dispatches the original navigation action; inline-location removal guards and
+  selected-result close/busy behavior remain. Explicit header-option resets prevent stale picker
+  controls and duplicate Back buttons. Web links and compound triggers retain their own semantics.
+- Generated Group artwork now uses its ID, matching Event/Table behavior; renaming does not change
+  images and distinct IDs remain distinct. Uploaded logos and existing unsaved local draft keys stay
+  unchanged. List indicators sit centered below the 64px artwork, outside card navigation, with one
+  accessible explanatory popover. Compact non-list Group overlays remain unchanged. Opening status
+  help never navigates, accepts an invitation or acknowledges notification attention.
+- Event cards expose one source-complete aggregate: accepted seated/frozen participation at any
+  Table, otherwise pending request, pending invitation, then waiting list. Admin identity alone is
+  not participation. Read-only own-registration positions reuse the server's existing reservation/
+  agreement/frozen-roster projection; no persisted registration state, writer, capability or identity
+  was added. Missing accepted-seat evidence in old caches/raw receipts shows a partial indicator
+  skeleton until canonical reconciliation, never guessed confirmation from a paged Table subset.
+- Main Tables and Event detail both use Table list / Lista Tavoli with one shared count-legend help;
+  repeated per-card questions/padding were removed. Six EN/IT messages were added and compiled;
+  every previous compiled key/value is retained. Existing HeroUI foreground-role tokens preserve
+  status-icon contrast in light/dark without a component palette.
+- PR Codecov failure was a 404 at the upstream Keybase public-key URL, after all mobile tests passed.
+  Preparation now retrieves the same public signing identity from a keyserver with bounded HTTP/
+  malformed-payload retries and an exact single-primary fingerprint check. Provider GPG signature,
+  SHA256 verification and blocking PR upload gates remain enabled. Main's existing optional coverage
+  policy remains optional, without uploading after key verification fails. Real Codecov CLI v11.3.2
+  signing-key import, signature verification and downloaded-binary checksum pass.
+- Local checks: 2,277 covered units (shared 398, schemas 124, API 762, web 707, mobile 286), 103 real
+  replica-set integrations, 102 workflow/script checks, typecheck and scoped Biome pass. The new
+  deterministic participation helper has 100% per-file coverage. API/web production builds and
+  Android export pass with exact generated-reference restoration and seven protected inputs intact.
+- Isolated real Chromium/production-CSS checks at 390/1280 in light/dark cover header geometry,
+  actual glyph/target centering, all aggregate states, popovers without navigation, legend placement,
+  theme/draft retention and rename/ID artwork behavior. Authenticated Playwright/Maestro and physical
+  native Back/rendering acceptance remain unverified; existing acceptance suites/jobs are unchanged.
+  Local checks/export do not establish device or production acceptance. Existing APK testing was
+  not interrupted, and no provider credentials/configuration, database reset or dependency changed.
+
 ## HeroUI-only light/dark UI
 
 - Native navigation headers, scenes, bottom tabs and status bars now follow resolved HeroUI/Uniwind

@@ -24,11 +24,12 @@ it("preserves invitation consent and reserved/waiting distinctions without inven
   expect(s).toContain("winners.map");
   expect(s).not.toContain('kind:"approve"');
 });
-it("keeps personal Table metadata/counts compact and puts pending type badges on artwork for Tables and Groups", () => {
+it("keeps personal Table metadata/counts compact with status popovers below artwork", () => {
   const table = source("events/EventTableCard");
   expect(table).toContain("<CalendarDays");
   expect(table).not.toContain("<EventStatusBadge status={table.eventStatus}");
-  expect(table).toContain("StatusIcon");
+  expect(table).toContain("tableParticipation(table.myRegistration, table.myPosition)");
+  expect(table).toContain("<ArtworkStatusPopover");
   expect(table).toContain('t("Winners")');
   expect(table).toContain("table.demonstratorUserId");
   expect(table).toContain("<Presentation");
@@ -50,12 +51,22 @@ it("keeps personal Table metadata/counts compact and puts pending type badges on
   expect(table).toContain("horizontal");
   expect(table).not.toContain('t("Reserved place")');
   expect(table).not.toMatch(/<Typography[^>]*>\s*\{t\("Invitation received"\)\}/);
-  expect(table).toContain('registration?.status === "PENDING"');
-  expect(table).toContain("<PendingArtworkBadge");
+  expect(table).not.toContain("<PendingArtworkBadge");
+  const card = source("common/ui/LinkedListCard");
+  expect(card).toContain("top: 80");
+  expect(card).toContain("width: 64");
+  expect(card).toContain('alignItems: "center"');
+  const status = source("common/ui/ArtworkStatusPopover");
+  expect(status).toContain("<HelpPopover");
+  expect(status).toContain("icon: Mail");
+  expect(status).toContain("icon: Clock3");
+  expect(source("groups/GroupCard")).toContain('status="none"');
   const group = source("groups/GroupArtwork");
   expect(group).toContain('group.role === "invited"');
   expect(group).toContain('group.role === "requested"');
   expect(group).toContain("<PendingArtworkBadge");
+  expect(group).toContain("seed={group.id}");
+  expect(group).not.toContain("seed={group.name}");
   const badge = source("common/ui/PendingArtworkBadge");
   expect(badge).toContain('useThemeColor("warning")');
   expect(badge).toContain("right: 0");

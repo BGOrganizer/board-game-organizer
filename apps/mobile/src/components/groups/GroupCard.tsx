@@ -16,6 +16,7 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { View } from "react-native";
+import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
@@ -40,6 +41,14 @@ export function GroupCard({
     attentionTarget = { kind: "group", id: group.id } as const;
   const invited =
     group.myMembership?.kind === "INVITATION" && group.myMembership.status === "PENDING";
+  const indicator =
+    group.role === "admin"
+      ? "admin"
+      : group.role === "invited"
+        ? "invitation"
+        : group.role === "requested"
+          ? "request"
+          : null;
   const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
   const local = group.optimistic,
     status = useClientRecordStatus(local?.phase);
@@ -48,6 +57,20 @@ export function GroupCard({
       label={`${status || t("Open group")}: ${group.name}`}
       disabled={Boolean(local && local.phase !== "failed")}
       notificationCount={local ? undefined : attention?.get(attentionTarget)?.count}
+      leadingActions={
+        indicator ? (
+          <ArtworkStatusPopover
+            kind={indicator}
+            label={
+              indicator === "admin"
+                ? t("Group admin")
+                : indicator === "request"
+                  ? t("Membership requested")
+                  : t("Invitation received")
+            }
+          />
+        ) : undefined
+      }
       onPress={() => {
         return local
           ? router.push({ pathname: "/group/wizard", params: { draftId: local.draftId } })
@@ -68,7 +91,7 @@ export function GroupCard({
         ) : undefined
       }
     >
-      <GroupArtwork group={group} />
+      <GroupArtwork group={group} status="none" />
       <ListCardBody
         title={group.name}
         titleAccessory={

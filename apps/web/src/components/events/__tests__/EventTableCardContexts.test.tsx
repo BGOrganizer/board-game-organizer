@@ -6,6 +6,7 @@ import { groupRecord, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventTableCard } from "../EventTableCard";
 import { EventTableInvitationActions } from "../EventTableInvitationActions";
+import { TableListHeading } from "../TableListHeading";
 
 const m = vi.hoisted(() => ({
   busy: false,
@@ -48,7 +49,12 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
     waitingCount: 3,
     pendingRegistrationCount: 2,
   };
-  const q = renderWithI18n(<EventTableCard table={table} context="personal" />);
+  const q = renderWithI18n(
+    <>
+      <TableListHeading />
+      <EventTableCard table={table} context="personal" />
+    </>,
+  );
   const artwork = document.querySelector("img")?.getAttribute("src");
   expect(artwork).toBe(
     `data:image/svg+xml,${encodeURIComponent(new Avatar(new Style(planets), { seed: table.id, size: 72 }).toString())}`,
@@ -61,7 +67,12 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
   expect(screen.getByText("First table").nextElementSibling).toBe(
     screen.getByRole("img", { name: "Rating enabled" }),
   );
-  q.rerender(<EventTableCard table={table} context="event" />);
+  q.rerender(
+    <>
+      <TableListHeading />
+      <EventTableCard table={table} context="event" />
+    </>,
+  );
   expect(screen.queryByText(table.eventName)).toBeNull();
   expect(screen.queryByText(groupRecord.name)).toBeNull();
   expect(document.querySelector("img")?.getAttribute("src")).toBe(artwork);
@@ -81,9 +92,10 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
     "Waiting list: 3",
     "Pending players: 2",
   ]);
-  const help = screen.getByRole("button", { name: "Players: Field help" });
+  const help = screen.getByRole("button", { name: "Table legend" });
   expect(link.contains(help)).toBe(false);
-  expect(help.parentElement?.className).toContain("left-2");
+  expect(help.closest(".card")).toBeNull();
+  expect(screen.getByRole("heading", { name: "Table list" })).not.toBeNull();
   fireEvent.click(help);
   expect(screen.getByText("Accepted players, including the waiting list.")).not.toBeNull();
   expect(
@@ -91,17 +103,18 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
   ).not.toBeNull();
 });
 it.each(["personal", "event"] as const)(
-  "keeps every own status on the photo only in %s context",
+  "keeps every own status below the artwork in a separate centered action in %s context",
   (context) => {
-    const base = { ...plannedTable, myRegistration: seat("owner") };
+    const base = { ...plannedTable, myRegistration: seat("owner"), myPosition: "SEATED" as const };
     const q = renderWithI18n(<EventTableCard table={base} context={context} />);
     const check = (label: string, icon: string, color: string) => {
-      const badge = screen.getByRole("img", { name: label });
-      expect(badge.className).toContain("bottom-0");
-      expect(badge.className).toContain("right-0");
+      const badge = screen.getByRole("button", { name: label });
+      expect(badge.parentElement?.className).toContain("top-20");
+      expect(badge.parentElement?.className).toContain("w-16");
+      expect(badge.parentElement?.className).toContain("justify-center");
       expect(badge.className).toContain(color);
       expect(badge.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
-      expect(badge.parentElement?.querySelector("img")).not.toBeNull();
+      expect(screen.getByRole("link").contains(badge)).toBe(false);
       expect(screen.queryByText(label)).toBeNull();
     };
     check("Confirmed player", "user-round-check", "text-success");
@@ -175,7 +188,7 @@ it("retains selected game, all joint winner names and disabled Rating without a 
   expect(
     screen.getByText("Owner, Guest").parentElement?.querySelector("svg.lucide-trophy"),
   ).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Confirmed player" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
   expect(screen.queryByText("Confirmed player")).toBeNull();
 });
 it.each(["CONFIRMED", "TERMINATED"] as const)(

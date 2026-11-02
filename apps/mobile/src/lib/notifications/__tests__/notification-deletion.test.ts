@@ -3,6 +3,7 @@ import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { expect, it, vi } from "vitest";
+import { headerButtonProps } from "../../../components/common/layout/headerStyles";
 
 // Execute real native callback/prop expressions, not a rendered-device acceptance substitute.
 const file = ts.createSourceFile(
@@ -27,6 +28,15 @@ function evaluate(tag: string, attribute: string, scope: Record<string, unknown>
       if (node.tagName.getText(file) === tag && (tag !== "Button" || bulk)) {
         const value = props.find((prop) => prop.name.getText(file) === attribute)?.initializer;
         if (value && ts.isJsxExpression(value)) expression = value.expression?.getText(file) ?? "";
+        if (
+          !value &&
+          node.attributes.properties.some(
+            (prop) =>
+              ts.isJsxSpreadAttribute(prop) &&
+              prop.expression.getText(file) === "headerButtonProps",
+          )
+        )
+          expression = `headerButtonProps.${attribute}`;
       }
     }
     ts.forEachChild(node, visit);
@@ -44,7 +54,11 @@ it("opens bulk confirmation from the header without dispatching a write", () => 
   const setDeletion = vi.fn();
   evaluate("Button", "onPress", { owner: "current-session", setDeletion })();
   expect(setDeletion).toHaveBeenCalledExactlyOnceWith({ owner: "current-session" });
-  expect(evaluate("Button", "style", {})).toEqual({ width: 44, height: 44 });
+  expect(evaluate("Button", "style", { headerButtonProps })).toEqual({
+    minWidth: 44,
+    minHeight: 44,
+  });
+  expect(headerButtonProps.size).toBe("sm");
 });
 
 it.each([

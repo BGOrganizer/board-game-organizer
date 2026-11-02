@@ -247,7 +247,8 @@ export type PlannedEventResponse = Omit<
     groupName: string | null;
     groupType: "PRIVATE" | "PUBLIC" | null;
     role: "admin" | "participant" | "invited" | "member" | "demonstrator";
-    myRegistrations: TableRegistration[];
+    /** Own source positions only; absent on older cache entries and incomplete mutation receipts. */
+    myRegistrations: (TableRegistration & { position?: TableSeatPosition })[];
     myVotes?: Pick<EventVoter, "dateVotes" | "locationVotes">;
     voteCounts?: {
       dates: Record<string, EventVoteCounts>;

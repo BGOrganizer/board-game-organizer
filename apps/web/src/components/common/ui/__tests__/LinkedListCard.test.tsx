@@ -35,7 +35,11 @@ it("shares match/group card padding, keeps actions outside link and blocks optim
   expect(onAction).toHaveBeenCalledOnce();
   const legend = screen.getByRole("button", { name: "Legend" });
   expect(link.contains(legend)).toBe(false);
-  expect(legend.parentElement?.className).toContain("left-2");
+  expect(legend.parentElement?.className).toContain("left-3");
+  expect(legend.parentElement?.className).toContain("top-20");
+  expect(legend.parentElement?.className).toContain("w-16");
+  expect(legend.parentElement?.className).toContain("justify-center");
+  expect(link.className).toContain("min-h-[136px]");
   expect(screen.getByRole("button", { name: "Accept" }).parentElement?.className).toContain(
     "right-2",
   );

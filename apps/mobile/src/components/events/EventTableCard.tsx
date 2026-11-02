@@ -1,5 +1,5 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { useNotificationAttentionContext } from "@board-game-organizer/shared";
+import { tableParticipation, useNotificationAttentionContext } from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
@@ -19,11 +19,9 @@ import {
 } from "lucide-react-native";
 import { ScrollView, View } from "react-native";
 import { AnimatedDicebearArtwork } from "@/components/common/ui/AnimatedDicebearArtwork";
-import { HelpPopover } from "@/components/common/ui/HelpPopover";
-import { IconLegend } from "@/components/common/ui/IconLegend";
+import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
-import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge";
 import { useT } from "@/lib/i18n";
 import { EventTableRatingBadge } from "./EventTableRatingBadge";
 export function EventTableCard({
@@ -36,14 +34,9 @@ export function EventTableCard({
   const t = useT(),
     { i18n } = useLingui(),
     router = useRouter(),
-    [muted, warning, success] = useThemeColor(["muted", "warning", "success"]),
+    [muted, warning] = useThemeColor(["muted", "warning"]),
     number = new Intl.NumberFormat(i18n.locale);
-  const registration = table.myRegistration,
-    pending = registration?.status === "PENDING",
-    invited = registration?.kind === "INVITATION",
-    waiting = table.myPosition === "WAITING";
-  const accepted = registration?.status === "ACCEPTED" || table.myPosition === "FROZEN",
-    StatusIcon = waiting ? ListOrdered : UserRoundCheck;
+  const indicator = tableParticipation(table.myRegistration, table.myPosition);
   const games = table.gamesDetail.filter(
       (game) =>
         table.eventStatus === "PLANNING" || !table.confirmed || game.id === table.confirmed.gameId,
@@ -56,31 +49,26 @@ export function EventTableCard({
       icon: UserRoundMinus,
       label: t("Minimum players"),
       value: table.minPlayers,
-      description: t("Minimum players"),
     },
     {
       icon: UserRoundPlus,
       label: t("Maximum players"),
       value: table.maxPlayers,
-      description: t("Maximum players"),
     },
     {
       icon: UserRoundCheck,
       label: t("Accepted players"),
       value: table.acceptedCount,
-      description: t("Accepted players, including the waiting list."),
     },
     {
       icon: ListOrdered,
       label: t("Waiting list"),
       value: table.waitingCount,
-      description: t("Waiting list"),
     },
     {
       icon: Clock3,
       label: t("Pending players"),
       value: table.pendingRegistrationCount,
-      description: t("Pending players, including reserved waiting-list places."),
     },
   ];
   return (
@@ -97,43 +85,15 @@ export function EventTableCard({
           },
         });
       }}
-      leadingActions={
-        <HelpPopover label={`${t("Players")}: ${t("Field help")}`} title={t("Players")}>
-          <IconLegend items={counts.map(({ icon, description }) => ({ icon, description }))} />
-        </HelpPopover>
-      }
+      leadingActions={indicator === null ? undefined : <ArtworkStatusPopover kind={indicator} />}
     >
-      <View style={{ width: 64, height: 64, flexShrink: 0 }}>
-        <AnimatedDicebearArtwork seed={table.id} variant="planets" />
-        {pending ? (
-          <PendingArtworkBadge
-            kind={invited ? "invitation" : "request"}
-            label={invited ? t("Invitation received") : t("Participation requested")}
-          />
-        ) : waiting || accepted ? (
-          <View
-            accessible
-            accessibilityRole="image"
-            accessibilityLabel={waiting ? t("Waiting list") : t("Confirmed player")}
-            className="bg-surface"
-            style={{
-              position: "absolute",
-              right: 0,
-              bottom: 0,
-              padding: 4,
-              borderTopLeftRadius: 8,
-            }}
-          >
-            <StatusIcon size={16} color={waiting ? warning : success} accessible={false} />
-          </View>
-        ) : null}
-      </View>
+      <AnimatedDicebearArtwork seed={table.id} variant="planets" />
       <ListCardBody
         title={table.name}
         titleIcon={<Dices size={16} color={muted} accessible={false} />}
         titleAccessory={<EventTableRatingBadge enabled={table.rankingEnabled} />}
       >
-        <View style={{ gap: 8, paddingBottom: 48 }}>
+        <View style={{ gap: 8 }}>
           {context === "personal" ? (
             <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
               <View

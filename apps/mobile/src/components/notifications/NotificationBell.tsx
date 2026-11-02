@@ -18,6 +18,7 @@ import { Typography } from "heroui-native/text";
 import { Bell, CheckCheck } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking, Pressable, View } from "react-native";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
@@ -177,14 +178,12 @@ export function NotificationBell() {
       >
         <Popover.Trigger asChild>
           <Button
-            isIconOnly
-            size="sm"
+            {...headerButtonProps}
             variant="ghost"
             accessibilityLabel={t("Notifications")}
             testID="notifications-button"
-            style={{ minHeight: 36, minWidth: 36 }}
           >
-            <Bell size={20} color={foreground} />
+            <Bell size={HEADER_ICON_SIZE} color={foreground} />
           </Button>
         </Popover.Trigger>
         <View pointerEvents="none" style={{ position: "absolute", right: 1, top: 1 }}>

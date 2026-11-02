@@ -10,15 +10,18 @@ import {
   CalendarDays,
   ContactRound,
   Dices,
+  Menu,
   ShieldCheck,
   UserRound,
   UsersRound,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
+import { HEADER_ICON_CLASS, headerButtonProps, headerControlClassName } from "./headerStyles";
 
 type NavLinkProps = {
   href: string;
@@ -45,7 +48,7 @@ function NavLink({ href, label, icon: Icon, exact = false, onClick, section }: N
           : "text-foreground hover:bg-surface",
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <Icon className={HEADER_ICON_CLASS} aria-hidden="true" />
       {label}
       {section ? <NotificationNavigationBadge section={section} /> : null}
     </Link>
@@ -68,38 +71,20 @@ export function Header() {
     <nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
       <header className="group/page-header mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <button
-            type="button"
-            className="shrink-0 lg:hidden"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          <Button
+            {...headerButtonProps}
+            variant="ghost"
+            className={`${headerButtonProps.className} shrink-0 lg:hidden`}
+            onPress={() => setIsMenuOpen(!isMenuOpen)}
             aria-label={t`Toggle menu`}
             aria-expanded={isMenuOpen}
           >
-            <span className="sr-only">Menu</span>
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              {isMenuOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              )}
-            </svg>
-          </button>
+            {isMenuOpen ? (
+              <X className={HEADER_ICON_CLASS} aria-hidden />
+            ) : (
+              <Menu className={HEADER_ICON_CLASS} aria-hidden />
+            )}
+          </Button>
           <div className="truncate text-sm font-semibold sm:text-base group-has-[h1]/page-header:hidden">
             Board Game Organizer
           </div>
@@ -135,20 +120,16 @@ export function Header() {
               {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress}
             </p>
             <NotificationBell />
-            <Link
-              href="/profile"
-              aria-label={t`Profile`}
-              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-foreground"
-            >
-              <UserRound className="size-5" aria-hidden="true" />
+            <Link href="/profile" aria-label={t`Profile`} className={headerControlClassName}>
+              <UserRound className={HEADER_ICON_CLASS} aria-hidden="true" />
             </Link>
             {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
               <Link
                 href="/moderation"
                 aria-label={t`Group moderation`}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-foreground hover:bg-surface focus-visible:ring-2 focus-visible:ring-accent"
+                className={headerControlClassName}
               >
-                <ShieldCheck className="size-5" aria-hidden="true" />
+                <ShieldCheck className={HEADER_ICON_CLASS} aria-hidden="true" />
               </Link>
             ) : null}
             <UserButton />

@@ -722,6 +722,10 @@ literal that produces a hashed fallback.
 - Keep logout available even when profile loading fails.
 - Do not convert network failures into empty-list success states; preserve an observable error path.
 - Keep buttons, dialogs, dropdowns, and form inputs accessible by role and label.
+- Application-owned header icons use 20px Lucide glyphs and HeroUI `sm` actions; native touch targets
+  remain at least 44px. Reuse each app's `common/layout/headerStyles` and existing header components.
+  Back controls keep native navigation dispatch and existing route-removal/inline-picker guards;
+  reset merged header options explicitly so inline picker controls never leak into the parent.
 - Give actions semantic colors matching their intent: primary for confirmation, danger for
   destructive actions, and neutral for cancellation. Do not rely on color alone to convey meaning.
   Prefer icon-only actions in tight spaces when the icon is self-explanatory; otherwise show text.

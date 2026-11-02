@@ -15,7 +15,13 @@ export function useClientRecordStatus(phase?: ClientRecordState["phase"]) {
         : t("Saving");
 }
 
-export function ClientRecordBadge({ phase }: { phase: ClientRecordState["phase"] }) {
+export function ClientRecordBadge({
+  phase,
+  iconSize = 14,
+}: {
+  phase: ClientRecordState["phase"];
+  iconSize?: number;
+}) {
   const t = useT();
   const label =
       phase === "failed" ? t("Not saved") : phase === "verifying" ? t("Verifying") : t("Saving"),
@@ -24,7 +30,7 @@ export function ClientRecordBadge({ phase }: { phase: ClientRecordState["phase"]
   const color = useThemeColor(failed ? "danger" : "warning");
   return (
     <Chip size="sm" variant="soft" color={failed ? "danger" : "warning"}>
-      <Icon size={14} color={color} accessible={false} />
+      <Icon size={iconSize} color={color} accessible={false} />
       <Chip.Label>{label}</Chip.Label>
     </Chip>
   );

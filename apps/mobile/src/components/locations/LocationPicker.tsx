@@ -38,6 +38,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScopedTheme, useUniwind } from "uniwind";
+import { headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SearchInput } from "@/components/common/ui/SearchInput";
@@ -291,8 +292,7 @@ export default function LocationPicker({
       <Stack.Screen
         options={{
           title: t("Select location"),
-          headerLeft: undefined,
-          headerBackVisible: true,
+          ...headerBackOptions(() => router.back()),
           headerTitle: ({ children }) => <HeaderTitle title={children} icon={MapPin} />,
         }}
       />

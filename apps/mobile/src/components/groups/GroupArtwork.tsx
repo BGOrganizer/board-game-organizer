@@ -8,9 +8,11 @@ import { useT } from "@/lib/i18n";
 export function GroupArtwork({
   group,
   size = 64,
+  status = "overlay",
 }: {
-  group: Pick<GroupRecordResponse, "name" | "logo" | "role">;
+  group: Pick<GroupRecordResponse, "id" | "logo" | "role">;
   size?: number;
+  status?: "overlay" | "none";
 }) {
   const t = useT(),
     warning = useThemeColor("warning");
@@ -24,9 +26,9 @@ export function GroupArtwork({
           style={{ width: size, height: size, borderRadius: 12 }}
         />
       ) : (
-        <AnimatedDicebearArtwork seed={group.name} variant="landscape" size={size} />
+        <AnimatedDicebearArtwork seed={group.id} variant="landscape" size={size} />
       )}
-      {group.role === "admin" ? (
+      {status === "overlay" && group.role === "admin" ? (
         <View
           accessible
           accessibilityRole="image"
@@ -37,7 +39,7 @@ export function GroupArtwork({
           <Crown size={16} color={warning} />
         </View>
       ) : null}
-      {group.role === "invited" || group.role === "requested" ? (
+      {status === "overlay" && (group.role === "invited" || group.role === "requested") ? (
         <PendingArtworkBadge
           kind={group.role === "invited" ? "invitation" : "request"}
           label={group.role === "invited" ? t("Invitation received") : t("Membership requested")}

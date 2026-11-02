@@ -5,6 +5,7 @@ import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Flag } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -20,7 +21,7 @@ export function EventResults({ eventId }: { eventId: string }) {
     <HeaderActions>
       <div className="flex max-w-[35vw] items-center gap-2 sm:max-w-64">
         <Button
-          isIconOnly
+          {...headerButtonProps}
           variant="ghost"
           aria-label={t`Back`}
           isDisabled={f.actions.busy}

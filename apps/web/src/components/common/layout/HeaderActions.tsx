@@ -9,5 +9,12 @@ export function HeaderActions({ children }: { children: ReactNode }) {
   useEffect(() => {
     setTarget(document.getElementById("page-header-actions"));
   }, []);
-  return target ? createPortal(children, target) : null;
+  return target
+    ? createPortal(
+        <div className="[&_svg]:size-5 [&_svg]:shrink-0 [&_.button]:min-h-11 [&_.button]:min-w-11">
+          {children}
+        </div>,
+        target,
+      )
+    : null;
 }

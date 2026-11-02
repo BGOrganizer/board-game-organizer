@@ -45,6 +45,7 @@ import {
   publicBookingIsClosed,
   rankMatchResults,
   removedNotificationItems,
+  tableRegistrationPosition,
 } from "@board-game-organizer/shared";
 import { CommunityError } from "../community.error";
 import type { RelationshipRepository } from "../contacts/relationship.repository";
@@ -134,9 +135,14 @@ export class EventRecordsService {
       })),
     );
   }
-  private async agreement(event: EventRecord, group: GroupRecord | null, tables?: TableRecord[]) {
+  private async agreement(
+    event: EventRecord,
+    group: GroupRecord | null,
+    tables?: TableRecord[],
+    knownRegistrations?: TableRegistration[],
+  ) {
     const selectedTables = tables ?? (await this.events.allTables(event.id));
-    const registrations = await this.events.allRegistrations(event.id);
+    const registrations = knownRegistrations ?? (await this.events.allRegistrations(event.id));
     const voters = await this.events.allVotes(event.id);
     return calculateEventAgreement({
       dateIds: event.dates.map((row) => row.id),
@@ -210,10 +216,45 @@ export class EventRecordsService {
   ): Promise<PlannedEventResponse> {
     const tables = await this.events.allTables(event.id);
     const counts = await this.events.counts(event, tables);
+    const hasAccepted = own.some((row) => row.status === "ACCEPTED");
+    const registrations =
+      detail || (hasAccepted && event.status === "PLANNING")
+        ? await this.events.allRegistrations(event.id)
+        : [];
+    const plan =
+      event.status === "PLANNING" && (detail || hasAccepted)
+        ? await this.agreement(event, group, tables, registrations)
+        : undefined;
+    const positioned = own.map((row) => {
+      const table = tables.find((table) => table.id === row.tableId);
+      if (!table || row.status !== "ACCEPTED") return row;
+      const selected = plan?.agreed
+        ? plan.includedTables.find((entry) => entry.tableId === table.id)?.participantIds
+        : undefined;
+      const seats =
+        event.status === "PLANNING"
+          ? projectReservedPlaces(
+              registrations
+                .filter((entry) => entry.tableId === table.id)
+                .map((entry) => ({
+                  ...entry,
+                  status:
+                    entry.status === "ACCEPTED" ? ("ACCEPTED" as const) : ("PENDING" as const),
+                })),
+              table.maxPlayers,
+              selected,
+            ).seated.map((entry) => entry.id)
+          : [];
+      return {
+        ...row,
+        position:
+          tableRegistrationPosition(event.status, row, seats, table.confirmed?.playerIds ?? []) ??
+          undefined,
+      };
+    });
     const myVotes = detail ? await this.events.voter(event.id, userId) : null;
     let voteCounts: PlannedEventResponse["voteCounts"];
     if (detail) {
-      const registrations = await this.events.allRegistrations(event.id);
       const voters = await this.events.allVotes(event.id);
       const ids = [
         ...new Set(
@@ -266,7 +307,7 @@ export class EventRecordsService {
       groupName: group?.approved?.name ?? null,
       groupType: group?.type ?? null,
       role,
-      myRegistrations: own,
+      myRegistrations: positioned,
       ...(detail
         ? {
             voteCounts,
@@ -276,9 +317,7 @@ export class EventRecordsService {
             },
           }
         : {}),
-      ...(detail && event.status === "PLANNING"
-        ? { agreement: this.preview(await this.agreement(event, group, tables)) }
-        : {}),
+      ...(detail && plan ? { agreement: this.preview(plan) } : {}),
     };
   }
   async detail(userId: string, id: string) {
@@ -742,15 +781,12 @@ export class EventRecordsService {
       const profile = winnerProfiles.find((row) => row.clerkId === userId);
       return { userId, name: profile?.name ?? userId, avatarUrl: profile?.avatarUrl ?? null };
     });
-    const myPosition = !my
-      ? null
-      : event.status === "PLANNING"
-        ? base.seated.some((row) => row.id === my.id)
-          ? "SEATED"
-          : "WAITING"
-        : table.confirmed?.playerIds.includes(userId)
-          ? "FROZEN"
-          : "WAITING";
+    const myPosition = tableRegistrationPosition(
+      event.status,
+      my,
+      base.seated.map((row) => row.id),
+      table.confirmed?.playerIds ?? [],
+    );
     return {
       ...table,
       winners,

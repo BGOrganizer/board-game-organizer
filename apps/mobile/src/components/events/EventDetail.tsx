@@ -26,6 +26,7 @@ import {
 import { useRef, useState } from "react";
 import { FlatList, type ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -46,6 +47,7 @@ import { EventGroupLink } from "./EventGroupLink";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
+import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const t = useT(),
     o = useCommunityApi(),
@@ -101,10 +103,8 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 </HelpPopover>
               ) : null}
               <Button
-                isIconOnly
+                {...headerButtonProps}
                 variant="primary"
-                size="sm"
-                style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
                 hitSlop={4}
                 accessibilityLabel={t("Confirm event")}
                 isDisabled={confirmationBlocked}
@@ -113,7 +113,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   setConfirm("confirm");
                 }}
               >
-                <Check size={16} color={accentForeground} />
+                <Check size={HEADER_ICON_SIZE} color={accentForeground} />
               </Button>
               <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
             </View>
@@ -121,10 +121,8 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             event?.status === "CONFIRMED" &&
             event.canFinalize ? (
             <Button
-              isIconOnly
+              {...headerButtonProps}
               variant="primary"
-              size="sm"
-              style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
               hitSlop={4}
               accessibilityLabel={t("Register results")}
               isDisabled={a.busy || q.isPlaceholderData}
@@ -132,7 +130,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 router.push({ pathname: "/event/results", params: { eventId: event.id } })
               }
             >
-              <ClipboardPenLine size={16} color={accentForeground} accessible={false} />
+              <ClipboardPenLine
+                size={HEADER_ICON_SIZE}
+                color={accentForeground}
+                accessible={false}
+              />
             </Button>
           ) : null,
       }}
@@ -331,7 +333,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
           ))}
       </GroupedList>
       <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
-        <Typography className="font-semibold text-foreground">{t("Tables")}</Typography>
+        <TableListHeading />
       </NotificationItem>
     </View>
   );

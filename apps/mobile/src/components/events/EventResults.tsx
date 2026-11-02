@@ -4,10 +4,11 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { ArrowLeft, Flag } from "lucide-react-native";
+import { Flag } from "lucide-react-native";
 import { useCallback } from "react";
 import { BackHandler, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderBackButton, headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { useT } from "@/lib/i18n";
@@ -21,7 +22,7 @@ export function EventResults({ eventId }: { eventId: string }) {
     insets = useSafeAreaInsets(),
     f = useEventResultsForm(o, eventId),
     event = communityAccessDenied(f.event.error) ? undefined : f.event.data;
-  const [accentForeground, foreground] = useThemeColor(["accent-foreground", "foreground"]);
+  const accentForeground = useThemeColor("accent-foreground");
   useFocusEffect(
     useCallback(() => {
       if (!f.selected) return;
@@ -36,22 +37,18 @@ export function EventResults({ eventId }: { eventId: string }) {
     <Stack.Screen
       options={{
         title: f.selected ? t("Register Table Result") : t("Register Tables Results"),
-        headerBackVisible: !f.selected,
-        headerLeft: f.selected
-          ? () => (
-              <Button
-                isIconOnly
-                variant="ghost"
-                accessibilityLabel={t("Back to tables")}
-                isDisabled={f.actions.busy}
-                onPress={f.close}
-                style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
-                hitSlop={4}
-              >
-                <ArrowLeft size={20} color={foreground} accessible={false} />
-              </Button>
-            )
-          : undefined,
+        ...headerBackOptions(() => router.back()),
+        ...(f.selected
+          ? {
+              headerLeft: () => (
+                <HeaderBackButton
+                  label={t("Back to tables")}
+                  disabled={f.actions.busy}
+                  onPress={f.close}
+                />
+              ),
+            }
+          : {}),
       }}
     />
   );

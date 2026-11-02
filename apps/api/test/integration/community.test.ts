@@ -8,7 +8,7 @@ import {
   saveEventSchema,
   updateEventSchema,
 } from "@board-game-organizer/schemas";
-import { normalizeMatchScore } from "@board-game-organizer/shared";
+import { eventParticipation, normalizeMatchScore } from "@board-game-organizer/shared";
 import { type ClientSession, type Db, MongoClient } from "mongodb";
 import sharp from "sharp";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
@@ -1732,6 +1732,56 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       }),
     );
   }
+  it("returns complete own Event positions for a truthful aggregate without client paging or organizer seats", async () => {
+    const group = await privateGroup(),
+      input = plannedInput(group.id);
+    input.tables.push({ ...input.tables[0], id: secondId, name: "Invitation table" });
+    const event = await transaction((s) => s.plannedEventService.create(OWNER, input));
+    expect(event.myRegistrations).toEqual([]);
+    expect(eventParticipation(event.myRegistrations)).toBeNull();
+    for (const user of [OWNER, GUEST, OTHER])
+      await transaction((s) => s.plannedEventService.register(user, event.id, tableId));
+    let detail = await services().plannedEventService.detail(OTHER, event.id);
+    expect(detail.myRegistrations).toHaveLength(1);
+    expect(detail.myRegistrations[0]).toMatchObject({ userId: OTHER, position: "WAITING" });
+    expect(eventParticipation(detail.myRegistrations)).toBe("waiting");
+    const invitation = await transaction((s) =>
+      s.plannedEventService.register(OWNER, event.id, secondId, OTHER),
+    );
+    const page = await services().plannedEventService.list(OTHER, { limit: 1 }, group.id);
+    expect(page.items[0].myRegistrations).toHaveLength(2);
+    expect(page.items[0].myRegistrations.every((row) => row.userId === OTHER)).toBe(true);
+    expect(eventParticipation(page.items[0].myRegistrations)).toBe("invitation");
+    const choices = await participation(event.id, secondId);
+    await transaction((s) =>
+      s.plannedEventService.registrationAction(OTHER, invitation.id, {
+        action: "accept",
+        version: invitation.version,
+        participation: choices,
+      }),
+    );
+    detail = await services().plannedEventService.detail(OTHER, event.id);
+    expect(detail.myRegistrations.find((row) => row.tableId === secondId)?.position).toBe("SEATED");
+    expect(eventParticipation(detail.myRegistrations)).toBe("confirmed");
+    for (const user of [OWNER, GUEST]) await voteYes(event.id, user);
+    await confirm(event.id);
+    detail = await services().plannedEventService.detail(OTHER, event.id);
+    expect(eventParticipation(detail.myRegistrations)).toBe("waiting");
+    expect(
+      eventParticipation(
+        (await services().plannedEventService.detail(GUEST, event.id)).myRegistrations,
+      ),
+    ).toBe("confirmed");
+    expect(
+      await db
+        .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+        .countDocuments({ position: { $exists: true } }),
+    ).toBe(0);
+    await expect(services().plannedEventService.detail(OUTSIDER, event.id)).rejects.toMatchObject({
+      code: "GROUP_MEMBER_REQUIRED",
+    });
+  });
+
   it("transactionally deletes planning Event/Table data, rolls both back on failure and preserves unrelated histories", async () => {
     const group = await privateGroup(),
       input = plannedInput(group.id),

@@ -14,6 +14,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventTableCard } from "./EventTableCard";
+import { TableListHeading } from "./TableListHeading";
 export function Tables() {
   const t = useT(),
     o = useCommunityApi(),
@@ -38,18 +39,21 @@ export function Tables() {
           paddingBottom: insets.bottom + 32,
         }}
         ListHeaderComponent={
-          <ListSearch
-            query={f.query}
-            onQueryChange={f.setQuery}
-            label={t("Search tables")}
-            placeholder={t("Search tables")}
-            selected={f.selected}
-            onToggle={f.toggle}
-            options={[
-              { key: "past", label: t("Past"), icon: History },
-              { key: "future", label: t("Future"), icon: CalendarDays },
-            ]}
-          />
+          <View style={{ gap: 12 }}>
+            <ListSearch
+              query={f.query}
+              onQueryChange={f.setQuery}
+              label={t("Search tables")}
+              placeholder={t("Search tables")}
+              selected={f.selected}
+              onToggle={f.toggle}
+              options={[
+                { key: "past", label: t("Past"), icon: History },
+                { key: "future", label: t("Future"), icon: CalendarDays },
+              ]}
+            />
+            <TableListHeading />
+          </View>
         }
         renderItem={({ item }) => <EventTableCard table={item} context="personal" />}
         onEndReached={() => {

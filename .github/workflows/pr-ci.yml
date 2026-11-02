@@ -88,6 +88,9 @@ jobs:
       - name: 🧪 Vitest with coverage
         run: pnpm --filter ${{ matrix.app }} test:coverage
 
+      - name: 🔏 Verify Codecov signing key
+        run: bash .github/scripts/prepare-codecov-key.sh
+
       - name: 📤 Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -119,6 +122,9 @@ jobs:
 
       - name: 🐳 Vitest integration (MongoDB in Docker)
         run: pnpm --filter api test:integration --coverage
+
+      - name: 🔏 Verify Codecov signing key
+        run: bash .github/scripts/prepare-codecov-key.sh
 
       - name: 📤 Upload integration coverage to Codecov
         uses: codecov/codecov-action@v5

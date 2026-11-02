@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
@@ -91,9 +92,8 @@ export function GroupDetail({
         (group.role === "accepted" && group.myMembership?.status === "ACCEPTED") ? (
           <HeaderActions>
             <Button
-              isIconOnly
+              {...headerButtonProps}
               variant="danger"
-              className="min-h-11 min-w-11"
               aria-label={group.canEdit ? t`Delete group` : t`Leave group`}
               isDisabled={group.canEdit ? a.busy : ownBusy}
               onPress={() => {

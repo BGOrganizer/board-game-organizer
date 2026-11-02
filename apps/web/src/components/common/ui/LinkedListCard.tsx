@@ -36,12 +36,12 @@ export function LinkedListCard({
             else if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey)
               onOpen?.();
           }}
-          className="flex w-full cursor-pointer items-start gap-3 rounded-xl p-3 text-left hover:bg-default focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+          className={`flex w-full cursor-pointer items-start gap-3 rounded-xl p-3 text-left hover:bg-default focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${leadingActions ? "min-h-[136px]" : ""}`}
         >
           {children}
         </Link>
         {leadingActions ? (
-          <div className="absolute left-2 bottom-2 z-10 flex gap-1 rounded-lg bg-surface p-0.5">
+          <div className="absolute left-3 top-20 z-10 flex w-16 justify-center rounded-lg bg-surface">
             {leadingActions}
           </div>
         ) : null}

@@ -13,6 +13,7 @@ import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { NotificationKindIcon } from "@/components/notifications/NotificationKindIcon";
@@ -70,9 +71,8 @@ export function NotificationsPage() {
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       <HeaderActions>
         <Button
-          isIconOnly
+          {...headerButtonProps}
           variant="danger-soft"
-          className="min-h-11 min-w-11"
           aria-label={t`Delete all notifications`}
           isDisabled={
             !isLoaded ||

@@ -5305,3 +5305,27 @@ msgstr "Needs attention"
 #: apps/mobile/src/components/notifications/NotificationItem.tsx
 msgid "Mark as read"
 msgstr "Mark as read"
+
+#: apps/web/src/components/events/TableListHeading.tsx
+msgid "Table legend"
+msgstr "Table legend"
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You administer this item."
+msgstr "You administer this item."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You are on the waiting list, not assigned a place."
+msgstr "You are on the waiting list, not assigned a place."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You have a confirmed place at a table."
+msgstr "You have a confirmed place at a table."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You have an invitation awaiting your response."
+msgstr "You have an invitation awaiting your response."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "Your request is awaiting approval."
+msgstr "Your request is awaiting approval."

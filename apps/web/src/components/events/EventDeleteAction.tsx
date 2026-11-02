@@ -14,6 +14,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ClientRecordBadge } from "@/components/common/ui/ClientRecordBadge";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -80,16 +81,14 @@ export function EventDeleteAction({
     <div className="flex items-center gap-1">
       {verifying ? <ClientRecordBadge phase="verifying" /> : null}
       <Button
-        isIconOnly
-        size="sm"
+        {...headerButtonProps}
         variant="danger-soft"
-        className="size-9 min-h-9 min-w-9"
         aria-label={label}
         aria-describedby={hint ? hintId : undefined}
         isDisabled={blocked}
         onPress={() => setConfirm(event.version)}
       >
-        <Trash2 className="size-4" aria-hidden />
+        <Trash2 className={HEADER_ICON_CLASS} aria-hidden />
       </Button>
       {hint ? (
         <span id={hintId} className="sr-only">

@@ -18,6 +18,7 @@ export * from "./events/eventAgreement";
 export * from "./events/eventForm";
 export * from "./events/eventJoinAvailability";
 export * from "./events/eventOptimisticCreation";
+export * from "./events/eventParticipation";
 export * from "./events/eventPolicy";
 export * from "./events/eventRecordForm";
 export * from "./events/eventRecordPolicy";

@@ -34,7 +34,7 @@ describe("unified group presentation", () => {
     expect(screen.getByRole("link", { name: "Open group: Game Club" }).getAttribute("href")).toBe(
       `/groups/${id}`,
     );
-    expect(screen.getByRole("img", { name: "Group admin" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Group admin" })).not.toBeNull();
     expect(screen.getByText("Private")).not.toBeNull();
     expect(screen.queryByText("Approved")).toBeNull();
   });
@@ -62,12 +62,12 @@ describe("unified group presentation", () => {
     expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
     expect(screen.getByText("Invitation received")).not.toBeNull();
-    const badge = screen.getByRole("img", { name: "Invitation received" });
+    const badge = screen.getByRole("button", { name: "Invitation received" });
     expect(badge.className).toContain("text-warning");
-    expect(badge.className).toContain("bottom-0");
-    expect(badge.className).toContain("right-0");
+    expect(badge.parentElement?.className).toContain("top-20");
+    expect(badge.parentElement?.className).toContain("justify-center");
     expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
-    expect(badge.parentElement?.querySelector("img")).not.toBeNull();
+    expect(screen.getByRole("link").contains(badge)).toBe(false);
     expect(screen.queryByText("Events")).toBeNull();
   });
   it("reuses group metadata for review navigation without exposing invitation actions", () => {
@@ -101,12 +101,12 @@ describe("unified group presentation", () => {
   });
   it("marks an outgoing pending Group request with a warning clock and no invitation response actions", () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "requested" }} />);
-    const badge = screen.getByRole("img", { name: "Membership requested" });
+    const badge = screen.getByRole("button", { name: "Membership requested" });
     expect(badge.className).toContain("text-warning");
-    expect(badge.className).toContain("bottom-0");
-    expect(badge.className).toContain("right-0");
+    expect(badge.parentElement?.className).toContain("top-20");
+    expect(badge.parentElement?.className).toContain("justify-center");
     expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
-    expect(badge.parentElement?.querySelector("img")).not.toBeNull();
+    expect(screen.getByRole("link").contains(badge)).toBe(false);
     expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
   });

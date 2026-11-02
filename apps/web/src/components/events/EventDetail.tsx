@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
+import { headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { EmptyList } from "@/components/common/ui/EmptyList";
@@ -44,6 +45,7 @@ import { EventGroupLink } from "./EventGroupLink";
 import { EventTableCard } from "./EventTableCard";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteCounts } from "./EventVoteCounts";
+import { TableListHeading } from "./TableListHeading";
 export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup?: string }) {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -133,10 +135,8 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 </HelpPopover>
               ) : null}
               <Button
-                isIconOnly
-                size="sm"
+                {...headerButtonProps}
                 variant="primary"
-                className="size-9 min-h-9 min-w-9"
                 aria-label={t`Confirm event`}
                 isDisabled={confirmationBlocked}
                 onPress={() => {
@@ -322,9 +322,9 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               ))}
           </GroupedList>
         </section>
-        <section aria-label={t`Tables`} className="space-y-3">
+        <section aria-label={t`Table list`} className="space-y-3">
           <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>
-            <h2 className="font-semibold">{t`Tables`}</h2>
+            <TableListHeading />
           </NotificationItem>
           {(communityAccessDenied(tables.error) ? [] : tables.items).map((row) => (
             <EventTableCard key={row.id} table={row} context="event" />

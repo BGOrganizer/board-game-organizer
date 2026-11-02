@@ -22,7 +22,7 @@ it("owns three top Group tabs, limits owned lists to member roles, and confines 
 it("uses first-step header back, compact reachable counters, row game selection and context-aware review", () => {
   const wizard = source("events", "EventWizard");
   expect(wizard).toContain("step > 0 ? (");
-  expect(wizard).toContain("headerBackVisible: true");
+  expect(wizard).toContain("...headerBackOptions(() => router.back())");
   expect(wizard).toContain("<CalendarPlus");
   expect(wizard).toContain('router.dismissTo("/(tabs)/events")');
   expect(source("groups", "GroupWizard")).toContain('"/(tabs)/groups"');
@@ -34,9 +34,11 @@ it("uses first-step header back, compact reachable counters, row game selection 
   expect(source("events", "EventDraftTableCard")).toContain(
     "publicGroup || row.demonstratorUserId",
   );
-  expect(source("games", "GamePicker")).toMatch(
-    /accessibilityLabel=\{t\("Back"\)\}[\s\S]*?<ArrowLeft/,
-  );
+  expect(source("games", "GamePicker")).toContain("<HeaderBackButton onPress={onClose}");
+  const back = source("common/layout", "HeaderBackButton");
+  expect(back).toContain('label ?? t("Back")');
+  expect(back).toContain("<ArrowLeft size={HEADER_ICON_SIZE}");
+  expect(back).toContain("onPress={onPress}");
 });
 it("resets header confirmation on access loss, preserves cutoff/manual version guards and labels metadata", () => {
   const detail = source("events", "EventDetail");
@@ -44,7 +46,7 @@ it("resets header confirmation on access loss, preserves cutoff/manual version g
   expect(detail).toContain("event?.adminUserId === o.userId");
   expect(detail).toContain("confirmationBlocked");
   expect(detail).toContain("event?.agreement?.agreed !== true");
-  expect(detail).toContain("minWidth: 36");
+  expect(detail).toContain("{...headerButtonProps}");
   expect(detail).toContain("hitSlop={4}");
   expect(detail.indexOf("event.agreement?.reasons.map")).toBeLessThan(
     detail.indexOf("if (!event)"),
@@ -102,7 +104,10 @@ it("shares one Table card across personal/Event lists with only the parent metad
   expect(card).toContain('context === "personal"');
   expect(card).toContain('variant="planets"');
   expect(card).toContain("leadingActions=");
-  expect(card).toContain("<IconLegend");
+  expect(card).not.toContain("<IconLegend");
+  expect(source("events", "TableListHeading")).toContain("<IconLegend");
+  expect(source("events", "Tables")).toContain("<TableListHeading");
+  expect(source("events", "EventDetail")).toContain("<TableListHeading");
   expect(card).toContain("horizontal");
   for (const field of [
     "minPlayers",

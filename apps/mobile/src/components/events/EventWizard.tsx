@@ -28,6 +28,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderBackButton, headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import GamePicker from "@/components/games/GamePicker";
@@ -186,16 +187,7 @@ function Editor({
       options={{
         title: t("Choose"),
         gestureEnabled: false,
-        headerLeft: () => (
-          <Button
-            isIconOnly
-            variant="ghost"
-            accessibilityLabel={t("Back")}
-            onPress={() => setPick(null)}
-          >
-            <ArrowLeft size={20} color={fg} />
-          </Button>
-        ),
+        headerLeft: () => <HeaderBackButton onPress={() => setPick(null)} />,
       }}
     />
   );
@@ -287,8 +279,7 @@ function Editor({
           title: event ? t("Edit event") : t("Create event"),
           headerTitle: ({ children }) => <HeaderTitle title={children} icon={Dices} />,
           gestureEnabled: true,
-          headerLeft: undefined,
-          headerBackVisible: true,
+          ...headerBackOptions(() => router.back()),
         }}
       />
       <View

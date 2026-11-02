@@ -5305,3 +5305,27 @@ msgstr "Da verificare"
 #: apps/mobile/src/components/notifications/NotificationItem.tsx
 msgid "Mark as read"
 msgstr "Segna come letta"
+
+#: apps/web/src/components/events/TableListHeading.tsx
+msgid "Table legend"
+msgstr "Legenda tavoli"
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You administer this item."
+msgstr "Gestisci questo elemento."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You are on the waiting list, not assigned a place."
+msgstr "Sei in lista d'attesa e non hai ancora un posto assegnato."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You have a confirmed place at a table."
+msgstr "Hai un posto confermato ad almeno un tavolo."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You have an invitation awaiting your response."
+msgstr "Hai un invito in attesa di una tua risposta."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "Your request is awaiting approval."
+msgstr "La tua richiesta è in attesa di approvazione."

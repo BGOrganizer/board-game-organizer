@@ -7,9 +7,11 @@ import { PendingArtworkBadge } from "@/components/common/ui/PendingArtworkBadge"
 export function GroupArtwork({
   group,
   size = 64,
+  status = "overlay",
 }: {
-  group: Pick<GroupRecordResponse, "name" | "logo" | "role">;
+  group: Pick<GroupRecordResponse, "id" | "logo" | "role">;
   size?: number;
+  status?: "overlay" | "none";
 }) {
   const { t } = useLingui();
   return (
@@ -25,9 +27,9 @@ export function GroupArtwork({
           style={{ width: size, height: size }}
         />
       ) : (
-        <AnimatedDicebearArtwork seed={group.name} variant="landscape" size={size} />
+        <AnimatedDicebearArtwork seed={group.id} variant="landscape" size={size} />
       )}
-      {group.role === "admin" ? (
+      {status === "overlay" && group.role === "admin" ? (
         <span
           role="img"
           aria-label={t`Group admin`}
@@ -36,7 +38,7 @@ export function GroupArtwork({
           <Crown aria-hidden className="size-4 text-warning" />
         </span>
       ) : null}
-      {group.role === "invited" || group.role === "requested" ? (
+      {status === "overlay" && (group.role === "invited" || group.role === "requested") ? (
         <PendingArtworkBadge
           kind={group.role === "invited" ? "invitation" : "request"}
           label={group.role === "invited" ? t`Invitation received` : t`Membership requested`}

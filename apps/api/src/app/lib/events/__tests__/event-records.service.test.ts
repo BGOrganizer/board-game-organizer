@@ -290,6 +290,68 @@ function setup(type: "PRIVATE" | "PUBLIC" | null = null) {
     confirm,
   };
 }
+it("projects only own source seats into Event summaries, matching Table reads without persisting positions", async () => {
+  const f = setup(),
+    event = await f.create();
+  expect(event.myRegistrations).toEqual([]);
+  for (const [sequence, userId] of [owner, guest, waiter].entries()) {
+    f.registrations.set(userId, {
+      id: userId,
+      eventId: event.id,
+      tableId: id,
+      userId,
+      kind: "SELF",
+      status: "ACCEPTED",
+      sequence,
+      priorityAt: event.createdAt,
+      version: 1,
+      gameVotes: {},
+      createdAt: event.createdAt,
+      updatedAt: event.createdAt,
+    });
+  }
+  for (const userId of [owner, guest, waiter]) {
+    const detail = await f.service.detail(userId, event.id);
+    const table = await f.service.tableDetail(userId, event.id, id);
+    expect(detail.myRegistrations).toHaveLength(1);
+    expect(detail.myRegistrations[0]).toMatchObject({ userId, position: table.myPosition });
+    expect(detail.myRegistrations[0].position).toBe(userId === waiter ? "WAITING" : "SEATED");
+  }
+  expect([...f.registrations.values()].every((row) => !("position" in row))).toBe(true);
+});
+it("uses immutable frozen rosters and leaves missing Table evidence unknown", async () => {
+  const f = setup(),
+    event = await f.create();
+  const registration: TableRegistration = {
+    id,
+    eventId: event.id,
+    tableId: id,
+    userId: guest,
+    kind: "SELF",
+    status: "ACCEPTED",
+    sequence: 9,
+    priorityAt: event.createdAt,
+    version: 1,
+    gameVotes: {},
+    createdAt: event.createdAt,
+    updatedAt: event.createdAt,
+  };
+  f.registrations.set(id, registration);
+  f.events.set(event.id, { ...f.events.get(event.id)!, status: "CONFIRMED" });
+  f.tables.set(id, {
+    ...f.tables.get(id)!,
+    confirmed: { gameId: 1, playerIds: [guest], startsAt: "2027-01-03T09:00:00Z" },
+  });
+  expect((await f.service.detail(guest, event.id)).myRegistrations[0].position).toBe("FROZEN");
+  f.tables.set(id, {
+    ...f.tables.get(id)!,
+    confirmed: { gameId: 1, playerIds: [owner], startsAt: "2027-01-03T09:00:00Z" },
+  });
+  expect((await f.service.detail(guest, event.id)).myRegistrations[0].position).toBe("WAITING");
+  f.tables.delete(id);
+  expect((await f.service.detail(guest, event.id)).myRegistrations[0].position).toBeUndefined();
+});
+
 it("acknowledges exactly the successfully voted item at the displayed source cutoff, never a rejected vote", async () => {
   const f = setup(),
     event = await f.create();

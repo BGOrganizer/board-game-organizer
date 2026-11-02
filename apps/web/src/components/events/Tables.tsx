@@ -13,6 +13,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventTableCard } from "./EventTableCard";
+import { TableListHeading } from "./TableListHeading";
 export function Tables() {
   const { t } = useLingui(),
     o = useCommunityApi(),
@@ -45,6 +46,7 @@ export function Tables() {
             { key: "future", label: t`Future`, icon: CalendarDays },
           ]}
         />
+        <TableListHeading />
         {(communityAccessDenied(q.error) ? [] : q.items).map((row) => (
           <EventTableCard key={row.id} table={row} context="personal" />
         ))}

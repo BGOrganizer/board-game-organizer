@@ -14,6 +14,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Trash2 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ClientRecordBadge } from "@/components/common/ui/ClientRecordBadge";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { useT } from "@/lib/i18n";
@@ -76,13 +77,11 @@ export function EventDeleteAction({
   };
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-      {verifying ? <ClientRecordBadge phase="verifying" /> : null}
+      {verifying ? <ClientRecordBadge phase="verifying" iconSize={HEADER_ICON_SIZE} /> : null}
       <Button
         hitSlop={4}
-        isIconOnly
-        size="sm"
+        {...headerButtonProps}
         variant="danger-soft"
-        style={{ width: 36, height: 36, minWidth: 36, minHeight: 36, padding: 0 }}
         accessibilityLabel={label}
         accessibilityHint={
           table && event.tableCount <= 1
@@ -92,7 +91,7 @@ export function EventDeleteAction({
         isDisabled={blocked}
         onPress={() => setConfirm(event.version)}
       >
-        <Trash2 size={16} color={danger} accessible={false} />
+        <Trash2 size={HEADER_ICON_SIZE} color={danger} accessible={false} />
       </Button>
       {confirm ? (
         <ConfirmDialog

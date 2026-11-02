@@ -5,6 +5,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
 import { Dices } from "lucide-react-native";
 import { View } from "react-native";
+import { HEADER_ICON_SIZE } from "./headerStyles";
 
 export function Header() {
   const { user } = useUser();
@@ -13,7 +14,7 @@ export function Header() {
   return (
     <View className="mb-6 flex-row items-center justify-between">
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
-        <Dices size={22} color={foreground} accessible={false} />
+        <Dices size={HEADER_ICON_SIZE} color={foreground} accessible={false} />
         <Typography className="text-xl font-bold text-foreground" numberOfLines={1}>
           Board Game Organizer
         </Typography>

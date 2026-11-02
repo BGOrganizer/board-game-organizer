@@ -26,6 +26,7 @@ import { Save, Send, Trash2, UsersRound, X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { headerBackOptions } from "@/components/common/layout/HeaderBackButton";
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
 import { AddUserRow } from "@/components/common/ui/AddUserRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -219,8 +220,7 @@ function Editor({
         options={{
           title: group ? t("Edit group") : t("New group"),
           headerTitle: ({ children }) => <HeaderTitle title={children} icon={UsersRound} />,
-          headerLeft: undefined,
-          headerBackVisible: true,
+          ...headerBackOptions(() => router.back()),
         }}
       />
       <FlatList

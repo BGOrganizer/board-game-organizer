@@ -15,6 +15,7 @@ import {
 import { Platform, View } from "react-native";
 
 import { HeaderTitle } from "@/components/common/layout/HeaderTitle";
+import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
 import { useT } from "@/lib/i18n";
@@ -56,26 +57,22 @@ export default function TabLayout() {
             <NotificationBell />
             {getBgoRole(user?.publicMetadata) === "ADMIN" ? (
               <Button
-                isIconOnly
-                size="sm"
+                {...headerButtonProps}
                 variant="ghost"
                 accessibilityLabel={t("Group moderation")}
-                style={{ minHeight: 44, minWidth: 44 }}
                 onPress={() => router.push("/moderation")}
               >
-                <ShieldCheck size={20} color={foreground} />
+                <ShieldCheck size={HEADER_ICON_SIZE} color={foreground} />
               </Button>
             ) : null}
             <Button
-              isIconOnly
-              size="sm"
+              {...headerButtonProps}
               variant="ghost"
               accessibilityLabel={t("Profile")}
               testID="profile-button"
-              style={{ minHeight: 36, minWidth: 36 }}
               onPress={() => router.push("/profile")}
             >
-              <UserRound size={20} color={foreground} />
+              <UserRound size={HEADER_ICON_SIZE} color={foreground} />
             </Button>
           </View>
         ),

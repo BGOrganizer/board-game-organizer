@@ -45,14 +45,16 @@ it("keeps first game plus localized additional count and badges current viewer's
     { id: 3, name: "Third game", year: null, imageUrl: null },
   ];
   const q = renderWithI18n(
-    <EventTableCard table={{ ...plannedTable, gamesDetail, myRegistration: seat("owner") }} />,
+    <EventTableCard
+      table={{ ...plannedTable, gamesDetail, myRegistration: seat("owner"), myPosition: "SEATED" }}
+    />,
   );
   expect(screen.getByText(/Chess/)).not.toBeNull();
   expect(screen.getByText(/\+2 games/)).not.toBeNull();
   expect(screen.queryByText("Second game")).toBeNull();
   expect(
     screen
-      .getByRole("img", { name: "Confirmed player" })
+      .getByRole("button", { name: "Confirmed player" })
       .querySelector("svg.lucide-user-round-check"),
   ).not.toBeNull();
   q.rerender(<EventTableCard table={{ ...plannedTable, gamesDetail: gamesDetail.slice(0, 2) }} />);
@@ -63,6 +65,7 @@ it("keeps first game plus localized additional count and badges current viewer's
         ...plannedTable,
         eventStatus: "TERMINATED",
         myRegistration: seat("owner"),
+        myPosition: "FROZEN",
         winners: [
           { userId: "owner", name: "Owner", avatarUrl: null },
           { userId: "guest", name: "Guest", avatarUrl: null },
@@ -70,7 +73,7 @@ it("keeps first game plus localized additional count and badges current viewer's
       }}
     />,
   );
-  expect(screen.getByRole("img", { name: "Confirmed player" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
   expect(
     screen.getByText("Owner, Guest").parentElement?.querySelector("svg.lucide-trophy"),
   ).not.toBeNull();
@@ -95,11 +98,11 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
   expect(m.respond.mutate).not.toHaveBeenCalled();
   expect(screen.queryByText("Reserved place")).toBeNull();
   expect(screen.queryByText("Invitation received")).toBeNull();
-  const badge = screen.getByRole("img", { name: "Invitation received" });
+  const badge = screen.getByRole("button", { name: "Invitation received" });
   expect(badge.className).toContain("text-warning");
-  expect(badge.className).toContain("bottom-0");
-  expect(badge.className).toContain("right-0");
-  expect(badge.parentElement?.querySelector("img")).not.toBeNull();
+  expect(badge.parentElement?.className).toContain("top-20");
+  expect(badge.parentElement?.className).toContain("justify-center");
+  expect(screen.getByRole("link").contains(badge)).toBe(false);
   expect(badge.querySelector("svg.lucide-mail")).not.toBeNull();
   q.rerender(
     <EventTableInvitationActions eventId={plannedTable.eventId} registration={registration} />,
@@ -155,7 +158,7 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
       }}
     />,
   );
-  expect(screen.getByRole("img", { name: "Confirmed player" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Confirmed player" })).not.toBeNull();
   expect(screen.getByText("Owner, Guest")).not.toBeNull();
   expect(screen.queryByText("Other game")).toBeNull();
   q.rerender(
@@ -170,7 +173,7 @@ it("shows frozen selected games/all joint winners, excluded tables and waiting p
     />,
   );
   expect(screen.getByText(/Excluded from confirmation/)).not.toBeNull();
-  expect(screen.getByRole("img", { name: "Waiting list" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Waiting list" })).not.toBeNull();
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   q.rerender(
     <EventTableCard table={{ ...plannedTable, eventStatus: "TERMINATED", winners: [] }} />,
@@ -216,9 +219,8 @@ it("shows Event/Group identity and separate minimum, maximum, accepted and pendi
   }
   expect(row?.className).toContain("flex-nowrap");
   expect(screen.queryByText("Reserved place")).toBeNull();
-  expect(screen.queryByRole("img", { name: "Invitation received" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Players: Field help" }));
-  expect(screen.getByText("Accepted players, including the waiting list.")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Invitation received" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
 });
 it("keeps old cached identity while missing new Group/total fields use skeletons, not guessed zeros", () => {
   const { container } = renderWithI18n(
@@ -251,10 +253,11 @@ it("marks a pending self request without offering self-approval, including incon
       }}
     />,
   );
-  const badge = screen.getByRole("img", { name: "Participation requested" });
+  const badge = screen.getByRole("button", { name: "Participation requested" });
   expect(badge.className).toContain("text-warning");
   expect(badge.querySelector("svg.lucide-clock-3")).not.toBeNull();
-  expect(badge.parentElement?.querySelector("img")).not.toBeNull();
+  expect(badge.parentElement?.className).toContain("top-20");
+  expect(screen.getByRole("link").contains(badge)).toBe(false);
   expect(screen.queryByRole("button", { name: "Accept invitation" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Decline invitation" })).toBeNull();
 });
