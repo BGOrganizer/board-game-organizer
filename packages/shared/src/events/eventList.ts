@@ -14,7 +14,7 @@ export function isPersonalEventTableVisible(
   return table.eventStatus === "PLANNING" || Boolean(table.confirmed);
 }
 
-/** Participation is explicit; administration alone never places an Event in My events. */
+/** Participation is explicit; administration alone never places an Event in Registered. */
 export function personalEventSection(
   event: Pick<
     PlannedEventResponse,
@@ -33,7 +33,24 @@ export function personalEventSection(
   return event.groupId || event.adminUserId === userId ? "available" : null;
 }
 
-/** Use canonical seat/queue metadata; missing positions never imply a seat. */
+/** The combined personal list needs explicit participation, not a guessed seat/queue position. */
+export function isPersonalTableParticipant(
+  table: Pick<
+    PlannedTableResponse,
+    "eventStatus" | "confirmed" | "demonstratorUserId" | "myRegistration"
+  >,
+  userId: string,
+) {
+  return (
+    isPersonalEventTableVisible(table) &&
+    (table.demonstratorUserId === userId ||
+      (table.eventStatus !== "PLANNING" && Boolean(table.confirmed?.playerIds.includes(userId))) ||
+      (table.myRegistration?.userId === userId &&
+        ["PENDING", "ACCEPTED"].includes(table.myRegistration.status)))
+  );
+}
+
+/** Legacy section callers still require canonical positions; missing positions never imply a seat. */
 export function personalTableSection(
   table: Pick<
     PlannedTableResponse,

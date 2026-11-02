@@ -44,6 +44,15 @@ export function attentionReference(
     return {
       ...reference,
       containers,
+      ...(reference.lists
+        ? {
+            lists: reference.lists.filter((list) =>
+              containers.some(
+                (owner) => owner.kind === (list.kind === "event-list" ? "event" : "group"),
+              ),
+            ),
+          }
+        : {}),
       itemIds: [
         ...new Set(
           notification.attentionItems
@@ -71,6 +80,11 @@ export function attentionMatches(
   direct = false,
 ): boolean {
   if (!reference) return false;
+  if (target.kind === "event-list" || target.kind === "group-list")
+    return (
+      !direct &&
+      Boolean(reference.lists?.some((list) => attentionKey(list) === attentionKey(target)))
+    );
   if (target.kind === "contacts") return reference.section === target.id;
   if (target.kind === "item")
     return (
@@ -160,6 +174,7 @@ export function readReference(row: NotificationAttentionCount): NotificationAtte
   return {
     target: row.target,
     ...(row.containers ? { containers: row.containers } : {}),
+    ...(row.lists ? { lists: row.lists } : {}),
     ...(row.tableIds ? { tableIds: row.tableIds } : {}),
     eventId: kind === "table" ? row.eventId : kind === "event" ? row.target.id : undefined,
     groupId:

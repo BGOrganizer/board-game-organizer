@@ -4,7 +4,17 @@ import { notificationItemIdSchema } from "../notificationItems";
 
 export const contactNotificationSections = ["connections", "requests", "search"] as const;
 export type ContactNotificationSection = (typeof contactNotificationSections)[number];
+export const notificationListTargetSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("event-list"),
+      id: z.union([z.enum(["mine", "available"]), z.uuid()]),
+    })
+    .strict(),
+  z.object({ kind: z.literal("group-list"), id: z.enum(["PRIVATE", "PUBLIC", "search"]) }).strict(),
+]);
 export const notificationAttentionTargetSchema = z.discriminatedUnion("kind", [
+  ...notificationListTargetSchema.options,
   z.object({ kind: z.literal("item"), id: notificationItemIdSchema }).strict(),
   z.object({ kind: z.literal("table"), id: z.uuid() }).strict(),
   z.object({ kind: z.literal("event"), id: z.uuid() }).strict(),
@@ -43,7 +53,9 @@ export const notificationAttentionQuerySchema = z
   .strict();
 export const readNotificationAttentionSchema = z
   .object({
-    target: notificationAttentionTargetSchema.refine((target) => target.kind !== "contact"),
+    target: notificationAttentionTargetSchema.refine(
+      (target) => !["contact", "event-list", "group-list"].includes(target.kind),
+    ),
     through: z.iso.datetime({ precision: 3 }),
   })
   .strict();
@@ -75,6 +87,8 @@ export const notificationAttentionReferenceSchema = z
       )
       .max(22)
       .optional(),
+    /** Authorized tab categories, separate from actual entity ownership; never bulk-read targets. */
+    lists: z.array(notificationListTargetSchema).max(4).optional(),
     itemIds: z.array(notificationItemIdSchema).max(1000).optional(),
   })
   .strict();

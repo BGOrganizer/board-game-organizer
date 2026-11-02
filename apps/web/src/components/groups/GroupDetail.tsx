@@ -20,6 +20,7 @@ import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
 import { GroupInvitationCard } from "./GroupInvitationCard";
@@ -82,6 +83,7 @@ export function GroupDetail({
       options={o}
       targets={[
         { kind: "group", id: group.id },
+        ...(group.canViewEvents ? [{ kind: "event-list" as const, id: group.id }] : []),
         { kind: "item", id: notificationItemId(group.id, "invitation") },
         { kind: "item", id: notificationItemId(group.id, "members") },
         { kind: "item", id: notificationItemId(group.id, "overview", undefined, "group") },
@@ -128,9 +130,18 @@ export function GroupDetail({
           }
           onSelectionChange={(key) => setTab(String(key))}
         >
-          <Tabs.ListContainer className="mt-4 w-fit max-w-full self-center">
+          <Tabs.ListContainer className="mt-2 w-fit max-w-full self-center">
             <Tabs.List aria-label={t`Group sections`}>
-              <Tabs.Tab id="info">{t`Overview`}</Tabs.Tab>
+              <Tabs.Tab id="info" className="gap-2">
+                {t`Overview`}
+                <NotificationTabBadge
+                  target={{ kind: "group", id: group.id }}
+                  overviewItems={[
+                    notificationItemId(group.id, "invitation"),
+                    notificationItemId(group.id, "overview", undefined, "group"),
+                  ]}
+                />
+              </Tabs.Tab>
               {group.canViewMembers ? (
                 <Tabs.Tab id="members" className="gap-2">
                   {t`Members`}
@@ -149,12 +160,13 @@ export function GroupDetail({
               {group.canViewEvents ? (
                 <Tabs.Tab id="events" className="gap-2">
                   {t`Events`}
+                  <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
                 </Tabs.Tab>
               ) : null}
               {group.canViewRankings ? <Tabs.Tab id="rankings">{t`Rankings`}</Tabs.Tab> : null}
             </Tabs.List>
           </Tabs.ListContainer>
-          <Tabs.Panel id="info">
+          <Tabs.Panel id="info" className="pt-0">
             <GroupDetailsCard group={group} />
             {bodyActions.length ? (
               <GroupJoinRequest
@@ -180,17 +192,17 @@ export function GroupDetail({
             ) : null}
           </Tabs.Panel>
           {group.canViewMembers ? (
-            <Tabs.Panel id="members">
+            <Tabs.Panel id="members" className="pt-0">
               <GroupMembers group={group} />
             </Tabs.Panel>
           ) : null}
           {group.canViewEvents ? (
-            <Tabs.Panel id="events">
+            <Tabs.Panel id="events" className="pt-0">
               <Events groupId={group.id} canCreate={group.role === "admin" && group.canInvite} />
             </Tabs.Panel>
           ) : null}
           {group.canViewRankings ? (
-            <Tabs.Panel id="rankings" className="px-4 sm:px-5">
+            <Tabs.Panel id="rankings" className="px-4 pt-0 sm:px-5">
               <GroupLeaderboard groupId={group.id} />
             </Tabs.Panel>
           ) : null}

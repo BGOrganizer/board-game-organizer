@@ -1,5 +1,4 @@
 "use client";
-import type { TableListSection } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useListSearch,
@@ -15,11 +14,11 @@ import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { EventTableCard } from "./EventTableCard";
 import { TableListHeading } from "./TableListHeading";
-export function TableList({ section }: { section: TableListSection }) {
+export function TableList() {
   const { t } = useLingui(),
     o = useCommunityApi(),
     f = useListSearch(["past", "future"] as const, 0),
-    q = useRecordTables(o, null, { section, query: f.search, periods: f.selected }),
+    q = useRecordTables(o, null, { query: f.search, periods: f.selected }),
     end = useInfiniteScroll({
       hasNextPage: !!q.hasNextPage,
       isFetchingNextPage: q.isFetchingNextPage,

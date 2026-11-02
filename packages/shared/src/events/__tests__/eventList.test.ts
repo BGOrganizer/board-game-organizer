@@ -7,6 +7,7 @@ import { expect, it } from "vitest";
 import {
   eventMatchesFilters,
   isPersonalEventTableVisible,
+  isPersonalTableParticipant,
   personalEventSection,
   personalTableSection,
 } from "../eventList";
@@ -74,6 +75,32 @@ it("splits seated/frozen/demonstrator Tables from invitations, requests and queu
         );
       }
     }
+  }
+});
+
+it("combines explicit active participation without inventing a seat from missing positions", () => {
+  const base = { eventStatus: "PLANNING", myRegistration: null } as PlannedTableResponse;
+  expect(isPersonalTableParticipant(base, "owner")).toBe(false);
+  expect(isPersonalTableParticipant({ ...base, demonstratorUserId: "owner" }, "owner")).toBe(true);
+  for (const status of ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"] as const) {
+    const table = { ...base, myRegistration: { userId: "owner", status } as TableRegistration };
+    expect(isPersonalTableParticipant(table, "owner")).toBe(
+      ["PENDING", "ACCEPTED"].includes(status),
+    );
+    expect(isPersonalTableParticipant(table, "foreign")).toBe(false);
+    expect(personalTableSection(table, "owner")).toBe(status === "PENDING" ? "waiting" : null);
+  }
+  for (const eventStatus of ["CONFIRMED", "TERMINATED"] as const) {
+    expect(
+      isPersonalTableParticipant({ ...base, eventStatus, demonstratorUserId: "owner" }, "owner"),
+    ).toBe(false);
+    const table = {
+      ...base,
+      eventStatus,
+      confirmed: { gameId: 1, playerIds: ["owner"], startsAt: "2030-01-01T00:00:00Z" },
+    };
+    expect(isPersonalTableParticipant(table, "owner")).toBe(true);
+    expect(isPersonalTableParticipant(table, "foreign")).toBe(false);
   }
 });
 

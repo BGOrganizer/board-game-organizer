@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
@@ -92,7 +92,9 @@ it("keeps failure observable and retries without displaying an empty success sta
   expect(await screen.findByText("Could not load events")).not.toBeNull();
   expect(screen.queryByText("No events found")).toBeNull();
   fail = false;
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  const failure = screen.getByText("Could not load events").closest('[role="alert"]');
+  if (!failure) throw Error("Missing Event error region");
+  fireEvent.click(within(failure as HTMLElement).getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("No events found")).not.toBeNull();
   expect(screen.queryByRole("link", { name: "Create event" })).toBeNull();
 });
@@ -103,11 +105,12 @@ it("filters its own source list from one character after debounce, never a disco
   await screen.findByText("No events found");
   const search = screen.getByRole("searchbox");
   fireEvent.change(search, { target: { value: "a" } });
-  await new Promise((resolve) => setTimeout(resolve, 350));
-  expect(fetch.mock.calls.filter(([url]) => String(url).includes("/events?")).length).toBe(2);
-  expect(fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "a")).toBe(
-    true,
-  );
+  await waitFor(() => {
+    expect(fetch.mock.calls.filter(([url]) => String(url).includes("/events?")).length).toBe(2);
+    expect(fetch.mock.calls.some(([url]) => new URL(url).searchParams.get("query") === "a")).toBe(
+      true,
+    );
+  });
   expect(search.getAttribute("placeholder")).toBe("Filter events");
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Filter: Filter help" }));

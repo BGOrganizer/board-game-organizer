@@ -171,7 +171,7 @@ it("uses public combined pickers with valid time bounds before the final Locatio
 });
 it("centers the group tab strip itself below the header instead of relying on child alignment", () => {
   const text = source("groups", "GroupDetail");
-  expect(text).toMatch(/alignSelf: "center", marginTop: 16, maxWidth: "100%"/);
+  expect(text).toMatch(/alignSelf: "center", marginTop: 8, maxWidth: "100%"/);
 });
 it("keeps owner-only irreversible deletion in the native header, resets it on access loss and requires explicit cascade consent", () => {
   const text = source("groups", "GroupDetail");

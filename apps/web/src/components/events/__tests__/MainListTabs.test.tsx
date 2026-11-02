@@ -1,5 +1,6 @@
+import { emptyAttentionSummary } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
@@ -23,8 +24,25 @@ const render = (child: ReactNode) =>
       {child}
     </QueryClientProvider>,
   );
+function attention(url: URL, unread = false) {
+  if (!url.pathname.endsWith("/notifications/attention")) return undefined;
+  return Response.json({
+    asOf: "2030-01-01T00:00:00.000Z",
+    unreadCount: unread ? 2 : 0,
+    summary: emptyAttentionSummary(),
+    targets: JSON.parse(url.searchParams.get("targets") ?? "[]").map(
+      (target: { kind: string; id: string }) => ({
+        target,
+        count: unread && target.kind === "event-list" && target.id === "mine" ? 1 : 0,
+        direct: 0,
+        events: 0,
+        sections: { connections: 0, requests: 0, search: 0 },
+      }),
+    ),
+  });
+}
 
-it("keeps My events and Available source pages separate, with contextual Group lists unsplit", async () => {
+it("keeps Registered and Available source pages separate, with Group context unsplit", async () => {
   const mine = {
     ...plannedEvent,
     name: "My invitation",
@@ -38,24 +56,38 @@ it("keeps My events and Available source pages separate, with contextual Group l
   };
   const fetcher = vi.fn(async (url: string) => {
     const u = new URL(url);
-    const items = u.pathname.endsWith("/events")
-      ? u.searchParams.get("section") === "available"
-        ? [available]
-        : [mine]
-      : [];
-    return Response.json({ items, nextCursor: null });
+    return (
+      attention(u, true) ??
+      Response.json({
+        items: u.pathname.endsWith("/events")
+          ? u.searchParams.get("section") === "available"
+            ? [available]
+            : [mine]
+          : [],
+        nextCursor: null,
+      })
+    );
   });
   vi.stubGlobal("fetch", fetcher);
   const ui = render(<Events canCreate={false} />);
   await screen.findByRole("link", { name: "Open event: My invitation" });
   expect(screen.queryByRole("link", { name: "Open event: Own administration" })).toBeNull();
+  const registered = screen.getByRole("tab", { name: /Registered/ });
+  await waitFor(() =>
+    expect(within(registered).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
+  );
+  expect(
+    within(screen.getByRole("tab", { name: "Available" })).queryByRole("img", {
+      name: "Needs attention",
+    }),
+  ).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Available" }));
   await screen.findByRole("link", { name: "Open event: Own administration" });
   expect(screen.queryByRole("link", { name: "Open event: My invitation" })).toBeNull();
   expect(
     fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("section") === "available"),
   ).toBe(true);
-  fireEvent.click(screen.getByRole("tab", { name: "My events" }));
+  fireEvent.click(screen.getByRole("tab", { name: /Registered/ }));
   await screen.findByRole("link", { name: "Open event: My invitation" });
   ui.unmount();
   render(<Events groupId="club" canCreate={false} />);
@@ -69,7 +101,7 @@ it("keeps My events and Available source pages separate, with contextual Group l
   ).toBe(true);
 });
 
-it("uses My tables only for seats/demonstration and Pending for invitations, historical requests and queue, never admin-only", async () => {
+it("combines seats, demonstrations, invitations, requests and queue in one source-paged list, never admin-only", async () => {
   const seated = {
     ...plannedTable,
     id: "seated",
@@ -96,37 +128,47 @@ it("uses My tables only for seats/demonstration and Pending for invitations, his
     myRegistration: { ...invited.myRegistration, kind: "SELF" },
   };
   const queued = { ...seated, id: "queue", name: "Queued table", myPosition: "WAITING" };
+  const unknown = {
+    ...seated,
+    id: "unknown",
+    name: "Position not yet loaded",
+    myPosition: undefined,
+  };
   const admin = { ...plannedTable, id: "admin", name: "Admin only table", myRegistration: null };
-  const fetcher = vi.fn(async (url: string) =>
-    Response.json({
-      items:
-        new URL(url).searchParams.get("section") === "waiting"
-          ? [invited, requested, queued, admin]
-          : [seated, demo, admin],
-      nextCursor: null,
-    }),
+  const fetcher = vi.fn(
+    async (url: string) =>
+      attention(new URL(url)) ??
+      Response.json({
+        items: [seated, demo, invited, requested, queued, unknown, admin],
+        nextCursor: null,
+      }),
   );
   vi.stubGlobal("fetch", fetcher);
   render(<Tables />);
   await screen.findByRole("link", { name: "Open table: Seated table" });
-  expect(screen.getByRole("link", { name: "Open table: Demonstration table" })).toBeTruthy();
-  expect(screen.queryByRole("link", { name: "Open table: Admin only table" })).toBeNull();
-  expect(screen.queryByRole("link", { name: "Open table: Invited table" })).toBeNull();
-  expect(screen.getAllByRole("button", { name: "Table legend" })).toHaveLength(1);
-  fireEvent.click(screen.getByRole("tab", { name: "Pending" }));
-  await screen.findByRole("link", { name: "Open table: Invited table" });
-  for (const name of ["Requested table", "Queued table"])
+  for (const name of [
+    "Demonstration table",
+    "Invited table",
+    "Requested table",
+    "Queued table",
+    "Position not yet loaded",
+  ])
     expect(screen.getByRole("link", { name: `Open table: ${name}` })).toBeTruthy();
-  for (const name of ["Admin only table", "Seated table", "Demonstration table"])
-    expect(screen.queryByRole("link", { name: `Open table: ${name}` })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Open table: Admin only table" })).toBeNull();
+  expect(screen.queryByRole("tablist")).toBeNull();
+  expect(screen.getAllByRole("button", { name: "Table legend" })).toHaveLength(1);
   const input = screen.getByRole("searchbox", { name: "Filter" });
   expect(input.getAttribute("placeholder")).toBe("Filter tables");
   fireEvent.change(input, { target: { value: "q" } });
   await waitFor(() =>
     expect(
       fetcher.mock.calls.some(([url]) => {
-        const p = new URL(url).searchParams;
-        return p.get("query") === "q" && p.get("section") === "waiting";
+        const u = new URL(url);
+        return (
+          u.pathname.endsWith("/tables") &&
+          u.searchParams.get("query") === "q" &&
+          !u.searchParams.has("section")
+        );
       }),
     ).toBe(true),
   );
@@ -135,28 +177,27 @@ it("uses My tables only for seats/demonstration and Pending for invitations, his
   expect((input as HTMLInputElement).value).toBe("");
 });
 
-it("keeps pending-section errors observable and retries/paginates only that section", async () => {
+it("keeps combined-list errors observable and retries/paginates the same canonical source", async () => {
   let fail = true;
   const fetcher = vi.fn(async (url: string) => {
-    const p = new URL(url).searchParams;
-    if (p.get("section") !== "waiting") return Response.json({ items: [], nextCursor: null });
+    const u = new URL(url),
+      scope = attention(u);
+    if (scope) return scope;
     if (fail) return Response.json({}, { status: 503 });
     return Response.json({
       items: [
         {
           ...plannedTable,
-          id: p.has("cursor") ? "second" : "first",
-          name: p.has("cursor") ? "Second waiting" : "First waiting",
+          id: u.searchParams.has("cursor") ? "second" : "first",
+          name: u.searchParams.has("cursor") ? "Second waiting" : "First waiting",
           myRegistration: { ...seat("owner"), status: "PENDING" },
         },
       ],
-      nextCursor: p.has("cursor") ? null : "next",
+      nextCursor: u.searchParams.has("cursor") ? null : "next",
     });
   });
   vi.stubGlobal("fetch", fetcher);
   render(<Tables />);
-  await screen.findByText("No tables found");
-  fireEvent.click(screen.getByRole("tab", { name: "Pending" }));
   await screen.findByText("Could not load tables");
   expect(screen.queryByText("No tables found")).toBeNull();
   fail = false;
@@ -166,8 +207,23 @@ it("keeps pending-section errors observable and retries/paginates only that sect
   await screen.findByRole("link", { name: "Open table: Second waiting" });
   expect(
     fetcher.mock.calls.some(([url]) => {
-      const p = new URL(url).searchParams;
-      return p.get("section") === "waiting" && p.get("cursor") === "next";
+      const u = new URL(url);
+      return (
+        u.pathname.endsWith("/tables") &&
+        !u.searchParams.has("section") &&
+        u.searchParams.get("cursor") === "next"
+      );
     }),
   ).toBe(true);
+});
+
+it("keeps combined-list empty state without unnecessary navigation", async () => {
+  vi.stubGlobal(
+    "fetch",
+    async (url: string) =>
+      attention(new URL(url)) ?? Response.json({ items: [], nextCursor: null }),
+  );
+  render(<Tables />);
+  await screen.findByText("No tables found");
+  expect(screen.queryByRole("tablist")).toBeNull();
 });

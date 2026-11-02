@@ -59,6 +59,7 @@ export function EventList({
           keyExtractor={(row) => row.id}
           contentContainerStyle={{
             padding: 20,
+            paddingTop: groupId ? 0 : 8,
             gap: 12,
             flexGrow: 1,
             paddingBottom: layout.paddingBottom,

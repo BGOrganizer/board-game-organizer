@@ -1,5 +1,52 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Combined personal Tables and scoped top-tab attention
+
+- Applied the [current main-list contract](groups-events-refactor.md#events-and-tables) on web/native:
+  Tables has one combined source-paged list, without inner tabs. Explicit participation, invitations,
+  historical requests, accepted queue places and demonstration/frozen duty remain eligible; admin-only,
+  declined/left and excluded frozen Tables remain absent. Legacy mine/waiting requests still work.
+  The new combined Query identity never borrows a cached seat-only page, and missing cached position
+  neither hides explicit participation nor invents a seat. Startup shares the same canonical factory.
+- Events keeps two exclusive sections, now Registered / Available (Iscritti / Disponibili), with the
+  existing accepted-Group access, registration/request/invitation and demonstrator rules. Administration
+  alone stays Available. Public/pending membership never grants Event access. No Event membership,
+  approval writer, consent shortcut or capability was introduced.
+- Main Event/Group tab strips and their filter contents are more compact on both clients. Group
+  detail destinations share a consistent content inset; native Members/Events retain their virtualized
+  lists and safe-area bottoms, without same-direction scroll nesting. Filtering, four-character
+  public discovery, help, clear actions, period chips and the single Table legend remain unchanged.
+- Implemented [top-tab unread scopes](groups-events-refactor.md#notification-attention): complete
+  recipient-authorized Event/Group category counts include off-page owners. A Group's Events tab
+  reflects actual unread Event cards, never Table-only points or Group-card ownership. Overview
+  combines only generic information and its own precise items, excluding Members. Contact tabs also
+  reflect unread actors on their loaded rows/search results without broadening subsection reads.
+  New tab targets are count-only; source references and read effects reconcile active/inactive caches,
+  while disjoint reads, selective rollback, later signals and domain decisions remain independent.
+- EN/IT adds Registered / Iscritti; all 1,285 previous compiled key/value pairs remain unchanged.
+  Stock HeroUI palettes, privacy/authentication/provider settings, dependencies, database/indexes and
+  CI/E2E jobs are unchanged. Existing installed-APK work is untouched.
+- Local checks: 2,352 covered units pass (shared 418, schemas 126, API 766, mobile 303, web 739),
+  plus 112/112 real replica-set integrations in three files and 102/102 workflow/script policy tests,
+  without skips. Source pagination covers the combined list and retained legacy sections; notification
+  cases cover off-page categories, access loss, active duty/registration, generic/item reads and
+  immediate selective tab effects. Unit coverage includes inactive-cache rollback with disjoint reads.
+  Existing deterministic 100% gates remain; the new web tab badge also has per-file 100% thresholds.
+- Workspace typecheck, scoped read-only Biome and diff whitespace checks pass. API/web production
+  builds and Android export pass; generated references are restored byte-for-byte and seven protected
+  inputs remain unchanged. Isolated production-CSS Chromium checks pass eight combinations of
+  390/1280, light/dark and EN/IT: combined Tables, exclusive Event tabs, scoped internal danger dots,
+  selective immediate read clearing, compact geometry, keyboard and filter/discovery behavior.
+  These Query-seeded fixtures and simulated notification transport are not authenticated Playwright,
+  Maestro, a fresh APK or native-device acceptance. Those remain unverified.
+- Earlier bounded integration attempts timed out and are not acceptance. The isolated real-Mongo
+  cases caught an invalid empty-array accumulator in the new navigation metadata; fixed the query,
+  then the full 112-case run passed. Browser fixture startup/translation-label/theme-transition
+  mismatches were corrected in the fixture, not app palettes or acceptance guards. An old fixed-sleep
+  debounce test was replaced with an observable-request wait, retaining its exact assertions.
+- This supersedes the historical My tables/Pending presentation and My events label below, not its
+  source-paging, authorization, consent, exact-agreement or optimistic-ownership safeguards.
+
 ## Entity-scoped danger dots and accepted-member viewing
 
 - Applied the [notification contract](groups-events-refactor.md#notification-attention) on web/native:
@@ -44,6 +91,8 @@
   authentication configuration, production data, dependency, CI/CD or palette changes were made.
 
 ## Personal list sections and scoped name filtering
+
+Historical split presentation; current Tables/Registered labels are superseded above.
 
 - Implemented the [main-list contract](groups-events-refactor.md#events-and-tables) on both clients:
   My events / Available and My tables / Pending. Accepted Group access remains mandatory even for

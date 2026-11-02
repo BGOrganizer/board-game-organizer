@@ -68,6 +68,9 @@ it("canonicalizes equivalent first-page keys and scopes identities by API/user/r
   expect(eventRecordsQuery(o, { section: "available" }).queryKey).not.toEqual(
     eventRecordsQuery(o).queryKey,
   );
+  expect(recordTablesQuery(o, null, { section: "mine" }).queryKey).not.toEqual(
+    recordTablesQuery(o, null).queryKey,
+  );
   expect(recordTablesQuery(o, null, { section: "waiting" }).queryKey).not.toEqual(
     recordTablesQuery(o, null).queryKey,
   );
@@ -78,6 +81,30 @@ it("canonicalizes equivalent first-page keys and scopes identities by API/user/r
     recordTablesQuery(o, eventId).queryKey,
   );
 });
+it("does not borrow a legacy seat-only cache for the combined personal list and sends no section", async () => {
+  const { client, options, wrapper } = setup();
+  const pending = {
+    ...plannedTable,
+    id: "pending",
+    myRegistration: { ...seat("owner"), status: "PENDING" as const },
+  };
+  client.setQueryData(recordTablesQuery(options, null, { section: "mine" }).queryKey, {
+    pages: [{ items: [plannedTable], nextCursor: null }],
+    pageParams: [""],
+  });
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    const u = new URL(url);
+    expect(u.searchParams.has("section")).toBe(false);
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    return Response.json({ items: [pending], nextCursor: null });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const q = renderHook(() => useRecordTables(options, null), { wrapper });
+  expect(q.result.current.items).toEqual([]);
+  await waitFor(() => expect(q.result.current.items.map((row) => row.id)).toEqual([pending.id]));
+  expect(options.getToken).toHaveBeenCalledTimes(1);
+});
+
 it("source-pages event lists with fresh credentials and abortable requests", async () => {
   const { options, wrapper } = setup(),
     fetch = vi.fn(async (url: string, init?: RequestInit) => {

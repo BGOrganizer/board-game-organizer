@@ -11,7 +11,7 @@ import { type ClientSession, type Db, type Document, ObjectId } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import { GroupRecordsRepository } from "../groups/group-records.repository";
-import { itemFacet, itemOwnerIds } from "./notification-item-pipeline";
+import { itemFacet, itemOwnerIds, ownerListTargets } from "./notification-item-pipeline";
 import { NotificationsRepository } from "./notifications.repository";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -103,24 +103,14 @@ export class NotificationAttentionRepository {
           pipeline: [
             { $match: { status: { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] } } },
             ...new EventRecordsRepository(this.db, this.session).visibleGroups(userId, now),
-            {
-              $lookup: {
-                from: COLLECTIONS.TABLE_REGISTRATIONS,
-                localField: "id",
-                foreignField: "eventId",
-                pipeline: [
-                  { $match: { userId, status: { $in: ["PENDING", "ACCEPTED"] } } },
-                  { $limit: 1 },
-                ],
-                as: "attentionRegistration",
-              },
-            },
+            ...new EventRecordsRepository(this.db, this.session).participationStages(userId),
             {
               $match: {
                 $or: [
                   { groupId: { $ne: null } },
                   { adminUserId: userId },
-                  { "attentionRegistration.0": { $exists: true } },
+                  { "myRegistration.0": { $exists: true } },
+                  { "myDemonstration.0": { $exists: true } },
                 ],
               },
             },
@@ -137,7 +127,41 @@ export class NotificationAttentionRepository {
                 as: "attentionTables",
               },
             },
-            { $project: { _id: 0, groupId: 1, tableIds: "$attentionTables.id" } },
+            {
+              $project: {
+                _id: 0,
+                groupId: 1,
+                tableIds: "$attentionTables.id",
+                lists: {
+                  $concatArrays: [
+                    [
+                      {
+                        kind: "event-list",
+                        id: {
+                          $cond: [
+                            {
+                              $or: [
+                                { $gt: [{ $size: "$myRegistration" }, 0] },
+                                { $gt: [{ $size: "$myDemonstration" }, 0] },
+                              ],
+                            },
+                            "mine",
+                            "available",
+                          ],
+                        },
+                      },
+                    ],
+                    {
+                      $cond: [
+                        { $ne: [{ $ifNull: ["$groupId", null] }, null] },
+                        [{ kind: "event-list", id: "$groupId" }],
+                        [],
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
           ],
           as: "_event",
         },
@@ -175,6 +199,40 @@ export class NotificationAttentionRepository {
               $project: {
                 _id: 0,
                 id: 1,
+                lists: {
+                  $cond: [
+                    { $eq: [{ $size: "$readBan" }, 0] },
+                    {
+                      $concatArrays: [
+                        {
+                          $cond: [
+                            {
+                              $or: [
+                                { $eq: ["$adminUserId", userId] },
+                                { $gt: [{ $size: "$readMembership" }, 0] },
+                              ],
+                            },
+                            [{ kind: "group-list", id: "$type" }],
+                            [],
+                          ],
+                        },
+                        {
+                          $cond: [
+                            {
+                              $and: [
+                                { $eq: ["$type", "PUBLIC"] },
+                                { $ne: [{ $type: "$approved" }, "missing"] },
+                              ],
+                            },
+                            [{ kind: "group-list", id: "search" }],
+                            [],
+                          ],
+                        },
+                      ],
+                    },
+                    [],
+                  ],
+                },
                 memberReadable: {
                   $and: [
                     { $eq: [{ $size: "$readBan" }, 0] },
@@ -438,9 +496,12 @@ export class NotificationAttentionRepository {
           },
         },
       },
+      { $set: { _lists: ownerListTargets("$_ownerEvents", "$_ownerGroups") } },
     ];
   }
   private matches(target: NotificationAttentionTarget): Document {
+    if (target.kind === "event-list" || target.kind === "group-list")
+      return { _lists: { $elemMatch: target } };
     if (target.kind === "item")
       return {
         $or: [{ "_items.id": target.id }, { "_items.sectionId": target.id }],
@@ -497,6 +558,7 @@ export class NotificationAttentionRepository {
                 itemIds: {
                   $setDifference: [{ $setUnion: ["$_items.id", "$_items.sectionId"] }, [null]],
                 },
+                lists: "$_lists",
                 containers: {
                   $concatArrays: [
                     { $map: { input: "$_tableIds", as: "id", in: { kind: "table", id: "$$id" } } },
@@ -544,6 +606,19 @@ export class NotificationAttentionRepository {
             eventId: { $first: "$_eventId" },
             groupId: { $first: "$_groupId" },
             tableIds: { $addToSet: "$_tableIds" },
+            ...(target.kind === "event" || target.kind === "group"
+              ? {
+                  lists: {
+                    $addToSet: {
+                      $filter: {
+                        input: "$_lists",
+                        as: "scope",
+                        cond: { $eq: ["$$scope.kind", `${target.kind}-list`] },
+                      },
+                    },
+                  },
+                }
+              : {}),
           },
         },
       ];
@@ -617,6 +692,20 @@ export class NotificationAttentionRepository {
           sections: { connections: row?.connections ?? 0, requests: row?.requests ?? 0, search: 0 },
           ...(row?.eventId ? { eventId: row.eventId } : {}),
           ...(row?.groupId ? { groupId: row.groupId } : {}),
+          ...(row?.lists?.length
+            ? {
+                lists: [
+                  ...new Map<string, NonNullable<NotificationAttentionReference["lists"]>[number]>(
+                    row.lists
+                      .flat()
+                      .map((list: NonNullable<NotificationAttentionReference["lists"]>[number]) => [
+                        attentionKey(list),
+                        list,
+                      ]),
+                  ).values(),
+                ],
+              }
+            : {}),
           ...(target.kind === "event" && row?.tableIds
             ? { tableIds: [...new Set<string>(row.tableIds.flat())] }
             : {}),
@@ -633,6 +722,7 @@ export class NotificationAttentionRepository {
         ...(row.tableIds?.length ? { tableIds: row.tableIds } : {}),
         ...(row.itemIds?.length ? { itemIds: row.itemIds } : {}),
         containers: row.containers,
+        ...(row.lists?.length ? { lists: row.lists } : {}),
       });
     return { snapshot, references };
   }
@@ -677,7 +767,7 @@ export class NotificationAttentionRepository {
     const { target } = input;
     const before = await this.snapshot(userId, [target]);
     const row = before.snapshot.targets[0];
-    const affected: NotificationAttentionTarget[] = [target];
+    const affected: NotificationAttentionTarget[] = [target, ...(row.lists ?? [])];
     if (target.kind === "item")
       for (const effect of row.readEffect?.targets ?? [])
         if (!affected.some((value) => attentionKey(value) === attentionKey(effect.target)))

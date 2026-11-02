@@ -84,25 +84,28 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   inline through the platform HeroUI Select, with searchable source-paged Group items and explicit
   No group; no separate Group search screen. Launching from a Group presets and locks that selection;
   existing Event Group identity remains immutable.
-- Main Events has My events / Available top tabs (Italian: I miei / Disponibili). My events includes
+- Main Events has Registered / Available top tabs (Italian: Iscritti / Disponibili). Registered includes
   active own registrations (accepted, pending invitation or request) at a nonremoved Table, or an
   actual demonstrator duty. Available includes other accessible Events of accepted Group members/
   creators, plus own admin-only standalone Events. Administration alone is not participation. Public
   non-members, pending Group invitations/requests and live exclusions grant neither section access;
   existing membership/detail/write guards remain unchanged. Demonstration counts even for an admin.
-- Main Tables has My tables / Pending top tabs (Italian: I miei / In attesa). My tables contains
-  seated/frozen participants and demonstrators; Pending contains invitations awaiting response,
-  historical pending participation requests and accepted queued players. Demonstration/frozen duty
-  takes precedence, so sections never duplicate a Table. Admin-only Tables never qualify, including
-  confirmed/terminated ones. Declined/left rows and excluded frozen-event Tables do not qualify.
-  Canonical agreement/reservation/frozen-roster projections determine seats, never an admin role,
-  a guessed acceptance position or a partially fetched list. The API walks bounded authorized source
-  chunks before emitting a full section page; sparse seat sections may require additional chunks.
-- Main Event/Table sections, owned Private/Public Group tabs and Group-context Events retain chips,
+- Main Tables has one combined source-paged list, without inner tabs: explicit active participation,
+  seated/frozen players, demonstrators, invitations awaiting response, historical pending requests
+  and accepted queued players. Admin-only Tables never qualify, including confirmed/terminated ones;
+  declined/left rows and excluded frozen-event Tables do not qualify. Missing cached position metadata
+  neither hides an explicit active registration nor proves a seat. Canonical agreement/reservation/
+  frozen-roster projections still determine positions. The API walks bounded authorized source chunks
+  before emitting a page; it never concatenates independently paginated client sections. Optional
+  legacy mine/waiting requests remain supported, with their canonical position checks and distinct
+  cache identities; the combined list never borrows a cached seat-only first page.
+- Main Event sections and combined Tables, owned Private/Public Group tabs and Group-context Events retain chips,
   clear input and help but use Filter / Filtra, named placeholders and brief filtering help, with no
   character minimum. Queries debounce 300 ms and filter escaped names inside that authorized scope
   before response pagination. Group Search remains separate discovery with its four-character minimum.
   Group-context Events remain one contextual list, not another copy of the main section tabs.
+  Main Event/Group tab strips and Group detail contents use compact platform-owned spacing; Group
+  destinations share the same content inset without nesting virtualized lists in scrolling parents.
 - PLANNING / CONFIRMED / TERMINATED. There is no persisted server draft or event cancellation.
   The organizer plays only through explicit table registration, never an automatic seat.
 - Standalone and PUBLIC Group Events have exactly one date/time and one verified location.
@@ -332,7 +335,13 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   and routing metadata, never a reason to show an unread dot. Canonical item identities determine
   ownership: an Event date does not highlight every Table, and a Table game/invitation does not
   highlight its Event or Group. A notice with genuine points in multiple entities contributes once
-  to each actual owner. Group's Events tab does not aggregate descendant attention. Retired/removed
+  to each actual owner. Top tabs also signal unread rows inside their authorized category, including
+  off-page rows: Registered/Available, Private/Public/discoverable approved Groups, and a Group's
+  actual Event cards. These navigation scopes do not make the Group card an owner, and Table-only
+  points do not highlight Event-list tabs. Overview combines only generic/direct information and its
+  own precise points, never Members points. Tab scopes are count-only, not bulk-read targets; known
+  read effects reconcile their active and inactive caches immediately and preserve unrelated scopes.
+  Category dots survive an in-panel filter that hides an unread row. Retired/removed
   resources stay inbox history without disclosing inaccessible ancestry.
 - New Event edits persist structured, recipient-owned references to the actual changed dates,
   locations, table games/settings, or removed-option sections. Item identities include resource
@@ -367,7 +376,10 @@ explicit edit. The time-zone change never migrates or deletes historical documen
 - Contacts retains Connections / Requests / Search. Entering main Contacts reads nothing in bulk;
   explicit inner selection reads only that subsection. Follows and accepted friendship notices
   belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their
-  actor's unread social notices. Repeated existing follows emit no duplicate notice.
+  actor's unread social notices. Contact top tabs additionally reflect source-backed unread markers
+  on their loaded rows, including Search results/suggestions and actors present in multiple lists.
+  This display fallback does not change subsection read targets or consume another kind of notice.
+  Repeated existing follows emit no duplicate notice.
 - Counter batches contain at most 50 unique resource targets. Cache-only navigation observers reuse
   the bell watcher: no per-card notification polling or inbox scans. The bounded member dwell timer
   is the sole automatic item-read exception; cutoff boundary timers only expire displayed invitation

@@ -4061,6 +4061,10 @@ msgstr "Register Table Result"
 msgid "Register Tables Results"
 msgstr "Register Tables Results"
 
+#: apps/web/src/components/events/Events.tsx
+msgid "Registered events"
+msgstr "Registered"
+
 #: apps/web/src/components/events/EventDetail.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Registration closes at this local date and time, before the event starts. A new event needs a future cutoff."

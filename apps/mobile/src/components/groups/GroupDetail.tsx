@@ -23,6 +23,7 @@ import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { Events } from "@/components/events/Events";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupDetailsCard } from "./GroupDetailsCard";
@@ -123,6 +124,7 @@ export function GroupDetail({
       options={o}
       targets={[
         { kind: "group", id: group.id },
+        ...(group.canViewEvents ? [{ kind: "event-list" as const, id: group.id }] : []),
         { kind: "item", id: notificationItemId(group.id, "invitation") },
         { kind: "item", id: notificationItemId(group.id, "members") },
         { kind: "item", id: notificationItemId(group.id, "overview", undefined, "group") },
@@ -150,7 +152,7 @@ export function GroupDetail({
           onValueChange={setTab}
           style={{ flex: 1 }}
         >
-          <View style={{ alignSelf: "center", marginTop: 16, maxWidth: "100%" }}>
+          <View style={{ alignSelf: "center", marginTop: 8, maxWidth: "100%" }}>
             <TabBar>
               {[
                 ["info", t("Overview")],
@@ -170,6 +172,18 @@ export function GroupDetail({
                 .map(([key, label]) => (
                   <Tabs.Trigger key={key} value={key} style={{ flexDirection: "row", gap: 6 }}>
                     <Tabs.Label>{label}</Tabs.Label>
+                    {key === "info" ? (
+                      <NotificationTabBadge
+                        target={{ kind: "group", id: group.id }}
+                        overviewItems={[
+                          notificationItemId(group.id, "invitation"),
+                          notificationItemId(group.id, "overview", undefined, "group"),
+                        ]}
+                      />
+                    ) : null}
+                    {key === "events" ? (
+                      <NotificationTabBadge target={{ kind: "event-list", id: group.id }} />
+                    ) : null}
                     {key === "members" ? <GroupMembersBadge groupId={group.id} /> : null}
                     {key === "members" &&
                     group.role === "admin" &&
@@ -182,7 +196,7 @@ export function GroupDetail({
                 ))}
             </TabBar>
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingTop: 8 }}>
             {tab === "members" && group.canViewMembers ? (
               <GroupMembers group={group} />
             ) : tab === "events" && group.canViewEvents ? (
@@ -192,7 +206,7 @@ export function GroupDetail({
                 <GroupLeaderboard groupId={group.id} />
               </View>
             ) : (
-              <ScreenScrollView>
+              <ScreenScrollView contentContainerStyle={{ paddingTop: 0 }}>
                 <GroupDetailsCard group={group} />
                 {bodyActions.length ? (
                   <GroupJoinRequest

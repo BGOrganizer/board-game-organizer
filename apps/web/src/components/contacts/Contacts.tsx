@@ -398,17 +398,30 @@ export function Contacts() {
                 onPress={() => readSection("connections")}
               >
                 {t`Connections`}
-                <ContactSectionBadge section="connections" />
+                <ContactSectionBadge
+                  section="connections"
+                  userIds={connections
+                    .filter((row) => row.key !== "device")
+                    .flatMap((row) => row.users.map((user) => user.id))}
+                />
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="requests" className="relative" onPress={() => readSection("requests")}>
                 {t`Requests`}
-                <ContactSectionBadge section="requests" />
+                <ContactSectionBadge
+                  section="requests"
+                  userIds={[...pendingRows, ...sentRows].flatMap((row) =>
+                    row.profile ? [row.profile.id] : [],
+                  )}
+                />
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="search" className="relative" onPress={() => readSection("search")}>
                 {t`Search`}
-                <ContactSectionBadge section="search" />
+                <ContactSectionBadge
+                  section="search"
+                  userIds={[...searchResults, ...bgoContacts].map((user) => user.id)}
+                />
                 <Tabs.Indicator />
               </Tabs.Tab>
             </Tabs.List>
@@ -612,11 +625,20 @@ export function Contacts() {
     </NotificationAttentionScope>
   );
 }
-function ContactSectionBadge({ section }: { section: "connections" | "requests" | "search" }) {
+function ContactSectionBadge({
+  section,
+  userIds,
+}: {
+  section: "connections" | "requests" | "search";
+  userIds: readonly string[];
+}) {
   const attention = useNotificationAttentionContext();
   return (
     <NotificationCountBadge
-      count={attention?.get({ kind: "contacts", id: section })?.count}
+      count={
+        attention?.get({ kind: "contacts", id: section })?.count ||
+        Number(userIds.some((id) => (attention?.get({ kind: "contact", id })?.count ?? 0) > 0))
+      }
       corner
     />
   );

@@ -107,7 +107,7 @@ it("pending members can read permitted information and accepted members, never e
     .getByRole("tablist", { name: "Group sections" })
     .closest('[data-slot="tabs-list-container"]');
   expect(strip?.classList.contains("self-center")).toBe(true);
-  expect(strip?.classList.contains("mt-4")).toBe(true);
+  expect(strip?.classList.contains("mt-2")).toBe(true);
   expect(screen.queryByRole("tab", { name: "Events" })).toBeNull();
   expect(screen.queryByRole("tab", { name: "Rankings" })).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Members" }));

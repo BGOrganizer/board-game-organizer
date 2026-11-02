@@ -39,6 +39,7 @@ import {
   groupBanIsActive,
   hasOtherAcceptedTable,
   hasPublicTableConflict,
+  isPersonalTableParticipant,
   normalizeMatchScore,
   personalTableSection,
   plannedTableInterval,
@@ -967,7 +968,12 @@ export class EventRecordsService {
       const rows = await this.events.personalTables(userId, { ...page, cursor });
       for (const row of rows.slice(0, page.limit)) {
         const table = await this.tableDetail(userId, row.eventId, row.id);
-        if (personalTableSection(table, userId) !== (page.section ?? "mine")) continue;
+        if (
+          page.section
+            ? personalTableSection(table, userId) !== page.section
+            : !isPersonalTableParticipant(table, userId)
+        )
+          continue;
         items.push(table);
         if (items.length > page.limit) {
           const last = items[page.limit - 1];

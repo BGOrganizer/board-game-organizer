@@ -29,6 +29,46 @@ describe("notification attention boundaries", () => {
     ])
       expect(notificationAttentionTargetSchema.safeParse(target).success).toBe(false);
   });
+  it("accepts bounded authorized tab scopes for counts only, never bulk reads or entity containers", () => {
+    const valid = [
+      { kind: "event-list", id: "mine" },
+      { kind: "event-list", id: "available" },
+      { kind: "event-list", id },
+      { kind: "group-list", id: "PRIVATE" },
+      { kind: "group-list", id: "PUBLIC" },
+      { kind: "group-list", id: "search" },
+    ];
+    for (const target of valid) {
+      expect(notificationAttentionTargetSchema.safeParse(target).success).toBe(true);
+      expect(readNotificationAttentionSchema.safeParse({ target, through }).success).toBe(false);
+      expect(
+        notificationAttentionReferenceSchema.safeParse({
+          target: { kind: "group", id },
+          containers: [target],
+        }).success,
+      ).toBe(false);
+    }
+    for (const target of [
+      { kind: "event-list", id: "waiting" },
+      { kind: "event-list", id: "foreign" },
+      { kind: "group-list", id },
+      { kind: "group-list", id: "all" },
+      { ...valid[0], userId: "other" },
+    ])
+      expect(notificationAttentionTargetSchema.safeParse(target).success).toBe(false);
+    expect(
+      notificationAttentionReferenceSchema.safeParse({
+        target: { kind: "event", id },
+        lists: valid.slice(0, 4),
+      }).success,
+    ).toBe(true);
+    expect(
+      notificationAttentionReferenceSchema.safeParse({
+        target: { kind: "event", id },
+        lists: valid,
+      }).success,
+    ).toBe(false);
+  });
   it("bounds and deduplicates query targets, validates JSON and retains only an optional bypass", () => {
     expect(notificationAttentionQuerySchema.parse({})).toEqual({ targets: [] });
     expect(

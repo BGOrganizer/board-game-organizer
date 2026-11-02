@@ -29,6 +29,27 @@ export function itemOwnerIds(input: string, resource: "event" | "table" | "group
     },
   };
 }
+/** Tab navigation contains actual owner rows; it does not make their parents entity owners. */
+export function ownerListTargets(events: string, groups: string) {
+  return {
+    $concatArrays: [
+      {
+        $cond: [
+          { $gt: [{ $size: events }, 0] },
+          { $ifNull: [{ $arrayElemAt: ["$_event.lists", 0] }, []] },
+          [],
+        ],
+      },
+      {
+        $cond: [
+          { $gt: [{ $size: groups }, 0] },
+          { $ifNull: [{ $arrayElemAt: ["$_group.lists", 0] }, []] },
+          [],
+        ],
+      },
+    ],
+  };
+}
 export function itemFacet(id: string): { total: Document[]; effects: Document[] } {
   const complete = { $eq: [{ $size: "$_afterItems" }, 0] };
   const lost = (before: string, after: string) => ({
@@ -136,6 +157,7 @@ export function itemFacet(id: string): { total: Document[]; effects: Document[] 
                   in: { kind: "item", id: "$$id" },
                 },
               },
+              { $setDifference: ["$_lists", ownerListTargets("$_afterEvents", "$_afterGroups")] },
               removed("event", "$_ownerEvents", "$_afterEvents"),
               removed("group", "$_ownerGroups", "$_afterGroups"),
               removed("table", "$_tableIds", "$_afterTables"),

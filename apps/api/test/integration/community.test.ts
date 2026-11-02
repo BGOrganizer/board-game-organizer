@@ -1903,7 +1903,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       expect((await list(GUEST, section)).some((r) => r.groupId === publicClub.id)).toBe(false);
   });
 
-  it("fills sparse personal Table sections across source chunks without gaps, duplicate rows, admin seats or guessed agreement positions", async () => {
+  it("source-pages the combined personal Table list and legacy sections without gaps, duplicate rows, admin seats or guessed agreement positions", async () => {
     const group = await privateGroup(),
       input = plannedInput(group.id);
     input.tables = Array.from({ length: 6 }, (_, i) => ({
@@ -1935,6 +1935,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       .collection(COLLECTIONS.TABLE_REGISTRATIONS)
       .updateOne({ id: historical.id }, { $set: { kind: "SELF" } });
     for (const [section, expected] of [
+      [undefined, ids],
       ["mine", ids.slice(0, 3)],
       ["waiting", ids.slice(3)],
     ] as const) {
@@ -1950,7 +1951,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         seen.push(...page.items.map((r) => r.id));
         cursor = page.nextCursor ?? undefined;
       } while (cursor);
-      expect(seen).toHaveLength(3);
+      expect(seen).toHaveLength(expected.length);
       expect(new Set(seen)).toEqual(new Set(expected));
     }
     expect(

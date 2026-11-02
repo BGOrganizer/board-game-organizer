@@ -417,6 +417,10 @@ push-subscription synchronization, logout, profile completion, and background sy
 show user-action toasts.
 
 The bell alone retains its unread count; navigation tabs retain numberless attention dots.
+Top tabs also reflect unread rows in their authorized category, including off-page Event/Group
+rows. These count-only navigation scopes do not make parent Group/Event cards owners or bulk-read
+notices. Contacts additionally reflects unread markers on loaded rows without changing its
+subsection-specific reads.
 All unread dots use stock HeroUI danger, never accent. Card/item dots remain inside their layout
 after shrinkable titles/names, never outside cards or in a wrapping label. No borders or pulses.
 Unread attention belongs only to actual affected entities/items, never automatic Group/Event/Table
@@ -624,13 +628,14 @@ pending invitations of that immutable type; requests do not qualify. Invitations
 capabilities before explicit acceptance. Search retains approved public
 Group discovery. BGO moderation remains a contextual Group destination. Group lists share
 platform-specific page/search/filter patterns.
-Main Events has My events / Available top tabs. My events contains active own Table registrations
+Main Events has Registered / Available top tabs (Iscritti / Disponibili). Registered contains active own Table registrations
 (accepted, invitations or requests) and demonstrations; administration alone does not qualify.
 Available contains non-participating Events of accepted Group members/creators and own admin-only
 standalone Events. Public non-members and pending Group memberships/invitations never grant Event
-access. Main Tables has My tables / Pending top tabs: seated/frozen participants and demonstrators
-are My tables; pending invitations/requests and accepted queued players are Pending. Admin-only
-Tables are absent, including after confirmation. Demonstration takes precedence over waiting.
+access. Main Tables has one combined source-paged list without inner tabs: explicit active
+participation, seated/frozen players, demonstrators, pending invitations/requests and accepted queue
+places. Admin-only Tables are absent, including after confirmation. Missing cached position does
+not hide explicit participation or prove a seat; canonical position and frozen-roster guards remain.
 Standalone creation returns to Available; grouped creation stays contextual to its Group. Past/Future
 uses the chosen local day; unchosen dates belong to both. Do not repeat page titles inside tab content.
 

@@ -111,6 +111,180 @@ describe("source-paged entity notification attention", () => {
     createdAt: new Date("2020-01-01T00:00:00.000Z"),
     ...extra,
   });
+  it("counts top-tab scopes beyond loaded inbox pages without turning their parent Group into an entity owner", async () => {
+    await seedAttentionResources();
+    const date = { kind: "item", id: notificationItemId(eventId, "date", groupId) } as const;
+    const game = { kind: "item", id: notificationItemId(tableId, "game", 1) } as const;
+    const inserted = await db.collection(COLLECTIONS.NOTIFICATIONS).insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [date, game].map((point) => ({
+          id: point.id,
+          revision: 1,
+          eventId,
+          groupId,
+          tableIds: [tableId],
+        })),
+      }),
+    );
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertMany(
+        Array.from({ length: 31 }, () =>
+          note("follow", "/contacts", { createdAt: new Date("2021-01-01T00:00:00Z") }),
+        ),
+      );
+    const repository = new NotificationAttentionRepository(db);
+    const scopes = [
+      { kind: "event-list", id: "mine" },
+      { kind: "event-list", id: "available" },
+      { kind: "event-list", id: groupId },
+      { kind: "group-list", id: "PRIVATE" },
+    ] as const;
+    const first = await repository.snapshot(
+      ACTOR,
+      [...targets, ...scopes, date, game],
+      [String(inserted.insertedId)],
+    );
+    expect((await new NotificationsRepository(db).list(ACTOR, 1)).notifications[0].kind).toBe(
+      "follow",
+    );
+    expect(
+      first.snapshot.targets
+        .slice(targets.length, targets.length + scopes.length)
+        .map((row) => row.count),
+    ).toEqual([0, 1, 1, 0]);
+    expect(first.snapshot.summary).toMatchObject({ tables: 1, events: 1, groups: 0 });
+    expect(first.references.get(String(inserted.insertedId))?.lists).toEqual([
+      scopes[1],
+      scopes[2],
+    ]);
+    const effect = first.snapshot.targets.find((row) => row.target.id === date.id)?.readEffect;
+    expect(
+      effect?.targets.filter((row) => row.target.kind === "event-list").map((row) => row.target),
+    ).toEqual(expect.arrayContaining([scopes[1], scopes[2]]));
+    expect(
+      effect?.targets.some(
+        (row) => row.target.kind === "group" || row.target.kind === "group-list",
+      ),
+    ).toBe(false);
+    const read = await repository.read(ACTOR, { target: date, through: first.snapshot.asOf });
+    expect(
+      read.snapshot.targets
+        .filter((row) => row.target.kind === "event-list")
+        .map((row) => row.count),
+    ).toEqual([0, 0]);
+    const after = (await repository.snapshot(ACTOR, [...targets, ...scopes])).snapshot;
+    expect(after.summary).toMatchObject({ tables: 1, events: 0, groups: 0 });
+    expect(after.targets.slice(targets.length).map((row) => row.count)).toEqual([0, 0, 0, 0]);
+    expect(after.unreadCount).toBe(first.snapshot.unreadCount);
+  });
+
+  it("uses canonical active registration/demonstration and Group access for Event tab scopes", async () => {
+    await seedAttentionResources();
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne(note("event_updated", `/events/${eventId}`));
+    const repository = new NotificationAttentionRepository(db);
+    const scopes = [
+      { kind: "event-list", id: "mine" },
+      { kind: "event-list", id: "available" },
+      { kind: "event-list", id: groupId },
+    ] as const;
+    const counts = async () =>
+      (await repository.snapshot(ACTOR, scopes)).snapshot.targets.map((row) => row.count);
+    expect(await counts()).toEqual([0, 1, 1]);
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .insertOne({ id: tableId, tableId, eventId, userId: ACTOR, status: "PENDING" });
+    expect(await counts()).toEqual([1, 0, 1]);
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .updateOne({ id: tableId }, { $set: { status: "ACCEPTED" } });
+    expect(await counts()).toEqual([1, 0, 1]);
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .updateOne({ id: tableId }, { $set: { status: "CANCELLED" } });
+    expect(await counts()).toEqual([0, 1, 1]);
+    await db
+      .collection(COLLECTIONS.EVENT_TABLES)
+      .updateOne({ id: tableId }, { $set: { demonstratorUserId: ACTOR } });
+    expect(await counts()).toEqual([1, 0, 1]);
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: eventId }, { $set: { status: "CONFIRMED" } });
+    expect(await counts()).toEqual([0, 1, 1]);
+    await db
+      .collection(COLLECTIONS.EVENT_TABLES)
+      .updateOne({ id: tableId }, { $set: { confirmed: { gameId: 1, playerIds: [TARGET] } } });
+    expect(await counts()).toEqual([1, 0, 1]);
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId, userId: ACTOR }, { $set: { status: "PENDING" } });
+    expect(await counts()).toEqual([0, 0, 0]);
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: eventId }, { $set: { groupId: null, adminUserId: ACTOR } });
+    expect(await counts()).toEqual([1, 0, 0]);
+    await db
+      .collection(COLLECTIONS.EVENT_TABLES)
+      .updateOne({ id: tableId }, { $set: { removedAt: new Date().toISOString() } });
+    await db
+      .collection(COLLECTIONS.TABLE_REGISTRATIONS)
+      .updateOne({ id: tableId }, { $set: { status: "PENDING" } });
+    expect(await counts()).toEqual([0, 1, 0]);
+    await db
+      .collection(COLLECTIONS.EVENTS)
+      .updateOne({ id: eventId }, { $set: { adminUserId: THIRD } });
+    expect(await counts()).toEqual([0, 0, 0]);
+  });
+
+  it("source-counts Private/Public/discovery Group tabs by actual membership and clears them on generic entry reads", async () => {
+    await seedAttentionResources();
+    await db
+      .collection(COLLECTIONS.NOTIFICATIONS)
+      .insertOne(note("group_membership_updated", `/groups/${groupId}`));
+    const repository = new NotificationAttentionRepository(db);
+    const scopes = [
+      { kind: "group-list", id: "PRIVATE" },
+      { kind: "group-list", id: "PUBLIC" },
+      { kind: "group-list", id: "search" },
+    ] as const;
+    const counts = async () =>
+      (await repository.snapshot(ACTOR, scopes)).snapshot.targets.map((row) => row.count);
+    expect(await counts()).toEqual([1, 0, 0]);
+    await db
+      .collection(COLLECTIONS.GROUPS)
+      .updateOne({ id: groupId }, { $set: { type: "PUBLIC" } });
+    expect(await counts()).toEqual([0, 1, 1]);
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId, userId: ACTOR }, { $set: { status: "PENDING", kind: "INVITATION" } });
+    expect(await counts()).toEqual([0, 1, 1]);
+    await db
+      .collection(COLLECTIONS.GROUP_MEMBERSHIPS)
+      .updateOne({ groupId, userId: ACTOR }, { $set: { kind: "REQUEST" } });
+    expect(await counts()).toEqual([0, 0, 1]);
+    await db
+      .collection(COLLECTIONS.GROUPS)
+      .updateOne({ id: groupId }, { $set: { adminUserId: ACTOR } });
+    expect(await counts()).toEqual([0, 1, 1]);
+    await db
+      .collection(COLLECTIONS.GROUP_BANS)
+      .insertOne({ groupId, userId: ACTOR, until: new Date(Date.now() + 60000).toISOString() });
+    expect(await counts()).toEqual([0, 0, 0]);
+    await db.collection(COLLECTIONS.GROUP_BANS).deleteOne({ groupId, userId: ACTOR });
+    const before = (await repository.snapshot(ACTOR, [targets[2]])).snapshot;
+    expect(before.targets[0].lists).toEqual([scopes[1], scopes[2]]);
+    const receipt = await repository.read(ACTOR, { target: targets[2], through: before.asOf });
+    expect(receipt.updated).toBe(1);
+    expect(
+      receipt.snapshot.targets
+        .filter((row) => row.target.kind === "group-list")
+        .map((row) => row.count),
+    ).toEqual([0, 0]);
+    expect(await counts()).toEqual([0, 0, 0]);
+  });
+
   it("keeps structured item attention through container entry, acknowledges only one point and counts each notice once", async () => {
     await seedAttentionResources();
     const date = { kind: "item", id: notificationItemId(eventId, "date", groupId) } as const;

@@ -11,7 +11,12 @@ import { Contacts } from "@/components/contacts/Contacts";
 import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
 import { renderWithI18n } from "@/test-utils";
 
-const mutations = vi.hoisted(() => ({ mutate: vi.fn(), isError: false, isPending: false }));
+const mutations = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isError: false,
+  isPending: false,
+  searchUsers: false,
+}));
 const getToken = async () => "fresh";
 const options = { apiUrl: "https://api.test", userId: "user_1", getToken };
 const user = {
@@ -49,7 +54,7 @@ vi.mock("@board-game-organizer/shared", async (original) => ({
       pending: { ...page, data: [{ fromUserId: user.id, toUserId: "user_1", profile: user }] },
       sent: page,
       suggestions: { ...page, data: { users: [] } },
-      search: { ...page, data: { users: [] } },
+      search: { ...page, data: { users: mutations.searchUsers ? [user] : [] } },
       runSearch: vi.fn(),
       isBusy: () => false,
       follow: mutations,
@@ -106,8 +111,60 @@ afterEach(() => {
   client?.clear();
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  mutations.searchUsers = false;
 });
-it("keeps main Contact entry unread, then clears only explicit inner section and its row/main badges before HTTP", async () => {
+it("mirrors source-backed actor markers into Connections and loaded Search results without reading another subsection", async () => {
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const snapshot = source();
+  snapshot.unreadCount = 2;
+  snapshot.summary.contacts = 2;
+  snapshot.summary.sections.connections = 0;
+  for (const row of snapshot.targets) {
+    if (row.target.kind === "contacts" && row.target.id === "connections")
+      row.count = row.direct = 0;
+    if (row.target.kind === "contact") {
+      row.count = row.direct = 2;
+      row.sections.connections = 0;
+    }
+  }
+  client.setQueryData(notificationAttentionQuery(options, targets).queryKey, snapshot);
+  const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => Response.json(snapshot));
+  vi.stubGlobal("fetch", fetcher);
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      <Contacts />
+    </QueryClientProvider>,
+  );
+  await screen.findByText("Target User");
+  expect(
+    within(screen.getByRole("tab", { name: /Connections/ })).getByRole("img", {
+      name: "Needs attention",
+    }),
+  ).toBeTruthy();
+  const search = screen.getByRole("tab", { name: "Search" });
+  expect(within(search).queryByRole("img")).toBeNull();
+  fireEvent.click(search);
+  mutations.searchUsers = true;
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "target" } });
+  await screen.findByText("Target User");
+  expect(within(search).getByRole("img", { name: "Needs attention" })).toBeTruthy();
+  expect(
+    screen.getByText("Target User").closest("li")?.querySelector('[aria-label="Unread updates"]'),
+  ).not.toBeNull();
+  expect(
+    client
+      .getQueryData<NotificationAttentionSnapshot>(
+        notificationAttentionQuery(options, targets).queryKey,
+      )
+      ?.targets.find((row) => row.target.kind === "contacts" && row.target.id === "search")?.direct,
+  ).toBe(0);
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
+  expect(mutations.mutate).not.toHaveBeenCalled();
+});
+
+it("reads only the explicit Contact subsection while top tabs retain unrelated unread markers on their own rows", async () => {
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -159,7 +216,15 @@ it("keeps main Contact entry unread, then clears only explicit inner section and
   expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
   fireEvent.click(requests);
   await waitFor(() => expect(release).toBeTypeOf("function"));
-  expect(within(requests).queryByRole("img", { name: "Needs attention" })).toBeNull();
+  expect(within(requests).getByRole("img", { name: "Needs attention" })).toBeTruthy();
+  expect(
+    client
+      .getQueryData<NotificationAttentionSnapshot>(
+        notificationAttentionQuery(options, targets).queryKey,
+      )
+      ?.targets.find((row) => row.target.kind === "contacts" && row.target.id === "requests")
+      ?.direct,
+  ).toBe(0);
   expect(within(connections).getByRole("img", { name: "Needs attention" })).toBeTruthy();
   expect(
     within(screen.getByLabelText("Main Contacts")).getByRole("img", { name: "Needs attention" }),
@@ -179,7 +244,12 @@ it("keeps main Contact entry unread, then clears only explicit inner section and
   ).toEqual({ target: { kind: "contacts", id: "requests" }, through: source().asOf });
   await act(async () => release(Response.json({ error: "Denied" }, { status: 409 })));
   await waitFor(() =>
-    expect(within(requests).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
+    expect(
+      client?.getQueryData<NotificationAttentionSnapshot>(
+        notificationAttentionQuery(options, targets).queryKey,
+      )?.summary.contacts,
+    ).toBe(4),
   );
+  expect(within(requests).getByRole("img", { name: "Needs attention" })).toBeTruthy();
   expect(mutations.mutate).not.toHaveBeenCalled();
 });

@@ -457,6 +457,57 @@ export class EventRecordsRepository {
       },
     ];
   }
+  /** Canonical main-list participation; reused by source-scoped notification tab counts. */
+  participationStages(userId: string): Record<string, unknown>[] {
+    return [
+      {
+        $lookup: {
+          from: COLLECTIONS.TABLE_REGISTRATIONS,
+          localField: "id",
+          foreignField: "eventId",
+          pipeline: [
+            { $match: { userId, status: { $in: ["PENDING", "ACCEPTED"] } } },
+            {
+              $lookup: {
+                from: COLLECTIONS.EVENT_TABLES,
+                localField: "tableId",
+                foreignField: "id",
+                pipeline: [{ $match: { removedAt: { $exists: false } } }],
+                as: "activeTable",
+              },
+            },
+            { $match: { "activeTable.0": { $exists: true } } },
+            { $limit: 1 },
+          ],
+          as: "myRegistration",
+        },
+      },
+      {
+        $lookup: {
+          from: COLLECTIONS.EVENT_TABLES,
+          localField: "id",
+          foreignField: "eventId",
+          let: { eventStatus: "$status" },
+          pipeline: [
+            {
+              $match: {
+                demonstratorUserId: userId,
+                removedAt: { $exists: false },
+                $expr: {
+                  $or: [
+                    { $eq: ["$$eventStatus", "PLANNING"] },
+                    { $ne: [{ $ifNull: ["$confirmed", null] }, null] },
+                  ],
+                },
+              },
+            },
+            { $limit: 1 },
+          ],
+          as: "myDemonstration",
+        },
+      },
+    ];
+  }
   async list(userId: string, page: EventRecordPage, groupId?: string) {
     const pipeline: Record<string, unknown>[] = [
       {
@@ -469,69 +520,21 @@ export class EventRecordsRepository {
       ...eventPeriodStages(page.periods, Date.now()),
     ];
     if (!groupId) {
-      pipeline.push(
-        {
-          $lookup: {
-            from: COLLECTIONS.TABLE_REGISTRATIONS,
-            localField: "id",
-            foreignField: "eventId",
-            pipeline: [
-              { $match: { userId, status: { $in: ["PENDING", "ACCEPTED"] } } },
-              {
-                $lookup: {
-                  from: COLLECTIONS.EVENT_TABLES,
-                  localField: "tableId",
-                  foreignField: "id",
-                  pipeline: [{ $match: { removedAt: { $exists: false } } }],
-                  as: "activeTable",
-                },
+      pipeline.push(...this.participationStages(userId), {
+        $match:
+          page.section === "available"
+            ? {
+                "myRegistration.0": { $exists: false },
+                "myDemonstration.0": { $exists: false },
+                $or: [{ groupId: { $ne: null } }, { adminUserId: userId }],
+              }
+            : {
+                $or: [
+                  { "myRegistration.0": { $exists: true } },
+                  { "myDemonstration.0": { $exists: true } },
+                ],
               },
-              { $match: { "activeTable.0": { $exists: true } } },
-              { $limit: 1 },
-            ],
-            as: "myRegistration",
-          },
-        },
-        {
-          $lookup: {
-            from: COLLECTIONS.EVENT_TABLES,
-            localField: "id",
-            foreignField: "eventId",
-            let: { eventStatus: "$status" },
-            pipeline: [
-              {
-                $match: {
-                  demonstratorUserId: userId,
-                  removedAt: { $exists: false },
-                  $expr: {
-                    $or: [
-                      { $eq: ["$$eventStatus", "PLANNING"] },
-                      { $ne: [{ $ifNull: ["$confirmed", null] }, null] },
-                    ],
-                  },
-                },
-              },
-              { $limit: 1 },
-            ],
-            as: "myDemonstration",
-          },
-        },
-        {
-          $match:
-            page.section === "available"
-              ? {
-                  "myRegistration.0": { $exists: false },
-                  "myDemonstration.0": { $exists: false },
-                  $or: [{ groupId: { $ne: null } }, { adminUserId: userId }],
-                }
-              : {
-                  $or: [
-                    { "myRegistration.0": { $exists: true } },
-                    { "myDemonstration.0": { $exists: true } },
-                  ],
-                },
-        },
-      );
+      });
     }
     if (page.query)
       pipeline.push({
@@ -601,7 +604,9 @@ export class EventRecordsRepository {
               }
             : {
                 $or: [
-                  { ownRows: { $elemMatch: { status: "ACCEPTED" } } },
+                  page.section === "mine"
+                    ? { ownRows: { $elemMatch: { status: "ACCEPTED" } } }
+                    : { "ownRows.0": { $exists: true } },
                   { demonstratorUserId: userId },
                   { "event.status": { $ne: "PLANNING" }, "confirmed.playerIds": userId },
                 ],

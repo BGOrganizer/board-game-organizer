@@ -10,6 +10,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
 import { EventTableLeaderboard } from "./EventTableLeaderboard";
@@ -76,7 +77,10 @@ export function EventTable({
         <Tabs selectedKey={selected} onSelectionChange={(key) => setTab(String(key))}>
           <Tabs.ListContainer className="mx-auto mb-4 w-fit max-w-full">
             <Tabs.List aria-label={t`Table sections`}>
-              <Tabs.Tab id="overview">{t`Overview`}</Tabs.Tab>
+              <Tabs.Tab id="overview" className="gap-2">
+                {t`Overview`}
+                <NotificationTabBadge target={{ kind: "table", id: tableId }} />
+              </Tabs.Tab>
               {table.eventStatus === "TERMINATED" ? (
                 <Tabs.Tab id="results">{t`Results`}</Tabs.Tab>
               ) : null}

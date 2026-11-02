@@ -21,7 +21,11 @@ import { mergeCreationIntents } from "../../common/clientMutation";
 import { useOptimisticCreations } from "../../common/hooks/useOptimisticCreations";
 import { optimisticBaseData } from "../../common/optimisticOperation";
 import { type CommunityApiOptions, communityRequest } from "../../community/communityApi";
-import { personalEventSection, personalTableSection } from "../eventList";
+import {
+  isPersonalTableParticipant,
+  personalEventSection,
+  personalTableSection,
+} from "../eventList";
 import {
   type ClientEventRecord,
   type CreateEventVariables,
@@ -57,7 +61,7 @@ export const eventRecordKeys = {
       "tables",
       id,
       {
-        section: id ? null : (filters.section ?? "mine"),
+        section: id ? null : (filters.section ?? null),
         periods: id
           ? null
           : (["past", "future"] as const).filter(
@@ -188,9 +192,7 @@ export function recordTablesQuery(
           id ? `events/${encodeURIComponent(id)}/tables` : "tables",
           {
             query: filters.query || undefined,
-            ...(!id
-              ? { periods: filters.periods?.join(","), section: filters.section ?? "mine" }
-              : {}),
+            ...(!id ? { periods: filters.periods?.join(","), section: filters.section } : {}),
           },
           pageParam,
         ),
@@ -215,7 +217,10 @@ export function useRecordTables(
     () =>
       (q.data?.pages.flatMap((p) => p.items) ?? []).filter(
         (row) =>
-          id !== null || personalTableSection(row, o.userId ?? "") === (filters.section ?? "mine"),
+          id !== null ||
+          (filters.section
+            ? personalTableSection(row, o.userId ?? "") === filters.section
+            : isPersonalTableParticipant(row, o.userId ?? "")),
       ),
     [q.data, id, o.userId, filters.section],
   );

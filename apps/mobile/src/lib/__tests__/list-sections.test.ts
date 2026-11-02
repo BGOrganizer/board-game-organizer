@@ -32,17 +32,17 @@ function expression(name: string, tag: string, attribute: string) {
   return ts.transpileModule(`(${value})`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } })
     .outputText;
 }
-it.each([
-  ["events/Events", "available"],
-  ["events/Tables", "waiting"],
-])("native %s switches only valid canonical sections", (name, other) => {
-  const setSection = vi.fn();
-  const change = runInNewContext(expression(name, "Tabs", "onValueChange"), { setSection });
-  change("mine");
-  change(other);
-  change("foreign");
-  expect(setSection.mock.calls).toEqual([["mine"], [other]]);
-});
+it.each([["events/Events", "available"]])(
+  "native %s switches only valid canonical sections",
+  (name, other) => {
+    const setSection = vi.fn();
+    const change = runInNewContext(expression(name, "Tabs", "onValueChange"), { setSection });
+    change("mine");
+    change(other);
+    change("foreign");
+    expect(setSection.mock.calls).toEqual([["mine"], [other]]);
+  },
+);
 it.each(["mine", "available"])(
   "native EventList keeps Group context unsplit and sends %s only for main Events",
   (section) => {
@@ -69,6 +69,104 @@ it.each(["mine", "public"])(
     expect(text).toContain('useListSearch(groupRecordMemberRoles, scope === "mine" ? 0 : 4)');
   },
 );
+it("native Tables has one combined list, no section tabs or source section filter", () => {
+  const wrapper = readFileSync(
+    new URL("../../components/events/Tables.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(wrapper).toContain("<TableList />");
+  expect(wrapper).not.toContain("Tabs");
+  const list = readFileSync(
+    new URL("../../components/events/TableList.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(list).toContain("useRecordTables(o, null, { query: f.search, periods: f.selected })");
+  expect(list).not.toContain("TableListSection");
+});
+it("native tabbed filters use the Contacts eight-point top spacing without changing horizontal padding", () => {
+  for (const name of ["events/Events", "groups/Groups", "groups/GroupDetail"]) {
+    const text = readFileSync(new URL(`../../components/${name}.tsx`, import.meta.url), "utf8");
+    expect(text).toContain("marginTop: 8");
+    expect(text).toContain("NotificationTabBadge");
+  }
+  const code = expression("events/EventList", "FlatList", "contentContainerStyle");
+  expect(
+    runInNewContext(code, { groupId: undefined, layout: { paddingBottom: 32 } }),
+  ).toMatchObject({
+    padding: 20,
+    paddingTop: 8,
+  });
+  expect(runInNewContext(code, { groupId: "group", layout: { paddingBottom: 32 } })).toMatchObject({
+    padding: 20,
+    paddingTop: 0,
+  });
+  expect(
+    readFileSync(new URL("../../components/groups/GroupDetail.tsx", import.meta.url), "utf8"),
+  ).toContain("contentContainerStyle={{ paddingTop: 0 }}");
+});
+it("native top-tab count expression excludes unrelated members from Overview and treats unknown state as no dot", () => {
+  const text = readFileSync(
+    new URL("../../components/notifications/NotificationTabBadge.tsx", import.meta.url),
+    "utf8",
+  );
+  const file = ts.createSourceFile(
+    "badge.tsx",
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let source = "";
+  function visit(node: ts.Node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === "count")
+      source = node.initializer?.getText(file) ?? "";
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  expect(source).not.toBe("");
+  const code = ts.transpileModule(`(${source})`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const empty = { row: undefined, overviewItems: undefined, attention: undefined };
+  expect(runInNewContext(code, empty)).toBeUndefined();
+  expect(runInNewContext(code, { ...empty, row: { count: 3 } })).toBe(3);
+  expect(
+    runInNewContext(code, { ...empty, row: { count: 3, direct: 0 }, overviewItems: ["overview"] }),
+  ).toBe(0);
+  expect(runInNewContext(code, { ...empty, row: { count: 3, direct: 1 }, overviewItems: [] })).toBe(
+    1,
+  );
+  expect(
+    runInNewContext(code, {
+      ...empty,
+      overviewItems: ["overview"],
+      attention: { get: () => ({ count: 2 }) },
+    }),
+  ).toBe(2);
+  expect(
+    runInNewContext(code, {
+      ...empty,
+      overviewItems: ["overview"],
+      attention: { get: () => undefined },
+    }),
+  ).toBe(0);
+});
+
+it("native Contact top tabs include unread displayed actors without changing subsection read targets", () => {
+  const code = expression("../app/(tabs)/contacts", "NotificationCountBadge", "count");
+  const empty = { attention: undefined, section: "search", userIds: [] };
+  expect(runInNewContext(code, empty)).toBe(0);
+  expect(runInNewContext(code, { ...empty, attention: { get: () => ({ count: 3 }) } })).toBe(3);
+  const attention = {
+    get: (target: { kind: string; id: string }) =>
+      target.kind === "contact" && target.id === "visible" ? { count: 1 } : undefined,
+  };
+  expect(runInNewContext(code, { ...empty, attention, userIds: ["visible"] })).toBe(1);
+  expect(runInNewContext(code, { ...empty, attention, userIds: ["foreign"] })).toBe(0);
+  const text = readFileSync(new URL("../../app/(tabs)/contacts.tsx", import.meta.url), "utf8");
+  expect(text).toContain('attentionRead.read({ kind: "contacts", id })');
+});
+
 it("native list bodies retain a single virtualized list, filters, chips, legend and explicit structural sizing", () => {
   for (const name of ["EventList", "TableList"]) {
     const text = readFileSync(

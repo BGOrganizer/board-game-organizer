@@ -53,6 +53,107 @@ const snapshot = (): NotificationAttentionSnapshot => ({
   targets: [member, members, group, event, table].map((target) => ({ ...row, target })),
 });
 
+it("matches only source-authorized tab scopes, never treating navigation as an entity or direct read", () => {
+  const mine = { kind: "event-list", id: "mine" } as const;
+  const available = { kind: "event-list", id: "available" } as const;
+  const grouped = { kind: "event-list", id: groupId } as const;
+  const privateGroups = { kind: "group-list", id: "PRIVATE" } as const;
+  const reference = { target: event, containers: [event], lists: [mine, grouped] };
+  expect(attentionMatches(reference, mine)).toBe(true);
+  expect(attentionMatches(reference, mine, true)).toBe(false);
+  expect(attentionMatches(reference, grouped)).toBe(true);
+  expect(attentionMatches(reference, available)).toBe(false);
+  expect(attentionMatches(reference, privateGroups)).toBe(false);
+  expect(attentionMatches({ target: group }, privateGroups)).toBe(false);
+  expect(attentionMatches({ target: event, eventId, groupId }, grouped)).toBe(false);
+  const direct = { ...row, target: event, count: 2, direct: 1, lists: [mine, grouped] };
+  expect(readReference(direct).lists).toEqual([mine, grouped]);
+  const data = snapshot();
+  data.targets.push(
+    ...[mine, grouped, available, privateGroups].map((target) => ({
+      ...row,
+      target,
+      count: 2,
+      direct: 0,
+    })),
+  );
+  const next = projectAttentionSnapshot(data, readReference(direct), 1)!;
+  expect(next.targets.slice(-4).map((value) => [value.count, value.direct])).toEqual([
+    [1, 0],
+    [1, 0],
+    [2, 0],
+    [2, 0],
+  ]);
+  expect(next.summary.groups).toBe(1);
+});
+
+it("prunes tab attribution when its actual owner points are read, retaining unrelated owner scopes", () => {
+  const mine = { kind: "event-list", id: "mine" } as const;
+  const grouped = { kind: "event-list", id: groupId } as const;
+  const groups = { kind: "group-list", id: "PUBLIC" } as const;
+  const note = {
+    kind: "event_updated" as const,
+    href: `/events/${eventId}`,
+    attention: { target: event, containers: [event, group, table], lists: [mine, grouped, groups] },
+    attentionItems: [
+      { id: notificationItemId(eventId, "overview"), revision: 1, readAt: through },
+      {
+        id: notificationItemId(groupId, "overview", undefined, "group"),
+        revision: 1,
+        readAt: null,
+      },
+      { id: notificationItemId(tableId, "game", 1), revision: 1, readAt: null },
+    ],
+  };
+  expect(attentionReference(note)?.lists).toEqual([groups]);
+  expect(attentionMatches(attentionReference(note), mine)).toBe(false);
+  expect(attentionMatches(attentionReference(note), groups)).toBe(true);
+  note.attentionItems[0].readAt = null;
+  note.attentionItems[1].readAt = through;
+  expect(attentionReference(note)?.lists).toEqual([mine, grouped]);
+});
+
+it("reading the last Event point clears its top tabs immediately while retaining Table/Group entity state", () => {
+  const point = { kind: "item", id: notificationItemId(eventId, "overview") } as const;
+  const mine = { kind: "event-list", id: "mine" } as const;
+  const grouped = { kind: "event-list", id: groupId } as const;
+  const privateGroups = { kind: "group-list", id: "PRIVATE" } as const;
+  const source: NotificationAttentionCount = {
+    ...row,
+    target: point,
+    readEffect: {
+      unread: 0,
+      summary: { ...emptyAttentionSummary(), events: 1 },
+      targets: [point, event, mine, grouped].map((target) => ({
+        target,
+        count: 1,
+        direct: target.kind === "item" ? 1 : 0,
+        events: 0,
+      })),
+    },
+  };
+  const data = snapshot();
+  data.targets = [
+    source,
+    ...[event, table, group, mine, grouped, privateGroups].map((target) => ({
+      ...row,
+      target,
+      count: 1,
+      direct: 0,
+    })),
+  ];
+  const next = projectNotificationItemRead(
+    data,
+    ["notification-attention"],
+    source,
+    through,
+    later,
+  ) as NotificationAttentionSnapshot;
+  expect(next.targets.map((value) => value.count)).toEqual([0, 0, 1, 1, 0, 0, 1]);
+  expect(next.unreadCount).toBe(data.unreadCount);
+  expect(next.summary).toEqual({ ...data.summary, events: 0 });
+});
+
 it("derives mixed notification ownership from unread canonical item IDs, never shared ancestry or old tableIds", () => {
   const reference = { target: event, eventId, groupId, tableIds: [tableId] };
   const note = {

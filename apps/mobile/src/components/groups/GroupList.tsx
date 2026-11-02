@@ -49,7 +49,11 @@ export function GroupList({
           style={{ flex: 1 }}
           data={communityAccessDenied(list.error) ? [] : list.items}
           keyExtractor={(group) => group.id}
-          contentContainerStyle={{ ...listPageContentStyle, paddingBottom: layout.paddingBottom }}
+          contentContainerStyle={{
+            ...listPageContentStyle,
+            paddingTop: 8,
+            paddingBottom: layout.paddingBottom,
+          }}
           keyboardShouldPersistTaps="handled"
           onEndReachedThreshold={0.5}
           onEndReached={() => {

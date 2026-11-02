@@ -106,6 +106,70 @@ it("applies a captured consent read to inactive caches immediately, then selecti
     client.clear();
   }
 });
+it("rolls back only its tab effects while a disjoint Event read survives in active and inactive navigation caches", async () => {
+  const client = new QueryClient();
+  try {
+    const before = source(),
+      event = { kind: "event", id } as const;
+    const privateTab = { kind: "group-list", id: "PRIVATE" } as const;
+    const registered = { kind: "event-list", id: "mine" } as const;
+    const groupEvents = { kind: "event-list", id } as const;
+    const eventPoint = { kind: "item", id: notificationItemId(id, "overview") } as const;
+    const base = { count: 1, direct: 0, events: 0, sections: before.summary.sections };
+    before.targets[0].readEffect?.targets.push({
+      target: privateTab,
+      count: 1,
+      direct: 0,
+      events: 0,
+    });
+    before.targets.push(
+      ...[privateTab, registered, groupEvents, event].map((target) => ({ ...base, target })),
+      {
+        ...base,
+        target: eventPoint,
+        direct: 1,
+        readEffect: {
+          unread: 1,
+          summary: { ...emptyAttentionSummary(), events: 1 },
+          targets: [eventPoint, event, registered, groupEvents].map((target) => ({
+            target,
+            count: 1,
+            direct: target.kind === "item" ? 1 : 0,
+            events: 0,
+          })),
+        },
+      },
+    );
+    const inactive = [...key, "inactive-tabs"];
+    client.setQueryData(key, before);
+    client.setQueryData(inactive, {
+      ...before,
+      targets: before.targets.filter(
+        (row) => row.target.kind === "event-list" || row.target.kind === "group-list",
+      ),
+    });
+    const own = await beginNotificationItemRead(client, options, itemId);
+    const other = await beginNotificationItemRead(client, options, eventPoint.id);
+    expect(
+      client.getQueryData<NotificationAttentionSnapshot>(inactive)?.targets.map((row) => row.count),
+    ).toEqual([0, 0, 0]);
+    await own?.operation.reject(Object.assign(new Error("Denied"), { status: 409 }));
+    expect(
+      client.getQueryData<NotificationAttentionSnapshot>(inactive)?.targets.map((row) => row.count),
+    ).toEqual([1, 0, 0]);
+    expect(client.getQueryData<NotificationAttentionSnapshot>(key)?.summary).toMatchObject({
+      groups: 2,
+      events: 0,
+    });
+    other?.operation.commit();
+    expect(
+      client.getQueryData<NotificationAttentionSnapshot>(inactive)?.targets.map((row) => row.count),
+    ).toEqual([1, 0, 0]);
+  } finally {
+    client.clear();
+  }
+});
+
 it("does not fabricate counts without a matching owned source aggregate", async () => {
   const client = new QueryClient();
   try {

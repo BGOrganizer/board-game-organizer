@@ -12,6 +12,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { TabBar } from "@/components/common/ui/TabBar";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
+import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventDeleteAction } from "./EventDeleteAction";
@@ -84,8 +85,9 @@ export function EventTable({
         <Tabs value={selected} onValueChange={setTab} style={{ flex: 1 }}>
           <View style={{ alignItems: "center", paddingTop: 12 }}>
             <TabBar style={{ alignSelf: "center", width: "auto" }}>
-              <Tabs.Trigger value="overview">
+              <Tabs.Trigger value="overview" style={{ flexDirection: "row", gap: 6 }}>
                 <Tabs.Label>{t("Overview")}</Tabs.Label>
+                <NotificationTabBadge target={{ kind: "table", id: tableId }} />
               </Tabs.Trigger>
               {table.eventStatus === "TERMINATED" ? (
                 <Tabs.Trigger value="results">
