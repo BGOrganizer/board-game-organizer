@@ -36,9 +36,6 @@ export default defineConfig({
       reporter: ["lcov", "html", "text"],
       allowExternal: true,
       include: [
-        fileURLToPath(
-          new URL("../../packages/store/src/slices/attentionPulseSlice.ts", import.meta.url),
-        ).replaceAll("\\", "/"),
         ...[
           "common/hooks/useListSearch.ts",
           "organizations/hooks/useOrganizationPeople.ts",
@@ -93,13 +90,13 @@ export default defineConfig({
         "test-utils.tsx",
       ],
       thresholds: {
-        "src/components/common/providers/ThemeScript.tsx": {
+        "src/components/common/ui/{NotificationUnreadDot,ArtworkStatusPopover}.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,
           statements: 100,
         },
-        "../../packages/store/src/slices/attentionPulseSlice.ts": {
+        "src/components/common/providers/ThemeScript.tsx": {
           lines: 100,
           functions: 100,
           branches: 100,

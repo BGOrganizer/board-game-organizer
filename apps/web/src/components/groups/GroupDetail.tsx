@@ -9,7 +9,7 @@ import {
 } from "@board-game-organizer/shared";
 import { Button, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowLeft, LogOut, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, LogOut, Pencil, Trash2, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -130,7 +130,20 @@ export function GroupDetail({
           <Tabs.ListContainer className="mt-4 w-fit max-w-full self-center">
             <Tabs.List aria-label={t`Group sections`}>
               <Tabs.Tab id="info">{t`Overview`}</Tabs.Tab>
-              {group.canViewMembers ? <Tabs.Tab id="members">{t`Members`}</Tabs.Tab> : null}
+              {group.canViewMembers ? (
+                <Tabs.Tab id="members" className="gap-2">
+                  {t`Members`}
+                  {group.role === "admin" && (group.pendingRequestCount ?? 0) > 0 ? (
+                    <span
+                      role="img"
+                      aria-label={t`Requests to review`}
+                      className="text-warning-soft-foreground"
+                    >
+                      <UserRoundPlus className="size-4" aria-hidden />
+                    </span>
+                  ) : null}
+                </Tabs.Tab>
+              ) : null}
               {group.canViewEvents ? (
                 <Tabs.Tab id="events" className="gap-2">
                   {t`Events`}

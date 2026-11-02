@@ -64,7 +64,7 @@ it("uses exactly the same card/controls in both lists, changing only the inline 
   expect(event.parentElement?.parentElement).toBe(group.parentElement?.parentElement);
   expect(event.parentElement?.nextElementSibling?.textContent).toBe("·");
   expect(screen.getByText("First table").className).toContain("font-semibold");
-  expect(screen.getByText("First table").nextElementSibling).toBe(
+  expect(screen.getByText("First table").parentElement?.nextElementSibling).toBe(
     screen.getByRole("img", { name: "Rating enabled" }),
   );
   q.rerender(

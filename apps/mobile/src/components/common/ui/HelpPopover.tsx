@@ -12,6 +12,7 @@ export function HelpPopover({
   onOpenChange,
   icon: Icon = CircleHelp,
   tone = "muted",
+  indicator,
   children,
 }: {
   label: string;
@@ -19,6 +20,7 @@ export function HelpPopover({
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success";
   width?: number;
+  indicator?: ReactNode;
   align?: Extract<ComponentProps<typeof Popover.Content>, { presentation: "popover" }>["align"];
   onOpenChange?: ComponentProps<typeof Popover>["onOpenChange"];
   children: ReactNode;
@@ -37,9 +39,10 @@ export function HelpPopover({
           size="sm"
           variant="ghost"
           accessibilityLabel={label}
-          style={{ minWidth: 44, minHeight: 44 }}
+          style={{ position: "relative", minWidth: 44, minHeight: 44 }}
         >
           <Icon size={20} color={color} accessible={false} />
+          {indicator}
         </Button>
       </Popover.Trigger>
       <Popover.Portal>

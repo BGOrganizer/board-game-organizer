@@ -78,7 +78,7 @@ describe("unified group presentation", () => {
     expect(screen.queryByRole("button", { name: /Accept invitation/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Decline invitation/ })).toBeNull();
     expect(screen.getByText("Invitation received")).not.toBeNull();
-    const badge = screen.getByRole("button", { name: "Invitation received" });
+    const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
     expect(badge.className).toContain("text-warning");
     expect(badge.parentElement?.className).toContain("top-20");
     expect(badge.parentElement?.className).toContain("justify-center");

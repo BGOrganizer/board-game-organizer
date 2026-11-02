@@ -1,4 +1,8 @@
-import type { CreateGroupRecordInput, GroupRecord } from "@board-game-organizer/schemas";
+import type {
+  CreateGroupRecordInput,
+  GroupMembership,
+  GroupRecord,
+} from "@board-game-organizer/schemas";
 import { describe, expect, it, vi } from "vitest";
 import { GroupRecordsService } from "../group-records.service";
 
@@ -28,9 +32,10 @@ function setup() {
     }),
     find: vi.fn(async (id: string) => structuredClone(records.get(id) ?? null)),
     lock: vi.fn(async (id: string) => structuredClone(records.get(id) ?? null)),
-    membership: vi.fn(async () => null),
+    membership: vi.fn(async (): Promise<GroupMembership | null> => null),
     ban: vi.fn(async () => null),
     countMembers: vi.fn(async () => 0),
+    countPendingRequests: vi.fn(async () => 0),
     countEvents: vi.fn(async () => 0),
     list: vi.fn(async () => [...records.values()].map((row) => structuredClone(row))),
   };
@@ -54,6 +59,32 @@ function setup() {
   );
   return { service, repo, records };
 }
+
+it("returns complete pending request metadata only to the Group owner, not accepted members, and never persists it", async () => {
+  const f = setup();
+  const created = await f.service.save(owner, {
+    name: "Review group",
+    type: "PRIVATE",
+    invitedUserIds: [],
+  });
+  f.repo.countPendingRequests.mockResolvedValue(3);
+  f.repo.countPendingRequests.mockClear();
+  expect((await f.service.detail(owner, created.id)).pendingRequestCount).toBe(3);
+  expect(f.repo.countPendingRequests).toHaveBeenCalledTimes(1);
+  f.repo.membership.mockResolvedValue({
+    id: logo,
+    groupId: created.id,
+    userId: "member",
+    kind: "INVITATION",
+    status: "ACCEPTED",
+    version: 1,
+    createdAt: created.createdAt,
+    updatedAt: created.updatedAt,
+  });
+  expect((await f.service.detail("member", created.id)).pendingRequestCount).toBeNull();
+  expect(f.repo.countPendingRequests).toHaveBeenCalledTimes(1);
+  expect(f.records.get(created.id)).not.toHaveProperty("pendingRequestCount");
+});
 
 describe("Group creation correlation, not identity or idempotency", () => {
   it.each(["PRIVATE", "PUBLIC"] as const)(

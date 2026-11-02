@@ -5337,3 +5337,21 @@ msgstr "Group member"
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
 msgid "You are a member of this group."
 msgstr "You are a member of this group."
+
+msgid "Unread updates"
+msgstr "Unread updates"
+
+msgid "Requests to review"
+msgstr "Requests to review"
+
+msgid "Reply required"
+msgstr "Reply required"
+
+msgid "You have received an invitation."
+msgstr "You have received an invitation."
+
+msgid "Open Members to approve or reject membership requests."
+msgstr "Open Members to approve or reject membership requests."
+
+msgid "Open details to accept or decline your invitation."
+msgstr "Open details to accept or decline your invitation."

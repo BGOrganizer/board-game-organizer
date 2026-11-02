@@ -12,7 +12,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Tabs } from "heroui-native/tabs";
 import { Typography } from "heroui-native/text";
-import { LogOut, Pencil, Trash2 } from "lucide-react-native";
+import { LogOut, Pencil, Trash2, UserRoundPlus } from "lucide-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
@@ -43,6 +43,7 @@ export function GroupDetail({
     router = useRouter(),
     accentForeground = useThemeColor("accent-foreground"),
     dangerForeground = useThemeColor("danger-foreground"),
+    warning = useThemeColor("warning-soft-foreground"),
     q = useGroupRecord(o, groupId),
     a = useGroupRecordActions(o, groupId),
     [tab, setTab] = useState<string>(initialTab),
@@ -169,6 +170,13 @@ export function GroupDetail({
                   <Tabs.Trigger key={key} value={key} style={{ flexDirection: "row", gap: 6 }}>
                     <Tabs.Label>{label}</Tabs.Label>
                     {key === "events" ? <GroupEventsBadge groupId={group.id} /> : null}
+                    {key === "members" &&
+                    group.role === "admin" &&
+                    (group.pendingRequestCount ?? 0) > 0 ? (
+                      <View accessible accessibilityLabel={t("Requests to review")}>
+                        <UserRoundPlus size={16} color={warning} accessible={false} />
+                      </View>
+                    ) : null}
                   </Tabs.Trigger>
                 ))}
             </TabBar>

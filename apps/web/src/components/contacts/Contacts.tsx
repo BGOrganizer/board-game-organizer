@@ -28,8 +28,8 @@ import { useEffect, useRef, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
-import { NotificationAttentionBorder } from "@/components/common/ui/NotificationAttentionBorder";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
@@ -92,16 +92,18 @@ function ContactCard({
           ) : null}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{name}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="min-w-0 truncate font-medium">{name}</p>
+            <NotificationUnreadDot
+              active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
+            />
+          </div>
           {email ? <p className="truncate text-sm text-muted">{email}</p> : null}
         </div>
       </div>
       {menu ? (
         <div className="flex shrink-0 items-center justify-end self-end sm:self-auto">{menu}</div>
       ) : null}
-      <NotificationAttentionBorder
-        active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
-      />
     </GroupedRow>
   );
 }

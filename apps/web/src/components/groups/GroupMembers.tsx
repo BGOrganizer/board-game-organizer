@@ -81,7 +81,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                 ? { Icon: Ban, label: t`Excluded from group`, color: "text-danger" }
                 : person.membership?.status === "PENDING"
                   ? {
-                      Icon: Clock3,
+                      Icon: person.membership.kind === "REQUEST" ? UserRoundPlus : Clock3,
                       label:
                         person.membership.kind === "REQUEST" ? t`Membership requested` : t`Invited`,
                       color: "text-warning",

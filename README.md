@@ -23,12 +23,11 @@ invited Groups of that type, while Search retains public discovery.
 - Exact public-event cutoffs, verified locations/favorites, BGG/manual durations, overlap checks,
   atomic whole-event results and GLOBAL/GROUP OpenSkill ratings. Pending invitees never vote.
 - MongoDB-backed BoardGameGeek catalog search, account linking and collection synchronization.
-- Durable notification inbox with a counted bell, numberless navigation dots and accent attention
-  borders. Cards stay static; precise items pulse three times for a new signal, then stay static.
-  Screen/background returns do not replay pulses; process restart does. Reduced motion stays static.
-  Successful votes acknowledge only their displayed change; animation never does. Container entry
-  preserves item attention. Optional push, light/dark and EN/IT.
-  Reading never grants invitation consent.
+- Durable notification inbox with a counted bell and static numberless dots. Card/contact dots follow
+  titles/names; precise changes use fixed inline dots without borders, pulses or wrapping labels.
+  Pending Group request review and invitation replies remain visible independently of unread state.
+  Successful votes acknowledge only their displayed change; container entry preserves child attention.
+  Optional push, light/dark and EN/IT. Reading never grants invitation consent.
 - HeroUI-token-only light/dark UI across native navigation, headers, controls and custom surfaces.
   Theme changes preserve drafts and selection. Both clients inherit the installed HeroUI default
   palettes without app theme-variable overrides. Static provider artwork retains its brand contrast.

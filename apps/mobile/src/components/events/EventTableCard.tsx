@@ -1,5 +1,10 @@
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { tableParticipation, useNotificationAttentionContext } from "@board-game-organizer/shared";
+import {
+  tableParticipation,
+  tablePendingAction,
+  useEventCutoff,
+  useNotificationAttentionContext,
+} from "@board-game-organizer/shared";
 import { useLingui } from "@lingui/react";
 import { useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
@@ -36,6 +41,10 @@ export function EventTableCard({
     router = useRouter(),
     [muted, warning] = useThemeColor(["muted", "warning"]),
     number = new Intl.NumberFormat(i18n.locale);
+  const closed = useEventCutoff(
+    table.bookingClosesAt,
+    table.groupType === "PUBLIC" && table.eventStatus === "PLANNING",
+  );
   const indicator = tableParticipation(table.myRegistration, table.myPosition);
   const games = table.gamesDetail.filter(
       (game) =>
@@ -85,11 +94,19 @@ export function EventTableCard({
           },
         });
       }}
-      leadingActions={indicator === null ? undefined : <ArtworkStatusPopover kind={indicator} />}
+      leadingActions={
+        indicator === null ? undefined : (
+          <ArtworkStatusPopover
+            kind={indicator}
+            action={closed ? null : tablePendingAction(table)}
+          />
+        )
+      }
     >
       <AnimatedDicebearArtwork seed={table.id} variant="planets" />
       <ListCardBody
         title={table.name}
+        unread={Boolean(attention?.get(attentionTarget)?.count)}
         titleIcon={<Dices size={16} color={muted} accessible={false} />}
         titleAccessory={<EventTableRatingBadge enabled={table.rankingEnabled} />}
       >

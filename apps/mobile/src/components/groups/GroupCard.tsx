@@ -1,6 +1,7 @@
 import type { ClientGroupRecord } from "@board-game-organizer/shared";
 import {
   formatLocationAddress,
+  groupPendingAction,
   useNotificationAttentionContext,
 } from "@board-game-organizer/shared";
 import { type Href, useRouter } from "expo-router";
@@ -63,6 +64,7 @@ export function GroupCard({
         indicator ? (
           <ArtworkStatusPopover
             kind={indicator}
+            action={local ? null : groupPendingAction(group)}
             label={
               indicator === "admin"
                 ? t("Group admin")
@@ -96,6 +98,7 @@ export function GroupCard({
       <GroupArtwork group={group} status="none" />
       <ListCardBody
         title={group.name}
+        unread={!local && Boolean(attention?.get(attentionTarget)?.count)}
         titleAccessory={
           local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />
         }

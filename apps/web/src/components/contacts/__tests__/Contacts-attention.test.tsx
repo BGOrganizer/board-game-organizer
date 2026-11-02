@@ -165,7 +165,7 @@ it("keeps main Contact entry unread, then clears only explicit inner section and
     within(screen.getByLabelText("Main Contacts")).getByRole("img", { name: "Needs attention" }),
   ).toBeTruthy();
   expect(
-    screen.getByText("Target User").closest("li")?.querySelector('[aria-label="Needs attention"]'),
+    screen.getByText("Target User").closest("li")?.querySelector('[aria-label="Unread updates"]'),
   ).not.toBeNull();
   expect(
     client.getQueryData<NotificationAttentionSnapshot>(

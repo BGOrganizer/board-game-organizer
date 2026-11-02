@@ -241,6 +241,36 @@ export class GroupRecordsRepository {
   countMembers(groupId: string) {
     return this.memberships.countDocuments({ groupId, status: "ACCEPTED" }, this.opts);
   }
+  async countPendingRequests(groupId: string, now: string) {
+    const rows = await this.memberships
+      .aggregate<{ count: number }>(
+        [
+          { $match: { groupId, kind: "REQUEST", status: "PENDING" } },
+          {
+            $lookup: {
+              from: COLLECTIONS.GROUP_BANS,
+              localField: "userId",
+              foreignField: "userId",
+              pipeline: [
+                {
+                  $match: {
+                    groupId,
+                    revokedAt: { $exists: false },
+                    $or: [{ until: null }, { until: { $gt: now } }],
+                  },
+                },
+              ],
+              as: "activeBans",
+            },
+          },
+          { $match: { activeBans: { $size: 0 } } },
+          { $count: "count" },
+        ],
+        this.opts,
+      )
+      .toArray();
+    return rows[0]?.count ?? 0;
+  }
   countEvents(groupId: string) {
     return this.events.countDocuments(
       { groupId, status: { $in: ["PLANNING", "CONFIRMED", "TERMINATED"] } },

@@ -10,7 +10,7 @@ export function UserListRow({
   secondary,
   online,
   badge,
-  cornerBadge,
+  titleAccessory,
   children,
   actions,
   onPress,
@@ -22,7 +22,7 @@ export function UserListRow({
   secondary?: string | null;
   online?: boolean;
   badge?: UserBadge;
-  cornerBadge?: ReactNode;
+  titleAccessory?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
   onPress?: () => void;
@@ -42,9 +42,16 @@ export function UserListRow({
       >
         <UserAvatar name={name} avatarUrl={avatarUrl} online={online} badge={badge} />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <Typography className="font-medium text-foreground" numberOfLines={1}>
-            {name}
-          </Typography>
+          <View style={{ minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Typography
+              className="font-medium text-foreground"
+              numberOfLines={1}
+              style={{ flexShrink: 1 }}
+            >
+              {name}
+            </Typography>
+            {titleAccessory}
+          </View>
           {secondary ? (
             <Typography className="text-sm text-muted" numberOfLines={1}>
               {secondary}
@@ -66,7 +73,6 @@ export function UserListRow({
           {actions}
         </View>
       ) : null}
-      {cornerBadge}
     </GroupedRow>
   );
 }

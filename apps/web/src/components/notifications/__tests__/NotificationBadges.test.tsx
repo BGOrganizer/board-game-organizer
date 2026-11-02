@@ -83,7 +83,7 @@ it("omits zero/unknown, uses dots by default and preserves the bell's counted 99
   expect(screen.getByRole("img", { name: "Notifications: 130" }).textContent).toBe("99+");
   expect(screen.queryByText("0")).toBeNull();
 });
-it("places static accent borders outside every card's clipping frame, including personal Tables", async () => {
+it("places static unread dots after card titles inside navigation, including personal Tables", async () => {
   const client = setup();
   vi.stubGlobal(
     "fetch",
@@ -104,8 +104,8 @@ it("places static accent borders outside every card's clipping frame, including 
     [`Open table: ${plannedTable.name}`, 2],
   ] as const) {
     const link = screen.getByRole("link", { name }),
-      badge = within(link.parentElement?.parentElement as HTMLElement).getByRole("img", {
-        name: "Needs attention",
+      badge = within(link).getByRole("img", {
+        name: "Unread updates",
       });
     expect(badge.textContent).toBe("");
     expect(
@@ -115,11 +115,11 @@ it("places static accent borders outside every card's clipping frame, including 
         )
         ?.targets.some((row) => row.count === count),
     ).toBe(true);
-    expect(badge.parentElement).toBe(link.parentElement?.parentElement);
-    expect(link.parentElement?.contains(badge)).toBe(false);
-    expect(badge.className).toBe("notification-attention-border");
-    expect(badge.querySelector(".notification-attention-pulse")).toBeNull();
-    expect(badge.querySelector("[data-slot=badge]")).toBeNull();
+    expect(link.contains(badge)).toBe(true);
+    expect(badge.previousElementSibling?.textContent).toBe(name.split(": ")[1]);
+    expect(badge.className).toContain("badge--accent");
+    expect(badge.style.width).toBe("8px");
+    expect(badge.style.position).not.toBe("absolute");
   }
   expect(screen.queryByRole("button", { name: /Accept invitation|Decline invitation/ })).toBeNull();
 });
@@ -282,16 +282,16 @@ it("acknowledges only an explicit readonly item, retaining the other point and t
       </NotificationAttentionScope>
     </QueryClientProvider>,
   );
-  expect(screen.getAllByRole("img", { name: "Needs attention" })).toHaveLength(2);
+  expect(screen.getAllByRole("img", { name: "Unread updates" })).toHaveLength(2);
   expect(screen.getAllByRole("button", { name: "Mark as read" })).toHaveLength(1);
   const locationRow = screen.getByRole("listitem");
-  expect(within(locationRow).getByRole("img", { name: "Needs attention" }).parentElement).toBe(
+  expect(within(locationRow).getByRole("img", { name: "Unread updates" }).closest("li")).toBe(
     locationRow,
   );
-  expect(locationRow.querySelector("[data-slot=badge]")).toBeNull();
+  expect(locationRow.querySelector("[data-slot=badge]")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Mark as read" }));
   await waitFor(() => expect(release).toBeTypeOf("function"));
-  expect(screen.getAllByRole("img", { name: "Needs attention" })).toHaveLength(1);
+  expect(screen.getAllByRole("img", { name: "Unread updates" })).toHaveLength(1);
   expect(
     client.getQueryData<NotificationAttentionSnapshot>(
       notificationAttentionQuery(options, [date, location]).queryKey,
@@ -341,9 +341,7 @@ it("never inherits attention from a nested scope belonging to another actor", as
       </NotificationAttentionProvider>
     </QueryClientProvider>,
   );
-  await screen.findByRole("img", { name: "Needs attention" });
+  await screen.findByRole("img", { name: "Unread updates" });
   const foreign = screen.getByRole("link", { name: "Open group: Foreign row" });
-  expect(
-    foreign.parentElement?.parentElement?.querySelector(".notification-attention-border"),
-  ).toBeNull();
+  expect(within(foreign).queryByRole("img", { name: "Unread updates" })).toBeNull();
 });

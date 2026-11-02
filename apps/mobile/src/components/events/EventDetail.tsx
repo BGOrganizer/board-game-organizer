@@ -201,44 +201,46 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                 row.id === event.confirmed.dateId,
             )
             .map((row) => (
-              <NotificationItem
-                key={row.id}
-                itemId={notificationItemId(event.id, "date", row.id)}
-                readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
-              >
-                <GroupedRow>
-                  <View style={{ flex: 1, gap: 8 }}>
-                    <DateTimeInfo
-                      startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                      timeZone={event.timeZone}
-                    />
-                    {event.groupType !== "PUBLIC" ? (
-                      <EventVoteCounts
-                        label={eventDateWall(event, row).replace("T", " ")}
-                        counts={event.voteCounts?.dates[row.id]}
+              <GroupedRow key={row.id}>
+                <View style={{ flex: 1, gap: 8 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <View style={{ flexShrink: 1 }}>
+                      <DateTimeInfo
+                        startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                        timeZone={event.timeZone}
                       />
-                    ) : null}
+                    </View>
+                    <NotificationItem
+                      itemId={notificationItemId(event.id, "date", row.id)}
+                      readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+                    />
                   </View>
-                  {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
-                    <EventVoteButtons
+                  {event.groupType !== "PUBLIC" ? (
+                    <EventVoteCounts
                       label={eventDateWall(event, row).replace("T", " ")}
-                      value={event.myVotes?.dateVotes[row.id]}
-                      disabledVotes={
-                        eventAvailabilityVoteIsAllowed(
-                          event.dates,
-                          event.myVotes?.dateVotes ?? {},
-                          row.id,
-                          "NO",
-                        )
-                          ? []
-                          : ["NO"]
-                      }
-                      busy={a.blocking || q.isPlaceholderData}
-                      onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+                      counts={event.voteCounts?.dates[row.id]}
                     />
                   ) : null}
-                </GroupedRow>
-              </NotificationItem>
+                </View>
+                {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                  <EventVoteButtons
+                    label={eventDateWall(event, row).replace("T", " ")}
+                    value={event.myVotes?.dateVotes[row.id]}
+                    disabledVotes={
+                      eventAvailabilityVoteIsAllowed(
+                        event.dates,
+                        event.myVotes?.dateVotes ?? {},
+                        row.id,
+                        "NO",
+                      )
+                        ? []
+                        : ["NO"]
+                    }
+                    busy={a.blocking || q.isPlaceholderData}
+                    onChange={(vote) => a.vote.mutate({ kind: "date", optionId: row.id, vote })}
+                  />
+                ) : null}
+              </GroupedRow>
             ))}
         </GroupedList>
       </View>
@@ -294,42 +296,41 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               row.id === event.confirmed.locationId,
           )
           .map((row) => (
-            <NotificationItem
+            <LocationListRow
               key={row.id}
-              itemId={notificationItemId(event.id, "location", row.id)}
-              readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+              titleAccessory={
+                <NotificationItem
+                  itemId={notificationItemId(event.id, "location", row.id)}
+                  readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+                />
+              }
+              name={row.name}
+              address={row.address}
+              actions={
+                event.groupType !== "PUBLIC" && event.canVote && !closed ? (
+                  <EventVoteButtons
+                    label={row.name}
+                    value={event.myVotes?.locationVotes[row.id]}
+                    disabledVotes={
+                      eventAvailabilityVoteIsAllowed(
+                        event.locations,
+                        event.myVotes?.locationVotes ?? {},
+                        row.id,
+                        "NO",
+                      )
+                        ? []
+                        : ["NO"]
+                    }
+                    busy={a.blocking || q.isPlaceholderData}
+                    onChange={(vote) => a.vote.mutate({ kind: "location", optionId: row.id, vote })}
+                  />
+                ) : undefined
+              }
             >
-              <LocationListRow
-                name={row.name}
-                address={row.address}
-                actions={
-                  event.groupType !== "PUBLIC" && event.canVote && !closed ? (
-                    <EventVoteButtons
-                      label={row.name}
-                      value={event.myVotes?.locationVotes[row.id]}
-                      disabledVotes={
-                        eventAvailabilityVoteIsAllowed(
-                          event.locations,
-                          event.myVotes?.locationVotes ?? {},
-                          row.id,
-                          "NO",
-                        )
-                          ? []
-                          : ["NO"]
-                      }
-                      busy={a.blocking || q.isPlaceholderData}
-                      onChange={(vote) =>
-                        a.vote.mutate({ kind: "location", optionId: row.id, vote })
-                      }
-                    />
-                  ) : undefined
-                }
-              >
-                {event.groupType !== "PUBLIC" ? (
-                  <EventVoteCounts label={row.name} counts={event.voteCounts?.locations[row.id]} />
-                ) : null}
-              </LocationListRow>
-            </NotificationItem>
+              {event.groupType !== "PUBLIC" ? (
+                <EventVoteCounts label={row.name} counts={event.voteCounts?.locations[row.id]} />
+              ) : null}
+            </LocationListRow>
           ))}
       </GroupedList>
       <NotificationItem itemId={notificationItemId(event.id, "tables")} readOnly>

@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { type AttentionPulseSlice, createAttentionPulseSlice } from "./slices/attentionPulseSlice";
 import { type CounterSlice, createCounterSlice } from "./slices/counterSlice";
 import { createMatchWizardSlice, type MatchWizardSlice } from "./slices/matchWizardSlice";
 import { createUiSlice, type UiSlice } from "./slices/uiSlice";
@@ -26,11 +25,10 @@ import { createUiSlice, type UiSlice } from "./slices/uiSlice";
  * }));
  * ```
  */
-export type AppStore = CounterSlice & UiSlice & MatchWizardSlice & AttentionPulseSlice;
+export type AppStore = CounterSlice & UiSlice & MatchWizardSlice;
 
 export const useAppStore = create<AppStore>()((...a) => ({
   ...createCounterSlice(...a),
   ...createUiSlice(...a),
   ...createMatchWizardSlice(...a),
-  ...createAttentionPulseSlice(...a),
 }));

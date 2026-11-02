@@ -60,13 +60,6 @@ export function notificationItemId(
     optionId === undefined ? null : String(optionId),
   ]);
 }
-/** Section/container markers stay static; only the affected invitation/option/settings item pulses. */
-export function notificationItemCanPulse(id: string): boolean {
-  if (!notificationItemIdSchema.safeParse(id).success) return false;
-  const [, , field] = JSON.parse(id) as [string, string, string];
-  return ["date", "location", "game", "invitation", "overview"].includes(field);
-}
-
 export interface NotificationItem {
   id: string;
   revision: number;

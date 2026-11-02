@@ -1,9 +1,9 @@
 "use client";
 
+import { useLingui } from "@lingui/react/macro";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ListCard } from "./ListCard";
-import { NotificationAttentionBorder } from "./NotificationAttentionBorder";
 
 export function LinkedListCard({
   href,
@@ -24,12 +24,14 @@ export function LinkedListCard({
   leadingActions?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useLingui();
   return (
     <div className="relative min-w-0">
       <ListCard>
         <Link
           href={href}
           aria-label={label}
+          aria-description={notificationCount ? t`Unread updates` : undefined}
           aria-disabled={disabled}
           onClick={(event) => {
             if (disabled) event.preventDefault();
@@ -51,7 +53,6 @@ export function LinkedListCard({
           </div>
         ) : null}
       </ListCard>
-      <NotificationAttentionBorder active={Boolean(notificationCount)} />
     </div>
   );
 }

@@ -12,6 +12,7 @@ export function GameListRow({
   year,
   average,
   rank,
+  titleAccessory,
   onPress,
   actions,
   metadata,
@@ -19,6 +20,7 @@ export function GameListRow({
 }: ComponentProps<typeof GameCatalogMetadata> & {
   name: string;
   imageUrl?: string | null;
+  titleAccessory?: ReactNode;
   onPress?: () => void;
   actions?: ReactNode;
   metadata?: ReactNode;
@@ -57,9 +59,16 @@ export function GameListRow({
           )}
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <Typography className="font-medium text-foreground" numberOfLines={1}>
-            {name}
-          </Typography>
+          <View style={{ minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Typography
+              className="font-medium text-foreground"
+              numberOfLines={1}
+              style={{ flexShrink: 1 }}
+            >
+              {name}
+            </Typography>
+            {titleAccessory}
+          </View>
           <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
             <GameCatalogMetadata year={year} average={average} rank={rank} />
             {metadata}

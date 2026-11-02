@@ -20,6 +20,7 @@ import {
   EllipsisVertical,
   RotateCcw,
   UserRoundMinus,
+  UserRoundPlus,
   UsersRound,
   X,
 } from "lucide-react-native";
@@ -113,7 +114,7 @@ export function GroupMembers({ group }: { group: GroupRecordResponse }) {
                 ? { icon: Ban, label: t("Excluded from group"), color: "danger" as const }
                 : person.membership?.status === "PENDING"
                   ? {
-                      icon: Clock3,
+                      icon: person.membership.kind === "REQUEST" ? UserRoundPlus : Clock3,
                       label:
                         person.membership.kind === "REQUEST"
                           ? t("Membership requested")

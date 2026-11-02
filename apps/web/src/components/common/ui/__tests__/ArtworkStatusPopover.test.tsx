@@ -19,13 +19,7 @@ it.each([
     "clock-3",
     "text-warning",
   ],
-  [
-    "invitation",
-    "Invitation received",
-    "You have an invitation awaiting your response.",
-    "mail",
-    "text-warning",
-  ],
+  ["invitation", "Invitation received", "You have received an invitation.", "mail", "text-warning"],
   [
     "waiting",
     "Waiting list",
@@ -64,6 +58,17 @@ it.each([
     expect(onOpen).not.toHaveBeenCalled();
   },
 );
+
+it("keeps a known invitation reply visible while participation positions are unknown, without duplicating its glyph", async () => {
+  renderWithI18n(<ArtworkStatusPopover kind={undefined} action="reply" />);
+  const trigger = screen.getByRole("button", { name: "Invitation received · Reply required" });
+  expect(screen.queryByLabelText("Loading…")).toBeNull();
+  expect(trigger.querySelectorAll("svg.lucide-mail")).toHaveLength(1);
+  fireEvent.click(trigger);
+  expect(
+    await screen.findByText("Open details to accept or decline your invitation."),
+  ).not.toBeNull();
+});
 
 it("uses a partial skeleton for unknown participation, not a fictitious confirmed seat", () => {
   renderWithI18n(<ArtworkStatusPopover kind={undefined} />);

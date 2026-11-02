@@ -37,7 +37,7 @@ export function eventRecordDisplayTimeZone(
   return event.timeZone;
 }
 export function publicBookingIsClosed(
-  event: EventRecord,
+  event: Pick<EventRecord, "bookingClosesAt">,
   groupType: EventGroupType,
   now: number,
 ): boolean {

@@ -18,6 +18,7 @@ import { ContactConfirmDialog } from "@/components/common/ui/ContactConfirmDialo
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { GameListRow } from "@/components/games/GameListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -107,7 +108,12 @@ export function EventTableOverview({
             label={`${t`Open event`}: ${table.eventName}`}
           >
             <AnimatedDicebearArtwork seed={table.eventId} variant="constellation" size={40} />
-            <span className="min-w-0 self-center break-words font-medium">{table.eventName}</span>
+            <span className="flex min-w-0 flex-1 self-center items-center gap-2">
+              <span className="min-w-0 truncate font-medium">{table.eventName}</span>
+              <NotificationUnreadDot
+                active={Boolean(attention?.get({ kind: "event", id: table.eventId })?.count)}
+              />
+            </span>
           </LinkedListCard>
         </section>
       ) : null}
@@ -163,6 +169,12 @@ export function EventTableOverview({
                 name={game.name}
                 imageUrl={game.imageUrl}
                 year={game.year}
+                titleAccessory={
+                  <NotificationItem
+                    itemId={notificationItemId(table.id, "game", game.id)}
+                    readOnly={!canVote}
+                  />
+                }
                 average={game.average}
                 rank={game.rank}
                 metadata={
@@ -173,10 +185,6 @@ export function EventTableOverview({
                 }
                 actions={
                   <>
-                    <NotificationItem
-                      itemId={notificationItemId(table.id, "game", game.id)}
-                      readOnly={!canVote}
-                    />
                     {canVote ? (
                       <EventVoteButtons
                         label={game.name}

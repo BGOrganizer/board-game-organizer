@@ -296,16 +296,23 @@ explicit edit. The time-zone change never migrates or deletes historical documen
 ## Notification attention
 
 - Bell alone retains its numerical unread count and `99+`; navigation retains accessible 8px
-  numberless dots. Cards/contact rows use static, theme-aware accent borders. Specific invitation,
-  date/location/game and overview items pulse three slow 1.6-second cycles (4.8 seconds total), then keep a static
-  border; section/container borders never pulse. Zero/unknown attention has no border. Absolute
-  overlays preserve layout, touches and status presentation. Reduced motion uses only static borders.
-  Session-only, user/API/item-scoped UI high-water marks prevent replay on screen remount, list
-  recycling, background/foreground or failed optimistic-read rollback. A newer matching source signal
-  replays; unrelated items and mere refetches do not. Process restart forgets presentation marks.
-  Signal identity comes from the newest matching unread item change plus notification identity,
-  never unread count or fetch time. No presentation mark is persisted or acknowledges a notification.
+  numberless dots. Cards/contact rows use a static accent dot after the visible title/name. Long
+  titles shrink/ellipsize while the dot keeps its fixed slot; precise games/locations place their
+  dot beside the name, outside voting actions. No novelty text label, attention border or pulse.
+  Zero/unknown unread attention has no dot. Rendering, focus, navigation, reduced motion and process
+  restart never acknowledge attention. The obsolete presentation high-water store is removed;
+  source change metadata, namespaced identities and acknowledgement cutoffs remain unchanged.
   All counts come from complete recipient-scoped aggregates, not loaded inbox pages.
+- Pending business decisions are separate from unread state. A recipient's actionable invitation
+  keeps its reply indicator after explicit notification reads; an outgoing Group request retains
+  its waiting clock, never an approval action. Group admins get an owner-only complete pending
+  REQUEST count excluding active bans; it drives a request-review glyph beside their status and
+  on Members, never a numeric unread badge. Other viewers, including unrelated moderators, receive
+  no request count. This is derived read metadata, not persisted Group state or a new permission.
+  Event reply attention derives from complete own Table invitations; Table reply requires its
+  actual canRespond capability, PENDING INVITATION and open cutoff. There is no Event membership
+  and no new organizer approval of Table SELF registrations. Details retain existing authorized,
+  version-guarded decisions; card help neither navigates nor submits/reads anything.
 - Table attention propagates to its Event and authorized Group. Shared Event notices also identify
   affected, currently accessible Tables, including cards in the personal Tables list. Group's
   Events tab includes descendants. Each notice contributes once within each aggregate, even when
@@ -334,7 +341,8 @@ explicit edit. The time-zone change never migrates or deletes historical documen
   belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their
   actor's unread social notices. Repeated existing follows emit no duplicate notice.
 - Counter batches contain at most 50 unique resource targets. Cache-only navigation observers reuse
-  the bell watcher: no per-card timers or inbox scans. Owned optimistic reads/deletions coordinate
+  the bell watcher: no per-card notification polling/timers or inbox scans. Existing cutoff boundary timers only
+  expire displayed invitation-response affordances; they never fetch or acknowledge notifications. Owned optimistic reads/deletions coordinate
   cards, ancestor tabs and bell, preserve disjoint writes and roll back selectively. Unknown write
   outcomes require source verification, never automatic write retries; session changes cancel old
   work. Read failures remain observable without user-action toasts.

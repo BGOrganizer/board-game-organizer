@@ -11,6 +11,7 @@ export function LocationListRow({
   address,
   onPress,
   leading,
+  titleAccessory,
   actions,
   testID,
   accessibilityLabel,
@@ -20,6 +21,7 @@ export function LocationListRow({
   address?: string;
   onPress?: () => void;
   leading?: ReactNode;
+  titleAccessory?: ReactNode;
   actions?: ReactNode;
   testID?: string;
   accessibilityLabel?: string;
@@ -35,11 +37,18 @@ export function LocationListRow({
         onPress={onPress}
         accessibilityRole={onPress ? "button" : undefined}
         accessibilityLabel={onPress ? (accessibilityLabel ?? name) : undefined}
-        style={{ flex: 1, minHeight: 44, justifyContent: "center", gap: 4 }}
+        style={{ flex: 1, minWidth: 0, minHeight: 44, justifyContent: "center", gap: 4 }}
       >
-        <Typography className="font-medium text-foreground" numberOfLines={1}>
-          {name}
-        </Typography>
+        <View style={{ minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Typography
+            className="font-medium text-foreground"
+            numberOfLines={1}
+            style={{ flexShrink: 1 }}
+          >
+            {name}
+          </Typography>
+          {titleAccessory}
+        </View>
         {address ? (
           <Typography className="text-sm text-muted" numberOfLines={1} accessibilityLabel={address}>
             {formatLocationAddress(address)}

@@ -1,6 +1,11 @@
 "use client";
 import type { PlannedTableResponse } from "@board-game-organizer/schemas";
-import { tableParticipation, useNotificationAttentionContext } from "@board-game-organizer/shared";
+import {
+  tableParticipation,
+  tablePendingAction,
+  useEventCutoff,
+  useNotificationAttentionContext,
+} from "@board-game-organizer/shared";
 import { Skeleton } from "@heroui/react";
 import { Plural, useLingui } from "@lingui/react/macro";
 import {
@@ -30,6 +35,10 @@ export function EventTableCard({
 }) {
   const { t, i18n } = useLingui(),
     number = new Intl.NumberFormat(i18n.locale);
+  const closed = useEventCutoff(
+    table.bookingClosesAt,
+    table.groupType === "PUBLIC" && table.eventStatus === "PLANNING",
+  );
   const indicator = tableParticipation(table.myRegistration, table.myPosition);
   const games = table.gamesDetail.filter(
       (game) =>
@@ -70,11 +79,19 @@ export function EventTableCard({
       href={`/events/${table.eventId}/tables/${table.id}${context === "event" ? `?fromEvent=${encodeURIComponent(table.eventId)}` : ""}`}
       label={`${t`Open table`}: ${table.name}`}
       notificationCount={attention?.get(attentionTarget)?.count}
-      leadingActions={indicator === null ? undefined : <ArtworkStatusPopover kind={indicator} />}
+      leadingActions={
+        indicator === null ? undefined : (
+          <ArtworkStatusPopover
+            kind={indicator}
+            action={closed ? null : tablePendingAction(table)}
+          />
+        )
+      }
     >
       <AnimatedDicebearArtwork seed={table.id} variant="planets" />
       <ListCardBody
         title={table.name}
+        unread={Boolean(attention?.get(attentionTarget)?.count)}
         titleIcon={<Dices className="size-4 shrink-0 text-muted" aria-hidden />}
         titleAccessory={<EventTableRatingBadge enabled={table.rankingEnabled} />}
       >

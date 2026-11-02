@@ -118,6 +118,9 @@ export class GroupRecordsService {
       logo: asset?.thumbnailBase64 ? `data:image/webp;base64,${asset.thumbnailBase64}` : null,
       role: groupViewerRole(group, userId, membership),
       myMembership: membership,
+      pendingRequestCount: owner
+        ? await this.groups.countPendingRequests(group.id, new Date().toISOString())
+        : null,
       memberCount: 1 + (await this.groups.countMembers(group.id)),
       eventCount: capabilities.canViewEvents ? await this.groups.countEvents(group.id) : null,
     };

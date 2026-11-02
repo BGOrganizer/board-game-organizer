@@ -39,8 +39,8 @@ import { AppState, FlatList, Linking, Pressable, Share, View } from "react-nativ
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
-import { NotificationAttentionBorder } from "@/components/common/ui/NotificationAttentionBorder";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { TabBar } from "@/components/common/ui/TabBar";
@@ -587,7 +587,7 @@ export default function ContactsScreen() {
   ) => (
     <UserListRow
       key={user.id}
-      cornerBadge={<ContactAttentionBadge userId={user.id} />}
+      titleAccessory={<ContactAttentionBadge userId={user.id} />}
       name={user.name}
       avatarUrl={user.avatarUrl}
       secondary={user.email}
@@ -970,7 +970,7 @@ export default function ContactsScreen() {
 function ContactAttentionBadge({ userId }: { userId: string }) {
   const attention = useNotificationAttentionContext();
   return (
-    <NotificationAttentionBorder
+    <NotificationUnreadDot
       active={Boolean(attention?.get({ kind: "contact", id: userId })?.count)}
     />
   );

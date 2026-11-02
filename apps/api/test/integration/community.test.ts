@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { CreatePlannedEventInput, JoinTableInput } from "@board-game-organizer/schemas";
+import type {
+  CreatePlannedEventInput,
+  GroupMembership,
+  JoinTableInput,
+} from "@board-game-organizer/schemas";
 import {
   groupRecordMemberRoles,
   groupRecordSchema,
@@ -1124,6 +1128,74 @@ describe("community transactions on a MongoDB replica set", () => {
 });
 
 describe("unified groups/events on the real MongoDB replica set", () => {
+  it("keeps owner-only actionable Group requests complete, independent of unread state and source pages, excluding live bans", async () => {
+    const group = groupRecordSchema.parse({
+      id: randomUUID(),
+      type: "PUBLIC",
+      adminUserId: OWNER,
+      approved: { name: "Request review club", location, logoAssetId: randomUUID() },
+      reservedNames: ["request review club"],
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    await db.collection(COLLECTIONS.GROUPS).insertOne(group);
+    const requests: GroupMembership[] = [];
+    for (const actor of [GUEST, OTHER, OUTSIDER])
+      requests.push(await transaction((s) => s.unifiedGroupService.request(actor, group.id)));
+    const detail = () => services().unifiedGroupService.detail(OWNER, group.id);
+    expect((await detail()).pendingRequestCount).toBe(3);
+    const firstPage = await services().unifiedGroupService.members(OWNER, group.id, "pending", {
+      limit: 1,
+    });
+    expect(firstPage.items).toHaveLength(1);
+    expect(firstPage.nextCursor).not.toBeNull();
+    await services().notifications.markAllRead(OWNER);
+    expect((await detail()).pendingRequestCount).toBe(3);
+    expect(
+      (await services().unifiedGroupService.detail(GUEST, group.id)).pendingRequestCount,
+    ).toBeNull();
+    expect(
+      (await services().unifiedGroupService.moderationDetail("moderator", group.id))
+        .pendingRequestCount,
+    ).toBeNull();
+    const ban = {
+      id: randomUUID(),
+      groupId: group.id,
+      userId: OUTSIDER,
+      adminUserId: OWNER,
+      until: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    // A historical pending row may survive a ban: it must not create an actionable request.
+    await services().groupRecords.saveBan(ban);
+    expect((await detail()).pendingRequestCount).toBe(2);
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, GUEST, {
+        action: "approve",
+        version: requests[0].version,
+      }),
+    );
+    expect((await detail()).pendingRequestCount).toBe(1);
+    await transaction((s) =>
+      s.unifiedGroupService.membershipAction(OWNER, group.id, OTHER, {
+        action: "reject",
+        version: requests[1].version,
+      }),
+    );
+    expect((await detail()).pendingRequestCount).toBe(0);
+    await services().groupRecords.saveBan({ ...ban, revokedAt: new Date().toISOString() });
+    expect((await detail()).pendingRequestCount).toBe(1);
+    await services().groupRecords.saveBan({
+      ...ban,
+      until: new Date(Date.now() - 1).toISOString(),
+    });
+    expect((await detail()).pendingRequestCount).toBe(1);
+    expect(await db.collection(COLLECTIONS.GROUPS).findOne({ id: group.id })).not.toHaveProperty(
+      "pendingRequestCount",
+    );
+  });
   it("source-pages only eligible friends for Group invitations, excluding accepted/pending, blocks and live group bans", async () => {
     for (const user of [GUEST, OTHER, DEMO, OUTSIDER])
       await transaction((s) => s.relationships.becomeFriends(OWNER, user));

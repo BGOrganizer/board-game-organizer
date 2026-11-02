@@ -98,7 +98,7 @@ it("keeps external cards navigation-only and preserves explicit versioned consen
   expect(m.respond.mutate).not.toHaveBeenCalled();
   expect(screen.queryByText("Reserved place")).toBeNull();
   expect(screen.queryByText("Invitation received")).toBeNull();
-  const badge = screen.getByRole("button", { name: "Invitation received" });
+  const badge = screen.getByRole("button", { name: "Invitation received · Reply required" });
   expect(badge.className).toContain("text-warning");
   expect(badge.parentElement?.className).toContain("top-20");
   expect(badge.parentElement?.className).toContain("justify-center");
@@ -219,7 +219,7 @@ it("shows Event/Group identity and separate minimum, maximum, accepted and pendi
   }
   expect(row?.className).toContain("flex-nowrap");
   expect(screen.queryByText("Reserved place")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Invitation received" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Invitation received/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "Table legend" })).toBeNull();
 });
 it("keeps old cached identity while missing new Group/total fields use skeletons, not guessed zeros", () => {

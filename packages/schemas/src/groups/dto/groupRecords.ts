@@ -111,6 +111,8 @@ export type GroupRecordResponse = GroupRecord &
     memberCount: number;
     eventCount: number | null;
     myMembership: GroupMembership | null;
+    /** Complete actionable REQUEST count for the sole admin; null for every other viewer. */
+    pendingRequestCount?: number | null;
   };
 export interface GroupPersonResponse {
   userId: string;

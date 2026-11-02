@@ -9,6 +9,7 @@ export * from "./common/startupQueries";
 export * from "./common/types";
 export * from "./community/communityApi";
 export * from "./community/communityFeedback";
+export * from "./community/pendingActions";
 export * from "./contacts/contactConnections";
 export * from "./contacts/hooks/contactOptimistic";
 export * from "./contacts/hooks/useContacts";

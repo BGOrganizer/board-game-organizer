@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
+import { useT } from "@/lib/i18n";
 import { ListCard } from "./ListCard";
-import { NotificationAttentionBorder } from "./NotificationAttentionBorder";
 
 export function LinkedListCard({
   label,
@@ -20,12 +20,14 @@ export function LinkedListCard({
   leadingActions?: ReactNode;
   children: ReactNode;
 }) {
+  const t = useT();
   return (
     <View style={{ position: "relative", width: "100%" }}>
       <ListCard>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={label}
+          accessibilityValue={notificationCount ? { text: t("Unread updates") } : undefined}
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={onPress}
@@ -73,7 +75,6 @@ export function LinkedListCard({
           </View>
         ) : null}
       </ListCard>
-      <NotificationAttentionBorder active={Boolean(notificationCount)} />
     </View>
   );
 }

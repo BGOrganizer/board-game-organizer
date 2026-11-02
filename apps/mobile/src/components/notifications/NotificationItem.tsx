@@ -1,4 +1,3 @@
-import { notificationItemCanPulse } from "@board-game-organizer/schemas";
 import { useNotificationAttentionContext } from "@board-game-organizer/shared";
 import { useLocalSearchParams } from "expo-router";
 import { Button } from "heroui-native/button";
@@ -6,7 +5,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Check } from "lucide-react-native";
 import { type ReactNode, useContext, useRef } from "react";
 import { View } from "react-native";
-import { NotificationAttentionBorder } from "@/components/common/ui/NotificationAttentionBorder";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
 import { useT } from "@/lib/i18n";
 
@@ -17,7 +16,7 @@ export function NotificationItem({
 }: {
   itemId?: string;
   readOnly?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const t = useT(),
     attention = useNotificationAttentionContext(),
@@ -27,13 +26,19 @@ export function NotificationItem({
     positioned = useRef<string | null>(null);
   const foreground = useThemeColor("foreground");
   const target = itemId ? { kind: "item" as const, id: itemId } : undefined;
-  const record = target ? attention?.get(target) : undefined;
-  const count = record?.count;
+  const count = target ? attention?.get(target)?.count : undefined;
   if (!target) return <>{children}</>;
+  if (!children && !count && requested !== itemId) return null;
   return (
     <View
       ref={ref}
-      style={{ width: "100%", flexDirection: "row", gap: 8, alignItems: "center" }}
+      style={{
+        width: children ? "100%" : undefined,
+        flexShrink: 0,
+        flexDirection: "row",
+        gap: 8,
+        alignItems: "center",
+      }}
       onLayout={() => {
         if (requested !== itemId || positioned.current === requested || !scroll?.current) return;
         ref.current?.measureLayout(scroll.current.getInnerViewNode(), (_x, y) => {
@@ -42,15 +47,8 @@ export function NotificationItem({
         });
       }}
     >
-      <NotificationAttentionBorder
-        active={Boolean(count)}
-        pulse={
-          attention && notificationItemCanPulse(target.id)
-            ? { owner: attention.owner, itemId: target.id, signal: record?.signal }
-            : undefined
-        }
-      />
-      <View style={{ flex: 1, minWidth: 0 }}>{children}</View>
+      {children ? <View style={{ flex: 1, minWidth: 0 }}>{children}</View> : null}
+      <NotificationUnreadDot active={Boolean(count)} />
       {readOnly && count ? (
         <Button
           isIconOnly

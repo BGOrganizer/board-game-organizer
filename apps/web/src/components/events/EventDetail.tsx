@@ -192,15 +192,17 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
               )
               .map((row) => (
                 <GroupedRow key={row.id} className="flex-wrap">
-                  <NotificationItem
-                    itemId={notificationItemId(event.id, "date", row.id)}
-                    readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
-                  />
                   <div className="min-w-0 flex-1 space-y-1">
-                    <DateTimeInfo
-                      startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
-                      timeZone={event.timeZone}
-                    />
+                    <div className="flex min-w-0 items-center gap-2">
+                      <DateTimeInfo
+                        startsAt={eventLocalToIso(eventDateWall(event, row), event.timeZone)}
+                        timeZone={event.timeZone}
+                      />
+                      <NotificationItem
+                        itemId={notificationItemId(event.id, "date", row.id)}
+                        readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+                      />
+                    </div>
                     {event.groupType !== "PUBLIC" ? (
                       <EventVoteCounts
                         label={eventDateWall(event, row).replace("T", " ")}
@@ -283,12 +285,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                   key={row.id}
                   name={row.name}
                   address={row.address}
+                  titleAccessory={
+                    <NotificationItem
+                      itemId={notificationItemId(event.id, "location", row.id)}
+                      readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
+                    />
+                  }
                   actions={
                     <>
-                      <NotificationItem
-                        itemId={notificationItemId(event.id, "location", row.id)}
-                        readOnly={event.groupType === "PUBLIC" || !event.canVote || closed}
-                      />
                       {event.groupType !== "PUBLIC" && event.canVote && !closed ? (
                         <EventVoteButtons
                           label={row.name}

@@ -26,13 +26,17 @@ it.each([
     "You have a confirmed place at a table.",
   ],
   [[waiting, invitation, request], "Participation requested", "Your request is awaiting approval."],
-  [[waiting, invitation], "Invitation received", "You have an invitation awaiting your response."],
+  [[waiting, invitation], "Invitation received", "You have received an invitation."],
   [[waiting], "Waiting list", "You are on the waiting list, not assigned a place."],
 ] as const)("shows one truthful aggregate for %s", async (rows, label, description) => {
   renderWithI18n(
     <EventCard event={{ ...plannedEvent, role: "invited", myRegistrations: [...rows] }} />,
   );
-  const button = screen.getByRole("button", { name: label });
+  const button = screen.getByRole("button", {
+    name: rows.some((row) => row.kind === "INVITATION" && row.status === "PENDING")
+      ? `${label} · Reply required`
+      : label,
+  });
   expect(screen.getAllByRole("button")).toHaveLength(1);
   expect(screen.getByRole("link").contains(button)).toBe(false);
   fireEvent.click(button);

@@ -1,5 +1,39 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Static unread dots and independent pending decisions
+
+- Replaced card/contact accent borders and precise-item pulse overlays with static semantic accent
+  dots. Card dots follow the shrinkable title; contact dots follow names. Game/location dots use
+  a title accessory, outside vote actions, retaining full-name accessibility and fixed marker space.
+  Dates and read-only sections retain explicit reads/anchors. No visible novelty label was added.
+- Pending action glyphs are independent of unread state. Group admins receive a complete owner-only
+  actionable REQUEST count excluding live bans; other viewers receive null, never member identities.
+  Single status popovers retain role/participation and show request review or invitation reply.
+  Members and pending request rows guide admins to existing decisions. Own outgoing requests remain
+  waiting. Events aggregate complete own Table invitations; Table reply honors canRespond and the
+  exact public cutoff. Table SELF registration remains ACCEPTED; no new approval writer or Event
+  membership was added. Existing authoritative membership reconciliation refreshes source metadata.
+- Removed obsolete pulse components, ephemeral Zustand pulse slice, pulse CSS and presentation-only
+  schema helper. Source notification signal/revision/read-effect data, batched recipient ownership,
+  selective rollback, uncertain-write verification and consent transactions remain unchanged. Default
+  HeroUI palettes, artwork motion/reduced-motion behavior, EN/IT and provider/privacy policy remain.
+- Local checks: 2,289 covered units (shared 402, schemas 123, API 763, mobile 290, web 711),
+  workspace typecheck and 102 workflow/script checks pass. New pending-decision logic and web dot/
+  status popovers have per-file 100% coverage gates. Full replica-set integration passes 104 tests,
+  including owner-only/source-paged request metadata, live/revoked/expired bans, explicit read
+  independence and real approvals/rejections. The first new fixture failed the existing public-logo
+  validation and was corrected, never by weakening schema or gates.
+- Production API/web builds and Android export pass with exact generated-reference restoration and
+  seven protected inputs unchanged. Isolated Chromium/production CSS checks at 390/1280 in light/dark
+  cover long-name ellipsis, dots after titles, fixed precise markers/read targets, no attention motion,
+  action signals surviving cleared unread fixture data, source decision resolution, EN/IT, stock
+  palette equality, stable artwork and existing list/status behavior. Real browser testing caught
+  HeroUI Badge's default absolute placement; inline markers explicitly reset layout positioning only.
+  Query-seeded component fixtures are not authenticated E2E or native/device acceptance. Those gates
+  remain unverified; existing suites/jobs and installed APK testing are unchanged.
+- These records supersede older border/pulse presentation below; historical verification remains
+  historical, not evidence for this UI. No provider mutation, dependency update or database migration.
+
 ## Installed HeroUI default palettes, no application color overrides
 
 - Both client CSS entries now inherit their installed HeroUI default light/dark palettes unchanged.

@@ -11,6 +11,7 @@ export function HelpPopover({
   placement = "bottom start",
   icon: Icon = CircleHelp,
   tone = "muted",
+  indicator,
   children,
 }: {
   label: string;
@@ -18,6 +19,7 @@ export function HelpPopover({
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success";
   className?: string;
+  indicator?: ReactNode;
   placement?: ComponentProps<typeof Popover.Content>["placement"];
   children: ReactNode;
 }) {
@@ -30,9 +32,10 @@ export function HelpPopover({
     <Popover>
       <Popover.Trigger
         aria-label={label}
-        className={`button button--sm button--icon-only button--ghost inline-flex min-h-11 min-w-11 items-center justify-center ${colors[tone]}`}
+        className={`button button--sm button--icon-only button--ghost relative inline-flex min-h-11 min-w-11 items-center justify-center ${colors[tone]}`}
       >
         <Icon className="size-5" aria-hidden="true" />
+        {indicator}
       </Popover.Trigger>
       <Popover.Content placement={placement} className={className}>
         <Popover.Dialog className="whitespace-normal break-words p-3 text-sm">

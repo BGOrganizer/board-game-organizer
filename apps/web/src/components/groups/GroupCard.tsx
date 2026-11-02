@@ -2,6 +2,7 @@
 import type { ClientGroupRecord } from "@board-game-organizer/shared";
 import {
   formatLocationAddress,
+  groupPendingAction,
   useNotificationAttentionContext,
 } from "@board-game-organizer/shared";
 import { Button } from "@heroui/react";
@@ -17,6 +18,7 @@ import {
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { ClientRecordBadge, useClientRecordStatus } from "@/components/common/ui/ClientRecordBadge";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
+import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { GroupArtwork } from "./GroupArtwork";
 import { GroupStatusBadge } from "./GroupStatusBadge";
 export function GroupCard({
@@ -61,6 +63,7 @@ export function GroupCard({
         indicator ? (
           <ArtworkStatusPopover
             kind={indicator}
+            action={local ? null : groupPendingAction(group)}
             label={
               indicator === "admin"
                 ? t`Group admin`
@@ -91,7 +94,12 @@ export function GroupCard({
       <GroupArtwork group={group} status="none" />
       <span className="min-w-0 flex-1 space-y-1">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate font-semibold">{group.name}</span>
+          <span className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="min-w-0 truncate font-semibold">{group.name}</span>
+            <NotificationUnreadDot
+              active={!local && Boolean(attention?.get(attentionTarget)?.count)}
+            />
+          </span>
           {local ? <ClientRecordBadge phase={local.phase} /> : <GroupStatusBadge group={group} />}
         </span>
         <span className="flex items-center gap-1 text-xs text-muted">

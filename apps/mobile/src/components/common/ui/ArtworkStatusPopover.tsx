@@ -1,7 +1,16 @@
-import type { ParticipationIndicator } from "@board-game-organizer/shared";
+import type { ParticipationIndicator, PendingAction } from "@board-game-organizer/shared";
+import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
-import { Clock3, Crown, ListOrdered, Mail, UserRoundCheck } from "lucide-react-native";
+import {
+  Clock3,
+  Crown,
+  ListOrdered,
+  Mail,
+  UserRoundCheck,
+  UserRoundPlus,
+} from "lucide-react-native";
+import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 import { HelpPopover } from "./HelpPopover";
 
@@ -9,12 +18,15 @@ import { HelpPopover } from "./HelpPopover";
 export function ArtworkStatusPopover({
   kind,
   label,
+  action,
 }: {
   kind: ParticipationIndicator | "admin" | "member" | undefined;
   label?: string;
+  action?: PendingAction | null;
 }) {
   const t = useT();
-  if (kind === undefined)
+  const warning = useThemeColor("warning-soft-foreground");
+  if (kind === undefined && !action)
     return (
       <Skeleton
         accessibilityLabel={t("Loading…")}
@@ -35,7 +47,7 @@ export function ArtworkStatusPopover({
     invitation: {
       icon: Mail,
       label: t("Invitation received"),
-      description: t("You have an invitation awaiting your response."),
+      description: t("You have received an invitation."),
     },
     waiting: {
       icon: ListOrdered,
@@ -49,16 +61,45 @@ export function ArtworkStatusPopover({
       description: t("You are a member of this group."),
     },
   };
-  const state = states[kind];
+  const state = states[kind ?? "invitation"];
   const title = label ?? state.label;
+  const actionLabel = action === "review" ? t("Requests to review") : t("Reply required");
+  const ActionIcon = action === "review" ? UserRoundPlus : Mail;
   return (
     <HelpPopover
-      label={title}
+      label={action ? `${title} · ${actionLabel}` : title}
       title={title}
       icon={state.icon}
       tone={kind === "confirmed" || kind === "member" ? "success" : "warning"}
+      indicator={
+        action && state.icon !== ActionIcon ? (
+          <View
+            pointerEvents="none"
+            className="bg-surface"
+            style={{
+              position: "absolute",
+              top: 2,
+              right: 2,
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ActionIcon size={12} color={warning} accessible={false} />
+          </View>
+        ) : undefined
+      }
     >
       <Typography className="text-foreground">{state.description}</Typography>
+      {action ? (
+        <Typography className="text-foreground" style={{ marginTop: 8 }}>
+          {action === "review"
+            ? t("Open Members to approve or reject membership requests.")
+            : t("Open details to accept or decline your invitation.")}
+        </Typography>
+      ) : null}
     </HelpPopover>
   );
 }

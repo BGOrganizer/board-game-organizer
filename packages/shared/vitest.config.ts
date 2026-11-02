@@ -33,6 +33,7 @@ export default defineConfig({
         "src/groups/groupAccessCache.ts",
         "src/groups/groupOptimisticCreation.ts",
         "src/community/queryCache.ts",
+        "src/community/pendingActions.ts",
         "src/community/logoUpload.ts",
         "src/groups/groupLogoUpload.ts",
         "src/contacts/contactConnections.ts",
@@ -62,6 +63,12 @@ export default defineConfig({
         "src/contacts/phoneCountries.ts",
       ],
       thresholds: {
+        "src/community/pendingActions.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/eventParticipation.ts": {
           lines: 100,
           functions: 100,

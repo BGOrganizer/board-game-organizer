@@ -10,6 +10,7 @@ export function LocationListRow({
   name,
   address,
   leading,
+  titleAccessory,
   actions,
   children,
   onPress,
@@ -18,6 +19,7 @@ export function LocationListRow({
   name: string;
   address?: string;
   leading?: ReactNode;
+  titleAccessory?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
   onPress?: () => void;
@@ -25,9 +27,12 @@ export function LocationListRow({
 }) {
   const identity = (
     <div className="min-w-0 flex-1 text-left">
-      <p className="truncate text-sm font-medium" title={name}>
-        {name}
-      </p>
+      <div className="flex min-w-0 items-center gap-2">
+        <p className="min-w-0 truncate text-sm font-medium" title={name}>
+          {name}
+        </p>
+        {titleAccessory}
+      </div>
       {address ? (
         <p className="truncate text-xs text-muted" title={address}>
           {formatLocationAddress(address)}
