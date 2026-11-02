@@ -5329,3 +5329,11 @@ msgstr "Hai un invito in attesa di una tua risposta."
 #: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
 msgid "Your request is awaiting approval."
 msgstr "La tua richiesta è in attesa di approvazione."
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "Group member"
+msgstr "Membro del gruppo"
+
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "You are a member of this group."
+msgstr "Sei un membro di questo gruppo."

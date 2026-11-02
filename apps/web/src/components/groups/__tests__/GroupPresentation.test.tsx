@@ -1,5 +1,5 @@
 import type { GroupRecordResponse } from "@board-game-organizer/schemas";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { GroupCard } from "../GroupCard";
@@ -37,6 +37,22 @@ describe("unified group presentation", () => {
     expect(screen.getByRole("button", { name: "Group admin" })).not.toBeNull();
     expect(screen.getByText("Private")).not.toBeNull();
     expect(screen.queryByText("Approved")).toBeNull();
+  });
+  it("explains accepted membership below artwork without entering the group", async () => {
+    renderWithI18n(<GroupCard group={{ ...base, role: "accepted" }} />);
+    const badge = screen.getByRole("button", { name: "Group member" });
+    expect(badge.className).toContain("text-success-soft-foreground");
+    expect(badge.parentElement?.className).toContain("top-20");
+    expect(badge.parentElement?.className).toContain("justify-center");
+    expect(badge.querySelector("svg.lucide-user-round-check")).not.toBeNull();
+    expect(screen.getByRole("link").contains(badge)).toBe(false);
+    expect(screen.queryByRole("button", { name: "Group admin" })).toBeNull();
+    fireEvent.click(badge);
+    expect(await screen.findByText("You are a member of this group.")).not.toBeNull();
+  });
+  it("does not infer membership from discovery or readable public metadata", () => {
+    renderWithI18n(<GroupCard group={{ ...base, type: "PUBLIC", role: "none" }} />);
+    expect(screen.queryByRole("button", { name: "Group member" })).toBeNull();
   });
   it("routes invited cards to details without consent controls or accepted-member capabilities", () => {
     const invited: GroupRecordResponse = {

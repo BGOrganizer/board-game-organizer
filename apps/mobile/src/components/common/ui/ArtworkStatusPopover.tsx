@@ -10,7 +10,7 @@ export function ArtworkStatusPopover({
   kind,
   label,
 }: {
-  kind: ParticipationIndicator | "admin" | undefined;
+  kind: ParticipationIndicator | "admin" | "member" | undefined;
   label?: string;
 }) {
   const t = useT();
@@ -43,6 +43,11 @@ export function ArtworkStatusPopover({
       description: t("You are on the waiting list, not assigned a place."),
     },
     admin: { icon: Crown, label: t("Administrator"), description: t("You administer this item.") },
+    member: {
+      icon: UserRoundCheck,
+      label: t("Group member"),
+      description: t("You are a member of this group."),
+    },
   };
   const state = states[kind];
   const title = label ?? state.label;
@@ -51,7 +56,7 @@ export function ArtworkStatusPopover({
       label={title}
       title={title}
       icon={state.icon}
-      tone={kind === "confirmed" ? "success" : "warning"}
+      tone={kind === "confirmed" || kind === "member" ? "success" : "warning"}
     >
       <Typography className="text-foreground">{state.description}</Typography>
     </HelpPopover>

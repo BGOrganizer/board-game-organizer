@@ -48,7 +48,9 @@ export function GroupCard({
         ? "invitation"
         : group.role === "requested"
           ? "request"
-          : null;
+          : group.role === "accepted"
+            ? "member"
+            : null;
   const Visibility = group.type === "PUBLIC" ? LockKeyholeOpen : LockKeyhole;
   const local = group.optimistic,
     status = useClientRecordStatus(local?.phase);
@@ -66,7 +68,7 @@ export function GroupCard({
                 ? t("Group admin")
                 : indicator === "request"
                   ? t("Membership requested")
-                  : t("Invitation received")
+                  : undefined
             }
           />
         ) : undefined

@@ -1,5 +1,22 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Accepted Group member indicator
+
+- Web/native Group list cards now include a centered success check below artwork for the authorized
+  `accepted` role, with Group member / Membro del gruppo help. Admin, invitation and request indicators
+  retain their precedence; discovery-only viewers do not gain member presentation or capabilities.
+  Existing platform-owned popovers, success foreground tokens, layout and independent navigation are
+  reused; help does not accept invitations or acknowledge attention. EN/IT catalogs are compiled.
+- Header/bell color investigation found the existing central danger-foreground eclipse/black overrides,
+  not literal icon/text colors. Neutral ghost foreground remains theme-aware; no palette/foreground
+  pair was changed without agreement on the separate danger-pair adjustment.
+- Checks: 1,001 covered client units (web 710, mobile 291), workspace typecheck and scoped Biome pass.
+  Web production build and Android export pass; generated references restored exactly and protected
+  inputs remain 7/7. Isolated Chromium at 390/1280 in light/dark verifies member centering, success
+  color, EN/IT help without navigation and absence for discovery-only viewers, alongside existing
+  invitation/request/admin and Event/Table presentation. Authenticated E2E and native-device
+  acceptance remain unverified; no installed APK/device or acceptance suite/job was changed.
+
 ## Consistent headers, stable artwork and centered participation help
 
 - Application headers use 20px Lucide glyphs, HeroUI small actions and minimum 44px native touch

@@ -150,7 +150,9 @@ The [old contract](organizations-events.md) is retained as a historical deployme
   requests never expose self-approval. Following rows show first game
   with Dices and localized additional `+n game/games`, optional demonstrator with presentation icon,
   and all joint winner names with trophy only when terminated. Group list invitation/request/admin
-  indicators use the same centered explanatory action; compact picker/detail overlays remain unchanged.
+  indicators use the same centered explanatory action. Accepted members also receive a success check
+  with a Group member explanation; pending applicants/invitees and discovery-only viewers never receive
+  that member indicator. Compact picker/detail overlays remain unchanged.
   Generated Group Landscape artwork uses the Group ID, never its mutable name. Uploaded logos remain
   untouched; unsaved Table artwork retains its existing local key until a server ID exists.
 - Event list cards have one centered participation indicator. A complete own-registration source

@@ -1,4 +1,3 @@
-import type { ParticipationIndicator } from "@board-game-organizer/shared";
 import { fireEvent, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
@@ -35,6 +34,7 @@ it.each([
     "text-warning",
   ],
   ["admin", "Administrator", "You administer this item.", "crown", "text-warning"],
+  ["member", "Group member", "You are a member of this group.", "user-round-check", "text-success"],
 ] as const)(
   "explains %s without activating card navigation",
   async (kind, label, description, icon, tone) => {
@@ -44,7 +44,7 @@ it.each([
         href="/events/id"
         label="Open item"
         onOpen={onOpen}
-        leadingActions={<ArtworkStatusPopover kind={kind as ParticipationIndicator | "admin"} />}
+        leadingActions={<ArtworkStatusPopover kind={kind} />}
       >
         <span>Item content</span>
       </LinkedListCard>,

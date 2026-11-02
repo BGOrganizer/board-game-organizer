@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
+import { runInNewContext } from "node:vm";
 import { expect, it } from "vitest";
 
 const source = (file: string) =>
@@ -89,6 +90,21 @@ it("keeps shared invitation dimensions and semantic controls in details, never l
   expect(actions).toContain("<X size={14}");
   expect(actions).not.toContain("#6b7280");
   expect(actions).not.toContain("#fff");
+});
+it.each([
+  ["admin", "admin"],
+  ["invited", "invitation"],
+  ["requested", "request"],
+  ["accepted", "member"],
+  ["none", null],
+])("projects authoritative Group role %s to %s without granting membership", (role, expected) => {
+  const value = source("groups/GroupCard").match(/const indicator =([\s\S]*?);/)?.[1];
+  expect(value).toBeTruthy();
+  expect(runInNewContext(`(${value})`, { group: { role } })).toBe(expected);
+  const status = source("common/ui/ArtworkStatusPopover");
+  expect(status).toContain('t("Group member")');
+  expect(status).toContain('t("You are a member of this group.")');
+  expect(status).toContain('kind === "member" ? "success"');
 });
 it("keeps group type/moderation artwork distinct and group creator protected", () => {
   expect(source("groups/GroupCard")).toContain("GroupArtwork");
