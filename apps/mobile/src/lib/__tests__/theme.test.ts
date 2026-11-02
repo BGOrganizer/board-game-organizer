@@ -26,19 +26,19 @@ it.each(["light", "dark", "custom-brand"])(
   },
 );
 
-it("keeps white accent labels/icons and one shared light/dark accent calibration in the theme entries", () => {
+it("inherits installed HeroUI default palettes without app theme-variable overrides", () => {
   const root = fileURLToPath(new URL("../../../../../", import.meta.url));
-  const tokens = (file: string, name: string) =>
-    [
-      ...readFileSync(`${root}${file}`, "utf8").matchAll(new RegExp(`--${name}:\\s*([^;]+);`, "g")),
-    ].map((match) => match[1].trim());
-  const webAccent = tokens("apps/web/src/app/globals.css", "accent");
-  const nativeAccent = tokens("apps/mobile/global.css", "accent");
-  expect(webAccent).toHaveLength(2);
-  expect(nativeAccent).toEqual(webAccent);
-  expect(new Set(webAccent).size).toBe(1);
-  for (const file of ["apps/mobile/global.css", "apps/web/src/app/globals.css"])
-    expect(tokens(file, "accent-foreground")).toEqual(["var(--snow)", "var(--snow)"]);
+  for (const [file, library] of [
+    ["apps/mobile/global.css", "heroui-native/styles"],
+    ["apps/web/src/app/globals.css", "@heroui/styles"],
+  ]) {
+    const css = readFileSync(`${root}${file}`, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(css).toContain(`@import "${library}";`);
+    expect(css).not.toMatch(/--[\w-]+\s*:/);
+  }
+  const native = readFileSync(`${root}apps/mobile/global.css`, "utf8");
+  expect(native).toContain('@source "./src";');
+  expect(native).toContain('@source "../../node_modules/heroui-native/lib";');
 });
 
 it("keeps both clients' runtime UI free of literal palettes and obsolete HeroUI v2 color classes", () => {
@@ -69,8 +69,9 @@ it("keeps both clients' runtime UI free of literal palettes and obsolete HeroUI 
           violations.push(`${relative}:${line}: ${value}`);
       };
       if (file.endsWith(".css")) {
-        // Theme entry points may define HeroUI variables; runtime selectors must consume them.
-        const css = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[\w-]+\s*:[^;]+;/g, "");
+        const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
+        if (/--[\w-]+\s*:/.test(css))
+          violations.push(`${relative}: app CSS must not override HeroUI theme variables`);
         inspect(css, 1);
         if (/#[\da-f]{3,8}\b/i.test(css))
           violations.push(`${relative}: literal CSS color outside a theme variable`);

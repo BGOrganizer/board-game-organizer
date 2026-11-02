@@ -1,24 +1,6 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
-/* Accent keeps HeroUI's snow foreground; calibrate its tone here for readable compact labels. */
-@layer theme {
-  :root,
-  .light,
-  [data-theme="light"] {
-    --accent: oklch(0.51 0.195 253.83);
-    --accent-foreground: var(--snow);
-    --danger-foreground: var(--eclipse);
-  }
-
-  .dark,
-  [data-theme="dark"] {
-    --accent: oklch(0.51 0.195 253.83);
-    --accent-foreground: var(--snow);
-    --danger-foreground: var(--black);
-  }
-}
-
 .dicebear-artwork {
   animation: match-waves 3s ease-in-out infinite alternate;
 }

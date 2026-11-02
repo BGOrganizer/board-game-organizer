@@ -1,5 +1,30 @@
 # Unified Groups / Events / Tables implementation checkpoint
 
+## Installed HeroUI default palettes, no application color overrides
+
+- Both client CSS entries now inherit their installed HeroUI default light/dark palettes unchanged.
+  Removed the custom accent lightness and all app accent/danger foreground declarations; no duplicate
+  palette, literal replacement colors, custom theme or per-control patch was added. Solid primary/
+  danger controls and bell numbers use the library foreground pair; neutral ghost icons continue to
+  follow foreground. Existing semantic status colors, Group member help, attention, reduced motion,
+  provider artwork contrast and light/dark navigation/state preservation remain unchanged.
+- Regression checks require the official style imports and reject app CSS theme-variable declarations,
+  while retaining the whole-client literal-color/v2-class guard. AGENTS.md and README now require
+  installed defaults rather than application calibration. No UI wording or catalogs changed.
+- This decision supersedes the historical accent-calibration and eclipse/black danger-foreground
+  records below. Library default color pairs are not a claim of measured WCAG text compliance;
+  any upstream contrast finding must be reported, not hidden by another local palette adjustment.
+- Measured installed defaults: normal-size white primary text is about 3.59:1; danger text/counts
+  about 3.48:1 in light and 4.35:1 in dark. These are below 4.5:1 for normal-size text; icon pairs
+  exceed 3:1. Defaults remain unchanged per the explicit no-custom-palette decision. This is an
+  upstream accessibility limitation, not a passing WCAG text audit or permission to hide findings.
+- Checks: 1,001 covered client units (mobile 291, web 710), workspace typecheck, scoped Biome and
+  diff checks pass. Web production build and Android export pass with exact generated-reference
+  restoration and protected inputs 7/7. Actual Chromium at 390/1280 in light/dark matches installed
+  vendor color values, checks white primary/danger glyphs and bell counts, neutral foreground,
+  preserved draft/theme state and accepted-member EN/IT help alongside existing list regressions.
+  Authenticated E2E/native-device acceptance remains unverified; installed APK testing was untouched.
+
 ## Accepted Group member indicator
 
 - Web/native Group list cards now include a centered success check below artwork for the authorized

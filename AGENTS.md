@@ -24,8 +24,8 @@ Core rules:
   `.env.example` templates may contain names and placeholders only.
 - Use **Biome**, not ESLint or Prettier.
 - Every runtime UI color must come from HeroUI semantic tokens: no component-local RGB/hex,
-  Tailwind palette colors, obsolete v2 shade classes, or parallel palette. Customize existing theme
-  variables and foreground/background pairs in each app's global CSS, not individual components.
+  Tailwind palette colors, obsolete v2 shade classes, or parallel palette. Use the installed HeroUI
+  default light/dark palettes and foreground/background pairs without app theme-variable overrides.
   Provider artwork keeps its brand colors; required dark artwork uses an existing HeroUI light
   surface scope for contrast, never a literal white backplate.
 - Use `import type` for type-only imports.
